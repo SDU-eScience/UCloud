@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.calls.BulkResponse
@@ -16,19 +17,22 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.responseAllocator
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 
 class AccountingController(
+    private val micro: Micro,
     private val accounting: AccountingSystem,
     private val dataVisualization: DataVisualization,
     private val notifications: DepositNotificationService,
     private val idCards: IdCardService,
     private val client: AuthenticatedClient,
+    private val apmNotifications: ApmNotificationService,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
@@ -204,20 +208,20 @@ class AccountingController(
             )
         }
 
-        implement(DepositNotifications.retrieve) {
-            ok(notifications.retrieveNotifications(actorAndProject))
-        }
-
-        implement(DepositNotifications.markAsRead) {
-            notifications.markAsRead(actorAndProject, request)
-            ok(Unit)
-        }
-
         implement(VisualizationV2.retrieveCharts) {
             ok(dataVisualization.retrieveChartsV2(idCards.fetchIdCard(actorAndProject), request))
         }
 
         return@with
+    }
+
+    fun onKtorReady() {
+        val ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application ?: return
+        ktor.routing {
+            webSocket(ApmNotifications.PATH) {
+                apmNotifications.handleClient(this)
+            }
+        }
     }
 
     companion object : Loggable {

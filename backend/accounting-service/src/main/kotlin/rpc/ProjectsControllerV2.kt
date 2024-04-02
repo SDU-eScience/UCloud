@@ -14,7 +14,6 @@ import io.ktor.server.request.*
 
 class ProjectsControllerV2(
     private val projects: ProjectService,
-    private val notifications: ProviderNotificationService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.retrieve) {
@@ -128,14 +127,6 @@ class ProjectsControllerV2(
 
         implement(Projects.deleteGroupMember) {
             ok(projects.deleteGroupMember(actorAndProject, request))
-        }
-
-        implement(ProjectNotifications.retrieve) {
-            ok(notifications.pullNotifications(actorAndProject))
-        }
-
-        implement(ProjectNotifications.markAsRead) {
-            ok(notifications.markAsRead(actorAndProject, request))
         }
 
         implement(Projects.retrieveProviderProject) {

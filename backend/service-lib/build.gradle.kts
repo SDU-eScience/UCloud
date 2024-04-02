@@ -14,7 +14,7 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "2.3.0"
+    val ktorVersion = "2.3.9"
 
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")

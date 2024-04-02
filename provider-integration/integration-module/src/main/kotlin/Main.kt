@@ -371,6 +371,7 @@ fun main(args: Array<String>) {
                 rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
             }
 
+            var authenticator: RefreshingJWTAuthenticator? = null
             val rpcClient: AuthenticatedClient? = when (serverMode) {
                 ServerMode.Server -> {
                     val client = RpcClient().also { client ->
@@ -385,11 +386,13 @@ fun main(args: Array<String>) {
                                     )
                                 )
                             )
+
+                        client.attachRequestInterceptor(OutgoingWSRequestInterceptor())
                     }
 
                     client.attachFilter(OutgoingProject())
 
-                    val authenticator = RefreshingJWTAuthenticator(
+                    authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
                     )
@@ -641,7 +644,15 @@ fun main(args: Array<String>) {
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
-            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, debugSystem)
+            val pluginContext = SimplePluginContext(
+                rpcClient,
+                config,
+                ipcClient,
+                ipcServer,
+                cli,
+                debugSystem,
+                authenticator,
+            )
             serviceContext = pluginContext
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
 

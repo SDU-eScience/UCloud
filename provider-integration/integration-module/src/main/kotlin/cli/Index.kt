@@ -13,6 +13,5 @@ fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     EvilCli(controllerContext)
     UDockerCli(controllerContext)
     ExtensionsCli(controllerContext)
-    EventsCli(controllerContext)
     StorageScanCli(controllerContext)
 }

@@ -32,7 +32,7 @@ import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
-private typealias OnProjectUpdatedHandler = suspend (projects: Collection<String>) -> Unit
+private typealias OnProjectUpdatedHandler = suspend (projects: Collection<Project>) -> Unit
 
 class ProjectService(
     private val db: DBContext,
@@ -45,6 +45,24 @@ class ProjectService(
 
     fun addUpdateHandler(handler: OnProjectUpdatedHandler) {
         updateHandlers.add(handler)
+    }
+
+    suspend fun notifyChanges(session: AsyncDBConnection, ids: List<String>) {
+        val mapped = ids.map { id ->
+            retrieve(
+                ActorAndProject.System,
+                ProjectsRetrieveRequest(
+                    id,
+                    includeMembers = true,
+                    includeGroups = true,
+                    includeSettings = true,
+                    includePath = true
+                ),
+                ctx = session,
+            )
+        }
+
+        updateHandlers.forEach { it(mapped) }
     }
 
     suspend fun findProjectsUpdatedSince(
@@ -788,8 +806,8 @@ class ProjectService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = db,
     ) {
+        val projects = request.items.map { it.id }
         ctx.withSession { session ->
-            val projects = request.items.map { it.id }
             requireAdmin(actorAndProject.actor, projects, session)
             session.sendPreparedStatement(
                 { setParameter("ids", projects) },
@@ -801,8 +819,7 @@ class ProjectService(
                     where id = some(:ids::text[])
                 """
             )
-
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
         }
     }
 
@@ -836,8 +853,8 @@ class ProjectService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = db,
     ) {
+        val projects = request.items.map { it.id }
         ctx.withSession { session ->
-            val projects = request.items.map { it.id }
             requireAdmin(actorAndProject.actor, projects, session)
             session.sendPreparedStatement(
                 { setParameter("ids", projects) },
@@ -850,7 +867,7 @@ class ProjectService(
                 """
             )
 
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
         }
     }
 
@@ -922,7 +939,7 @@ class ProjectService(
                 """
             )
 
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
         }
     }
 
@@ -1248,10 +1265,9 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
+            projectCache.invalidate(actorAndProject.actor.safeUsername())
         }
-
-        projectCache.invalidate(actorAndProject.actor.safeUsername())
     }
 
     suspend fun deleteInvite(
@@ -1582,26 +1598,26 @@ class ProjectService(
         request: BulkRequest<ProjectsDeleteMemberRequestItem>,
         ctx: DBContext = db,
     ) {
-        ctx.withSession { session ->
-            // Verify that the request is valid and makes sense
-            val (actor) = actorAndProject
-            val isLeaving = request.items.size == 1 && request.items.single().username == actor.safeUsername()
+        // Verify that the request is valid and makes sense
+        val (actor) = actorAndProject
+        val isLeaving = request.items.size == 1 && request.items.single().username == actor.safeUsername()
 
-            // Personal workspaces are not actual projects. Make sure we didn't get this request without a project.
-            val project = actorAndProject.requireProject()
+        // Personal workspaces are not actual projects. Make sure we didn't get this request without a project.
+        val project = actorAndProject.requireProject()
 
-            // Make sure that we are not trying to kick ourselves along with other users. Not allowing this simplifies
-            // our code quite a bit.
-            if (!isLeaving) {
-                val containsSelf = request.items.any { it.username == actor.safeUsername() }
-                if (containsSelf) {
-                    throw RPCException(
-                        "Cannot remove members from a project while also leaving",
-                        HttpStatusCode.BadRequest
-                    )
-                }
+        // Make sure that we are not trying to kick ourselves along with other users. Not allowing this simplifies
+        // our code quite a bit.
+        if (!isLeaving) {
+            val containsSelf = request.items.any { it.username == actor.safeUsername() }
+            if (containsSelf) {
+                throw RPCException(
+                    "Cannot remove members from a project while also leaving",
+                    HttpStatusCode.BadRequest
+                )
             }
+        }
 
+        ctx.withSession { session ->
             // Enforce admin permissions if we are not leaving the project
             if (!isLeaving) {
                 requireAdmin(actor, listOf(project), session)
@@ -1670,7 +1686,7 @@ class ProjectService(
                 }
             }
 
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
         }
 
         for (reqItem in request.items) {
@@ -1840,8 +1856,7 @@ class ProjectService(
                     serviceClient
                 )
             }
-
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
             for (reqItem in requestItems) {
                 projectCache.invalidate(reqItem.username)
             }
@@ -1856,7 +1871,7 @@ class ProjectService(
     ): BulkResponse<FindByStringId> {
         val (actor) = actorAndProject
         val projects = request.items.map { it.project }.toSet()
-        return ctx.withSession { session ->
+        val result = ctx.withSession { session ->
             requireAdmin(actor, projects, session)
 
             session.sendPreparedStatement(
@@ -1891,10 +1906,11 @@ class ProjectService(
                 )
             }
 
-
-            if (dispatchUpdate) updateHandlers.forEach { it(projects) }
+            if (dispatchUpdate) notifyChanges(session, projects.toList())
             BulkResponse(ids.map { FindByStringId(it) })
         }
+
+        return result
     }
 
     private suspend fun requireAdminOfGroups(
@@ -2003,7 +2019,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndOldTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndOldTitles.map { it.first })
+            affectedProjectsAndOldTitles
         }
     }
 
@@ -2060,7 +2077,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndTitles.map { it.first })
+            affectedProjectsAndTitles
         }
     }
 
@@ -2128,7 +2146,8 @@ class ProjectService(
                 "update project.projects set modified_at = now() where id = some(:projects::text[])"
             )
 
-            if (dispatchUpdate) updateHandlers.forEach { it(affectedProjects) }
+            if (dispatchUpdate) notifyChanges(session, affectedProjects)
+            affectedProjects
         }
     }
 
@@ -2192,7 +2211,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndGroupTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndGroupTitles.map { it.first })
+            affectedProjectsAndGroupTitles
         }
     }
 

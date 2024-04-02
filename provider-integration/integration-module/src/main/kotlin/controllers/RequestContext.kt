@@ -1,5 +1,6 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.cli.CommandLineInterface
@@ -30,6 +31,8 @@ class SimpleRequestContext(
         get() = delegate.commandLineInterface
     override val debugSystem: DebugSystem
         get() = delegate.debugSystem
+    override val authenticator: RefreshingJWTAuthenticator?
+        get() = delegate.authenticator
 }
 
 fun CallHandler<*, *, *>.requestContext(controllerContext: ControllerContext): RequestContext {

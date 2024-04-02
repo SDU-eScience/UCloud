@@ -1,9 +1,8 @@
 package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.calls.client.OutgoingWSCall
-import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
-import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.service.Logger
@@ -23,6 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 object ApmNotifications {
     fun subscribe(
+        targetHost: HostInfo,
         scope: CoroutineScope,
         auth: RefreshingJWTAuthenticator,
         rpcClient: RpcClient,
@@ -34,22 +34,42 @@ object ApmNotifications {
         val channel = Channel<NotificationMessage>(Channel.BUFFERED)
 
         scope.launch {
+            val buf = ByteBuffer.allocateDirect(4096)
+
             while (coroutineContext.isActive) {
                 try {
-                    val connection = interceptor.connectionPool.retrieveConnection(PATH, null)
+                    val url = run {
+                        val host = targetHost.host.removeSuffix("/")
+
+                        // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
+                        // when redirected from WS to WSS.
+                        val port = targetHost.port ?: if (targetHost.scheme == "https") 443 else 80
+                        val scheme = when {
+                            targetHost.scheme == "http" -> "ws"
+                            targetHost.scheme == "https" -> "wss"
+                            port == 80 -> "ws"
+                            port == 443 -> "wss"
+                            else -> "ws"
+                        }
+
+                        val path = PATH.removePrefix("/")
+                        "$scheme://$host:$port/$path"
+                    }
+
+                    val connection = interceptor.connectionPool.retrieveConnection(url, null)
+
                     val session = connection.underlyingSession
 
                     val projects = HashMap<Int, Project>()
                     val products = HashMap<Int, ProductCategory>()
                     val users = HashMap<Int, String>()
 
-                    bufferPool.useInstance { buf ->
-                        buf.put(OP_AUTH)
-                        buf.putLong(receiveUpdatesFrom.get())
-                        buf.putLong(0) // Flags
-                        buf.putString(auth.retrieveTokenRefreshIfNeeded())
-                        session.send(Frame.Binary(true, buf))
-                    }
+                    buf.put(OP_AUTH)
+                    buf.putLong(receiveUpdatesFrom.get())
+                    buf.putLong(0) // Flags
+                    buf.putString(auth.retrieveTokenRefreshIfNeeded())
+                    buf.flip()
+                    session.send(Frame.Binary(true, buf))
 
                     while (session.isActive) {
                         val nextFrame = session.incoming.receiveCatching().getOrNull() ?: break
@@ -85,7 +105,6 @@ object ApmNotifications {
     const val OP_USER_INFO = 4.toByte()
 
     private val log = Logger("ApmNotifications")
-    private val bufferPool by lazy { DirectByteBufferPool(4, 1024 * 1024 * 16) }
 }
 
 private fun ByteBuffer.putString(text: String) {
@@ -97,7 +116,8 @@ private fun ByteBuffer.putString(text: String) {
 private fun ByteBuffer.getString(): String {
     val size = getInt()
     val bytes = ByteArray(size)
-    return get(bytes).decodeString()
+    get(bytes)
+    return bytes.decodeToString()
 }
 
 sealed class NotificationMessage {

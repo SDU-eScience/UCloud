@@ -1,6 +1,9 @@
 alter table accounting.wallets_v2 add column was_locked bool not null default false;
 alter table accounting.wallets_v2 add column last_significant_update_at timestamptz not null default now();
 
+drop table accounting.deposit_notifications;
+drop table project.provider_notifications;
+
 create or replace function project.project_to_json(
     project_in project.projects,
     groups_in project.groups[],

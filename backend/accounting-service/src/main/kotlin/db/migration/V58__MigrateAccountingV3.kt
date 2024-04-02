@@ -11,6 +11,7 @@ import dk.sdu.cloud.toReadableStacktrace
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 import org.joda.time.DateTime
+import java.sql.ResultSet
 import java.sql.Struct
 import java.time.LocalDateTime
 import kotlin.math.max
@@ -375,41 +376,45 @@ class V58__MigrateAccountingV3 : BaseJavaMigration() {
                 }.executeUpdate()
             }
 
+            fun ResultSet.discard() {
+                while (next()) {
+                    // Do nothing
+                }
+            }
+
             //Set sequence values
             run {
-                val maxAllocationIdFound = newAllocations.keys.max()
-
-                connection.prepareStatement(
-                    """
-                    select setval('accounting.wallet_allocations_v2_id_seq', ?, true);
-                """
-                ).apply {
-                    setLong(1, maxAllocationIdFound)
-                }.executeQuery().let { while (it.next()) {} }
+                val maxAllocationIdFound = newAllocations.keys.maxOrNull()
+                if (maxAllocationIdFound != null) {
+                    connection.prepareStatement(
+                        "select setval('accounting.wallet_allocations_v2_id_seq', ?, true);"
+                    ).apply {
+                        setLong(1, maxAllocationIdFound)
+                    }.executeQuery().discard()
+                }
             }
 
             run {
-                val maxGroupIdFound = newAllocationGroups.keys.max()
+                val maxGroupIdFound = newAllocationGroups.keys.maxOrNull()
+                if (maxGroupIdFound != null) {
 
-                connection.prepareStatement(
-                    """
-                    select setval('accounting.allocation_groups_id_seq', ?, true);
-                """
-                ).apply {
-                    setLong(1, maxGroupIdFound)
-                }.executeQuery().let { while (it.next()) {} }
+                    connection.prepareStatement(
+                        "select setval('accounting.allocation_groups_id_seq', ?, true);"
+                    ).apply {
+                        setLong(1, maxGroupIdFound)
+                    }.executeQuery().discard()
+                }
             }
 
             run {
-                val maxWalletIdFound = newWallets.keys.max()
-
-                connection.prepareStatement(
-                    """
-                    select setval('accounting.wallets_v2_id_seq', ?, true);
-                """
-                ).apply {
-                    setLong(1, maxWalletIdFound)
-                }.executeQuery().let { while (it.next()) {} }
+                val maxWalletIdFound = newWallets.keys.maxOrNull()
+                if (maxWalletIdFound != null) {
+                    connection.prepareStatement(
+                        "select setval('accounting.wallets_v2_id_seq', ?, true);"
+                    ).apply {
+                        setLong(1, maxWalletIdFound)
+                    }.executeQuery().discard()
+                }
             }
         } catch (ex: Throwable) {
             println(ex.toReadableStacktrace())

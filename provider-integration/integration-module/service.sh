@@ -53,7 +53,14 @@ startsvc() {
     if ! isrunning; then
         gradle buildDebug --console=plain
 
-        nohup sudo -u "#$uid" ucloud &> /tmp/service.log &
+        if [[ $running_k8 == 0 ]]; then
+	    JAVA_OPTS='-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=*:51232,suspend=n'
+	    export JAVA_OPTS
+        fi
+	echo "Options below"
+	echo $JAVA_OPTS
+	set -x
+        nohup sudo -u "#$uid" JAVA_OPTS="$JAVA_OPTS" ucloud &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

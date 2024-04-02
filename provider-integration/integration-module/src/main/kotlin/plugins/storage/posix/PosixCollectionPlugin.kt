@@ -153,6 +153,10 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         try {
             val now = Time.now()
             if (now >= nextScan) {
+                // TODO
+                // TODO
+                // TODO
+                /*
                 debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Posix collection monitoring") {
                     productCategories.forEachGraal { category ->
                         var next: String? = null
@@ -184,6 +188,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                         }
                     }
                 }
+                 */
             }
 
             delay(5000)

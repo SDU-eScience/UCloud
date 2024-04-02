@@ -113,14 +113,6 @@ fun generateCode() {
                 "Accounting and Project Management",
                 listOf(
                     Chapter.Feature("projects", "Projects", dk.sdu.cloud.project.api.v2.Projects),
-                    Chapter.Feature("project-notifications", "Project notifications", dk.sdu.cloud.project.api.v2.ProjectNotifications),
-                    Chapter.Feature(
-                        "project-notifications-providers",
-                        "Project notifications (Provider API)",
-                        dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider(
-                            PROVIDER_ID_PLACEHOLDER
-                        )
-                    ),
                     Chapter.Feature("providers", "Providers", Providers),
                     Chapter.Feature("products", "Products", Products),
                     Chapter.Node(

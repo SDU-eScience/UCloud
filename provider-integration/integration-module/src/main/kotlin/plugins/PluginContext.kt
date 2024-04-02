@@ -1,11 +1,11 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.ipc.IpcClient
-import dk.sdu.cloud.ipc.RealIpcClient
 import dk.sdu.cloud.ipc.IpcServer
 
 interface PluginContext {
@@ -15,6 +15,7 @@ interface PluginContext {
     val ipcServerOptional: IpcServer?
     val commandLineInterface: CommandLineInterface?
     val debugSystem: DebugSystem
+    val authenticator: RefreshingJWTAuthenticator?
 }
 
 val PluginContext.rpcClient: AuthenticatedClient
@@ -33,4 +34,5 @@ class SimplePluginContext(
     override val ipcServerOptional: IpcServer?,
     override val commandLineInterface: CommandLineInterface?,
     override val debugSystem: DebugSystem,
+    override val authenticator: RefreshingJWTAuthenticator?,
 ) : PluginContext

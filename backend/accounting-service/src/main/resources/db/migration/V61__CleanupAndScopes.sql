@@ -18,6 +18,12 @@ drop function if exists accounting.charge(requests accounting.charge_request[]);
 
 drop table if exists accounting.product_category_relationship;
 
+drop table if exists accounting.transaction_history;
+drop table if exists accounting.transactions;
+drop table if exists accounting.transactions_backup;
+drop table if exists accounting.wallet_allocations;
+drop table if exists accounting.wallets;
+
 drop type if exists accounting.allocation_selector_policy;
 drop type if exists accounting.transaction_type;
 drop type if exists accounting.product_category_relationship_type;
@@ -26,11 +32,6 @@ drop type if exists accounting.deposit_request;
 drop type if exists accounting.allocation_update_request;
 drop type if exists accounting.transfer_request;
 
-drop table if exists accounting.transaction_history;
-drop table if exists accounting.transactions;
-drop table if exists accounting.transactions_backup;
-drop table if exists accounting.wallet_allocations;
-drop table if exists accounting.wallets;
 
 create table if not exists accounting.scoped_usage(
     key text primary key,

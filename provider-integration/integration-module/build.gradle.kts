@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2024.1.0-dev-37-acc-2"
+        val version = "2024.1.0-dev-37-acc-5"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
@@ -36,7 +36,7 @@ dependencies {
     }
 
     run {
-        val ktorVersion = "2.3.7"
+        val ktorVersion = "2.3.9"
         fun ktor(module: String) = implementation("io.ktor:ktor-$module:$ktorVersion")
 
         ktor("client-websockets")

@@ -34,7 +34,7 @@ dependencies {
     api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
 
     run {
-        val ktorVersion = "2.3.0"
+        val ktorVersion = "2.3.9"
         fun ktor(module: String) {
             api("io.ktor:ktor-$module:$ktorVersion")
         }

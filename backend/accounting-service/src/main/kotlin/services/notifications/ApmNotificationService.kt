@@ -12,10 +12,13 @@ import dk.sdu.cloud.accounting.services.projects.v2.ProjectService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.Project
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.validateAndDecodeOrNull
+import dk.sdu.cloud.toReadableStacktrace
 import io.ktor.server.websocket.*
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
@@ -33,13 +36,15 @@ class ApmNotificationService(
     private val accounting: AccountingSystem,
     private val projects: ProjectService,
     private val tokenValidator: TokenValidation<*>,
+    private val developmentMode: Boolean,
 ) {
     private val projectsUpdated = MutableSharedFlow<Project>()
 
     init {
-        projects.addUpdateHandler { projectIds ->
-            projectIds.forEach { id ->
-                projectsUpdated.emit(retrieveProject(id))
+        projects.addUpdateHandler { projects ->
+            projects.forEach { project ->
+                println("Project update handler called!")
+                projectsUpdated.emit(project)
             }
         }
     }
@@ -47,7 +52,13 @@ class ApmNotificationService(
     private suspend fun retrieveProject(id: String): Project {
         return projects.retrieve(
             ActorAndProject.System,
-            ProjectsRetrieveRequest(id)
+            ProjectsRetrieveRequest(
+                id,
+                includeMembers = true,
+                includeGroups = true,
+                includeSettings = true,
+                includePath = true,
+            )
         )
     }
 
@@ -56,19 +67,26 @@ class ApmNotificationService(
         val frame = incoming.receiveCatching().getOrNull() ?: return
         val buf = frame.buffer
 
-        val opcode = buf.get()
-        if (opcode != 0.toByte()) return
+        var providerId = ""
+        var replayFrom = 0L
+        if (frame.frameType == FrameType.TEXT && developmentMode) {
+            // TODO Remove this
+            providerId = "k8"
+        } else {
+            val opcode = buf.get()
+            if (opcode != 0.toByte()) return
 
-        val replayFrom = buf.getLong()
-        val incomingFlags = buf.getLong()
+            replayFrom = buf.getLong()
+            val incomingFlags = buf.getLong()
 
-        if (incomingFlags != 0L) return
+            if (incomingFlags != 0L) return
 
-        val authToken = buf.getString()
-        val principal = tokenValidator.validateAndDecodeOrNull(authToken)?.principal ?: return
-        if (principal.role != Role.PROVIDER) return
+            val authToken = buf.getString()
+            val principal = tokenValidator.validateAndDecodeOrNull(authToken)?.principal ?: return
+            if (principal.role != Role.PROVIDER) return
+            providerId = principal.username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+        }
 
-        val providerId = principal.username.removePrefix(AuthProviders.PROVIDER_PREFIX)
 
         var projectCounter = 0
         val projectsInSession = HashMap<String, Pair<Int, Project>>()
@@ -86,14 +104,25 @@ class ApmNotificationService(
         var lastWalletUpdate = replayFrom
         coroutineScope {
             val projectUpdates = Channel<Project>(Channel.BUFFERED)
+
+            val projectsToReplay = projects.findProjectsUpdatedSince(replayFrom)
             launch {
+                projectsToReplay.forEach { id ->
+                    println("Replay project being sent")
+                    projectUpdates.send(retrieveProject(id))
+                }
+
                 projectsUpdated
                     .takeWhile { session.isActive }
-                    .onEach { projectUpdates.send(it) }
+                    .onEach {
+                        println("Sending project update (projects updated)")
+                        projectUpdates.send(it)
+                    }
                     .collect()
             }
 
             while (session.isActive) {
+                println("Start of cycle")
                 val walletBuf: ByteBuffer
                 val infoBuf: ByteBuffer
                 bufferMutex.withLock {
@@ -110,20 +139,26 @@ class ApmNotificationService(
                         var ref = projectsInSession[project.id]?.first
                         if (ref == null) ref = projectCounter++
 
-                        projectsInSession[project.id] = Pair(ref, project)
-                        projectsInverse[ref] = project
-                        projectsToSend.add(ref)
+                        val existingProject = projectsInSession[project.id]
+                        if (existingProject?.second?.modifiedAt != project.modifiedAt) {
+                            projectsInSession[project.id] = Pair(ref, project)
+                            projectsInverse[ref] = project
+                            projectsToSend.add(ref)
+                        }
                         return ref
                     }
 
                     while (true) {
                         val updatedProject = projectUpdates.tryReceive().getOrNull() ?: break
+                        println("New project update!")
                         var isRelevant = projectIsRelevant[updatedProject.id]
                         if (isRelevant == null) {
+                            val pi = (updatedProject.status.members ?: emptyList()).find { it.role == ProjectRole.PI }
+                                ?: error("Could not find PI in $updatedProject")
                             projectIsRelevant[updatedProject.id] = accounting.sendRequest(
                                 AccountingRequest.FindRelevantProviders(
                                     IdCard.System,
-                                    "_ucloud",
+                                    pi.username,
                                     updatedProject.id,
                                     useProject = true
                                 )
@@ -212,15 +247,26 @@ class ApmNotificationService(
                             infoBuf.putString(defaultMapper.encodeToString(ProductCategory.serializer(), category))
                         }
 
+                        infoBuf.flip()
+                        println("Sending info buf ${infoBuf.remaining()}")
                         session.send(Frame.Binary(true, infoBuf))
+                        session.flush()
+                        println("info buf complete")
                     }
 
-                    session.send(Frame.Binary(true, walletBuf))
+                    walletBuf.flip()
+                    if (walletBuf.remaining() > 0) {
+                        println("Sending wallet buf ${walletBuf.remaining()}")
+                        session.send(Frame.Binary(true, walletBuf))
+                        session.flush()
+                        println("wallet buf complete")
+                    }
+                } catch (ex: Throwable) {
+                    log.warn("Failed while processing ApmNotifications for $providerId: ${ex.toReadableStacktrace()}")
                 } finally {
                     bufferPool.recycle(infoBuf)
                     bufferPool.recycle(walletBuf)
                 }
-
                 delay(5_000)
             }
         }
@@ -235,11 +281,16 @@ class ApmNotificationService(
     private fun ByteBuffer.getString(): String {
         val size = getInt()
         val bytes = ByteArray(size)
-        return get(bytes).decodeString()
+        get(bytes)
+        return bytes.decodeToString()
     }
 
     // TODO(Dan): This might not be enough to not run out of memory in the buffers. If Java only gave us a way of
     //  allocating virtual memory, then this wouldn't be an issue.
     private val bufferPool by lazy { DirectByteBufferPool(4, 1024 * 1024 * 16) }
     private val bufferMutex = Mutex()
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

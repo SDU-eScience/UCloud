@@ -709,7 +709,7 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Only callable by the system")
         }
 
-        val mostRecent = mostRecentSignificantUpdateByProvider[request.providerId] ?: 0
+        val mostRecent = mostRecentSignificantUpdateByProvider[request.providerId] ?: -1
         if (request.since >= mostRecent) return Response.ok(Unit)
 
         for ((_, wallet) in walletsById) {
@@ -770,14 +770,11 @@ class AccountingSystem(
 
     private suspend fun browseWallets(request: AccountingRequest.BrowseWallets): Response<List<WalletV2>> {
         val owner = lookupOwner(request.idCard)
-            ?: return Response.error(HttpStatusCode.Forbidden, "You do not have any wallets")
-        println(owner)
-        println(ownersByReference)
+            ?: return Response.ok(emptyList())
         val internalOwner = ownersByReference[owner]
             ?: return Response.ok(emptyList())
-        println(internalOwner)
         val allWallets = walletsByOwner[internalOwner.id] ?: emptyList()
-        println("IN: Wallet. $allWallets")
+
         val apiWallets = allWallets.map { wallet ->
             WalletV2(
                 internalOwner.toWalletOwner(),
@@ -917,6 +914,7 @@ class AccountingSystem(
             }
         }
 
+        markSignificantUpdate(internalWallet, now)
         reevaluateWalletsAfterUpdate(internalWallet)
 
         return Response.ok(Unit)

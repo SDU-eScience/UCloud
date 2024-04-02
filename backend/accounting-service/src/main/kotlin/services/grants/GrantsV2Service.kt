@@ -1,17 +1,14 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.didLoadUnsynchronizedGrants
-import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
+import dk.sdu.cloud.accounting.services.projects.v2.ProjectService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -42,10 +39,9 @@ class GrantsV2Service(
     private val db: DBContext,
     private val idCardService: IdCardService,
     private val accountingService: AccountingSystem,
-    private val providers: Providers<SimpleProviderCommunication>,
-    private val projectNotifications: ProviderNotificationService,
     private val serviceClient: AuthenticatedClient,
     private val defaultTemplate: String,
+    private val projects: ProjectService,
 ) {
     // Introduction
     // =================================================================================================================
@@ -1502,13 +1498,7 @@ class GrantsV2Service(
                         }
 
                         if (doc.recipient is GrantApplication.Recipient.NewProject && walletOwner is WalletOwner.Project) {
-                            ctx.projectNotifications.notifyChange(listOf(walletOwner.projectId), session)
-                        }
-
-                        val providerIds = doc.allocationRequests.map { it.provider }.toSet()
-                        providerIds.forEach { provider ->
-                            val comms = ctx.providers.prepareCommunication(provider)
-                            DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+                            ctx.projects.notifyChanges(session, listOf(walletOwner.projectId))
                         }
                     }
                 }

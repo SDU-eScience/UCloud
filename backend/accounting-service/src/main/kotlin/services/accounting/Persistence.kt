@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.hours
+import kotlin.math.max
 
 interface AccountingPersistence {
     suspend fun initialize()
@@ -214,7 +215,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             ).rows.forEach { row ->
                 val id = row.getLong(0)!!.toInt()
                 val owner = row.getLong(1)!!.toInt()
-                val productCategory = productCategories[row.getLong(2)!!]
+                val productCategory = productCategories[row.getLong(2)!!]!!
                 val localUsage = row.getLong(3)!!
                 val localRetiredUsage = row.getLong(4)!!
                 val excessUsage = row.getLong(5)!!
@@ -222,6 +223,11 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 val totalRetiredAllocated = row.getLong(7)!!
                 val wasLocked = row.getBoolean(8)!!
                 val lastSignificantUpdateAt = row.getLong(9)!!
+
+                mostRecentSignificantUpdateByProvider[productCategory.provider] = max(
+                    mostRecentSignificantUpdateByProvider[productCategory.provider] ?: 0L,
+                    lastSignificantUpdateAt
+                )
 
                 val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
                 val allocationByParent = HashMap<Int, InternalAllocationGroup>()
@@ -241,7 +247,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 }
                 val wallet = InternalWallet(
                     id = id,
-                    category = productCategory!!,
+                    category = productCategory,
                     ownedBy = owner,
                     localUsage = localUsage,
                     allocationsByParent = allocationByParent,
@@ -428,7 +434,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             unnest(:excess_usages::bigint[]) excess_usage,
                             unnest(:total_amounts_allocated::bigint[]) total_allocated,
                             unnest(:total_retired_amounts::bigint[]) total_retired_allocated,
-                            unnest(:was_locked::bigint[]) was_locked,
+                            unnest(:was_locked::bool[]) was_locked,
                             to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at
                     )
                     insert into accounting.wallets_v2(

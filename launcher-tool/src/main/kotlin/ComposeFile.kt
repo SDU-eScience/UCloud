@@ -365,6 +365,7 @@ sealed class ComposeService {
                         "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
+                        "ports": ["${portAllocator.allocate(51232)}:51232"],
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
