@@ -6,7 +6,6 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
-import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
@@ -23,13 +22,11 @@ import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.websocket.*
 
 class AccountingController(
     private val micro: Micro,
     private val accounting: AccountingSystem,
     private val dataVisualization: DataVisualization,
-    private val notifications: DepositNotificationService,
     private val idCards: IdCardService,
     private val client: AuthenticatedClient,
     private val apmNotifications: ApmNotificationService,

@@ -1,6 +1,6 @@
 create table accounting.wallet_samples_v2(
     sampled_at timestamptz not null default now(),
-    wallet_id int8 not null references accounting.wallets(id),
+    wallet_id int8 not null references accounting.wallets_v2(id),
 
     quota int8 not null,
     local_usage int8 not null,
