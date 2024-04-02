@@ -4,6 +4,7 @@ import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AccountingB from "./AccountingBinary";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import {ExtendedYearParser} from "date-fns/parse/_lib/parsers/ExtendedYearParser";
 
 export const UCLOUD_PROVIDER = "ucloud";
 
@@ -575,14 +576,48 @@ export function updateAllocationV2(request: BulkRequest<{
     return apiUpdate(request, baseContextV2, "updateAllocation");
 }
 
+export interface UsageOverTimeDatePointAPI {
+    usage: number;
+    quota: number;
+    timestamp: number;
+}
+
+export interface UsageOverTimeAPI {
+    data: UsageOverTimeDatePointAPI[];
+}
+
+export interface BreakdownByProjectPointAPI {
+    title: string;
+    projectId: string;
+    usage: number;
+}
+
+export interface BreakdownByProjectAPI {
+    data: BreakdownByProjectPointAPI[];
+}
+
+export interface ChartsAPI {
+    categories: ProductCategoryV2[];
+    allocGroups: AllocationGroupWithProductCategoryIndex[];
+    charts: ChartsForCategoryAPI[];
+}
+
+export interface ChartsForCategoryAPI {
+    categoryIndex: number;
+    overTime: UsageOverTimeAPI;
+    breakdownByProject: BreakdownByProjectAPI;
+}
+
+export interface AllocationGroupWithProductCategoryIndex {
+    group: AllocationGroup;
+    productCategoryIndex: number;
+}
+
 export function retrieveChartsV2(request: {
     start: number,
     end: number,
-}): APICallParametersBinary<AccountingB.Charts> {
-    return {
-        ...apiRetrieve(request, visualizationContextV2, "charts"),
-        responseConstructor: AccountingB.Charts
-    };
+}): APICallParameters {
+    return apiRetrieve(request, visualizationContextV2, "charts");
 }
 
 export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {

@@ -315,6 +315,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
 // =====================================================================================================================
 @Serializable
 data class AllocationGroup(
+    val id: Int,
     val allocations: List<Alloc>,
     val usage: Long,
 ) {

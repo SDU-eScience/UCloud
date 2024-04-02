@@ -1325,6 +1325,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 AllocationGroupWithParent(
                                     ParentOrChildWallet(null, "Root"),
                                     AllocationGroup(
+                                        1,
                                         listOf(
                                             AllocationGroup.Alloc(
                                                 12541154,

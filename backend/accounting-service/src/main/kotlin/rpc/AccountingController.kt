@@ -5,6 +5,7 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
@@ -24,6 +25,7 @@ import io.ktor.websocket.*
 
 class AccountingController(
     private val accounting: AccountingSystem,
+    private val dataVisualization: DataVisualization,
     private val notifications: DepositNotificationService,
     private val idCards: IdCardService,
     private val client: AuthenticatedClient,
@@ -193,7 +195,7 @@ class AccountingController(
         }
 
         implement(VisualizationV2.retrieveCharts) {
-            TODO()
+            ok(dataVisualization.retrieveChartsV2(idCards.fetchIdCard(actorAndProject), request))
         }
 
         return@with

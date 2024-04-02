@@ -99,6 +99,7 @@ data class InternalAllocationGroup(
 
     fun toApi(): AllocationGroup {
         return AllocationGroup(
+            id = id,
             allocationSet.keys.map { id ->
                 val alloc = allocations.getValue(id)
                 AllocationGroup.Alloc(

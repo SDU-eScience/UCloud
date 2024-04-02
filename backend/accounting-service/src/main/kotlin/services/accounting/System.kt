@@ -691,10 +691,13 @@ class AccountingSystem(
     private suspend fun browseWallets(request: AccountingRequest.BrowseWallets): Response<List<WalletV2>> {
         val owner = lookupOwner(request.idCard)
             ?: return Response.error(HttpStatusCode.Forbidden, "You do not have any wallets")
+        println(owner)
+        println(ownersByReference)
         val internalOwner = ownersByReference[owner]
             ?: return Response.ok(emptyList())
+        println(internalOwner)
         val allWallets = walletsByOwner[internalOwner.id] ?: emptyList()
-
+        println("IN: Wallet. $allWallets")
         val apiWallets = allWallets.map { wallet ->
             WalletV2(
                 internalOwner.toWalletOwner(),

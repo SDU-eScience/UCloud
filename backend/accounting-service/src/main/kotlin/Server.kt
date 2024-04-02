@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.products.ProductService
@@ -76,6 +77,7 @@ class Server(
         val grants = GrantsV2Service(db, idCardService, accountingSystem, simpleProviders, projectNotifications,
             client, config.defaultTemplate)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
+        val dataVisualization = DataVisualization(db, accountingSystem)
 
         accountingSystem.start(micro.backgroundScope)
 
@@ -94,7 +96,7 @@ class Server(
         )
 
         configureControllers(
-            AccountingController(accountingSystem, depositNotifications, idCardService, client),
+            AccountingController(accountingSystem, dataVisualization, depositNotifications, idCardService, client),
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

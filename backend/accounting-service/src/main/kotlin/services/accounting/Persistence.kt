@@ -7,6 +7,8 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlin.math.absoluteValue
+import kotlin.time.Duration.Companion.hours
 
 interface AccountingPersistence {
     suspend fun initialize()
@@ -23,11 +25,26 @@ object FakeAccountingPersistence : AccountingPersistence {
 class RealAccountingPersistence(private val db: DBContext) : AccountingPersistence {
     private var nextSynchronization = 0L
     private var didChargeOldData = false
+    private var lastSampling = 0L
 
     override suspend fun initialize() {
         val now = Time.now()
         if (now < nextSynchronization) return
         db.withSession { session ->
+            //Fetching last sample date
+            session.sendPreparedStatement(
+                {},
+                """
+                        select provider.timestamp_to_unix(max(sampled_at))::int8
+                        from accounting.wallet_samples_v2
+                        limit 1
+                    """
+            ).rows.forEach {
+                val mostRecentSample = it.getLong(0) ?: 0L
+                lastSampling = mostRecentSample
+            }
+
+
             // Create walletOwners
             session.sendPreparedStatement(
                 {},
@@ -532,6 +549,136 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
             dirtyAllocations.forEach { (allocId, _) ->
                 allocations[allocId]!!.isDirty = false
+            }
+
+            //Sample wallets?
+            val now = Time.now()
+            val shouldSampleWallets = (now - lastSampling).absoluteValue > 6.hours.inWholeMilliseconds
+            if (shouldSampleWallets) {
+                data class AllocGroup(
+                    val allocGroupId: Int,
+                    val treeUsage: Long,
+                    val quota: Long,
+                )
+
+                data class Sample(
+                    val walletId: Int,
+                    var localUsage: Long = 0L,
+                    var excessUsage:Long = 0L,
+                    var localUsageChange: Long = 0L,
+                    var combinedTreeUsage: Long = 0L,
+                    var totalQuota: Long = 0L,
+                    val allocGroups: ArrayList<AllocGroup> = ArrayList(),
+                )
+
+                val samples = HashMap<Int, Sample>()
+
+                walletsById.forEach { (walletId, wallet) ->
+
+                    val sample = Sample(
+                        walletId = walletId,
+                        localUsage = wallet.localUsage,
+                        excessUsage = wallet.excessUsage,
+                    )
+
+                    wallet.allocationsByParent.forEach { (parentWalletId, group) ->
+                        var quota = 0L
+                        group.allocationSet.forEach { allocId, isActive ->
+                            if (isActive) {
+                                val foundAlloc = allocations[allocId]
+                                if (foundAlloc != null) {
+                                    quota += foundAlloc.quota
+                                }
+                            }
+                        }
+                        sample.allocGroups.add(
+                            AllocGroup(
+                                group.id,
+                                group.treeUsage,
+                                quota
+                            )
+                        )
+                    }
+
+                    sample.combinedTreeUsage = sample.allocGroups.sumOf { it.treeUsage }
+                    sample.totalQuota = sample.allocGroups.sumOf { it.quota }
+                    samples[walletId] = sample
+                }
+
+                samples.entries.chunked(500).forEach { chunk ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("now", now)
+                            val walletIds = ArrayList<Int>().also { setParameter("wallet_ids", it) }
+                            val localUsages = ArrayList<Long>().also { setParameter("local_usages", it) }
+                            val excessUsages = ArrayList<Long>().also { setParameter("excess_usages", it) }
+                            val combinedTreeUsages = ArrayList<Long>().also { setParameter("combined_tree_usages", it) }
+                            val totalQuota = ArrayList<Long>().also { setParameter("total_quotas", it) }
+
+                            val allocGroupIds = ArrayList<Int>().also { setParameter("group_ids", it) }
+                            val allocGroupQuotas = ArrayList<Long>().also { setParameter("group_quotas", it) }
+                            val allocGroupTreeUsages = ArrayList<Long>().also { setParameter("group_usages", it) }
+
+                            for ((walletId, sample) in chunk) {
+                                for (group in sample.allocGroups) {
+                                    allocGroupIds.add(group.allocGroupId)
+                                    allocGroupQuotas.add(group.quota)
+                                    allocGroupTreeUsages.add(group.treeUsage)
+                                }
+
+                                walletIds.add(walletId)
+                                localUsages.add(sample.localUsage)
+                                excessUsages.add(sample.excessUsage)
+                                combinedTreeUsages.add(sample.combinedTreeUsage)
+                                totalQuota.add(sample.totalQuota)
+                            }
+                        },
+                        """
+                            with 
+                                alloc_groups as (
+                                    select
+                                        unnest(:wallet_ids::int[]) as wallet_id,
+                                        unnest(:group_ids::int[]) as group_id,
+                                        unnest(:group_quotas::int8[]) as group_quota,
+                                        unnest(:group_usages::int8[]) as group_usage
+
+                                ),
+                                aggregated_groups as (
+                                    select
+                                        wallet_id,
+                                        array_agg(group_id) as group_ids,
+                                        array_agg(group_quota) as quotas,
+                                        array_agg(group_usage) as usages
+                                    from alloc_groups
+                                    group by wallet_id
+                                ),
+                                wallets as (
+                                    select
+                                        unnest(:wallet_ids::int4[]) as wallet_id,
+                                        unnest(:local_usages::int8[]) as local_usage,
+                                        unnest(:excess_usages::int8[]) as excess_usage,
+                                        unnest(:combined_tree_usages::int8[]) as tree_usage,
+                                        unnest(:total_quotas::int8[]) as quota        
+                                ),
+                                combined as (
+                                    select
+                                        to_timestamp(:now / 1000.0) t, w.wallet_id, w.local_usage, w.excess_usage, w.tree_usage, w.quota,
+                                        coalesce(gr.group_ids, array[]::int4[]) as gr_id,
+                                        coalesce(gr.quotas, array[]::int8[]) as gr_quota,
+                                        coalesce(gr.usages, array[]::int8[]) as gr_usage
+                                    from
+                                        wallets w 
+                                        left join aggregated_groups gr on w.wallet_id = gr.wallet_id
+                                )
+                                insert into accounting.wallet_samples_v2
+                                    (sampled_at, wallet_id, quota, local_usage, excess_usage, tree_usage, 
+                                    group_ids, tree_usage_by_group, quota_by_group)
+                                select t, wallet_id, quota, local_usage, excess_usage, tree_usage,
+                                    gr_id, gr_usage, gr_quota
+                                from combined
+                        """.trimIndent()
+                    )
+                }
             }
         }
     }

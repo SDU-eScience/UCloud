@@ -8,7 +8,7 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {translateBinaryProductCategory} from ".";
+import {BreakdownByProjectAPI, ChartsAPI, translateBinaryProductCategory, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -30,7 +30,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 // =====================================================================================================================
 interface State {
     remoteData: {
-        chartData?: AccountingB.Charts;
+        chartData?: ChartsAPI;
         jobStatistics?: Jobs.JobStatistics;
         requestsInFlight: number;
     },
@@ -71,7 +71,7 @@ type Period =
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    {type: "LoadCharts", charts: AccountingB.Charts, }
+    {type: "LoadCharts", charts: ChartsAPI, }
     | {type: "LoadJobStats", statistics: Jobs.JobStatistics, }
     | {type: "SelectTab", tabIndex: number}
     | {type: "UpdateSelectedPeriod", period: Period}
@@ -92,11 +92,11 @@ function stateReducer(state: State, action: UIAction): State {
 
         case "LoadCharts": {
             // TODO Move this into selectChart
-            function translateBreakdown(category: Accounting.ProductCategoryV2, chart: AccountingB.BreakdownByProject): BreakdownChart {
+            function translateBreakdown(category: Accounting.ProductCategoryV2, chart: BreakdownByProjectAPI): BreakdownChart {
                 const {name, priceFactor} = Accounting.explainUnit(category);
-                const dataPoints: BreakdownChart["dataPoints"] = [];
+                const dataPoints = chart.data
 
-                const dataPointsLength = chart.data.count;
+                /*const dataPointsLength = chart.data.count;
                 for (let i = 0; i < dataPointsLength; i++) {
                     const dataPoint = chart.data.get(i);
                     dataPoints.push({
@@ -104,16 +104,16 @@ function stateReducer(state: State, action: UIAction): State {
                         projectId: dataPoint.projectId,
                         title: dataPoint.title
                     });
-                }
+                }*/
 
                 return {unit: name, dataPoints};
             }
 
-            function translateChart(category: Accounting.ProductCategoryV2, chart: AccountingB.UsageOverTime): UsageChart {
+            function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
                 const {name, priceFactor} = Accounting.explainUnit(category);
-                const dataPoints: UsageChart["dataPoints"] = [];
+                const dataPoints = chart.data
 
-                const dataPointsLength = chart.data.count;
+                /*const dataPointsLength = chart.data.count;
                 for (let i = 0; i < dataPointsLength; i++) {
                     const dataPoint = chart.data.get(i);
                     dataPoints.push({
@@ -121,7 +121,7 @@ function stateReducer(state: State, action: UIAction): State {
                         quota: Number(dataPoint.quota) * priceFactor,
                         timestamp: Number(dataPoint.timestamp)
                     });
-                }
+                }*/
 
                 return {unit: name, dataPoints};
             }
@@ -130,10 +130,10 @@ function stateReducer(state: State, action: UIAction): State {
             const newSummaries: State["summaries"] = [];
             const now = BigInt(timestampUnixMs());
 
-            for (let i = 0; i < data.allocations.count; i++) {
-                const allocation = data.allocations.get(i);
-                if (now < allocation.startDate || now > allocation.endDate) continue;
-                const category = data.categories.get(allocation.categoryIndex);
+            for (let i = 0; i < data.allocGroups.length; i++) {
+                const group = data.allocGroups[i];
+                //if (now < allocation.startDate || now > allocation.endDate) continue;
+                const category = data.categories[group.productCategoryIndex];
 
                 const existingIndex = newSummaries.findIndex(it =>
                     it.category.name === category.name && it.category.provider === category.provider
@@ -144,22 +144,24 @@ function stateReducer(state: State, action: UIAction): State {
                     summary = {
                         usage: 0,
                         quota: 0,
-                        category: translateBinaryProductCategory(category),
+                        category: category,
                         chart: emptyChart,
                         breakdownByProject: emptyBreakdownChart,
-                        categoryIdx: allocation.categoryIndex,
+                        categoryIdx: group.productCategoryIndex,
                     };
                     newSummaries.push(summary);
                 } else {
                     summary = newSummaries[existingIndex];
                 }
 
-                summary.usage += Number(allocation.usage);
-                summary.quota += Number(allocation.quota);
+                summary.usage += Number(group.group.usage);
+                var quota = 0
+                group.group.allocations.forEach( alloc => quota += alloc.quota)
+                summary.quota += Number(quota);
             }
 
-            for (let i = 0; i < data.charts.count; i++) {
-                const chart = data.charts.get(i);
+            for (let i = 0; i < data.charts.length; i++) {
+                const chart = data.charts[i];
                 const summary = newSummaries.find(it => it.categoryIdx === chart.categoryIndex);
                 if (!summary) continue;
                 summary.chart = translateChart(summary.category, chart.overTime);
@@ -213,7 +215,7 @@ function stateReducer(state: State, action: UIAction): State {
         const chartData = state.remoteData.chartData;
         if (!chartData) return {...state, activeDashboard: undefined};
         let catIdx = categoryIndex === undefined ? state.activeDashboard?.idx : categoryIndex;
-        if (catIdx === undefined || catIdx < 0 || catIdx > chartData.categories.count) {
+        if (catIdx === undefined || catIdx < 0 || catIdx > chartData.categories.length) {
             return {
                 ...state,
                 activeDashboard: undefined
@@ -227,35 +229,41 @@ function stateReducer(state: State, action: UIAction): State {
         let earliestExpiration: number | null = null;
 
         const now = BigInt(timestampUnixMs());
-        for (let i = 0; i < chartData.allocations.count; i++) {
+        for (let i = 0; i < chartData.allocGroups.length; i++) {
 
-            const alloc = chartData.allocations.get(i);
-            if (alloc.startDate >= now) {
-                // Starts in the future
-                if (earliestNextAllocation === null) {
-                    earliestNextAllocation = Number(alloc.startDate);
-                } else if (alloc.startDate < earliestNextAllocation) {
-                    earliestNextAllocation = Number(alloc.startDate);
+            const group = chartData.allocGroups[i];
+            group.group.allocations.forEach(alloc => {
+                    if (alloc.startDate >= now) {
+                        // Starts in the future
+                        if (earliestNextAllocation === null) {
+                            earliestNextAllocation = Number(alloc.startDate);
+                        } else if (alloc.startDate < earliestNextAllocation) {
+                            earliestNextAllocation = Number(alloc.startDate);
+                        }
+                    } else if (now >= alloc.startDate && now <= alloc.endDate) {
+                        // Active now
+                        if (earliestExpiration === null) {
+                            earliestExpiration = Number(alloc.endDate);
+                        } else if (alloc.endDate < earliestExpiration) {
+                            earliestExpiration = Number(alloc.endDate);
+                        }
+                    }
                 }
-            } else if (now >= alloc.startDate && now <= alloc.endDate) {
-                // Active now
-                if (earliestExpiration === null) {
-                    earliestExpiration = Number(alloc.endDate);
-                } else if (alloc.endDate < earliestExpiration) {
-                    earliestExpiration = Number(alloc.endDate);
-                }
-            }
+            )
         }
 
         let nextQuota = 0;
         if (earliestNextAllocation !== null) {
-            for (let i = 0; i < chartData.allocations.count; i++) {
-                const alloc = chartData.allocations.get(i);
-                if (earliestNextAllocation < alloc.startDate || earliestNextAllocation > alloc.endDate) {
-                    continue;
-                }
-
-                nextQuota += Number(alloc.quota);
+            for (let i = 0; i < chartData.allocGroups.length; i++) {
+                const group = chartData.allocGroups[i];
+                group.group.allocations.forEach( alloc => {
+                    // @ts-ignore
+                    if (earliestNextAllocation < alloc.startDate || earliestNextAllocation > alloc.endDate) {
+                        //nothingg
+                    } else {
+                        nextQuota += Number(alloc.quota);
+                    }
+                })
             }
         }
 
@@ -374,7 +382,7 @@ function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (eve
         }
 
         async function invokeAPI<T>(
-            parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
+            parameters: (APICallParameters<unknown, T> | APICallParameters<T>)
         ): Promise<T> {
             dispatch({type: "UpdateRequestsInFlight", delta: 1});
             return callAPI(parameters).finally(() => {
