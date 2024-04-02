@@ -67,12 +67,20 @@ class EventController(
                         auth,
                         webSocketClient,
                         replayFrom,
-                    ).consumeEach {
-                        println("Got message: $it")
+                    ).consumeEach { message ->
+                        when (message) {
+                            is NotificationMessage.ProjectUpdated -> {
+                                println("Project has been updated: ${message.project}")
+                                println()
+                                synchronizeProjects(listOf(message.project))
+                            }
+
+                            is NotificationMessage.WalletUpdated -> {
+                                println("Wallet has been updated: ${message}")
+                                println()
+                            }
+                        }
                     }
-                    println("Failed?")
-
-
                 } catch (ex: Throwable) {
                     ex.printStackTrace()
                 }
@@ -81,26 +89,13 @@ class EventController(
         }
     }
 
-    private suspend fun synchronizeProject(id: String): Boolean {
-        controllerContext.configuration.plugins.projects ?: return false
-
-        val project = Projects.retrieve.call(
-            ProjectsRetrieveRequest(id, includeMembers = true, includeGroups = true, includeSettings = true,
-                includePath = true),
-            controllerContext.pluginContext.rpcClient
-        ).orNull() ?: return false
-
-        return synchronizeProjects(listOf(project)).single()
-    }
-
-    private suspend fun synchronizeProjects(projects: List<Project>): List<Boolean> {
-        val projectPlugin = controllerContext.configuration.plugins.projects ?: return projects.map { true }
+    private suspend fun synchronizeProjects(projects: List<Project>) {
+        val projectPlugin = controllerContext.configuration.plugins.projects ?: return
 
         val projectsToIgnore = HashSet<String>()
-        val acknowledgedEvents = ArrayList<Boolean>()
 
         for (project in projects) {
-            val success = try {
+            try {
                 if (!project.specification.canConsumeResources) {
                     projectsToIgnore.add(project.id)
                 } else {
@@ -110,17 +105,12 @@ class EventController(
                         }
                     }
                 }
-
-                true
             } catch (ex: Throwable) {
                 log.warn(
                     "Caught an exception while handling project update: ${project}\n" +
                             ex.toReadableStacktrace().toString()
                 )
-                false
             }
-
-            acknowledgedEvents.add(success)
         }
 
         if (projectsToIgnore.isNotEmpty()) {
@@ -137,8 +127,6 @@ class EventController(
                 )
             }
         }
-
-        return acknowledgedEvents
     }
 
     private suspend fun onConnectionComplete(ucloudId: String, localId: Int) {
@@ -149,7 +137,6 @@ class EventController(
         override val log = logger()
     }
 }
-
 
 object ApmNotifications {
     suspend fun subscribe(

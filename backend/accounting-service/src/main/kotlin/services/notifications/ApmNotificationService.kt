@@ -67,26 +67,18 @@ class ApmNotificationService(
         val frame = incoming.receiveCatching().getOrNull() ?: return
         val buf = frame.buffer
 
-        var providerId = ""
-        var replayFrom = 0L
-        if (frame.frameType == FrameType.TEXT && developmentMode) {
-            // TODO Remove this
-            providerId = "k8"
-        } else {
-            val opcode = buf.get()
-            if (opcode != 0.toByte()) return
+        val opcode = buf.get()
+        if (opcode != 0.toByte()) return
 
-            replayFrom = buf.getLong()
-            val incomingFlags = buf.getLong()
+        val replayFrom = buf.getLong()
+        val incomingFlags = buf.getLong()
 
-            if (incomingFlags != 0L) return
+        if (incomingFlags != 0L) return
 
-            val authToken = buf.getString()
-            val principal = tokenValidator.validateAndDecodeOrNull(authToken)?.principal ?: return
-            if (principal.role != Role.PROVIDER) return
-            providerId = principal.username.removePrefix(AuthProviders.PROVIDER_PREFIX)
-        }
-
+        val authToken = buf.getString()
+        val principal = tokenValidator.validateAndDecodeOrNull(authToken)?.principal ?: return
+        if (principal.role != Role.PROVIDER) return
+        val providerId = principal.username.removePrefix(AuthProviders.PROVIDER_PREFIX)
 
         var projectCounter = 0
         val projectsInSession = HashMap<String, Pair<Int, Project>>()
