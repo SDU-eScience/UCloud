@@ -100,7 +100,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
                 val allocation = InternalAllocation(
                     id = allocationId,
-                    belongsTo = associatedWallet,
+                    belongsToWallet = associatedWallet,
                     parentWallet = parentWallet,
                     quota = quota,
                     start = startTime,
@@ -205,7 +205,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         local_retired_usage,
                         excess_usage,
                         total_allocated,
-                        total_retired_allocated
+                        total_retired_allocated,
+                        was_locked,
+                        provider.timestamp_to_unix(last_significant_update_at)::int8
                     from 
                         accounting.wallets_v2
                 """
@@ -218,6 +220,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 val excessUsage = row.getLong(5)!!
                 val totalAllocated = row.getLong(6)!!
                 val totalRetiredAllocated = row.getLong(7)!!
+                val wasLocked = row.getBoolean(8)!!
+                val lastSignificantUpdateAt = row.getLong(9)!!
 
                 val allocGroups = allocationGroups.filter { it.value.associatedWallet == id }
                 val allocationByParent = HashMap<Int, InternalAllocationGroup>()
@@ -247,7 +251,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     excessUsage = excessUsage,
                     totalAllocated = totalAllocated,
                     totalRetiredAllocated = totalRetiredAllocated,
-                    isDirty = false
+                    isDirty = false,
+                    wasLocked = wasLocked,
+                    lastSignificantUpdateAt = lastSignificantUpdateAt,
                 )
 
                 walletsById[id] = wallet
@@ -389,7 +395,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     do nothing;
                 """
             )
-            dirtyOwners.forEach { id, owner ->
+            dirtyOwners.forEach { (id, _) ->
                 ownersById[id]!!.dirty = false
             }
 
@@ -400,13 +406,15 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 {
                     dirtyWallets.entries.split {
                         into("ids") { it.key.toLong() }
-                        into("owners") { (id, wallet) -> wallet.ownedBy.toLong() }
-                        into("categories") { (id, wallet) -> providerToIdMap[Pair(wallet.category.name, wallet.category.provider)]!! }
-                        into("local_usages") { (id, wallet) -> wallet.localUsage }
-                        into("local_retired_usages") { (id, wallet) -> wallet.localRetiredUsage }
-                        into("excess_usages") { (id, wallet) -> wallet.excessUsage }
-                        into("total_amounts_allocated") { (id, wallet) -> wallet.totalAllocated }
-                        into("total_retired_amounts") { (id, wallet) -> wallet.totalRetiredAllocated }
+                        into("owners") { (_, wallet) -> wallet.ownedBy.toLong() }
+                        into("categories") { (_, wallet) -> providerToIdMap[Pair(wallet.category.name, wallet.category.provider)]!! }
+                        into("local_usages") { (_, wallet) -> wallet.localUsage }
+                        into("local_retired_usages") { (_, wallet) -> wallet.localRetiredUsage }
+                        into("excess_usages") { (_, wallet) -> wallet.excessUsage }
+                        into("total_amounts_allocated") { (_, wallet) -> wallet.totalAllocated }
+                        into("total_retired_amounts") { (_, wallet) -> wallet.totalRetiredAllocated }
+                        into("was_locked") { (_, wallet) -> wallet.wasLocked }
+                        into("last_significant_update_at") { (_, wallet) -> wallet.lastSignificantUpdateAt }
                     }
                 },
                 """
@@ -419,9 +427,11 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                             unnest(:local_retired_usages::bigint[]) local_retired_usage,
                             unnest(:excess_usages::bigint[]) excess_usage,
                             unnest(:total_amounts_allocated::bigint[]) total_allocated,
-                            unnest(:total_retired_amounts::bigint[]) total_retired_allocated
+                            unnest(:total_retired_amounts::bigint[]) total_retired_allocated,
+                            unnest(:was_locked::bigint[]) was_locked,
+                            to_timestamp(unnest(:last_significant_update_at::bigint[]) / 1000.0) last_significant_update_at
                     )
-                    insert into accounting.wallets_v2 (
+                    insert into accounting.wallets_v2(
                         id,
                         wallet_owner,
                         product_category,
@@ -429,7 +439,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         local_retired_usage,
                         excess_usage,
                         total_allocated,
-                        total_retired_allocated
+                        total_retired_allocated,
+                        was_locked,
+                        last_significant_update_at
                     )
                     select
                         id,
@@ -439,7 +451,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         local_retired_usage,
                         excess_usage,
                         total_allocated,
-                        total_retired_allocated
+                        total_retired_allocated,
+                        was_locked,
+                        last_significant_update_at
                     from data
                     on conflict (id) 
                     do update 
@@ -448,7 +462,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         local_retired_usage = excluded.local_retired_usage,
                         excess_usage = excluded.excess_usage,
                         total_allocated = excluded.total_allocated,
-                        total_retired_allocated = excluded.total_retired_allocated
+                        total_retired_allocated = excluded.total_retired_allocated,
+                        was_locked = excluded.was_locked,
+                        last_significant_update_at = excluded.last_significant_update_at
                 """
             )
 
@@ -462,11 +478,11 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             session.sendPreparedStatement(
                 {
                     dirtyGroups.entries.split {
-                        into("ids") { (id, group) -> id.toLong() }
-                        into("parent_wallets") { (id, group) -> group.parentWallet.toLong().takeIf { it != 0L } }
-                        into("associated_wallets") { (id, group) -> group.associatedWallet.toLong() }
-                        into("tree_usages") { (id, group) -> group.treeUsage }
-                        into("local_retired_usages") { (id, group) -> group.retiredTreeUsage }
+                        into("ids") { (id, _) -> id.toLong() }
+                        into("parent_wallets") { (_, group) -> group.parentWallet.toLong().takeIf { it != 0L } }
+                        into("associated_wallets") { (_, group) -> group.associatedWallet.toLong() }
+                        into("tree_usages") { (_, group) -> group.treeUsage }
+                        into("local_retired_usages") { (_, group) -> group.retiredTreeUsage }
                     }
                 },
                 """
@@ -510,14 +526,14 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             session.sendPreparedStatement(
                 {
                     dirtyAllocations.entries.split {
-                        into("ids") { (id, alloc) -> id.toLong() }
-                        into("associated_allocation_groups") { (id, alloc) -> allocationGroups.values.first { it.allocationSet.contains(id) }.id }
-                        into("grants") { (id, alloc) -> alloc.grantedIn }
-                        into("quotas") { (id, alloc) -> alloc.quota }
-                        into("start_times") { (id, alloc) -> alloc.start }
-                        into("end_times") { (id, alloc) -> alloc.end }
-                        into("retires") { (id, alloc) -> alloc.retired }
-                        into("retired_usages") { (id, alloc) -> alloc.retiredUsage }
+                        into("ids") { (id, _) -> id.toLong() }
+                        into("associated_allocation_groups") { (id, _) -> allocationGroups.values.first { it.allocationSet.contains(id) }.id }
+                        into("grants") { (_, alloc) -> alloc.grantedIn }
+                        into("quotas") { (_, alloc) -> alloc.quota }
+                        into("start_times") { (_, alloc) -> alloc.start }
+                        into("end_times") { (_, alloc) -> alloc.end }
+                        into("retires") { (_, alloc) -> alloc.retired }
+                        into("retired_usages") { (_, alloc) -> alloc.retiredUsage }
                     }
                 },
                 """

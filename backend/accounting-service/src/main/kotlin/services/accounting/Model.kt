@@ -25,6 +25,8 @@ internal val allocationGroupIdAccumulator = AtomicInteger(1)
 internal val scopedUsage = HashMap<String, Long>()
 internal val scopedDirty = HashMap<String, Boolean>()
 
+internal val mostRecentSignificantUpdateByProvider = HashMap<String, Long>()
+
 data class InternalOwner(val id: Int, val reference: String, var dirty: Boolean) {
     fun isProject(): Boolean = reference.matches(PROJECT_REGEX)
     fun toWalletOwner(): WalletOwner =
@@ -39,7 +41,7 @@ data class InternalOwner(val id: Int, val reference: String, var dirty: Boolean)
 
 data class InternalAllocation(
     val id: Int,
-    val belongsTo: Int,
+    val belongsToWallet: Int,
     val parentWallet: Int,
     var quota: Long,
     var start: Long,
@@ -133,7 +135,9 @@ data class InternalWallet(
     var excessUsage: Long,
     var totalAllocated: Long,
     var totalRetiredAllocated: Long,
-    var isDirty: Boolean
+    var isDirty: Boolean,
+    var wasLocked: Boolean,
+    var lastSignificantUpdateAt: Long,
 ) {
     fun parentEdgeCost(parentId: Int, now: Long): Long {
         val group = allocationsByParent.getValue(parentId)

@@ -23,6 +23,7 @@ data class Project(
     val id: String,
     val createdAt: Long,
     val specification: Specification,
+    val modifiedAt: Long,
     val status: Status,
 ) {
     @Serializable

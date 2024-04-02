@@ -193,21 +193,15 @@ private suspend fun trackResourceTimeUsageAndConvertForReporting(
 }
 
 suspend fun userHasResourcesAvailable(job: Job): Boolean {
-    return Accounting.check.call(
-        BulkRequest(
-            listOf(
-                ChargeWalletRequestItem(
-                    payer = job.owner.toWalletOwner(),
-                    units = 1,
-                    periods = 1,
-                    product = job.specification.product,
-                    performedBy = job.owner.createdBy,
-                    description = "Checking if resources exists"
-                )
+    return AccountingV2.checkProviderUsable.call(
+        bulkRequestOf(
+            AccountingV2.CheckProviderUsable.RequestItem(
+                job.owner.toWalletOwner(),
+                job.specification.product.toCategory(),
             )
         ),
         serviceContext.rpcClient
-    ).orThrow().responses.firstOrNull() ?: false
+    ).orThrow().responses.single().maxUsable > 0
 }
 
 /**
@@ -220,7 +214,10 @@ suspend fun userHasResourcesAvailable(job: Job): Boolean {
  *
  * @return `true` if the job is allowed to continue, otherwise `false`
  */
-suspend fun reportDeltaUseCompute(job: Job, intervalInMilliseconds: Long? = null): Boolean {
+suspend fun reportDeltaUseCompute(
+    job: Job,
+    intervalInMilliseconds: Long? = null
+): Boolean {
     val (category, product) = loadedConfig.products.findCategoryAndProduct(job.specification.product.toV2())
         ?: return false
 
@@ -239,7 +236,6 @@ suspend fun reportDeltaUse(
     resource: Resource<*, *>,
     intervalInMilliseconds: Long? = null,
     amountUsed: Long = 1,
-    description: ChargeDescription = ChargeDescription("Incremental usage of resource ${resource.id}", emptyList())
 ): Boolean {
     checkServerMode()
     val categoryAndProduct = loadedConfig.products.findCategoryAndProduct(resource.specification.product.toV2())
@@ -281,16 +277,17 @@ suspend fun reportDeltaUse(
 
     if (balanceUsed == 0L) return true
 
-    return AccountingV2.reportDelta.call(
+    return AccountingV2.reportUsage.call(
         bulkRequestOf(
-            DeltaReportItem(
+            UsageReportItem(
+                isDeltaCharge = true,
                 resource.owner.toWalletOwner(),
                 resource.specification.product.toCategory(),
                 balanceUsed,
-                description,
+                ChargeDescription(resource.id),
             )
         ),
-        serviceContext.rpcClient
+        serviceContext.rpcClient,
     ).orThrow().responses.single()
 }
 
@@ -299,13 +296,19 @@ suspend fun reportConcurrentUseStorage(
     category: ProductCategoryIdV2,
     bytesUsed: Long,
     intervalInMilliseconds: Long? = null,
-    description: ChargeDescription = ChargeDescription("Periodic usage of resource", emptyList())
+    scope: String? = null,
 ): Boolean {
     val productCategory = loadedConfig.products.findCategory(category.name) ?: return false
     val cost = productCategory.cost
     val unit = StorageUnit.valueOf((cost as? ProductCost.WithUnit)?.unit ?: "GB")
     val wholeUnitsUsed = unit.convertToThisUnitFromBytes(bytesUsed)
-    return reportConcurrentUse(workspace, category, wholeUnitsUsed, intervalInMilliseconds, description)
+    return reportConcurrentUse(
+        workspace,
+        category,
+        wholeUnitsUsed,
+        intervalInMilliseconds,
+        scope,
+    )
 }
 
 suspend fun reportConcurrentUse(
@@ -313,7 +316,7 @@ suspend fun reportConcurrentUse(
     category: ProductCategoryIdV2,
     amountUsed: Long,
     intervalInMilliseconds: Long? = null,
-    description: ChargeDescription = ChargeDescription("Periodic usage of resource", emptyList())
+    scope: String? = null,
 ): Boolean {
     checkServerMode()
 
@@ -329,7 +332,7 @@ suspend fun reportConcurrentUse(
         is ProductCost.Resource -> cost.accountingInterval
     }
 
-    if (interval == null) return reportUsage(workspace, category, amountUsed)
+    if (interval == null) return reportUsage(workspace, category, amountUsed, scope)
 
     @Suppress("KotlinConstantConditions")
     val balance = when (cost) {
@@ -349,13 +352,14 @@ suspend fun reportConcurrentUse(
         ProductCost.Free -> error("Should not happen (removed by previous branch?)")
     }
 
-    return AccountingV2.reportDelta.call(
+    return AccountingV2.reportUsage.call(
         bulkRequestOf(
-            DeltaReportItem(
+            UsageReportItem(
+                isDeltaCharge = true,
                 workspace,
                 category,
                 balance,
-                description
+                ChargeDescription(scope),
             )
         ),
         serviceContext.rpcClient
@@ -366,19 +370,20 @@ suspend fun reportUsage(
     workspace: WalletOwner,
     category: ProductCategoryIdV2,
     newUsage: Long,
-    description: ChargeDescription = ChargeDescription("Synchronization of usage", emptyList())
+    scope: String? = null,
 ): Boolean {
     checkServerMode()
-    return AccountingV2.reportTotalUsage.call(
+    return AccountingV2.reportUsage.call(
         bulkRequestOf(
-            DeltaReportItem(
+            UsageReportItem(
+                isDeltaCharge = false,
                 workspace,
                 category,
                 newUsage,
-                description,
-            ),
+                ChargeDescription(scope),
+            )
         ),
-        serviceContext.rpcClient
+        serviceContext.rpcClient,
     ).orThrow().responses.single()
 }
 

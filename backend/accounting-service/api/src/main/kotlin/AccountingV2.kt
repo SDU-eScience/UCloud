@@ -215,6 +215,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // Reporting from the provider
     // =================================================================================================================
     val reportUsage = ReportUsage.call
+    val checkProviderUsable = CheckProviderUsable.call
 
     private fun StringBuilder.documentationReportingFromProvider() {}
 
@@ -226,6 +227,29 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "reportUsage", roles = Roles.PROVIDER)
+            }
+        )
+    }
+
+    object CheckProviderUsable {
+        @Serializable
+        data class RequestItem(
+            val owner: WalletOwner,
+            val category: ProductCategoryIdV2,
+        )
+
+        @Serializable
+        data class ResponseItem(
+            val maxUsable: Long,
+        )
+
+        val call = call(
+            "checkProviderUsable",
+            BulkRequest.serializer(RequestItem.serializer()),
+            BulkResponse.serializer(ResponseItem.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "checkProviderUsable", roles = Roles.PROVIDER)
             }
         )
     }

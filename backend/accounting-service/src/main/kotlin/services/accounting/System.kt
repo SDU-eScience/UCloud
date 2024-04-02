@@ -11,7 +11,6 @@ import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.findAllFreeProducts
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.*
@@ -198,6 +197,8 @@ class AccountingSystem(
                                     is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(msg)
                                     is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                     is AccountingRequest.SystemCharge -> systemCharge(msg)
+                                    is AccountingRequest.ProviderCheckUsable -> providerCheckUsable(msg)
+                                    is AccountingRequest.ForEachUpdatedWallet -> forEachUpdatedWallet(msg)
                                     is AccountingRequest.StopSystem -> {
                                         isActiveProcessor.set(false)
                                         Response.ok(Unit)
@@ -257,7 +258,7 @@ class AccountingSystem(
     }
 
     private enum class ActionType {
-        CHARGE,
+        PROVIDER_ACTION,
         WALLET_ADMIN,
         ROOT_ALLOCATE,
         READ,
@@ -324,7 +325,7 @@ class AccountingSystem(
                 }
             }
 
-            ActionType.CHARGE -> {
+            ActionType.PROVIDER_ACTION -> {
                 if (idCard != IdCard.System) {
                     if (idCard !is IdCard.Provider) return null
                     if (idCard.name != categoryId.provider) return null
@@ -366,7 +367,9 @@ class AccountingSystem(
                 totalAllocated = 0L,
                 totalRetiredAllocated = 0L,
                 excessUsage = 0L,
-                isDirty = true
+                isDirty = true,
+                wasLocked = false,
+                lastSignificantUpdateAt = Time.now(),
             ).also {
                 wallets.add(it)
                 walletsById[id] = it
@@ -434,7 +437,7 @@ class AccountingSystem(
         val now = Time.now()
         val idCard = request.idCard
         val parentOwner = request.ownerOverride ?: lookupOwner(idCard)
-            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
+        ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
         val internalParentWallet = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
@@ -458,7 +461,12 @@ class AccountingSystem(
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
         val internalChild =
-            authorizeAndLocateWallet(IdCard.System, request.owner, internalParentWallet.category.toId(), ActionType.READ)
+            authorizeAndLocateWallet(
+                IdCard.System,
+                request.owner,
+                internalParentWallet.category.toId(),
+                ActionType.READ
+            )
                 ?: return Response.error(HttpStatusCode.BadRequest, "Unknown recipient: ${request.owner}")
 
         val childOwner = ownersById.getValue(internalChild.ownedBy)
@@ -498,12 +506,14 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(now, internalChild, internalParentWallet.id, request.quota, request.start, request.end,
-                request.grantedIn)
+            insertAllocation(
+                now, internalChild, internalParentWallet.id, request.quota, request.start, request.end,
+                request.grantedIn
+            )
         )
     }
 
-    private suspend fun insertAllocation(
+    private fun insertAllocation(
         now: Long,
         wallet: InternalWallet,
         parentWalletId: Int,
@@ -521,7 +531,7 @@ class AccountingSystem(
         val allocationId = allocationsIdAccumulator.getAndIncrement()
         val newAllocation = InternalAllocation(
             id = allocationId,
-            belongsTo = wallet.id,
+            belongsToWallet = wallet.id,
             parentWallet = parentWalletId,
             quota = quota,
             start = start,
@@ -573,10 +583,18 @@ class AccountingSystem(
             wallet.localUsage -= amount
             internalCharge(wallet, amount, now)
             wallet.localUsage += amount
-            wallet.isDirty
         }
 
+        markSignificantUpdate(wallet, now)
+        reevaluateWalletsAfterUpdate(wallet)
+
         return allocationId
+    }
+
+    private fun markSignificantUpdate(wallet: InternalWallet, now: Long) {
+        mostRecentSignificantUpdateByProvider[wallet.category.provider] = now
+        wallet.lastSignificantUpdateAt = now
+        wallet.isDirty = true
     }
 
     private data class InternalChargeResult(val chargedAmount: Long, val error: String?)
@@ -629,23 +647,39 @@ class AccountingSystem(
                 }
             }
         }
+
+        val overSpendingWallets = ArrayList<Int>()
         for (walletId in chargeGraph.index) {
             if (walletsUpdated[walletId] != true) continue
-            if (walletsById.getValue(walletId).isOverspending()) {
-                return InternalChargeResult(totalChargeableAmount, "$walletId is overspending")
+
+            val visitedWallet = walletsById.getValue(walletId)
+            if (visitedWallet.isOverspending()) {
+                overSpendingWallets.add(walletId)
+                if (!visitedWallet.wasLocked) {
+                    visitedWallet.wasLocked = true
+                    markSignificantUpdate(visitedWallet, now)
+                }
             }
+        }
+
+        if (overSpendingWallets.isNotEmpty()) {
+            return InternalChargeResult(
+                totalChargeableAmount,
+                "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+            )
         }
 
         return InternalChargeResult(totalChargeableAmount, null)
     }
 
     private suspend fun charge(request: AccountingRequest.Charge): Response<Unit> {
-        val wallet = authorizeAndLocateWallet(request.idCard, request.owner, request.category, ActionType.CHARGE)
-            ?: return Response.error(HttpStatusCode.Forbidden, "Not allowed to perform this charge")
+        val wallet =
+            authorizeAndLocateWallet(request.idCard, request.owner, request.category, ActionType.PROVIDER_ACTION)
+                ?: return Response.error(HttpStatusCode.Forbidden, "Not allowed to perform this charge")
         return chargeWallet(wallet, request.amount, request.isDelta, request.scope, request.scope)
     }
 
-    private suspend fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
+    private fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
         val wallet = walletsById[request.walletId.toInt()]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet: ${request.walletId}")
 
@@ -656,7 +690,40 @@ class AccountingSystem(
         )
     }
 
-    private suspend fun chargeWallet(
+    private suspend fun providerCheckUsable(request: AccountingRequest.ProviderCheckUsable): Response<Long> {
+        val internalParentWallet = authorizeAndLocateWallet(
+            request.idCard,
+            request.owner,
+            request.category,
+            ActionType.PROVIDER_ACTION
+        ) ?: return Response.error(
+            HttpStatusCode.Forbidden,
+            "You are not allowed to check the usable balance of this wallet. Are you sure you own this product?"
+        )
+
+        return Response.ok(maxUsableForWallet(internalParentWallet))
+    }
+
+    private suspend fun forEachUpdatedWallet(request: AccountingRequest.ForEachUpdatedWallet): Response<Unit> {
+        if (request.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Only callable by the system")
+        }
+
+        val mostRecent = mostRecentSignificantUpdateByProvider[request.providerId] ?: 0
+        if (request.since >= mostRecent) return Response.ok(Unit)
+
+        for ((_, wallet) in walletsById) {
+            if (wallet.category.provider != request.providerId) continue
+
+            if (wallet.lastSignificantUpdateAt > request.since) {
+                request.handler(wallet)
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private fun chargeWallet(
         wallet: InternalWallet,
         amount: Long,
         isDelta: Boolean,
@@ -776,7 +843,7 @@ class AccountingSystem(
         val now = Time.now()
         val internalAllocation = allocations[request.allocationId]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown allocation")
-        val internalWallet = walletsById[internalAllocation.belongsTo]
+        val internalWallet = walletsById[internalAllocation.belongsToWallet]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet (bad internal state?)")
         val internalOwner = ownersById[internalWallet.ownedBy]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet owner (bad internal state?)")
@@ -849,6 +916,8 @@ class AccountingSystem(
                 parentWallet.isDirty = true
             }
         }
+
+        reevaluateWalletsAfterUpdate(internalWallet)
 
         return Response.ok(Unit)
     }
@@ -926,7 +995,7 @@ class AccountingSystem(
         return g
     }
 
-    private suspend fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {
+    private fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {
         if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
 
         val now = Time.now()
@@ -934,15 +1003,17 @@ class AccountingSystem(
             if (alloc.retired) continue
             if (now > alloc.start && now > alloc.end) {
                 retireAllocation(id)
+
+                reevaluateWalletsAfterUpdate(walletsById.getValue(alloc.belongsToWallet))
             }
         }
 
         return Response.ok(Unit)
     }
 
-    private suspend fun retireAllocation(allocationId: Int) {
+    private fun retireAllocation(allocationId: Int) {
         val alloc = allocations[allocationId] ?: return
-        val wallet = walletsById.getValue(alloc.belongsTo)
+        val wallet = walletsById.getValue(alloc.belongsToWallet)
         val group = wallet.allocationsByParent.getValue(alloc.parentWallet)
 
         if (alloc.retired) return
@@ -1051,13 +1122,13 @@ class AccountingSystem(
         val relevantAllocations = allocations
             .values
             .asSequence()
-            .filter { it.belongsTo in relevantWalletIds }
-            .filter { it.belongsTo != minimumWalletId || it.id > minimumAllocationId }
+            .filter { it.belongsToWallet in relevantWalletIds }
+            .filter { it.belongsToWallet != minimumWalletId || it.id > minimumAllocationId }
             .filter { !it.retired }
-            .sortedWith(Comparator.comparingInt<InternalAllocation?> { it.belongsTo }.thenComparingInt { it.id })
+            .sortedWith(Comparator.comparingInt<InternalAllocation?> { it.belongsToWallet }.thenComparingInt { it.id })
             .take(request.itemsPerPage ?: 250)
             .map {
-                val wallet = relevantWallets.getValue(it.belongsTo)
+                val wallet = relevantWallets.getValue(it.belongsToWallet)
                 AccountingV2.BrowseProviderAllocations.ResponseItem(
                     it.id.toString(),
                     ownersById.getValue(wallet.ownedBy).toWalletOwner(),
@@ -1072,7 +1143,7 @@ class AccountingSystem(
         val lastAllocation = relevantAllocations.lastOrNull()
         val newNextToken = if (lastAllocation != null && relevantAllocations.size < (request.itemsPerPage ?: 250)) {
             val allocId = lastAllocation.id.toInt()
-            val walletId = allocations.getValue(allocId).belongsTo
+            val walletId = allocations.getValue(allocId).belongsToWallet
             "$walletId/$allocId"
         } else {
             null
@@ -1135,6 +1206,34 @@ class AccountingSystem(
 
     private fun scopeKey(wallet: InternalWallet, scope: String): String {
         return wallet.ownedBy.toString() + "\n" + scope
+    }
+
+    private fun reevaluateWalletsAfterUpdate(root: InternalWallet) {
+        val now = Time.now()
+        val visited = HashSet<Int>()
+        val queue = ArrayDeque<InternalWallet>()
+        visited.add(root.id)
+        queue.add(root)
+        while (queue.isNotEmpty()) {
+            val next = queue.removeFirst()
+
+            val maxUsable = maxUsableForWallet(next)
+            if (maxUsable <= 0 && !next.wasLocked) {
+                next.wasLocked = true
+                markSignificantUpdate(next, now)
+            } else if (maxUsable > 0 && next.wasLocked) {
+                next.wasLocked = false
+                markSignificantUpdate(next, now)
+            }
+
+            val children = next.childrenUsage.keys
+            for (child in children) {
+                if (child !in visited) {
+                    visited.add(child)
+                    queue.add(walletsById.getValue(child))
+                }
+            }
+        }
     }
 
     companion object : Loggable {

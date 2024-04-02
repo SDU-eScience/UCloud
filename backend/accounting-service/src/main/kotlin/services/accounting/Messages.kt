@@ -106,5 +106,21 @@ sealed class AccountingRequest<Resp> {
         val useProject: Boolean,
         val filterProductType: ProductType? = null,
     ) : AccountingRequest<Set<String>>()
+
+    data class ProviderCheckUsable(
+        override val idCard: IdCard,
+        val category: ProductCategoryIdV2,
+        val owner: String,
+    ) : AccountingRequest<Long>()
+
+    // NOTE(Dan): Please do not do anything stupid with this API. You should probably only ever do
+    // reads inside the handler. It should not be anything slow since it can stall the entire accounting system if
+    // it is.
+    data class ForEachUpdatedWallet(
+        override val idCard: IdCard,
+        val providerId: String,
+        val since: Long,
+        val handler: suspend (InternalWallet) -> Unit,
+    ) : AccountingRequest<Unit>()
 }
 

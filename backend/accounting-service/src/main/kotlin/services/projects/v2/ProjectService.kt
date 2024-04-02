@@ -47,6 +47,22 @@ class ProjectService(
         updateHandlers.add(handler)
     }
 
+    suspend fun findProjectsUpdatedSince(
+        since: Long,
+        ctx: DBContext = db,
+    ): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("since", since) },
+                """
+                    select id
+                    from project.projects
+                    where modified_at > to_timestamp(:since / 1000.0)
+                """
+            ).rows.map { it.getString(0)!! }
+        }
+    }
+
     suspend fun locateOrCreateAllUsersGroup(
         projectId: String,
         ctx: DBContext = db,
@@ -779,7 +795,9 @@ class ProjectService(
                 { setParameter("ids", projects) },
                 """
                     update project.projects
-                    set archived = true
+                    set
+                        archived = true,
+                        modified_at = now()
                     where id = some(:ids::text[])
                 """
             )
@@ -825,7 +843,9 @@ class ProjectService(
                 { setParameter("ids", projects) },
                 """
                     update project.projects
-                    set archived = false
+                    set
+                        archived = false,
+                        modified_at = now()
                     where id = some(:ids::text[])
                 """
             )
@@ -895,7 +915,9 @@ class ProjectService(
                 },
                 """
                     update project.projects
-                    set subprojects_renameable = :allow_renaming
+                    set
+                        subprojects_renameable = :allow_renaming,
+                        modified_at = now()
                     where id = :project
                 """
             )
@@ -1179,6 +1201,11 @@ class ProjectService(
     ) {
         val projects = request.items.map { it.project }
         ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("projects", projects) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val userInProjects = session
                 .sendPreparedStatement(
                     {
@@ -1611,6 +1638,11 @@ class ProjectService(
                 """
             ).rowsAffected > 0
 
+            session.sendPreparedStatement(
+                { setParameter("projects", listOf(project)) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             if (!success) {
                 // Find an appropriate error message if we did not succeed.
                 if (isLeaving) {
@@ -1698,6 +1730,11 @@ class ProjectService(
                 // If we are not trying to make someone the PI, then we only need to be an admin.
                 requireAdmin(actor, setOf(project), session)
             }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", listOf(project)) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
 
             // NOTE(Dan): Performing the update itself is straightforward. Just change the role in the table. We return
             // the username of the successful changes, such that we can send the correct notifications.
@@ -1822,6 +1859,11 @@ class ProjectService(
         return ctx.withSession { session ->
             requireAdmin(actor, projects, session)
 
+            session.sendPreparedStatement(
+                { setParameter("projects", projects.toList()) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val ids = request.items.map { UUID.randomUUID().toString() }
             val createdGroups = session.sendPreparedStatement(
                 {
@@ -1848,6 +1890,7 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
 
             if (dispatchUpdate) updateHandlers.forEach { it(projects) }
             BulkResponse(ids.map { FindByStringId(it) })
@@ -1937,6 +1980,12 @@ class ProjectService(
                         project.groups g on c.group_id = g.id
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndOldTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val success = affectedProjectsAndOldTitles.isNotEmpty()
 
             if (!success) {
@@ -1989,6 +2038,11 @@ class ProjectService(
                     returning g.project, g.title
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
 
             val success = affectedProjectsAndTitles.isNotEmpty()
             if (!success) {
@@ -2069,6 +2123,11 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjects) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             if (dispatchUpdate) updateHandlers.forEach { it(affectedProjects) }
         }
     }
@@ -2120,6 +2179,11 @@ class ProjectService(
                     where id = some(:groups)
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndGroupTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
 
             if (affectedProjectsAndGroupTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
                 throw RPCException(

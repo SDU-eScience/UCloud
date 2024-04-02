@@ -9,7 +9,6 @@ fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     ApplicationCli(controllerContext)
     UCloudProjectCli(controllerContext)
     UsageCli(controllerContext)
-    GrantCli(controllerContext)
     SshKeyCli(controllerContext)
     EvilCli(controllerContext)
     UDockerCli(controllerContext)

@@ -89,6 +89,25 @@ class AccountingController(
             ok(BulkResponse(shouldContinue))
         }
 
+        implementOrDispatch(AccountingV2.checkProviderUsable) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            val response = ArrayList<AccountingV2.CheckProviderUsable.ResponseItem>()
+            for (req in request.items) {
+                response.add(
+                    AccountingV2.CheckProviderUsable.ResponseItem(
+                        accounting.sendRequest(
+                            AccountingRequest.ProviderCheckUsable(
+                                idCard,
+                                req.category,
+                                req.owner.reference(),
+                            )
+                        )
+                    )
+                )
+            }
+            ok(BulkResponse(response))
+        }
+
         implementOrDispatch(AccountingV2.updateAllocation) {
             val idCard = idCards.fetchIdCard(actorAndProject)
             for (req in request.items) {

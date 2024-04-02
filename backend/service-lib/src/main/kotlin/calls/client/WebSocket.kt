@@ -43,9 +43,10 @@ class OutgoingWSCall : OutgoingCall {
 @OptIn(ExperimentalCoroutinesApi::class)
 class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, OutgoingWSCall.Companion> {
     override val companion = OutgoingWSCall
-    private val connectionPool = WSConnectionPool()
+    val connectionPool = WSConnectionPool()
     private val streamId = atomicInt(0)
     private val sampleCounter = atomicInt(0)
+
 
     override suspend fun <R : Any, S : Any, E : Any> prepareCall(
         call: CallDescription<R, S, E>,
@@ -253,7 +254,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class WSClientSession constructor(
+class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
     private val channels = HashMap<String, Channel<WSRawMessage>>()
@@ -330,14 +331,14 @@ internal class WSClientSession constructor(
 }
 
 @Serializable
-internal data class WSRawMessage(
+data class WSRawMessage(
     val type: String? = null,
     val status: Int? = null,
     val streamId: String,
     val payload: JsonObject
 )
 
-internal class WSConnectionPool {
+class WSConnectionPool {
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()
     private val websocketClient: HttpClient = createWebsocketClient()
