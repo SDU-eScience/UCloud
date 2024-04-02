@@ -78,13 +78,15 @@ class StatisticsService {
                                     descendant_owner.project_id
                                 from
                                     accounting.wallet_owner wo
-                                    join accounting.wallets w on wo.id = w.owned_by
-                                    join accounting.product_categories pc on w.category = pc.id
-                                    join accounting.wallet_allocations alloc on w.id = alloc.associated_wallet
+                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
+                                    join accounting.product_categories pc on w.product_category = pc.id
+                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
+                                    join accounting.wallet_allocations_v2 alloc on alloc.associated_allocation_group = ag.id
                                     -- The descendant will also capture the alloc itself
-                                    join accounting.wallet_allocations descendant on alloc.allocation_path @> descendant.allocation_path
-                                    join accounting.wallets descendant_wallet on descendant.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.owned_by = descendant_owner.id
+                                    join accounting.allocation_groups children on children.parent_wallet = w.id
+                                    join accounting.wallet_allocations_v2 descendant on alloc.associated_allocation_group = children.id
+                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
+                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
                                     join accounting.products p on pc.id = p.category
                                 where
                                     (
@@ -92,10 +94,10 @@ class StatisticsService {
                                         or wo.username = :username::text
                                     )
                                     and pc.product_type = 'COMPUTE'
-                                    and alloc.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= alloc.end_date
-                                    and descendant.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.end_date
+                                    and alloc.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= alloc.allocation_end_time
+                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
                             ),
                             jobs as (
                                 select distinct
@@ -199,13 +201,15 @@ class StatisticsService {
                                 select distinct p.id as product_id, pc.category, pc.provider, descendant_owner.username, descendant_owner.project_id
                                 from
                                     accounting.wallet_owner wo
-                                    join accounting.wallets w on wo.id = w.owned_by
-                                    join accounting.product_categories pc on w.category = pc.id
-                                    join accounting.wallet_allocations alloc on w.id = alloc.associated_wallet
+                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
+                                    join accounting.product_categories pc on w.product_category = pc.id
+                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
+                                    join accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group
                                     -- The descendant will also capture the alloc itself
-                                    join accounting.wallet_allocations descendant on alloc.allocation_path @> descendant.allocation_path
-                                    join accounting.wallets descendant_wallet on descendant.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.owned_by = descendant_owner.id
+                                    join accounting.allocation_groups children on children.parent_wallet = w.id
+                                    join accounting.wallet_allocations_v2 descendant on descendant.associated_allocation_group = children.id
+                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
+                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
                                     join accounting.products p on pc.id = p.category
                                 where
                                     (
@@ -213,10 +217,10 @@ class StatisticsService {
                                         or wo.username = :username::text
                                     )
                                     and pc.product_type = 'COMPUTE'
-                                    and alloc.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= alloc.end_date
-                                    and descendant.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.end_date
+                                    and alloc.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= alloc.allocation_end_time
+                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
                             )
                         select
                             wr.category,
@@ -293,13 +297,15 @@ class StatisticsService {
                                     descendant_owner.project_id
                                 from
                                     accounting.wallet_owner wo
-                                    join accounting.wallets w on wo.id = w.owned_by
-                                    join accounting.product_categories pc on w.category = pc.id
-                                    join accounting.wallet_allocations alloc on w.id = alloc.associated_wallet
+                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
+                                    join accounting.product_categories pc on w.product_category = pc.id
+                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
+                                    join accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group
                                     -- The descendant will also capture the alloc itself
-                                    join accounting.wallet_allocations descendant on alloc.allocation_path @> descendant.allocation_path
-                                    join accounting.wallets descendant_wallet on descendant.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.owned_by = descendant_owner.id
+                                    join accounting.allocation_groups children on children.parent_wallet = w.id
+                                    join accounting.wallet_allocations_v2 descendant on alloc.associated_allocation_group = children.id
+                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
+                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
                                     join accounting.products p on pc.id = p.category
                                 where
                                     (
@@ -307,10 +313,10 @@ class StatisticsService {
                                         or wo.username = :username::text
                                     )
                                     and pc.product_type = 'COMPUTE'
-                                    and alloc.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= alloc.end_date
-                                    and descendant.start_date <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.end_date
+                                    and alloc.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= alloc.allocation_end_time
+                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
+                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
                             ),
                             jobs as (
                                 select distinct

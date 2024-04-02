@@ -75,14 +75,12 @@ class DataVisualization(
 
         val timeRange = (request.start)..(request.end)
         if (timeRange.isEmpty()) return assembleResult()
-        println(idCard)
         val allWallets = accountingSystem
             .sendRequest(
                 AccountingRequest.BrowseWallets(
                     idCard
                 )
             ).mapNotNull { wallet ->
-                println(wallet)
                 //get allocations within period
                 val newGroups = wallet.allocationGroups.mapNotNull { ag ->
                     val newAlloc = mutableListOf<AllocationGroup.Alloc>()
@@ -103,8 +101,6 @@ class DataVisualization(
 
                 wallet.copy(allocationGroups = newGroups)
             }
-
-        println("ALLWOALET: $allWallets")
 
         for ((walletIndex, wallet) in allWallets.withIndex()) {
             val c = wallet.paysFor
@@ -156,7 +152,6 @@ class DataVisualization(
             }
 
             run {
-                println(allWallets.flatMap { it.allocationGroups.map { it.group.id } })
                 // Usage over time
                 val rows = session.sendPreparedStatement(
                     {
@@ -194,7 +189,6 @@ class DataVisualization(
                 }
 
                 for (row in rows) {
-                    println("ROW: pproduct ${row.getLong(0)}")
                     val allocCategory = row.getLong(0)!!
                     val usage = row.getLong(1)!!
                     val quota = row.getLong(2)!!
@@ -295,7 +289,6 @@ class DataVisualization(
                             breakdownByProjectCharts[currentCategory] = BreakdownByProjectAPI(
                                 data = dataPoints
                             )
-                            println("data: $dataPoints")
 
                             dataPoints = ArrayList()
                         }
