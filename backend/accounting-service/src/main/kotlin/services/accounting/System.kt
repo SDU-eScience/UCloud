@@ -11,6 +11,7 @@ import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.findAllFreeProducts
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.*
@@ -157,6 +158,7 @@ class AccountingSystem(
     }
 
     private val toCheck = ArrayList<Int>()
+    private var nextRetirementScan = 0L
 
     private suspend fun processMessages(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
@@ -181,7 +183,7 @@ class AccountingSystem(
                         requests.onReceive { request ->
                             // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
                             // timeout is never triggered.
-                            persistence.flushChanges()
+                            processPeriodicTasks()
 
                             toCheck.clear()
                             var response = try {
@@ -219,7 +221,7 @@ class AccountingSystem(
                         }
 
                         onTimeout(500) {
-                            persistence.flushChanges()
+                            processPeriodicTasks()
                         }
                     }
                     if (!renewLock(lock)) {
@@ -229,6 +231,16 @@ class AccountingSystem(
             } catch (ex: Throwable) {
                 log.info(ex.toReadableStacktrace().toString())
             }
+        }
+    }
+
+    private suspend fun processPeriodicTasks() {
+        persistence.flushChanges()
+
+        val now = Time.now()
+        if (now > nextRetirementScan) {
+            scanRetirement(AccountingRequest.ScanRetirement(IdCard.System))
+            nextRetirementScan = now + 60_000L
         }
     }
 
@@ -486,7 +498,8 @@ class AccountingSystem(
         }
 
         return Response.ok(
-            insertAllocation(now, internalChild, internalParentWallet.id, request.quota, request.start, request.end, null)
+            insertAllocation(now, internalChild, internalParentWallet.id, request.quota, request.start, request.end,
+                request.grantedIn)
         )
     }
 

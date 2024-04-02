@@ -23,6 +23,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import kotlinx.coroutines.launch
 
 class Server(
     override val micro: Micro,
@@ -80,6 +81,9 @@ class Server(
         val dataVisualization = DataVisualization(db, accountingSystem)
 
         accountingSystem.start(micro.backgroundScope)
+        micro.backgroundScope.launch {
+            grants.init()
+        }
 
         val scriptManager = micro.feature(ScriptManager)
         scriptManager.register(

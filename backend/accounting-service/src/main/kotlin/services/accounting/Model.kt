@@ -3,8 +3,10 @@ package dk.sdu.cloud.accounting.services.accounting
 import dk.sdu.cloud.accounting.api.AllocationGroup
 import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.accounting.api.WalletV2
 import dk.sdu.cloud.calls.client.AtomicInteger
+import java.util.concurrent.atomic.AtomicBoolean
+
+internal val didLoadUnsynchronizedGrants = AtomicBoolean(false)
 
 internal val ownersByReference = HashMap<String, InternalOwner>()
 internal val ownersById = HashMap<Int, InternalOwner>()
@@ -107,7 +109,7 @@ data class InternalAllocationGroup(
                     alloc.start,
                     alloc.end,
                     alloc.quota,
-                    null, // TODO()
+                    alloc.grantedIn,
                     alloc.retiredUsage.takeIf { alloc.retired },
                 )
             },

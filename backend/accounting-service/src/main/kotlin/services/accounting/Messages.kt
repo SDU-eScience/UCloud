@@ -28,6 +28,7 @@ sealed class AccountingRequest<Resp> {
         val start: Long,
         val end: Long,
         val ownerOverride: String? = null,
+        val grantedIn: Long? = null,
     ) : AccountingRequest<Int>()
 
     data class Charge(

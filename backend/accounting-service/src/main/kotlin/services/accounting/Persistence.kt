@@ -29,7 +29,6 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
     override suspend fun initialize() {
         val now = Time.now()
-        if (now < nextSynchronization) return
         db.withSession { session ->
             //Fetching last sample date
             session.sendPreparedStatement(
@@ -120,7 +119,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
 
                 val group = allocationGroups[groupId]
                 if (group != null) {
-                    allocationGroups[groupId]!!.allocationSet[allocation.id] = !allocation.retired
+                    allocationGroups[groupId]!!.allocationSet[allocation.id] =
+                        allocation.isActive(now)
                 } else {
                     val newGroup = InternalAllocationGroup(
                         id = groupId,
@@ -132,7 +132,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         allocationSet = HashMap(),
                         isDirty = false
                     )
-                    newGroup.allocationSet[allocation.id] = !allocation.retired
+                    newGroup.allocationSet[allocation.id] = allocation.isActive(now)
                     allocationGroups[groupId] = newGroup
                 }
             }
@@ -260,6 +260,20 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     walletsByOwner[owner] = walletArrayList
                 }
 
+            val scopedUsageRows = session.sendPreparedStatement(
+                {},
+                """
+                    select key, usage
+                    from accounting.scoped_usage
+                """
+            ).rows.associate { row ->
+                val key = row.getString(0)!!
+                val usage = row.getLong(1)!!
+
+                key to usage
+            }
+            scopedUsage.putAll(scopedUsageRows)
+
             // Handle IDs so ID counter is ready to new inserts
             val idRow = session.sendPreparedStatement(
                 {},
@@ -295,9 +309,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     """
                 )
             }
-        }
 
-        nextSynchronization = now + 30_000
+        }
     }
 
     override suspend fun loadOldData(system: AccountingSystem) {
@@ -311,9 +324,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             //Charge Intermediate table
             val charges = session.sendPreparedStatement(
                 """
-                        select id, wallet_id, usage
-                        from accounting.intermediate_usage
-                    """
+                    select id, wallet_id, usage
+                    from accounting.intermediate_usage
+                """
             ).rows.map {
                 Charge(
                     id = it.getLong(0)!!,
@@ -336,6 +349,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
     }
 
     override suspend fun flushChanges() {
+        val now = Time.now()
+        if (now < nextSynchronization) return
+
         val providerToIdMap = HashMap<Pair<String, String>, Long>()
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -564,7 +580,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 data class Sample(
                     val walletId: Int,
                     var localUsage: Long = 0L,
-                    var excessUsage:Long = 0L,
+                    var excessUsage: Long = 0L,
                     var localUsageChange: Long = 0L,
                     var combinedTreeUsage: Long = 0L,
                     var totalQuota: Long = 0L,
@@ -680,6 +696,47 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     )
                 }
             }
+
+            val scopedKeys = ArrayList<String>()
+            val scopedValues = ArrayList<Long>()
+            for (key in scopedDirty.keys) {
+                val usage = scopedUsage[key] ?: continue
+                scopedKeys.add(key)
+                scopedValues.add(usage)
+            }
+
+            if (scopedKeys.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("keys", scopedKeys)
+                        setParameter("values", scopedValues)
+                    },
+                    """
+                        with data as (
+                            select
+                                unnest(:keys::text[]) as key,
+                                unnest(:values::int8[]) as value
+                        )
+                        insert into accounting.scoped_usage(key, usage)
+                        select key, value
+                        from data
+                        on conflict (key) do update set usage = excluded.usage
+                    """
+                )
+            }
+
+            if (didLoadUnsynchronizedGrants.get()) {
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        update "grant".applications
+                        set synchronized = true
+                        where overall_state = 'APPROVED'
+                    """
+                )
+            }
         }
+
+        nextSynchronization = now + 30_000
     }
 }

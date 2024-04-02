@@ -671,7 +671,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             if (relevantCategories.length <= 0) continue;
 
-            newResources[provider] = categories;
+            newResources[provider] = categories.map(it => ({
+                ...it,
+                totalBalanceRequested: {}
+            }));
         }
 
         for (const request of doc.allocationRequests) {
