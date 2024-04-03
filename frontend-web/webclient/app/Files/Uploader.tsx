@@ -673,7 +673,7 @@ const Uploader: React.FunctionComponent = () => {
                                     }
                                     <div className="upload-more-text" style={{marginTop: "22px"}}>
                                         <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files here or</TextSpan>
+                                        <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
                                         <i style={{cursor: "pointer"}}>browse</i>
                                         <input
                                             id={"fileUploadBrowse"}

@@ -65,6 +65,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import java.nio.ByteBuffer
 import kotlin.math.min
 
 class UCloudFilePlugin : FilePlugin {
@@ -314,7 +315,8 @@ class UCloudFilePlugin : FilePlugin {
                 for (entry in listing) {
                     val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.value.path)
                     val exists = queries.fileExists(ucloudFile)
-                    val entryKeyBytes = entry.key.toByteArray()
+                    //val entryKeyBytes = entry.key.toByteArray()
+                    val entryKeyBytes = ByteBuffer.allocate(4).putInt(entry.key.toInt()).array()
 
                     if (!exists) {
                         // The file does not exist. Respond with OK (start the transfer) for this file.
@@ -1036,27 +1038,4 @@ enum class FolderUploadMessageType {
     CHECKSUM,
     CHUNK,
     SKIP
-}
-
-fun UInt.toByteArray(): ByteArray {
-    var buffer = byteArrayOf()
-
-    var n = this
-
-    if (n == 0x00u) {
-        buffer += this.toByte()
-    } else {
-        while (n != 0x00u) {
-            buffer += n.toByte()
-            n = n.shr(Byte.SIZE_BITS)
-        }
-    }
-
-    val padding = 0x00u.toByte()
-    var paddings = byteArrayOf()
-    repeat(UInt.SIZE_BYTES - buffer.count()) {
-        paddings += padding
-    }
-
-    return paddings + buffer
 }
