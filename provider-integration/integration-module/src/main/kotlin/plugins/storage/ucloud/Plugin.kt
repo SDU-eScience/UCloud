@@ -330,10 +330,12 @@ class UCloudFilePlugin : FilePlugin {
                         } else if (existingFile.status.modifiedAt == entry.value.modifiedAt) {
                             // The sizes and modifiedAt are the same, SKIP this file.
                             val skipFrameTypeByte = byteArrayOf(FolderUploadMessageType.SKIP.ordinal.toByte())
+                            listing[entry.key]?.offset = entry.value.size
                             websocket.send(skipFrameTypeByte + entryKeyBytes)
                         } else {
                             // The sizes are equal, but the modification time differs.
                             // TODO(Brian): Compute checksum here.
+                            listing[entry.key]?.offset = entry.value.size
                             val skipFrameTypeByte = byteArrayOf(FolderUploadMessageType.SKIP.ordinal.toByte())
                             websocket.send(skipFrameTypeByte + entryKeyBytes)
                         }
@@ -341,16 +343,9 @@ class UCloudFilePlugin : FilePlugin {
                 }
             } else {
                 val buffer = frame.buffer
-
-                val frameType =
-                    FolderUploadMessageType.entries.getOrNull(buffer.get().toUByte().toInt())
-                        ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
-
-                println("FRAME TYPE IS $frameType")
-
+                val frameType = FolderUploadMessageType.entries.getOrNull(buffer.get().toUByte().toInt())
+                    ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
                 val fileId = buffer.getInt().toUInt()
-
-                println("FILE ID IS $fileId")
 
                 when (frameType) {
                     FolderUploadMessageType.CHUNK -> {
@@ -409,7 +404,6 @@ class UCloudFilePlugin : FilePlugin {
                 }
 
                 if (listing.entries.sumOf { it.value.offset } >= listing.entries.sumOf { it.value.size }) {
-                    println("BREAKING")
                     break
                 }
             }

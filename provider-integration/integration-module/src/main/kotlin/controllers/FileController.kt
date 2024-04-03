@@ -700,8 +700,6 @@ class FileController(
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
-                //var listing: Map<UInt, FileListingEntry> = emptyMap()
-
                 with(context) {
                     val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                     val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
