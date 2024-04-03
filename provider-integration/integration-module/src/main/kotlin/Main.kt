@@ -663,7 +663,7 @@ fun main(args: Array<String>) {
 
                     plugins.connection?.apply { initialize() }
                     plugins.projects?.apply { initialize() }
-                    for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
+                    plugins.allocations?.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.shares) plugin.apply { initialize() }

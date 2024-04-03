@@ -1,7 +1,7 @@
 import * as React from "react";
 import {SpaceProps} from "styled-system";
 import * as icons from "./icons";
-import {ThemeColor} from "./theme";
+import {HexColor, ThemeColor} from "./theme";
 import {Cursor} from "./Types";
 import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
@@ -30,14 +30,14 @@ const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: Ico
 
 export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivElement> {
     name: IconName | "bug";
-    color?: ThemeColor;
-    color2?: ThemeColor;
+    color?: ThemeColor | HexColor;
+    color2?: ThemeColor | HexColor;
     rotation?: number;
     cursor?: Cursor;
     size?: string | number;
     squared?: boolean;
     spin?: boolean;
-    hoverColor?: ThemeColor;
+    hoverColor?: ThemeColor | HexColor;
     title?: string;
     className?: string;
     style?: CSSProperties;

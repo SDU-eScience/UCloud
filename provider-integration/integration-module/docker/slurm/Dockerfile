@@ -12,6 +12,7 @@ RUN chown  root:root /usr/local/bin/docker-entrypoint.sh
 RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
 
 COPY slurm.conf /etc/slurm/slurm.conf
+COPY cgroup.conf /etc/slurm/cgroup.conf
 
 RUN yum -y install openmpi-devel python3
 RUN cp /etc/passwd /etc/passwd.orig

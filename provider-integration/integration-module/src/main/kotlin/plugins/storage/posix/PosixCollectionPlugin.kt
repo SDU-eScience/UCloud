@@ -75,7 +75,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
     }
 
-    override suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotification.Combined) {
+    override suspend fun PluginContext.onWalletSynchronized(notification: AllocationPlugin.Message) {
         locateAndRegisterCollections(notification.owner)
     }
 

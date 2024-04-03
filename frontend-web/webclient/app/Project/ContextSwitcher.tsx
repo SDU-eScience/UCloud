@@ -73,9 +73,7 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 `);
 
 export function ContextSwitcher({managed}: {
-    managed?: {
-        setLocalProject: (project?: string) => void;
-    }
+    managed?: {setLocalProject: (project?: string) => void}
 }): JSX.Element {
     const refresh = useRefresh();
 
@@ -137,7 +135,7 @@ export function ContextSwitcher({managed}: {
     const filteredProjects: Project[] = React.useMemo(() => {
         if (filter === "") return projectList.items;
 
-        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, { sort: true });
+        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, {sort: true});
         return searchResults
             .map(it => projectList.items.find(p => it.title === p.specification.title))
             .filter(it => it !== undefined) as Project[];
@@ -154,6 +152,38 @@ export function ContextSwitcher({managed}: {
         }
     }, [refresh]);
 
+    const closeFn = React.useRef(() => void 0);
+    const switcherRef = React.useRef<HTMLDivElement>(null);
+
+    React.useLayoutEffect(() => {
+        const wrapper = switcherRef.current!;
+        const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
+            let parent = elem.parentElement;
+            while (parent) {
+                const {overflow} = window.getComputedStyle(parent);
+                if (overflow.split(" ").every(it => it === "auto" || it === "scroll")) {
+                    return parent;
+                } else {
+                    parent = parent.parentElement;
+                }
+            }
+            return document.documentElement;
+        };
+        const scrollingParent = scrollingParentFn(wrapper);
+
+        const noScroll = () => {
+            closeFn.current();
+        };
+
+        document.body.addEventListener("click", closeFn.current);
+        scrollingParent.addEventListener("scroll", noScroll);
+
+        return () => {
+            document.body.removeEventListener("click", closeFn.current);
+            scrollingParent.removeEventListener("scroll", noScroll);
+        };
+    }, []);
+
     const showMyWorkspace =
         activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
 
@@ -161,12 +191,13 @@ export function ContextSwitcher({managed}: {
         <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
-                    <div className={triggerClass}>
+                    <div className={triggerClass} ref={switcherRef}>
                         <Truncate title={activeContext} fontSize={14} width="180px"><b>{activeContext}</b></Truncate>
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </div>
                 }
                 rightAligned
+                closeFnRef={closeFn}
                 paddingControlledByContent
                 arrowkeyNavigationKey="data-active"
                 hoverColor={"rowHover"}
@@ -189,7 +220,7 @@ export function ContextSwitcher({managed}: {
                             className={filterInputClass}
                             placeholder="Search for a workspace..."
                             defaultValue={filter}
-                                onKeyDown={e => {
+                            onKeyDown={e => {
                                 if (["Escape"].includes(e.key) && e.target["value"]) {
                                     setTitleFilter("");
                                     e.target["value"] = "";
@@ -237,7 +268,7 @@ export function ContextSwitcher({managed}: {
                             </div>
                         )}
 
-                        {filteredProjects.length !== 0 || showMyWorkspace|| error ? null : (
+                        {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
                             <Box my="32px" textAlign="center">No workspaces found</Box>
                         )}
                     </div>

@@ -81,6 +81,19 @@ class ProjectService(
         }
     }
 
+    suspend fun findAllProjectsWithUser(username: String, ctx: DBContext = db): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("username", username) },
+                """
+                    select project_id
+                    from project.project_members
+                    where username = :username
+                """
+            ).rows.map { it.getString(0)!! }
+        }
+    }
+
     suspend fun locateOrCreateAllUsersGroup(
         projectId: String,
         ctx: DBContext = db,

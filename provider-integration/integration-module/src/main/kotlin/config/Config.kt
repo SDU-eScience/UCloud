@@ -155,17 +155,8 @@ data class ConfigSchema(
         val publicIps: Map<String, PublicIPs>? = null,
         val licenses: Map<String, Licenses>? = null,
         val shares: Map<String, Shares>? = null,
-        val allocations: Map<AllocationsProductType, Allocations>? = null,
+        val allocations: Allocations? = null,
     ) {
-        enum class AllocationsProductType(val type: ProductType?) {
-            STORAGE(ProductType.STORAGE),
-            COMPUTE(ProductType.COMPUTE),
-            INGRESS(ProductType.INGRESS),
-            LICENSE(ProductType.LICENSE),
-            NETWORK_IP(ProductType.NETWORK_IP),
-            ALL(null)
-        }
-
         interface WithAutoInstallSshKey {
             val installSshKeys: Boolean
         }
@@ -316,10 +307,7 @@ data class ConfigSchema(
             ) : ConfigSchema.Plugins.Allocations() {
                 @Serializable
                 data class Extensions(
-                    val onAllocationTotal: String? = null,
-                    val onAllocationSingle: String? = null,
-                    val onSynchronizationTotal: String? = null,
-                    val onSynchronizationSingle: String? = null,
+                    val onWalletUpdated: String? = null,
                 )
             }
 

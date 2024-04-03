@@ -119,7 +119,7 @@ data class VerifiedConfig(
         val publicIps: Map<String, PublicIPPlugin>,
         val licenses: Map<String, LicensePlugin>,
         val shares: Map<String, SharePlugin>,
-        val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
+        val allocations: AllocationPlugin?,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
         //   ConnectionController. I don't have a good solution right now, so we will have to live with this weird
@@ -660,16 +660,9 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 loadPlugin(config.plugins.projects, core.launchRealUserInstances) as ProjectPlugin
             }
 
-            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> =
-                if (config.plugins.allocations == null) {
-                    emptyMap()
-                } else {
-                    val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
-                    for ((productType, cfg) in config.plugins.allocations) {
-                        result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
-                    }
-                    result
-                }
+            val allocations = config.plugins.allocations?.let { cfg ->
+                loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
+            }
 
             @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(

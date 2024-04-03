@@ -830,6 +830,7 @@ class AccountingSystem(
                 maxUsableForWallet(wallet),
                 wallet.totalActiveQuota(),
                 wallet.totalAllocated,
+                wallet.lastSignificantUpdateAt,
             )
         }
 

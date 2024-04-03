@@ -369,7 +369,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumnTitles([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
+                browser.setColumns([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 150}, {name: "Shared by", columnWidth: 80}]);
 
                 browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -430,7 +430,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 });
 
                 browser.on("renderRow", (share, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "ftSharesFolder",
@@ -461,6 +461,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
 
                     const isEdit = share.specification.permissions.some(it => it === "EDIT");
                     const radioTilesContainerWrapper = document.createElement("div");
+                    radioTilesContainerWrapper.style.marginRight = "8px";
                     wrapper.appendChild(radioTilesContainerWrapper);
                     if (isEdit) {
                         if (ICONS.EDIT_ICON) radioTilesContainerWrapper.append(ICONS.EDIT_ICON.clone());
@@ -481,6 +482,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
                                 browser.refresh();
                             },
+                            show(res) {
+                                return true;
+                            },
                             text: "Accept"
                         }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
@@ -488,11 +492,14 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
                                 browser.refresh();
                             },
+                            show(res) {
+                                return true;
+                            },
                             text: "Decline"
                         }, share, {color: "errorMain", width: "72px"})!);
                     } else {
                         const {state} = share.status;
-                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                        const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);
                         browser.icons.renderIcon({

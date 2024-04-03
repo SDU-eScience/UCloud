@@ -40,6 +40,11 @@ import FileBrowse from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import AppRoutes from "@/Routes";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {div} from "@/Utilities/HTMLUtilities";
+import {arrayToPage} from "@/Types";
 
 // UI state management
 // ================================================================================
@@ -256,7 +261,7 @@ export const Overview: React.FunctionComponent = () => {
         if (!provider) {
             navigate("/drives");
         }
-    }, [])
+    }, []);
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
@@ -397,15 +402,15 @@ export const Overview: React.FunctionComponent = () => {
 
     useEffect(() => {
         folderToggleSet.uncheckAll();
-    }, [folders]);
+    }, [uiState.folders]);
 
     useEffect(() => {
         serverToggleSet.uncheckAll();
-    }, [servers]);
+    }, [uiState.servers]);
 
     useEffect(() => {
         deviceToggleSet.uncheckAll();
-    }, [devices]);
+    }, [uiState.devices]);
 
     useEffectSkipMount(() => {
         // TODO(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
@@ -522,8 +527,10 @@ export const Overview: React.FunctionComponent = () => {
                 </Text>
 
                 {uiState.folders !== undefined && folders.length === 0 ?
+
                     <EmptyFolders onAddFolder={openFileSelector} /> :
                     <>
+                        {/* <SyncedFolders folders={folders} opts={{embedded: true}} /> */}
                         {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector} /> : null}
                         <List mt="16px">
                             {folders.map(it =>
@@ -1037,16 +1044,14 @@ const AddDeviceWizard: React.FunctionComponent<{
     }
 
     return <Flex flexDirection="column" height="100%">
-        <Box flexGrow={1}>{tutorialContent}</Box>
-        <Flex mt={30}>
-            <Box marginLeft={"auto"}>
-                {tutorialStep < 1 ? null : (
-                    <Button onClick={tutorialPrevious}>Previous step</Button>
-                )}
-                <Button marginLeft={10} onClick={tutorialNext}>
-                    {tutorialStep === 2 ? "Done" : "Next step"}
-                </Button>
-            </Box>
+        <Box flexGrow={1} overflowY="scroll">{tutorialContent}</Box>
+        <Flex ml="auto" mt={30}>
+            {tutorialStep < 1 ? null : (
+                <Button onClick={tutorialPrevious}>Previous step</Button>
+            )}
+            <Button marginLeft={10} onClick={tutorialNext}>
+                {tutorialStep === 2 ? "Done" : "Next step"}
+            </Button>
         </Flex>
     </Flex>;
 };
@@ -1118,5 +1123,89 @@ const DeviceBox = injectStyleSimple("device-box", `
     user-select: none;
     -webkit-user-select: none;
 `);
+
+function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.JSX.Element {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<SyncthingFolder>>(null);
+    const navigate = useNavigate();
+
+    const features: ResourceBrowseFeatures = {
+        dragToSelect: true,
+        showColumnTitles: true,
+    };
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<SyncthingFolder>(mount, "SyncFolders", opts).init(browserRef, features, "/", browser => {
+                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 50}]);
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource) {
+                        navigate(AppRoutes.files.path(resource.ucloudPath));
+                        return;
+                    }
+                });
+
+                browser.on("unhandledShortcut", () => {});
+
+                browser.on("wantToFetchNextPage", async path => {});
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("SyncThing folders", e, {}))
+
+                browser.on("renderRow", (folder, row, dims) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(icon);
+                    browser.icons.renderIcon({
+                        color: "FtFolderColor",
+                        color2: "FtFolderColor2",
+                        name: "ftFolder",
+                        height: 64,
+                        width: 64
+                    }).then(setIcon);
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row));
+
+                    if (/* permissionProblems.includes(folder.id) */Math.random() < 2) {
+                        const [permissionIcon, setPermissionIcon] = ResourceBrowser.defaultIconRenderer();
+                        browser.icons.renderIcon({
+                            name: "warning",
+                            color: "errorMain",
+                            color2: "primaryMain",
+                            height: 64,
+                            width: 64,
+                        }).then(setPermissionIcon);
+                        row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in ${fileName(folder.ucloudPath)} might not be synchronized due to lack of permissions.`)));
+                    }
+                });
+
+                browser.setEmptyIcon("ftFolder");
+
+                browser.on("generateBreadcrumbs", () => {
+                    return [];
+                });
+
+                browser.on("fetchOperationsCallback", () => ({
+                }));
+
+                browser.on("fetchOperations", () => []);
+
+                browser.on("pathToEntry", syncFolder => syncFolder.id);
+            });
+        }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
+    }, []);
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useSetRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
+
+    return <div><div ref={mountRef} /></div>;
+}
 
 export default Overview;

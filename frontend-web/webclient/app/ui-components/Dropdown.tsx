@@ -56,6 +56,8 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         visibility: visible;
         pointer-events: auto;
         border: 1px solid var(--borderColor);
+        user-select: none;
+        -webkit-user-select: none;
     }
     
     ${k}[data-padding-controlled="false"] {

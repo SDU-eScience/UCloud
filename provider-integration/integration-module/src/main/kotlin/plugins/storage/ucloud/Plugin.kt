@@ -66,6 +66,7 @@ class UCloudFilePlugin : FilePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<ProductV2> = emptyList()
+    override var supportedUploadProtocols = listOf(UploadProtocol.WEBSOCKET, UploadProtocol.CHUNKED)
 
     private lateinit var pluginConfig: ConfigSchema.Plugins.Files.UCloud
 

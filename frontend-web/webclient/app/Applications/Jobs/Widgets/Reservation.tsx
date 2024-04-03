@@ -21,11 +21,11 @@ const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
 const reservationReplicas = "reservation-replicas";
 
-export const ReservationParameter: React.FunctionComponent<{
+export function ReservationParameter({application, errors, onEstimatedCostChange}: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
     onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, walletMaxUsable: number, product: ProductV2 | null) => void;
-}> = ({application, errors, onEstimatedCostChange}) => {
+}>): React.JSX.Element {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
@@ -98,10 +98,10 @@ export const ReservationParameter: React.FunctionComponent<{
         if (isNaN(amount)) return;
         const hours = document.querySelector<HTMLInputElement>(`#${reservationHours}`);
         if (!hours) return;
-        let existing = parseInt(hours.value);
+        let existing = hours.valueAsNumber;
         if (isNaN(existing)) existing = 0;
-        if (existing < amount && amount !== 1) existing = 0;
-        hours.value = (existing + amount).toString();
+        const hourAmount = existing + amount;
+        hours.value = hourAmount.toString();
         recalculateCost();
     }, [recalculateCost]);
 
@@ -147,9 +147,9 @@ export const ReservationParameter: React.FunctionComponent<{
                             style={{minWidth: "100px"}}
                         />
                     </Label>
-                    <Button data-amount={1} onClick={adjustHours}>+1</Button>
-                    <Button data-amount={8} onClick={adjustHours}>+8</Button>
-                    <Button data-amount={24} onClick={adjustHours}>+24</Button>
+                    <Button width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
+                    <Button width="40px" data-amount={8} onClick={adjustHours}>+8</Button>
+                    <Button width="40px" data-amount={24} onClick={adjustHours}>+24</Button>
                 </Flex>
                 : null}
         </Flex>
@@ -256,6 +256,7 @@ export function setReservation(values: Partial<ReservationValues>): void {
 
     name.value = values.name ?? "";
     hours.value = values.timeAllocation?.hours?.toString(10) ?? "";
+
     if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
     if (values.product !== undefined) setMachineReservationFromRef(values.product);

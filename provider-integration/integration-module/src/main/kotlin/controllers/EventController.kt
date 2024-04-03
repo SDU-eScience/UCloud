@@ -5,13 +5,16 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.toV2Id
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.websocket.*
@@ -19,23 +22,24 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
 
 class EventController(
     private val controllerContext: ControllerContext,
 ) : Controller {
-    override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
+    private val replayRequests = Channel<WalletOwner.User>(Channel.BUFFERED)
+
+    override fun configure(rpcServer: RpcServer) {
         if (!controllerContext.configuration.shouldRunServerCode()) return
 
         controllerContext.configuration.plugins.temporary
             .onConnectionCompleteHandlers.add(this@EventController::onConnectionComplete)
-
-        val provider = controllerContext.configuration.core.providerId
 
         startLoop()
     }
@@ -43,6 +47,10 @@ class EventController(
     private fun startLoop() {
         ProcessingScope.launch {
             val replayFrom = AtomicLong(0L) // TODO
+            // TODO Replay users who connected in proximity to the "replayFrom" value
+            // TODO To make this reliable we should set replayFrom periodically ourselves to the current time
+            //  (minus some constant to account for drifting time)
+
             while (isActive) {
                 try {
                     println("Starting!")
@@ -61,23 +69,35 @@ class EventController(
                     }
 
                     val auth = controllerContext.pluginContext.authenticator!!
-                    ApmNotifications.subscribe(
+                    val session = ApmNotifications.subscribe(
                         info,
                         ProcessingScope,
                         auth,
                         webSocketClient,
                         replayFrom,
-                    ).consumeEach { message ->
-                        when (message) {
-                            is NotificationMessage.ProjectUpdated -> {
-                                println("Project has been updated: ${message.project}")
-                                println()
-                                synchronizeProjects(listOf(message.project))
+                    )
+
+                    while (isActive) {
+                        select {
+                            replayRequests.onReceive { message ->
+                                session.replayRequests.send(message)
                             }
 
-                            is NotificationMessage.WalletUpdated -> {
-                                println("Wallet has been updated: ${message}")
-                                println()
+                            session.messages.onReceive { message ->
+                                when (message) {
+                                    is NotificationMessage.ProjectUpdated -> {
+                                        println("Project has been updated: ${message.project}")
+                                        println()
+                                        synchronizeProjects(listOf(message.project))
+                                    }
+
+                                    is NotificationMessage.WalletUpdated -> {
+                                        println("Wallet has been updated: ${message}")
+                                        println()
+
+                                        synchronizeWallet(message)
+                                    }
+                                }
                             }
                         }
                     }
@@ -90,8 +110,7 @@ class EventController(
     }
 
     private suspend fun synchronizeProjects(projects: List<Project>) {
-        val projectPlugin = controllerContext.configuration.plugins.projects ?: return
-
+        val projectPlugin = controllerContext.configuration.plugins.projects
         val projectsToIgnore = HashSet<String>()
 
         for (project in projects) {
@@ -99,9 +118,11 @@ class EventController(
                 if (!project.specification.canConsumeResources) {
                     projectsToIgnore.add(project.id)
                 } else {
-                    with(controllerContext.pluginContext) {
-                        with(projectPlugin) {
-                            onProjectUpdated(project)
+                    if (projectPlugin != null) {
+                        with(controllerContext.pluginContext) {
+                            with(projectPlugin) {
+                                onProjectUpdated(project)
+                            }
                         }
                     }
                 }
@@ -129,8 +150,64 @@ class EventController(
         }
     }
 
+    private suspend fun shouldIgnoreProject(projectId: String): Boolean {
+        var shouldIgnore = false
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select project_id
+                    from events.projects_to_ignore
+                    where project_id = :project_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("project_id", projectId)
+                },
+                readRow = { _ ->
+                    shouldIgnore = true
+                }
+            )
+        }
+        return shouldIgnore
+    }
+
+    private suspend fun synchronizeWallet(wallet: NotificationMessage.WalletUpdated) {
+        val plugins = controllerContext.configuration.plugins
+        val allocationPlugin = plugins.allocations
+        val owner = ResourceOwnerWithId.load(wallet.owner, controllerContext.pluginContext) ?: return
+        if (owner is ResourceOwnerWithId.Project && shouldIgnoreProject(owner.projectId)) return
+
+        val message = AllocationPlugin.Message(
+            owner,
+            wallet.category,
+            wallet.combinedQuota,
+            wallet.locked,
+            wallet.lastUpdate,
+        )
+
+        if (allocationPlugin != null) {
+            with(controllerContext.pluginContext) {
+                with(allocationPlugin) {
+                    onWalletUpdated(listOf(message))
+                }
+            }
+        }
+
+        plugins.resourcePlugins().forEach { plugin ->
+            if (plugin.productAllocationResolved.any { it.category.toV2Id() == wallet.category.toV2Id() }) {
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        onWalletSynchronized(message)
+                    }
+                }
+            }
+        }
+    }
+
     private suspend fun onConnectionComplete(ucloudId: String, localId: Int) {
-        // TODO
+        // TODO Load the projects and all wallets associated to this user (personal workspace and from associated
+        //  projects). Replay all of it.
+        replayRequests.send(WalletOwner.User(ucloudId))
     }
 
     companion object : Loggable {
@@ -139,21 +216,25 @@ class EventController(
 }
 
 object ApmNotifications {
+    data class NotificationSession(
+        val replayRequests: SendChannel<WalletOwner.User>,
+        val messages: ReceiveChannel<NotificationMessage>,
+    )
+
     suspend fun subscribe(
         targetHost: HostInfo,
         scope: CoroutineScope,
         auth: RefreshingJWTAuthenticator,
         client: HttpClient,
         receiveUpdatesFrom: AtomicLong,
-    ): ReceiveChannel<NotificationMessage> {
+    ): NotificationSession {
         val channel = Channel<NotificationMessage>(Channel.BUFFERED)
+        val replayRequests = Channel<WalletOwner.User>(Channel.BUFFERED)
 
         scope.launch {
             val buf = ByteBuffer.allocateDirect(4096)
-            println("Scope launched")
 
             while (coroutineContext.isActive) {
-                println("Reconnecting")
                 try {
                     val url = run {
                         val host = targetHost.host.removeSuffix("/")
@@ -186,23 +267,30 @@ object ApmNotifications {
                     buf.flip()
                     session.send(Frame.Binary(true, buf))
 
-                    var received = 0
                     while (session.isActive) {
-                        val nextFrame = session.incoming.receive()
-                        val buffer = nextFrame.buffer
-                        while (buffer.hasRemaining()) {
-                            val message = NotificationMessage.read(
-                                buffer,
-                                projects,
-                                products,
-                                users,
-                            ) ?: continue
-                            channel.send(message)
-                        }
-                        println("L3 done")
-                    }
+                        select {
+                            replayRequests.onReceive { request ->
+                                buf.clear()
+                                buf.put(OP_REPLAY_USER)
+                                buf.putString(request.username)
+                                buf.flip()
+                                session.send(Frame.Binary(true, buf))
+                            }
 
-                    println("L2 done")
+                            session.incoming.onReceive { nextFrame ->
+                                val buffer = nextFrame.buffer
+                                while (buffer.hasRemaining()) {
+                                    val message = NotificationMessage.read(
+                                        buffer,
+                                        projects,
+                                        products,
+                                        users,
+                                    ) ?: continue
+                                    channel.send(message)
+                                }
+                            }
+                        }
+                    }
 
                     log.info("ApmNotifications terminated normally! Re-opening connection in 5 seconds.")
                     delay(5000)
@@ -212,10 +300,9 @@ object ApmNotifications {
                     delay(5000)
                 }
             }
-            println("L1 done")
         }
 
-        return channel
+        return NotificationSession(replayRequests, channel)
     }
 
     const val PATH = "/api/accounting/notifications"
@@ -225,6 +312,7 @@ object ApmNotifications {
     const val OP_PROJECT = 2.toByte()
     const val OP_CATEGORY_INFO = 3.toByte()
     const val OP_USER_INFO = 4.toByte()
+    const val OP_REPLAY_USER = 5.toByte()
 
     private val log = Logger("ApmNotifications")
 }
@@ -241,7 +329,6 @@ private fun ByteBuffer.getString(): String {
     get(bytes)
     return bytes.decodeToString()
 }
-
 
 sealed class NotificationMessage {
     data class WalletUpdated(

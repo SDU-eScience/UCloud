@@ -394,6 +394,8 @@ data class WalletV2(
     val maxUsable: Long,
     val quota: Long,
     val totalAllocated: Long,
+
+    val lastSignificantUpdateAt: Long,
 )
 
 @Serializable

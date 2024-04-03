@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins.puhuri
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -26,6 +27,8 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.sendTerminalMessage
+import dk.sdu.cloud.utils.toReference
+import dk.sdu.cloud.utils.toSimpleString
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
@@ -36,6 +39,8 @@ import io.ktor.util.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -415,68 +420,76 @@ class PuhuriPlugin : ProjectPlugin {
         }
     }
 
-    suspend fun onAllocations(allocations: List<AllocationNotification.Single>) {
+    private val mutex = Mutex()
+
+    suspend fun onAllocations(allocations: List<AccountingV2.BrowseProviderAllocations.ResponseItem>) {
         // NOTE(Dan): This function is invoked both when new allocations arrive and when we are synchronizing
         // allocations. This function starts by throwing away a lot of information which are not used. That is because
         // we currently support Puhuri in a very limited fashion. We assume we can only allocate one type of CPU, one
         // type of GPU and one type of storage. All other information is discarded.
-
-        val alreadySynchronized = HashMap<String, Boolean>()
-        dbConnection.withSession { session ->
-            for (alloc in allocations) {
-                session.prepareStatement(
-                    //language=postgresql
-                    """
+        mutex.withLock {
+            val alreadySynchronized = HashMap<String, Boolean>()
+            dbConnection.withSession { session ->
+                for (alloc in allocations) {
+                    session.prepareStatement(
+                        //language=postgresql
+                        """
                         insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
                         values (:id, :balance, :product_type, false)
                         on conflict (allocation_id) do update set
                             allocation_id = :id
                         returning allocation_id, synchronized_to_puhuri
                     """
-                ).useAndInvoke(
-                    prepare = {
-                        bindString("id", alloc.allocationId)
-                        bindLong("balance", alloc.quota)
-                        bindString("product_type", alloc.productType.name)
-                    },
-                    readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
-                )
-            }
-        }
-
-        for ((owner, allocs) in allocations.groupBy { it.owner }) {
-            val projectId = (owner as? ResourceOwnerWithId.Project)?.projectId ?: continue
-            val relevantAllocations = allocs.filter { alreadySynchronized[it.allocationId] != true }
-            if (relevantAllocations.isEmpty()) continue
-
-            val cpuAllocation = relevantAllocations
-                .find {
-                    it.productType == ProductType.COMPUTE && !it.productCategory.contains("gpu", ignoreCase = true)
-                }
-
-            val gpuAllocation = relevantAllocations
-                .find {
-                    it.productType == ProductType.COMPUTE && it.productCategory.contains("gpu", ignoreCase = true)
-                }
-
-            val storageAllocation = relevantAllocations
-                .find { it.productType == ProductType.STORAGE }
-
-            try {
-                val puhuriProjectId = puhuri.lookupProject(projectId)?.uuid ?: continue
-                puhuri.createOrder(
-                    puhuriProjectId,
-                    PuhuriAllocation(
-                        cpuKHours = ceil((cpuAllocation?.quota ?: 0) / 1000.0).toInt(),
-                        gpuHours = ceil(((gpuAllocation?.quota ?: 0).toDouble())).toInt(),
-                        gbKHours = ceil((storageAllocation?.quota ?: 0) / 1000.0).toInt(),
+                    ).useAndInvoke(
+                        prepare = {
+                            bindString("id", alloc.id)
+                            bindLong("balance", alloc.quota)
+                            bindString("product_type", alloc.categoryId.productType.name)
+                        },
+                        readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
                     )
-                )
+                }
+            }
 
-                dbConnection.withSession { session ->
-                    session.prepareStatement(
-                        //language=postgresql
-                        """
+            for ((owner, allocs) in allocations.groupBy { it.owner }) {
+                val projectId = (owner as? ResourceOwnerWithId.Project)?.projectId ?: continue
+                val relevantAllocations = allocs.filter { alreadySynchronized[it.id] != true }
+                if (relevantAllocations.isEmpty()) continue
+
+                val cpuAllocation = relevantAllocations
+                    .find {
+                        it.categoryId.productType == ProductType.COMPUTE && !it.categoryId.name.contains(
+                            "gpu",
+                            ignoreCase = true
+                        )
+                    }
+
+                val gpuAllocation = relevantAllocations
+                    .find {
+                        it.categoryId.productType == ProductType.COMPUTE && it.categoryId.name.contains(
+                            "gpu",
+                            ignoreCase = true
+                        )
+                    }
+
+                val storageAllocation = relevantAllocations
+                    .find { it.categoryId.productType == ProductType.STORAGE }
+
+                try {
+                    val puhuriProjectId = puhuri.lookupProject(projectId)?.uuid ?: continue
+                    puhuri.createOrder(
+                        puhuriProjectId,
+                        PuhuriAllocation(
+                            cpuKHours = ceil((cpuAllocation?.quota ?: 0) / 1000.0).toInt(),
+                            gpuHours = ceil(((gpuAllocation?.quota ?: 0).toDouble())).toInt(),
+                            gbKHours = ceil((storageAllocation?.quota ?: 0) / 1000.0).toInt(),
+                        )
+                    )
+
+                    dbConnection.withSession { session ->
+                        session.prepareStatement(
+                            //language=postgresql
+                            """
                             update puhuri_allocations
                             set synchronized_to_puhuri = true
                             where
@@ -484,16 +497,17 @@ class PuhuriPlugin : ProjectPlugin {
                                 or allocation_id = :gpu_allocation::text
                                 or allocation_id = :storage_allocation::text
                         """
-                    ).useAndInvokeAndDiscard(
-                        prepare = {
-                            bindStringNullable("cpu_allocation", cpuAllocation?.allocationId)
-                            bindStringNullable("gpu_allocation", gpuAllocation?.allocationId)
-                            bindStringNullable("storage_allocation", storageAllocation?.allocationId)
-                        }
-                    )
+                        ).useAndInvokeAndDiscard(
+                            prepare = {
+                                bindStringNullable("cpu_allocation", cpuAllocation?.id)
+                                bindStringNullable("gpu_allocation", gpuAllocation?.id)
+                                bindStringNullable("storage_allocation", storageAllocation?.id)
+                            }
+                        )
+                    }
+                } catch (ex: Throwable) {
+                    debugSystem.logThrowable("Failed to synchronize allocation: $allocs $projectId", ex)
                 }
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Failed to synchronize allocation: $allocs $projectId", ex)
             }
         }
     }
@@ -515,14 +529,25 @@ class PuhuriAllocationPlugin : AllocationPlugin {
         }
     }
 
-    override suspend fun PluginContext.onResourceAllocationSingle(
-        notifications: List<AllocationNotification.Single>
-    ) {
-        puhuriPlugin.onAllocations(notifications)
-    }
+    override suspend fun PluginContext.onWalletUpdated(notifications: List<AllocationPlugin.Message>) {
+        for (notification in notifications) {
+            var next: String? = null
+            while (true) {
+                val nextPage = AccountingV2.browseProviderAllocations.call(
+                    AccountingV2.BrowseProviderAllocations.Request(
+                        itemsPerPage = 250,
+                        next = next,
+                        filterOwnerId = notification.owner.toResourceOwner().toReference(),
+                        filterOwnerIsProject = notification.owner is ResourceOwnerWithId.Project,
+                        filterCategory = notification.category.name,
+                    ),
+                    rpcClient,
+                ).orThrow()
 
-    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotification.Single>) {
-        puhuriPlugin.onAllocations(notifications)
+                puhuriPlugin.onAllocations(nextPage.items)
+                next = nextPage.next ?: break
+            }
+        }
     }
 }
 

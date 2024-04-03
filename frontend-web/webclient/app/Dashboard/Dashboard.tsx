@@ -55,10 +55,10 @@ function Dashboard(): React.JSX.Element {
     usePage("Dashboard", SidebarTabId.NONE);
 
     const dispatch = useDispatch();
-    const invitesReload = React.useRef<() => void>(initialCall); // Oui
-    const projectInvitesReload = React.useRef<() => void>(initialCall); // Oui
-    const runsReload = React.useRef<() => void>(initialCall); // Oui
-    const grantsReload = React.useRef<() => void>(initialCall); // TODO
+    const invitesReload = React.useRef<() => void>(initialCall);
+    const projectInvitesReload = React.useRef<() => void>(initialCall);
+    const runsReload = React.useRef<() => void>(initialCall);
+    const grantsReload = React.useRef<() => void>(initialCall);
 
     const reduxOps = React.useMemo(() => reduxOperations(dispatch), [dispatch]);
 
@@ -84,7 +84,7 @@ function Dashboard(): React.JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<Box mx="auto" maxWidth={"1200px"}>
-        <Flex pt="12px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="3px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
@@ -112,7 +112,7 @@ function Dashboard(): React.JSX.Element {
 const FONT_SIZE = "16px";
 
 const GridClass = injectStyle("grid", k => `
-@media screen and (min-width: 900px) {
+@media screen and (min-width: 1260px) {
     ${k} {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -123,7 +123,7 @@ const GridClass = injectStyle("grid", k => `
         gap: 20px;
     }
 }   
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 1260px) {
     ${k} > * {
         margin-bottom: 24px;
     }   
@@ -137,8 +137,14 @@ function Invites({projectReloadRef, inviteReloadRef}: {
     projectReloadRef: React.MutableRefObject<() => void>,
     inviteReloadRef: React.MutableRefObject<() => void>
 }): React.ReactNode {
-    const [showProjectInvites, setShowProjectInvites] = React.useState(false);
-    const [showShareInvites, setShowShareInvites] = React.useState(false);
+    const [showProjectInvites, setShowProjectInvites] = React.useState(true);
+    const [showShareInvites, setShowShareInvites] = React.useState(true);
+    
+    React.useEffect(() => {
+        // HACK(Jonas): Hacky approach to ensure that --rowWidth is correctly set on initial mount.
+        setShowProjectInvites(false);
+        setShowShareInvites(false);
+    }, [])
 
     return <Flex mt="24px" style={display(showShareInvites || showProjectInvites)}>
         <DashboardCard

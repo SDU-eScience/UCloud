@@ -50,10 +50,6 @@ const SelectClass = injectStyle("select", k => `
         color: var(--textSecondary);
     }
     
-    ${k} > option {
-        color: black;
-    }
-
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
         border-color: var(--errorMain, #f00);
     }

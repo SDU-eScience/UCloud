@@ -36,7 +36,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
+                browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
                 // Ensure no refecthing on `beforeOpen`.
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
@@ -71,7 +71,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                 });
 
                 browser.on("renderRow", (key, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(false);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon)
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));

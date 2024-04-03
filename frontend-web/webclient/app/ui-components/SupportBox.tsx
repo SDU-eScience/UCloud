@@ -56,6 +56,8 @@ export default function Support(): JSX.Element {
         }
     }
 
+    const closeRef = useRef(() => void 0);
+
     const fetchStatus = React.useCallback(() => {
         const controller = new AbortController();
         fetch("https://status.cloud.sdu.dk/health/", {signal: controller.signal}).then(it =>
@@ -66,8 +68,17 @@ export default function Support(): JSX.Element {
 
     React.useEffect(() => {
         const controller = fetchStatus();
+        
+        function closeOnEscapeDown(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                closeRef.current();
+            }
+        }
+
+        window.addEventListener("keydown", closeOnEscapeDown);
         return () => {
             controller.abort();
+            window.removeEventListener("keydown", closeOnEscapeDown);
         }
     }, []);
 
@@ -75,6 +86,7 @@ export default function Support(): JSX.Element {
         <ClickableDropdown
             colorOnHover={false}
             keepOpenOnClick
+            closeFnRef={closeRef}
             onTriggerClick={fetchStatus}
             trigger={(
                 <Flex width="48px" justifyContent="center">

@@ -6,6 +6,7 @@ import java.util.Base64
 value class Json(val encoded: String)
 
 const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-36"
+const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-38"
 
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
@@ -756,7 +757,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "mysql:5.7",
+                        "image": "mysql:8.3.0",
                         "hostname": "mysql",
                         "environment": {
                           "MYSQL_RANDOM_ROOT_PASSWORD": "yes",
@@ -781,7 +782,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
+                        "image": "$slurmImage",
                         "command": ["slurmdbd", "sshd", "user-sync"],
                         "hostname": "slurmdbd",
                         "volumes": [
@@ -808,7 +809,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
+                        "image": "$slurmImage",
                         "command": ["slurmctld", "sshd", "user-sync"],
                         "hostname": "slurmctld",
                         "volumes": [
@@ -836,7 +837,7 @@ sealed class ComposeService {
                         //language=json
                         """
                           {
-                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-14-issue-4135-1",
+                            "image": "$slurmImage",
                             "command": ["slurmd", "sshd", "user-sync"],
                             "hostname": "c$id",
                             "volumes": [
@@ -913,8 +914,8 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/bin/getenvoy
-                      funceWrapper: true
+                      executable: /usr/bin/envoy
+                      funceWrapper: false
                       directory: /var/run/ucloud/envoy
                     database:
                       type: Embedded
@@ -1164,7 +1165,7 @@ sealed class ComposeService {
                 """
                     refreshToken: ${credentials.refreshToken}
                     envoy:
-                      executable: /usr/bin/getenvoy
+                      executable: /usr/bin/envoy
                       funceWrapper: false
                       directory: /var/run/ucloud/envoy
                     database:

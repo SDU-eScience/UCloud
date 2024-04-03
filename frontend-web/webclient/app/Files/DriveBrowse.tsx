@@ -74,7 +74,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
-                browser.setColumnTitles([
+                browser.setColumns([
                     {name: "Drive name", sortById: "title"},
                     {name: "", columnWidth: 0},
                     {name: "Created by", sortById: "createdBy", columnWidth: 150},
@@ -305,7 +305,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("renderRow", (drive, row, dims) => {
                     if (drive.specification.product.provider) {
                         if (isShare(drive)) {
-                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(opts?.embedded === true);
+                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                             row.title.append(icon);
                             browser.icons.renderIcon({
                                 name: "ftSharesFolder",

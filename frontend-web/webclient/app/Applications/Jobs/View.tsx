@@ -8,7 +8,7 @@ import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {Absolute, Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
@@ -726,7 +726,7 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} rank={0} isAtTop={true} />
+            <RunningButtonGroup job={job} rank={0} />
         </Flex>
     </>;
 };
@@ -1210,9 +1210,9 @@ const RunningJobRank: React.FunctionComponent<{
             <div ref={termRef} className="term" />
 
             {job.specification.replicas === 1 ? null : (
-                <Absolute right={"32px"}>
-                    <RunningButtonGroup job={job} rank={rank} isAtTop={false} />
-                </Absolute>
+                <Flex flexDirection="column" mt="auto" ml="auto" mb="-16px" width="450px">
+                    <RunningButtonGroup job={job} rank={rank} />
+                </Flex>
             )}
         </div>
     </TabbedCardTab>
@@ -1302,8 +1302,8 @@ function getAppType(job: Job): string {
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
     rank: number;
-    isAtTop: boolean;
-}> = ({job, rank, isAtTop}) => {
+}> = ({job, rank}) => {
+    const hasMultipleNodes = job.specification.replicas > 1;
     const [sessionResp, fetchSession] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
         {noop: true},
         null
@@ -1334,7 +1334,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         return "";
     }, [sessionResp]);
 
-    return <div className={!isAtTop ? "buttons" : topButtons.class}>
+    return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
@@ -1350,7 +1350,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             }}>
                 <Button type={"button"}>
                     <Icon name={"heroCommandLine"} />
-                    <div>Open terminal</div>
+                    <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
             </Link>
         )}
@@ -1358,7 +1358,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             <Link to={redirectToWeb} aria-disabled={!redirectToWeb} target={"_blank"}>
                 <Button disabled={!redirectToWeb}>
                     <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface</div>
+                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
             </Link>
         )}
@@ -1377,7 +1377,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             }}>
                 <Button>
                     <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface</div>
+                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
             </Link>
         )}

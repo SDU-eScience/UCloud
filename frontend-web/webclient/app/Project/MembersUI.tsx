@@ -30,6 +30,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {addStandardDialog} from "@/UtilityComponents";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -37,6 +38,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
         flex-direction: row;
         flex-wrap: wrap;
         width: 100%;
+        height: calc(100vh - 72px - 16px - 16px);
     }
 
     ${k} > * {
@@ -483,12 +485,22 @@ const MemberCard: React.FunctionComponent<{
             </> :
                 <>
                     <RadioTilesContainer>
-                        {(amIPI || role === OldProjectRole.PI) &&
+                        {amIPI || role === OldProjectRole.PI ?
                             <RadioTile fontSize={"6px"} checked={role === OldProjectRole.PI} height={35}
                                 icon={"heroTrophy"}
                                 label={"PI"} name={"PI" + props.member.username}
-                                onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.PI)} />
-                        }
+                                onChange={() => {
+                                    if (!amIPI) return;
+                                    addStandardDialog({
+                                        title: "Transfer PI role to " + props.member.username + "?",
+                                        message: "This will transfer the PI role to " + props.member.username + ". You cannot revert this change yourself.",
+                                        onConfirm: () => props.handleChangeRole(props.member.username, OldProjectRole.PI),
+                                        addToFront: true,
+                                        confirmText: "Transfer",
+                                        cancelText: "Cancel"
+                                    })
+                                }} />
+                            : null}
                         {role !== OldProjectRole.PI ?
                             <>
                                 {isAdminOrPI(props.myRole) ? <RadioTile fontSize={"6px"} checked={isUserAdminRole} height={35}
@@ -503,12 +515,12 @@ const MemberCard: React.FunctionComponent<{
                             </> : null}
                     </RadioTilesContainer>
                     {isUserPIRole ? <TooltipV2 tooltip="PI role must be transfered to remove member">
-                            <Button color={"errorMain"} width={"88px"} disabled>Remove</Button>
-                        </TooltipV2> :
-                            <Button color={"errorMain"}
-                                width={"88px"}
-                                disabled={!isAdminOrPI(props.myRole) && props.member.username !== Client.username}
-                                onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>}
+                        <Button color={"errorMain"} width={"88px"} disabled>Remove</Button>
+                    </TooltipV2> :
+                        <Button color={"errorMain"}
+                            width={"88px"}
+                            disabled={!isAdminOrPI(props.myRole) && props.member.username !== Client.username}
+                            onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>}
                 </>}
         </Flex>}
     />;

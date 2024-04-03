@@ -63,7 +63,7 @@ function Scripts(): React.ReactNode {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<ScriptInfo>(mount, "Scripts", {}).init(browserRef, FEATURES, "", browser => {
-                browser.setColumnTitles(ROW_TITLES);
+                browser.setColumns(ROW_TITLES);
                 browser.on("skipOpen", (oldPath, newPath, res) => res != null)
                 browser.on("open", (oldPath, newPath, res) => {
                     if (res) return;
@@ -92,7 +92,7 @@ function Scripts(): React.ReactNode {
                 browser.on("unhandledShortcut", listener => void 0);
 
                 browser.on("renderRow", (script, row, dim) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer(false);
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
                     browser.icons.renderIcon({
                         name: "play",

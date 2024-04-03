@@ -57,7 +57,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Ele
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Provider>(mount, "Providers", opts).init(browserRef, features, "", browser => {
-                browser.setColumnTitles(rowTitles);
+                browser.setColumns(rowTitles);
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {

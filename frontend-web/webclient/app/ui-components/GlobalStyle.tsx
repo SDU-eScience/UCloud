@@ -583,7 +583,6 @@ audio,
 canvas,
 iframe,
 img,
-svg,
 video {
   vertical-align: middle;
 }
@@ -815,7 +814,7 @@ textarea {
  */
 
 :-moz-focusring {
-  outline: 1px dotted ButtonText;
+  outline: 1px dotted var(--button-text);
 }
 
 /* Interactive
