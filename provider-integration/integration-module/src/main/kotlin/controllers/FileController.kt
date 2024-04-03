@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPoolForFileIo
+import dk.sdu.cloud.plugins.storage.ucloud.FSException
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
@@ -474,15 +475,19 @@ class FileController(
                         }
 
                         if (isFolder) {
-                            createFolder(
-                                bulkRequestOf(
-                                    FilesProviderCreateFolderRequestItem(
-                                        uploadRequest.resolvedCollection,
-                                        uploadRequest.id,
-                                        WriteConflictPolicy.REPLACE
+                            try {
+                                createFolder(
+                                    bulkRequestOf(
+                                        FilesProviderCreateFolderRequestItem(
+                                            uploadRequest.resolvedCollection,
+                                            uploadRequest.id,
+                                            WriteConflictPolicy.REPLACE
+                                        )
                                     )
                                 )
-                            )
+                            } catch (e: FSException.AlreadyExists) {
+                                // Ignore
+                            }
                         }
 
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
@@ -714,7 +719,6 @@ class FileController(
                         )
                     }
                 }
-                println("CLOSING")
                 this.close()
             }
         }
