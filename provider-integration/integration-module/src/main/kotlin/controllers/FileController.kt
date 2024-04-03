@@ -50,26 +50,9 @@ data class FileSessionWithPlugin(
     val pluginData: String,
 )
 
-fun ByteArray.getUInt32() =
-    ((this[3].toUInt() and 0xFFu) shl 24) or
-        ((this[2].toUInt() and 0xFFu) shl 16) or
-        ((this[1].toUInt() and 0xFFu) shl 8) or
-        (this[0].toUInt() and 0xFFu)
-
-fun ByteArray.getUInt8() = (this[0].toUInt() and 0xFFu)
-
-enum class FolderUploadMessageType {
-    OK,
-    CHECKSUM,
-    CHUNK,
-    SKIP,
-    DONE
-}
-
 object FilesDownloadIpc : IpcContainer("files.download") {
     val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
     val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
-    val hello = FolderUploadMessageType.CHUNK.ordinal
 }
 
 object FilesUploadIpc : IpcContainer("files.upload") {
@@ -712,90 +695,118 @@ class FileController(
 
             // Folder upload over WebSockets
             webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true, isFolder = true)) {
+
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
-                var totalSize = 0L
 
-                var listing: Map<UInt, FileListingEntry> = emptyMap()
+                //var listing: Map<UInt, FileListingEntry> = emptyMap()
 
                 with(context) {
                     val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                     val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                         ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
-                    for (frame in incoming) {
+                    with(plugin) {
+                        handleFolderUploadWs(
+                            handler.session,
+                            handler.pluginData,
+                            collectionCache,
+                            this@webSocket,
+                            false
+                        )
+                    }
+                    /*for (frame in incoming) {
                         if (frame.frameType == FrameType.TEXT) {
                             val listingFrame = (frame as? Frame.Text)?.readText()
-                            println("Received:")
-                            println(listingFrame)
                             listing = listingFrame?.split("\n")?.associate { line ->
                                 val elements = line.split(" ")
                                 elements[0].toUInt() to FileListingEntry(elements[1], elements[2].toLong(), elements[3].toLong(), 0)
                             } ?: emptyMap()
+
                             println(listing)
+
+                            for (entry in listing) {
+                                with (plugin) {
+                                    val exists = fileExists(handler.pluginData, entry.value.path)
+
+                                    if (exists) {
+                                        val file1 = retrieve()
+                                    } else {
+                                        val okFrameTypeByte = byteArrayOf(FolderUploadMessageType.OK.ordinal.toByte())
+                                        val entryKeyBytes = entry.key.toByteArray()
+                                        send(okFrameTypeByte + entryKeyBytes)
+                                    }
+                                }
+                            }
                         } else {
-                            val frameType = byteArrayOf(frame.data[0]).getUInt8()
+                            val frameType = FolderUploadMessageType.values().getOrNull(byteArrayOf(frame.data[0]).getUInt8().toInt())
+                                ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
+
                             val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
                             val data = frame.data.slice(5..<frame.data.size).toByteArray()
 
-                            if (!frame.buffer.isDirect) {
-                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
-                                    val fileEntry: FileListingEntry = listing[fileId] ?:
-                                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                            when (frameType) {
+                                FolderUploadMessageType.CHUNK -> {
+                                    if (!frame.buffer.isDirect) {
+                                        DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+                                            val fileEntry: FileListingEntry = listing[fileId]
+                                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-                                    try {
-                                        var offset = 0
-                                        while (offset < data.size) {
-                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                            val count = min(data.size - offset, nativeBuffer.remaining())
-                                            nativeBuffer.put(data, offset, count)
-                                            nativeBuffer.flip()
-                                            offset += count
-                                            val channel = ByteReadChannel(nativeBuffer)
-                                            with(plugin) {
-                                                handleFolderUpload(
-                                                    token,
-                                                    handler.pluginData,
-                                                    collectionCache,
-                                                    fileEntry,
-                                                    channel,
-                                                    fileEntry.offset + count >= fileEntry.size
-                                                )
+                                            try {
+                                                var offset = 0
+                                                while (offset < data.size) {
+                                                    if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                                    val count = min(data.size - offset, nativeBuffer.remaining())
+                                                    nativeBuffer.put(data, offset, count)
+                                                    nativeBuffer.flip()
+                                                    offset += count
+                                                    val channel = ByteReadChannel(nativeBuffer)
+                                                    with(plugin) {
+                                                        handleFolderUpload(
+                                                            token,
+                                                            handler.pluginData,
+                                                            collectionCache,
+                                                            fileEntry,
+                                                            channel,
+                                                            fileEntry.offset + count >= fileEntry.size
+                                                        )
+                                                    }
+
+                                                    fileEntry.offset += count
+                                                }
+                                            } catch (ex: Throwable) {
+                                                ex.printStackTrace()
+                                                throw ex
                                             }
-
-                                            fileEntry.offset += count
                                         }
-                                    } catch (ex: Throwable) {
-                                        ex.printStackTrace()
-                                        throw ex
+                                    } else {
+                                        val fileEntry: FileListingEntry = listing[fileId]
+                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                                        with(plugin) {
+                                            handleFolderUpload(
+                                                token,
+                                                handler.pluginData,
+                                                collectionCache,
+                                                fileEntry,
+                                                ByteReadChannel(data),
+                                                fileEntry.offset + data.size >= fileEntry.size
+                                            )
+                                        }
+
+                                        fileEntry.offset += data.size
                                     }
                                 }
-                            } else {
-                                val fileEntry: FileListingEntry = listing[fileId] ?:
-                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-
-                                with(plugin) {
-                                    handleFolderUpload(
-                                        token,
-                                        handler.pluginData,
-                                        collectionCache,
-                                        fileEntry,
-                                        ByteReadChannel(data),
-                                        fileEntry.offset + data.size >= fileEntry.size
-                                    )
-                                }
-
-                                fileEntry.offset += data.size
+                                else -> {}
                             }
-                            println("Received something else: ${data.size}")
 
                             if (listing.entries.sumOf { it.value.offset } >= listing.entries.sumOf { it.value.size }) {
                                 println("BREAKING")
                                 break
                             }
                         }
-                    }
+                    }*/
                 }
                 println("CLOSING")
                 this.close()

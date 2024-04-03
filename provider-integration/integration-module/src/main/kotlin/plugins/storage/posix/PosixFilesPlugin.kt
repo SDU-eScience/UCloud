@@ -31,6 +31,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
@@ -573,8 +574,18 @@ class PosixFilesPlugin : FilePlugin {
         session: String,
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
-        file: FileListingEntry,
+        fileEntry: FileListingEntry,
         chunk: ByteReadChannel,
+        lastChunk: Boolean
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.handleFolderUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession,
         lastChunk: Boolean
     ) {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)

@@ -56,12 +56,15 @@ import dk.sdu.cloud.utils.sendTerminalFrame
 import dk.sdu.cloud.utils.sendTerminalMessage
 import dk.sdu.cloud.utils.sendTerminalTable
 import io.ktor.utils.io.*
+import io.ktor.utils.io.pool.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlin.math.min
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -282,6 +285,136 @@ class UCloudFilePlugin : FilePlugin {
                 FilesUploadIpc.delete,
                 FindByStringId(session)
             )
+        }
+    }
+
+
+    override suspend fun RequestContext.handleFolderUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession,
+        lastChunk: Boolean
+    ) {
+        val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
+        var listing: Map<UInt, FileListingEntry> = emptyMap()
+
+        for (frame in websocket.incoming) {
+            if (frame.frameType == FrameType.TEXT) {
+                // Note(Brian): If we received a text frame, it means it is the file listing of the folder. Here we check
+                // each file in the listing (modifiedAt and size) according to that provided by the client, and respond
+                // according to that.
+
+                val listingFrame = (frame as? Frame.Text)?.readText()
+                listing = listingFrame?.split("\n")?.associate { line ->
+                    val elements = line.split(" ")
+                    elements[0].toUInt() to FileListingEntry(elements[1], elements[2].toLong(), elements[3].toLong(), 0)
+                } ?: emptyMap()
+
+                for (entry in listing) {
+                    val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.value.path)
+                    val exists = queries.fileExists(ucloudFile)
+                    val entryKeyBytes = entry.key.toByteArray()
+
+                    if (!exists) {
+                        // The file does not exist. Respond with OK (start the transfer) for this file.
+                        val okFrameTypeByte = byteArrayOf(FolderUploadMessageType.OK.ordinal.toByte())
+                        websocket.send(okFrameTypeByte + entryKeyBytes)
+                    } else {
+                        val existingFile = queries.retrieve(ucloudFile, UFileIncludeFlags(includeSizes = true))
+
+                        if (existingFile.status.sizeInBytes != entry.value.size) {
+                            // The file sizes differ. Respond with OK (start the transfer) for this file.
+                            val okFrameTypeByte = byteArrayOf(FolderUploadMessageType.OK.ordinal.toByte())
+                            websocket.send(okFrameTypeByte + entryKeyBytes)
+                        } else if (existingFile.status.modifiedAt == entry.value.modifiedAt) {
+                            // The sizes and modifiedAt are the same, SKIP this file.
+                            val skipFrameTypeByte = byteArrayOf(FolderUploadMessageType.SKIP.ordinal.toByte())
+                            websocket.send(skipFrameTypeByte + entryKeyBytes)
+                        } else {
+                            // The sizes are equal, but the modification time differs.
+                            // TODO(Brian): Compute checksum here.
+                            val skipFrameTypeByte = byteArrayOf(FolderUploadMessageType.SKIP.ordinal.toByte())
+                            websocket.send(skipFrameTypeByte + entryKeyBytes)
+                        }
+                    }
+                }
+            } else {
+                val frameType =
+                    FolderUploadMessageType.entries.getOrNull(byteArrayOf(frame.data[0]).getUInt8().toInt())
+                        ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
+
+                /*val buf = frame.buffer
+                buf.get() // S8
+                buf.get().toUByte() // U8
+                buf.getShort() // S16
+                buf.getInt().toUInt() // U32
+                buf.getLong() // S64
+
+                val fileId2 = buf.getInt().toUInt()*/
+
+                val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
+                val data = frame.data.slice(5..<frame.data.size).toByteArray()
+
+                when (frameType) {
+                    FolderUploadMessageType.CHUNK -> {
+                        if (!frame.buffer.isDirect) {
+                            DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+                                val fileEntry: FileListingEntry = listing[fileId]
+                                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                                try {
+                                    var offset = 0
+                                    while (offset < data.size) {
+                                        if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                        //nativeBuffer.put(buf)
+                                        val count = min(data.size - offset, nativeBuffer.remaining())
+                                        nativeBuffer.put(data, offset, count)
+                                        nativeBuffer.flip()
+                                        offset += count
+                                        val channel = ByteReadChannel(nativeBuffer)
+
+                                        handleFolderUpload(
+                                            session,
+                                            pluginData,
+                                            fileCollections,
+                                            fileEntry,
+                                            channel,
+                                            fileEntry.offset + count >= fileEntry.size
+                                        )
+
+                                        fileEntry.offset += count
+                                    }
+                                } catch (ex: Throwable) {
+                                    ex.printStackTrace()
+                                    throw ex
+                                }
+                            }
+                        } else {
+                            val fileEntry: FileListingEntry = listing[fileId]
+                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                            handleFolderUpload(
+                                session,
+                                pluginData,
+                                fileCollections,
+                                fileEntry,
+                                ByteReadChannel(data),
+                                fileEntry.offset + data.size >= fileEntry.size
+                            )
+
+                            fileEntry.offset += data.size
+                        }
+                    }
+
+                    else -> {}
+                }
+
+                if (listing.entries.sumOf { it.value.offset } >= listing.entries.sumOf { it.value.size }) {
+                    println("BREAKING")
+                    break
+                }
+            }
         }
     }
 
@@ -904,4 +1037,42 @@ class UCloudSharePlugin : SharePlugin() {
             drive.ucloudId.toString()
         )
     }
+}
+
+enum class FolderUploadMessageType {
+    OK,
+    CHECKSUM,
+    CHUNK,
+    SKIP
+}
+
+fun ByteArray.getUInt32() =
+    ((this[3].toUInt() and 0xFFu) shl 24) or
+        ((this[2].toUInt() and 0xFFu) shl 16) or
+        ((this[1].toUInt() and 0xFFu) shl 8) or
+        (this[0].toUInt() and 0xFFu)
+
+fun ByteArray.getUInt8() = (this[0].toUInt() and 0xFFu)
+
+fun UInt.toByteArray(): ByteArray {
+    var buffer = byteArrayOf()
+
+    var n = this
+
+    if (n == 0x00u) {
+        buffer += this.toByte()
+    } else {
+        while (n != 0x00u) {
+            buffer += n.toByte()
+            n = n.shr(Byte.SIZE_BITS)
+        }
+    }
+
+    val padding = 0x00u.toByte()
+    var paddings = byteArrayOf()
+    repeat(UInt.SIZE_BYTES - buffer.count()) {
+        paddings += padding
+    }
+
+    return paddings + buffer
 }

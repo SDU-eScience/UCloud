@@ -119,11 +119,8 @@ enum FolderUploadMessageType {
     OK,
     CHECKSUM,
     CHUNK,
-    SKIP,
-    DONE
+    SKIP
 }
-
-
 
 function createResumeableFolder(
     upload: Upload,
@@ -131,11 +128,12 @@ function createResumeableFolder(
     folderPath: string
 ) {
     const files: Map<number, PackagedFile> = new Map();
+    let totalSize = 0;
 
-    let fileId = 0;
+    let fileIndex = 0;
     for (const f of upload.row) {
-        files.set(fileId, f);
-        fileId++;
+        files.set(fileIndex, f);
+        fileIndex++;
     }
         
     return async () => {
@@ -144,35 +142,59 @@ function createResumeableFolder(
                 .replace("http://", "ws://").replace("https://", "wss://")
         );
 
-        const progressStart = upload.progressInBytes;
-        
+        uploadSocket.binaryType = "arraybuffer";
+
         await new Promise((resolve, reject) => {
             uploadSocket.addEventListener("message", async (message) => {
-                upload.progressInBytes = parseInt(message.data);
-                uploadTrackProgress(upload);
+                const frame = new DataView(message.data as ArrayBuffer);
+                const messageType = frame.getUint8(0);
+                const fileId = frame.getUint32(1);
 
-                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
-                localStorage.setItem(
-                    createLocalStorageFolderUploadKey(folderPath),
-                    JSON.stringify({
-                        strategy: strategy!,
-                        expiration
-                    } as LocalStorageFolderUploadInfo)
-                );
+                switch (messageType as FolderUploadMessageType) {
+                    case FolderUploadMessageType.OK: {
+                        console.log(`Should upload file ${fileId}`);
+                        const key = fileId;
+                        const theFile = files.get(fileId);
 
-                if (parseInt(message.data) === upload.fileSizeInBytes) {
-                    localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
-                    upload.state = UploadState.DONE;
-                    uploadSocket.close()
-                    resolve(true);
-                }
+                        if (theFile) {
+                            const reader = new ChunkedFileReader(theFile.fileObject);
 
-                if (upload.terminationRequested) {
-                    if (!upload.paused) {
-                        localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
+                            while (!reader.isEof() && !upload.terminationRequested) {
+                                const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
+                                await sendWsChunk(uploadSocket, message);
+
+                                upload.progressInBytes += message.byteLength;
+                                uploadTrackProgress(upload);
+
+                                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                                localStorage.setItem(
+                                    createLocalStorageFolderUploadKey(folderPath),
+                                    JSON.stringify({
+                                        size: totalSize,
+                                        strategy: strategy!,
+                                        expiration
+                                    } as LocalStorageFolderUploadInfo)
+                                );
+                            }
+                            upload.filesCompleted++;
+                            uploadTrackProgress(upload);
+                        }
+
+                        break;
                     }
-                    uploadSocket.close();
-                    resolve(true);
+                    case FolderUploadMessageType.CHECKSUM: {
+                        console.log(`Checksum for file ${fileId}: ...`);
+                        break;
+                    }
+                    case FolderUploadMessageType.SKIP: {
+                        console.log(`Should skip file ${fileId}`);
+
+                        upload.progressInBytes += files.get(fileId)?.size ?? 0;
+                        upload.filesCompleted++;
+                        uploadTrackProgress(upload);
+
+                        break;
+                    }
                 }
             });
 
@@ -184,7 +206,6 @@ function createResumeableFolder(
             uploadSocket.addEventListener("open", async (event) => {
                 // Generate and send file listing
                 const listing: string[] = [];
-                let totalSize = 0;
                 
                 for (const [id, f] of files) {
                     const path = f.fullPath.split("/").slice(2).join("/");
@@ -194,12 +215,10 @@ function createResumeableFolder(
 
                 uploadSocket.send(listing.join("\n"));
 
-                
-
                 // Start sending the files
-                Promise.all(Array(...files).map(async (pair) => {
+                /*Promise.all(Array(...filesToUpload).map(async (pair) => {
                     const key = pair[0];
-                    const theFile = pair[1];
+                    const theFile = await pair[1];
 
                     const reader = new ChunkedFileReader(theFile.fileObject);
 
@@ -222,8 +241,7 @@ function createResumeableFolder(
                     }
                     upload.filesCompleted++;
                     uploadTrackProgress(upload);
-                    console.log(`files ${filesCompleted} completed`);
-                }));
+                }));*/
             });
         });
     }
