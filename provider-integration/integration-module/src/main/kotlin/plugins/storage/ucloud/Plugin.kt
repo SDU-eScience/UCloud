@@ -55,6 +55,7 @@ import dk.sdu.cloud.utils.secureToken
 import dk.sdu.cloud.utils.sendTerminalFrame
 import dk.sdu.cloud.utils.sendTerminalMessage
 import dk.sdu.cloud.utils.sendTerminalTable
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.pool.*
 import io.ktor.websocket.*
@@ -293,8 +294,7 @@ class UCloudFilePlugin : FilePlugin {
         session: String,
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
-        websocket: WebSocketSession,
-        lastChunk: Boolean
+        websocket: WebSocketSession
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
         var listing: Map<UInt, FileListingEntry> = emptyMap()
@@ -340,21 +340,17 @@ class UCloudFilePlugin : FilePlugin {
                     }
                 }
             } else {
+                val buffer = frame.buffer
+
                 val frameType =
-                    FolderUploadMessageType.entries.getOrNull(byteArrayOf(frame.data[0]).getUInt8().toInt())
+                    FolderUploadMessageType.entries.getOrNull(buffer.get().toUByte().toInt())
                         ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
 
-                /*val buf = frame.buffer
-                buf.get() // S8
-                buf.get().toUByte() // U8
-                buf.getShort() // S16
-                buf.getInt().toUInt() // U32
-                buf.getLong() // S64
+                println("FRAME TYPE IS $frameType")
 
-                val fileId2 = buf.getInt().toUInt()*/
+                val fileId = buffer.getInt().toUInt()
 
-                val fileId = frame.data.slice(1..4).toByteArray().getUInt32()
-                val data = frame.data.slice(5..<frame.data.size).toByteArray()
+                println("FILE ID IS $fileId")
 
                 when (frameType) {
                     FolderUploadMessageType.CHUNK -> {
@@ -362,12 +358,12 @@ class UCloudFilePlugin : FilePlugin {
                             DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
                                 val fileEntry: FileListingEntry = listing[fileId]
                                     ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                                val data = buffer.moveToByteArray()
 
                                 try {
                                     var offset = 0
                                     while (offset < data.size) {
                                         if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                        //nativeBuffer.put(buf)
                                         val count = min(data.size - offset, nativeBuffer.remaining())
                                         nativeBuffer.put(data, offset, count)
                                         nativeBuffer.flip()
@@ -393,6 +389,8 @@ class UCloudFilePlugin : FilePlugin {
                         } else {
                             val fileEntry: FileListingEntry = listing[fileId]
                                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                            val data = buffer.moveToByteArray()
 
                             handleFolderUpload(
                                 session,
@@ -1045,14 +1043,6 @@ enum class FolderUploadMessageType {
     CHUNK,
     SKIP
 }
-
-fun ByteArray.getUInt32() =
-    ((this[3].toUInt() and 0xFFu) shl 24) or
-        ((this[2].toUInt() and 0xFFu) shl 16) or
-        ((this[1].toUInt() and 0xFFu) shl 8) or
-        (this[0].toUInt() and 0xFFu)
-
-fun ByteArray.getUInt8() = (this[0].toUInt() and 0xFFu)
 
 fun UInt.toByteArray(): ByteArray {
     var buffer = byteArrayOf()

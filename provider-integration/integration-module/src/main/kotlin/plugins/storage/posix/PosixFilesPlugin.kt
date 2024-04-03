@@ -585,8 +585,7 @@ class PosixFilesPlugin : FilePlugin {
         session: String,
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
-        websocket: WebSocketSession,
-        lastChunk: Boolean
+        websocket: WebSocketSession
     ) {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }

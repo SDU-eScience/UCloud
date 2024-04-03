@@ -214,55 +214,20 @@ function createResumeableFolder(
                 }
 
                 uploadSocket.send(listing.join("\n"));
-
-                // Start sending the files
-                /*Promise.all(Array(...filesToUpload).map(async (pair) => {
-                    const key = pair[0];
-                    const theFile = await pair[1];
-
-                    const reader = new ChunkedFileReader(theFile.fileObject);
-
-                    while (!reader.isEof() && !upload.terminationRequested) {
-                        const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
-                        await sendWsChunk(uploadSocket, message);
-
-                        upload.progressInBytes += message.byteLength;
-                        uploadTrackProgress(upload);
-
-                        const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
-                        localStorage.setItem(
-                            createLocalStorageFolderUploadKey(folderPath),
-                            JSON.stringify({
-                                size: totalSize,
-                                strategy: strategy!,
-                                expiration
-                            } as LocalStorageFolderUploadInfo)
-                        );
-                    }
-                    upload.filesCompleted++;
-                    uploadTrackProgress(upload);
-                }));*/
             });
         });
     }
 
-    function encodeType(type: FolderUploadMessageType) {
-        const arr = new Uint8Array(1);
-        arr.set([type], 0);
-        return arr.buffer;
-    }
-
-    function encodeFileId(id: number): ArrayBuffer {
-        const arr = new Uint32Array(1);
-        arr.set([id], 0);
-        return arr.buffer;
+    function constructMessageMeta(type: FolderUploadMessageType, fileId: number): ArrayBuffer {
+        const buf = new ArrayBuffer(5);
+        new DataView(buf).setUint8(0, type);
+        new DataView(buf).setUint32(1, fileId, false);
+        return buf;
     }
 
     async function constructUploadChunk(reader: ChunkedFileReader, type: FolderUploadMessageType, fileId: number): Promise<ArrayBuffer> {
-        const messageType = encodeType(FolderUploadMessageType.CHUNK);
-        const file = encodeFileId(fileId);
         const chunk = await reader.readChunk(maxChunkSize);
-        const meta = concatArrayBuffers(messageType, file);
+        const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
         return concatArrayBuffers(meta, chunk);
     }
 }
