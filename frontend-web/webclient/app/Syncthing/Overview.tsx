@@ -15,7 +15,7 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
 import {Job} from "@/UCloud/JobsApi";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
-import {usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -45,6 +45,7 @@ import AppRoutes from "@/Routes";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {div} from "@/Utilities/HTMLUtilities";
 import {arrayToPage} from "@/Types";
+import {AsyncCache} from "@/Utilities/AsyncCache";
 
 // UI state management
 // ================================================================================
@@ -426,7 +427,7 @@ export const Overview: React.FunctionComponent = () => {
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);
 
-    usePage("File Synchronization", SidebarTabId.FILES);
+    usePage("File synchronization", SidebarTabId.FILES);
     useSetRefreshFunction(reload);
 
     let main: JSX.Element;
@@ -521,33 +522,14 @@ export const Overview: React.FunctionComponent = () => {
                 title="Synchronized folders"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
-                <Text color="textSecondary">
+                <Text mb="12px" color="textSecondary">
                     These are the files which will be synchronized to your devices.
                     Add a new folder to start synchronizing data.
                 </Text>
 
-                {uiState.folders !== undefined && folders.length === 0 ?
-
+                {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <>
-                        {/* <SyncedFolders folders={folders} opts={{embedded: true}} /> */}
-                        {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector} /> : null}
-                        <List mt="16px">
-                            {folders.map(it =>
-                                <ItemRow
-                                    item={it}
-                                    key={it.ucloudPath}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={FolderRenderer}
-                                    toggleSet={folderToggleSet}
-                                    operations={folderOperations}
-                                    callbacks={operationCb}
-                                    itemTitle={"Folder"}
-                                    disableSelection
-                                />
-                            )}
-                        </List>
-                    </>
+                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: true}} />
                 }
             </TitledCard>
         </div>;
@@ -605,44 +587,6 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         shortcut: ShortcutKey.R
     }
 ];
-
-const FolderRenderer: ItemRenderer<SyncthingFolder> = {
-    Icon: ({size}) => {
-        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size} />;
-    },
-
-    MainTitle: ({resource, callbacks}) => {
-        if (!resource) return null;
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <Text cursor="pointer" onClick={() => {
-            const path = resource.ucloudPath;
-            callbacks.navigate(buildQueryString("/files", {path}));
-        }}>{fileName(prettyPath)}</Text>;
-    },
-
-    Stats: ({resource}) => {
-        // TODO Caching is currently triggering way too many requests. We should fix this in usePrettyFilePath!
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        if (!resource) return null;
-        return <>
-            <ListRowStat>{prettyPath}</ListRowStat>
-        </>
-    },
-
-    ImportantStats: ({resource, callbacks}) => {
-        if (resource == null) return null;
-        if (!callbacks.permissionProblems.includes(resource.id)) return null;
-
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <>
-            <Tooltip trigger={
-                <Icon name="warning" color="errorMain" />
-            }>
-                Some files in {prettyPath} might not be synchronized due to lack of permissions.
-            </Tooltip>
-        </>
-    }
-};
 
 const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
@@ -1124,7 +1068,31 @@ const DeviceBox = injectStyleSimple("device-box", `
     -webkit-user-select: none;
 `);
 
-function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.JSX.Element {
+let permissionProblems: Record<string, boolean> = {};
+
+function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): void; folders?: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.JSX.Element {
+
+    React.useEffect(() => {
+        return () => {permissionProblems = {};}
+    }, []);
+
+    React.useEffect(() => {
+        const validFolders = folders?.filter(it => it.ucloudPath != null);
+        if (!validFolders || validFolders.length === 0) return;
+        Promise.allSettled(validFolders.map(f =>
+            callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
+        )).then(promises => {
+            promises.forEach((p, index) => {
+                if (p.status === "fulfilled") {
+                    if (p.value.items.some(f => f.status.unixOwner !== 11042)) {
+                        permissionProblems[validFolders[index].id] = true;
+                    }
+                }
+            });
+            browserRef.current?.rerender();
+        });
+    }, [folders]);
+
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<SyncthingFolder>>(null);
     const navigate = useNavigate();
@@ -1133,6 +1101,14 @@ function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: Resou
         dragToSelect: true,
         showColumnTitles: true,
     };
+
+    React.useEffect(() => {
+        const browser = browserRef.current;
+        if (browser && folders) {
+            browser.registerPage(arrayToPage(folders), "/", true);
+            browser.rerender();
+        }
+    }, [folders]);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -1163,9 +1139,13 @@ function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: Resou
                         width: 64
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row));
+                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row);
+                    row.title.append(title);
+                    prettyFilePath(folder.ucloudPath).then(it => {
+                        title.innerText = it;
+                    });
 
-                    if (/* permissionProblems.includes(folder.id) */Math.random() < 2) {
+                    if (permissionProblems[folder.id]) {
                         const [permissionIcon, setPermissionIcon] = ResourceBrowser.defaultIconRenderer();
                         browser.icons.renderIcon({
                             name: "warning",
@@ -1174,7 +1154,8 @@ function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: Resou
                             height: 64,
                             width: 64,
                         }).then(setPermissionIcon);
-                        row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in ${fileName(folder.ucloudPath)} might not be synchronized due to lack of permissions.`)));
+
+                        row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in '${fileName(folder.ucloudPath)}' might not be synchronized due to lack of permissions.`)));
                     }
                 });
 
@@ -1185,9 +1166,14 @@ function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: Resou
                 });
 
                 browser.on("fetchOperationsCallback", () => ({
+                    dispatch
                 }));
 
-                browser.on("fetchOperations", () => []);
+                browser.on("fetchOperations", () => {
+                    const selected = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", c => c);
+                    return folderOperations.filter(op => op.enabled(selected, callbacks as OperationCallbacks, selected));
+                });
 
                 browser.on("pathToEntry", syncFolder => syncFolder.id);
             });
@@ -1205,7 +1191,7 @@ function SyncedFolders({folders, opts}: {folders: SyncthingFolder[], opts: Resou
         });
     }
 
-    return <div><div ref={mountRef} /></div>;
+    return <div ref={mountRef} />;
 }
 
 export default Overview;
