@@ -1,8 +1,11 @@
 package dk.sdu.cloud.plugins.storage.posix
 
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
@@ -15,17 +18,20 @@ import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.plugins.storage.ucloud.StorageScanIpc
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.min
 
 object PosixCollectionIpc : IpcContainer("posixfscoll") {
     val retrieveCollections = retrieveHandler(ResourceOwner.serializer(), PageV2.serializer(FindByPath.serializer()))
@@ -71,6 +77,14 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                     } ?: emptyList(),
                     null
                 )
+            })
+
+            println("Adding request handler")
+            ipcServer.addHandler(StorageScanIpc.requestScan.handler { user, request ->
+                println("Got message in request handler")
+                if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                println("Doing something")
+                nextScan.set(0L)
             })
         }
     }
@@ -138,8 +152,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
     }
 
-    private var nextScan = 0L
+    private var nextScan = AtomicLong(0L)
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
+        println("accountingExtension = $accountingExtension")
         if (accountingExtension == null) return
 
         val productCategories = productAllocation.map { it.category }.toSet()
@@ -152,51 +167,85 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private suspend fun PluginContext.loop(productCategories: Set<String>) {
         try {
             val now = Time.now()
-            if (now >= nextScan) {
-                // TODO
-                // TODO
-                // TODO
-                /*
-                debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Posix collection monitoring") {
-                    productCategories.forEachGraal { category ->
-                        var next: String? = null
-                        var shouldBreak = false
-                        whileGraal({ currentCoroutineContext().isActive && !shouldBreak }) {
-                            val summary = AccountingV2.browseProviderAllocations.call(
-                                WalletsRetrieveProviderSummaryRequest(
-                                    filterCategory = category,
-                                    itemsPerPage = 250,
-                                    next = next,
-                                ),
-                                rpcClient
-                            ).orThrow()
+            val get = nextScan.get()
+            println("Checking $now $get ${now >= get}")
+            if (now >= get) {
+                try {
+                    println("Scan is starting!")
+                    debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Posix collection monitoring") {
+                        val requestChannel = Channel<ScanRequest>(Channel.BUFFERED)
+                        val scanJob = startDriveScanning(requestChannel)
 
-                            summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
-                                val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
-                                val colls = locateAndRegisterCollections(resourceOwner)
-                                    .filter { it.product.category == category }
+                        productCategories.forEachGraal { category ->
+                            var next: String? = null
+                            var shouldBreak = false
+                            whileGraal({ currentCoroutineContext().isActive && !shouldBreak }) {
+                                val summary = AccountingV2.browseProviderAllocations.call(
+                                    AccountingV2.BrowseProviderAllocations.Request(
+                                        filterCategory = category,
+                                        itemsPerPage = 250,
+                                        next = next,
+                                    ),
+                                    rpcClient
+                                ).orThrow()
 
-                                val bytesUsed = colls.sumOf {
-                                    runCatching { calculateUsage(it) }.getOrElse { 0 }
+                                println("filterCategory = $category")
+                                println(summary.items)
+
+                                summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
+                                    val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
+                                    val colls = locateAndRegisterCollections(resourceOwner)
+                                        .filter { it.product.category == category }
+
+                                    requestChannel.send(ScanRequest(item.owner, item.categoryId.toV2Id(), colls))
                                 }
-
-                                reportConcurrentUseStorage(item.owner, item.categoryId.toV2Id(), bytesUsed)
 
                                 next = summary.next
                                 if (next == null) shouldBreak = true
                             }
                         }
+                        println("No more requests to start!")
+
+                        requestChannel.close()
+                        scanJob.join()
+                        println("Done")
                     }
+                } finally {
+                    nextScan.set(Time.now() + (1000L * 60 * 60 * 4))
                 }
-                 */
             }
 
             delay(5000)
         } catch (ex: Throwable) {
             log.info("Caught exception while monitoring Posix collections: ${ex.stackTraceToString()}")
-        } finally {
-            nextScan = Time.now() + (1000L * 60 * 60 * 4)
         }
+    }
+
+    private data class ScanRequest(
+        val owner: WalletOwner,
+        val category: ProductCategoryIdV2,
+        val drives: List<PathConverter.Collection>,
+    )
+
+    private fun startDriveScanning(channel: ReceiveChannel<ScanRequest>): Job {
+        val job = ProcessingScope.launch {
+            coroutineScope {
+                repeat(min(2, Runtime.getRuntime().availableProcessors())) { id ->
+                    launch {
+                        while (isActive) {
+                            val request = channel.receiveCatching().getOrNull() ?: break
+                            println("ID loop: $request")
+                            val bytesUsed = request.drives.sumOf {
+                                runCatching { calculateUsage(it) }.getOrElse { 0 }
+                            }
+
+                            reportConcurrentUseStorage(request.owner, request.category, bytesUsed)
+                        }
+                    }
+                }
+            }
+        }
+        return job
     }
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
