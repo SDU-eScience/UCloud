@@ -1155,7 +1155,9 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                             width: 64,
                         }).then(setPermissionIcon);
 
-                        row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in '${fileName(folder.ucloudPath)}' might not be synchronized due to lack of permissions.`)));
+                        prettyFilePath(folder.ucloudPath).then(prettyPath =>
+                            row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in '${fileName(prettyPath)}' might not be synchronized due to lack of permissions.`), {tooltipContentWidth: 250}))
+                        );
                     }
                 });
 
