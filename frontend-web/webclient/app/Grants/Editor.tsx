@@ -2030,7 +2030,7 @@ export function Editor(): React.JSX.Element {
             </> : state.fullScreenError ? <>
                 {state.fullScreenError}
             </> :
-                <div className={classes.join(" ")}>
+                <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3>Information about your project</h3>
 
@@ -2463,7 +2463,7 @@ export function Editor(): React.JSX.Element {
                             </div>
                         </>}
                     </form>
-                </div>
+                </Box>
         }
     />;
 };
