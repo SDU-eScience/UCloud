@@ -83,7 +83,7 @@ function Dashboard(): React.JSX.Element {
 
     useSetRefreshFunction(reload);
 
-    const main = (<Box mx="auto" maxWidth={"1200px"}>
+    const main = (<div>
         <Flex pt="3px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
@@ -98,7 +98,7 @@ function Dashboard(): React.JSX.Element {
                 <DashboardGrantApplications reloadRef={grantsReload} />
             </div>
         </Box>
-    </Box>);
+    </div>);
 
     return (
         <div className={Gradient}>
@@ -115,7 +115,7 @@ const GridClass = injectStyle("grid", k => `
 @media screen and (min-width: 1260px) {
     ${k} {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
         grid-auto-rows: minmax(450px, auto);
         margin-top: 24px;
         margin-bottom: 24px;
