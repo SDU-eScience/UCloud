@@ -80,7 +80,7 @@ const LandingPage: React.FunctionComponent = () => {
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <MainContainer main={<article className={landingStyle}>
-                    <Flex alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
+                    <Flex mt="-13px" alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
                     <Hero slides={landingPage.carrousel} />
                     {starred.data.items.length > 0 ?
                         <StarredApplications2 apps={starred.data.items} /> : null}
@@ -88,7 +88,7 @@ const LandingPage: React.FunctionComponent = () => {
 
                     <TopPicksCard2 topPicks={landingPage.topPicks} />
 
-                    {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight} />}
+                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
 
                     <div>
                         <h3>Browse by category</h3>

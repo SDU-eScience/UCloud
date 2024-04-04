@@ -625,7 +625,6 @@ export class ResourceBrowser<T> {
 
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
-            div.style.marginLeft = "20px";
             div.className = "context-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
@@ -655,6 +654,7 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
+            icon.style.marginRight = "16px";
             this.icons.renderIcon({name: "heroArrowPath", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
