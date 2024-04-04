@@ -1,17 +1,19 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.api.ProductCategoryB
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
-import dk.sdu.cloud.accounting.api.ProductV2
-import dk.sdu.cloud.accounting.api.toBinary
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.messages.BinaryAllocator
 import dk.sdu.cloud.messages.BinaryTypeList
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.idCards
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.productCache
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.serviceClient
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -55,6 +57,11 @@ class StatisticsService {
         val card = idCards.fetchIdCard(actorAndProject) // This enforces that the user is a member of the specified workspace
         if (card !is IdCard.User) return assembleResult()
 
+        val descendants = AccountingV2.retrieveDescendants.call(
+            AccountingV2.RetrieveDescendants.Request(actorAndProject.project!!),
+            serviceClient
+        ).orThrow()
+
         db.withSession { session ->
             // Usage by user
             run {
@@ -62,43 +69,44 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_id", actorAndProject.project)
+                        setParameter("project_ids", descendants.descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
                             actorAndProject.project == null
                         })
                     },
                     """
                         with
+                            project_wallets as (
+                                    select wal.id, wal.product_category, wal.wallet_owner
+                                    from
+                                        accounting.wallet_owner wo join
+                                        accounting.wallets_v2 wal on wo.id = wal.wallet_owner
+                                    where
+                                        (
+                                            wo.project_id in (select unnest(:project_ids::text[]))
+                                            or wo.username = :username::text
+                                        )
+
+                                ),
                             workspaces_with_category as (
                                 select
                                     distinct p.id as product_id,
                                     pc.category,
                                     pc.provider,
-                                    descendant_owner.username,
-                                    descendant_owner.project_id
+                                    wo.username,
+                                    wo.project_id
                                 from
-                                    accounting.wallet_owner wo
-                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
-                                    join accounting.product_categories pc on w.product_category = pc.id
-                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
-                                    join accounting.wallet_allocations_v2 alloc on alloc.associated_allocation_group = ag.id
-                                    -- The descendant will also capture the alloc itself
-                                    join accounting.allocation_groups children on children.parent_wallet = w.id
-                                    join accounting.wallet_allocations_v2 descendant on alloc.associated_allocation_group = children.id
-                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
-                                    join accounting.products p on pc.id = p.category
+                                    project_wallets pw join
+                                    accounting.wallet_owner wo on pw.wallet_owner = wo.id join
+                                    accounting.allocation_groups ag on ag.associated_wallet = pw.id join
+                                    accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group join
+                                    accounting.product_categories pc on pc.id = pw.product_category join
+                                    accounting.products p on pc.id = p.category
                                 where
-                                    (
-                                        wo.project_id = :project_id::text
-                                        or wo.username = :username::text
-                                    )
-                                    and pc.product_type = 'COMPUTE'
+                                    pc.product_type = 'COMPUTE'
                                     and alloc.allocation_start_time <= to_timestamp(:end / 1000)
                                     and to_timestamp(:start / 1000) <= alloc.allocation_end_time
-                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
-                            ),
+                                ),
                             jobs as (
                                 select distinct
                                     terminal_update.created_at - running_update.created_at as run_time,
@@ -190,37 +198,43 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_id", actorAndProject.project)
+                        setParameter("project_ids", descendants.descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
                             actorAndProject.project == null
                         })
                     },
                     """
                         with
+                            project_wallets as (
+                                    select wal.id, wal.product_category, wal.wallet_owner
+                                    from
+                                        accounting.wallet_owner wo join
+                                        accounting.wallets_v2 wal on wo.id = wal.wallet_owner
+                                    where
+                                        (
+                                            wo.project_id in (select unnest(:project_ids::text[]))
+                                            or wo.username = :username::text
+                                        )
+
+                                ),
                             workspaces_with_category as (
-                                select distinct p.id as product_id, pc.category, pc.provider, descendant_owner.username, descendant_owner.project_id
+                                select
+                                    distinct p.id as product_id,
+                                    pc.category,
+                                    pc.provider,
+                                    wo.username,
+                                    wo.project_id
                                 from
-                                    accounting.wallet_owner wo
-                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
-                                    join accounting.product_categories pc on w.product_category = pc.id
-                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
-                                    join accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group
-                                    -- The descendant will also capture the alloc itself
-                                    join accounting.allocation_groups children on children.parent_wallet = w.id
-                                    join accounting.wallet_allocations_v2 descendant on descendant.associated_allocation_group = children.id
-                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
-                                    join accounting.products p on pc.id = p.category
+                                    project_wallets pw join
+                                    accounting.wallet_owner wo on pw.wallet_owner = wo.id join
+                                    accounting.allocation_groups ag on ag.associated_wallet = pw.id join
+                                    accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group join
+                                    accounting.product_categories pc on pc.id = pw.product_category join
+                                    accounting.products p on pc.id = p.category
                                 where
-                                    (
-                                        wo.project_id = :project_id::text
-                                        or wo.username = :username::text
-                                    )
-                                    and pc.product_type = 'COMPUTE'
+                                    pc.product_type = 'COMPUTE'
                                     and alloc.allocation_start_time <= to_timestamp(:end / 1000)
                                     and to_timestamp(:start / 1000) <= alloc.allocation_end_time
-                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
                             )
                         select
                             wr.category,
@@ -229,9 +243,10 @@ class StatisticsService {
                             count(r.id)::int4
                         from
                             workspaces_with_category wr
-                            join provider.resource r on
+                            join provider.resource r on (
                                 wr.project_id = r.project
                                 or (wr.username = r.created_by and r.project is null)
+                                ) and r.product = wr.product_id
                             join app_orchestrator.jobs job on r.id = job.resource
                             join app_store.applications app on
                                 job.application_name = app.name
@@ -263,7 +278,6 @@ class StatisticsService {
                     val provider = row.getString(1)!!
                     val applicationTitle = row.getString(2)!!
                     val usage = row.getInt(3)!!
-
                     val thisCategory = ProductCategoryIdV2(category, provider)
                     if (thisCategory != currentCategory) flushChart()
                     currentCategory = thisCategory
@@ -277,47 +291,49 @@ class StatisticsService {
 
             // Job submission stats
             run {
+
                 val rows = session.sendPreparedStatement(
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_id", actorAndProject.project)
+                        setParameter("project_ids", descendants.descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
                             actorAndProject.project == null
                         })
                     },
                     """
                         with
+                            project_wallets as (
+                                    select wal.id, wal.product_category, wal.wallet_owner
+                                    from
+                                        accounting.wallet_owner wo join
+                                        accounting.wallets_v2 wal on wo.id = wal.wallet_owner
+                                    where
+                                        (
+                                            wo.project_id in (select unnest(:project_ids::text[]))
+                                            or wo.username = :username::text
+                                        )
+
+                                ),
                             workspaces_with_category as (
                                 select
                                     distinct p.id as product_id,
                                     pc.category,
                                     pc.provider,
-                                    descendant_owner.username,
-                                    descendant_owner.project_id
+                                    wo.username,
+                                    wo.project_id
                                 from
-                                    accounting.wallet_owner wo
-                                    join accounting.wallets_v2 w on wo.id = w.wallet_owner
-                                    join accounting.product_categories pc on w.product_category = pc.id
-                                    join accounting.allocation_groups ag on w.id = ag.associated_wallet
-                                    join accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group
-                                    -- The descendant will also capture the alloc itself
-                                    join accounting.allocation_groups children on children.parent_wallet = w.id
-                                    join accounting.wallet_allocations_v2 descendant on alloc.associated_allocation_group = children.id
-                                    join accounting.wallets_v2 descendant_wallet on children.associated_wallet = descendant_wallet.id
-                                    join accounting.wallet_owner descendant_owner on descendant_wallet.wallet_owner = descendant_owner.id
-                                    join accounting.products p on pc.id = p.category
+                                    project_wallets pw join
+                                    accounting.wallet_owner wo on pw.wallet_owner = wo.id join
+                                    accounting.allocation_groups ag on ag.associated_wallet = pw.id join
+                                    accounting.wallet_allocations_v2 alloc on ag.id = alloc.associated_allocation_group join
+                                    accounting.product_categories pc on pc.id = pw.product_category join
+                                    accounting.products p on pc.id = p.category
                                 where
-                                    (
-                                        wo.project_id = :project_id::text
-                                        or wo.username = :username::text
-                                    )
-                                    and pc.product_type = 'COMPUTE'
+                                    pc.product_type = 'COMPUTE'
                                     and alloc.allocation_start_time <= to_timestamp(:end / 1000)
                                     and to_timestamp(:start / 1000) <= alloc.allocation_end_time
-                                    and descendant.allocation_start_time <= to_timestamp(:end / 1000)
-                                    and to_timestamp(:start / 1000) <= descendant.allocation_end_time
-                            ),
+                                ),
                             jobs as (
                                 select distinct
                                     terminal_update.created_at - running_update.created_at as run_time,
@@ -337,9 +353,10 @@ class StatisticsService {
                                     wr.category, wr.provider
                                 from
                                     workspaces_with_category wr
-                                    join provider.resource r on
+                                    join provider.resource r on (
                                         wr.project_id = r.project
                                         or (wr.username = r.created_by and r.project is null)
+                                        ) and r.product = wr.product_id
                                     join app_orchestrator.jobs job on r.id = job.resource
                                     join provider.resource_update terminal_update on r.id = terminal_update.resource
                                     join provider.resource_update running_update on r.id = running_update.resource
