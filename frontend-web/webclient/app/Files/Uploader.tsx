@@ -220,8 +220,9 @@ function createResumeableFolder(
 
     function constructMessageMeta(type: FolderUploadMessageType, fileId: number): ArrayBuffer {
         const buf = new ArrayBuffer(5);
-        new DataView(buf).setUint8(0, type);
-        new DataView(buf).setUint32(1, fileId, false);
+        const view = new DataView(buf);
+        view.setUint8(0, type);
+        view.setUint32(1, fileId, false);
         return buf;
     }
 
