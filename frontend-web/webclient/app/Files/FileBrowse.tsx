@@ -1144,14 +1144,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         if (!isInitialMount.current && oldPath !== newPath) navigate("/files?path=" + encodeURIComponent(newPath));
                     }
 
-                    if (newPath == SEARCH) {
-                        browser.emptyReasons[SEARCH] = {
-                            tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
-                            information: "Search query is empty."
-                        };
-                        return;
-                    }
-
                     if (!isSelector) {
                         dispatch({
                             type: "GENERIC_SET", property: "uploadPath",
@@ -1225,6 +1217,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("search", query => {
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
+
+                    browser.emptyReasons[SEARCH] = {
+                        tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                        information: browser.searchQuery ? "" : "Search query is empty."
+                    };
+                    
                     searching = currentPath;
                     browser.open(SEARCH);
                     browser.cachedData[SEARCH] = [];
