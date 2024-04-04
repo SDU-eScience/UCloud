@@ -4,26 +4,25 @@ import Icon from "./Icon";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {FileIconHint} from "@/Files";
 import {injectStyle} from "@/Unstyled";
-import {appColors} from "./theme";
 
 const ftColor = (fType: string): string => {
     switch (fType) {
         case "code":
-            return appColors[0][2];
+            return "#C46927";
         case "image":
-            return appColors[1][2];
+            return "#AA2457";
         case "text":
-            return appColors[2][2];
+            return "#5B698C";
         case "audio":
-            return appColors[3][2];
+            return "#2951BE";
         case "video":
-            return appColors[4][2];
+            return "#2951BE";
         case "archive":
-            return appColors[5][2];
+            return "#68449E";
         case "pdf":
-            return appColors[6][2];
+            return "#B33B6D";
         case "binary":
-            return appColors[7][2];
+            return "#BC4F33";
         default:
             return "red";
     }

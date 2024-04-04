@@ -159,12 +159,12 @@ class ApmNotificationService(
                     // if they need to send additional information about them.
 
                     // NOTE(Dan): registerProjectChange will detect updates based on the modifiedAt timestamp
-                    fun registerProjectChange(project: Project): Int {
+                    fun registerProjectChange(project: Project, force: Boolean): Int {
                         var ref = projectsInSession[project.id]?.first
                         if (ref == null) ref = projectCounter++
 
                         val existingProject = projectsInSession[project.id]
-                        if (existingProject?.second?.modifiedAt != project.modifiedAt) {
+                        if (force || existingProject?.second?.modifiedAt != project.modifiedAt) {
                             projectsInSession[project.id] = Pair(ref, project)
                             projectsInverse[ref] = project
                             projectsToSend.add(ref)
@@ -172,18 +172,14 @@ class ApmNotificationService(
                         return ref
                     }
 
-                    suspend fun registerOwner(owner: WalletOwner): Pair<Int, Boolean> {
+                    suspend fun registerProjectChangeForId(projectId: String, force: Boolean): Int {
+                        return registerProjectChange(retrieveProject(projectId), force)
+                    }
+
+                    suspend fun registerOwner(owner: WalletOwner, forceProject: Boolean): Pair<Int, Boolean> {
                         val ownerIsProject = owner is WalletOwner.Project
                         val workspaceRef = if (ownerIsProject) {
-                            val existing = projectsInSession[owner.reference()]
-
-                            if (existing == null) {
-                                val project = retrieveProject(owner.reference())
-                                projectIsRelevant[project.id] = true
-                                registerProjectChange(project)
-                            } else {
-                                existing.first
-                            }
+                            registerProjectChangeForId(owner.reference(), forceProject)
                         } else {
                             val existing = usersInSession[owner.reference()]
                             if (existing == null) {
@@ -229,7 +225,7 @@ class ApmNotificationService(
                             isRelevant = projectIsRelevant.getValue(updatedProject.id)
                         }
 
-                        if (isRelevant) registerProjectChange(updatedProject)
+                        if (isRelevant) registerProjectChange(updatedProject, false)
                     }
 
                     // User replay requests
@@ -246,7 +242,7 @@ class ApmNotificationService(
                         ) as IdCard.User
 
                         val projects = (card.groups.map { idCards.lookupGid(it)?.projectId }.filterNotNull() +
-                                card.adminOf.map { idCards.lookupPid(it) }.filterNotNull()).toSet()
+                                card.adminOf.map { idCards.lookupPid(it) }.filterNotNull()).toSet() + null
 
                         for (project in projects) {
                             val idCard = idCards.fetchIdCard(
@@ -259,7 +255,7 @@ class ApmNotificationService(
                                 if (wallet.paysFor.provider != providerId) continue
 
                                 val categoryRef = registerCategory(wallet.paysFor)
-                                val (workspaceRef, ownerIsProject) = registerOwner(wallet.owner)
+                                val (workspaceRef, ownerIsProject) = registerOwner(wallet.owner, true)
 
                                 var flags = 0
                                 if (ownerIsProject) flags = flags or 0x2
@@ -289,7 +285,7 @@ class ApmNotificationService(
                                 val categoryRef = registerCategory(wallet.category)
 
                                 val owner = ownersById.getValue(wallet.ownedBy)
-                                val (workspaceRef, ownerIsProject) = registerOwner(owner.toWalletOwner())
+                                val (workspaceRef, ownerIsProject) = registerOwner(owner.toWalletOwner(), false)
 
                                 var flags = 0
                                 if (ownerIsProject) flags = flags or 0x2

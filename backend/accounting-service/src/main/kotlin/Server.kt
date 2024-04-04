@@ -77,7 +77,7 @@ class Server(
         val grants = GrantsV2Service(db, idCardService, accountingSystem, client, config.defaultTemplate, projectsV2)
         val giftService = GiftService(db, accountingSystem, projectService, grants, idCardService)
         val dataVisualization = DataVisualization(db, accountingSystem)
-        val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, micro.developmentModeEnabled)
+        val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
 
         accountingSystem.start(micro.backgroundScope)
         micro.backgroundScope.launch {

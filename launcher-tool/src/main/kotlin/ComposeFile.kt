@@ -963,10 +963,9 @@ sealed class ComposeService {
                       onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
 
                   allocations:
-                    COMPUTE:
-                      type: Extension
-                      extensions:
-                        onAllocationTotal: /etc/ucloud/extensions/on-compute-allocation
+                    type: Extension
+                    extensions:
+                      onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
 
                   jobs:
                     default:
@@ -986,8 +985,6 @@ sealed class ComposeService {
                         domainSuffix: .localhost.direct
                       extensions:
                         fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
-                           
- 
 
                   fileCollections:
                     default:

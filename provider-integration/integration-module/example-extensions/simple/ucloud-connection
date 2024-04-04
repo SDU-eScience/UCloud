@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import json
 import sys
-import subprocess
-import re
 import os
 from helper import *
 
@@ -22,18 +20,20 @@ response = {}
 
 uid = get_uid_by_username(local_username)
 if uid != None:
-    # User already exists. In that case we want to simply return the appropiate ID.
+    # User already exists. In that case we want to simply return the appropriate ID.
     response['uid'] = uid
     response['gid'] = uid # TODO(Dan): This is overly simplified
 else:
     # We need to create a user.
-    result = run_command(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username])
+    result = run_command(['/usr/bin/mkdir', f'/home/{local_username}'])
+    result = run_command(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username, '-d', f'/home/{local_username}'])
     if result.returncode != 0:
         print("Failed to create a user!")
         print(result.stdout)
         print(result.stderr)
         exit(1)
-    
+    result = run_command(['/usr/bin/chown', f'{local_username}:', f'/home/{local_username}'])
+
     uid = get_uid_by_username(local_username)
     if uid == None:
         print("Failed to create a user! Could not look it up after calling useradd.")

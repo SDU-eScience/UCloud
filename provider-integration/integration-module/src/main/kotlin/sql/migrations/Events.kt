@@ -36,3 +36,26 @@ fun V2__Events() = MigrationScript("V2__Events") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V3__Events() = MigrationScript("V3__Events") { session ->
+    session.prepareStatement(
+        """
+            drop table events.allocations_handled;
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        """
+            drop table events.wallets_handled;
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        """
+            create table events.replay_from(
+                always_one int8 primary key,
+                replay_from int8 not null
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}

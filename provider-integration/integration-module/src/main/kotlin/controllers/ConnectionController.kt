@@ -483,7 +483,10 @@ object UserMapping {
                     """
                         insert into user_mapping (ucloud_id, local_identity)
                         values (:ucloud_id, :local_id)
-                        on conflict (ucloud_id) do update set ucloud_id = :ucloud_id, local_identity = :local_id
+                        on conflict (ucloud_id) do update set
+                            ucloud_id = :ucloud_id,
+                            local_identity = :local_id,
+                            created_at = now()
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {

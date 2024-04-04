@@ -6,11 +6,11 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.plugins.AllocationPlugin
-import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -19,16 +19,15 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.plugins.websocket.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.max
 
 class EventController(
     private val controllerContext: ControllerContext,
@@ -44,16 +43,75 @@ class EventController(
         startLoop()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun startLoop() {
         ProcessingScope.launch {
-            val replayFrom = AtomicLong(0L) // TODO
-            // TODO Replay users who connected in proximity to the "replayFrom" value
-            // TODO To make this reliable we should set replayFrom periodically ourselves to the current time
-            //  (minus some constant to account for drifting time)
+            val replayFrom = AtomicLong(0L)
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select replay_from
+                        from events.replay_from
+                        limit 1
+                    """
+                ).useAndInvoke(
+                    readRow = { row ->
+                        replayFrom.set(row.getLong(0)!!)
+                    }
+                )
+            }
+
+            // Replay users who connected in proximity to the "replayFrom" value
+            launch {
+                val usersToReplay = HashSet<String>()
+                dbConnection.withSession { session ->
+                    session.prepareStatement(
+                        """
+                            select ucloud_id
+                            from user_mapping
+                            where
+                                created_at < to_timestamp(:replay_before::int8 / 1000.0)
+                                and created_at > to_timestamp(:replay_after::int8 / 1000.0)
+                        """
+                    ).useAndInvoke(
+                        prepare = {
+                            bindLong("replay_before", replayFrom.get() + (1000L * 60 * 10))
+                            bindLong("replay_after", replayFrom.get() - (1000L * 60 * 10))
+                        },
+                        readRow = { row ->
+                            usersToReplay.add(row.getString(0)!!)
+                        }
+                    )
+                }
+
+                // NOTE(Dan): We do this without holding on to the session in case we hit the replayRequests buffer
+                // limit. In some rare circumstances that might lead to starvation of the connection pool.
+                for (user in usersToReplay) {
+                    replayRequests.send(WalletOwner.User(user))
+                }
+            }
+
+            launch {
+                while (isActive) {
+                    dbConnection.withSession { session ->
+                        session.prepareStatement(
+                            """
+                                insert into events.replay_from(always_one, replay_from)
+                                values (1, :replay_from)
+                                on conflict (always_one) do update set replay_from = excluded.replay_from
+                            """
+                        ).useAndInvokeAndDiscard(
+                            prepare = {
+                                bindLong("replay_from", replayFrom.get())
+                            }
+                        )
+                    }
+                    delay(60_000)
+                }
+            }
 
             while (isActive) {
                 try {
-                    println("Starting!")
                     val config = controllerContext.configuration
                     val info = HostInfo(
                         config.core.hosts.ucloud.host,
@@ -84,25 +142,35 @@ class EventController(
                             }
 
                             session.messages.onReceive { message ->
+                                replayFrom.set(message.lastUpdate)
+                                println(message)
+
                                 when (message) {
                                     is NotificationMessage.ProjectUpdated -> {
-                                        println("Project has been updated: ${message.project}")
-                                        println()
                                         synchronizeProjects(listOf(message.project))
                                     }
 
                                     is NotificationMessage.WalletUpdated -> {
-                                        println("Wallet has been updated: ${message}")
-                                        println()
-
                                         synchronizeWallet(message)
                                     }
                                 }
                             }
+
+                            onTimeout(60_000) {
+                                // NOTE(Dan): We increment replayFrom ourselves in quiet periods. We set it to some
+                                // value lower than the current time to allow for time differences between UCloud/Core
+                                // and the provider.
+
+                                val oldValue = replayFrom.get()
+                                val now = Time.now()
+                                val accountingForTimeDifference = now - 60_000
+
+                                replayFrom.compareAndSet(oldValue, max(oldValue, accountingForTimeDifference))
+                            }
                         }
                     }
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
+                    log.warn("Caught exception in EventController: ${ex.toReadableStacktrace()}")
                 }
                 delay(1000)
             }
@@ -331,16 +399,17 @@ private fun ByteBuffer.getString(): String {
 }
 
 sealed class NotificationMessage {
+    abstract val lastUpdate: Long
     data class WalletUpdated(
         val owner: WalletOwner,
         val category: ProductCategory,
         val combinedQuota: Long,
         val locked: Boolean,
-        val lastUpdate: Long,
+        override val lastUpdate: Long,
     ) : NotificationMessage()
 
     data class ProjectUpdated(
-        val lastUpdate: Long,
+        override val lastUpdate: Long,
         val project: Project,
     ) : NotificationMessage()
 

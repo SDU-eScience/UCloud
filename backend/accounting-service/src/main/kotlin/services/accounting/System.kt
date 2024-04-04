@@ -714,6 +714,7 @@ class AccountingSystem(
 
         for ((_, wallet) in walletsById) {
             if (wallet.category.provider != request.providerId) continue
+            if (wallet.allocationsByParent.isEmpty()) continue
 
             if (wallet.lastSignificantUpdateAt > request.since) {
                 request.handler(wallet)
@@ -775,7 +776,9 @@ class AccountingSystem(
             ?: return Response.ok(emptyList())
         val allWallets = walletsByOwner[internalOwner.id] ?: emptyList()
 
-        val apiWallets = allWallets.map { wallet ->
+        val apiWallets = allWallets.mapNotNull { wallet ->
+            if (wallet.allocationsByParent.isEmpty()) return@mapNotNull null
+
             WalletV2(
                 internalOwner.toWalletOwner(),
                 wallet.category,
@@ -843,14 +846,16 @@ class AccountingSystem(
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown allocation")
         val internalWallet = walletsById[internalAllocation.belongsToWallet]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet (bad internal state?)")
-        val internalOwner = ownersById[internalWallet.ownedBy]
-            ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet owner (bad internal state?)")
         val allocationGroup = internalWallet.allocationsByParent[internalAllocation.parentWallet]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown allocation group (bad internal state?)")
+        val parentWallet = walletsById[internalAllocation.parentWallet]
+            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to update this allocation (no parent).")
+        val parentOwner = ownersById[parentWallet.ownedBy]
+            ?: return Response.error(HttpStatusCode.NotFound, "Unknown parent owner (bad internal state?)")
 
         authorizeAndLocateWallet(
             request.idCard,
-            internalOwner.reference,
+            parentOwner.reference,
             internalWallet.category.toId(),
             ActionType.WALLET_ADMIN
         ) ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to update this allocation.")
