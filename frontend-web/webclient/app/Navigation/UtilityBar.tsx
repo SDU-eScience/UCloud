@@ -27,7 +27,7 @@ const SearchClass = injectStyle("search", k => `
     }
     
     ${k} input {
-        --width: 200px;
+        --width: 400px;
         left: 32px;
         position: relative;
         width: var(--width);

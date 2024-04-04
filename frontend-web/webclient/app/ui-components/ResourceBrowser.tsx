@@ -3116,7 +3116,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header input.search-field {
                 position: relative;
                 right: -46px;
-                width: 200px;
+                width: 400px;
                 height: 35px;
                 margin-left: 5px;
                 transition: transform .2s;
@@ -3128,7 +3128,7 @@ export class ResourceBrowser<T> {
 
             /* Note(Jonas): If showing search-field, resize navbar */
             ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -212px;
+                margin-right: -308px;
             }
 
             ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
