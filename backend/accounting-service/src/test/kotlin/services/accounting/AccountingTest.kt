@@ -9,6 +9,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import services.accounting.*
 import kotlin.collections.ArrayList
+import kotlin.math.exp
+import kotlin.math.max
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -87,6 +89,64 @@ class AccountingTest {
         println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
 
         println("Goodbye")
+    }
+
+    @Test
+    fun `test over-spending and then gradual lowering`() = withTest {
+        val project = createProject()
+        val product = provider.capacityProduct
+        val start = 0L
+        val end = 1000L
+        val quota = 10_000L
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, quota * 1000, start, end)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, quota, start, end)
+        )
+
+        suspend fun charge(amount: Long) {
+            accounting.sendRequestNoUnwrap(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = amount,
+                    isDelta = false,
+                )
+            )
+
+            val maxUsable = accounting.sendRequest(
+                AccountingRequest.MaxUsable(
+                    project.idCard,
+                    product,
+                )
+            )
+
+            val expectedMaxUsable = max(0, quota - amount)
+            assertEquals(expectedMaxUsable, maxUsable, "during charge of $amount")
+        }
+
+        // Sanity checking that we can go up and down as long as we stay below the quota
+        charge(0)
+        charge(quota / 3)
+        charge(quota / 4)
+        charge(quota / 2)
+        charge(0)
+
+        // Ensure that we handle being above the quota correctly
+        charge(quota + 10_000)
+        charge(quota + 5_000)
+        charge(quota + 1)
+        charge(quota + 0)
+        charge(quota - 1)
+        charge(quota + 1)
+        charge(quota + 0)
+        charge(quota - 5_000)
+        charge(quota + 1)
+        charge(quota - 5_000)
     }
 
     private suspend fun TestContext.runSimulation(maxTimeToRun: Long, capacityBased: Boolean) {

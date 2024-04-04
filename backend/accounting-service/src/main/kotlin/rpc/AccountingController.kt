@@ -197,7 +197,7 @@ class AccountingController(
                         request.next,
                         request.consistency,
                         request.itemsToSkip,
-                        request.filterCategory,
+                        request.filterOwnerId,
                         request.filterOwnerIsProject,
                         request.filterCategory,
                     )

@@ -736,7 +736,7 @@ class AccountingSystem(
 
         val currentUsage = if (scope == null) {
             // TODO This is probably wrong when isDelta = false
-            wallet.localUsage + wallet.excessUsage
+            wallet.localUsage
         } else {
             scopedUsage[scopeKey(wallet, scope)] ?: 0L
         }
@@ -758,7 +758,7 @@ class AccountingSystem(
 
         val (totalChargeableAmount, error) = internalCharge(wallet, delta, now)
         if (delta > 0) {
-            wallet.localUsage += totalChargeableAmount
+            wallet.localUsage += delta
             wallet.excessUsage += delta - totalChargeableAmount
         } else {
             wallet.localUsage -= totalChargeableAmount
@@ -973,8 +973,8 @@ class AccountingSystem(
             }
 
             if (withOverAllocation) {
-                var overAllocation = wallet.totalAllocated + wallet.totalRetiredAllocated + wallet.localUsage +
-                        -wallet.totalActiveQuota()
+                var overAllocation = wallet.totalAllocated + wallet.totalRetiredAllocated + wallet.localUsage -
+                        wallet.totalActiveQuota()
 
                 if (!wallet.isCapacityBased()) {
                     overAllocation -= wallet.localRetiredUsage
