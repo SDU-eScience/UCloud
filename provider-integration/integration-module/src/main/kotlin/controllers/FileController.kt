@@ -633,66 +633,15 @@ class FileController(
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
-                var fileOffset = 0L
-                var totalSize = 0L
+
 
                 with(context) {
                     val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                     val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                         ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
-                    for (frame in incoming) {
-                        if (frame.frameType == FrameType.TEXT) {
-                            val metadata = (frame as? Frame.Text)?.readText()?.split(' ')
-                            if (metadata != null) {
-                                fileOffset = metadata[0].toLong()
-                                totalSize = metadata[1].toLong()
-                            }
-                        } else {
-                            if (!frame.buffer.isDirect) {
-                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
-                                    try {
-                                        var offset = 0
-                                        while (offset < frame.data.size) {
-                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                            val count = min(frame.data.size - offset, nativeBuffer.remaining())
-                                            nativeBuffer.put(frame.data, offset, count)
-                                            nativeBuffer.flip()
-                                            offset += count
-                                            val channel = ByteReadChannel(nativeBuffer)
-                                            with(plugin) {
-                                                handleUpload(
-                                                    token,
-                                                    handler.pluginData,
-                                                    fileOffset,
-                                                    channel,
-                                                    fileOffset + count >= totalSize
-                                                )
-                                            }
-
-                                            fileOffset += count
-                                        }
-                                    } catch (ex: Throwable) {
-                                        ex.printStackTrace()
-                                        throw ex
-                                    }
-                                }
-                            } else {
-                                with(plugin) {
-                                    handleUpload(
-                                        token,
-                                        handler.pluginData,
-                                        fileOffset,
-                                        ByteReadChannel(frame.data),
-                                        fileOffset + frame.data.size >= totalSize
-                                    )
-                                }
-
-                                fileOffset += frame.data.size
-                            }
-
-                            send("$fileOffset")
-                        }
+                    with(plugin) {
+                        handleUploadWs(handler.session, handler.pluginData, collectionCache, this@webSocket)
                     }
                 }
                 this.close()
@@ -700,7 +649,6 @@ class FileController(
 
             // Folder upload over WebSockets
             webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true, isFolder = true)) {
-
                 val context = SimpleRequestContext(controllerContext.pluginContext, "")
                 val token = call.parameters["token"]
                     ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)

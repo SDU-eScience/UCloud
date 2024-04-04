@@ -581,6 +581,15 @@ class PosixFilesPlugin : FilePlugin {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
+    override suspend fun RequestContext.handleUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    }
+
     override suspend fun RequestContext.handleFolderUploadWs(
         session: String,
         pluginData: String,

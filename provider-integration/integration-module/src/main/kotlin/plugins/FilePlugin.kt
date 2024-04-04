@@ -60,6 +60,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
     suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean)
     suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, fileEntry: FileListingEntry, chunk: ByteReadChannel, lastChunk: Boolean)
+    suspend fun RequestContext.handleUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession)
     suspend fun RequestContext.handleFolderUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession)
     suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
@@ -90,6 +91,7 @@ abstract class EmptyFilePlugin : FilePlugin {
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, fileEntry: FileListingEntry, chunk: ByteReadChannel, lastChunk: Boolean) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.handleFolderUploadWs(session: String, pluginData: String, collection: SimpleCache<String, FileCollection>, websocket: WebSocketSession) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)

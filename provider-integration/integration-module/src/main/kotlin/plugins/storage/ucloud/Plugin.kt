@@ -290,6 +290,66 @@ class UCloudFilePlugin : FilePlugin {
         }
     }
 
+    override suspend fun RequestContext.handleUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession
+    ) {
+        var fileOffset = 0L
+        var totalSize = 0L
+
+        for (frame in websocket.incoming) {
+            if (frame.frameType == FrameType.TEXT) {
+                val metadata = (frame as? Frame.Text)?.readText()?.split(' ')
+                if (metadata != null) {
+                    fileOffset = metadata[0].toLong()
+                    totalSize = metadata[1].toLong()
+                }
+            } else {
+                if (!frame.buffer.isDirect) {
+                    DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+                        try {
+                            var offset = 0
+                            while (offset < frame.data.size) {
+                                if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                val count = min(frame.data.size - offset, nativeBuffer.remaining())
+                                nativeBuffer.put(frame.data, offset, count)
+                                nativeBuffer.flip()
+                                offset += count
+                                val channel = ByteReadChannel(nativeBuffer)
+                                handleUpload(
+                                    session,
+                                    pluginData,
+                                    fileOffset,
+                                    channel,
+                                    fileOffset + count >= totalSize
+                                )
+
+                                fileOffset += count
+                            }
+                        } catch (ex: Throwable) {
+                            ex.printStackTrace()
+                            throw ex
+                        }
+                    }
+                } else {
+                    handleUpload(
+                        session,
+                        pluginData,
+                        fileOffset,
+                        ByteReadChannel(frame.data),
+                        fileOffset + frame.data.size >= totalSize
+                    )
+
+                    fileOffset += frame.data.size
+                }
+
+                websocket.send("$fileOffset")
+            }
+        }
+    }
+
 
     override suspend fun RequestContext.handleFolderUploadWs(
         session: String,
