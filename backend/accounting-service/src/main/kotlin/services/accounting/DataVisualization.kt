@@ -218,6 +218,14 @@ class DataVisualization(
                         },
                         """
                             with
+                                project_wallets as (
+                                    select wal.id
+                                    from 
+                                        accounting.allocation_groups ag join 
+                                        accounting.wallets_v2 wal on ag.associated_wallet = wal.id
+                                    where
+                                        ag.id = some(:allocation_group_ids::int8[])
+                                ),
                                 relevant_wallets as (
                                     select
                                         wal.id,
@@ -225,13 +233,11 @@ class DataVisualization(
                                         pc.accounting_frequency != 'ONCE' as is_periodic,
                                         child.parent_wallet = wal.id as is_child
                                     from
-                                        accounting.wallets_v2 wal join
-                                        accounting.allocation_groups child on child.parent_wallet = wal.id 
-                                            and child.associated_wallet = wal.id join
+                                        project_wallets pwal join
+                                        accounting.allocation_groups child on child.parent_wallet = pwal.id join
                                         accounting.wallet_allocations_v2 alloc on child.id = alloc.associated_allocation_group join
+                                        accounting.wallets_v2 wal on child.associated_wallet = wal.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
-                                    where
-                                        child.id = some(:allocation_group_ids::int8[])
                                 ),
                                 data_timestamps as (
                                     select
