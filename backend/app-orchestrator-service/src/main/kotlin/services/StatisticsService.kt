@@ -120,8 +120,11 @@ class StatisticsService {
                                 from
                                     workspaces_with_category wr
                                     join provider.resource r on
-                                        wr.project_id = r.project
-                                        or (wr.username = r.created_by and r.project is null)
+                                        (
+                                            wr.project_id = r.project
+                                            or (wr.username = r.created_by and r.project is null)
+                                        )
+                                        and wr.product_id = r.product
                                     join app_orchestrator.jobs job on r.id = job.resource
                                     join provider.resource_update terminal_update on r.id = terminal_update.resource
                                     join provider.resource_update running_update on r.id = running_update.resource
@@ -287,6 +290,10 @@ class StatisticsService {
                     )
                 }
                 flushChart()
+            }
+
+            usageByUser.forEach {
+                println(it.encodeToJson())
             }
 
             // Job submission stats
