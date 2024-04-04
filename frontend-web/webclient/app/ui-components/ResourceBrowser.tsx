@@ -3203,13 +3203,13 @@ export class ResourceBrowser<T> {
                 background: var(--rowHover); 
             }
 
-            ${browserClass.dot} .row .title {
+            ${browserClass.dot} .row .title{
                 display: flex;
                 align-items: center;
 
                 white-space: pre;
                                                                                                                         /* v favoriteIcon-width */
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 8px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 18px);
             }
             
             @media screen and (max-width: 860px) {
