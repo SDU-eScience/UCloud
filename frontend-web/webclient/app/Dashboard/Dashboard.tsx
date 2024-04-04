@@ -119,8 +119,7 @@ const GridClass = injectStyle("grid", k => `
         grid-auto-rows: minmax(450px, auto);
         margin-top: 24px;
         margin-bottom: 24px;
-        gap: 16px;
-        gap: 20px;
+        gap: 24px;
     }
 }   
 @media screen and (max-width: 1260px) {

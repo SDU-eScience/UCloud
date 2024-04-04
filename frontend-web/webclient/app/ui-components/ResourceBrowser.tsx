@@ -1658,7 +1658,7 @@ export class ResourceBrowser<T> {
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
-            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
+            const useShortcuts = !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
 
@@ -3214,7 +3214,7 @@ export class ResourceBrowser<T> {
             
             @media screen and (max-width: 860px) {
                 ${browserClass.dot} .row .title {
-                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
+                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 16px);
                 }
             }
             
@@ -4042,7 +4042,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
             <tbody>
                 <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
                 <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]} />
-                <Shortcut name={"Select multiple (individual)"} ctrl keys={["Left click"]} />
+                <Shortcut name={"Select/deselect multiple (individual)"} ctrl keys={["Left click"]} />
                 <tr>
                     <td>Go to row</td>
                     <td>Type part of name</td>
