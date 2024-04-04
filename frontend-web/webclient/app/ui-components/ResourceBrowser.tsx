@@ -3012,6 +3012,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header .header-first-row {
                 display: flex;
                 align-items: center;
+                margin-top: 3px;
                 margin-bottom: 8px;
             }
 

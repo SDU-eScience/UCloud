@@ -204,7 +204,7 @@ function ApplyLinkButton(): React.JSX.Element {
 
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
-}): JSX.Element | null {
+}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -250,7 +250,7 @@ function DashboardResources({wallets}: {
                     <Table>
                         <tbody>
                             {mapped.slice(0, 7).map((n, i) => (
-                                <TableRow key={i}>
+                                <TableRow height="55px" key={i}>
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                             <ProviderLogo providerId={n.category.provider} size={20} />
