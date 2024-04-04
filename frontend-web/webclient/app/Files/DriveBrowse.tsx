@@ -130,6 +130,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     product: productReference
                                 },
                             } as FileCollection;
+                            
+                            if (!browser.renameValue) return;
 
                             browser.insertEntryIntoCurrentPage(driveBeingCreated);
                             browser.renderRows();

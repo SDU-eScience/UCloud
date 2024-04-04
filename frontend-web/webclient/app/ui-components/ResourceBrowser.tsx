@@ -3140,8 +3140,11 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} header > div > div > ul {
-                margin-left: 7px;
                 margin-top: 0px;
+            }
+
+            ${browserClass.dot} header[has-location-bar] > div > div > ul {
+                margin-left: 7px;
             }
             
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
