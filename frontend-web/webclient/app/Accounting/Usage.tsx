@@ -1137,6 +1137,7 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
     }, [chart]);
 
     const showWarning = (() => {
+        if (chart.dataPoints.length == 0 ) {return false}
         const initialUsage = chart.dataPoints[0].usage;
         const initialQuota = chart.dataPoints[0].quota;
         if (initialUsage !== 0) {
