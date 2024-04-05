@@ -258,8 +258,35 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // =================================================================================================================
     val findRelevantProviders = FindRelevantProviders.call
     val browseProviderAllocations = BrowseProviderAllocations.call
+    val retrieveDescendants = RetrieveDescendants.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
+
+    object RetrieveDescendants {
+        @Serializable
+        data class Request(
+            val project: String
+        )
+
+        @Serializable
+        data class Response(
+            val descendants: List<String>
+        )
+
+        val call = call(
+            "retrieveDescendants",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(
+                    baseContext,
+                    "retrieveDescendants",
+                    Roles.SERVICE
+                )
+            }
+        )
+    }
 
     object FindRelevantProviders {
         @Serializable

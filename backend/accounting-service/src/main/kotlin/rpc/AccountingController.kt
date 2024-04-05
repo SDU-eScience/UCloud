@@ -209,6 +209,20 @@ class AccountingController(
             ok(dataVisualization.retrieveChartsV2(idCards.fetchIdCard(actorAndProject), request))
         }
 
+        implement(AccountingV2.retrieveDescendants) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            ok(
+                AccountingV2.RetrieveDescendants.Response(
+                    accounting.sendRequest(
+                        AccountingRequest.RetrieveDescendants(
+                            idCard,
+                            request.project
+                        )
+                    )
+                )
+            )
+        }
+
         return@with
     }
 
