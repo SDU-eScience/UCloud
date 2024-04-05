@@ -597,7 +597,10 @@ class AccountingSystem(
         wallet.isDirty = true
     }
 
-    private data class InternalChargeResult(val chargedAmount: Long, val error: String?)
+    private data class InternalChargeResult(
+        val chargedAmount: Long,
+        val updatedWallets: Collection<Int>
+    )
 
     private fun internalCharge(wallet: InternalWallet, totalAmount: Long, now: Long): InternalChargeResult {
         // Plan charge
@@ -648,28 +651,13 @@ class AccountingSystem(
             }
         }
 
-        val overSpendingWallets = ArrayList<Int>()
+        val visitedWallets = HashSet<Int>()
         for (walletId in chargeGraph.index) {
             if (walletsUpdated[walletId] != true) continue
-
-            val visitedWallet = walletsById.getValue(walletId)
-            if (visitedWallet.isOverspending()) {
-                overSpendingWallets.add(walletId)
-                if (!visitedWallet.wasLocked) {
-                    visitedWallet.wasLocked = true
-                    markSignificantUpdate(visitedWallet, now)
-                }
-            }
+            visitedWallets.add(walletId)
         }
 
-        if (overSpendingWallets.isNotEmpty()) {
-            return InternalChargeResult(
-                totalChargeableAmount,
-                "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
-            )
-        }
-
-        return InternalChargeResult(totalChargeableAmount, null)
+        return InternalChargeResult(totalChargeableAmount, visitedWallets)
     }
 
     private suspend fun charge(request: AccountingRequest.Charge): Response<Unit> {
@@ -755,7 +743,7 @@ class AccountingSystem(
             scopedDirty[scopeKey] = true
         }
 
-        val (totalChargeableAmount, error) = internalCharge(wallet, delta, now)
+        val (totalChargeableAmount, visitedWallets) = internalCharge(wallet, delta, now)
         if (delta > 0) {
             wallet.localUsage += delta
             wallet.excessUsage += delta - totalChargeableAmount
@@ -764,6 +752,26 @@ class AccountingSystem(
         }
 
         wallet.isDirty = true
+
+        val overSpendingWallets = ArrayList<Int>()
+        for (walletId in visitedWallets) {
+            val visitedWallet = walletsById.getValue(walletId)
+            if (visitedWallet.isOverspending()) {
+                overSpendingWallets.add(walletId)
+                if (!visitedWallet.wasLocked) {
+                    reevaluateWalletsAfterUpdate(visitedWallet)
+                }
+            } else {
+                if (visitedWallet.wasLocked) {
+                    reevaluateWalletsAfterUpdate(visitedWallet)
+                }
+            }
+        }
+
+        var error: String? = null
+        if (overSpendingWallets.isNotEmpty()) {
+            error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+        }
 
         if (error != null) return Response.error(HttpStatusCode.PaymentRequired, error)
         return Response.ok(Unit)

@@ -41,7 +41,7 @@ import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, balanceToString, priceToString} from "@/Accounting";
+import {ProductV2, balanceToString, priceToString, UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -455,7 +455,7 @@ export const Create: React.FunctionComponent = () => {
                                                         <tr>
                                                             <th>Usable balance</th>
                                                             <td><TooltipV2
-                                                                tooltip={"Allocation limitation. Contact your grant giver."}
+                                                                tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
                                                             >
                                                                 <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
 

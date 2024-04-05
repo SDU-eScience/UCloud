@@ -393,10 +393,6 @@ private fun checkServerMode() {
     require(loadedConfig.shouldRunServerCode()) { "This function can only be run in server mode" }
 }
 
-private fun ResourceOwner.toWalletOwner(): WalletOwner {
-    return if (project != null) WalletOwner.Project(project!!)
-    else WalletOwner.User(createdBy)
-}
 
 @Suppress("DEPRECATION")
 private fun ProductReference.toCategory(): ProductCategoryIdV2 {
@@ -517,6 +513,10 @@ fun walletOwnerFromOwnerString(owner: String): WalletOwner =
 
 fun ResourceOwner.toSimpleString() = project ?: createdBy
 fun ResourceOwner.toReference() = project ?: createdBy
+fun ResourceOwner.toWalletOwner(): WalletOwner {
+    return if (project != null) WalletOwner.Project(project!!)
+    else WalletOwner.User(createdBy)
+}
 
 val PROJECT_REGEX =
     Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")

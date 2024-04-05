@@ -759,6 +759,9 @@ sealed class ComposeService {
                       {
                         "image": "mysql:8.3.0",
                         "hostname": "mysql",
+                        "ports": [
+                          "${portAllocator.allocate(3306)}:3306"
+                        ],
                         "environment": {
                           "MYSQL_RANDOM_ROOT_PASSWORD": "yes",
                           "MYSQL_DATABASE": "slurm_acct_db",

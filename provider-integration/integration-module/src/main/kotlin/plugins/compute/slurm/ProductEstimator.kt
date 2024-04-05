@@ -22,8 +22,8 @@ class ProductEstimator(
         relevantUCloudAccounts: List<AccountMapper.UCloudKey>
     ): EstimatedProduct? {
         val sortedAccounts = relevantUCloudAccounts.sortedWith(
-            compareBy<AccountMapper.UCloudKey> { it.owner.createdBy }
-                .thenBy { it.owner.project }
+            compareBy<AccountMapper.UCloudKey> { (it.owner as? WalletOwner.User)?.username }
+                .thenBy { (it.owner as? WalletOwner.Project)?.projectId }
         )
 
         val productsInCategories = allProducts.filter { product ->

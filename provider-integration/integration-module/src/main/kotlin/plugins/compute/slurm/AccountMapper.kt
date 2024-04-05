@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.plugins.extension
@@ -18,14 +19,14 @@ class AccountMapper(
     private val ctx: PluginContext,
 ) {
     private val config = ctx.config
-    data class UCloudKey(val owner: ResourceOwner, val productCategory: String)
+    data class UCloudKey(val owner: WalletOwner, val productCategory: String)
     data class SlurmKey(val account: String, val partition: String)
 
     private val ucloudToSlurmCache = HashMap<UCloudKey, SlurmKey?>()
     private val slurmToUCloudCache = HashMap<SlurmKey, List<UCloudKey>>()
     private val mutex = Mutex()
 
-    suspend fun lookupByUCloud(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
+    suspend fun lookupByUCloud(owner: WalletOwner, productCategory: String, partition: String): SlurmKey? {
         val key = UCloudKey(owner, productCategory)
         val (hasCached, cached) = mutex.withLock {
             val hasCached = key in ucloudToSlurmCache
@@ -36,7 +37,7 @@ class AccountMapper(
         return lookupOrRefresh(owner, productCategory, partition)
     }
 
-    private suspend fun lookupOrRefresh(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
+    private suspend fun lookupOrRefresh(owner: WalletOwner, productCategory: String, partition: String): SlurmKey? {
         var account: String? = null
         dbConnection.withSession { session ->
             session.prepareStatement(
@@ -53,8 +54,8 @@ class AccountMapper(
                 """
             ).useAndInvoke(
                 prepare = {
-                    bindStringNullable("project_id", owner.project)
-                    bindStringNullable("username", owner.createdBy.ifEmpty { null })
+                    bindStringNullable("project_id", (owner as? WalletOwner.Project)?.projectId)
+                    bindStringNullable("username", (owner as? WalletOwner.User)?.username)
                     bindString("category", productCategory)
                     bindString("partition", partition)
                 },
@@ -83,14 +84,17 @@ class AccountMapper(
                         """
                 ).useAndInvokeAndDiscard(
                     prepare = {
-                        if (owner.project == null) {
-                            bindString("username", owner.createdBy)
-                            bindNull("project_id")
-                        } else {
-                            bindNull("username")
-                            bindString("project_id", owner.project!!)
-                        }
+                        when (owner) {
+                            is WalletOwner.Project -> {
+                                bindNull("username")
+                                bindString("project_id", owner.projectId)
+                            }
 
+                            is WalletOwner.User -> {
+                                bindString("username", owner.username)
+                                bindNull("project_id")
+                            }
+                        }
                         bindString("category", productCategory)
                         bindString("partition", partition)
                         bindString("slurm_account", slurmKey.account)
@@ -110,7 +114,7 @@ class AccountMapper(
         return slurmKey
     }
 
-    private suspend fun lookupFromScript(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
+    private suspend fun lookupFromScript(owner: WalletOwner, productCategory: String, partition: String): SlurmKey? {
         val slurmPlugin = config.plugins.jobs.values
             .filterIsInstance<SlurmPlugin>().singleOrNull { plugin ->
                 val cfg = plugin.pluginConfig
@@ -171,7 +175,7 @@ class AccountMapper(
 
                     result.add(
                         UCloudKey(
-                            ResourceOwner(username ?: "_ucloud", projectId),
+                            if (username != null) WalletOwner.User(username) else WalletOwner.Project(projectId!!),
                             category
                         )
                     )
@@ -197,5 +201,7 @@ class AccountMapper(
 
     companion object {
         private val lookupExtension = extension(LookupExtensionRequest.serializer(), LookupExtensionResponse.serializer())
+
+        const val ACCOUNT_MAPPER_UNKNOWN_USER = "_ucloud"
     }
 }

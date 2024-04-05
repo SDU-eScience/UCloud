@@ -1,7 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.CyclicArray
@@ -13,6 +14,7 @@ import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceIncludeFlags
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
@@ -342,6 +344,29 @@ class ResourceStore<T>(
             throw RPCException("Invalid product supplied", HttpStatusCode.Forbidden)
         }
 
+        var hasCollision = false
+        val rootStore = findOrLoadBucket(if (pid == 0) uid else 0, pid)
+        val consumer = object : SearchConsumer {
+            var currentStore: ResourceStoreBucket<T>? = null
+            override fun call(arrIdx: Int) {
+                val store = currentStore ?: return
+                if (store.id[arrIdx] == 0L) return
+                if (store.providerGeneratedId[arrIdx] == providerId) {
+                    hasCollision = true
+                }
+            }
+        }
+
+        useBuckets(rootStore) { store ->
+            consumer.currentStore = store
+            store.searchAndConsume(IdCard.System, Permission.READ, consumer)
+            ShouldContinue.ifThisIsTrue(!hasCollision)
+        }
+
+        if (hasCollision) {
+            throw RPCException("A resource with this ID already exists", HttpStatusCode.Conflict)
+        }
+
         return createDocument(
             uid,
             pid,
@@ -356,20 +381,24 @@ class ResourceStore<T>(
 
     suspend fun register(
         idCard: IdCard,
-        request: ProviderRegisteredResource<*>,
+        createdBy: ActorAndProject,
+        product: ProductReferenceV2,
+        projectAllRead: Boolean,
+        projectAllWrite: Boolean,
+        providerGeneratedId: String?,
         data: T,
         output: ResourceDocument<T>? = null,
     ): Long {
         return register(
             idCard,
-            request.spec.product,
-            idCardService.lookupUidFromUsernameOrFail(request.createdBy),
-            idCardService.lookupPidFromProjectIdOrFail(request.project),
+            product,
+            idCardService.lookupUidFromUsernameOrFail(createdBy.actor.safeUsername()),
+            idCardService.lookupPidFromProjectIdOrFail(createdBy.project),
             data,
-            request.providerGeneratedId,
+            providerGeneratedId,
             output = output,
-            projectAllRead = request.projectAllRead,
-            projectAllWrite = request.projectAllWrite,
+            projectAllRead = projectAllRead,
+            projectAllWrite = projectAllWrite,
         )
     }
 
@@ -1282,7 +1311,7 @@ class ResourceStoreBucket<T>(
     val createdBy = IntArray(STORE_SIZE)
     val project = IntArray(STORE_SIZE)
     val product = IntArray(STORE_SIZE)
-    val providerId = arrayOfNulls<String>(STORE_SIZE)
+    val providerGeneratedId = arrayOfNulls<String>(STORE_SIZE)
     val aclEntities = arrayOfNulls<IntArray>(STORE_SIZE)
     val aclIsUser = arrayOfNulls<BooleanArray>(STORE_SIZE)
     val aclPermissions = arrayOfNulls<ByteArray>(STORE_SIZE)
@@ -1422,7 +1451,7 @@ class ResourceStoreBucket<T>(
             this.project[idx] = pid
             this.product[idx] = product
             this.data[idx] = data
-            this.providerId[idx] = providerGeneratedId
+            this.providerGeneratedId[idx] = providerGeneratedId
             this.dirtyFlag[idx] = true
             anyDirty = true
 
@@ -1687,7 +1716,7 @@ class ResourceStoreBucket<T>(
         res.createdBy = this.createdBy[arrIdx]
         res.project = this.project[arrIdx]
         res.product = this.product[arrIdx]
-        res.providerId = this.providerId[arrIdx]
+        res.providerId = this.providerGeneratedId[arrIdx]
         @Suppress("UNCHECKED_CAST")
         res.data = this.data[arrIdx] as T
         run {
@@ -1804,7 +1833,7 @@ class ResourceStoreBucket<T>(
             override fun shouldTerminate(): Boolean = isDone
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
-                self.providerId[arrIdx] = newProviderId
+                self.providerGeneratedId[arrIdx] = newProviderId
                 isDone = true
             }
         }
@@ -1955,7 +1984,7 @@ class ResourceStoreBucket<T>(
                         createdBy[arrIdx] = 0
                         project[arrIdx] = 0
                         product[arrIdx] = 0
-                        providerId[arrIdx] = null
+                        providerGeneratedId[arrIdx] = null
                         data[arrIdx] = null
                         updates[arrIdx]?.clear()
                         updates[arrIdx] = null
@@ -2617,7 +2646,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                     this.createdAt[idx] = row.getLong(1)!!
                     this.createdBy[idx] = row.getInt(2)!!
                     this.product[idx] = row.getLong(3)!!.toInt()
-                    this.providerId[idx] = row.getString(4)
+                    this.providerGeneratedId[idx] = row.getString(4)
                     this.project[idx] = pid
                     val updatesText = row.getString(5)!!
                     val aclText = row.getString(6)!!
@@ -2721,7 +2750,7 @@ class ResourceStoreDatabaseQueriesImpl<T>(
                             createdBy.add(bucket.createdBy[arrIdx])
                             project.add(bucket.project[arrIdx])
                             product.add(bucket.product[arrIdx])
-                            providerId.add(bucket.providerId[arrIdx])
+                            providerId.add(bucket.providerGeneratedId[arrIdx])
                         }
                     },
                     """

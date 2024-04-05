@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.calls.server.*
@@ -17,7 +18,9 @@ class ProjectsControllerV2(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.retrieve) {
-            ok(projects.retrieve(actorAndProject, request))
+            val actorRole = (actorAndProject.actor as? Actor.User)?.principal?.role
+            val ap = if (actorRole == Role.SERVICE) ActorAndProject.System else actorAndProject
+            ok(projects.retrieve(ap, request))
         }
 
         implement(Projects.browse) {
