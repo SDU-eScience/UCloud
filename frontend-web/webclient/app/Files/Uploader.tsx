@@ -32,7 +32,7 @@ import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 
 const MAX_CONCURRENT_UPLOADS = 5;
-const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 5;
+const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 64;
 const maxChunkSize = 16 * 1000 * 1000;
 const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
@@ -129,6 +129,7 @@ function createResumeableFolder(
 ) {
     const files: Map<number, PackagedFile> = new Map();
     let totalSize = 0;
+    let filesUploading = 0;
 
     let fileIndex = 0;
     for (const f of upload.row) {
@@ -152,12 +153,12 @@ function createResumeableFolder(
 
                 switch (messageType as FolderUploadMessageType) {
                     case FolderUploadMessageType.OK: {
-                        console.log(`Should upload file ${fileId}`);
                         const key = fileId;
                         const theFile = files.get(fileId);
 
                         if (theFile) {
-                            const reader = new ChunkedFileReader(theFile.fileObject);
+                            const resolvedFile = await resolveFile(theFile);
+                            const reader = new ChunkedFileReader(resolvedFile.fileObject);
 
                             while (!reader.isEof() && !upload.terminationRequested) {
                                 const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
@@ -177,6 +178,7 @@ function createResumeableFolder(
                                 );
                             }
                             upload.filesCompleted++;
+                            filesUploading--;
                             uploadTrackProgress(upload);
                         }
 
@@ -187,12 +189,10 @@ function createResumeableFolder(
                         break;
                     }
                     case FolderUploadMessageType.SKIP: {
-                        console.log(`Should skip file ${fileId}`);
-
+                        // Skip this file, since existing version of file appears to be identical
                         upload.progressInBytes += files.get(fileId)?.size ?? 0;
                         upload.filesCompleted++;
                         uploadTrackProgress(upload);
-
                         break;
                     }
                 }
@@ -218,6 +218,25 @@ function createResumeableFolder(
         });
     }
 
+    // Functionality to limit the maximum number of concurrent uploads for folder uploads
+    function resolveFile(file: PackagedFile): Promise<PackagedFile> {
+        return new Promise((resolve) => {
+            _resolveFile(file, resolve);
+        })
+    }
+
+    function _resolveFile(file: PackagedFile, onComplete: (PackagedFile) => void) {
+        console.log(`filesUploading: ${filesUploading}`);
+        if (filesUploading < MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
+            filesUploading++;
+            onComplete(file);
+        } else {
+            window.setTimeout(() => {
+                _resolveFile(file, onComplete);
+            }, 100);
+        }
+    }
+
     function constructMessageMeta(type: FolderUploadMessageType, fileId: number): ArrayBuffer {
         const buf = new ArrayBuffer(5);
         const view = new DataView(buf);
@@ -234,13 +253,9 @@ function createResumeableFolder(
 }
 
 function concatArrayBuffers(a: ArrayBuffer, b: ArrayBuffer): ArrayBuffer {
-    const a1 = new Uint8Array(a);
-    const b1 = new Uint8Array(b);
-    const c = new Uint8Array(a1.byteLength + b1.byteLength);
-    
-    c.set(a1, 0);
-    c.set(b1, a1.length);
-
+    const c = new Uint8Array(a.byteLength + b.byteLength);
+    c.set(new Uint8Array(a), 0);
+    c.set(new Uint8Array(b), a.byteLength);
     return c.buffer
 }
 
