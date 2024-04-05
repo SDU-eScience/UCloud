@@ -3322,7 +3322,6 @@ export class ResourceBrowser<T> {
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
                 width: 400px;
                 display: none;
-                max-height: calc(40px * 8.5);
                 overflow-y: auto;
                 transition: opacity 120ms, transform 60ms;
             }
