@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import re
+import os
 import sys
 import json
 from helper import *
@@ -16,6 +17,13 @@ workspaces = request['workspaces']
 # ==============================================================================
 # Storage accounting
 # ==============================================================================
+
+usageFactor = 1 # can be used for testing purposes, should be 1 if you want correct results
+try:
+    with open("/etc/ucloud/slurm_usage_factor.txt", "r") as fp:
+        usageFactor = int(fp.read().rstrip())
+except:
+    pass
 
 cmd = ['sshare', '-Pho', 'account,user,grptresraw']
 data = run_command(cmd)
@@ -44,7 +52,7 @@ for n, w in enumerate(workspaces):
     else:
         usage = 0
 
-    workspaces[n]['usage'] = int(usage)
+    workspaces[n]['usage'] = int(usage) * usageFactor
 
 response = {
     'usage' : workspaces

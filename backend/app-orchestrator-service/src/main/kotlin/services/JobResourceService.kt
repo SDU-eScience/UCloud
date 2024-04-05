@@ -25,6 +25,7 @@ import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
@@ -40,6 +41,9 @@ import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.v2.Projects
+import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -335,20 +339,52 @@ class JobResourceService(
         request: BulkRequest<ProviderRegisteredResource<JobSpecification>>,
     ): BulkResponse<FindByStringId> {
         val card = idCards.fetchIdCard(actorAndProject)
+        val actorList = ArrayList<ActorAndProject>()
         for (reqItem in request.items) {
-            val onBehalfOf = ActorAndProject(Actor.SystemOnBehalfOfUser(reqItem.createdBy ?: "ghost"), reqItem.project)
+            val createdBy = reqItem.createdBy
+            val project = reqItem.project
+            val onBehalfOf = if (createdBy == null && project != null) {
+                val members = Projects.retrieve.call(
+                    ProjectsRetrieveRequest(project, includeMembers = true),
+                    serviceClient
+                ).orThrow().status.members ?: emptyList()
+
+                val piMember = members.find { it.role == ProjectRole.PI }
+                ActorAndProject(
+                    Actor.SystemOnBehalfOfUser(piMember?.username
+                        ?: throw RPCException("Unknown or bad project", HttpStatusCode.NotFound)),
+                    project,
+                )
+            } else {
+                ActorAndProject(Actor.SystemOnBehalfOfUser(reqItem.createdBy ?: "ghost"), reqItem.project)
+            }
+
+            actorList.add(onBehalfOf)
+
             validation.verifyOrThrow(onBehalfOf, reqItem.spec)
             listeners.forEach { it.onVerified(onBehalfOf, reqItem.spec) }
         }
 
         val doc = ResourceDocument<InternalJobState>()
 
-        return request.items.map {
-            documents.register(card, it, InternalJobState(it.spec), output = doc).also { id ->
-                val mapped = docMapper.map(null, doc)
-                listeners.forEach { it.onCreate(mapped) }
-                allActiveJobs[id] = Unit
-            }
+        return request.items.mapIndexed { index, it ->
+            val onBehalfOf = actorList[index]
+            val id = documents.register(
+                card,
+                onBehalfOf,
+                it.spec.product,
+                it.projectAllRead,
+                it.projectAllWrite,
+                it.providerGeneratedId,
+                InternalJobState(it.spec),
+                output = doc
+            )
+
+            val mapped = docMapper.map(null, doc)
+            listeners.forEach { it.onCreate(mapped) }
+            allActiveJobs[id] = Unit
+
+            id
         }.asFindByIdResponse()
     }
 

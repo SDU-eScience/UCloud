@@ -172,7 +172,7 @@ class SlurmPlugin : ComputePlugin {
     private fun PluginContext.initializeAccountIpc() {
         SlurmAccountIpc.retrieve.suspendingHandler { user, request ->
             SlurmAccountIpc.RetrieveResponse(
-                accountMapper.lookupByUCloud(request.owner, request.productCategory, request.partition)?.account
+                accountMapper.lookupByUCloud(request.owner.toWalletOwner(), request.productCategory, request.partition)?.account
             )
         }.register(ipcServer)
     }
@@ -583,7 +583,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 30_000
         }
     }
 
@@ -663,9 +663,12 @@ class SlurmPlugin : ComputePlugin {
 
                         timeAllocation = SimpleDuration.fromMillis(job.timeAllocationMillis),
                     ),
-                    "s-${job.jobId}", // TODO(Dan): Slurm job id wrap-around makes these not unique
-                    account.owner.createdBy,
-                    account.owner.project,
+                    // NOTE(Dan): Slurm job id can wrap-around. As a result, we combine it with the time of submission.
+                    "s!${job.jobId}!${job.submittedAt}",
+                    (account.owner as? WalletOwner.User)?.username,
+                    (account.owner as? WalletOwner.Project)?.projectId,
+                    projectAllRead = true,
+                    projectAllWrite = true,
                 )
             )
         }
@@ -681,7 +684,7 @@ class SlurmPlugin : ComputePlugin {
                 for (i in batch.indices) {
                     val jobSpecification = batch[i]
                     val ucloudId = ids[i].id
-                    val slurmId = jobSpecification.providerGeneratedId?.removePrefix("s-") ?: continue
+                    val slurmId = jobSpecification.providerGeneratedId?.split("!")?.getOrNull(1) ?: continue
 
                     SlurmDatabase.registerJob(
                         SlurmJob(
@@ -709,7 +712,7 @@ class SlurmPlugin : ComputePlugin {
                     Pair(
                         project.project.id,
                         accountMapper.lookupByUCloud(
-                            ResourceOwner("", project.project.id),
+                            WalletOwner.Project(project.project.id),
                             category.category.name,
                             pluginConfig.partition
                         )?.account

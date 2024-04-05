@@ -37,6 +37,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -256,7 +257,9 @@ function DashboardResources({wallets}: {
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
                                             {n.maxUsable == (n.quota - n.totalUsage) ? null :
-                                                <TooltipV2 tooltip={"Allocation limitation reached. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
+                                                <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                    <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+                                                </TooltipV2>}
                                             {Accounting.balanceToString(n.paysFor, n.totalUsage, {
                                                 precision: 0,
                                                 removeUnitIfPossible: true

@@ -253,6 +253,10 @@ data class CommandBuilder(
         return startProcessAndCollectToMemory(args, envs)
     }
 
+    fun println() {
+        kotlin.io.println("$executable args=$args envs=$envs")
+    }
+
     companion object : Loggable {
         override val log = logger()
     }

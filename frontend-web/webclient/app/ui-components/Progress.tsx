@@ -6,6 +6,7 @@ import {injectStyle} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {TooltipV2} from "./Tooltip";
 import Icon from "./Icon";
+import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
 
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
@@ -127,7 +128,9 @@ export function NewAndImprovedProgress({label, percentage, limit, withWarning}: 
     const style: CSSProperties = {};
     style["--percentage"] = percentage + "%";
     style["--limit"] = limit + "%";
-    const warning = withWarning ? <TooltipV2 tooltip={"Allocation limitation reached. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2> : null;
+    const warning = withWarning ? <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+        <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+    </TooltipV2> : null;
     return <Flex>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
 }
 

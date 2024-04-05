@@ -13,7 +13,7 @@ import {
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
+import {periodsOverlap, ProductType, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletOwner} from "@/Accounting";
 import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
 import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
@@ -1551,7 +1551,7 @@ const Allocations: React.FunctionComponent = () => {
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
                                     {(uq.quota - uq.usage) == uq.maxUsable ? null : <TooltipV2
-                                        tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                        tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
                                     >
                                         <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
                                     </TooltipV2>}
@@ -1575,7 +1575,7 @@ const Allocations: React.FunctionComponent = () => {
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
                                     {wallet.usageAndQuota.maxUsable == (wallet.usageAndQuota.quota - wallet.usageAndQuota.usage) ? null :
                                         <TooltipV2
-                                            tooltip={"Allocation limitation. Contact your grant giver. Expand for more details."}
+                                            tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
                                         >
                                             <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
                                         </TooltipV2>}

@@ -5,15 +5,9 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.*
-import dk.sdu.cloud.auth.api.AuthProviders
-import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
-import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.ReadWriterMutex
 import kotlinx.coroutines.*
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
@@ -55,7 +49,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
                     createdBy[size] = resource.createdBy
                     product[size] = resource.product
                     project[size] = resource.project
-                    providerId[size] = resource.providerId
+                    providerGeneratedId[size] = resource.providerId
                     aclEntities[size] = resource.acl.mapNotNull { it?.entity }.toIntArray()
                     aclIsUser[size] = resource.acl.mapNotNull { it?.isUser }.toBooleanArray()
                     aclPermissions[size] = resource.acl.mapNotNull { it?.permission?.toByte() }.toByteArray()

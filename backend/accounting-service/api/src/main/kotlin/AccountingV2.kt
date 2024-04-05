@@ -221,7 +221,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
 
     object ReportUsage {
         val call = call(
-            "reportDelta",
+            "reportUsage",
             BulkRequest.serializer(UsageReportItem.serializer()),
             BulkResponse.serializer(Boolean.serializer()),
             CommonErrorMessage.serializer(),

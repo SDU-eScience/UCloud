@@ -261,7 +261,7 @@ implement(Descriptions.call) {
 
     // Project management
     val retrieve = call("retrieve", ProjectsRetrieveRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
+        httpRetrieve(baseContext, roles = Roles.END_USER + Roles.PROVIDER + Roles.SERVICE)
     }
 
     val browse = call("browse", ProjectsBrowseRequest.serializer(), PageV2.serializer(Project.serializer()), CommonErrorMessage.serializer()) {

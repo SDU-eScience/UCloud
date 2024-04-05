@@ -139,7 +139,6 @@ class ApmNotificationService(
             }
 
             while (session.isActive) {
-                println("Start of cycle")
                 val walletBuf: ByteBuffer
                 val infoBuf: ByteBuffer
                 bufferMutex.withLock {

@@ -7,6 +7,9 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {ExtendedYearParser} from "date-fns/parse/_lib/parsers/ExtendedYearParser";
 
 export const UCLOUD_PROVIDER = "ucloud";
+export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
+    `You will not be able to use the full amount of your allocated quota due to over-allocation from your grant giver.
+    Contact your grant giver for more information.`;
 
 /* @deprecated */
 export type ProductArea = ProductType;
