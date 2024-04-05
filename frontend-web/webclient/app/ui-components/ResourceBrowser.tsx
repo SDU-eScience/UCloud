@@ -1487,7 +1487,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: op.color === "errorMain" ? "errorDark" : undefined, disabled: !opEnabled}
+                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: undefined, disabled: !opEnabled}
                 );
 
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
