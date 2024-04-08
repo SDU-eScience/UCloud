@@ -1233,8 +1233,11 @@ function jobStateToText(state: JobState) {
     }
 }
 
+const UNKNOWN_APP_NAME = "unknown";
+
 const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
+    const isUnknownApp = app.name === UNKNOWN_APP_NAME;
     return <Flex flexDirection={"column"} flexGrow={1}>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         {state === "FAILURE" ?
@@ -1246,13 +1249,15 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             null
         }
         <Heading.h3>
-            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-            {" "}{job.specification.application.version}{" "}
-            {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
+            {isUnknownApp ? null : <>
+                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {" "}{job.specification.application.version}{" "}
+                {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
+            </>}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <Box flexGrow={1} />
-        {app.name === "unknown" ? null :
+        {isUnknownApp ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                 <Button>Run application again</Button>
             </Link>
@@ -1329,7 +1334,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         for (const res of sessionResp.data.responses) {
             if ((res.session as WebSession).redirectClientTo) {
                 return (res.session as WebSession).redirectClientTo
-            } 
+            }
         }
         return "";
     }, [sessionResp]);
