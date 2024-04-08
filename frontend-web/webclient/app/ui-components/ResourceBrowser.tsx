@@ -30,7 +30,7 @@ import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
-import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {DELETE_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
@@ -1454,7 +1454,7 @@ export class ResourceBrowser<T> {
             const isConfirmButton = isOperation(op) && op.confirm;
             // Set the icon
             const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-            const contrastColor = selectContrastColor(
+            let contrastColor = selectContrastColor(
                 op.color ??
                 (isConfirmButton ?
                     "errorMain" :
@@ -1462,7 +1462,9 @@ export class ResourceBrowser<T> {
                         ("operations" in op ? "primaryMain" : "secondaryMain")
                 )
             );
-
+            
+            // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
+            if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
             this.icons.renderIcon({
                 name: op.icon as IconName,
                 color: contrastColor,

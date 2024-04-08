@@ -30,6 +30,7 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limit={120} label="OY!" percentage={110} />
             <NewAndImprovedProgress limit={100} label="OY!" percentage={130} withWarning />
             <PaletteColors />
+            <Colors />
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -227,6 +228,22 @@ function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
         paddingLeft: "32px",
     }
     return <div style={style}>--{color}-{num}</div>
+}
+
+function Colors(): JSX.Element {
+    return <Flex>
+        {colors.map(color => {
+            const style: React.CSSProperties = {
+                backgroundColor: `var(--${color})`,
+                color: "teal",
+                width: "150px",
+                height: "100px",
+                paddingTop: "38px",
+                paddingLeft: "32px",
+            }
+            return <div style={style}>--{color}</div>
+        })}
+    </Flex>
 }
 
 function PaletteColors(): JSX.Element {
