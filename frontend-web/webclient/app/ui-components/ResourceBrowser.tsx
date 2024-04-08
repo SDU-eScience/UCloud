@@ -1464,6 +1464,7 @@ export class ResourceBrowser<T> {
             );
             
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
+            // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
             if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
             this.icons.renderIcon({
                 name: op.icon as IconName,

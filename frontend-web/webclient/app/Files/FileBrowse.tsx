@@ -756,9 +756,32 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
-                        row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;margin-right: 12px;"> (Read-only)</div>`
-                        ));
+                        const iconWrapper = createHTMLElements({
+                            tagType: "div",
+                            style: {
+                                position: "relative",
+                                left: "24px",
+                                top: "22px",
+                                backgroundColor: "var(--primaryMain)",
+                                height: "12px",
+                                width: "12px",
+                                padding: "4px",
+                                borderRadius: "8px",
+                                cursor: "pointer"
+                            }
+                        });
+
+                        HTMLTooltip(iconWrapper, div("Read-only"), {tooltipContentWidth: 108})
+
+                        icon.append(iconWrapper);
+                        const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
+                        readonlyIcon.style.height = "8px";
+                        readonlyIcon.style.width = "8px";
+                        readonlyIcon.style.marginLeft = "-2px";
+                        readonlyIcon.style.marginTop = "-2px";
+                        readonlyIcon.style.display = "block";
+                        iconWrapper.appendChild(readonlyIcon);
+                        browser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();

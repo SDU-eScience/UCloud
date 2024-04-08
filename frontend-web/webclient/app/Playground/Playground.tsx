@@ -1,7 +1,7 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {IconName} from "@/ui-components/Icon";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
@@ -31,6 +31,7 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limit={100} label="OY!" percentage={130} withWarning />
             <PaletteColors />
             <Colors />
+            <EveryIcon />
             {/*
             <Button onClick={() => {
                 messageTest();
