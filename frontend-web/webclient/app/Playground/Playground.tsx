@@ -10,6 +10,7 @@ import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {testGenerator} from "@/Applications/LogoGenerator";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -21,6 +22,8 @@ const Playground: React.FunctionComponent = () => {
             }}>
                 Logo generator
             </Button>
+            
+            <TooltipV2 tooltip="THING!!!">Hello, hello.</TooltipV2>
             <NewAndImprovedProgress limit={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limit={40} label="Forty!" percentage={30} />
             <NewAndImprovedProgress limit={60} label="Sixty!" percentage={30} />

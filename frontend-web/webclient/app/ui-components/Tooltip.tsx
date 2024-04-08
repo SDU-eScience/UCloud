@@ -41,13 +41,13 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
 
-        tooltip.style.left = ev.clientX + "px";
+        tooltip.style.left = ev.clientX + 20 + "px";
 
         if (ev.clientX + width > window.innerWidth) {
             tooltip.style.left = ev.clientX - width + "px";
         }
 
-        tooltip.style.top = ev.clientY + "px";
+        tooltip.style.top = (tooltip.getBoundingClientRect().height / 2) + "px";
         tooltip.style.display = "block";
     }, []);
 
