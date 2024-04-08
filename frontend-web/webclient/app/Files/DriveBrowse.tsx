@@ -130,7 +130,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     product: productReference
                                 },
                             } as FileCollection;
-                            
+
                             if (!browser.renameValue) return;
 
                             browser.insertEntryIntoCurrentPage(driveBeingCreated);
@@ -433,9 +433,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
             });
-
             addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
+
+        const b = browserRef.current;
+        if (b) b.renameField.style.left = "43px";
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
