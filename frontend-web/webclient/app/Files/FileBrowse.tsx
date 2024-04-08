@@ -98,7 +98,7 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     search: true,
     sorting: true,
-    filters: false,
+    filters: true,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
@@ -545,7 +545,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     );
                 };
 
-                browser.on("fetchFilters", () => []);
+                browser.on("fetchFilters", () => [{
+                    type: "checkbox",
+                    key: "filterHiddenFiles",
+                    text: "Omit hidden files",
+                    icon: "heroMagnifyingGlass",
+                }]);
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
@@ -856,7 +861,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             b.innerText = value.toString()[0];
                         });
 
-                        
+
                         HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
                     });
@@ -1245,7 +1250,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
                         information: browser.searchQuery ? "" : "Search query is empty."
                     };
-                    
+
                     searching = currentPath;
                     browser.open(SEARCH);
                     browser.cachedData[SEARCH] = [];
