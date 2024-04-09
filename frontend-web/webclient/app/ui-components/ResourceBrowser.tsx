@@ -588,7 +588,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "textPrimary", color2: "textPrimary", width: 64, height: 64})
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -655,7 +655,7 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({name: "heroArrowPath", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroArrowPath", color: "textPrimary", color2: "textPrimary", width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -3074,6 +3074,10 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} header[has-location-bar] .location:hover {
                 border: 1px solid var(--borderColorHover);
+            }
+
+            ${browserClass.dot} header[has-location-bar] .location:focus-within {
+                border-color: var(--primaryMain);
             }
             
             ${browserClass.dot} header[has-location-bar] .location li:hover {
