@@ -260,7 +260,7 @@ function DashboardResources({wallets}: {
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
                                             {n.maxUsable == (n.quota - n.used) ? null :
-                                                <TooltipV2 tooltip={"Allocation limitation reached. Contact your grant giver."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
+                                                <TooltipV2 tooltip={"Allocation limit reached. Please contact your grant giver for more resources."}><Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} /> </TooltipV2>}
                                             {Accounting.balanceToString(n.category, n.used, {
                                                 precision: 0,
                                                 removeUnitIfPossible: true

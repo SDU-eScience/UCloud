@@ -7,12 +7,12 @@ export const LabelClass = injectStyle("label", k => `
     ${k} {
         width: 100%;
         color: var(--textPrimary);
-        padding-left: 2px;
+        // padding-left: 2px;
     }
 
-    ${k} input {
-        margin-left: -2px;
-    }
+    // ${k} input {
+    //     margin-left: -2px;
+    // }
 `);
 
 function Label(props: BoxProps & {className?: string; children?: React.ReactNode; style?: CSSProperties & Record<`--${string}`, string>; htmlFor?: string}) {

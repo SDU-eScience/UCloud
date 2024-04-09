@@ -215,12 +215,12 @@ const colors: ThemeColor[] = [
 
 
 const paletteColors = ["purple", "red", "orange", "yellow", "green", "gray", "blue"];
-const numbers = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+const numbers = [5, 10, 20, 30, 40, 50, 60, 70, 80, 90];
 
 function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
     const style: React.CSSProperties = {
         backgroundColor: `var(--${color}-${num})`,
-        color: num >= 600 ? "white" : "black",
+        color: num >= 60 ? "white" : "black",
         width: "150px",
         height: "100px",
         paddingTop: "38px",

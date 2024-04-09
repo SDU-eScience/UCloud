@@ -13,9 +13,9 @@ interface Tooltip extends SpaceProps {
 const TooltipContent = injectStyleSimple("tooltip-content", `
     padding: 16px;
     border-radius: 8px;
-    background: var(--textPrimary);
-    color: var(--backgroundCard);
-    border: 2px solid var(--textSecondary);
+    background: var(--infoDark);
+    color: var(--infoContrast);
+    // border: 2px solid var(--textSecondary);
     position: fixed;
     z-index: 10000;
 `);

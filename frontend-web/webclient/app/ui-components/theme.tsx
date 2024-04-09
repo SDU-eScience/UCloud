@@ -93,11 +93,11 @@ export function selectContrastColor(inputColor: ThemeColor): ThemeColor {
 
 export function selectHoverColor(inputColor: string | ThemeColor): string | ThemeColor {
     if (inputColor.endsWith("Main")) {
-        return inputColor.replace("Main", "Light");
+        return inputColor.replace("Main", "Dark");
     } else if (inputColor.endsWith("Dark")) {
-        return inputColor.replace("Dark", "Light");
+        return inputColor.replace("Dark", "Main");
     } else if (inputColor.endsWith("Light")) {
-        return inputColor.replace("Light", "Dark");
+        return inputColor.replace("Light", "Main");
     }
     return inputColor;
 }

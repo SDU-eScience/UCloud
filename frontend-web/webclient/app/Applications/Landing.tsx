@@ -217,7 +217,6 @@ const HeroStyle = injectStyle("hero", k => `
         object-position: 0 28%;
         margin-top: -20px;
         margin-left: -20px;
-        border-right: 2px solid var(--borderColor);
     }
     
     ${k} > .carousel > div:nth-child(2) {
@@ -234,22 +233,21 @@ const HeroStyle = injectStyle("hero", k => `
     
     ${k} .indicators {
         position: relative;
-        top: -98px;
+        top: -88px;
         margin-left: -20px;
-        width: 30%;
+        width: 300px;
+        left: calc(50% - 150px); 
+        //hello;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: row;
         gap: 8px;
         padding: 20px;
-        background: rgba(0, 0, 0, 0.4);
-        right: calc(-70% - 18px);
-        border-top-left-radius: 8px;
     }
     
     ${k} .indicator {
-        background: #d3d3d4;
+        background: var(--secondaryMain);
         width: 24px;
         height: 12px;
         border-radius: 4px;
@@ -258,7 +256,7 @@ const HeroStyle = injectStyle("hero", k => `
     
     ${k} .indicator:hover,
     ${k} .indicator.active {
-        background: #a6a8a9;
+        background: var(--primaryMain);
     }
 `);
 
@@ -315,7 +313,7 @@ export const Hero: React.FunctionComponent<{
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
     const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: nextSlideIndex, slideTitle: nextSlide.title});
 
-    return <Card style={{overflow: "hidden"}}>
+    return <Card style={{overflow: "hidden", border: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
         <img src={nextImageLink} style={{opacity: 1, width: 1, height: 1, position: "absolute"}} />
         <div className={HeroStyle}>
@@ -323,8 +321,6 @@ export const Hero: React.FunctionComponent<{
                 <div>
                     <img alt={"cover image"} src={imageLink} />
                     <div className="indicators">
-                        <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
-                            name={"heroChevronLeft"} onClick={goBack} />
                         {slides.map((s, i) =>
                             <HeroIndicator
                                 key={i}
@@ -334,8 +330,6 @@ export const Hero: React.FunctionComponent<{
                                     autoPage.current = false;
                                 }}
                             />)}
-                        <Icon color={"#d3d3d4"} hoverColor={"#a6a8a9"} cursor={"pointer"}
-                            name={"heroChevronRight"} onClick={goForwards} />
                     </div>
                 </div>
                 <div>
@@ -607,7 +601,7 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     blockquote${k} {
         margin: 0;
         padding-left: 16px;
-        border-left: 5px solid var(--borderColorHover);
+        border-left: 5px solid var(--primaryMain);
     }
     
     ${k} p:first-child {

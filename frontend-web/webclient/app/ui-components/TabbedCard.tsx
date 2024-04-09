@@ -44,11 +44,11 @@ const ContainerClass = injectStyle("tabbed-card", k => `
     }
     
     ${k} nav > div:not(:only-child)[data-active=true] {
-        border-bottom: 2px solid var(--primaryMain);
+        border-bottom: 2px solid var(--secondaryDark);
     }
     
     ${k} nav:has(> div[data-active=true]:only-child) {
-        border-bottom: 2px solid var(--primaryMain);
+        border-bottom: 2px solid var(--secondaryDark);
     }
 `);
 

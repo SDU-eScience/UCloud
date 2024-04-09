@@ -107,9 +107,9 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     padding-left: 12px;
     padding-right: 12px;
     text-align: center;
-    color: var(--primaryContrast);
-    background-color: var(--primaryMain);
-    border-radius: 20px;
+    color: var(--wanrningContrast);
+    background-color: var(--warningMain);
+    border-radius: 6px;
     cursor: pointer;
 `);
 

@@ -635,7 +635,7 @@ export class ResourceBrowser<T> {
         if (this.features.showColumnTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
-            titleRow["style"].height = titleRow["style"].maxHeight = "28px";
+            // titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
             if (!this.features.showStar) {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
@@ -2059,7 +2059,7 @@ export class ResourceBrowser<T> {
 
                         const indicator = this.entryDragIndicator;
                         indicator.innerHTML = "";
-                        indicator.style.transform = `translate(${rowRect.left + (rowRect.width / 2)}px, ${rowRect.top}px) scale3d(${rowRect.width}, 100%, 100%)`;
+                        indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`; //scale3d(${rowRect.width}, 100%, 100%)`;
                         indicator.style.display = "block";
 
                         const page = this.cachedData[this.currentPath] ?? [];
@@ -2107,7 +2107,7 @@ export class ResourceBrowser<T> {
 
                         window.setTimeout(() => {
                             indicator.classList.add("animate");
-                            indicator.style.transform = `translate(${rowRect.left + 200}px, ${rowRect.top}px) scale3d(400, 100%, 100%)`;
+                            indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;// scale3d(400, 100%, 100%)`;
                         }, 0);
                     }
                 } else {
@@ -2123,7 +2123,7 @@ export class ResourceBrowser<T> {
                     }
 
                     const s = this.entryDragIndicator.style;
-                    s.transform = `translate(${e.clientX + 200 + 10}px, ${e.clientY + 10}px) scale3d(400, 100%, 100%)`;
+                    s.transform = `translate(${e.clientX}px, ${e.clientY + 10}px)`; //scale3d(400, 100%, 100%)`;
 
                     const s2 = this.entryDragIndicatorContent.style;
                     s2.left = (e.clientX + 10) + "px";
@@ -2939,9 +2939,9 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .drag-indicator {
                 position: fixed;
                 z-index: 10000;
-                background-color: var(--primaryMain);
-                opacity: 30%;
-                border: 2px solid var(--primaryDark);
+                background-color: var(--primaryLight);
+                opacity: 20%;
+                // border: 2px solid var(--primaryDark);
                 display: none;
                 top: 0;
                 left: 0;
@@ -2991,11 +2991,12 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .file-drag-indicator {
-                transition: transform 0.06s;
+                transition: transform 0.05s;
                 background: var(--rowActive);
                 color: var(--textPrimary);
-                width: 1px;
+                width: 400px;
                 overflow: hidden;
+                border-radius: 6px;
             }
          
             ${browserClass.dot} .file-drag-indicator.animate {
@@ -3176,7 +3177,7 @@ export class ResourceBrowser<T> {
                 height: ${ResourceBrowser.rowSize}px;
                 width: 100%;
                 align-items: center;
-                border-bottom: 1px solid var(--borderColor);
+                border-top: 0.5px solid var(--borderColor);
                 user-select: none;
                 -webkit-user-select: none;
                 padding: 0 8px;
@@ -3184,13 +3185,21 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} .rows-title {
-                max-height: 0;
+                max-height: 40px;
+                height: 40px;
                 color: var(--textPrimary);
                 display: none;
+                background-color: var(--backgroundCard);
+                border-radius: 6px 6px 0 0;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                font-size: 110%;
+                border-bottom: 1.5px solid var(--borderColor);
+                border-top: 0;
             }
             
             body[data-cursor=grabbing] ${browserClass.dot} .row:hover {
-                filter: hue-rotate(10deg) saturate(500%);
+                background-color: var(--rowHover);
             }
 
             ${browserClass.dot} .row.hidden {

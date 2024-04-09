@@ -18,13 +18,13 @@ export const ButtonGroupClass = injectStyle("button-group", k => `
     }
     
     ${k} > .${ButtonClass}:last-child, .last {
-        border-top-right-radius: 3px;
-        border-bottom-right-radius: 3px;
+        border-top-right-radius: 6px;
+        border-bottom-right-radius: 6px;
     }
     
     ${k} > .${ButtonClass}:first-child, .first {
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
+        border-top-left-radius: 6px;
+        border-bottom-left-radius: 6px;
     }
 `);
 

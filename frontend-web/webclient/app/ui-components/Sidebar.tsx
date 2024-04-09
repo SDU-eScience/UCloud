@@ -138,7 +138,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     }
     
     ${k} a:hover {
-        background-color: rgba(255, 255, 255, 0.35);
+        background-color: rgba(255, 255, 255, 0.25);
     }
 
 `);
@@ -171,7 +171,7 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
     }
     
     ${k}:hover, ${k}[data-active="true"] {
-        background-color: rgba(255, 255, 255, 0.35);
+        background-color: rgba(255, 255, 255, 0.25);
     }
     
     ${k} > * {
@@ -629,7 +629,7 @@ function SecondarySidebar({
         <header>
             <h1>{active}</h1>
 
-            <Relative left="calc(var(--secondarySidebarWidth) - 47px">
+            <Relative left="calc(var(--secondarySidebarWidth) - 46px">
                 <Flex style={{position: "fixed", top: "calc(100vh - 68px)"}} alignItems="center" backgroundColor="white" height="38px" width={"30px"}
                     justifyContent={"center"} borderRadius="12px 0 0 12px"
                     onClick={clicked ? onClear : () => setSelectedPage(hovered)}>

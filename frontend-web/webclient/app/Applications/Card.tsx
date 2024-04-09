@@ -31,7 +31,7 @@ export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }
         fontSize: "10px",
         fontWeight: 700,
         borderRadius: "6px",
-        padding: "3px"
+        padding: "2.5px 6px"
     }}>
         {label}
     </div>
