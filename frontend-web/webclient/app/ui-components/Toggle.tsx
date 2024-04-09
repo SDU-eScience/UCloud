@@ -8,6 +8,7 @@ interface ToggleProps {
     onChange: (prevValue: boolean) => void;
     activeColor?: ThemeColor;
     inactiveColor?: ThemeColor;
+    circleColor?: ThemeColor;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -15,6 +16,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     onChange,
     activeColor = "successMain",
     inactiveColor = "textSecondary",
+    circleColor = "fixedWhite",
 }) => {
     const checkedRef = useRef(checked);
     useEffect(() => {
@@ -30,6 +32,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     const style: React.CSSProperties = {};
     style["--inactiveColor"] = `var(--${inactiveColor})`;
     style["--activeColor"] = `var(--${activeColor})`;
+    style["--circleColor"] = `var(--${circleColor})`
 
     return <div onClick={handler} style={style} data-active={checked} className={ToggleWrapperClass}>
         <div />
@@ -40,6 +43,7 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     ${k} {
         --inactiveColor: #ff0;
         --activeColor: #f0f;
+        --circleColor: #0ff
     }
 
     ${k} {
@@ -61,7 +65,8 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     ${k} > div {
         border-radius: 50%;
         width: 22px;
-        background-color: white;
+        background-color: var(--circleColor);
+        animation: background-color 0.2;
         height: 22px;
     }
 `);

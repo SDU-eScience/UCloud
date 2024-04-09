@@ -22,9 +22,9 @@ export function ThemeToggler(): JSX.Element {
     const [active, setActive] = React.useState<boolean>(isLightTheme);
 
     return (<Flex mx="auto" width="45px">
-        <Box width="45px"><Toggle checked={!active} inactiveColor="primaryMain" activeColor="primaryLight" onChange={toggleActive} /></Box>
-        <Icon data-active={active} cursor="pointer" name="heroSun" className={Sun} onClick={toggleActive} />
-        <Icon data-active={active} cursor="pointer" color="fixedBlack" name="heroMoon" className={Moon} onClick={toggleActive} />
+        <Box width="45px"><Toggle checked={!active} inactiveColor="primaryMain" activeColor="primaryLight" circleColor={!active ? "fixedBlack" : "fixedWhite"} onChange={toggleActive} /></Box>
+        <Icon data-active={active} cursor="pointer" color="fixedBlack" name="heroSun" className={Sun} onClick={toggleActive} />
+        <Icon data-active={active} cursor="pointer" color="fixedWhite" name="heroMoon" className={Moon} onClick={toggleActive} />
     </Flex>);
 }
 
@@ -33,7 +33,7 @@ const Sun = injectStyle("sun", k => `
         position: relative;
         left: -41.5px;
         top: 4px;
-        animation: opacity 0.2 ease-in;
+        animation: opacity 0.4 ease-in;
         opacity: 1;
     }
     
@@ -45,9 +45,9 @@ const Sun = injectStyle("sun", k => `
 const Moon = injectStyle("moon", k => `
     ${k} {
         position: relative;
-        left: -41.5px;
-        top: 5px;
-        animation: opacity 0.2 ease-in;
+        left: -40px;
+        top: 4px;
+        animation: opacity 0.4 ease-in;
         opacity: 1;
     }
     
