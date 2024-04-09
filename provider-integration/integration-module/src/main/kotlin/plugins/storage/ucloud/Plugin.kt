@@ -48,6 +48,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
@@ -66,6 +67,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import java.nio.ByteBuffer
+import java.security.MessageDigest
 import kotlin.math.min
 
 class UCloudFilePlugin : FilePlugin {
@@ -350,7 +352,6 @@ class UCloudFilePlugin : FilePlugin {
         }
     }
 
-
     override suspend fun RequestContext.handleFolderUploadWs(
         session: String,
         pluginData: String,
@@ -362,7 +363,7 @@ class UCloudFilePlugin : FilePlugin {
 
         for (frame in websocket.incoming) {
             if (frame.frameType == FrameType.TEXT) {
-                // Note(Brian): If we received a text frame, it means it is the file listing of the folder. Here we check
+                // Note(Brian): If we received a text frame, it is the file listing of the folder. Here we check
                 // each file in the listing (modifiedAt and size) according to that provided by the client, and respond
                 // according to that.
 
@@ -375,12 +376,11 @@ class UCloudFilePlugin : FilePlugin {
                 for (entry in listing) {
                     val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.value.path)
                     val exists = queries.fileExists(ucloudFile)
-                    //val entryKeyBytes = entry.key.toByteArray()
                     val entryKeyBytes = ByteBuffer.allocate(4).putInt(entry.key.toInt()).array()
+                    val okFrameTypeByte = byteArrayOf(FolderUploadMessageType.OK.ordinal.toByte())
 
                     if (!exists) {
                         // The file does not exist. Respond with OK (start the transfer) for this file.
-                        val okFrameTypeByte = byteArrayOf(FolderUploadMessageType.OK.ordinal.toByte())
                         websocket.send(okFrameTypeByte + entryKeyBytes)
                     } else {
                         val existingFile = queries.retrieve(ucloudFile, UFileIncludeFlags(includeSizes = true))
@@ -396,10 +396,28 @@ class UCloudFilePlugin : FilePlugin {
                             websocket.send(skipFrameTypeByte + entryKeyBytes)
                         } else {
                             // The sizes are equal, but the modification time differs.
-                            // TODO(Brian): Compute checksum here.
-                            listing[entry.key]?.offset = entry.value.size
-                            val skipFrameTypeByte = byteArrayOf(FolderUploadMessageType.SKIP.ordinal.toByte())
-                            websocket.send(skipFrameTypeByte + entryKeyBytes)
+                            // If the size of the file is larger than 1 GB, it is most likely cheaper to do a checksum
+                            // check with the client. Otherwise, tell the client to start the upload.
+                            if (existingFile.status.sizeInBytes!! > 1_000_000_000) {
+                                val fileStream = fs.openForReading(pathConverter.ucloudToInternal(ucloudFile))
+                                val checksumFrameTypeByte = byteArrayOf(FolderUploadMessageType.CHECKSUM.ordinal.toByte())
+                                val digest = MessageDigest.getInstance("SHA-1")
+
+                                DefaultDirectBufferPoolLarge.useInstance { nativeBuffer ->
+                                    var read = fileStream.read(nativeBuffer)
+                                    nativeBuffer.flip()
+                                    while (read > -1) {
+                                        digest.update(nativeBuffer)
+                                        nativeBuffer.rewind()
+                                        read = fileStream.read(nativeBuffer)
+                                        nativeBuffer.flip()
+                                    }
+                                }
+
+                                websocket.send(checksumFrameTypeByte + entryKeyBytes + digest.digest())
+                            } else {
+                                websocket.send(okFrameTypeByte + entryKeyBytes)
+                            }
                         }
                     }
                 }
