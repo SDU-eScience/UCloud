@@ -276,9 +276,10 @@ const UIGlobalStyle = `
     --backgroundDefault: #ffffff;
     --borderColor: var(--gray-20);
     --borderColorHover: var(--gray-30);
-    --backgroundCard: var(--gray-5);
+    --backgroundCard: var(--backgroundDefault);
     --backgroundCardBorder: red;
     --backgroundCardBorderHover: red;
+    --backgroundDisabled: var(--gray-5);
     --textPrimary: #212529;
     --textSecondary: #646669;
     --textDisabled: #909294;
@@ -325,15 +326,16 @@ const UIGlobalStyle = `
     --backgroundDefault: var(--gray-100);
     --borderColor: var(--gray-80);
     --borderColorHover: var(--gray-70);
-    --backgroundCard: var(--gray-90);
+    --backgroundCard: var(--backgroundDefault);
     --backgroundCardBorder: red;
     --backgroundCardBorderHover: red;
+    --backgroundDisabled: var(--gray-90);
     --textPrimary: #ffffff;
     --textSecondary: #bcbebf;
     --textDisabled: #909294;
     --rowHover: var(--gray-90);
     --rowActive: var(--blue-90);
-    --gradientStart: var(--gray-100);
+    --gradientStart: #000;
     --gradientEnd: var(--blue-90);
   }
 
@@ -399,7 +401,7 @@ html {
     --green-70: #266D12;
     --green-80: #1F580E;
     --green-90: #17410B;
-    --gray-5: #F9FAFB;
+    --gray-5: #F7F8F9;
     --gray-10: #ECEEF0;
     --gray-20: #D0D5DC;
     --gray-30: #B6BEC8;
@@ -424,8 +426,7 @@ html {
     --blue-90: #023774;
     /* New color palette END */
 
-    --backgroundDisabled: var(--backgroundCard);
-    --defaultShadow: 0px  3px  1px -2px rgba(0,0,0,0.2), 0px  2px  2px 0px rgba(0,0,0,.14),0px 1px  5px 0px rgba(0,0,0,.12);
+    --defaultShadow: rgba(0, 0, 0, 0.16) 0px 3px 6px, rgba(0, 0, 0, 0.10) 0px -3px 12px, rgba(0, 0, 0, 0.23) 0px 3px 6px;
     --sidebarWidth: 64px;
     --secondarySidebarWidth: 220px;
     --popInWidth: 368px;
@@ -481,6 +482,8 @@ html.dark {
 ::after {
   background-repeat: no-repeat; /* 1 */
   box-sizing: border-box; /* 2 */
+  transition: 1s cubic-bezier(0,1,0,1);
+  transition-property: background, background-color, background-image, border;
 }
 
 /**

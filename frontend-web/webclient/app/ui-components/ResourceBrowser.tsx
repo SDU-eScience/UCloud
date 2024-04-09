@@ -3074,7 +3074,7 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} .location-bar {
                 width: 100%;
-                font-size: 120%;
+                font-size: 110%;
                 height: 35px;
                 font-feature-settings: unset;
             }
@@ -3166,7 +3166,7 @@ export class ResourceBrowser<T> {
                 margin-bottom: 1px;
                 padding: 0;
                 cursor: pointer;
-                font-size: 120%;
+                font-size: 110%;
             }
 
             ${browserClass.dot} .row {
@@ -3188,7 +3188,7 @@ export class ResourceBrowser<T> {
                 height: 40px;
                 color: var(--textPrimary);
                 display: none;
-                background-color: var(--backgroundCard);
+                background-color: var(--backgroundDisabled);
                 border-radius: 6px 6px 0 0;
                 padding-top: 8px;
                 padding-bottom: 8px;
