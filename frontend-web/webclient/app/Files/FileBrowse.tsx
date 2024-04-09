@@ -459,7 +459,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 let shouldRemoveFakeDirectory = true;
                 const fakeFileName = ".00000000000000000000$NEW_DIR"
                 const showCreateDirectory = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName;
+                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                     shouldRemoveFakeDirectory = false;
                     insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
@@ -473,7 +473,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             if (!browser.renameValue) return;
 
                             const realPath = resolvePath(browser.currentPath) + "/" + browser.renameValue;
-                            insertFakeEntry(browser.renameValue, {type: "DIRECTORY"});
+                            insertFakeEntry(browser.renameValue.split("/")[0], {type: "DIRECTORY"});
                             const idx = browser.findVirtualRowIndex(it => it.id === realPath);
                             if (idx !== null) {
                                 browser.ensureRowIsVisible(idx, true, true);
