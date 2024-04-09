@@ -1560,13 +1560,6 @@ export class ResourceBrowser<T> {
                         if (index === 0) shortcutElement.style.marginLeft = "auto";
                         shortcutElement.innerText = item;
                         element.append(shortcutElement);
-                        if (index < shortcutItems.length - 1) {
-                            element.append(createHTMLElements({
-                                tagType: "span",
-                                className: "ShortCutPlusSymbol",
-                                innerText: "+"
-                            }));
-                        }
                     }
                 }
             }
@@ -3969,12 +3962,15 @@ const ALT_KEY = isLikelyMac ? "⌥" : "alt";
 const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
 export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
         border-radius: 5px;
-        border: 1px solid;
+        border: .5px solid var(--gray-70);
+        border-bottom: 2px solid var(--gray-70);
         mix-blend-mode: invert;
         font-size: 12px;
-        min-width: 20px;
-        height: 20px;
+        min-width: 18px;
+        height: 18px;
         display: flex;
         align-items: center;
         justify-content: center;
