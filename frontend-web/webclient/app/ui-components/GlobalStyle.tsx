@@ -288,6 +288,7 @@ const UIGlobalStyle = `
     --gradientEnd: var(--blue-20);
   }
   html.dark {
+    --modalShadow: rgba(0, 0, 0, 0.75);
     --primaryMain: var(--blue-80);
     --primaryLight: var(--blue-70);
     --primaryDark: var(--blue-90);  
@@ -345,6 +346,8 @@ html.dark {
 }
 
 html {
+    --modalShadow: rgba(255, 255, 255, 0.75);
+
     /* New color palette */
     --purple-5: #FCF9FC;
     --purple-10: #F5EBF5;

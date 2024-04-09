@@ -237,7 +237,6 @@ const HeroStyle = injectStyle("hero", k => `
         margin-left: -20px;
         width: 300px;
         left: calc(50% - 150px); 
-        //hello;
         display: flex;
         align-items: center;
         justify-content: center;

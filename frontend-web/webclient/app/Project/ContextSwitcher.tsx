@@ -61,16 +61,11 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
     ${k} {
         background: var(--primaryMain);
         color: var(--primaryContrast);
-        // border: 1px solid var(--borderColor);
         border-radius: 6px;
         padding: 6px 12px;
         display: flex;
         user-select: none;
     }
-    
-    // ${k}:hover {
-    //     border: 1px solid var(--borderColorHover);
-    // }
 `);
 
 export function ContextSwitcher({managed}: {

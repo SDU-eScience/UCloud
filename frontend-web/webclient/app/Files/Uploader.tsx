@@ -730,7 +730,8 @@ const modalStyle: ReactModal.Styles = ({
         maxWidth: "600px",
         height: "auto",
         overflowY: "hidden",
-    }
+    },
+    overlay: largeModalStyle.overlay
 });
 
 const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `

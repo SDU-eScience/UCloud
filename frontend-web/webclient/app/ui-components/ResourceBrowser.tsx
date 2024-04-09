@@ -2059,7 +2059,7 @@ export class ResourceBrowser<T> {
 
                         const indicator = this.entryDragIndicator;
                         indicator.innerHTML = "";
-                        indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`; //scale3d(${rowRect.width}, 100%, 100%)`;
+                        indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;
                         indicator.style.display = "block";
 
                         const page = this.cachedData[this.currentPath] ?? [];
@@ -2991,7 +2991,6 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .file-drag-indicator {
-                transition: transform 0.05s;
                 background: var(--rowActive);
                 color: var(--textPrimary);
                 width: 400px;
