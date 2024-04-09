@@ -1188,7 +1188,7 @@ export class ResourceBrowser<T> {
         //
         // We select this by choosing the first from the list which can stay within the target.
         const containerWidth = this.breadcrumbs.parentElement!.getBoundingClientRect().width;
-        const approximateLengthPerCharacter = 22;
+        const approximateLengthPerCharacter = 13;
         const maxComponentLength = 30;
         const targetPathLength = (containerWidth / approximateLengthPerCharacter) - 5;
 
