@@ -548,7 +548,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("fetchFilters", () => [{
                     type: "checkbox",
                     key: "filterHiddenFiles",
-                    text: "Omit hidden files",
+                    text: "Filter hidden files",
                     icon: "heroMagnifyingGlass",
                 }]);
 
