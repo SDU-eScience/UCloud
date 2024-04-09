@@ -108,7 +108,7 @@ class Server(override val micro: Micro) : CommonServer {
                 comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
             }
 
-            payment = PaymentService(serviceClient)
+            payment = PaymentService(db, serviceClient)
             providers = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
             fileCollections = FileCollectionService(projectCache, db, storageProviders, storageSupport, serviceClient)
 

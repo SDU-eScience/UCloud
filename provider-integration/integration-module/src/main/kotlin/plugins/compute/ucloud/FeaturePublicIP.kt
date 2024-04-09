@@ -98,58 +98,63 @@ class FeaturePublicIP(
 
         val allocatedAddresses = ArrayList<IdAndIp>()
 
-        db.withSession { session ->
-            val numberRemaining = countNumberOfAddressesRemaining(session)
-            if (numberRemaining < networks.items.size) {
-                throw RPCException(
-                    "UCloud/compute does not have enough IP addresses to allocate for this request",
-                    HttpStatusCode.BadRequest
-                )
-            }
+        val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
+        if (owners.size != 1) {
+            throw RPCException(
+                "Unexpected request from UCloud/Core. Multiple owners in a single request?",
+                HttpStatusCode.InternalServerError
+            )
+        }
+        val owner = owners.single()
 
-            val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
-            if (owners.size != 1) {
-                throw RPCException(
-                    "Unexpected request from UCloud/Core. Multiple owners in a single request?",
-                    HttpStatusCode.InternalServerError
-                )
-            }
-            val owner = owners.single()
+        try {
+            db.withSession { session ->
+                val numberRemaining = countNumberOfAddressesRemaining(session)
+                if (numberRemaining < networks.items.size) {
+                    throw RPCException(
+                        "UCloud/compute does not have enough IP addresses to allocate for this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
 
-            for (network in networks.items) {
-                val ipAddress: Address = findAddressFromPool(session)
-                session.prepareStatement(
-                    """
+                for (network in networks.items) {
+                    val ipAddress: Address = findAddressFromPool(session)
+                    session.prepareStatement(
+                        """
                         insert into ucloud_compute_network_ips (id, external_ip_address, internal_ip_address, owner) 
                         values (:id, :external, :internal, :owner)
                     """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("id", network.id)
-                        bindString("external", formatIpAddress(ipAddress.externalAddress))
-                        bindString(
-                            "internal", formatIpAddress(
-                                remapAddress(
-                                    ipAddress.externalAddress,
-                                    ipAddress.externalSubnet,
-                                    ipAddress.internalSubnet
+                    ).useAndInvokeAndDiscard(
+                        prepare = {
+                            bindString("id", network.id)
+                            bindString("external", formatIpAddress(ipAddress.externalAddress))
+                            bindString(
+                                "internal", formatIpAddress(
+                                    remapAddress(
+                                        ipAddress.externalAddress,
+                                        ipAddress.externalSubnet,
+                                        ipAddress.internalSubnet
+                                    )
                                 )
                             )
-                        )
-                        bindString("owner", network.owner.project ?: network.owner.createdBy)
-                    }
-                )
+                            bindString("owner", network.owner.project ?: network.owner.createdBy)
+                        }
+                    )
 
-                allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
-            }
+                    allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
+                }
 
-            if (!accountNow(owner, session)) {
-                throw RPCException(
-                    "Unable to allocate an IP address. Please make sure you have sufficient funds!",
-                    HttpStatusCode.PaymentRequired,
-                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
-                )
+                if (!accountNow(owner, session)) {
+                    throw RPCException(
+                        "You do not have any more funds to create a public IP!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                    )
+                }
             }
+        } catch (ex: Throwable) {
+            accountNow(owner)
+            throw ex
         }
 
         NetworkIPControl.update.call(

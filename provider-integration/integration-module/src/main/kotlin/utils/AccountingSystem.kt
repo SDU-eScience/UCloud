@@ -99,7 +99,7 @@ suspend fun reportUsage(
     var timeFactor = 1L
 
     val productTimeInterval = when (cost) {
-        ProductCost.Free -> ProductCost.AccountingInterval.Daily
+        ProductCost.Free -> null
         is ProductCost.Money -> cost.interval
         is ProductCost.Resource -> cost.accountingInterval
     }

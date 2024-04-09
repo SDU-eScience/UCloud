@@ -25,10 +25,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import org.slf4j.Logger
 import java.io.File
+import java.math.BigInteger
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
 import kotlin.random.Random
+
+const val DEBUG = true
 
 class AccountingSystem(
     private val productCache: IProductCache,
@@ -616,6 +619,14 @@ class AccountingSystem(
         // Plan charge
         val (totalChargeableAmount, chargeGraph) = run {
             val graph = buildGraph(wallet, now, true)
+            debug(wallet) {
+                buildString {
+                    appendLine("# `internalCharge(${wallet.id}, $totalAmount)` (Before)")
+                    appendLine("```mermaid")
+                    appendLine(graph.toMermaid())
+                    appendLine("```")
+                }
+            }
             val rootIndex = graph.indexInv.getValue(0)
             val maxUsable = if (totalAmount < 0) {
                 graph.minCostFlow(0, rootIndex, -totalAmount)
@@ -665,6 +676,15 @@ class AccountingSystem(
         for (walletId in chargeGraph.index) {
             if (walletsUpdated[walletId] != true) continue
             visitedWallets.add(walletId)
+        }
+
+        debug(wallet) {
+            buildString {
+                appendLine("# `internalCharge(${wallet.id}, $totalAmount)` (After)")
+                appendLine("```mermaid")
+                appendLine(chargeGraph.toMermaid())
+                appendLine("```")
+            }
         }
 
         return InternalChargeResult(totalChargeableAmount, visitedWallets)
@@ -729,6 +749,15 @@ class AccountingSystem(
         scope: String? = null,
         scopeExplanation: String? = null,
     ): Response<Unit> {
+        debug(wallet) {
+            buildString {
+                appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (Before)")
+                appendLine("```mermaid")
+                appendLine(produceMermaidGraph(listOf(wallet.id)))
+                appendLine("```")
+            }
+        }
+
         val now = Time.now()
 
         val currentUsage = if (scope == null) {
@@ -781,6 +810,15 @@ class AccountingSystem(
         var error: String? = null
         if (overSpendingWallets.isNotEmpty()) {
             error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+        }
+
+        debug(wallet) {
+            buildString {
+                appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (After)")
+                appendLine("```mermaid")
+                appendLine(produceMermaidGraph(listOf(wallet.id)))
+                appendLine("```")
+            }
         }
 
         if (error != null) return Response.error(HttpStatusCode.PaymentRequired, error)
@@ -989,7 +1027,7 @@ class AccountingSystem(
                 val capacity = allocationGroup.totalActiveQuota() - allocationGroup.treeUsage
                 g.addEdge(g.indexInv.getValue(parentId), graphIndex, capacity, allocationGroup.treeUsage)
                 val cost = wallet.parentEdgeCost(parentId, now)
-                g.addEdgeCost(g.indexInv.getValue(parentId), graphIndex, cost)
+                g.addEdgeCost(g.indexInv.getValue(parentId), graphIndex, BigInteger.valueOf(cost))
             }
 
             if (withOverAllocation) {
@@ -1010,9 +1048,9 @@ class AccountingSystem(
                     usage = max(0, usage)
 
                     g.addEdge(rootIndex, gSize + graphIndex, overAllocation - usage, usage)
-                    g.addEdgeCost(rootIndex, gSize + graphIndex, Long.MAX_VALUE shr 4)
+                    g.addEdgeCost(rootIndex, gSize + graphIndex, MANDATORY_EDGE_COST)
                     g.addEdge(gSize + graphIndex, graphIndex, overAllocation - usage, usage)
-                    g.addEdgeCost(gSize + graphIndex, graphIndex, Long.MAX_VALUE shr 4)
+                    g.addEdgeCost(gSize + graphIndex, graphIndex, MANDATORY_EDGE_COST)
                 }
             }
         }
@@ -1373,8 +1411,23 @@ class AccountingSystem(
         }
     }
 
+    private val debugFile by lazy { File("/tmp/debug.txt").printWriter() }
+    private inline fun debug(wallet: InternalWallet, fn: () -> String) {
+        if (!DEBUG) return
+        if (wallet.category.productType != ProductType.LICENSE) return
+
+        synchronized(debugFile) {
+            debugFile.println(fn())
+            debugFile.flush()
+        }
+    }
+
     companion object : Loggable {
         override val log: Logger = logger()
+
+        // NOTE(Dan): Must be less than VERY_LARGE_NUMBER of Graph.kt
+        // NOTE(Dan): Must be (significantly) larger than any cost which can naturally be created from a normal node
+        private val MANDATORY_EDGE_COST = BigInteger.TWO.pow(80)
     }
 }
 

@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.DBContext
 
 data class Payment(
     val chargeId: String,
@@ -22,6 +23,7 @@ data class Payment(
 )
 
 class PaymentService(
+    private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
 ) {
     sealed class ChargeResult {
@@ -38,6 +40,8 @@ class PaymentService(
         TODO()
     }
 
+    private val productCache = ProductCache(db)
+
     private data class ErrorMessage(val error: String?)
     private val creditCheckCache = AsyncCache<Pair<WalletOwner, ProductCategoryIdV2>, ErrorMessage>(
         BackgroundScope.get(),
@@ -46,6 +50,10 @@ class PaymentService(
             throw RPCException("Unable to check allocations for $it", HttpStatusCode.GatewayTimeout)
         },
         retrieve = { (owner, category) ->
+            if (productCache.productCategory(category)?.freeToUse == true) {
+                return@AsyncCache ErrorMessage(null)
+            }
+
             val allWallets = AccountingV2.browseWalletsInternal.call(
                 AccountingV2.BrowseWalletsInternal.Request(owner),
                 serviceClient
@@ -53,7 +61,7 @@ class PaymentService(
 
             val isMissingWallet = allWallets.none { it.paysFor.toId() == category }
             if (isMissingWallet) {
-                ErrorMessage("You are missing allocations for: $category")
+                ErrorMessage("You are missing allocations for: ${category.name} / ${category.provider}")
             } else {
                 ErrorMessage(null)
             }

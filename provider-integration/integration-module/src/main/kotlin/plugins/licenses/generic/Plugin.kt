@@ -373,28 +373,33 @@ class GenericLicensePlugin : LicensePlugin {
         val owner = resource.owner.project ?: resource.owner.createdBy
         val category = resource.specification.product.category
 
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                //language=postgresql
-                """
+        try {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    //language=postgresql
+                    """
                     insert into generic_license_instances (id, category, owner)
                     values (:id, :category, :owner)
                 """
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("id", resource.id)
-                    bindString("category", category)
-                    bindString("owner", owner)
-                }
-            )
-
-            if (!accountNow(owner, category, session)) {
-                throw RPCException(
-                    "Unable to allocate a license. Please make sure you have sufficient funds!",
-                    HttpStatusCode.PaymentRequired,
-                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("id", resource.id)
+                        bindString("category", category)
+                        bindString("owner", owner)
+                    }
                 )
+
+                if (!accountNow(owner, category, session)) {
+                    throw RPCException(
+                        "You do not have any more funds to create a license!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                    )
+                }
             }
+        } catch (ex: Throwable) {
+            accountNow(owner, category)
+            throw ex
         }
 
         LicenseControl.update.call(

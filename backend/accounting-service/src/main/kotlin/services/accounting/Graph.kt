@@ -2,12 +2,13 @@ package dk.sdu.cloud.accounting.services.accounting
 
 // c4367170c8952028827b7ce164a90e7cf42741f5
 
+import java.math.BigInteger
 import kotlin.math.min
 
 class Graph(
     val vertexCount: Int,
     val adjacent: Array<LongArray>,
-    val cost: Array<LongArray>,
+    val cost: Array<Array<BigInteger>>,
     val original: Array<BooleanArray>,
     var index: List<Int>,
     var indexInv: HashMap<Int, Int>,
@@ -22,7 +23,7 @@ class Graph(
         }
     }
 
-    fun addEdgeCost(source: Int, destination: Int, edgeCost: Long) {
+    fun addEdgeCost(source: Int, destination: Int, edgeCost: BigInteger) {
         cost[source][destination] = edgeCost
         cost[destination][source] = -edgeCost
     }
@@ -97,18 +98,21 @@ class Graph(
 
     private fun notVisited(node: Int, path: List<Int>) = path.none { it == node }
 
-    private fun leastExpensivePath(source: Int, destination: Int): Pair<Long, IntArray> {
+    private fun leastExpensivePath(source: Int, destination: Int): Pair<BigInteger, IntArray> {
         val parent = IntArray(vertexCount)
-        var minCost = Long.MAX_VALUE
+        var minCost = VERY_LARGE_NUMBER
         val queue = ArrayDeque<List<Int>>(8)
         queue.add(listOf(source))
 
         while (queue.isNotEmpty()) {
             val path = queue.removeFirst()
             if (path.last() == destination) {
-                val pathCost = (0 until path.size - 1)
-                    .map { i -> cost[path[i]][path[i + 1]] }
-                    .let { it.sum() / it.size }
+                val pathEntries = (0 until path.size - 1)
+                    .map { i -> BigInteger(cost[path[i]][path[i + 1]].toString()) }
+
+                val pathSum = pathEntries.reduce { acc, bigInteger -> acc.add(bigInteger) }
+
+                val pathCost = pathSum.divide(BigInteger.valueOf(pathEntries.size.toLong()))
 
                 if (pathCost < minCost) {
                     minCost = pathCost
@@ -134,7 +138,7 @@ class Graph(
         var actualFlow = 0L
         while (actualFlow < desiredFlow) {
             val (pathCost, path) = leastExpensivePath(source, destination)
-            if (pathCost == Long.MAX_VALUE) break
+            if (pathCost == VERY_LARGE_NUMBER) break
 
             var flowToApply = flow(source, destination, path)
             flowToApply = min(flowToApply, desiredFlow - actualFlow)
@@ -188,7 +192,7 @@ class Graph(
                     } else {
                         MermaidGraphBuilder.LineType.DOTTED
                     }
-                    idx.toString().linkTo(adjIndex.toString(), edge.toString(), lineType = lineType) //  + " (C=0x${cost[idx][adjIndex].toULong().toString(16)})")
+                    idx.toString().linkTo(adjIndex.toString(), "${edge}<br>${cost[idx][adjIndex].toString(16)}", lineType = lineType) //  + " (C=0x${cost[idx][adjIndex].toULong().toString(16)})")
                 }
             }
         }
@@ -197,10 +201,12 @@ class Graph(
     companion object {
         fun create(vertexCount: Int): Graph {
             val adjacent = Array(vertexCount) { LongArray(vertexCount) }
-            val cost = Array(vertexCount) { LongArray(vertexCount) }
+            val cost = Array(vertexCount) { Array<BigInteger>(vertexCount) { BigInteger.ZERO } }
             val original = Array(vertexCount) { BooleanArray(vertexCount) }
             return Graph(vertexCount, adjacent, cost, original, emptyList(), HashMap())
         }
+
+        private val VERY_LARGE_NUMBER = BigInteger.TWO.pow(110)
     }
 }
 

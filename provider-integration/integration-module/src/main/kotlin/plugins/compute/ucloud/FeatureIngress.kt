@@ -57,79 +57,84 @@ class FeatureIngress(
         val owner = ingresses.items.map { it.owner.project ?: it.owner.createdBy }.toSet().singleOrNull()
             ?: error("Multiple owners in a single create?")
 
-        db.withSession { session ->
-            if (!accountNow(owner, session)) {
-                throw RPCException(
-                    "Unable to allocate a public link. Please make sure you have sufficient funds!",
-                    HttpStatusCode.PaymentRequired,
-                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
-                )
-            }
-
-            for (ingress in ingresses.items) {
-                val isValid = ingress.specification.domain.startsWith(domainPrefix) &&
-                    ingress.specification.domain.endsWith(domainSuffix)
-
-                if (!isValid) {
-                    throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
-                }
-
-                val id = ingress.specification.domain
-                    .removePrefix(domainPrefix).removeSuffix(domainSuffix)
-                if (id.length < 5) {
+        try {
+            db.withSession { session ->
+                if (!accountNow(owner, session)) {
                     throw RPCException(
-                        "Public links must be at least 5 characters long!",
-                        HttpStatusCode.BadRequest
+                        "You do not have any more funds to create a public link!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
                     )
                 }
 
-                for (badWord in blacklistedWords) {
-                    if (id.contains(badWord)) {
+                for (ingress in ingresses.items) {
+                    val isValid = ingress.specification.domain.startsWith(domainPrefix) &&
+                            ingress.specification.domain.endsWith(domainSuffix)
+
+                    if (!isValid) {
+                        throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
+                    }
+
+                    val id = ingress.specification.domain
+                        .removePrefix(domainPrefix).removeSuffix(domainSuffix)
+                    if (id.length < 5) {
                         throw RPCException(
-                            "Invalid link. Try a different name.",
+                            "Public links must be at least 5 characters long!",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    for (badWord in blacklistedWords) {
+                        if (id.contains(badWord)) {
+                            throw RPCException(
+                                "Invalid link. Try a different name.",
+                                HttpStatusCode.BadRequest
+                            )
+                        }
+                    }
+
+                    if (!id.lowercase().matches(regex) || id.lowercase().matches(uuidRegex)) {
+                        throw RPCException(
+                            "Invalid public link requested. Must only contain letters a-z, numbers (0-9), dashes and underscores.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (id.endsWith("-") || id.endsWith("_")) {
+                        throw RPCException(
+                            "Public links must not end with a dash or an underscore!",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (!id.any { it.isLetter() }) {
+                        throw RPCException(
+                            "Public links must contain at least one letter!",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    try {
+                        session.prepareStatement(
+                            "insert into ucloud_compute_ingresses (id, domain, owner) values (:id, :domain, :owner)"
+                        ).useAndInvokeAndDiscard(
+                            prepare = {
+                                bindString("id", ingress.id)
+                                bindString("domain", ingress.specification.domain)
+                                bindString("owner", owner)
+                            }
+                        )
+                    } catch (ex: Throwable) {
+                        throw RPCException(
+                            "Public link with domain already exists",
                             HttpStatusCode.BadRequest
                         )
                     }
                 }
-
-                if (!id.lowercase().matches(regex) || id.lowercase().matches(uuidRegex)) {
-                    throw RPCException(
-                        "Invalid public link requested. Must only contain letters a-z, numbers (0-9), dashes and underscores.",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-
-                if (id.endsWith("-") || id.endsWith("_")) {
-                    throw RPCException(
-                        "Public links must not end with a dash or an underscore!",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-
-                if (!id.any { it.isLetter() }) {
-                    throw RPCException(
-                        "Public links must contain at least one letter!",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-
-                try {
-                    session.prepareStatement(
-                        "insert into ucloud_compute_ingresses (id, domain, owner) values (:id, :domain, :owner)"
-                    ).useAndInvokeAndDiscard(
-                        prepare = {
-                            bindString("id", ingress.id)
-                            bindString("domain", ingress.specification.domain)
-                            bindString("owner", owner)
-                        }
-                    )
-                } catch (ex: Throwable) {
-                    throw RPCException(
-                        "Public link with domain already exists",
-                        HttpStatusCode.BadRequest
-                    )
-                }
             }
+        } catch (ex: Throwable) {
+            accountNow(owner)
+            throw ex
         }
 
         IngressControl.update.call(

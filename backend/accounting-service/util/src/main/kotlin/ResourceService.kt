@@ -101,7 +101,7 @@ abstract class ResourceService<
     abstract fun providerApi(comms: ProviderComms): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
-    protected val payment = PaymentService(serviceClient)
+    protected val payment = PaymentService(db, serviceClient)
 
     @Suppress("SqlResolve")
     override suspend fun browse(
