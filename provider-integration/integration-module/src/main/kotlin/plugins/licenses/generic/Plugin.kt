@@ -2,7 +2,6 @@ package dk.sdu.cloud.plugins.licenses.generic
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ErrorCode
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
@@ -17,7 +16,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.ProductCost
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.config.toReference
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.ipc.IpcContainer
@@ -25,7 +26,6 @@ import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.LicensePlugin
 import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.plugins.compute.ucloud.FeatureIngress
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
@@ -344,6 +344,25 @@ class GenericLicensePlugin : LicensePlugin {
 
             result.singleOrNull() ?: throw RPCException("Unknown license", HttpStatusCode.NotFound)
         })
+
+        for (alloc in productAllocationResolved) {
+            val p = config.products.allCategories.find { it.category.toId() == alloc.category.toId() } ?: continue
+            when (val cost = p.cost) {
+                ProductCost.Free -> {
+                    // OK
+                }
+                is ProductCost.Money -> {
+                    if (cost.interval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+                is ProductCost.Resource -> {
+                    if (cost.accountingInterval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+            }
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<LicenseSupport> {
@@ -354,28 +373,33 @@ class GenericLicensePlugin : LicensePlugin {
         val owner = resource.owner.project ?: resource.owner.createdBy
         val category = resource.specification.product.category
 
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                //language=postgresql
-                """
+        try {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    //language=postgresql
+                    """
                     insert into generic_license_instances (id, category, owner)
                     values (:id, :category, :owner)
                 """
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("id", resource.id)
-                    bindString("category", category)
-                    bindString("owner", owner)
-                }
-            )
-
-            if (!accountNow(owner, category, session)) {
-                throw RPCException(
-                    "Unable to allocate a license. Please make sure you have sufficient funds!",
-                    HttpStatusCode.PaymentRequired,
-                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("id", resource.id)
+                        bindString("category", category)
+                        bindString("owner", owner)
+                    }
                 )
+
+                if (!accountNow(owner, category, session)) {
+                    throw RPCException(
+                        "You do not have any more funds to create a license!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                    )
+                }
             }
+        } catch (ex: Throwable) {
+            accountNow(owner, category)
+            throw ex
         }
 
         LicenseControl.update.call(
@@ -427,6 +451,8 @@ class GenericLicensePlugin : LicensePlugin {
     }
 
     private suspend fun accountNow(owner: String, category: String, ctx: DBContext = dbConnection): Boolean {
+        val product = productAllocationResolved.find { it.category.name == category } ?: return true
+
         val amountUsed = ctx.withSession { session ->
             var count = 0L
             session.prepareStatement(
@@ -447,10 +473,11 @@ class GenericLicensePlugin : LicensePlugin {
             count
         }
 
-        return reportConcurrentUse(
+        return reportUsage(
             walletOwnerFromOwnerString(owner),
-            ProductCategoryIdV2(category, providerId),
-            amountUsed
+            product.toReference(),
+            amountUsed,
+            minutesUsed = null,
         )
     }
 

@@ -11,6 +11,7 @@ import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRenewRequestItem
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.db.async.*

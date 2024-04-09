@@ -14,28 +14,17 @@ import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.ProductCost
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.removeProvider
 import dk.sdu.cloud.controllers.FilesUploadIpc
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.plugins.FileDownloadSession
-import dk.sdu.cloud.plugins.FilePlugin
-import dk.sdu.cloud.plugins.FileUploadSession
-import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
-import dk.sdu.cloud.plugins.ConfiguredShare
-import dk.sdu.cloud.plugins.FileCollectionPlugin
-import dk.sdu.cloud.plugins.InternalFile
-import dk.sdu.cloud.plugins.SharePlugin
-import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudComputePlugin
-import dk.sdu.cloud.plugins.fileName
-import dk.sdu.cloud.plugins.ipcClient
-import dk.sdu.cloud.plugins.ipcServer
-import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CreateFolderTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.DeleteTask
@@ -117,6 +106,25 @@ class UCloudFilePlugin : FilePlugin {
         uploadDescriptors = UploadDescriptors(pathConverter, fs)
         uploads = ChunkedUploadService(uploadDescriptors)
 
+        for (alloc in productAllocationResolved) {
+            val p = config.products.storage.find { it.category.toId() == alloc.category.toId() } ?: continue
+            when (val cost = p.cost) {
+                ProductCost.Free -> {
+                    // OK
+                }
+                is ProductCost.Money -> {
+                    if (cost.interval != null) {
+                        error("Unable to support products in UCloud storage with interval != null")
+                    }
+                }
+                is ProductCost.Resource -> {
+                    if (cost.accountingInterval != null) {
+                        error("Unable to support products in UCloud storage with interval != null")
+                    }
+                }
+            }
+        }
+
         val stagingFolderPath = pluginConfig.trash.stagingFolder?.takeIf { pluginConfig.trash.useStagingFolder }
         val stagingFolder = stagingFolderPath?.let { InternalFile(it) }?.takeIf {
             runCatching { fs.stat(it).fileType }.getOrNull() == FileType.DIRECTORY
@@ -137,6 +145,10 @@ class UCloudFilePlugin : FilePlugin {
 
         driveLocator.fillDriveDatabase()
         registerIpcServer()
+    }
+
+    override suspend fun PluginContext.onWalletSynchronized(notification: AllocationPlugin.Message) {
+        usageScan.notifyAccounting(notification)
     }
 
     override suspend fun RequestContext.browse(

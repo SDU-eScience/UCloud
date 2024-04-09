@@ -1,14 +1,12 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 
 class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
     private val cache = SimpleCache<String, Job>(
@@ -31,10 +29,16 @@ class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
 
     suspend fun setExpectedState(jobId: String, newState: JobState) {
         cache.transformValue(jobId) { job ->
+            val now = Time.now()
+
             job.copy(
                 status = job.status.copy(
+                    startedAt = if (newState == JobState.RUNNING) {
+                        now
+                    } else job.status.startedAt,
                     state = newState
-                )
+                ),
+                updates = job.updates + JobUpdate(newState, timestamp = now)
             )
         }
     }

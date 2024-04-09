@@ -1,7 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.accounting.api.ErrorCode
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -16,7 +16,6 @@ import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.validateCidr
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.isSafeToUse
 import dk.sdu.cloud.plugins.compute.ucloud.IpUtils.remapAddress
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
@@ -25,7 +24,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
-import dk.sdu.cloud.utils.reportConcurrentUse
+import dk.sdu.cloud.utils.reportUsage
 import dk.sdu.cloud.utils.walletOwnerFromOwnerString
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.serialization.Serializable
@@ -41,7 +40,7 @@ class FeaturePublicIP(
     private val db: DBContext,
     private val k8: K8Dependencies,
     private val networkInterface: String,
-    private val category: String,
+    private val product: ProductReferenceV2,
 ) : JobFeature {
     private var nextScan = 0L
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {
@@ -99,59 +98,63 @@ class FeaturePublicIP(
 
         val allocatedAddresses = ArrayList<IdAndIp>()
 
-        db.withSession { session ->
-            val numberRemaining = countNumberOfAddressesRemaining(session)
-            if (numberRemaining < networks.items.size) {
-                throw RPCException(
-                    "UCloud/compute does not have enough IP addresses to allocate for this request",
-                    HttpStatusCode.BadRequest
-                )
-            }
+        val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
+        if (owners.size != 1) {
+            throw RPCException(
+                "Unexpected request from UCloud/Core. Multiple owners in a single request?",
+                HttpStatusCode.InternalServerError
+            )
+        }
+        val owner = owners.single()
 
-            val owners = networks.items.map { it.owner.project ?: it.owner.createdBy }.toSet()
-            if (owners.size != 1) {
-                throw RPCException(
-                    "Unexpected request from UCloud/Core. Multiple owners in a single request?",
-                    HttpStatusCode.InternalServerError
-                )
-            }
-            val owner = owners.single()
+        try {
+            db.withSession { session ->
+                val numberRemaining = countNumberOfAddressesRemaining(session)
+                if (numberRemaining < networks.items.size) {
+                    throw RPCException(
+                        "UCloud/compute does not have enough IP addresses to allocate for this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
 
-            for (network in networks.items) {
-                val ipAddress: Address = findAddressFromPool(session)
-                session.prepareStatement(
-                    //language=postgresql
-                    """
+                for (network in networks.items) {
+                    val ipAddress: Address = findAddressFromPool(session)
+                    session.prepareStatement(
+                        """
                         insert into ucloud_compute_network_ips (id, external_ip_address, internal_ip_address, owner) 
                         values (:id, :external, :internal, :owner)
                     """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("id", network.id)
-                        bindString("external", formatIpAddress(ipAddress.externalAddress))
-                        bindString(
-                            "internal", formatIpAddress(
-                                remapAddress(
-                                    ipAddress.externalAddress,
-                                    ipAddress.externalSubnet,
-                                    ipAddress.internalSubnet
+                    ).useAndInvokeAndDiscard(
+                        prepare = {
+                            bindString("id", network.id)
+                            bindString("external", formatIpAddress(ipAddress.externalAddress))
+                            bindString(
+                                "internal", formatIpAddress(
+                                    remapAddress(
+                                        ipAddress.externalAddress,
+                                        ipAddress.externalSubnet,
+                                        ipAddress.internalSubnet
+                                    )
                                 )
                             )
-                        )
-                        bindString("owner", network.owner.project ?: network.owner.createdBy)
-                    }
-                )
+                            bindString("owner", network.owner.project ?: network.owner.createdBy)
+                        }
+                    )
 
-                allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
-            }
+                    allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
+                }
 
-            if (!accountNow(owner, session)) {
-                throw RPCException(
-                    "Unable to allocate an IP address. Please make sure you have sufficient funds!",
-                    HttpStatusCode.PaymentRequired,
-                    ErrorCode.MISSING_COMPUTE_CREDITS.name,
-                )
+                if (!accountNow(owner, session)) {
+                    throw RPCException(
+                        "You do not have any more funds to create a public IP!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                    )
+                }
             }
+        } catch (ex: Throwable) {
+            accountNow(owner)
+            throw ex
         }
 
         NetworkIPControl.update.call(
@@ -187,10 +190,11 @@ class FeaturePublicIP(
             rows.singleOrNull() ?: 1L
         }
 
-        return reportConcurrentUse(
+        return reportUsage(
             walletOwnerFromOwnerString(owner),
-            ProductCategoryIdV2(category, providerId),
-            currentUsage
+            product,
+            currentUsage,
+            minutesUsed = null,
         )
     }
 
@@ -198,14 +202,12 @@ class FeaturePublicIP(
         db.withSession { session ->
             networks.items.forEach { ingress ->
                 session.prepareStatement(
-                    //language=postgresql
                     "delete from ucloud_compute_bound_network_ips where network_ip_id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id) }
                 )
 
                 session.prepareStatement(
-                    //language=postgresql
                     "delete from ucloud_compute_network_ips where id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id) }
@@ -256,7 +258,6 @@ class FeaturePublicIP(
         val idsAndIps = db.withSession { session ->
             for (network in networks) {
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_network_ips (network_ip_id, job_id) 
                         values (:id, :jobId) 
@@ -273,7 +274,6 @@ class FeaturePublicIP(
             val rows = ArrayList<RetrievedIpAddress>()
             for (network in networks) {
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         select id, internal_ip_address, external_ip_address
                         from ucloud_compute_network_ips 
@@ -321,7 +321,6 @@ class FeaturePublicIP(
     override suspend fun JobManagement.onCleanup(jobId: String) {
         db.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 "delete from ucloud_compute_bound_network_ips where job_id = :jobId"
             ).useAndInvokeAndDiscard(
                 prepare = { bindString("jobId", jobId) }
@@ -340,7 +339,6 @@ class FeaturePublicIP(
             validateCidr(externalCidr)
             validateCidr(internalCidr)
             session.prepareStatement(
-                //language=postgresql
                 """
                     insert into ucloud_compute_network_ip_pool (external_cidr, internal_cidr)
                     values (:external_cidr, :internal_cidr)
@@ -362,7 +360,6 @@ class FeaturePublicIP(
         val rows = ArrayList<K8Subnet>()
         db.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select external_cidr, internal_cidr from ucloud_compute_network_ip_pool
                 """
@@ -376,7 +373,6 @@ class FeaturePublicIP(
     suspend fun deleteByExternalCidr(cidr: String) {
         db.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     delete from ucloud_compute_network_ip_pool
                     where external_cidr = :cidr
@@ -391,7 +387,6 @@ class FeaturePublicIP(
         return ctx.withSession { session ->
             val subnets = ArrayList<UIntRange>()
             session.prepareStatement(
-                //language=postgresql
                 "select external_cidr from ucloud_compute_network_ip_pool"
             ).useAndInvoke {
                 val external = it.getString(0)!!
@@ -425,7 +420,6 @@ class FeaturePublicIP(
             val subnets = ArrayList<Pair<UIntRange, UIntRange>>()
             session
                 .prepareStatement(
-                    //language=postgresql
                     "select external_cidr, internal_cidr from ucloud_compute_network_ip_pool"
                 )
                 .useAndInvoke {
@@ -454,7 +448,6 @@ class FeaturePublicIP(
                 var exists = false
                 session
                     .prepareStatement(
-                        //language=postgresql
                         """
                             select exists(
                                 select 1

@@ -69,6 +69,25 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         pathConverter = PathConverter(this)
 
         if (config.shouldRunServerCode()) {
+            for (alloc in productAllocationResolved) {
+                val p = config.products.storage.find { it.category.toId() == alloc.category.toId() } ?: continue
+                when (val cost = p.cost) {
+                    ProductCost.Free -> {
+                        // OK
+                    }
+                    is ProductCost.Money -> {
+                        if (cost.interval != null) {
+                            error("Unable to support products in PosixCollection with interval != null")
+                        }
+                    }
+                    is ProductCost.Resource -> {
+                        if (cost.accountingInterval != null) {
+                            error("Unable to support products in PosixCollection with interval != null")
+                        }
+                    }
+                }
+            }
+
             ipcServer.addHandler(PosixCollectionIpc.retrieveCollections.handler { _, request ->
                 PageV2(
                     Int.MAX_VALUE,
@@ -177,6 +196,10 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                         val scanJob = startDriveScanning(requestChannel)
 
                         productCategories.forEachGraal { category ->
+                            val product = productAllocationResolved.find { it.category.name == category }
+                                ?: return@forEachGraal // nothing to do in that case
+                            val productRef = product.toReference()
+
                             var next: String? = null
                             var shouldBreak = false
                             whileGraal({ currentCoroutineContext().isActive && !shouldBreak }) {
@@ -197,7 +220,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                     val colls = locateAndRegisterCollections(resourceOwner)
                                         .filter { it.product.category == category }
 
-                                    requestChannel.send(ScanRequest(item.owner, item.categoryId.toV2Id(), colls))
+                                    requestChannel.send(ScanRequest(item.owner, productRef, colls))
                                 }
 
                                 next = summary.next
@@ -223,7 +246,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private data class ScanRequest(
         val owner: WalletOwner,
-        val category: ProductCategoryIdV2,
+        val category: ProductReferenceV2,
         val drives: List<PathConverter.Collection>,
     )
 
@@ -239,7 +262,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 runCatching { calculateUsage(it) }.getOrElse { 0 }
                             }
 
-                            reportConcurrentUseStorage(request.owner, request.category, bytesUsed)
+                            reportUsage(request.owner, request.category, bytesUsed, null)
                         }
                     }
                 }

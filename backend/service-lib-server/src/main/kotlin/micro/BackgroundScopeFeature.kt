@@ -6,6 +6,7 @@ import kotlinx.coroutines.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -60,6 +61,7 @@ class BackgroundScope : CoroutineScope {
         get() = realContext
 
     fun init() {
+        instance.compareAndSet(null, this)
         log.trace("Calling init()")
         val shouldLog = didLog.compareAndSet(false, true)
         synchronized(this) {
@@ -98,6 +100,9 @@ class BackgroundScope : CoroutineScope {
     companion object : Loggable {
         override val log = logger()
         private val didLog = AtomicBoolean(false)
+        private val instance = AtomicReference<BackgroundScope?>(null)
+
+        fun get() = instance.get() ?: error("No BackgroundScope has been initialized yet")
     }
 }
 

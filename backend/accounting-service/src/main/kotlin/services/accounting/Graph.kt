@@ -2,12 +2,13 @@ package dk.sdu.cloud.accounting.services.accounting
 
 // c4367170c8952028827b7ce164a90e7cf42741f5
 
+import java.math.BigInteger
 import kotlin.math.min
 
 class Graph(
     val vertexCount: Int,
     val adjacent: Array<LongArray>,
-    val cost: Array<LongArray>,
+    val cost: Array<Array<BigInteger>>,
     val original: Array<BooleanArray>,
     var index: List<Int>,
     var indexInv: HashMap<Int, Int>,
@@ -22,7 +23,7 @@ class Graph(
         }
     }
 
-    fun addEdgeCost(source: Int, destination: Int, edgeCost: Long) {
+    fun addEdgeCost(source: Int, destination: Int, edgeCost: BigInteger) {
         cost[source][destination] = edgeCost
         cost[destination][source] = -edgeCost
     }
@@ -97,18 +98,21 @@ class Graph(
 
     private fun notVisited(node: Int, path: List<Int>) = path.none { it == node }
 
-    private fun leastExpensivePath(source: Int, destination: Int): Pair<Long, IntArray> {
+    private fun leastExpensivePath(source: Int, destination: Int): Pair<BigInteger, IntArray> {
         val parent = IntArray(vertexCount)
-        var minCost = Long.MAX_VALUE
+        var minCost = VERY_LARGE_NUMBER
         val queue = ArrayDeque<List<Int>>(8)
         queue.add(listOf(source))
 
         while (queue.isNotEmpty()) {
             val path = queue.removeFirst()
             if (path.last() == destination) {
-                val pathCost = (0 until path.size - 1)
-                    .map { i -> cost[path[i]][path[i + 1]] }
-                    .let { it.sum() / it.size }
+                val pathEntries = (0 until path.size - 1)
+                    .map { i -> BigInteger(cost[path[i]][path[i + 1]].toString()) }
+
+                val pathSum = pathEntries.reduce { acc, bigInteger -> acc.add(bigInteger) }
+
+                val pathCost = pathSum.divide(BigInteger.valueOf(pathEntries.size.toLong()))
 
                 if (pathCost < minCost) {
                     minCost = pathCost
@@ -134,7 +138,7 @@ class Graph(
         var actualFlow = 0L
         while (actualFlow < desiredFlow) {
             val (pathCost, path) = leastExpensivePath(source, destination)
-            if (pathCost == Long.MAX_VALUE) break
+            if (pathCost == VERY_LARGE_NUMBER) break
 
             var flowToApply = flow(source, destination, path)
             flowToApply = min(flowToApply, desiredFlow - actualFlow)
@@ -144,13 +148,65 @@ class Graph(
         return actualFlow
     }
 
+    fun toMermaid(): String {
+        return mermaid {
+            val hasFakeNodes = index.size < vertexCount
+            val graphRoot = indexInv.getValue(0)
+            if (hasFakeNodes) {
+                for (idx in 0 until vertexCount / 2) {
+                    if (idx == graphRoot) continue
+                    idx.toString().linkTo(((vertexCount / 2) + idx).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+
+                for (idx in 0 until (vertexCount / 2) - 1) {
+                    idx.toString().linkTo((idx + 1).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+            } else {
+                for (idx in 0 until vertexCount - 1) {
+                    idx.toString().linkTo((idx + 1).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+            }
+
+            for (idx in 0 until vertexCount) {
+                val walletId = index.getOrNull(idx)
+                val fakeRootId = index.getOrNull(idx - (vertexCount / 2))
+                if (walletId == null && fakeRootId == 0) {
+                    continue
+                }
+                node(
+                    idx.toString(),
+                    if (walletId == 0) {
+                        "Root"
+                    } else if (walletId == null) {
+                        "Fake-root $fakeRootId"
+                    } else {
+                        "Wallet $walletId"
+                    }
+                )
+
+                for ((adjIndex, edge) in adjacent[idx].withIndex()) {
+                    val isOriginal = original[idx][adjIndex]
+                    if (!isOriginal && edge == 0L) continue
+                    val lineType = if (isOriginal) {
+                        MermaidGraphBuilder.LineType.NORMAL
+                    } else {
+                        MermaidGraphBuilder.LineType.DOTTED
+                    }
+                    idx.toString().linkTo(adjIndex.toString(), "${edge}<br>${cost[idx][adjIndex].toString(16)}", lineType = lineType) //  + " (C=0x${cost[idx][adjIndex].toULong().toString(16)})")
+                }
+            }
+        }
+    }
+
     companion object {
         fun create(vertexCount: Int): Graph {
             val adjacent = Array(vertexCount) { LongArray(vertexCount) }
-            val cost = Array(vertexCount) { LongArray(vertexCount) }
+            val cost = Array(vertexCount) { Array<BigInteger>(vertexCount) { BigInteger.ZERO } }
             val original = Array(vertexCount) { BooleanArray(vertexCount) }
             return Graph(vertexCount, adjacent, cost, original, emptyList(), HashMap())
         }
+
+        private val VERY_LARGE_NUMBER = BigInteger.TWO.pow(110)
     }
 }
 

@@ -561,6 +561,8 @@ data class ConfigSchema(
 
                 enum class FsType {
                     CephFS,
+                    Generic,
+                    GenericWithMockUsage,
                 }
 
                 @Suppress("DEPRECATION")

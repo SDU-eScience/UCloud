@@ -7,13 +7,11 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.*
-import dk.sdu.cloud.utils.ActivitySystem
-import dk.sdu.cloud.utils.forEachGraal
-import dk.sdu.cloud.utils.reportConcurrentUseStorage
-import dk.sdu.cloud.utils.whileGraal
+import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.builtins.serializer
@@ -24,7 +22,7 @@ class UsageScan(
     private val pathConverter: PathConverter,
     private val fastDirectoryStats: FastDirectoryStats,
 ) {
-    private data class ScanTask(val driveInfo: DriveAndSystem, val reportOnly: Boolean = false)
+    private data class ScanTask(val driveInfo: DriveAndSystem)
     private val scanQueue = Channel<ScanTask>(Channel.BUFFERED)
 
     fun init() {
@@ -34,34 +32,7 @@ class UsageScan(
                 val start = Time.now()
                 Prometheus.countBackgroundTask(taskName)
                 try {
-                    var next: String? = null
-                    var innerActive = true
-                    whileGraal({ innerActive }) {
-                        val page = pathConverter.locator.enumerateDrives(next = next)
-                        val driveIds = page.items.map { it.drive.ucloudId }
-                        val lastScans = HashMap<Long, Long>()
-                        val now = Time.now()
-                        usageScanFetchDriveIdsForScanGraal(driveIds, lastScans, now)
-
-                        page.items.forEachGraal { item ->
-                            val timeSinceLastScan = now - (lastScans[item.drive.ucloudId] ?: 0L)
-                            val metadata = pathConverter.locator.fetchMetadataForDrive(item.drive.ucloudId) ?: return@forEachGraal
-                            val timeSinceOwnerActive = now - ActivitySystem.queryLastActiveWalletOwner(metadata.workspace)
-
-                            if (timeSinceLastScan >= 1000L * 60 * 60 * 12) {
-                                scanQueue.send(ScanTask(item, reportOnly = timeSinceOwnerActive > ONE_MONTH_MILLIS))
-                            }
-                        }
-
-                        val nextToken = page.next
-                        if (nextToken == null) {
-                            innerActive = false
-                        } else {
-                            next = nextToken
-                        }
-                    }
-                } catch (ex: Throwable) {
-                    log.warn("Caught exception while scanning usage for $pluginName: ${ex.toReadableStacktrace()}")
+                    scanAll(ignoreTimeSinceLastScan = false)
                 } finally {
                     val duration = Time.now() - start
                     Prometheus.measureBackgroundDuration(taskName, duration)
@@ -90,52 +61,13 @@ class UsageScan(
                         val ucloudMetadata = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId)
                             ?: return@whileGraal
 
-                        val allDrives = pathConverter.locator.listDrivesByWorkspace(ucloudMetadata.workspace)
-                            .filter {
-                                it.product?.category == ucloudMetadata.product.category &&
-                                        it.drive.type != UCloudDrive.Type.SHARE
-                            }
-
-                        val combinedSizeInBytes = allDrives.sumOf { it.estimatedSizeInBytes }
-
-                        val success = reportConcurrentUseStorage(
+                        reportUsage(
                             ucloudMetadata.workspace,
-                            ProductCategoryIdV2(ucloudMetadata.product.category, ucloudMetadata.product.provider),
-                            combinedSizeInBytes,
+                            ucloudMetadata.product,
+                            size,
+                            minutesUsed = null,
+                            scope = task.driveInfo.drive.ucloudId.toString(),
                         )
-
-                        dbConnection.withSession { session ->
-                            if (!success) {
-                                session.prepareStatement(
-                                    """
-                                        insert into ucloud_storage_quota_locked (scan_id, category, username, project_id)
-                                        values ('unused', :category, :username, :project)
-                                    """
-                                ).useAndInvokeAndDiscard(
-                                    prepare = {
-                                        bindString("category", ucloudMetadata.product.category)
-                                        bindStringNullable("username", (ucloudMetadata.workspace as? WalletOwner.User)?.username)
-                                        bindStringNullable("project", (ucloudMetadata.workspace as? WalletOwner.Project)?.projectId)
-                                    }
-                                )
-                            } else {
-                                session.prepareStatement(
-                                    """
-                                        delete from ucloud_storage_quota_locked
-                                        where
-                                            username is not distinct from :username
-                                            and project_id is not distinct from :project
-                                            and category is not distinct from :category
-                                    """
-                                ).useAndInvokeAndDiscard(
-                                    prepare = {
-                                        bindString("category", ucloudMetadata.product.category)
-                                        bindStringNullable("username", (ucloudMetadata.workspace as? WalletOwner.User)?.username)
-                                        bindStringNullable("project", (ucloudMetadata.workspace as? WalletOwner.Project)?.projectId)
-                                    }
-                                )
-                            }
-                        }
                     } catch (ex: Throwable) {
                         log.warn("Caught exception while scanning ($taskId): ${ex.toReadableStacktrace()}")
                     }
@@ -192,16 +124,84 @@ class UsageScan(
         }
     }
 
+    private suspend fun scanAll(ignoreTimeSinceLastScan: Boolean) {
+        try {
+            var next: String? = null
+            var innerActive = true
+            whileGraal({ innerActive }) {
+                val page = pathConverter.locator.enumerateDrives(next = next)
+                val driveIds = page.items.map { it.drive.ucloudId }
+                val lastScans = HashMap<Long, Long>()
+                val now = Time.now()
+                usageScanFetchDriveIdsForScanGraal(driveIds, lastScans, now)
+
+                page.items.forEachGraal { item ->
+                    val timeSinceLastScan = now - (lastScans[item.drive.ucloudId] ?: 0L)
+                    if (ignoreTimeSinceLastScan || timeSinceLastScan >= 1000L * 60 * 60 * 12) {
+                        scanQueue.send(ScanTask(item))
+                    }
+                }
+
+                val nextToken = page.next
+                if (nextToken == null) {
+                    innerActive = false
+                } else {
+                    next = nextToken
+                }
+            }
+        } catch (ex: Throwable) {
+            log.warn("Caught exception while scanning usage for $pluginName: ${ex.toReadableStacktrace()}")
+        }
+    }
+
     suspend fun requestScan(driveId: Long) {
-        val drive = pathConverter.locator.resolveDrive(driveId, allowMaintenanceMode = true) ?: return
-        scanQueue.send(ScanTask(drive))
+        if (driveId <= 0L) {
+            scanAll(ignoreTimeSinceLastScan = true)
+        } else {
+            val drive = pathConverter.locator.resolveDrive(driveId, allowMaintenanceMode = true) ?: return
+            scanQueue.send(ScanTask(drive))
+        }
+    }
+
+    suspend fun notifyAccounting(notification: AllocationPlugin.Message) {
+        val walletOwner = notification.owner.toResourceOwner().toWalletOwner()
+        dbConnection.withSession { session ->
+            if (notification.locked) {
+                session.prepareStatement(
+                    """
+                        insert into ucloud_storage_quota_locked (scan_id, category, username, project_id)
+                        values ('unused', :category, :username, :project)
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("category", notification.category.name)
+                        bindStringNullable("username", (walletOwner as? WalletOwner.User)?.username)
+                        bindStringNullable("project", (walletOwner as? WalletOwner.Project)?.projectId)
+                    }
+                )
+            } else {
+                session.prepareStatement(
+                    """
+                        delete from ucloud_storage_quota_locked
+                        where
+                            username is not distinct from :username
+                            and project_id is not distinct from :project
+                            and category is not distinct from :category
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("category", notification.category.name)
+                        bindStringNullable("username", (walletOwner as? WalletOwner.User)?.username)
+                        bindStringNullable("project", (walletOwner as? WalletOwner.Project)?.projectId)
+                    }
+                )
+            }
+        }
     }
 
     companion object : Loggable {
         override val log = logger()
-        const val ONE_MONTH_MILLIS = 1000L * 60 * 60 * 24 * 30
     }
-
 }
 
 object StorageScanIpc : IpcContainer("storage_scan_plugin") {

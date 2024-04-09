@@ -11,6 +11,7 @@ import services.accounting.*
 import kotlin.collections.ArrayList
 import kotlin.math.exp
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -147,6 +148,94 @@ class AccountingTest {
         charge(quota - 5_000)
         charge(quota + 1)
         charge(quota - 5_000)
+    }
+
+    @Test
+    fun `test scoped over-spending`() = withTest {
+        val project = createProject()
+        val product = provider.capacityProduct
+        val start = 0L
+        val end = 1000L
+        val quota = 1_000L
+        val recordedUsage = HashMap<String, Long>()
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, quota * 1000, start, end)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, quota, start, end)
+        )
+
+        suspend fun charge(amount: Long, scope: String) {
+            accounting.sendRequestNoUnwrap(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = amount,
+                    isDelta = false,
+                    scope,
+                )
+            )
+
+            recordedUsage[scope] = amount
+
+            val combinedUsage = recordedUsage.values.sum()
+
+            val maxUsable = accounting.sendRequest(
+                AccountingRequest.MaxUsable(
+                    project.idCard,
+                    product,
+                )
+            )
+
+            val expectedMaxUsable = max(0, quota - combinedUsage)
+            assertEquals(expectedMaxUsable, maxUsable, "during charge of $amount")
+
+            val localWallet = accounting.sendRequest(
+                AccountingRequest.BrowseWallets(
+                    project.idCard
+                )
+            ).find { it.paysFor.toId() == product }!!
+
+            assertEquals(combinedUsage, localWallet.localUsage)
+
+            val walletInParent = accounting
+                .sendRequest(
+                    AccountingRequest.BrowseWallets(
+                        provider.idCard,
+                        includeChildren = true,
+                    )
+                )
+                .find { it.paysFor.toId() == product }!!
+                .children!!
+                .find { it.child.projectId == project.projectId }!!
+                .group
+
+            assertEquals(min(quota, combinedUsage), walletInParent.usage)
+
+            accounting.sendRequest(
+                AccountingRequest.DebugState(IdCard.System)
+            ).also {
+                println("# C($amount, $scope)")
+                println()
+                println("```mermaid")
+                println(it)
+                println("```")
+                println()
+            }
+        }
+
+        // Ensure that we handle being above the quota correctly
+        charge(0, "2")
+        charge(10, "1")
+
+        charge(1000, "2")
+        charge(10, "1")
+
+        charge(100, "2")
+        charge(10, "1")
     }
 
     private suspend fun TestContext.runSimulation(maxTimeToRun: Long, capacityBased: Boolean) {
