@@ -127,5 +127,10 @@ sealed class AccountingRequest<Resp> {
         val since: Long,
         val handler: suspend (InternalWallet) -> Unit,
     ) : AccountingRequest<Unit>()
+
+    data class DebugState(
+        override val idCard: IdCard,
+        val roots: List<Int>? = null,
+    ) : AccountingRequest<String>()
 }
 

@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import org.slf4j.Logger
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.max
@@ -203,7 +204,15 @@ class AccountingSystem(
                                         isActiveProcessor.set(false)
                                         Response.ok(Unit)
                                     }
+
                                     is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
+                                    is AccountingRequest.DebugState -> {
+                                        if (msg.idCard != IdCard.System) {
+                                            Response.error(HttpStatusCode.Forbidden, "Forbidden")
+                                        } else {
+                                            Response.ok(produceMermaidGraph(msg.roots))
+                                        }
+                                    }
                                 }
                             } catch (e: Throwable) {
                                 Response.error(HttpStatusCode.InternalServerError, e.toReadableStacktrace().toString())
@@ -858,7 +867,10 @@ class AccountingSystem(
         val allocationGroup = internalWallet.allocationsByParent[internalAllocation.parentWallet]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown allocation group (bad internal state?)")
         val parentWallet = walletsById[internalAllocation.parentWallet]
-            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to update this allocation (no parent).")
+            ?: return Response.error(
+                HttpStatusCode.Forbidden,
+                "You are not allowed to update this allocation (no parent)."
+            )
         val parentOwner = ownersById[parentWallet.ownedBy]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown parent owner (bad internal state?)")
 
@@ -1279,7 +1291,252 @@ class AccountingSystem(
         }
     }
 
+    private fun produceMermaidGraph(roots: List<Int>? = null): String {
+        val relevantWallets = HashSet<Int>()
+        if (roots == null) {
+            relevantWallets.addAll(walletsById.keys)
+        } else {
+            for (root in roots) {
+                relevantWallets.addAll(walletsById[root]?.generateLocalWallets()?.toSet() ?: emptySet())
+            }
+        }
+
+        val now = Time.now()
+
+        return mermaid outer@{
+            node("W0", "Root")
+            for (walletId in relevantWallets) {
+                val wallet = walletsById[walletId] ?: continue
+
+                subgraph("W${walletId}") {
+                    node("W${walletId}Info", buildString {
+                        append("<b>Info</b><br>")
+                        append("lU: ")
+                        append(wallet.localUsage)
+                        append("<br>")
+
+                        append("lR: ")
+                        append(wallet.localRetiredUsage)
+                        append("<br>")
+
+                        append("eU: ")
+                        append(wallet.excessUsage)
+                        append("<br>")
+
+                        append("tA: ")
+                        append(wallet.totalAllocated)
+                        append("<br>")
+
+                        if (wallet.childrenUsage.isNotEmpty()) {
+                            append("<br>children:<br>")
+                            for ((childId, usage) in wallet.childrenUsage) {
+                                if (childId !in relevantWallets) continue
+                                append("+ W")
+                                append(childId)
+                                append("=")
+                                append(usage)
+
+                                val retired = wallet.childrenRetiredUsage[childId]
+                                if (retired != null) {
+                                    append(" R=${retired}")
+                                }
+                                append("<br>")
+                            }
+                        }
+                    }, style = "text-align:left")
+                    for ((parent, group) in wallet.allocationsByParent) {
+                        val groupGraph = subgraph("W${wallet.id}W${parent}") {
+                            node("W${wallet.id}W${parent}Info", buildString {
+                                append("<b>Info</b><br>")
+                                append("P : $parent ")
+                                append("<br>tU: ")
+                                append(group.treeUsage)
+
+                                append("<br>tR: ")
+                                append(group.retiredTreeUsage)
+
+                                append("<br>pB: ")
+                                append(group.preferredBalance(now))
+                            }, style = "text-align:left")
+                            for ((allocId, active) in group.allocationSet) {
+                                val alloc = allocations.getValue(allocId)
+                                node("A$allocId", "A${allocId} r/q: ${alloc.retiredUsage} ${alloc.quota} (A=${active})")
+                            }
+                        }
+
+                        with(this@outer) {
+                            groupGraph.linkTo("W${parent}")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     companion object : Loggable {
         override val log: Logger = logger()
     }
 }
+
+class MermaidGraphBuilder(val id: String, val title: String?) {
+    private val nodes = ArrayList<Node>()
+    private val links = ArrayList<Link>()
+    private val subgraphs = ArrayList<MermaidGraphBuilder>()
+
+    fun node(id: String, title: String = id, shape: NodeShape = NodeShape.ROUND, style: String? = null): String {
+        nodes.add(Node(id, title, shape, style))
+        return id
+    }
+
+    fun subgraph(id: String, title: String = id, builder: MermaidGraphBuilder.() -> Unit): String {
+        val graph = MermaidGraphBuilder(id, title)
+        graph.builder()
+        subgraphs.add(graph)
+        return id
+    }
+
+    fun String.linkTo(
+        destination: String,
+        text: String? = null,
+        destinationShape: ArrowShape? = ArrowShape.ARROW,
+        sourceShape: ArrowShape? = null,
+        lineType: LineType = LineType.NORMAL,
+    ) {
+        links.add(
+            Link(
+                this,
+                destination,
+                text,
+                lineType,
+                sourceShape,
+                destinationShape
+            )
+        )
+    }
+
+    fun build(root: Boolean = true): String {
+        val content = buildString {
+            for (node in nodes) {
+                append(node.id)
+                append(node.shape.prefix)
+                append('"')
+                append(node.title)
+                append('"')
+                append(node.shape.suffix)
+                appendLine()
+                if (node.style != null) {
+                    append("style ")
+                    append(node.id)
+                    append(" ")
+                    append(node.style)
+                    appendLine()
+                }
+            }
+
+            for (link in links) {
+                append(link.source)
+                if (link.lineType == LineType.INVISIBLE) {
+                    append(link.lineType.withoutArrow)
+                } else if (link.sourceShape == null && link.destinationShape == null) {
+                    append(link.lineType.withoutArrow)
+                } else {
+                    if (link.sourceShape != null) append(link.sourceShape.left)
+                    append(link.lineType.withArrow)
+                    if (link.destinationShape != null) append(link.destinationShape.right)
+                }
+
+                if (link.text != null) {
+                    append("|")
+                    append('"')
+                    append(link.text)
+                    append('"')
+                    append("|")
+                }
+
+                append(link.destination)
+                appendLine()
+            }
+        }
+
+        return buildString {
+            if (root) {
+                appendLine("%%{init: {'themeVariables': { 'fontFamily': 'Monospace'}}}%%")
+                append("flowchart TD")
+            } else {
+                append("subgraph")
+                append(" ")
+                append(id)
+                if (title != null) {
+                    append('[')
+                    append('"')
+                    append(title)
+                    append('"')
+                    append(']')
+                }
+            }
+
+            appendLine()
+
+            append(content.prependIndent("    "))
+
+            for (graph in subgraphs) {
+                val mermaid = graph.build(root = false)
+                appendLine()
+                append(mermaid.prependIndent("    "))
+                appendLine("end")
+            }
+        }
+    }
+
+    data class Node(
+        val id: String,
+        val title: String,
+        val shape: NodeShape,
+        val style: String?,
+    )
+
+    data class Link(
+        val source: String,
+        val destination: String,
+        val text: String?,
+        val lineType: LineType,
+        val sourceShape: ArrowShape?,
+        val destinationShape: ArrowShape?,
+    )
+
+    enum class NodeShape(val prefix: String, val suffix: String) {
+        ROUND("(", ")"),
+        PILL("([", "])"),
+        SUBROUTINE_BOX("[[", "]]"),
+        CYLINDER("[(", ")]"),
+        CIRCLE("((", "))"),
+        ASYMMETRIC_SHAPE(">", "]"),
+        RHOMBUS("{", "}"),
+        HEXAGON("{{", "}}"),
+        PARALLELOGRAM("[/", "/]"),
+        PARALLELOGRAM_ALT("[\\", "\\]"),
+        TRAPEZOID("[/", "\\]"),
+        TRAPEZOID_ALT("[\\", "//]"),
+        DOUBLE_CIRCLE("(((", ")))"),
+    }
+
+    enum class LineType(val withArrow: String, val withoutArrow: String) {
+        NORMAL("--", "---"),
+        THICK("==", "==="),
+        INVISIBLE("~~", "~~~"),
+        DOTTED("-.-", "-.-")
+    }
+
+    enum class ArrowShape(val left: String, val right: String) {
+        ARROW("<", ">"),
+        CIRCLE("o", "o"),
+        CROSS("x", "x"),
+    }
+}
+
+fun mermaid(builder: MermaidGraphBuilder.() -> Unit): String {
+    val graph = MermaidGraphBuilder("root", null)
+    graph.builder()
+    return graph.build(root = true)
+}
+

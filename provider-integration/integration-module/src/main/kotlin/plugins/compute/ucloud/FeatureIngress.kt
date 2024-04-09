@@ -1,7 +1,7 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.accounting.api.ErrorCode
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
@@ -9,10 +9,8 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
-import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.providerId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
@@ -21,7 +19,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
-import dk.sdu.cloud.utils.reportConcurrentUse
+import dk.sdu.cloud.utils.reportUsage
 import dk.sdu.cloud.utils.walletOwnerFromOwnerString
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,7 +28,7 @@ class FeatureIngress(
     private val domainSuffix: String,
     private val db: DBContext,
     private val k8: K8Dependencies,
-    private val category: String,
+    private val product: ProductReferenceV2,
 ) : JobFeature {
     private suspend fun accountNow(
         owner: String,
@@ -47,10 +45,11 @@ class FeatureIngress(
             count
         }
 
-        return reportConcurrentUse(
+        return reportUsage(
             walletOwnerFromOwnerString(owner),
-            ProductCategoryIdV2(category, providerId),
-            amountUsed
+            product,
+            amountUsed,
+            minutesUsed = null,
         )
     }
 
@@ -116,7 +115,6 @@ class FeatureIngress(
 
                 try {
                     session.prepareStatement(
-                        //language=postgresql
                         "insert into ucloud_compute_ingresses (id, domain, owner) values (:id, :domain, :owner)"
                     ).useAndInvokeAndDiscard(
                         prepare = {
@@ -151,7 +149,6 @@ class FeatureIngress(
         db.withSession { session ->
             ingresses.items.forEach { ingress ->
                 session.prepareStatement(
-                    //language=postgresql
                     "delete from ucloud_compute_bound_ingress where ingress_id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -160,7 +157,6 @@ class FeatureIngress(
                 )
 
                 session.prepareStatement(
-                    //language=postgresql
                     "delete from ucloud_compute_ingresses where id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -187,7 +183,6 @@ class FeatureIngress(
         db.withSession { session ->
             for (ingress in ingressPoints) {
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_ingress (ingress_id, job_id) 
                         values (:ingressId, :jobId) 
@@ -206,7 +201,6 @@ class FeatureIngress(
     override suspend fun JobManagement.onCleanup(jobId: String) {
         db.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 "delete from ucloud_compute_bound_ingress where job_id = :jobId"
             ).useAndInvokeAndDiscard(
                 prepare = {
@@ -216,33 +210,10 @@ class FeatureIngress(
         }
     }
 
-    suspend fun retrieveJobIdByDomainOrNull(domain: String): String? {
-        return db.withSession { session ->
-            val rows = ArrayList<String>()
-            session
-                .prepareStatement(
-                    //language=postgresql
-                    """
-                        select job_id
-                        from ucloud_compute_bound_ingress b join ucloud_compute_ingresses i on b.ingress_id = i.id
-                        where i.domain = :domain
-                        limit 1
-                    """
-                )
-                .useAndInvoke(
-                    prepare = { bindString("domain", domain) },
-                    readRow = { row -> rows.add(row.getString(0)!!) }
-                )
-
-            rows.singleOrNull()
-        }
-    }
-
     suspend fun retrieveDomainsByJobId(jobId: String): List<String> {
         return db.withSession { session ->
             val rows = ArrayList<String>()
             session.prepareStatement(
-                //language=postgresql
                 """
                     select domain
                     from ucloud_compute_bound_ingress b join ucloud_compute_ingresses i on b.ingress_id = i.id
@@ -277,35 +248,8 @@ class FeatureIngress(
                             from ucloud_compute_ingresses
                         """
                     ).useAndInvoke(readRow = { row -> owners.add(row.getString(0)!!) })
-
-                    val containers = runtime.list()
-                    val resolvedJobs = containers.mapNotNull { jobCache.findJob(it.jobId) }
-
                     owners.forEachGraal { owner ->
-                        if (!accountNow(owner, session)) {
-                            val ingressesToTerminateBecauseOf = ArrayList<String>()
-                            session.prepareStatement(
-                                """
-                                    select id
-                                    from ucloud_compute_ingresses
-                                    where owner = :owner
-                                """
-                            ).useAndInvoke(
-                                prepare = { bindString("owner", owner) },
-                                readRow = { row -> ingressesToTerminateBecauseOf.add(row.getString(0)!!) },
-                            )
-
-                            val jobsToTerminate = resolvedJobs
-                                .asSequence()
-                                .filter { (it.owner.project ?: it.owner.createdBy) == owner }
-                                .filter { j -> j.ingressPoints.any { it.id in ingressesToTerminateBecauseOf } }
-                                .toList()
-
-                            jobsToTerminate.forEachGraal { job ->
-                                k8.addStatus(job.id, "Terminating job because of insufficient funds (public link)")
-                                containers.filter { it.jobId == job.id }.forEach { it.cancel() }
-                            }
-                        }
+                        accountNow(owner, session)
                     }
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while accounting public links: ${ex.toReadableStacktrace()}")
@@ -323,7 +267,6 @@ class FeatureIngress(
         val idsWithMissingOwner = ArrayList<String>()
         ctx.withSession { session ->
             session.prepareStatement(
-                //language=postgresql
                 """
                     select id
                     from ucloud_compute_ingresses
@@ -344,7 +287,6 @@ class FeatureIngress(
 
             ctx.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         with data as (
                             select unnest(:ids) as id, unnest(:owners) as owner

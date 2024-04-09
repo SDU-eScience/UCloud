@@ -308,6 +308,10 @@ sealed class ProductCost {
 
         data class ConversionResult(val wholePart: Long, val remainingInMilliseconds: Long)
 
+        fun toMillis(amount: Long): Long {
+            return amount * minutes * 60_000L
+        }
+
         fun convertFromMillis(millis: Long): ConversionResult {
             val targetInMillis = minutes * 1_000 * 60
             val wholePart = millis / targetInMillis

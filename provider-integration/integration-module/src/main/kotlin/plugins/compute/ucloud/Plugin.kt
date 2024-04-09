@@ -5,6 +5,7 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.accounting.api.AccountingFrequency
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
@@ -601,21 +602,48 @@ class UCloudIngressPlugin : IngressPlugin {
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
-        val category = productAllocation.map { it.category }.toSet().singleOrNull()
+        val allocatedProduct = productAllocation.singleOrNull()
             ?: run {
                 val allocatedCategories = productAllocation.map { it.category }.toSet()
-                error("UCloud ingress plugin only supports running with a single category allocated " +
+                error("UCloud ingress plugin only supports running with a single product allocated " +
                         "to it but was allocated $allocatedCategories")
             }
 
-        val cost = config.products.findCategory(category)!!.cost
+        val productRef = ProductReferenceV2(allocatedProduct.id, allocatedProduct.category, config.core.providerId)
+
+        val cost = config.products.findCategory(productRef.category)!!.cost
         if (cost is ProductCost.Money && cost.interval != null) {
             error("The UCloud ingress plugin does not currently support DKK/interval as a pricing model")
         }
 
-        service = FeatureIngress(pluginConfig.domainPrefix, pluginConfig.domainSuffix, dbConnection, compute.k8, category)
+        service = FeatureIngress(
+            pluginConfig.domainPrefix,
+            pluginConfig.domainSuffix,
+            dbConnection,
+            compute.k8,
+            productRef
+        )
 
         compute.jobManagement.register(service)
+
+        for (alloc in productAllocationResolved) {
+            val p = config.products.allCategories.find { it.category.toId() == alloc.category.toId() } ?: continue
+            when (val cost = p.cost) {
+                ProductCost.Free -> {
+                    // OK
+                }
+                is ProductCost.Money -> {
+                    if (cost.interval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+                is ProductCost.Resource -> {
+                    if (cost.accountingInterval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+            }
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<IngressSupport> {
@@ -657,18 +685,24 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
         if (!config.shouldRunServerCode()) return
         if (productAllocation.isEmpty()) return
 
-        val category = productAllocation.map { it.category }.toSet().singleOrNull()
-            ?: error("UCloud ingress plugin only supports running with a single category allocated to it")
+        val allocatedProduct = productAllocation.singleOrNull()
+            ?: run {
+                val allocatedCategories = productAllocation.map { it.category }.toSet()
+                error("UCloud IP plugin only supports running with a single product allocated " +
+                        "to it but was allocated $allocatedCategories")
+            }
+
+        val productRef = ProductReferenceV2(allocatedProduct.id, allocatedProduct.category, config.core.providerId)
+
+        val cost = config.products.findCategory(productRef.category)!!.cost
+        if (cost is ProductCost.Money && cost.interval != null) {
+            error("The UCloud ingress plugin does not currently support DKK/interval as a pricing model")
+        }
 
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
-        val cost = config.products.findCategory(category)!!.cost
-        if (cost is ProductCost.Money && cost.interval != null) {
-            error("The UCloud IP plugin does not currently support DKK/interval as a pricing model")
-        }
-
-        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface, category)
+        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface, productRef)
         firewall = compute.jobManagement.featureOrNull() ?: error("No firewall feature detected")
         pluginConfig.gatewayCidr?.let { firewall.gatewayCidr.add(it) }
 

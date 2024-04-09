@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.v2.FindByProjectId
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.*
@@ -100,7 +101,7 @@ abstract class ResourceService<
     abstract fun providerApi(comms: ProviderComms): ResourceProviderApi<Res, Spec, Update, Flags, Status, Prod, Support>
 
     protected val proxy = ProviderProxy<Comms, Prod, Support, Res>(providers, support)
-    protected val payment = PaymentService(db, serviceClient)
+    protected val payment = PaymentService(serviceClient)
 
     @Suppress("SqlResolve")
     override suspend fun browse(

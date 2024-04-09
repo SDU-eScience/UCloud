@@ -611,7 +611,6 @@ fun main(args: Array<String>) {
 
             // Other service commonly used by plugins
             // -------------------------------------------------------------------------------------------------------
-            initAccountingSystem()
             ActivitySystem.init()
 
             // Configuration debug (before initializing any plugins, which might crash because of config)

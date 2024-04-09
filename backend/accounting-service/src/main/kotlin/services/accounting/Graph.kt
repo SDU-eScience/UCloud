@@ -144,6 +144,56 @@ class Graph(
         return actualFlow
     }
 
+    fun toMermaid(): String {
+        return mermaid {
+            val hasFakeNodes = index.size < vertexCount
+            val graphRoot = indexInv.getValue(0)
+            if (hasFakeNodes) {
+                for (idx in 0 until vertexCount / 2) {
+                    if (idx == graphRoot) continue
+                    idx.toString().linkTo(((vertexCount / 2) + idx).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+
+                for (idx in 0 until (vertexCount / 2) - 1) {
+                    idx.toString().linkTo((idx + 1).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+            } else {
+                for (idx in 0 until vertexCount - 1) {
+                    idx.toString().linkTo((idx + 1).toString(), lineType = MermaidGraphBuilder.LineType.INVISIBLE)
+                }
+            }
+
+            for (idx in 0 until vertexCount) {
+                val walletId = index.getOrNull(idx)
+                val fakeRootId = index.getOrNull(idx - (vertexCount / 2))
+                if (walletId == null && fakeRootId == 0) {
+                    continue
+                }
+                node(
+                    idx.toString(),
+                    if (walletId == 0) {
+                        "Root"
+                    } else if (walletId == null) {
+                        "Fake-root $fakeRootId"
+                    } else {
+                        "Wallet $walletId"
+                    }
+                )
+
+                for ((adjIndex, edge) in adjacent[idx].withIndex()) {
+                    val isOriginal = original[idx][adjIndex]
+                    if (!isOriginal && edge == 0L) continue
+                    val lineType = if (isOriginal) {
+                        MermaidGraphBuilder.LineType.NORMAL
+                    } else {
+                        MermaidGraphBuilder.LineType.DOTTED
+                    }
+                    idx.toString().linkTo(adjIndex.toString(), edge.toString(), lineType = lineType) //  + " (C=0x${cost[idx][adjIndex].toULong().toString(16)})")
+                }
+            }
+        }
+    }
+
     companion object {
         fun create(vertexCount: Int): Graph {
             val adjacent = Array(vertexCount) { LongArray(vertexCount) }

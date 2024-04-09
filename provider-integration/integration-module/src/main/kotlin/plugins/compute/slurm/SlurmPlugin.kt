@@ -747,7 +747,7 @@ class SlurmPlugin : ComputePlugin {
                 }
 
                 if (ucloudId != null) {
-                    reportUsage(
+                    reportRawUsage(
                         walletOwnerFromOwnerString(ucloudId),
                         ProductCategoryIdV2(category.name, providerId),
                         workspaceUsage.usage
