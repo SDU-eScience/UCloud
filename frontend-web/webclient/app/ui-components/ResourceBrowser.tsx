@@ -3135,6 +3135,10 @@ export class ResourceBrowser<T> {
                 margin-right: -308px;
             }
 
+            ${browserClass.dot}:has(header[shows-dropdown] input.search-field[data-hidden]) .header-first-row .location {
+                margin-right: -256px;
+            }
+
             ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
                 margin-right: -42px;
             }

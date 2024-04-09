@@ -986,6 +986,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             driveIcon.style.cursor = "pointer";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
+                            browser.header.setAttribute("shows-dropdown", "");
+
                             browser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
