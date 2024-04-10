@@ -152,8 +152,32 @@ function createResumeableFolder(
                 const fileId = frame.getUint32(1);
 
                 switch (messageType as FolderUploadMessageType) {
+                    case FolderUploadMessageType.CHECKSUM: {
+                        const theFile = files.get(fileId);
+                        const serverChecksumBuffer = frame.buffer.slice(5);
+
+                        const serverChecksumArray = Array.from(new Uint8Array(serverChecksumBuffer));
+                        const serverChecksum = serverChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+                       
+                        if (theFile) {
+                            // NOTE(Brian): Seems like streaming input is not supported by the Web Crypto API,
+                            // meaning that we have to load the entire file into memory before making the digest.
+                            // I haven't been able to find any suitable 3rd party libraries either.
+                            const wholeFile = await theFile.fileObject.arrayBuffer();
+                            const digest = await crypto.subtle.digest('SHA-1', wholeFile);
+                            const clientChecksumArray = Array.from(new Uint8Array(digest)); // convert buffer to byte array
+                            const clientChecksum = clientChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+                            if (clientChecksum === serverChecksum) {
+                                upload.progressInBytes += files.get(fileId)?.size ?? 0;
+                                upload.filesCompleted++;
+                                uploadTrackProgress(upload);
+                                break;
+                            }
+                            // NOTE(Brian): Delibirate fallthrough, in case the checksums does not match.
+                        }
+                    }
                     case FolderUploadMessageType.OK: {
-                        const key = fileId;
                         const theFile = files.get(fileId);
 
                         if (theFile) {
@@ -161,7 +185,7 @@ function createResumeableFolder(
                             const reader = new ChunkedFileReader(resolvedFile.fileObject);
 
                             while (!reader.isEof() && !upload.terminationRequested) {
-                                const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, key);
+                                const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, fileId);
                                 await sendWsChunk(uploadSocket, message);
 
                                 upload.progressInBytes += message.byteLength;
@@ -184,10 +208,6 @@ function createResumeableFolder(
 
                         break;
                     }
-                    case FolderUploadMessageType.CHECKSUM: {
-                        console.log(`Checksum for file ${fileId}: ...`);
-                        break;
-                    }
                     case FolderUploadMessageType.SKIP: {
                         // Skip this file, since existing version of file appears to be identical
                         upload.progressInBytes += files.get(fileId)?.size ?? 0;
@@ -195,6 +215,12 @@ function createResumeableFolder(
                         uploadTrackProgress(upload);
                         break;
                     }
+                }
+
+                if (upload.progressInBytes >= totalSize) {
+                    upload.state = UploadState.DONE;
+                    uploadSocket.close()
+                    resolve(true);
                 }
             });
 
@@ -226,7 +252,6 @@ function createResumeableFolder(
     }
 
     function _resolveFile(file: PackagedFile, onComplete: (PackagedFile) => void) {
-        console.log(`filesUploading: ${filesUploading}`);
         if (filesUploading < MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
             filesUploading++;
             onComplete(file);
