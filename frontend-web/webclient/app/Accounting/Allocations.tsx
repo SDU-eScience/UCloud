@@ -8,12 +8,12 @@ import {
     Icon,
     Input, Label,
     Link,
-    MainContainer,
-    ProgressBarWithLabel, Select, TextArea,
+    MainContainer, Relative,
+    Select, TextArea,
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {periodsOverlap, ProductType, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, WalletOwner} from "@/Accounting";
+import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
 import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
 import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
@@ -46,6 +46,7 @@ import Avatar from "@/AvataaarLib/avatar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
+import {NewAndImprovedProgress} from "@/ui-components/Progress";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -602,11 +603,19 @@ function stateReducer(state: State, action: UIAction): State {
                     usageAndQuota: {
                         usage: usage?.[0]?.normalizedBalance ?? 0,
                         quota: quota?.[0]?.normalizedBalance ?? 0,
-                        maxUsable: usage?.[0]?.normalizedBalance ?? 0,
+                        maxUsable: 0,
                         unit: usage?.[0]?.unit ?? ""
                     },
                     allocations: [],
                 };
+
+                // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
+                // might not be coming from us. The backend doesn't tell us this since it would leak information we do
+                // not have access to.
+                //
+                // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
+                // that we can use the entire quota (even if we cannot).
+                newGroup.usageAndQuota.maxUsable = newGroup.usageAndQuota.quota - newGroup.usageAndQuota.usage;
 
                 for (const alloc of childGroup.group.allocations) {
                     newGroup.allocations.push({
@@ -632,24 +641,20 @@ function stateReducer(state: State, action: UIAction): State {
                     maxUsable: number
                 }[] = [];
                 for (const group of recipient.groups) {
-                    for (const alloc of group.allocations) {
-                        if (alloc.note && alloc.note.rowShouldBeGreyedOut) continue;
+                    const existing = uqBuilder.find(it =>
+                        it.type === group.category.productType && it.unit === group.usageAndQuota.unit);
 
-                        const existing = uqBuilder.find(it =>
-                            it.type === group.category.productType && it.unit === group.usageAndQuota.unit);
-
-                        if (existing) {
-                            existing.usage += group.usageAndQuota.usage;
-                            existing.quota += group.usageAndQuota.quota;
-                        } else {
-                            uqBuilder.push({
-                                type: group.category.productType,
-                                usage: group.usageAndQuota.usage,
-                                quota: group.usageAndQuota.quota,
-                                unit: group.usageAndQuota.unit,
-                                maxUsable: group.usageAndQuota.maxUsable
-                            });
-                        }
+                    if (existing) {
+                        existing.usage += group.usageAndQuota.usage;
+                        existing.quota += group.usageAndQuota.quota;
+                    } else {
+                        uqBuilder.push({
+                            type: group.category.productType,
+                            usage: group.usageAndQuota.usage,
+                            quota: group.usageAndQuota.quota,
+                            unit: group.usageAndQuota.unit,
+                            maxUsable: group.usageAndQuota.maxUsable
+                        });
                     }
                 }
 
@@ -680,8 +685,7 @@ type UIEvent =
     | { type: "Init" }
     ;
 
-function useStateReducerMiddleware(doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
-    const didCancel = useDidUnmount();
+function useStateReducerMiddleware(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
     return useCallback(async (event: UIEvent) => {
         function dispatch(ev: UIAction) {
             if (didCancel.current === true) return;
@@ -801,10 +805,11 @@ const giftClass = injectStyle("gift", k => `
 // User-interface
 // =====================================================================================================================
 const Allocations: React.FunctionComponent = () => {
+    const didCancel = useDidUnmount();
     const projectId = useProjectId();
     const navigate = useNavigate();
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
-    const dispatchEvent = useStateReducerMiddleware(rawDispatch);
+    const dispatchEvent = useStateReducerMiddleware(didCancel, rawDispatch);
     const avatars = useAvatars();
     const searchTimeout = useRef<number>(0);
     const allocationTree = useRef<TreeApi>(null);
@@ -936,6 +941,7 @@ const Allocations: React.FunctionComponent = () => {
     }, []);
 
     const onEditKey = useCallback(async (ev: React.KeyboardEvent) => {
+        ev.stopPropagation();
         const elem = ev.target as HTMLInputElement;
         const idx = parseInt(elem.getAttribute("data-idx") ?? "");
         const gidx = parseInt(elem.getAttribute("data-gidx") ?? "");
@@ -1409,7 +1415,8 @@ const Allocations: React.FunctionComponent = () => {
                                                     {g.resources.map((r, idx) => {
                                                         const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
                                                         if (!pc) return null;
-                                                        return <li key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
+                                                        return <li
+                                                            key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
                                                     })}
                                                 </ul>
                                             </td>
@@ -1550,16 +1557,7 @@ const Allocations: React.FunctionComponent = () => {
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                    {(uq.quota - uq.usage) == uq.maxUsable ? null : <TooltipV2
-                                        tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
-                                    >
-                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
-                                    </TooltipV2>}
-                                    <ProgressBarWithLabel
-                                        value={(uq.usage / uq.quota) * 100}
-                                        text={progressText(type, uq)}
-                                        width={`${baseProgress}px`}
-                                    />
+                                    <ProgressBar uq={uq} type={type}/>
                                 </React.Fragment>
                             )}
                         </Flex>}
@@ -1573,17 +1571,7 @@ const Allocations: React.FunctionComponent = () => {
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    {wallet.usageAndQuota.maxUsable == (wallet.usageAndQuota.quota - wallet.usageAndQuota.usage) ? null :
-                                        <TooltipV2
-                                            tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
-                                        >
-                                            <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
-                                        </TooltipV2>}
-                                    <ProgressBarWithLabel
-                                        value={(wallet.usageAndQuota.usage / wallet.usageAndQuota.quota) * 100}
-                                        text={progressText(type, wallet.usageAndQuota)}
-                                        width={`${baseProgress}px`}
-                                    />
+                                    <ProgressBar uq={wallet.usageAndQuota} type={type}/>
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1619,7 +1607,7 @@ const Allocations: React.FunctionComponent = () => {
                                                 </>}
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
-                                            {alloc.note && <>
+                                                {alloc.note && <>
                                                     <TooltipV2 tooltip={alloc.note.text}>
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
                                                     </TooltipV2>
@@ -1699,13 +1687,10 @@ const Allocations: React.FunctionComponent = () => {
                                     </Link>
                                 }
 
-                                {recipient.usageAndQuota.map((uq, idx) =>
-                                    <ProgressBarWithLabel
-                                        key={idx}
-                                        value={(uq.usage / uq.quota) * 100}
-                                        text={progressText(uq.type, uq)}
-                                        width={`${baseProgress}px`}
-                                    />
+                                {recipient.usageAndQuota.map((uq, idx) => {
+                                        if (idx > 2) return null;
+                                        return <ProgressBar key={idx} uq={uq} type={uq.type}/>;
+                                    }
                                 )}
                             </div>}
                         >
@@ -1720,11 +1705,7 @@ const Allocations: React.FunctionComponent = () => {
                                         </Flex>
                                     </Flex>}
                                     right={
-                                        <ProgressBarWithLabel
-                                            value={(g.usageAndQuota.usage / g.usageAndQuota.quota) * 100}
-                                            text={progressText(g.category.productType, g.usageAndQuota)}
-                                            width={`${baseProgress}px`}
-                                        />
+                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType}/>
                                     }
                                 >
                                     {g.allocations
@@ -1732,7 +1713,7 @@ const Allocations: React.FunctionComponent = () => {
                                             <TreeNode
                                                 key={idx}
                                                 className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                data-ridx={recipientIdx} data-idx={idx}
+                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                                 left={<Flex>
                                                     <Flex width={"200px"}>
                                                         <Icon name={"heroBanknotes"} mr={4}/>
@@ -1776,13 +1757,14 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Flex gap={"4px"} width={"250px"}>
                                                             <Input
                                                                 height={"24px"}
-                                                                defaultValue={alloc.quota}
+                                                                defaultValue={Accounting.explainUnit(g.category).priceFactor * alloc.quota}
                                                                 autoFocus
                                                                 onKeyDown={onEditKey}
                                                                 onBlur={onEditBlur}
                                                                 data-ridx={recipientIdx} data-idx={idx}
                                                                 data-gidx={gidx}
                                                             />
+                                                            {Accounting.explainUnit(g.category).name}
                                                         </Flex>
                                                         : <>
                                                             {Accounting.balanceToString(g.category, alloc.quota)}
@@ -1805,6 +1787,19 @@ const Allocations: React.FunctionComponent = () => {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
+
+function ProgressBar({uq, type}: {
+    uq: UsageAndQuota,
+    type: ProductType,
+}) {
+    return <NewAndImprovedProgress
+        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
+        label={progressText(type, uq)}
+        percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
+        withWarning={(uq.maxUsable + uq.usage) < uq.quota}
+    />;
+}
+
 const productTypesByPriority: ProductType[] = [
     "COMPUTE",
     "STORAGE",
@@ -1822,9 +1817,11 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
     text += " / ";
     text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota, {precision: 0});
 
-    text += " (";
-    text += Math.round((uq.usage / uq.quota) * 100);
-    text += "%)";
+    if (uq.quota !== 0) {
+        text += " (";
+        text += Math.round((uq.usage / uq.quota) * 100);
+        text += "%)";
+    }
     return text;
 }
 
@@ -1874,6 +1871,8 @@ const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
     
     ${k} .sub {
         position: absolute;
+        left: -15px;
+        top: -10px;
     }
     
     ${k} .sub > svg {
@@ -1910,10 +1909,12 @@ const SmallIconButton: React.FunctionComponent<{
     >
         <Icon name={props.icon} hoverColor={"primaryContrast"}/>
         {props.subIcon &&
-            <div className={"sub"}>
-                <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                      color2={props.subColor2}/>
-            </div>
+            <Relative>
+                <div className={"sub"}>
+                    <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
+                          color2={props.subColor2}/>
+                </div>
+            </Relative>
         }
     </Button>;
 };

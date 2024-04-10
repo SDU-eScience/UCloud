@@ -79,11 +79,6 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.initialize() {
         ctx = this
 
-        val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
-        if (poorlyConfiguredProduct != null) {
-            error("Products in '${poorlyConfiguredProduct.category.name}' must have allowSubAllocations: false")
-        }
-
         val matchers = ArrayList<VerifiedConfig.Plugins.ProductMatcher>()
         for (constraint in pluginConfig.constraints) {
             val matcher = handleVerificationResultStrict(
