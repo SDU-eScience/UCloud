@@ -93,7 +93,6 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
-        portal.innerHTML = "";
         contentWrapper.style.display = "none";
     }
 
