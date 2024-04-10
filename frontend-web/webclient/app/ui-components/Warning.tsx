@@ -21,7 +21,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
 
     return (
         <ErrorWrapper
-            borderColor="yellow"
+            borderColor="warningMain"
             width={props.width}
         >
             <Flex alignItems="center">
