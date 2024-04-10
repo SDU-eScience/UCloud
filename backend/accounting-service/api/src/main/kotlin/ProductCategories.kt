@@ -74,6 +74,8 @@ data class ProductCategory(
     fun isNotCapacityBased(): Boolean = periodicalFrequencies.contains(accountingFrequency)
     fun isCapacityBased() = !isNotCapacityBased()
     fun toId(): ProductCategoryIdV2 = ProductCategoryIdV2(name, provider)
+
+    override fun toString() = "$name / $provider"
 }
 
 fun ProductCategory.toBinary(allocator: BinaryAllocator): ProductCategoryB = with(allocator) {

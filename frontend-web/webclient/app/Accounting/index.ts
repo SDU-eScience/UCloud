@@ -637,80 +637,11 @@ export function walletOwnerEquals(a: WalletOwner, b: WalletOwner): boolean {
     }
 }
 
-export function translateBinaryProductType(t: AccountingB.ProductTypeB): ProductType {
-    switch (t) {
-        case AccountingB.ProductTypeB.STORAGE:
-            return "STORAGE";
-        case AccountingB.ProductTypeB.COMPUTE:
-            return "COMPUTE";
-        case AccountingB.ProductTypeB.LICENSE:
-            return "LICENSE";
-        case AccountingB.ProductTypeB.INGRESS:
-            return "INGRESS";
-        case AccountingB.ProductTypeB.NETWORK_IP:
-            return "NETWORK_IP";
-    }
-}
-
-export function translateBinaryFrequency(t: AccountingB.AccountingFrequencyB): AccountingFrequency {
-    switch (t) {
-        case AccountingB.AccountingFrequencyB.ONCE:
-            return "ONCE";
-        case AccountingB.AccountingFrequencyB.PERIODIC_MINUTE:
-            return "PERIODIC_MINUTE";
-        case AccountingB.AccountingFrequencyB.PERIODIC_HOUR:
-            return "PERIODIC_HOUR";
-        case AccountingB.AccountingFrequencyB.PERIODIC_DAY:
-            return "PERIODIC_DAY";
-    }
-}
-
-export function translateBinaryUnit(t: AccountingB.AccountingUnitB): AccountingUnit {
-    return {
-        name: t.name,
-        namePlural: t.namePlural,
-        displayFrequencySuffix: t.displayFrequencySuffix,
-        floatingPoint: t.floatingPoint
-    };
-}
-
-export function translateBinaryProductCategory(pc: AccountingB.ProductCategoryB): ProductCategoryV2 {
-    return {
-        name: pc.name,
-        provider: pc.provider,
-        productType: translateBinaryProductType(pc.productType),
-        accountingFrequency: translateBinaryFrequency(pc.accountingFrequency),
-        accountingUnit: translateBinaryUnit(pc.accountingUnit),
-        freeToUse: false
-    };
-}
-export function allocationIsValidNow(allocation: Allocation) {
-    const now = timestampUnixMs();
-    return now >= allocation.startDate && now <= allocation.endDate;
-}
-
 export function utcDate(ts: number): string {
     const d = new Date(ts);
     if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
 
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
-}
-
-export function utcDateAndTime(ts: number): string {
-    const d = new Date(ts);
-    if (ts >= Number.MAX_SAFE_INTEGER) return "31/12/9999";
-
-    let message = "";
-    message += d.getUTCDate().toString().padStart(2, '0');
-    message += "/";
-    message += (d.getUTCMonth() + 1).toString().padStart(2, '0');
-    message += "/";
-    message += d.getUTCFullYear();
-    message += " ";
-    message += d.getUTCHours().toString().padStart(2, '0');
-    message += ":";
-    message += d.getUTCMinutes().toString().padStart(2, '0');
-    return message;
 }
 
 export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
