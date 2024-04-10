@@ -1,8 +1,10 @@
 package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
@@ -33,16 +35,52 @@ class PaymentService(
     }
 
     suspend fun charge(payments: List<Payment>): List<ChargeResult> {
-        TODO()
+        val items = ArrayList<UsageReportItem>()
+        for (payment in payments) {
+            val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+            items.add(
+                UsageReportItem(
+                    isDeltaCharge = false,
+                    payment.owner,
+                    ProductCategoryIdV2(payment.product.category, payment.product.provider),
+                    balanceUsed,
+                    ChargeDescription(payment.chargeId)
+                )
+            )
+        }
+
+        val results = AccountingV2.reportUsage.call(
+            BulkRequest(items),
+            serviceClient
+        ).orNull()?.responses ?: Array(payments.size) { false }.toList()
+
+        return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
-        TODO()
+        return AccountingV2.checkProviderUsable.call(
+            BulkRequest(
+                payments.map { payment ->
+                    AccountingV2.CheckProviderUsable.RequestItem(
+                        payment.owner,
+                        ProductCategoryIdV2(payment.product.category, payment.product.provider)
+                    )
+                }
+            ),
+            serviceClient,
+        ).orThrow().responses.mapIndexed { index, response ->
+            val payment = payments[index]
+            val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+
+            if (response.maxUsable >= balanceUsed) ChargeResult.Charged
+            else ChargeResult.InsufficientFunds
+        }
     }
 
     private val productCache = ProductCache(db)
 
     private data class ErrorMessage(val error: String?)
+
     private val creditCheckCache = AsyncCache<Pair<WalletOwner, ProductCategoryIdV2>, ErrorMessage>(
         BackgroundScope.get(),
         timeToLiveMilliseconds = 60_000,

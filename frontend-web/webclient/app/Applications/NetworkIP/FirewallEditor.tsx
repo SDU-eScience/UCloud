@@ -109,6 +109,7 @@ export const FirewallEditor: React.FunctionComponent<{
                                 <TableCell>{row.protocol}</TableCell>
                                 <TableCell>
                                     <ConfirmationButton
+                                        type={"button"}
                                         color={"errorMain"}
                                         fullWidth
                                         icon={"close"}
