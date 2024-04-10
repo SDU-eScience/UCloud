@@ -39,6 +39,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
+const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -588,7 +589,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "textPrimary", color2: "textPrimary", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -655,7 +656,7 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({name: "heroArrowPath", color: "textPrimary", color2: "textPrimary", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -830,7 +831,10 @@ export class ResourceBrowser<T> {
 
         this.scrolling.append(...rows);
 
-        addThemeListener(this.resourceName, () => this.rerender());
+        addThemeListener(this.resourceName, () => {
+            this.rerender();
+            this.rerenderUtilityIcons();
+        });
         const path = this.initialPath;
         if (path !== undefined) {
             addProjectListener(this.resourceName, project => {
@@ -1166,6 +1170,17 @@ export class ResourceBrowser<T> {
         if (absY >= this.scrollingContainerTop &&
             absY <= this.scrollingContainerTop + this.scrollingContainerHeight) {
             element.style.display = "block";
+        }
+    }
+
+    rerenderUtilityIcons() {
+        const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
+        this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            .then(url => icon.src = url);
+        if (this.features.search) {
+            const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+                .then(url => searchIcon.src = url);
         }
     }
 
