@@ -441,8 +441,8 @@ html {
     --monospace: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
     --sansSerif: 'Inter', sans-serif;
     
-    --iconColor: var(--gray-80);
-    --iconColor2: var(--blue-60);
+    --iconColor: var(--textPrimary);
+    --iconColor2: var(--textPrimary);
     --FtIconColor: #f5f7f9;
     --FtIconColor2: #c9d3df;
     --FtFolderColor: #8393A7;
