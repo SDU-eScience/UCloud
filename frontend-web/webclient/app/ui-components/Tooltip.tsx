@@ -15,7 +15,6 @@ const TooltipContent = injectStyleSimple("tooltip-content", `
     border-radius: 8px;
     background: var(--infoDark);
     color: var(--infoContrast);
-    // border: 2px solid var(--textSecondary);
     position: fixed;
     z-index: 10000;
 `);

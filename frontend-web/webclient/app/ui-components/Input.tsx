@@ -51,7 +51,6 @@ export const InputClass = injectStyle("input", k => `
     ${k}:focus {
         outline: 0;
         border-color: var(--primaryMain);
-        // box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}::placeholder {

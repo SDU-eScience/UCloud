@@ -2934,7 +2934,6 @@ export class ResourceBrowser<T> {
                 z-index: 10000;
                 background-color: var(--primaryLight);
                 opacity: 20%;
-                // border: 2px solid var(--primaryDark);
                 display: none;
                 top: 0;
                 left: 0;

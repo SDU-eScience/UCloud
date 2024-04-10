@@ -410,10 +410,8 @@ html {
     --gray-60: #627288;
     --gray-70: #4F6178;
     --gray-80: #404D60;
-    // --gray-90: #2F3946;
     --gray-90: #2A313B;
     --gray-100: #21262D;
-    // --gray-110: #191C20;
     --blue-5: #F7FAFE;
     --blue-10: #E4EFFC;
     --blue-20: #BCD7F7;
@@ -444,7 +442,6 @@ html {
     --sansSerif: 'Inter', sans-serif;
     
     --iconColor: var(--gray-80);
-    // --iconColor2: var(--gray-60);
     --iconColor2: var(--blue-60);
     --FtIconColor: #f5f7f9;
     --FtIconColor2: #c9d3df;
@@ -462,8 +459,6 @@ html {
 html.dark {
     --sidebarColor: var(--blue-90);
     --sidebarSecondaryColor: var(--blue-80);
-    // --sidebarColor: var(--gray-100);
-    // --sidebarSecondaryColor: var(--gray-90);
     --appLogoBackground: #ffffff;
 }
 
