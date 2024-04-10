@@ -94,6 +94,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
                 alwaysStat: true,
                 depth: 99,
             }
-        }
+        },
+        worker: {}
     });
 };

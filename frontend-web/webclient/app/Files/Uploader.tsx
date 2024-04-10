@@ -30,6 +30,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
+import * as Rusha from "rusha";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 64;
@@ -122,6 +123,28 @@ enum FolderUploadMessageType {
     SKIP
 }
 
+function computeFileChecksum(file: PackagedFile, terminationRequested: boolean|undefined): Promise<string> {
+    return new Promise<string>(async (resolve) => {
+        const reader = new ChunkedFileReader(file.fileObject);
+        const shaSumWorkerModule = await import("@/Files/ShaSumWorker?worker");
+        const shaSumWorker = new shaSumWorkerModule.default();
+
+        shaSumWorker.onmessage = e => {
+            resolve(e.data);
+        }
+
+        shaSumWorker.postMessage({type: "Start"});
+
+        while (!reader.isEof() && !terminationRequested) {
+            const chunk = await reader.readChunk(maxChunkSize);
+            shaSumWorker.postMessage({type: "Update", data: chunk});
+        }
+
+        shaSumWorker.postMessage({type: "End"});
+
+    });
+}
+
 function createResumeableFolder(
     upload: Upload,
     strategy: FilesCreateUploadResponseItem,
@@ -161,13 +184,7 @@ function createResumeableFolder(
                         const serverChecksum = serverChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
                        
                         if (theFile) {
-                            // NOTE(Brian): Seems like streaming input is not supported by the Web Crypto API,
-                            // meaning that we have to load the entire file into memory before making the digest.
-                            // I haven't been able to find any suitable 3rd party libraries either.
-                            const wholeFile = await theFile.fileObject.arrayBuffer();
-                            const digest = await crypto.subtle.digest('SHA-1', wholeFile);
-                            const clientChecksumArray = Array.from(new Uint8Array(digest)); // convert buffer to byte array
-                            const clientChecksum = clientChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+                            const clientChecksum = await computeFileChecksum(theFile, upload.terminationRequested);
 
                             if (clientChecksum === serverChecksum) {
                                 upload.progressInBytes += files.get(fileId)?.size ?? 0;
@@ -175,6 +192,7 @@ function createResumeableFolder(
                                 uploadTrackProgress(upload);
                                 break;
                             }
+
                             // NOTE(Brian): Delibirate fallthrough, in case the checksums does not match.
                         }
                     }
