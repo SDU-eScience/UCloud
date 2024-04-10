@@ -138,7 +138,17 @@ function shouldIgnoreFile(file: PackagedFile) {
 
 export async function filesFromDropOrSelectEvent(event): Promise<PackagedFile[]> {
     const dataTransfer = event.dataTransfer;
-    if (!dataTransfer) return [];
+    if (!dataTransfer) {
+        const files: PackagedFile[] = [];
+        const inputFieldFileList = event.target && event.target.files;
+        const fileList = inputFieldFileList || [];
+
+        for (let i = 0; i < fileList.length; i++) {
+            files.push(packageFile(fileList[i], undefined));
+        }
+
+        return files;
+    }
 
     const entries: FileSystemEntry[] = [];
     [].slice.call(dataTransfer.items).forEach((listItem) => {

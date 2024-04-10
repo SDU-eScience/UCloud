@@ -152,6 +152,7 @@ function createResumeableFolder(
                 const fileId = frame.getUint32(1);
 
                 switch (messageType as FolderUploadMessageType) {
+                    // @ts-ignore
                     case FolderUploadMessageType.CHECKSUM: {
                         const theFile = files.get(fileId);
                         const serverChecksumBuffer = frame.buffer.slice(5);
@@ -568,7 +569,7 @@ const Uploader: React.FunctionComponent = () => {
         const files = await filesFromDropOrSelectEvent(e);
 
         // Collect 
-        const singleFileUploads: Upload[] = files.filter(f => f.fullPath.split("/").length === 2)
+        const singleFileUploads: Upload[] = files.filter(f => f.fullPath.split("/").length <= 2)
             .map(f => ({
                 row: [f],
                 progressInBytes: 0,
