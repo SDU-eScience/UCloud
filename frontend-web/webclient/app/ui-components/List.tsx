@@ -13,14 +13,14 @@ export const ListClass = injectStyle("list", k => `
     ${k} {
         --listChildPadding: 0;
     }
-    
-    ${k} > *, .list-item {
+
+    ${k} > * {
         margin-top: var(--listChildPadding);
         margin-bottom: var(--listChildPadding);
     }
     
-    ${k}[data-bordered="true"] > *, .list-item {
-        border-bottom: 1px solid var(--borderColor);
+    ${k}[data-bordered="true"] > * {
+        border-top: 0.5px solid var(--borderColor);
     }
 `);
 
@@ -56,6 +56,7 @@ interface ListRowProps {
     right: React.ReactNode;
     fontSize?: string;
     highlight?: boolean;
+    highlightOnHover?: boolean;
     stopPropagation?: boolean;
     onContextMenu?: EventHandler<MouseEvent<never>>;
     disableSelection?: boolean;
@@ -78,6 +79,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         className={classConcat(ListRowClass, props.className)}
         data-component={"list-row"}
         data-highlighted={props.highlight === true}
+        data-hoh={props.highlightOnHover != false}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
@@ -129,6 +131,10 @@ const ListRowClass = injectStyle("list-item", k => `
         display: flex;
     }
 
+    ${k}:first-of-type {
+        border-top: 0px;
+    }
+
     ${k}[data-highlighted="true"] {
         background-color: var(--rowHover);
     }
@@ -137,13 +143,13 @@ const ListRowClass = injectStyle("list-item", k => `
         background-color: var(--rowActive);
     }
 
-    ${k}:hover {
+    ${k}[data-hoh="true"]:hover {
         background-color: var(--rowHover);
     }
 
     ${k} .row-icon {
-        margin-right: 5px;
-        margin-left: 5px;
+        margin-right: 8px;
+        margin-left: 8px;
         flex-shrink: 0;
     }
 

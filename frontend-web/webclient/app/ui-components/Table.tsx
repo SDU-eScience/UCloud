@@ -14,13 +14,16 @@ export const TableClass = injectStyle("table", k => `
     ${k} td {
         border: 0;
         border-spacing: 0;
-        
-        border-bottom: 1px solid var(--borderColor);
         padding: 8px 0;
     }
     
     ${k} tr {
+        border-top: 0.5px solid var(--borderColor);
         cursor: auto;
+    }
+
+    ${k} tr:first-of-type {
+        border-top: 0px;
     }
     
     ${k} tr[data-highlight="true"]:hover, ${k}[data-highlighted="true"] {

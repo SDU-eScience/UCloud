@@ -215,9 +215,7 @@ function DashboardResources({wallets}: {
         const used = filtered.reduce((a, b) => a + (b.treeUsage ?? b.localUsage), 0);
         const maxUsable = filtered.reduce((a, b) => a + (b.maxUsable), 0);
         return {used, quota, category: w.paysFor, maxUsable};
-    }).filter(it => !it.category.freeToUse && it.quota > 0);
-
-    mapped.sort((a, b) => {
+    }).filter(it => !it.category.freeToUse && it.quota > 0).sort((a, b) => {
         let compare: number = 0;
 
         compare = a.category.provider.localeCompare(b.category.provider);
@@ -230,7 +228,7 @@ function DashboardResources({wallets}: {
         if (compare !== 0) return compare;
 
         return (a.quota < b.quota) ? 1 : -1;
-    });
+    }).slice(0,7);
 
     return (
         <DashboardCard
@@ -249,11 +247,11 @@ function DashboardResources({wallets}: {
                 <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                     <Table>
                         <tbody>
-                            {mapped.slice(0, 7).map((n, i) => (
+                            {mapped.map((n, i) => (
                                 <TableRow height="55px" key={i}>
-                                    <TableCell fontSize={FONT_SIZE}>
+                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.category.provider} size={20} />
+                                            <ProviderLogo providerId={n.category.provider} size={30} />
                                             <code>{n.category.name}</code>
                                         </Flex>
                                     </TableCell>

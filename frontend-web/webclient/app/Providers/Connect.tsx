@@ -62,7 +62,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                         onContextMenu={onContextMenu}
                         key={it.provider}
                         className={FixedHeightProvider}
-                        icon={<ProviderLogo providerId={it.providerTitle} size={20} />}
+                        highlightOnHover={false}
+                        icon={<ProviderLogo providerId={it.providerTitle} size={30} />}
                         left={<Text fontSize={"16px"}><ProviderTitle providerId={it.providerTitle} /></Text>}
                         right={!canConnect ?
                             <>
