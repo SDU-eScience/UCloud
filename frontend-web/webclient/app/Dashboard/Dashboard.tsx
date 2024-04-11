@@ -84,7 +84,7 @@ function Dashboard(): React.JSX.Element {
 
     useSetRefreshFunction(reload);
 
-    const main = (<Box mx="auto" maxWidth={"1200px"}>
+    const main = (<div>
         <Flex pt="3px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
@@ -99,7 +99,7 @@ function Dashboard(): React.JSX.Element {
                 <DashboardGrantApplications reloadRef={grantsReload} />
             </div>
         </Box>
-    </Box>);
+    </div>);
 
     return (
         <div className={Gradient}>
@@ -116,12 +116,11 @@ const GridClass = injectStyle("grid", k => `
 @media screen and (min-width: 1260px) {
     ${k} {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
         grid-auto-rows: minmax(450px, auto);
         margin-top: 24px;
         margin-bottom: 24px;
-        gap: 16px;
-        gap: 20px;
+        gap: 24px;
     }
 }   
 @media screen and (max-width: 1260px) {
@@ -206,7 +205,7 @@ function ApplyLinkButton(): React.JSX.Element {
 
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
-}): JSX.Element | null {
+}): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -247,7 +246,7 @@ function DashboardResources({wallets}: {
                     <Table>
                         <tbody>
                             {mapped.slice(0, 7).map((n, i) => (
-                                <TableRow key={i}>
+                                <TableRow height="55px" key={i}>
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                             <ProviderLogo providerId={n.paysFor.provider} size={20} />

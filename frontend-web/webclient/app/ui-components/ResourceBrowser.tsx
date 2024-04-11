@@ -30,7 +30,7 @@ import {div, image} from "@/Utilities/HTMLUtilities";
 import {ConfirmationButtonPlainHTML} from "./ConfirmationAction";
 import {HTMLTooltip} from "./Tooltip";
 import {ButtonClass} from "./Button";
-import {ResourceIncludeFlags} from "@/UCloud/ResourceApi";
+import {DELETE_TAG, ResourceIncludeFlags} from "@/UCloud/ResourceApi";
 import {TruncateClass} from "./Truncate";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import Flex, {FlexClass} from "./Flex";
@@ -39,6 +39,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
+const UTILITY_COLOR: ThemeColor = "primaryMain";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -588,7 +589,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -625,7 +626,6 @@ export class ResourceBrowser<T> {
 
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
-            div.style.marginLeft = "20px";
             div.className = "context-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
@@ -655,7 +655,8 @@ export class ResourceBrowser<T> {
             icon.src = placeholderImage;
             icon.width = 24;
             icon.height = 24;
-            this.icons.renderIcon({name: "heroArrowPath", color: "primaryMain", color2: "primaryMain", width: 64, height: 64})
+            icon.style.marginRight = "16px";
+            this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -830,7 +831,10 @@ export class ResourceBrowser<T> {
 
         this.scrolling.append(...rows);
 
-        addThemeListener(this.resourceName, () => this.rerender());
+        addThemeListener(this.resourceName, () => {
+            this.rerender();
+            this.rerenderUtilityIcons();
+        });
         const path = this.initialPath;
         if (path !== undefined) {
             addProjectListener(this.resourceName, project => {
@@ -1169,6 +1173,17 @@ export class ResourceBrowser<T> {
         }
     }
 
+    rerenderUtilityIcons() {
+        const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
+        this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            .then(url => icon.src = url);
+        if (this.features.search) {
+            const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
+            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+                .then(url => searchIcon.src = url);
+        }
+    }
+
     renderBreadcrumbs() {
         this.breadcrumbs.innerHTML = "";
 
@@ -1188,7 +1203,7 @@ export class ResourceBrowser<T> {
         //
         // We select this by choosing the first from the list which can stay within the target.
         const containerWidth = this.breadcrumbs.parentElement!.getBoundingClientRect().width;
-        const approximateLengthPerCharacter = 22;
+        const approximateLengthPerCharacter = 13;
         const maxComponentLength = 30;
         const targetPathLength = (containerWidth / approximateLengthPerCharacter) - 5;
 
@@ -1454,7 +1469,7 @@ export class ResourceBrowser<T> {
             const isConfirmButton = isOperation(op) && op.confirm;
             // Set the icon
             const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-            const contrastColor = selectContrastColor(
+            let contrastColor = selectContrastColor(
                 op.color ??
                 (isConfirmButton ?
                     "errorMain" :
@@ -1462,7 +1477,10 @@ export class ResourceBrowser<T> {
                         ("operations" in op ? "primaryMain" : "secondaryMain")
                 )
             );
-
+            
+            // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
+            // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
+            if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
             this.icons.renderIcon({
                 name: op.icon as IconName,
                 color: contrastColor,
@@ -1487,7 +1505,7 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: op.color === "errorMain" ? "errorDark" : undefined, disabled: !opEnabled}
+                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: undefined, disabled: !opEnabled}
                 );
 
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
@@ -1658,7 +1676,7 @@ export class ResourceBrowser<T> {
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
-            const useShortcuts = !this.opts?.embedded && !this.opts?.selector;
+            const useShortcuts = !this.opts?.selector;
             const element = document.createElement("div");
             element.classList.add("operation");
 
@@ -3012,6 +3030,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header .header-first-row {
                 display: flex;
                 align-items: center;
+                margin-top: 8px;
                 margin-bottom: 8px;
             }
 
@@ -3116,7 +3135,7 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header input.search-field {
                 position: relative;
                 right: -46px;
-                width: 200px;
+                width: 400px;
                 height: 35px;
                 margin-left: 5px;
                 transition: transform .2s;
@@ -3128,7 +3147,11 @@ export class ResourceBrowser<T> {
 
             /* Note(Jonas): If showing search-field, resize navbar */
             ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -212px;
+                margin-right: -308px;
+            }
+
+            ${browserClass.dot}:has(header[shows-dropdown] input.search-field[data-hidden]) .header-first-row .location {
+                margin-right: -256px;
             }
 
             ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
@@ -3140,8 +3163,11 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} header > div > div > ul {
-                margin-left: 7px;
                 margin-top: 0px;
+            }
+
+            ${browserClass.dot} header[has-location-bar] > div > div > ul {
+                margin-left: 7px;
             }
             
             ${browserClass.dot} header > div > div > ul[data-no-slashes="true"] li::before {
@@ -3200,18 +3226,18 @@ export class ResourceBrowser<T> {
                 background: var(--rowHover); 
             }
 
-            ${browserClass.dot} .row .title {
+            ${browserClass.dot} .row .title{
                 display: flex;
                 align-items: center;
 
                 white-space: pre;
                                                                                                                         /* v favoriteIcon-width */
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 8px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 18px);
             }
             
             @media screen and (max-width: 860px) {
                 ${browserClass.dot} .row .title {
-                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 8px);
+                    width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - var(--favoriteWidth) - 16px);
                 }
             }
             
@@ -3318,7 +3344,6 @@ export class ResourceBrowser<T> {
                 box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
                 width: 400px;
                 display: none;
-                max-height: calc(40px * 8.5);
                 overflow-y: auto;
                 transition: opacity 120ms, transform 60ms;
             }
@@ -4039,7 +4064,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
             <tbody>
                 <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
                 <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]} />
-                <Shortcut name={"Select multiple (individual)"} ctrl keys={["Left click"]} />
+                <Shortcut name={"Select/deselect multiple (individual)"} ctrl keys={["Left click"]} />
                 <tr>
                     <td>Go to row</td>
                     <td>Type part of name</td>

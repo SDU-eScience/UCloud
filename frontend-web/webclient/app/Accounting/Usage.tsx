@@ -1893,7 +1893,7 @@ const PeriodSelector: React.FunctionComponent<{
         noYPadding={true}
         trigger={
             <div className={PeriodStyle}>
-                <div style={{width: "180px"}}>{periodToString(props.value)}</div>
+                <div style={{width: "182px"}}>{periodToString(props.value)}</div>
                 <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
             </div>
         }

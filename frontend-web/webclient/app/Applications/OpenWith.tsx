@@ -1,5 +1,5 @@
 import * as React from "react";
-import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
+import {BulkResponse, compute, FindByStringId} from "@/UCloud";
 import {useState} from "react";
 import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
@@ -29,7 +29,6 @@ import {UFile} from "@/UCloud/UFile";
 import {logoDataUrls} from "./Jobs/LogoDataCache";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {Application} from "@/Grants";
 import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
 
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
@@ -65,9 +64,10 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
             }, "", browser => {
                 fetchInfo();
 
+                browser.setEmptyIcon("heroServer");
+
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) return;
-
                     callAPI(AppStore.browseOpenWithRecommendations({
                         files: [normalizedFileId],
                         itemsPerPage: 50

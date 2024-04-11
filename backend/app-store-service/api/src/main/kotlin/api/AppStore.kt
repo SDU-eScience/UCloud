@@ -583,7 +583,7 @@ ${ApiConventions.nonConformingApiWarning}
             PageV2.serializer(ApplicationWithExtension.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpBrowse(baseContext, "openWith")
+                httpUpdate(baseContext, "openWith")
 
                 documentation {
                     summary = "Finds a page of Application which can open a specific UFile"

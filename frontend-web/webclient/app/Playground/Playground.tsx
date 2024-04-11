@@ -1,8 +1,8 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {IconName} from "@/ui-components/Icon";
-import {Button, Flex} from "@/ui-components";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
+import {Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -24,6 +24,8 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limitPercentage={120} label="OY!" percentage={110} />
             <NewAndImprovedProgress limitPercentage={100} label="OY!" percentage={130} withWarning />
             <PaletteColors />
+            <Colors />
+            <EveryIcon />
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -221,6 +223,22 @@ function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
         paddingLeft: "32px",
     }
     return <div style={style}>--{color}-{num}</div>
+}
+
+function Colors(): JSX.Element {
+    return <Flex>
+        {colors.map(color => {
+            const style: React.CSSProperties = {
+                backgroundColor: `var(--${color})`,
+                color: "teal",
+                width: "150px",
+                height: "100px",
+                paddingTop: "38px",
+                paddingLeft: "32px",
+            }
+            return <div style={style}>--{color}</div>
+        })}
+    </Flex>
 }
 
 function PaletteColors(): JSX.Element {
