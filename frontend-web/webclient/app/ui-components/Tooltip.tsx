@@ -36,7 +36,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
     const width = props.tooltipContentWidth ?? 300;
 
-    const tooltipRef: React.MutableRefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
     const onHover = useCallback((ev: React.MouseEvent) => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
@@ -47,7 +47,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
             tooltip.style.left = ev.clientX - width + "px";
         }
 
-        tooltip.style.top = (tooltip.getBoundingClientRect().height / 2) + "px";
+        tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
         tooltip.style.display = "block";
     }, []);
 
