@@ -1524,7 +1524,7 @@ class GrantsV2Service(
 
             val notificationsForGrantGivers = ArrayList<NotificationBundle>()
             val notificationForSenders = ArrayList<NotificationBundle>()
-            val applicationTitle = application.status.projectTitle ?: application.createdBy
+            val applicationTitle = application.status.projectTitle ?: "Personal workspace: ${application.createdBy}"
             val grantGiverPlaceholder = "grant giver"
 
             for (action in actionQueue) {
@@ -1554,7 +1554,7 @@ class GrantsV2Service(
                         val b = NotificationBundle(
                             notification = Notification(
                                 "NEW_GRANT_COMMENT",
-                                "New comment in '${applicationTitle}'",
+                                "New comment in application '${applicationTitle}'",
                                 meta = JsonObject(
                                     mapOf(
                                         "appId" to JsonPrimitive(application.id),
@@ -1571,7 +1571,7 @@ class GrantsV2Service(
                         val b = NotificationBundle(
                             notification = Notification(
                                 "UPDATED_GRANT_APPLICATION",
-                                "New update in '${applicationTitle}'",
+                                "New update in application '${applicationTitle}'",
                                 meta = JsonObject(
                                     mapOf(
                                         "appId" to JsonPrimitive(application.id),
@@ -1588,10 +1588,10 @@ class GrantsV2Service(
                         val notification = Notification(
                             "GRANT_APPLICATION_RESPONSE",
                             when (action.overallState) {
-                                GrantApplication.State.APPROVED -> "'$applicationTitle' has been approved"
-                                GrantApplication.State.REJECTED -> "'$applicationTitle' has been rejected"
-                                GrantApplication.State.CLOSED -> "'$applicationTitle' has been withdrawn"
-                                GrantApplication.State.IN_PROGRESS -> "'$applicationTitle' has been resumed"
+                                GrantApplication.State.APPROVED -> "Application from '$applicationTitle' has been approved"
+                                GrantApplication.State.REJECTED -> "Application from '$applicationTitle' has been rejected"
+                                GrantApplication.State.CLOSED -> "Application from '$applicationTitle' has been withdrawn"
+                                GrantApplication.State.IN_PROGRESS -> "Application from '$applicationTitle' has been resumed"
                             },
                             meta = JsonObject(
                                 mapOf(

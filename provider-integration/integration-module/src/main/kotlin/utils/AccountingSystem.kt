@@ -30,7 +30,7 @@ suspend fun reportJobUsage(job: Job): Boolean {
     val now = Time.now()
     val endOfJob = job.updates.findLast { it.state?.isFinal() == true }?.timestamp
     val nowOrEndOfJob = min(now, endOfJob ?: Long.MAX_VALUE)
-    val wallTime = nowOrEndOfJob - (job.status.startedAt ?: nowOrEndOfJob)
+    val wallTime = (nowOrEndOfJob - (job.status.startedAt ?: nowOrEndOfJob))
 
     return reportUsage(
         job.owner.toWalletOwner(),

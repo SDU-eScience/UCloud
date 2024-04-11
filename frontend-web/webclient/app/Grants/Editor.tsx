@@ -661,6 +661,22 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     doc.allocationRequests.some(it => it.grantGiver === allocator.id);
             });
 
+        const app = state.stateDuringEdit.storedApplication;
+        if (app) {
+            for (const breakdown of app.status.stateBreakdown) {
+                const existingAllocator = newAllocators.find(it => it.id === breakdown.projectId);
+                if (!existingAllocator) {
+                    newAllocators.push({
+                        title: breakdown.projectTitle,
+                        id: breakdown.projectId,
+                        template: "",
+                        description: "",
+                        checked: true
+                    });
+                }
+            }
+        }
+
         newAllocators.forEach(it => it.checked = true);
 
         const newResources: EditorState["resources"] = {};
@@ -689,8 +705,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             }
         }
 
+        const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1;
+
         const docSections = parseIntoSections(docText);
-        const newApplication = calculateNewApplication(newAllocators.map(it => it.template));
+        const templates = isGrantGiverInitiated ? [grantGiverInitiatedTemplate] : newAllocators.map(it => it.template);
+        const newApplication = calculateNewApplication(templates);
 
         const newApplicationDocument: EditorState["applicationDocument"] = {};
         let otherSection = "";
@@ -864,10 +883,7 @@ function useStateReducerMiddleware(
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
 
                 try {
-                    let template = "";
-                    template += "Description\n";
-                    template += "-------------------------------\n";
-                    template += "\nDescribe the reason for creating this sub-allocation (max 4000 ch).\n";
+
 
                     dispatch({
                         type: "AllocatorsLoaded",
@@ -878,9 +894,9 @@ function useStateReducerMiddleware(
                             categories: wallets.map(w => w.paysFor),
                             templates: {
                                 type: "plain_text",
-                                newProject: template,
-                                existingProject: template,
-                                personalProject: template,
+                                newProject: grantGiverInitiatedTemplate,
+                                existingProject: grantGiverInitiatedTemplate,
+                                personalProject: grantGiverInitiatedTemplate,
                             }
                         }]
                     });
@@ -2613,5 +2629,10 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 }
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
+
+const grantGiverInitiatedTemplate = `Description
+--------------------------------------------------
+                    
+Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 export default Editor;

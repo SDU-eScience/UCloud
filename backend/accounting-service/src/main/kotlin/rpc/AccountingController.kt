@@ -69,7 +69,8 @@ class AccountingController(
         }
 
         implementOrDispatch(AccountingV2.reportUsage) {
-            val idCard = idCards.fetchIdCard(actorAndProject)
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)
             val shouldContinue = ArrayList<Boolean>()
             for (req in request.items) {
                 shouldContinue.add(
@@ -91,7 +92,8 @@ class AccountingController(
         }
 
         implementOrDispatch(AccountingV2.checkProviderUsable) {
-            val idCard = idCards.fetchIdCard(actorAndProject)
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)
             val response = ArrayList<AccountingV2.CheckProviderUsable.ResponseItem>()
             for (req in request.items) {
                 response.add(

@@ -103,7 +103,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         content: attr(data-label);
         font-size: 12px;
         position: absolute;
-        color: black;
+        color: var(--textPrimary);
         text-align: center;
         align-content: center;
         top: -1.4em;
@@ -112,14 +112,14 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
 `)
 
 const DEBUGGING_PURPOSES = DEVELOPMENT_ENV;
-export function NewAndImprovedProgress({label, percentage, limit, withWarning}: {label: string; percentage: number; limit: number; withWarning?: boolean}) {
+export function NewAndImprovedProgress({label, percentage, limitPercentage, withWarning}: {label: string; percentage: number; limitPercentage: number; withWarning?: boolean}) {
     React.useEffect(() => {
         if (DEBUGGING_PURPOSES) {
             if (percentage > 100) {
                 console.warn("Percentage for", label, "is above 100")
             }
 
-            if (limit > 100) {
+            if (limitPercentage > 100) {
                 console.warn("limit for", label, "is above 100")
             }
         }
@@ -127,7 +127,7 @@ export function NewAndImprovedProgress({label, percentage, limit, withWarning}: 
 
     const style: CSSProperties = {};
     style["--percentage"] = percentage + "%";
-    style["--limit"] = limit + "%";
+    style["--limit"] = limitPercentage + "%";
     const warning = withWarning ? <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
         <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
     </TooltipV2> : null;

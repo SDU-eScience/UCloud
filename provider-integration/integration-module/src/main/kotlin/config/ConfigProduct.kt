@@ -82,10 +82,15 @@ data class Category(
                     floatingPoint = true,
                     displaySuffix = false,
                 )
-                is ProductCost.Resource -> accUnit(
-                    c.selectPrettyUnitOrDefault(type),
-                    displaySuffix = c.accountingInterval != null,
-                )
+
+                is ProductCost.Resource -> {
+                    val (singular, plural) = c.selectPrettyUnitOrDefault(type)
+                    accUnit(
+                        singular,
+                        plural,
+                        displaySuffix = c.accountingInterval != null,
+                    )
+                }
             },
             when (c) {
                 ProductCost.Free -> AccountingFrequency.ONCE
@@ -125,12 +130,14 @@ data class Category(
                         hiddenInGrantApplications = false,
                     )
                 }
+
                 is IndividualProduct.ProductSpec.PublicLink -> {
                     ProductV2.Ingress(
                         p.name, p.price, category, p.description,
                         hiddenInGrantApplications = false,
                     )
                 }
+
                 is IndividualProduct.ProductSpec.Storage -> {
                     ProductV2.Storage(
                         p.name, p.price, category, p.description,
@@ -218,12 +225,15 @@ data class IndividualProduct<out S : IndividualProduct.ProductSpec>(
         @Serializable
         @SerialName("PublicLink")
         class PublicLink() : ProductSpec()
+
         @Serializable
         @SerialName("PublicIp")
         class PublicIp() : ProductSpec()
+
         @Serializable
         @SerialName("License")
         data class License(val tags: List<String>) : ProductSpec()
+
         @Serializable
         @SerialName("Storage")
         data class Storage(val unit: StorageUnit?) : ProductSpec()
@@ -241,7 +251,8 @@ sealed class ProductCost {
         override val unit: String? = null,
         override var prettyUnit: String? = null,
     ) : ProductCost(), WithUnit {
-        @Transient override val type = Type.Money
+        @Transient
+        override val type = Type.Money
         var interval: AccountingInterval? = null
 
         // This cost model uses money. If no unit is specified, then the cost is "price per interval of use".
@@ -267,14 +278,33 @@ sealed class ProductCost {
         val unit: String?
         var prettyUnit: String?
 
-        fun selectPrettyUnitOrDefault(type: ProductType): String {
-            return prettyUnit ?: unit ?: when (type) {
-                ProductType.STORAGE -> "GB"
-                ProductType.COMPUTE -> "Core"
-                ProductType.INGRESS -> "Link"
-                ProductType.LICENSE -> "License"
-                ProductType.NETWORK_IP -> "IP address"
+        fun selectPrettyUnitOrDefault(type: ProductType): Pair<String, String> {
+            return prettyUnit?.let { it to stupidPluralize(it) }
+                ?: unit?.let { it to stupidPluralize(it) }
+                ?: when (type) {
+                    ProductType.STORAGE -> Pair("GB", "GB")
+                    ProductType.COMPUTE -> Pair("Core", "Core")
+                    ProductType.INGRESS -> Pair("Link", "Links")
+                    ProductType.LICENSE -> Pair("License", "Licenses")
+                    ProductType.NETWORK_IP -> Pair("IP address", "IP addresses")
+                }
+        }
+
+        private fun stupidPluralize(input: String): String {
+            when (input) {
+                "GB" -> return "GB"
+                "TB" -> return "TB"
+                "PB" -> return "PB"
+                "EB" -> return "EB"
+                "GiB" -> return "GiB"
+                "TiB" -> return "TiB"
+                "PiB" -> return "PiB"
+                "EiB" -> return "EiB"
+                "Core" -> return "Core"
+                "GPU" -> return "GPU"
             }
+            if (input.endsWith("s")) return input + "es"
+            return input + "s"
         }
     }
 
@@ -285,13 +315,15 @@ sealed class ProductCost {
         override var prettyUnit: String? = null,
         val accountingInterval: AccountingInterval? = null,
     ) : ProductCost(), WithUnit {
-        @Transient override val type = Type.Resource
+        @Transient
+        override val type = Type.Resource
     }
 
     @Serializable
     @SerialName("Free")
     object Free : ProductCost() {
-        @Transient override val type = Type.Free
+        @Transient
+        override val type = Type.Free
     }
 
     enum class Type {
@@ -726,22 +758,26 @@ fun ProductV2.explainPricing(): String {
     }
 
     return buildString {
-        append(if (category.accountingUnit.floatingPoint) {
-            val mc = MathContext.DECIMAL128
-            BigDecimal(price, mc).divide(BigDecimal(1_000_000L, mc), mc).toPlainString()
-        } else {
-            price.toString()
-        })
+        append(
+            if (category.accountingUnit.floatingPoint) {
+                val mc = MathContext.DECIMAL128
+                BigDecimal(price, mc).divide(BigDecimal(1_000_000L, mc), mc).toPlainString()
+            } else {
+                price.toString()
+            }
+        )
         append(" ")
         append(category.accountingUnit.name)
         if (category.accountingUnit.displayFrequencySuffix) {
             append("/")
-            append(when (category.accountingFrequency) {
-                AccountingFrequency.ONCE -> ""
-                AccountingFrequency.PERIODIC_MINUTE -> "minute"
-                AccountingFrequency.PERIODIC_HOUR -> "hour"
-                AccountingFrequency.PERIODIC_DAY -> "day"
-            })
+            append(
+                when (category.accountingFrequency) {
+                    AccountingFrequency.ONCE -> ""
+                    AccountingFrequency.PERIODIC_MINUTE -> "minute"
+                    AccountingFrequency.PERIODIC_HOUR -> "hour"
+                    AccountingFrequency.PERIODIC_DAY -> "day"
+                }
+            )
         }
     }
 }
