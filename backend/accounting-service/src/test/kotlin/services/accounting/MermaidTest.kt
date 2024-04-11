@@ -1,7 +1,5 @@
-package dk.sdu.cloud.services.accounting
+package dk.sdu.cloud.accounting.services.accounting
 
-import dk.sdu.cloud.accounting.services.accounting.MermaidGraphBuilder
-import dk.sdu.cloud.accounting.services.accounting.mermaid
 import kotlin.test.*
 
 class MermaidTest {

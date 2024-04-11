@@ -704,7 +704,7 @@ class AccountingSystem(
         return chargeWallet(
             wallet = wallet,
             amount = request.amount,
-            isDelta = true,
+            isDelta = request.isDelta,
         )
     }
 

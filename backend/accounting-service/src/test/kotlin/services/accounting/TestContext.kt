@@ -1,12 +1,8 @@
-package services.accounting
+package dk.sdu.cloud.accounting.services.accounting
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
-import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
-import dk.sdu.cloud.accounting.services.accounting.AccountingTest
-import dk.sdu.cloud.accounting.services.accounting.FakeAccountingPersistence
 import dk.sdu.cloud.accounting.util.FakeIdCardService
 import dk.sdu.cloud.accounting.util.FakeProductCache
 import dk.sdu.cloud.accounting.util.IdCard

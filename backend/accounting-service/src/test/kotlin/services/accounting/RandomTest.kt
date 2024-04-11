@@ -1,19 +1,12 @@
-package services.accounting
+package dk.sdu.cloud.accounting.services.accounting
 
-import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
-import dk.sdu.cloud.accounting.services.accounting.*
-import dk.sdu.cloud.accounting.services.accounting.allocationGroups
-import dk.sdu.cloud.accounting.services.accounting.allocations
-import dk.sdu.cloud.accounting.services.accounting.walletsById
-import dk.sdu.cloud.accounting.services.accounting.walletsIdAccumulator
 import dk.sdu.cloud.accounting.util.IdCard
-import dk.sdu.cloud.service.Time
 import org.joda.time.DateTime
 import java.io.File
-import kotlin.math.max
 import kotlin.math.min
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class RandomTest {
 
@@ -25,12 +18,12 @@ class RandomTest {
     }
 
     private suspend fun randomCharge(walletId: Int, maxAmount: Long, repetitions: Int, context: TestContext): Long {
-        println("Charging $repetitions times from $walletId")
         var total = 0L
         for (i in 0..repetitions) {
             val request = AccountingRequest.SystemCharge(
                 amount = (1..maxAmount).random(),
-                walletId = walletId.toLong()
+                walletId = walletId.toLong(),
+                isDelta = true
             )
             total += request.amount
             val success = runCatching {
@@ -132,10 +125,9 @@ class RandomTest {
         }
     }
 
-    private suspend fun makeGraphFile(numberOfWallets: Int, context: TestContext) {
+    private suspend fun makeGraphFile(context: TestContext) {
         with(context) {
-            val allNodes = (1..numberOfWallets+1).toList()
-            accounting.sendRequest(AccountingRequest.DebugState(IdCard.System, allNodes)).also {
+            accounting.sendRequest(AccountingRequest.DebugState(IdCard.System)).also {
                 val time = DateTime.now()
                 File("/tmp/hierarchy-${time}.txt").writeText(buildString {
                     appendLine("```mermaid")
@@ -173,12 +165,11 @@ class RandomTest {
                                 accounting.sendRequest(
                                     AccountingRequest.SystemCharge(
                                         amount = specificChargeAmount,
-                                        walletId = walletToCharge.toLong()
+                                        walletId = walletToCharge.toLong(),
+                                        isDelta = true
                                     )
                                 )
                             }.isSuccess
-                        if (!success) break
-
                     } else {
                         charged += randomCharge(
                             walletId = walletToCharge,
@@ -193,14 +184,17 @@ class RandomTest {
                     val walletToCharge = (2..numberOfWallets).random().toLong()
                     if (specificChargeAmount != null) {
                         charged += specificChargeAmount
-                        runCatching {
+                        val success = runCatching {
                             accounting.sendRequest(
                                 AccountingRequest.SystemCharge(
                                     amount = specificChargeAmount,
-                                    walletId = walletToCharge
+                                    walletId = walletToCharge,
+                                    isDelta = true
                                 )
                             )
-                        }
+                        }.isSuccess
+                        println(success)
+
                     } else {
                         charged += randomCharge(
                             walletId = walletToCharge.toInt(),
@@ -216,26 +210,19 @@ class RandomTest {
                 try {
                     checkWalletHierarchy(i)
                 } catch (ex: Throwable) {
-                    val allNodes = (1..numberOfWallets+1).toList()
-
-                    accounting.sendRequest(AccountingRequest.DebugState(IdCard.System, allNodes)).also {
-                        File("/tmp/hierarchyWithErrorWalletId${i}.txt").writeText(buildString {
-                            appendLine("```mermaid")
-                            appendLine(it)
-                            appendLine("```")
-                        })
-                    }
+                    makeGraphFile(context)
                 }
             }
 
+            makeGraphFile(context)
             if (specificChargeAmount != null) {
-                assert(specificChargeAmount == charged)
+                assertEquals(specificChargeAmount * numberOfCharges, charged)
             }
         }
     }
 
     /*
-    NonCapacity Product Testing
+    Delta Product Testing
      */
     @Test
     fun singleRandomChargeNonCapacityLowHierarchyTree() = withTest {
@@ -272,8 +259,38 @@ class RandomTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 100, context = this)
     }
 
+    @Test
+    fun multipleRandomChargeNonCapacityLowHierarchyTreeNoQuotaInRoot() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 0, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesNonCapacityLowHierarchyManyWalletsTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 2, 100, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesNonCapacityHighHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this)
+    }
+
+    @Test
+    fun multipleSpecificChargeNonCapacityLowHierarchyTreeHighCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 950, context = this)
+    }
+
+    @Test
+    fun multipleSpecificChargeNonCapacityLowHierarchyTreeOverCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 10000, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesDifferentWalletsNonCapacityHighHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this, singleWalletToCharge = false)
+    }
+
     /*
-    Capacity Product Testing
+    Non Delta Testing
      */
 
     @Test
