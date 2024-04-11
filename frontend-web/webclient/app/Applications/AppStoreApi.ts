@@ -467,7 +467,7 @@ export function search(request: {
 export function browseOpenWithRecommendations(request: {
     files: string[];
 } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationWithExtension>> {
-    return apiBrowse(request, baseContext, "openWith");
+    return apiUpdate(request, baseContext, "openWith");
 }
 
 // Application management

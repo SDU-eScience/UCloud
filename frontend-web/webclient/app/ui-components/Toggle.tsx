@@ -1,15 +1,22 @@
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
 import {useCallback, useEffect, useRef} from "react";
+import {ThemeColor} from "./theme";
 
 interface ToggleProps {
     checked: boolean;
     onChange: (prevValue: boolean) => void;
+    activeColor?: ThemeColor;
+    inactiveColor?: ThemeColor;
+    circleColor?: ThemeColor;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
     checked,
-    onChange
+    onChange,
+    activeColor = "successMain",
+    inactiveColor = "textSecondary",
+    circleColor = "fixedWhite",
 }) => {
     const checkedRef = useRef(checked);
     useEffect(() => {
@@ -22,17 +29,28 @@ export const Toggle: React.FC<ToggleProps> = ({
         onChange(checkedRef.current);
     }, [onChange]);
 
-    return <div onClick={handler} data-active={checked} className={ToggleWrapperClass}>
+    const style: React.CSSProperties = {};
+    style["--inactiveColor"] = `var(--${inactiveColor})`;
+    style["--activeColor"] = `var(--${activeColor})`;
+    style["--circleColor"] = `var(--${circleColor})`
+
+    return <div onClick={handler} style={style} data-active={checked} className={ToggleWrapperClass}>
         <div />
     </div>
 }
 
 const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     ${k} {
+        --inactiveColor: #ff0;
+        --activeColor: #f0f;
+        --circleColor: #0ff
+    }
+
+    ${k} {
         border-radius: 12px;
         height: 26px;
         width: 45px;
-        background-color: var(--textSecondary);
+        background-color: var(--inactiveColor);
         transition: 0.2s;
         padding-top: 2px;
         padding-left: 2px;
@@ -40,14 +58,15 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
     }
 
     ${k}[data-active="true"] {
-        background-color: var(--successMain);
+        background-color: var(--activeColor);
         padding-left: 21px;
     }
 
     ${k} > div {
         border-radius: 50%;
         width: 22px;
-        background-color: white;
+        background-color: var(--circleColor);
+        animation: background-color 0.2;
         height: 22px;
     }
 `);

@@ -20,7 +20,7 @@ import {injectStyle} from "@/Unstyled";
 
 const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
     ${k} {
-        height: 41px;
+        height: 55px;
     }
 `)
 

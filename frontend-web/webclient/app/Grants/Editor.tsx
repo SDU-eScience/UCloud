@@ -29,7 +29,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
+import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import {Project, isAdminOrPI} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
@@ -1169,7 +1169,7 @@ const style = injectStyle("grant-editor", k => `
     ${k} header {
         position: fixed;
         top: 0;
-        left: var(${CSSVarCurrentSidebarWidth});
+        left: var(${CSSVarCurrentSidebarStickyWidth});
         
         background: var(--backgroundDefault);
         color: var(--textPrimary);
@@ -1183,7 +1183,7 @@ const style = injectStyle("grant-editor", k => `
         width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
         
         padding: 0 16px;
-        z-index: 10;
+        z-index: 9;
         
         box-shadow: var(--defaultShadow);
     }
@@ -2030,7 +2030,7 @@ export function Editor(): React.JSX.Element {
             </> : state.fullScreenError ? <>
                 {state.fullScreenError}
             </> :
-                <div className={classes.join(" ")}>
+                <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3>Information about your project</h3>
 
@@ -2463,7 +2463,7 @@ export function Editor(): React.JSX.Element {
                             </div>
                         </>}
                     </form>
-                </div>
+                </Box>
         }
     />;
 };

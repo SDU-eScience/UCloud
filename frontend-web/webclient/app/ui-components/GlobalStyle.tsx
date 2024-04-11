@@ -200,6 +200,7 @@ const colorsByTheme: { dark: ThemedColors; light: ThemedColors; } = {
     }
 };
 
+// Note(Jonas): Do keep around.
 function generatePalette(): string {
     let builder = "";
 
@@ -241,7 +242,96 @@ function generatePalette(): string {
 }
 
 const UIGlobalStyle = `
-${generatePalette()}
+html.light {
+  --primaryMain: #146EF5;
+  --primaryLight: #438bf7;
+  --primaryDark: #1058c4;
+  --primaryContrast: #ffffff;
+  --primaryContrastAlt: #a6a8a9;
+  --secondaryMain: #d3cdc8;
+  --secondaryLight: #dcd7d3;
+  --secondaryDark: #a9a4a0;
+  --secondaryContrast: #000000;
+  --secondaryContrastAlt: #222222;
+  --errorMain: #d32f2f;
+  --errorLight: #dc5959;
+  --errorDark: #a92626;
+  --errorContrast: #ffffff;
+  --errorContrastAlt: #a6a8a9;
+  --warningMain: #ed6c02;
+  --warningLight: #f18935;
+  --warningDark: #be5602;
+  --warningContrast: #000000;
+  --warningContrastAlt: #222222;
+  --infoMain: #0288d1;
+  --infoLight: #35a0da;
+  --infoDark: #026da7;
+  --infoContrast: #000000;
+  --infoContrastAlt: #222222;
+  --successMain: #198754;
+  --successLight: #479f76;
+  --successDark: #146c43;
+  --successContrast: #ffffff;
+  --successContrastAlt: #a6a8a9;
+  --backgroundDefault: #ffffff;
+  --borderColor: #d3d3d4;
+  --borderColorHover: #a6a8a9;
+  --backgroundCard: #f8f8f9;
+  --backgroundCardBorder: #c8c9ca;
+  --backgroundCardBorderHover: #7a7c7f;
+  --textPrimary: #212529;
+  --textSecondary: #646669;
+  --textDisabled: #909294;
+  --rowHover: #dce9fe;
+  --rowActive: #b9d4fc;
+  --gradientStart: #8ab7fa;
+  --gradientEnd: #e2edfe;
+  }
+  html.dark {
+  --primaryMain: #146EF5;
+  --primaryLight: #1058c4;
+  --primaryDark: #438bf7;
+  --primaryContrast: #ffffff;
+  --primaryContrastAlt: #a6a8a9;
+  --secondaryMain: #d3cdc8;
+  --secondaryLight: #a9a4a0;
+  --secondaryDark: #dcd7d3;
+  --secondaryContrast: #000000;
+  --secondaryContrastAlt: #222222;
+  --errorMain: #d32f2f;
+  --errorLight: #a92626;
+  --errorDark: #dc5959;
+  --errorContrast: #ffffff;
+  --errorContrastAlt: #a6a8a9;
+  --warningMain: #ed6c02;
+  --warningLight: #be5602;
+  --warningDark: #f18935;
+  --warningContrast: #000000;
+  --warningContrastAlt: #222222;
+  --infoMain: #0288d1;
+  --infoLight: #026da7;
+  --infoDark: #35a0da;
+  --infoContrast: #000000;
+  --infoContrastAlt: #222222;
+  --successMain: #198754;
+  --successLight: #146c43;
+  --successDark: #479f76;
+  --successContrast: #ffffff;
+  --successContrastAlt: #a6a8a9;
+  --backgroundDefault: #212529;
+  --borderColor: #4d5154;
+  --borderColorHover: #7a7c7f;
+  --backgroundCard: #282c2f;
+  --backgroundCardBorder: #595c5f;
+  --backgroundCardBorderHover: #a6a8a9;
+  --textPrimary: #ffffff;
+  --textSecondary: #bcbebf;
+  --textDisabled: #909294;
+  --rowHover: #1f3048;
+  --rowActive: #1d3b66;
+  --gradientStart: #1b4a8f;
+  --gradientEnd: #202e43;
+  }
 
 html.light {
     color-scheme: light;

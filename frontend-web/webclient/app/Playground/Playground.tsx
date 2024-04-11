@@ -1,7 +1,7 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {IconName} from "@/ui-components/Icon";
+import {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Button, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
@@ -10,6 +10,7 @@ import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {testGenerator} from "@/Applications/LogoGenerator";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -21,6 +22,8 @@ const Playground: React.FunctionComponent = () => {
             }}>
                 Logo generator
             </Button>
+            
+            <TooltipV2 tooltip="THING!!!">Hello, hello.</TooltipV2>
             <NewAndImprovedProgress limit={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limit={40} label="Forty!" percentage={30} />
             <NewAndImprovedProgress limit={60} label="Sixty!" percentage={30} />
@@ -30,6 +33,8 @@ const Playground: React.FunctionComponent = () => {
             <NewAndImprovedProgress limit={120} label="OY!" percentage={110} />
             <NewAndImprovedProgress limit={100} label="OY!" percentage={130} withWarning />
             <PaletteColors />
+            <Colors />
+            <EveryIcon />
             {/*
             <Button onClick={() => {
                 messageTest();
@@ -227,6 +232,22 @@ function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
         paddingLeft: "32px",
     }
     return <div style={style}>--{color}-{num}</div>
+}
+
+function Colors(): JSX.Element {
+    return <Flex>
+        {colors.map(color => {
+            const style: React.CSSProperties = {
+                backgroundColor: `var(--${color})`,
+                color: "teal",
+                width: "150px",
+                height: "100px",
+                paddingTop: "38px",
+                paddingLeft: "32px",
+            }
+            return <div style={style}>--{color}</div>
+        })}
+    </Flex>
 }
 
 function PaletteColors(): JSX.Element {

@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Box, Button, Card, Flex, Grid, Icon, Markdown, Relative} from "@/ui-components";
+import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {appColor, AppLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -33,7 +33,6 @@ const landingStyle = injectStyle("landing-page", k => `
         display: flex;
         flex-direction: column;
         gap: 24px;
-        max-width: 1200px;
         min-width: 600px;
         min-height: 100vh;
     }
@@ -80,8 +79,8 @@ const LandingPage: React.FunctionComponent = () => {
     return <div>
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
-                <article className={landingStyle}>
-                    <Flex alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
+                <MainContainer main={<article className={landingStyle}>
+                    <Flex mt="-13px" alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
                     <Hero slides={landingPage.carrousel} />
                     {starred.data.items.length > 0 ?
                         <StarredApplications2 apps={starred.data.items} /> : null}
@@ -89,7 +88,7 @@ const LandingPage: React.FunctionComponent = () => {
 
                     <TopPicksCard2 topPicks={landingPage.topPicks} />
 
-                    {landingPage.spotlight && <SpotlightCard2 spotlight={landingPage.spotlight} />}
+                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
 
                     <div>
                         <h3>Browse by category</h3>
@@ -127,7 +126,7 @@ const LandingPage: React.FunctionComponent = () => {
                             </TabbedCardTab>
                         </TabbedCard>
                     </div>
-                </article>
+                </article>} />
             </div>
         </div>
     </div>;

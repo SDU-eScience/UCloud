@@ -98,15 +98,19 @@ const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     search: true,
     sorting: true,
-    filters: false,
+    filters: true,
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
 }
 
+interface AdditionalResourceBrowserOpts {
+    initialPath?: string;
+    managesLocalProject?: boolean
+}
 let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
-function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
+function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -459,7 +463,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 let shouldRemoveFakeDirectory = true;
                 const fakeFileName = ".00000000000000000000$NEW_DIR"
                 const showCreateDirectory = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName;
+                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                     shouldRemoveFakeDirectory = false;
                     insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
@@ -473,7 +477,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             if (!browser.renameValue) return;
 
                             const realPath = resolvePath(browser.currentPath) + "/" + browser.renameValue;
-                            insertFakeEntry(browser.renameValue, {type: "DIRECTORY"});
+                            insertFakeEntry(browser.renameValue.split("/")[0], {type: "DIRECTORY"});
                             const idx = browser.findVirtualRowIndex(it => it.id === realPath);
                             if (idx !== null) {
                                 browser.ensureRowIsVisible(idx, true, true);
@@ -545,7 +549,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     );
                 };
 
-                browser.on("fetchFilters", () => []);
+                browser.on("fetchFilters", () => [{
+                    type: "checkbox",
+                    key: "filterHiddenFiles",
+                    text: "Filter hidden files",
+                    icon: "heroMagnifyingGlass",
+                }]);
 
                 browser.on("fetchOperations", () => {
                     function groupOperations<R>(ops: Operation<UFile, R>[]): OperationOrGroup<UFile, R>[] {
@@ -756,9 +765,32 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
-                        row.title.appendChild(div(
-                            `<div style="font-size: 12px; color: var(--textSecondary); padding-top: 2px;margin-right: 12px;"> (Read-only)</div>`
-                        ));
+                        const iconWrapper = createHTMLElements({
+                            tagType: "div",
+                            style: {
+                                position: "relative",
+                                left: "24px",
+                                top: "22px",
+                                backgroundColor: "var(--primaryMain)",
+                                height: "12px",
+                                width: "12px",
+                                padding: "4px",
+                                borderRadius: "8px",
+                                cursor: "pointer"
+                            }
+                        });
+
+                        HTMLTooltip(iconWrapper, div("Read-only"), {tooltipContentWidth: 108})
+
+                        icon.append(iconWrapper);
+                        const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
+                        readonlyIcon.style.height = "8px";
+                        readonlyIcon.style.width = "8px";
+                        readonlyIcon.style.marginLeft = "-2px";
+                        readonlyIcon.style.marginTop = "-2px";
+                        readonlyIcon.style.display = "block";
+                        iconWrapper.appendChild(readonlyIcon);
+                        browser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
@@ -833,7 +865,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             b.innerText = value.toString()[0];
                         });
 
-                        
+
                         HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
                     });
@@ -958,6 +990,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             driveIcon.style.cursor = "pointer";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
+                            browser.header.setAttribute("shows-dropdown", "");
+
                             browser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
@@ -1141,15 +1175,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current && oldPath !== newPath) navigate("/files?path=" + encodeURIComponent(newPath));
-                    }
-
-                    if (newPath == SEARCH) {
-                        browser.emptyReasons[SEARCH] = {
-                            tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
-                            information: "Search query is empty."
-                        };
-                        return;
+                        //                                                     Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
+                        if (!isInitialMount.current && (oldPath !== newPath || opts?.embedded)) {
+                            navigate("/files?path=" + encodeURIComponent(newPath));
+                        }
                     }
 
                     if (!isSelector) {
@@ -1225,6 +1254,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                 browser.on("search", query => {
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
+
+                    browser.emptyReasons[SEARCH] = {
+                        tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                        information: browser.searchQuery ? "" : "Search query is empty."
+                    };
+
                     searching = currentPath;
                     browser.open(SEARCH);
                     browser.cachedData[SEARCH] = [];
@@ -1375,7 +1410,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
 
-    const setLocalProject = opts?.isModal ? (projectId?: string) => {
+    const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
             b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});

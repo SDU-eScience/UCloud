@@ -33,6 +33,7 @@ import AppRoutes from "@/Routes";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {addProjectListener} from "@/Project/ReduxState";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -74,6 +75,17 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
+                addProjectListener("drive-browse", p => {
+                    browser.features.filters = !!p;
+                    if (p) {
+                        browser.header.setAttribute("data-has-filters", "");
+                    } else {
+                        browser.header.removeAttribute("data-has-filters");
+                    }
+                    browser.rerender();
+                });
+
+
                 browser.setColumns([
                     {name: "Drive name", sortById: "title"},
                     {name: "", columnWidth: 0},
@@ -130,6 +142,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     product: productReference
                                 },
                             } as FileCollection;
+
+                            if (!browser.renameValue) return;
 
                             browser.insertEntryIntoCurrentPage(driveBeingCreated);
                             browser.renderRows();
@@ -431,9 +445,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("nameOfEntry", f => f.specification.title);
                 browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
             });
-
             addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
+
+        const b = browserRef.current;
+        if (b) b.renameField.style.left = "43px";
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -456,6 +472,5 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 function isShare(d: FileCollection) {
     return d.specification.product.id === "share";
 }
-
 
 export default DriveBrowse;
