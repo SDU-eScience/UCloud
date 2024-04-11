@@ -56,7 +56,8 @@ sealed class AccountingRequest<Resp> {
     data class SystemCharge(
         override val idCard: IdCard = IdCard.System,
         val amount: Long,
-        val walletId: Long
+        val walletId: Long,
+        val isDelta: Boolean
     ) : AccountingRequest<Unit>()
 
     data class ScanRetirement(

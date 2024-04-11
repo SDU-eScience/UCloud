@@ -346,7 +346,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 system.sendRequest(
                     AccountingRequest.SystemCharge(
                         walletId = charge.walletId,
-                        amount = charge.usage
+                        amount = charge.usage,
+                        isDelta = true
                     )
                 )
             }

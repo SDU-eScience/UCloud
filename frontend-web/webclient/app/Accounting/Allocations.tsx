@@ -1790,7 +1790,11 @@ const Allocations: React.FunctionComponent = () => {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
-
+function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
+    if ((maxUsable + usage) == quota) return true;
+    const diff = quota - maxUsable - usage;
+    return Math.abs(diff) <= 0.0001;
+}
 function ProgressBar({uq, type}: {
     uq: UsageAndQuota,
     type: ProductType,
@@ -1799,7 +1803,7 @@ function ProgressBar({uq, type}: {
         limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
         label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
-        withWarning={Math.abs((uq.maxUsable + uq.usage) - uq.quota) > 0.001}
+        withWarning={!withinDelta(uq.quota, uq.maxUsable, uq.usage)}
     />;
 }
 
