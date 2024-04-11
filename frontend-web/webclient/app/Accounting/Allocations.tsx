@@ -1790,7 +1790,6 @@ const Allocations: React.FunctionComponent = () => {
 function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
     if ((maxUsable + usage) == quota) return true;
     const diff = quota - maxUsable - usage;
-    console.log(diff.toString())
     return Math.abs(diff) <= 0.0001;
 }
 function ProgressBar({uq, type}: {
