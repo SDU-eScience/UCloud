@@ -1223,7 +1223,7 @@ export class ResourceBrowser<T> {
             }
         }
 
-        const canKeepMiddle = combinedLengthAfterTruncation <= targetPathLength;
+        const canKeepMiddle = crumbs.length === 2 || combinedLengthAfterTruncation <= targetPathLength;
         const canKeepParent = combinedLengthWithParent <= targetPathLength;
 
         const fragment = document.createDocumentFragment();
@@ -1237,7 +1237,7 @@ export class ResourceBrowser<T> {
                 idx === crumbs.length - 1 ||
                 (idx === crumbs.length - 2 && canKeepParent);
 
-            if (idx === 1 && !canKeepMiddle && idx !== crumbs.length - 2) {
+            if (idx === 1 && !canKeepMiddle) {
                 const listItem = document.createElement("li");
                 listItem.innerText = "...";
                 fragment.append(listItem);
