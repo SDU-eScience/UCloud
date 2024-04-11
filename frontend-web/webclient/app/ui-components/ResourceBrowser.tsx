@@ -39,7 +39,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
-const UTILITY_COLOR: ThemeColor = "primaryMain";
+const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 export interface ResourceBrowserOpts<T> {
@@ -636,7 +636,7 @@ export class ResourceBrowser<T> {
         if (this.features.showColumnTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
-            titleRow["style"].height = titleRow["style"].maxHeight = "28px";
+            // titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
             if (!this.features.showStar) {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
@@ -1578,13 +1578,6 @@ export class ResourceBrowser<T> {
                         if (index === 0) shortcutElement.style.marginLeft = "auto";
                         shortcutElement.innerText = item;
                         element.append(shortcutElement);
-                        if (index < shortcutItems.length - 1) {
-                            element.append(createHTMLElements({
-                                tagType: "span",
-                                className: "ShortCutPlusSymbol",
-                                innerText: "+"
-                            }));
-                        }
                     }
                 }
             }
@@ -2077,7 +2070,7 @@ export class ResourceBrowser<T> {
 
                         const indicator = this.entryDragIndicator;
                         indicator.innerHTML = "";
-                        indicator.style.transform = `translate(${rowRect.left + (rowRect.width / 2)}px, ${rowRect.top}px) scale3d(${rowRect.width}, 100%, 100%)`;
+                        indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;
                         indicator.style.display = "block";
 
                         const page = this.cachedData[this.currentPath] ?? [];
@@ -2125,7 +2118,7 @@ export class ResourceBrowser<T> {
 
                         window.setTimeout(() => {
                             indicator.classList.add("animate");
-                            indicator.style.transform = `translate(${rowRect.left + 200}px, ${rowRect.top}px) scale3d(400, 100%, 100%)`;
+                            indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;
                         }, 0);
                     }
                 } else {
@@ -2141,7 +2134,7 @@ export class ResourceBrowser<T> {
                     }
 
                     const s = this.entryDragIndicator.style;
-                    s.transform = `translate(${e.clientX + 200 + 10}px, ${e.clientY + 10}px) scale3d(400, 100%, 100%)`;
+                    s.transform = `translate(${e.clientX}px, ${e.clientY + 10}px)`;
 
                     const s2 = this.entryDragIndicatorContent.style;
                     s2.left = (e.clientX + 10) + "px";
@@ -2957,9 +2950,8 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} .drag-indicator {
                 position: fixed;
                 z-index: 10000;
-                background-color: var(--primaryMain);
-                opacity: 30%;
-                border: 2px solid var(--primaryDark);
+                background-color: var(--primaryLight);
+                opacity: 20%;
                 display: none;
                 top: 0;
                 left: 0;
@@ -3009,11 +3001,11 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} .file-drag-indicator {
-                transition: transform 0.06s;
                 background: var(--rowActive);
                 color: var(--textPrimary);
-                width: 1px;
+                width: 400px;
                 overflow: hidden;
+                border-radius: 6px;
             }
          
             ${browserClass.dot} .file-drag-indicator.animate {
@@ -3092,13 +3084,17 @@ export class ResourceBrowser<T> {
 
             ${browserClass.dot} .location-bar {
                 width: 100%;
-                font-size: 120%;
+                font-size: 110%;
                 height: 35px;
                 font-feature-settings: unset;
             }
 
             ${browserClass.dot} header[has-location-bar] .location:hover {
                 border: 1px solid var(--borderColorHover);
+            }
+
+            ${browserClass.dot} header[has-location-bar] .location:focus-within {
+                border-color: var(--primaryMain);
             }
             
             ${browserClass.dot} header[has-location-bar] .location li:hover {
@@ -3188,7 +3184,7 @@ export class ResourceBrowser<T> {
                 margin-bottom: 1px;
                 padding: 0;
                 cursor: pointer;
-                font-size: 120%;
+                font-size: 110%;
             }
 
             ${browserClass.dot} .row {
@@ -3198,7 +3194,7 @@ export class ResourceBrowser<T> {
                 height: ${ResourceBrowser.rowSize}px;
                 width: 100%;
                 align-items: center;
-                border-bottom: 1px solid var(--borderColor);
+                border-top: 0.5px solid var(--borderColor);
                 user-select: none;
                 -webkit-user-select: none;
                 padding: 0 8px;
@@ -3206,13 +3202,21 @@ export class ResourceBrowser<T> {
             }
             
             ${browserClass.dot} .rows-title {
-                max-height: 0;
+                max-height: 40px;
+                height: 40px;
                 color: var(--textPrimary);
                 display: none;
+                background-color: var(--backgroundDisabled);
+                border-radius: 6px 6px 0 0;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                font-size: 110%;
+                border-bottom: 1.5px solid var(--borderColor);
+                border-top: 0;
             }
             
             body[data-cursor=grabbing] ${browserClass.dot} .row:hover {
-                filter: hue-rotate(10deg) saturate(500%);
+                background-color: var(--rowHover);
             }
 
             ${browserClass.dot} .row.hidden {
@@ -3983,12 +3987,15 @@ const ALT_KEY = isLikelyMac ? "⌥" : "alt";
 const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
 export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
         border-radius: 5px;
-        border: 1px solid;
+        border: .5px solid var(--gray-70);
+        border-bottom: 2px solid var(--gray-70);
         mix-blend-mode: invert;
         font-size: 12px;
-        min-width: 20px;
-        height: 20px;
+        min-width: 18px;
+        height: 18px;
         display: flex;
         align-items: center;
         justify-content: center;

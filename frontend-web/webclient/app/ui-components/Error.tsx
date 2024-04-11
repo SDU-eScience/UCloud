@@ -50,8 +50,8 @@ export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<Error
         p="1em 1em 1em 1em"
         my={"1em"}
         color="textPrimary"
-        borderColor={props.borderColor}
         width={props.width}
+        style={{background: `var(--${props.borderColor})`}}
     >
         {props.children}
     </Card>

@@ -45,7 +45,7 @@ interface DropdownProps {
 
 export const DropdownContentClass = injectStyle("dropdown-content", k => `
     ${k} {
-        border-radius: 5px;
+        border-radius: 6px;
         box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
         position: absolute;
         background: var(--backgroundDefault);
@@ -56,6 +56,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         visibility: visible;
         pointer-events: auto;
         border: 1px solid var(--borderColor);
+        overflow: hidden;
         user-select: none;
         -webkit-user-select: none;
     }

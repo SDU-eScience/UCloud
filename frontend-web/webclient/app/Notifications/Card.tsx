@@ -48,7 +48,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <Card backgroundColor="var(--backgroundCard)" border={`solid 2px var(--${props.isPinned ? "warningMain" : "primaryMain"})`}>
+        <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)" }`} border={`solid 2px var(--${props.isPinned ? "warningMain" : "primaryMain"})`}>
             <div className="notification-inner">
                 <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
                     color2={props.iconColor2 ?? "iconColor2"} />
@@ -84,7 +84,7 @@ const Style = injectStyle("notification", k => `
         display: flex;
         gap: 10px;
         align-items: center;
-        background: var(--backgroundCard);
+        // background: var(--backgroundCard);
     }
 
     ${k} .notification-inner h3 {

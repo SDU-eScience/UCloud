@@ -32,7 +32,6 @@ export const CardClass = injectStyle("card", k => `
     ${k} {
         border-radius: 10px;
         box-shadow: var(--defaultShadow);
-        border: 1px solid var(--backgroundCardBorder);
         background-color: var(--backgroundCard);
         color: var(--textPrimary);
         padding: 20px;

@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -500,72 +500,71 @@ const Visualization: React.FunctionComponent = () => {
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
-    // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
-    // we want to use _all_ of the space.
-    return <div
+    return <MainContainer
+    headerSize={0}
+    main={<div
         className={classConcat(
             VisualizationStyle,
             hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
         )}
-    >
-        <header className="at-top">
-            <h3>Resource usage</h3>
-            <div className="duration-select">
-                <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
-            </div>
-            <div style={{flexGrow: "1"}} />
-            <ContextSwitcher />
-        </header>
-
-        <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
-            <h3>Resource usage</h3>
-
-            {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
-                <HexSpin size={64} />
-            </> : null}
-
-            {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
-
-            <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingBottom={"26px"}>
-                {state.summaries.map(s =>
-                    <SmallUsageCard
-                        key={s.categoryIdx}
-                        categoryName={s.category.name}
-                        usageText1={usageToString(s.category, s.usage, s.quota, false)}
-                        usageText2={usageToString(s.category, s.usage, s.quota, true)}
-                        chart={s.chart}
-                        active={
-                            s.category.name === state.activeDashboard?.category?.name &&
-                            s.category.provider === state.activeDashboard?.category?.provider
-                        }
-                        activationKey={s.categoryIdx}
-                        onActivate={setActiveCategory}
-                    />
-                )}
-            </Flex>
-
-            {state.activeDashboard ?
-                <div className="panels">
-                    <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
-                        <CategoryDescriptorPanel
-                            category={state.activeDashboard.category}
-                            usage={state.activeDashboard.currentAllocation.usage}
-                            quota={state.activeDashboard.currentAllocation.quota}
-                            expiresAt={state.activeDashboard.currentAllocation.expiresAt}
-                        />
-                        <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
-                        <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
-                        {hasChart3And4 ? <>
-                            <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
-                            <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
-                            <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
-                        </> : null}
-                    </div>
+        >
+            <header>
+                <h2>Resource usage</h2>
+                <div className="duration-select">
+                    <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
-                : null
-            }
-        </div>
-    </div>;
+                <div style={{flexGrow: "1"}} />
+                <ContextSwitcher />
+            </header>
+
+            <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
+                {!state.remoteData.chartData && !state.remoteData.jobStatistics && state.remoteData.requestsInFlight ? <>
+                    <HexSpin size={64} />
+                </> : null}
+
+                {hasNoMeaningfulData ? <NoData productType={activeCategory?.productType} /> : null}
+
+                <Flex flexDirection="row" gap="16px" overflowX={"auto"} paddingY={"26px"} paddingX={"12px"}>
+                    {state.summaries.map(s =>
+                        <SmallUsageCard
+                            key={s.categoryIdx}
+                            categoryName={s.category.name}
+                            usageText1={usageToString(s.category, s.usage, s.quota, false)}
+                            usageText2={usageToString(s.category, s.usage, s.quota, true)}
+                            chart={s.chart}
+                            active={
+                                s.category.name === state.activeDashboard?.category?.name &&
+                                s.category.provider === state.activeDashboard?.category?.provider
+                            }
+                            activationKey={s.categoryIdx}
+                            onActivate={setActiveCategory}
+                        />
+                    )}
+                </Flex>
+
+                {state.activeDashboard ?
+                    <div className="panels">
+                        <div className={classConcat("panel-grid", hasChart3And4 ? HasAlotOfInfoClass.class : undefined)}>
+                            <CategoryDescriptorPanel
+                                category={state.activeDashboard.category}
+                                usage={state.activeDashboard.currentAllocation.usage}
+                                quota={state.activeDashboard.currentAllocation.quota}
+                                expiresAt={state.activeDashboard.currentAllocation.expiresAt}
+                            />
+                            <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                            <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
+                            {hasChart3And4 ? <>
+                                <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
+                                <MostUsedApplicationsPanel data={state.activeDashboard.mostUsedApplications} />
+                                <JobSubmissionPanel data={state.activeDashboard.submissionStatistics} />
+                            </> : null}
+                        </div>
+                    </div>
+                    : null
+                }
+            </div>
+        </div>}
+    />;
 };
 
 const NoDataClass = injectStyle("no-data", k => `
@@ -1966,25 +1965,12 @@ function normalizePeriod(period: Period): {start: number, end: number} {
 // =====================================================================================================================
 const AccountingPanelsOnlyStyle = injectStyle("accounting-panels-only", () => "");
 const VisualizationStyle = injectStyle("visualization", k => `
-    ${k} header {
-        position: fixed;
-        top: 0;
-        left: var(${CSSVarCurrentSidebarWidth});
-        
-        background: var(--backgroundDefault);
-        
+    ${k} > header {
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        
-        height: 50px;
-        width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
-        
-        padding: 0 16px;
-        z-index: 10;
-        
-        box-shadow: var(--defaultShadow);
+        margin-bottom: 16px;
     }
 
     ${k} header.at-top {
@@ -1992,10 +1978,11 @@ const VisualizationStyle = injectStyle("visualization", k => `
         box-shadow: unset;
     }
     
-    ${k} header h3 {
+    ${k} > header h2 {
+        font-size: 20px;
         margin: 0;
     }
-
+    
     ${k} header .duration-select {
         width: 150px;
     }

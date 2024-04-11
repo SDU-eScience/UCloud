@@ -7,11 +7,6 @@ export const LabelClass = injectStyle("label", k => `
     ${k} {
         width: 100%;
         color: var(--textPrimary);
-        padding-left: 2px;
-    }
-
-    ${k} input {
-        margin-left: -2px;
     }
 `);
 

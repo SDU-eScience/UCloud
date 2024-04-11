@@ -21,8 +21,8 @@ for (const f of fileNames) {
             const newLine = line
                 .replace("SVGProps<SVGSVGElement>", "any")
                 .replace("default Svg", "default ")
-                .replace("\"#53657d\"", "undefined")
-                .replace("\"#001833\"", "undefined")
+                .replace("\"#53657d\"", "\"currentcolor\"")
+                .replace("\"#001833\"", "\"currentcolor\"")
                 .replace("\"#8393a7\"", "props.color2 ? props.color2 : \"currentcolor\"");
 
             if (newLine.indexOf("const") !== -1) {

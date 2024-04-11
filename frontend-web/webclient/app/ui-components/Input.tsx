@@ -37,8 +37,6 @@ export const InputClass = injectStyle("input", k => `
         border-radius: 5px;
         padding: 7px 12px;
         height: 35px;
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
-
         border: 1px solid var(--borderColor);
     }
     
@@ -53,7 +51,6 @@ export const InputClass = injectStyle("input", k => `
     ${k}:focus {
         outline: 0;
         border-color: var(--primaryMain);
-        box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}::placeholder {

@@ -86,7 +86,7 @@ function SearchIcon(props: {
     return <form className={SearchClass} data-active={visible} onSubmit={doSearch}>
         <Input inputRef={inputRef} onBlur={close} placeholder={"Search..."} onKeyDown={handleEscape}
                defaultValue={props.initialQuery}/>
-        <Icon id={"search-icon"} size={24} color="primaryMain" name="heroMagnifyingGlass"
+        <Icon id={"search-icon"} size={24} color={visible ? "textPrimary" : "#fff" } name="heroMagnifyingGlass"
               onClick={toggleVisible} cursor={"pointer"}/>
     </form>;
 }
@@ -127,6 +127,6 @@ function RefreshIcon(): React.ReactNode {
         }
     }, [refresh]);
     if (!refresh) return null;
-    return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading} hoverColor="primaryMain"
-                 id={"refresh-icon"} className={refreshIconClass} color="primaryMain" name="heroArrowPath"/>
+    return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading}
+                 id={"refresh-icon"} className={refreshIconClass} color="#fff" name="heroArrowPath"/>
 }

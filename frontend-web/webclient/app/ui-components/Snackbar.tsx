@@ -9,8 +9,11 @@ const SnackbarClass = injectStyle("snackbar", k => `
         background-color: var(--textPrimary, #f00);
         color: var(--backgroundDefault, #f00);
         text-align: center;
-        border-radius: 2px;
-        padding: 16px;
+        border-radius: 6px;
+        padding: 16px 32px 8px 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
         position: fixed;
         z-index: 200;
         left: 50%;
