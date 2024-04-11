@@ -293,9 +293,6 @@ const UIGlobalStyle = `
     --primaryMain: var(--blue-80);
     --primaryLight: var(--blue-70);
     --primaryDark: var(--blue-90);  
-    // --primaryMain: red;
-    // --primaryLight: #1058c4;
-    // --primaryDark: #438bf7;
     --primaryContrast: #ffffff;
     --primaryContrastAlt: #a6a8a9;
     --secondaryMain: var(--gray-30);
@@ -351,7 +348,7 @@ html {
     --modalShadow: rgba(255, 255, 255, 0.75);
 
     /* New color palette */
-    --purple-5: #FCF9FC;
+    --purple-5: #FBF7FB;
     --purple-10: #F5EBF5;
     --purple-20: #E6CDE6;
     --purple-30: #D8B0D8;
@@ -361,7 +358,7 @@ html {
     --purple-70: #993399;
     --purple-80: #870F87;
     --purple-90: #680068;
-    --red-5: #FFF9F6;
+    --red-5: #FFF6F6;
     --red-10: #FFE9E1;
     --red-20: #FFC9B6;
     --red-30: #FFA78C;
@@ -371,7 +368,7 @@ html {
     --red-70: #BD1809;
     --red-80: #961B0B;
     --red-90: #6C1A0C;
-    --orange-5: #FFF9F3;
+    --orange-5: #FFF6EF;
     --orange-10: #FFEAD7;
     --orange-20: #FFCA9A;
     --orange-30: #FFA95B;
@@ -381,7 +378,7 @@ html {
     --orange-70: #9B4708;
     --orange-80: #7D3806;
     --orange-90: #5D2A05;
-    --yellow-5: #FFFAE2;
+    --yellow-5: #FFF8D6;
     --yellow-10: #FFEE98;
     --yellow-20: #FFCF04;
     --yellow-30: #E6B704;
@@ -391,7 +388,7 @@ html {
     --yellow-70: #795B02;
     --yellow-80: #624802;
     --yellow-90: #493501;
-    --green-5: #F2FDEF;
+    --green-5: #EDFCE9;
     --green-10: #D3F8C9;
     --green-20: #89EC6D;
     --green-30: #4BD823;
@@ -412,7 +409,7 @@ html {
     --gray-80: #404D60;
     --gray-90: #2A313B;
     --gray-100: #21262D;
-    --blue-5: #F7FAFE;
+    --blue-5: #F4F8FE;
     --blue-10: #E4EFFC;
     --blue-20: #BCD7F7;
     --blue-30: #95C0F3;

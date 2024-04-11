@@ -2115,7 +2115,7 @@ export class ResourceBrowser<T> {
 
                         window.setTimeout(() => {
                             indicator.classList.add("animate");
-                            indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;// scale3d(400, 100%, 100%)`;
+                            indicator.style.transform = `translate(${rowRect.left}px, ${rowRect.top}px)`;
                         }, 0);
                     }
                 } else {
@@ -2131,7 +2131,7 @@ export class ResourceBrowser<T> {
                     }
 
                     const s = this.entryDragIndicator.style;
-                    s.transform = `translate(${e.clientX}px, ${e.clientY + 10}px)`; //scale3d(400, 100%, 100%)`;
+                    s.transform = `translate(${e.clientX}px, ${e.clientY + 10}px)`;
 
                     const s2 = this.entryDragIndicatorContent.style;
                     s2.left = (e.clientX + 10) + "px";

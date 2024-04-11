@@ -493,8 +493,6 @@ const Visualization: React.FunctionComponent = () => {
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
-    // NOTE(Dan): We are not using a <MainContainer/> here on purpose since
-    // we want to use _all_ of the space.
     return <MainContainer
     headerSize={0}
     main={<div
