@@ -3193,6 +3193,10 @@ export class ResourceBrowser<T> {
                 padding: 0 8px;
                 transition: filter 0.3s;
             }
+
+            ${browserClass.dot} .row:first-of-type {
+                border-top: 0px;
+            }
             
             ${browserClass.dot} .rows-title {
                 max-height: 40px;
