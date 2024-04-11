@@ -369,6 +369,7 @@ export const Overview: React.FunctionComponent = () => {
                 opts={{
                     isModal: true,
                     initialPath: "",
+                    managesLocalProject: true,
                     selection: {
                         text: "Sync",
                         show(file) {

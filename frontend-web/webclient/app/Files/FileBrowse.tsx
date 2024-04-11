@@ -106,7 +106,7 @@ const FEATURES: ResourceBrowseFeatures = {
 
 let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
-function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string}}): JSX.Element {
+function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string, managesLocalProject?: boolean}}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -1403,7 +1403,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
 
-    const setLocalProject = opts?.isModal ? (projectId?: string) => {
+    const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {
         const b = browserRef.current;
         if (b) {
             b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
