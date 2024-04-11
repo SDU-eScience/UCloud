@@ -80,16 +80,18 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.display = "none";
 
     function onHover(ev: MouseEvent) {
+        contentWrapper.style.display = "block";
         portal.append(contentWrapper);
-        const wrapperRect = trigger.getBoundingClientRect();
-        const expectedLeft = wrapperRect.x + wrapperRect.width / 2 - width / 2;
+        const triggerRect = trigger.getBoundingClientRect();
+        const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
         if (expectedLeft + width > window.innerWidth) {
             contentWrapper.style.left = `${window.innerWidth - width - 24}px`;
         } else {
             contentWrapper.style.left = `${expectedLeft}px`;
         }
-        contentWrapper.style.top = `${wrapperRect.y + wrapperRect.height}px`;
-        contentWrapper.style.display = "block";
+        contentWrapper.style.position = "fixed"; // Hack(Jonas): Absolute height of absolute elements are 0, so we briefly modify it.
+        contentWrapper.style.top = `${triggerRect.y + triggerRect.height}px`;
+        contentWrapper.style.position = "absolute"; // Hack(Jonas): Set to absolute again as is intended state.
     }
 
     function onLeave() {
