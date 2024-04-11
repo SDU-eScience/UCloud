@@ -41,6 +41,7 @@ object LogoGenerator {
         backgroundColor: Int,
         colorReplacements: Map<Int, Int>,
     ): ByteArray {
+        val isEmptyImage = input === emptyImage // NOTE(Dan): === is correct, we want to check the reference
         val currentCache = cache.get()
         val cached = currentCache[cacheKey]
         if (cached != null) return cached
@@ -49,7 +50,7 @@ object LogoGenerator {
             val inputImage = ImageIO.read(ByteArrayInputStream(input))
 
             val resizeHeight = 256
-            val fontScalingFactor = inputImage.height / resizeHeight.toFloat()
+            val fontScalingFactor = if (isEmptyImage) 1f else inputImage.height / resizeHeight.toFloat()
             val resizeCanvas =
                 BufferedImage(inputImage.width, inputImage.height, BufferedImage.TYPE_INT_ARGB)
             val gs = resizeCanvas.graphics
@@ -148,6 +149,13 @@ object LogoGenerator {
                 }
             }
 
+            if (firstX == Int.MAX_VALUE || firstY == Int.MAX_VALUE) {
+                firstX = 0
+                firstY = 0
+                lastX = 1
+                lastY = 1
+            }
+
             val modifiedImage = BufferedImage(resizeCanvas.width, resizeCanvas.height, BufferedImage.TYPE_INT_ARGB)
             (modifiedImage.graphics as Graphics2D).setRenderingHint(
                 RenderingHints.KEY_ANTIALIASING,
@@ -206,7 +214,7 @@ object LogoGenerator {
 
             var imageWithText: BufferedImage? = null
 
-            if (placeTextUnderLogo) {
+            if (placeTextUnderLogo && !isEmptyImage) {
                 var size = 60f * fontScalingFactor
                 val fontMetrics = gs.getFontMetrics(primaryFont.deriveFont(size))
                 var textWidth = fontMetrics.stringWidth(title)
@@ -236,9 +244,9 @@ object LogoGenerator {
                 g.drawImage(croppedImage, logoPadding.toInt(), 0, null)
                 g.drawString(title, textPadding.toInt(), (imageHeight + size * 1.1f).toInt())
             } else {
-                var paddingX = (30 * fontScalingFactor).toInt()
+                var paddingX = if (isEmptyImage) 0 else (30 * fontScalingFactor).toInt()
                 val sizes = listOf(120f, 110f, 100f, 90f, 80f, 70f, 60f, 50f).map { it * fontScalingFactor }
-                for (size in sizes) {
+                for ((index, size) in sizes.withIndex()) {
                     val fontMetrics = gs.getFontMetrics(primaryFont.deriveFont(size))
                     val titleWords = title.split(" ")
                     val currentLine = StringBuilder()
@@ -277,8 +285,10 @@ object LogoGenerator {
                         paddingX = 0
                     }
 
-                    if (linesOfText.size == 1 && textHeight > imageHeight * 0.55) continue
-                    if (linesOfText.size > 1 && textHeight > imageHeight * 0.8) continue
+                    if (index != sizes.lastIndex) {
+                        if (linesOfText.size == 1 && textHeight > imageHeight * 0.55) continue
+                        if (linesOfText.size > 1 && textHeight > imageHeight * 0.8) continue
+                    }
 
                     imageWithText = BufferedImage(
                         imageWidth + paddingX + textWidth,
@@ -322,6 +332,13 @@ object LogoGenerator {
             }
 
             return result
+        }
+    }
+
+    val emptyImage by lazy {
+        ByteArrayOutputStream().use { outs ->
+            ImageIO.write(BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB), "PNG", outs)
+            outs.toByteArray()
         }
     }
 }

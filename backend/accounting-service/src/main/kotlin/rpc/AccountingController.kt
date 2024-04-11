@@ -129,7 +129,7 @@ class AccountingController(
         }
 
         implementOrDispatch(AccountingV2.rootAllocate) {
-            val idCard = idCards.fetchIdCard(actorAndProject)
+            val idCard = idCards.fetchIdCard(actorAndProject, allowCached = false)
 
             val allocationIds = ArrayList<FindByStringId>()
             for (req in request.items) {

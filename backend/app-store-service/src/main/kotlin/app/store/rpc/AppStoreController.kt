@@ -105,7 +105,6 @@ class AppStoreController(
                 newDescription = request.newDescription,
                 newDefaultFlavor = request.newDefaultFlavor,
                 newLogoHasText = request.newLogoHasText,
-                newBackgroundColor = request.newBackgroundColor,
             )
 
             ok(Unit)
@@ -191,7 +190,7 @@ class AppStoreController(
                 // fine given that this code is only ever supposed to run locally.
                 val computedChecksum = hex(digest.digest())
                 if (computedChecksum != request.checksum) {
-                    Importer.log.info("Invalid checksum. Computed: $computedChecksum. Expected: ${request.checksum}")
+                    log.info("Invalid checksum. Computed: $computedChecksum. Expected: ${request.checksum}")
                     throw RPCException("invalid checksum", HttpStatusCode.BadRequest)
                 }
 
@@ -262,7 +261,7 @@ class AppStoreController(
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = bytes.size.toLong()
-                    override val contentType = ContentType.Image.Any
+                    override val contentType = ContentType.Image.PNG
                     override fun readFrom(): ByteReadChannel = ByteArrayInputStream(bytes).toByteReadChannel()
                 }
             )
@@ -276,17 +275,35 @@ class AppStoreController(
             val app = service.retrieveApplication(ActorAndProject.System, request.name, null)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val groupId = app.metadata.group?.metadata?.id
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            val bytes = service.retrieveGroupLogo(
-                groupId, request.darkMode, request.includeText,
-                request.placeTextUnderLogo, app.metadata.flavorName
-            ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val bytes = if (groupId == null) {
+                val cacheKey = buildString {
+                    append("NO_LOGO")
+                    append(app.metadata.title)
+                    append(request.darkMode)
+                    append(request.includeText)
+                    append(request.placeTextUnderLogo)
+                }
+
+                LogoGenerator.generateLogoWithText(
+                    cacheKey,
+                    app.metadata.title,
+                    LogoGenerator.emptyImage,
+                    request.placeTextUnderLogo,
+                    if (request.darkMode) DarkBackground else LightBackground,
+                    emptyMap()
+                )
+            } else {
+                service.retrieveGroupLogo(
+                    groupId, request.darkMode, request.includeText,
+                    request.placeTextUnderLogo, app.metadata.flavorName
+                ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
 
             (ctx as HttpCall).call.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = bytes.size.toLong()
-                    override val contentType = ContentType.Image.Any
+                    override val contentType = ContentType.Image.PNG
                     override fun readFrom(): ByteReadChannel = ByteArrayInputStream(bytes).toByteReadChannel()
                 }
             )

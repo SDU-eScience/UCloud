@@ -705,7 +705,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             }
         }
 
-        const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1;
+        const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
         const docSections = parseIntoSections(docText);
         const templates = isGrantGiverInitiated ? [grantGiverInitiatedTemplate] : newAllocators.map(it => it.template);
@@ -2630,7 +2630,8 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
 
-const grantGiverInitiatedTemplate = `Description
+const grantGiverInitiatedPrefix = "Grant-giver initiated description";
+const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 --------------------------------------------------
                     
 Describe the reason for creating this sub-allocation (max 4000 ch).`;

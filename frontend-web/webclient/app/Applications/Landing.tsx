@@ -4,11 +4,11 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 import {classConcat, injectStyle} from "@/Unstyled";
 import {Box, Button, Card, Flex, Grid, Icon, Image, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {appColor, AppLogo, hashF, SafeLogo} from "@/Applications/AppToolLogo";
+import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
-import {appColors, ThemeColor} from "@/ui-components/theme";
+import {appColors} from "@/ui-components/theme";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -17,8 +17,8 @@ import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
-import {hslToRgb, rgbToHsl, shade, tint} from "@/ui-components/GlobalStyle";
-import {LogoWithText} from "@/Applications/LogoGenerator";
+import {shade, tint} from "@/ui-components/GlobalStyle";
+import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const landingStyle = injectStyle("landing-page", k => `
@@ -562,12 +562,10 @@ const CategoryCardStyle = injectStyle("category-card", k => `
     
     ${k} .logo-wrapper {
         position: absolute;
-        top: -64px;
-        left: 170px;
+        top: -140px;
+        left: 160px;
         z-index: 0;
-        width: 64px;
-        height: 64px;
-        opacity: 0.75;
+        transform: rotate(180deg);
     }
     
     ${k} span {
@@ -575,44 +573,13 @@ const CategoryCardStyle = injectStyle("category-card", k => `
     }
 `);
 
-import type3 from "@/Assets/Images/icons/type3.png";
-import engineering from "@/Assets/Images/icons/engineering.png";
-import dataAnalytics from "@/Assets/Images/icons/data-analytics.png";
-import quantumComputing from "@/Assets/Images/icons/quantum-computing.png";
-import socialScience from "@/Assets/Images/icons/social-science.png";
-import appliedScience from "@/Assets/Images/icons/applied-science.png";
-import naturalScience from "@/Assets/Images/icons/natural-science.png";
-import development from "@/Assets/Images/icons/development.png";
-import virtualMachines from "@/Assets/Images/icons/virtual-machines.png";
-import digitalHumanities from "@/Assets/Images/icons/digital-humanities.png";
-import healthScience from "@/Assets/Images/icons/health-science.png";
-import bioinformatics from "@/Assets/Images/icons/bioinformatics.png";
-const testLogos: Record<string, string> = {
-    "Type 3": type3,
-    "Engineering": engineering,
-    "Data Analytics": dataAnalytics,
-    "Quantum Computing": quantumComputing,
-    "Social Science": socialScience,
-    "Applied science": appliedScience,
-    "Natural Science": naturalScience,
-    "Development": development,
-    "Virtual Machines": virtualMachines,
-    "Digital Humanities": digitalHumanities,
-    "Health Science": healthScience,
-    "Bioinformatics": bioinformatics,
-}
-
 const CategoryCard: React.FunctionComponent<{
     id: number;
     categoryTitle: string;
 }> = props => {
-    const hash = hashF(props.categoryTitle);
-    const appC = appColors[props.id % appColors.length][1];
+    const appCIdx = props.id % appColors.length;
+    const appC = appColors[appCIdx][1];
 
-    // const appC = getCssPropertyValue("primaryLight");
-    // let [h, s, l] = rgbToHsl(appC);
-    // s *= 1.00;
-    // const baseColor = hslToRgb(h, s, l);
     const baseColor = tint(appC, 0.0);
     const gradStart = tint(baseColor, 0.1);
     const gradEndHover = shade(gradStart, 0.2);
@@ -623,13 +590,11 @@ const CategoryCard: React.FunctionComponent<{
     style["--card-end"] = gradEnd;
     style["--card-end-hover"] = gradEndHover;
 
-    const logoSrc = (testLogos[props.categoryTitle] ?? type3);
-
     return <ReactRouterLink to={AppRoutes.apps.category(props.id)}>
         <div className={CategoryCardStyle} style={style}>
             <Relative>
                 <div className={"logo-wrapper"}>
-                    <Image src={logoSrc} width={64} height={64}/>
+                    <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"} />
                 </div>
             </Relative>
             <span>{props.categoryTitle}</span>

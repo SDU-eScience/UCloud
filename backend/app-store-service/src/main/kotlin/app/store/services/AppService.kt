@@ -166,7 +166,6 @@ class AppService(
                         ag.description as group_description,
                         ag.default_name as default_name,
                         ag.logo as group_logo,
-                        ag.background_color as group_background_color,
                         ag.logo_has_text as group_logo_has_text,
                         ag.color_remapping as color_remapping
                     from
@@ -191,10 +190,9 @@ class AppService(
                 val app = row.toApplication()
                 registerApplication(app, flush = false)
                 val groupLogo = row.getAs<ByteArray?>("group_logo")
-                val backgroundColor = row.getString("group_background_color")
                 val logoHasText = row.getBoolean("group_logo_has_text") ?: false
                 val colorRemapping = row.getString("color_remapping")?.let {
-                    defaultMapper.decodeFromString<Map<String, Map<Int, Int>>>(it)
+                    defaultMapper.decodeFromString<Map<String, Map<Int, Int>?>>(it)
                 }
 
                 val darkRemapping = colorRemapping?.get("dark")
@@ -204,7 +202,6 @@ class AppService(
                 if (g != null) {
                     groups[g.metadata.id.toLong()]?.updateMetadata(
                         logo = groupLogo,
-                        newBackgroundColor = backgroundColor,
                         newLogoHasText = logoHasText,
                         colorRemappingLight = lightRemapping,
                         colorRemappingDark = darkRemapping,
@@ -310,11 +307,11 @@ class AppService(
                         from app_store.spotlights
                     """
                 ).rows.forEach { row ->
-                    val id = row.getInt(0)!!
+                    val spotlightId = row.getInt(0)!!
                     val title = row.getString(1)!!
                     val description = row.getString(2)!!
                     val active = row.getBoolean(3)!!
-                    spotlights[id.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, id))
+                    spotlights[spotlightId.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, spotlightId))
                 }
 
                 session.sendPreparedStatement(
@@ -325,12 +322,12 @@ class AppService(
                         order by spotlight_id, priority
                     """
                 ).rows.forEach { row ->
-                    val id = row.getInt(0)!!
+                    val spotlightId = row.getInt(0)!!
                     val appName = row.getString(1)
                     val groupId = row.getInt(2)
                     val description = row.getString(3)!!
 
-                    spotlights[id.toLong()]?.update {
+                    spotlights[spotlightId.toLong()]?.update {
                         it.copy(applications = it.applications + TopPick("", appName, groupId, description))
                     }
                 }
@@ -540,10 +537,9 @@ class AppService(
                 null,
                 emptySet(),
                 emptySet(),
-                group.specification.backgroundColor,
                 group.specification.logoHasText,
-                null,
-                null,
+                group.specification.colorReplacement.light,
+                group.specification.colorReplacement.dark,
             )
         }
     }
@@ -594,7 +590,7 @@ class AppService(
         return apps.sortedByDescending { it.metadata.createdAt }
     }
 
-    suspend fun retrieveTool(
+    fun retrieveTool(
         actorAndProject: ActorAndProject,
         name: String,
         version: String?,
@@ -606,8 +602,8 @@ class AppService(
         }
     }
 
-    suspend fun listToolVersions(
-        actorAndProject: ActorAndProject,
+    fun listToolVersions(
+        @Suppress("UNUSED_PARAMETER") actorAndProject: ActorAndProject,
         name: String
     ): List<Tool> {
         val result = ArrayList<Tool>()
@@ -623,13 +619,12 @@ class AppService(
         val gid = groupId
         if (gid != null) {
             val g = groups[gid.toLong()]?.get() ?: return this
-            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor,
-                logoBackgroundColor = g.backgroundColor, logoHasText = g.logoHasText)
+            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor, logoHasText = g.logoHasText)
         } else {
             val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
             val g = a.metadata.group?.metadata?.id?.let { groupId -> groups[groupId.toLong()]?.get() }
             return copy(title = a.metadata.title, defaultApplicationToRun = a.metadata.name,
-                logoHasText = g?.logoHasText ?: false, logoBackgroundColor = g?.backgroundColor)
+                logoHasText = g?.logoHasText ?: false)
         }
     }
 
@@ -637,7 +632,7 @@ class AppService(
         return copy(applications = applications.map { it.prepare() })
     }
 
-    private suspend fun CarrouselItem.prepare(): CarrouselItem {
+    private fun CarrouselItem.prepare(): CarrouselItem {
         val defaultGroupApp = linkedGroup?.let { groups[it.toLong()]?.get()?.defaultFlavor }
         return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
     }
@@ -729,10 +724,10 @@ class AppService(
             ),
             ApplicationGroup.Specification(
                 info.title,
-                info.description ?: "",
+                info.description,
                 info.defaultFlavor,
                 info.categories,
-                info.backgroundColor,
+                ApplicationGroup.ColorReplacements(info.colorRemappingLight, info.colorRemappingDark),
                 info.logoHasText,
             ),
             ApplicationGroup.Status(
@@ -740,6 +735,13 @@ class AppService(
                 else null,
             )
         )
+    }
+
+    fun retrieveRawGroupLogo(
+        groupId: Int,
+    ): ByteArray? {
+        val g = groups[groupId.toLong()]?.get() ?: return null
+        return g.logo
     }
 
     suspend fun retrieveGroupLogo(
@@ -750,7 +752,8 @@ class AppService(
         flavorName: String? = null,
     ): ByteArray? {
         val g = groups[groupId.toLong()]?.get() ?: return null
-        val logo = g.logo ?: return null
+        val logo = g.logo ?: LogoGenerator.emptyImage
+        val hasLogo = g.logo != null
 
         val fullTitle = buildString {
             append(g.title.trim())
@@ -772,7 +775,7 @@ class AppService(
 
         return LogoGenerator.generateLogoWithText(
             cacheKey,
-            if (includeText && !g.logoHasText) fullTitle else "",
+            if ((includeText && !g.logoHasText) || !hasLogo) fullTitle else "",
             logo,
             placeTextUnderLogo,
             if (darkMode) DarkBackground else LightBackground,
@@ -1004,7 +1007,7 @@ class AppService(
 
     suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        return groups.mapNotNull { (groupId, ig) ->
+        return groups.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
         }
     }
@@ -1017,7 +1020,7 @@ class AppService(
         return toolVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
     }
 
-    suspend fun retrieveSpotlights(
+    fun retrieveSpotlights(
         actorAndProject: ActorAndProject,
         id: Int,
     ): Spotlight? {
@@ -1025,7 +1028,7 @@ class AppService(
         return spotlights[id.toLong()]?.get()
     }
 
-    suspend fun listSpotlights(
+    fun listSpotlights(
         actorAndProject: ActorAndProject,
     ): List<Spotlight> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -1137,7 +1140,7 @@ class AppService(
         newDefaultFlavor: String? = null,
         newLogo: ByteArray? = null,
         newLogoHasText: Boolean? = null,
-        newBackgroundColor: String? = null,
+        newColorRemapping: ApplicationGroup.ColorReplacements? = null,
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val g = groups[id.toLong()] ?: throw RPCException("Unknown group: $id", HttpStatusCode.NotFound)
@@ -1184,8 +1187,8 @@ class AppService(
                     setParameter("newDescription", normalizedNewDescription)
                     setParameter("flavor", newDefaultFlavor)
                     setParameter("logo", resizedLogo)
-                    setParameter("background", newBackgroundColor)
                     setParameter("logo_has_text", newLogoHasText)
+                    setParameter("color_remapping", newColorRemapping?.let { defaultMapper.encodeToString(it) })
                 },
                 """
                     update app_store.application_groups g
@@ -1194,8 +1197,8 @@ class AppService(
                         description = coalesce(:newDescription::text, g.description),
                         default_name = coalesce(:flavor::text, g.default_name),
                         logo = coalesce(:logo::bytea, g.logo),
-                        background_color = coalesce(:background::text, g.background_color),
-                        logo_has_text = coalesce(:logo_has_text::bool, g.logo_has_text)
+                        logo_has_text = coalesce(:logo_has_text::bool, g.logo_has_text),
+                        color_remapping = coalesce(:color_remapping::jsonb, g.color_remapping)
                     where g.id = :id
                 """
             )
@@ -1224,7 +1227,7 @@ class AppService(
         }
 
         g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo,
-            newLogoHasText, newBackgroundColor, null, null)
+            newLogoHasText, newColorRemapping?.light, newColorRemapping?.dark)
     }
 
     suspend fun assignApplicationToGroup(
@@ -1292,7 +1295,7 @@ class AppService(
             }
         }
 
-        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet(), null, false, null, null)
+        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet(), false, null, null)
         return id
     }
 
@@ -1560,7 +1563,7 @@ class AppService(
         }
     }
 
-    suspend fun retrieveAcl(actorAndProject: ActorAndProject, name: String): Collection<EntityWithPermission> {
+    fun retrieveAcl(actorAndProject: ActorAndProject, name: String): Collection<EntityWithPermission> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         return accessControlLists[name]?.get() ?: emptySet()
     }
@@ -1690,7 +1693,7 @@ class AppService(
         applications: List<TopPick>,
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        val id = db.withSession { session ->
+        val spotlightId = db.withSession { session ->
             val allocatedId = if (db == DiscardingDBContext) {
                 id ?: groupIdAllocatorForTestsOnly.getAndIncrement()
             } else {
@@ -1758,10 +1761,10 @@ class AppService(
         }
 
         if (active) {
-            activateSpotlight(actorAndProject, id)
+            activateSpotlight(actorAndProject, spotlightId)
         }
 
-        return id
+        return spotlightId
     }
 
     suspend fun activateSpotlight(
@@ -2074,7 +2077,6 @@ class AppService(
         logo: ByteArray?,
         applications: Set<NameAndVersion>,
         categories: Set<Int>,
-        backgroundColor: String?,
         logoHasText: Boolean,
         colorRemappingLight: Map<Int, Int>?,
         colorRemappingDark: Map<Int, Int>?,
@@ -2086,7 +2088,6 @@ class AppService(
             @Suppress("ArrayInDataClass") val logo: ByteArray?,
             val applications: Set<NameAndVersion>,
             val categories: Set<Int>,
-            val backgroundColor: String?,
             val logoHasText: Boolean,
             val colorRemappingLight: Map<Int, Int>?,
             val colorRemappingDark: Map<Int, Int>?,
@@ -2100,7 +2101,6 @@ class AppService(
                 logo,
                 applications,
                 categories,
-                backgroundColor,
                 logoHasText,
                 colorRemappingLight,
                 colorRemappingDark,
@@ -2115,7 +2115,6 @@ class AppService(
             defaultFlavor: String? = null,
             logo: ByteArray? = null,
             newLogoHasText: Boolean? = null,
-            newBackgroundColor: String? = null,
             colorRemappingLight: Map<Int, Int>?,
             colorRemappingDark: Map<Int, Int>?,
         ) {
@@ -2127,7 +2126,6 @@ class AppService(
                     defaultFlavor = defaultFlavor ?: oldRef.defaultFlavor,
                     logo = if (logo?.size == 0) null else logo ?: oldRef.logo,
                     logoHasText = newLogoHasText ?: oldRef.logoHasText,
-                    backgroundColor = if (newBackgroundColor == "") null else newBackgroundColor ?: oldRef.backgroundColor,
                     colorRemappingLight = colorRemappingLight,
                     colorRemappingDark = colorRemappingDark,
                 )

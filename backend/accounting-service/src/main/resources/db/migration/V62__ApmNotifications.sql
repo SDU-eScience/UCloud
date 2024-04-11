@@ -18,7 +18,8 @@ create or replace function project.project_to_json(
         'modifiedAt', provider.timestamp_to_unix(project_in.modified_at),
         'specification', jsonb_build_object(
             'parent', project_in.parent,
-            'title', project_in.title
+            'title', project_in.title,
+            'canConsumeResources', project_in.can_consume_resources
         ),
         'status', jsonb_build_object(
             'myRole', my_role_in,

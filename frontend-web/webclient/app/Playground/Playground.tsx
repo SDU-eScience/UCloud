@@ -8,7 +8,6 @@ import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
-import {testGenerator} from "@/Applications/LogoGenerator";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 
 const iconsNames = Object.keys(icons) as IconName[];
@@ -16,11 +15,6 @@ const iconsNames = Object.keys(icons) as IconName[];
 const Playground: React.FunctionComponent = () => {
     const main = (
         <>
-            <Button onClick={() => {
-                testGenerator();
-            }}>
-                Logo generator
-            </Button>
             <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={40} label="Forty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={60} label="Sixty!" percentage={30} />
