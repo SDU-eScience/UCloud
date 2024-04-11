@@ -305,7 +305,6 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             if (maxWalletID != null) walletsIdAccumulator.set(maxWalletID + 1)
             if (maxOwnerID != null) ownersIdAccumulator.set(maxOwnerID + 1)
             if (maxGroupId != null) allocationGroupIdAccumulator.set(maxGroupId + 1)
-            println("MAX OWNER ID IS $maxOwnerID")
 
             if (didChargeOldData) {
                 didChargeOldData = false

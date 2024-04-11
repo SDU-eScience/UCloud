@@ -10,6 +10,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {classConcat} from "@/Unstyled";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
@@ -78,16 +79,16 @@ export const FirewallEditor: React.FunctionComponent<{
         setDidChange(true);
     }, [inspecting, reload]);
 
-    return <>
-        <TitledCard isLoading={false} title={"Firewall"} icon={"verified"}>
+    return <TabbedCard>
+        <TabbedCardTab name={"Firewall"} icon={"verified"}>
             {!didChange ?
                 <>
-                    <Box height={120}>
+                    <Box height={80}>
                         <b>Example:</b> to configure the firewall to accept SSH connections you would typically put in:
                         <pre><code>Port (First) = 22, Port (Last) = 22, Protocol = TCP</code></pre>
                     </Box>
                 </> :
-                <Box className={classConcat(ShakingBox, "shaking")} height={120}>
+                <Box className={classConcat(ShakingBox, "shaking")} height={80}>
                     <b>Note:</b> Your application must be <i>restarted</i> for the firewall to take effect.
                 </Box>
             }
@@ -120,9 +121,9 @@ export const FirewallEditor: React.FunctionComponent<{
                             </TableRow>
                         })}
                         <TableRow>
-                            <TableCell><Input inputRef={portFirstRef} /></TableCell>
-                            <TableCell><Input inputRef={portLastRef} /></TableCell>
-                            <TableCell>
+                            <TableCell pr={"16px"}><Input inputRef={portFirstRef} /></TableCell>
+                            <TableCell pr={"16px"}><Input inputRef={portLastRef} /></TableCell>
+                            <TableCell pr={"16px"}>
                                 <Select selectRef={protocolRef}>
                                     <option>TCP</option>
                                     <option>UDP</option>
@@ -133,6 +134,6 @@ export const FirewallEditor: React.FunctionComponent<{
                     </tbody>
                 </Table>
             </form>
-        </TitledCard>
-    </>
+        </TabbedCardTab>
+    </TabbedCard>
 };

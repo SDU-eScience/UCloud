@@ -7,7 +7,7 @@ import {useNavigate, useParams} from "react-router";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {groupLogoCache, SafeLogo} from "../AppToolLogo";
+import {SafeLogo} from "../AppToolLogo";
 import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -233,7 +233,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                                         } else {
                                                             await AppStore.addLogoToGroup(id, file)
                                                         }
-                                                        groupLogoCache.forget(id.toString());
                                                         refresh();
                                                         dialogStore.success();
                                                     }
@@ -248,7 +247,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                             disabled={commandLoading}
                                             onClick={async () => {
                                                 await invokeCommand(AppStore.removeLogoFromGroup({id}));
-                                                groupLogoCache.forget(id.toString());
                                                 refresh();
                                             }}
                                         >

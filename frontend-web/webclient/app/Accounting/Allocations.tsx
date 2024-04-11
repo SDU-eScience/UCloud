@@ -609,13 +609,6 @@ function stateReducer(state: State, action: UIAction): State {
                     allocations: [],
                 };
 
-                // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
-                // might not be coming from us. The backend doesn't tell us this since it would leak information we do
-                // not have access to.
-                //
-                // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
-                // that we can use the entire quota (even if we cannot).
-                newGroup.usageAndQuota.maxUsable = newGroup.usageAndQuota.quota - newGroup.usageAndQuota.usage;
 
                 for (const alloc of childGroup.group.allocations) {
                     newGroup.allocations.push({
@@ -665,6 +658,16 @@ function stateReducer(state: State, action: UIAction): State {
                     if (categoryCmp !== 0) return categoryCmp;
                     return 0;
                 });
+
+                for (const b of uqBuilder) {
+                    // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
+                    // might not be coming from us. The backend doesn't tell us this since it would leak information we do
+                    // not have access to.
+                    //
+                    // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
+                    // that we can use the entire quota (even if we cannot).
+                    b.maxUsable = b.quota - b.usage;
+                }
 
                 recipient.usageAndQuota = uqBuilder;
             }
@@ -1796,7 +1799,7 @@ function ProgressBar({uq, type}: {
         limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
         label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
-        withWarning={(uq.maxUsable + uq.usage) < uq.quota}
+        withWarning={Math.abs((uq.maxUsable + uq.usage) - uq.quota) > 0.001}
     />;
 }
 

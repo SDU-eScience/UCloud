@@ -1,10 +1,10 @@
 import * as React from "react";
 import {BulkResponse, compute, FindByStringId} from "@/UCloud";
 import {useState} from "react";
-import {AppLogo, appLogoCache, hashF} from "@/Applications/AppToolLogo";
+import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
@@ -87,26 +87,12 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, dimensions, row));
 
-                    logoDataUrls.retrieve(entry.metadata.name, async () => {
-                        const result = await appLogoCache.fetchLogo(entry.metadata.name);
-                        if (result !== null) {
-                            return result;
-                        }
-
-                        return await browser.icons.renderSvg(
-                            entry.metadata.name,
-                            () => <AppLogo size="32px" hash={hashF(entry.metadata.name)} />,
-                            32,
-                            32
-                        ).then(it => it).catch(e => {
-                            console.log("render SVG error", e);
-                            return "";
-                        });
-                    }).then(result => {
-                        if (result) {
-                            setIcon(result);
-                        }
-                    });
+                    setIcon(AppStore.retrieveAppLogo({
+                        name: entry.metadata.name,
+                        darkMode: !isLightThemeStored(),
+                        includeText: false,
+                        placeTextUnderLogo: false,
+                    }));
 
                     const button = browser.defaultButtonRenderer({
                         onClick: async () => {

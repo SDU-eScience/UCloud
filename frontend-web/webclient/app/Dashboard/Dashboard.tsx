@@ -249,7 +249,7 @@ function DashboardResources({wallets}: {
                                 <TableRow height="55px" key={i}>
                                     <TableCell fontSize={FONT_SIZE}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.paysFor.provider} size={20} />
+                                            <ProviderLogo providerId={n.paysFor.provider} size={30} />
                                             <code>{n.paysFor.name}</code>
                                         </Flex>
                                     </TableCell>
@@ -363,7 +363,7 @@ const NewsClass = injectStyle("with-graphic", k => `
     }
 
     ${k} > div {
-        width: 600px;
+        width: 800px;
     }
 
     ${k} > img {

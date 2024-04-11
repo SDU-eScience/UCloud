@@ -11,7 +11,7 @@ import {
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductIngress as ProductPublicLink} from "@/Accounting";
+import {ProductIngress as ProductPublicLink, productTypeToIcon} from "@/Accounting";
 
 export interface PublicLinkSpecification extends ResourceSpecification {
     domain: string;
@@ -48,7 +48,7 @@ class PublicLinkApi extends ResourceApi<PublicLink, ProductPublicLink, PublicLin
     productType = "INGRESS" as const;
 
     renderer: ItemRenderer<PublicLink> = {
-        Icon({resource, size}) {return <Icon name={"globeEuropeSolid"} size={size} />},
+        Icon({resource, size}) {return <Icon name={productTypeToIcon("INGRESS")} size={size} />},
         MainTitle({resource}) {return <>{resource?.specification?.domain ?? ""}</>}
     };
 

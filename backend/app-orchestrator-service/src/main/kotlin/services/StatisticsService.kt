@@ -65,10 +65,11 @@ class StatisticsService {
             AccountingV2.retrieveDescendants.call(
                 AccountingV2.RetrieveDescendants.Request(projectId),
                 serviceClient
-            ).orThrow().descendants
+            ).orThrow().descendants + projectId
         } else {
             emptyList()
         }
+
         db.withSession { session ->
             // Usage by user
             run {
@@ -297,10 +298,6 @@ class StatisticsService {
                     )
                 }
                 flushChart()
-            }
-
-            usageByUser.forEach {
-                println(it.encodeToJson())
             }
 
             // Job submission stats

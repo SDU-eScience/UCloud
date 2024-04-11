@@ -14,7 +14,7 @@ import PortRangeAndProto = compute.PortRangeAndProto;
 import {ResourceProperties} from "@/Resource/Properties";
 import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductNetworkIP} from "@/Accounting";
+import {ProductNetworkIP, productTypeToIcon} from "@/Accounting";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 
@@ -66,7 +66,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
             return !resource ? <>Public IP</> :
                 <>{resource.status.ipAddress ?? resource.id.toString()}</>
         },
-        Icon({size}) {return <Icon name={"networkWiredSolid"} size={size} />}
+        Icon({size}) {return <Icon name={productTypeToIcon("NETWORK_IP")} size={size} />}
     };
 
     Properties = (props) => {

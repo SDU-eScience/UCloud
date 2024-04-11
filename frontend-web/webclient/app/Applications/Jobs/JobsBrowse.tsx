@@ -3,10 +3,10 @@ import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
 import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {AppLogo, appLogoCache, hashF} from "../AppToolLogo";
+import {AppLogo, hashF} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
@@ -18,6 +18,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {logoDataUrls} from "./LogoDataCache";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -156,27 +157,12 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
                     }
-
-                    logoDataUrls.retrieve(job.specification.application.name, async () => {
-                        const result = await appLogoCache.fetchLogo(job.specification.application.name);
-                        if (result !== null) {
-                            return result;
-                        }
-
-                        return await browser.icons.renderSvg(
-                            job.specification.application.name,
-                            () => <AppLogo size="32px" hash={hashF(job.specification.application.name)} />,
-                            32,
-                            32
-                        ).then(it => it).catch(e => {
-                            console.log("render SVG error", e);
-                            return "";
-                        });
-                    }).then(result => {
-                        if (result) {
-                            setIcon(result);
-                        }
-                    });
+                    setIcon(AppStore.retrieveAppLogo({
+                        name: job.specification.application.name,
+                        darkMode: !isLightThemeStored(),
+                        includeText: false,
+                        placeTextUnderLogo: false,
+                    }));
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, job);

@@ -96,10 +96,8 @@ class ProductCache(private val db: DBContext) : IProductCache {
     }
 
     private suspend inline fun <R> tryOrRetry(block: () -> R?): R? {
-        println("Trying")
         val result = block()
         if (result != null) return result
-        println("Retrying!")
         fillCache(force = true)
         return block()
     }
@@ -166,10 +164,8 @@ class ProductCache(private val db: DBContext) : IProductCache {
     }
 
     override suspend fun productCategory(id: ProductCategoryIdV2): ProductCategory? {
-        println("In here! $id")
         return tryOrRetry {
             val message = products()
-            println(message)
             message.find { it.category.toId() == id }?.category
         }
     }

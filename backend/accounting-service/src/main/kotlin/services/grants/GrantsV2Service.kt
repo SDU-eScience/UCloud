@@ -1524,7 +1524,11 @@ class GrantsV2Service(
 
             val notificationsForGrantGivers = ArrayList<NotificationBundle>()
             val notificationForSenders = ArrayList<NotificationBundle>()
-            val applicationTitle = application.status.projectTitle ?: "Personal workspace: ${application.createdBy}"
+            val applicationTitle = application.status.projectTitle ?: when(val r = application.currentRevision.document.recipient) {
+                is GrantApplication.Recipient.ExistingProject -> "existing project" // should not happen
+                is GrantApplication.Recipient.NewProject -> r.title // should not happen
+                is GrantApplication.Recipient.PersonalWorkspace -> "Personal workspace: ${r.username}" // will happen
+            }
             val grantGiverPlaceholder = "grant giver"
 
             for (action in actionQueue) {

@@ -40,7 +40,6 @@ class ApmNotificationService(
     init {
         projects.addUpdateHandler { projects ->
             projects.forEach { project ->
-                println("Project update handler called!")
                 projectsUpdated.emit(project)
             }
         }
@@ -106,14 +105,12 @@ class ApmNotificationService(
             val projectsToReplay = projects.findProjectsUpdatedSince(replayFrom)
             launch {
                 projectsToReplay.forEach { id ->
-                    println("Replay project being sent")
                     projectUpdates.send(retrieveProject(id))
                 }
 
                 projectsUpdated
                     .takeWhile { session.isActive }
                     .onEach {
-                        println("Sending project update (projects updated)")
                         projectUpdates.send(it)
                     }
                     .collect()
@@ -208,7 +205,6 @@ class ApmNotificationService(
                     // -------------------------------------------------------------------------------------------------
                     while (true) {
                         val updatedProject = projectUpdates.tryReceive().getOrNull() ?: break
-                        println("New project update!")
                         var isRelevant = projectIsRelevant[updatedProject.id]
                         if (isRelevant == null) {
                             val pi = (updatedProject.status.members ?: emptyList()).find { it.role == ProjectRole.PI }
@@ -328,20 +324,16 @@ class ApmNotificationService(
                         }
 
                         infoBuf.flip()
-                        println("Sending info buf ${infoBuf.remaining()}")
                         session.send(Frame.Binary(true, infoBuf))
                         session.flush()
-                        println("info buf complete")
                     }
 
                     // Send wallet
                     // -------------------------------------------------------------------------------------------------
                     walletBuf.flip()
                     if (walletBuf.remaining() > 0) {
-                        println("Sending wallet buf ${walletBuf.remaining()}")
                         session.send(Frame.Binary(true, walletBuf))
                         session.flush()
-                        println("wallet buf complete")
                     }
                 } catch (ex: Throwable) {
                     log.warn("Failed while processing ApmNotifications for $providerId: ${ex.toReadableStacktrace()}")

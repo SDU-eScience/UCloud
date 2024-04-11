@@ -2630,7 +2630,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
 
-const grantGiverInitiatedPrefix = "Grant-giver initiated description";
+const grantGiverInitiatedPrefix = "Sub-allocation description";
 const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 --------------------------------------------------
                     

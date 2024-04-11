@@ -15,9 +15,8 @@ import {useLoading, usePage} from "@/Navigation/Redux";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Flex from "@/ui-components/Flex";
-import TitledCard from "@/ui-components/HighlightedCard";
 import {shortUUID} from "@/UtilityFunctions";
-import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
+import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {Operations} from "@/ui-components/Operation";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -32,6 +31,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {LogOutput} from "@/UtilityComponents";
 import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -173,8 +173,8 @@ interface PropertiesProps<Res extends Resource> {
     reload?: () => void;
     closeProperties?: () => void;
 
-    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void;}>;
-    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void;}>;
+    InfoChildren?: React.FunctionComponent<{ resource: Res, reload: () => void; }>;
+    ContentChildren?: React.FunctionComponent<{ resource: Res, reload: () => void; }>;
 
     showMessages?: boolean;
     showPermissions?: boolean;
@@ -193,7 +193,7 @@ export function ResourceProperties<Res extends Resource>(
     const projectId = useProjectId();
     const [ownResource, fetchOwnResource] = useCloudAPI<Res | null>({noop: true}, null);
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const {id} = useParams<{id?: string}>();
+    const {id} = useParams<{ id?: string }>();
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const project = useProject();
@@ -207,7 +207,7 @@ export function ResourceProperties<Res extends Resource>(
         if (props.embedded) {
             return <Heading.h1>Not found</Heading.h1>;
         } else {
-            return <MainContainer main={<Heading.h1>Not found</Heading.h1>} />;
+            return <MainContainer main={<Heading.h1>Not found</Heading.h1>}/>;
         }
     }
 
@@ -225,7 +225,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const infoChildrenResolved = useMemo(() => {
         if (props.InfoChildren && ownResource.data) {
-            return <props.InfoChildren resource={ownResource.data} reload={reload} />;
+            return <props.InfoChildren resource={ownResource.data} reload={reload}/>;
         } else {
             return null;
         }
@@ -233,7 +233,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const childrenResolved = useMemo(() => {
         if (props.ContentChildren && ownResource.data) {
-            return <props.ContentChildren resource={ownResource.data} reload={reload} />;
+            return <props.ContentChildren resource={ownResource.data} reload={reload}/>;
         } else {
             return null;
         }
@@ -280,7 +280,8 @@ export function ResourceProperties<Res extends Resource>(
             {!renderer.Icon ? null : <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
-                        <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} callbacks={{}} />
+                        <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"}
+                                       callbacks={{}}/>
                     </div>
                 </div>
             </div>}
@@ -289,12 +290,13 @@ export function ResourceProperties<Res extends Resource>(
             <div className={"data"}>
                 {!renderer.MainTitle ? null :
                     <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                        <div className={"fake-logo"} />
+                        <div className={"fake-logo"}/>
                         <div className={"header-text"}>
                             <div>
                                 <Heading.h2>
                                     <Truncate>
-                                        <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} callbacks={{}} />
+                                        <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource}
+                                                            callbacks={{}}/>
                                     </Truncate>
                                 </Heading.h2>
                                 <Heading.h3>{props.api.title}</Heading.h3>
@@ -317,38 +319,40 @@ export function ResourceProperties<Res extends Resource>(
 
                 <div className={InfoWrapper}>
                     {props.showProperties === false ? null :
-                        <TitledCard isLoading={false} title={"Properties"} icon={"properties"}>
-                            <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                                <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
-                                {resource.specification.product.provider === UCLOUD_CORE ? null : <>
-                                    <Box>
-                                        <b>Product: </b>
-                                        {resource.specification.product.id} / {resource.specification.product.category}
-                                    </Box>
-                                    <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
-                                </>}
-                                {resource.owner.createdBy.indexOf("_") === 0 ? null :
-                                    <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
-                                }
-                            </Flex>
-                        </TitledCard>
+                        <TabbedCard>
+                            <TabbedCardTab icon={"properties"} name={"Properties"}>
+                                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
+                                    <Box><b>ID:</b> {shortUUID(resource.id)}</Box>
+                                    {resource.specification.product.provider === UCLOUD_CORE ? null : <>
+                                        <Box>
+                                            <b>Product: </b>
+                                            {resource.specification.product.id} / {resource.specification.product.category} / {resource.specification.product.provider}
+                                        </Box>
+                                    </>}
+                                    {resource.owner.createdBy.indexOf("_") === 0 ? null :
+                                        <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                                    }
+                                    <Box><b>Created at: </b> {dateToString(resource.createdAt)}</Box>
+                                </Flex>
+                            </TabbedCardTab>
+                        </TabbedCard>
                     }
-                    {props.showMessages === false ? null :
-                        <TitledCard isLoading={false} title={"Messages"} icon={"chat"}>
-                            <Messages resource={resource} />
-                        </TitledCard>
+                    {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
+                        <TabbedCard>
+                            <TabbedCardTab icon={"heroShare"} name={"Permissions"}>
+                                <Box height={"250px"} overflowY={"auto"}>
+                                <ResourcePermissionEditor reload={reload} entity={resource} api={api}
+                                                          noPermissionsWarning={props.noPermissionsWarning}/>
+                                <Box mb={16}/>
+                                </Box>
+                            </TabbedCardTab>
+                        </TabbedCard>
                     }
                     {infoChildrenResolved}
                 </div>
 
                 <div className={ContentWrapper}>
-                    {!editPermissionsAllowed || props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
-                        <TitledCard isLoading={false} title={"Permissions"} icon={"share"}>
-                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}
-                                noPermissionsWarning={props.noPermissionsWarning} />
-                            <Box mb={16} />
-                        </TitledCard>
-                    }
+
                     {childrenResolved}
                 </div>
             </div>
@@ -358,7 +362,7 @@ export function ResourceProperties<Res extends Resource>(
     return main;
 }
 
-const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {
+const Messages: React.FunctionComponent<{ resource: Resource }> = ({resource}) => {
     const [updates, setUpdates] = React.useState<string[]>([])
 
     const appendUpdate = useCallback((update: ResourceUpdate) => {
@@ -381,7 +385,7 @@ const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => 
     }, [resource]);
 
     return <Box height={"200px"} overflowY={"scroll"}>
-        <LogOutput updates={updates} maxHeight="" />
+        <LogOutput updates={updates} maxHeight=""/>
     </Box>
 };
 
@@ -391,6 +395,7 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
             return !!(support?.["collection"]?.["aclModifiable"]);
         case "files":
             return !!(support?.["files"]?.["aclModifiable"]);
-        default: return true;
+        default:
+            return true;
     }
 }

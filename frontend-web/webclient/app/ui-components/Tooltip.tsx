@@ -47,7 +47,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
             tooltip.style.left = ev.clientX - width + "px";
         }
 
-        tooltip.style.top = (tooltip.getBoundingClientRect().height / 2) + "px";
+        tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
         tooltip.style.display = "block";
     }, []);
 

@@ -1,4 +1,3 @@
-import * as localForage from "localforage";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {appColors, useIsLightThemeStored} from "@/ui-components/theme";
@@ -59,76 +58,6 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         }}
     />;
 }
-
-class LogoCache {
-    private readonly context: string;
-
-    constructor(context: string) {
-        this.context = context;
-        (async () => {
-            const now = window.performance &&
-            window.performance["now"] &&
-            window.performance.timing &&
-                window.performance.timing.navigationStart ?
-                window.performance.now() + window.performance.timing.navigationStart : Date.now();
-            const expiry = await localForage.getItem<number>("logoCacheExpiry");
-            if (expiry !== null && expiry >= now) {
-                this.clear();
-            }
-
-            localForage.setItem("logoCacheExpiry", now + (1000 * 60 * 60 * 24 * 3));
-        })();
-
-    }
-
-    public async fetchLogo(name: string): Promise<string | null> {
-        const itemKey = `${this.context}/${name}`;
-        const retrievedItem = await localForage.getItem<Blob | false>(itemKey);
-        if (retrievedItem === null) {
-            // No cache entry at all
-            const url = AppStore.retrieveAppLogo({name});
-            try {
-                const blob = await (await fetch(url)).blob();
-                if (blob.type.indexOf("image/") === 0) {
-                    localForage.setItem(itemKey, blob);
-                    return URL.createObjectURL(blob);
-                } else {
-                    return null;
-                }
-            } catch (e) {
-                console.warn(e);
-                return null;
-            }
-        } else {
-            if (retrievedItem === false) {
-                return null;
-            } else if (retrievedItem.type.indexOf("image/") === 0) {
-                return URL.createObjectURL(retrievedItem);
-            } else {
-                return null;
-            }
-        }
-    }
-
-    public forget(name: string) {
-        localForage.removeItem(`${this.context}/${name}`);
-    }
-
-    public clear() {
-        const itemsToRemove: string[] = [];
-        localForage.iterate((value, key) => {
-            if (key.indexOf(this.context) === 0) {
-                itemsToRemove.push(key);
-            }
-        });
-
-        itemsToRemove.forEach(key => localForage.removeItem(key));
-    }
-}
-
-export const appLogoCache = new LogoCache("apps");
-export const toolLogoCache = new LogoCache("tools");
-export const groupLogoCache = new LogoCache("apps/group");
 
 const nColors = appColors.length;
 

@@ -300,11 +300,8 @@ class AccountingSystem(
         categoryId: ProductCategoryIdV2,
         type: ActionType,
     ): InternalWallet? {
-        println("Looking for owner")
         val internalOwner = findOwner(owner) ?: return null
-        println("Found owner. looking for product")
         val productCategory = productCache.productCategory(categoryId) ?: return null
-        println("found product")
         val wallets = walletsByOwner.getOrPut(internalOwner.id) { ArrayList() }
         val existingWallet = wallets.find { it.category.toId() == categoryId }
 
@@ -321,10 +318,7 @@ class AccountingSystem(
             null
         }
 
-        println("perm chec")
-
         if (ownerUid == null && ownerPid == null) return null
-        println("perm chec2")
 
         when (type) {
             ActionType.READ -> {
@@ -361,7 +355,6 @@ class AccountingSystem(
 
             ActionType.ROOT_ALLOCATE -> {
                 if (idCard != IdCard.System) {
-                    println("Got this far")
                     val providerPid = idCardService.retrieveProviderProjectPid(categoryId.provider)
                     if (providerPid == null) return null
                     if (idCard !is IdCard.User) return null

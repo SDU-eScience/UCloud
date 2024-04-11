@@ -336,10 +336,8 @@ class IdCardService(
     }
 
     override suspend fun retrieveProviderProjectPid(providerId: String): Int? {
-        println("Looking for $providerId")
         val projectId = runCatching { providerProjectId.retrieve(providerId) }.getOrNull() ?: return null
-        println("Found $projectId")
-        return lookupPidFromProjectId(projectId).also { println("Returning $it") }
+        return lookupPidFromProjectId(projectId)
     }
 
     override suspend fun lookupProjectInformation(pid: Int): IIdCardService.ProjectInfo? {

@@ -11,7 +11,7 @@ import {
 import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductStorage} from "@/Accounting";
+import {ProductStorage, productTypeToIcon} from "@/Accounting";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
@@ -77,7 +77,8 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
         Icon({resource, size}) {
             if (resource && resource.specification.product.id === "share") {
-                return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
+
+                return <Icon name={productTypeToIcon("STORAGE")} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />
         }
