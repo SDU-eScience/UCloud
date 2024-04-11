@@ -25,6 +25,9 @@ class StatisticsService {
         start: Long,
         end: Long
     ): JobStatistics = with(allocator) {
+
+        val projectId = actorAndProject.project
+
         val categories = ArrayList<ProductCategoryB>()
         val categoryLookupTable = HashMap<ProductCategoryIdV2, Int>()
         val potentialCategories = productCache.products()
@@ -43,6 +46,7 @@ class StatisticsService {
         val usageByUser = ArrayList<JobUsageByUser>()
         val mostUsedApplications = ArrayList<MostUsedApplications>()
         val jobSubmissionStatistics = ArrayList<JobSubmissionStatistics>()
+
         fun assembleResult(): JobStatistics {
             val res = allocate(JobStatistics)
             res.categories = BinaryTypeList.create(ProductCategoryB, allocator, categories)
@@ -57,11 +61,14 @@ class StatisticsService {
         val card = idCards.fetchIdCard(actorAndProject) // This enforces that the user is a member of the specified workspace
         if (card !is IdCard.User) return assembleResult()
 
-        val descendants = AccountingV2.retrieveDescendants.call(
-            AccountingV2.RetrieveDescendants.Request(actorAndProject.project!!),
-            serviceClient
-        ).orThrow()
-
+        val descendants = if (projectId != null) {
+            AccountingV2.retrieveDescendants.call(
+                AccountingV2.RetrieveDescendants.Request(projectId),
+                serviceClient
+            ).orThrow().descendants
+        } else {
+            emptyList()
+        }
         db.withSession { session ->
             // Usage by user
             run {
@@ -69,9 +76,9 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_ids", descendants.descendants)
+                        setParameter("project_ids", descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
-                            actorAndProject.project == null
+                            projectId == null
                         })
                     },
                     """
@@ -201,9 +208,9 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_ids", descendants.descendants)
+                        setParameter("project_ids", descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
-                            actorAndProject.project == null
+                            projectId == null
                         })
                     },
                     """
@@ -303,9 +310,9 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_ids", descendants.descendants)
+                        setParameter("project_ids", descendants)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
-                            actorAndProject.project == null
+                            projectId == null
                         })
                     },
                     """
