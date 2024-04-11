@@ -474,8 +474,6 @@ html.dark {
 ::after {
   background-repeat: no-repeat; /* 1 */
   box-sizing: border-box; /* 2 */
-  transition: 1s cubic-bezier(0,1,0,1);
-  transition-property: background, background-color, background-image, border;
 }
 
 /**
