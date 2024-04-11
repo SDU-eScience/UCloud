@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import libc.clib
 
 data class UploadDescriptor(
     val partialPath: String,
@@ -52,7 +53,7 @@ class UploadDescriptors(
         }
     }
 
-    suspend fun get(path: String, offset: Long? = null, truncate: Boolean = false): UploadDescriptor {
+    suspend fun get(path: String, offset: Long? = null, truncate: Boolean = false, modifiedAt: Long? = null): UploadDescriptor {
         descriptorsMutex.withLock {
             val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
             val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
@@ -73,6 +74,10 @@ class UploadDescriptors(
                 offset = offset
             )
 
+            if (modifiedAt != null) {
+                clib.modifyTimestamps(handle.fd, modifiedAt)
+            }
+
             val resolvedPartialPath = internalPartialFile.parent().path + newName
 
             val newDescriptor = UploadDescriptor(resolvedPartialPath, internalTargetFile.path, handle, Time.now(), true)
@@ -82,13 +87,17 @@ class UploadDescriptors(
         }
     }
 
-    suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy) {
+    suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy, modifiedAt: Long? = null) {
         if (descriptor.inUse) return
 
         val partialInternalFile = InternalFile(descriptor.partialPath)
         val targetInternalFile = InternalFile(descriptor.targetPath)
 
         nativeFS.move(partialInternalFile, targetInternalFile, conflictPolicy)
+
+        if (modifiedAt != null) {
+            clib.modifyTimestamps(descriptor.handle.fd, modifiedAt)
+        }
 
         descriptor.handle.close()
         openDescriptors.remove(descriptor)

@@ -666,7 +666,10 @@ class FileController(
                             this@webSocket
                         )
                     }
+
+                    ipcClient.sendRequest(FilesUploadIpc.delete, FindByStringId(token))
                 }
+
                 this.close()
             }
         }

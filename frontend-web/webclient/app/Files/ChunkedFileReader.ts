@@ -13,6 +13,7 @@ export function createLocalStorageFolderUploadKey(path: string): string {
 
 export function removeUploadFromStorage(path: string): void {
     localStorage.removeItem(createLocalStorageUploadKey(path));
+    localStorage.removeItem(createLocalStorageFolderUploadKey(path));
 }
 
 export class ChunkedFileReader {

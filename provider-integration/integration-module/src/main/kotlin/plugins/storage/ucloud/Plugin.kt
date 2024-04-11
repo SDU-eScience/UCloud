@@ -212,6 +212,8 @@ class UCloudFilePlugin : FilePlugin {
                 limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
                 pathConverter.internalToUCloud(InternalFile(descriptor.targetPath)).path
             } else {
+                val internalFile = pathConverter.ucloudToInternal(ucloudFile)
+                limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(internalFile).drive.ucloudId.toString())
                 it.id
             }
 
@@ -282,14 +284,14 @@ class UCloudFilePlugin : FilePlugin {
 
         val targetPath = sessionData.target + "/" + fileEntry.path
 
-        uploads.receiveChunk(UCloudFile.create(targetPath), fileEntry.offset, chunk, WriteConflictPolicy.REPLACE, lastChunk)
-
-        if (lastChunk) {
-            ipcClient.sendRequest(
-                FilesUploadIpc.delete,
-                FindByStringId(session)
-            )
-        }
+        uploads.receiveChunk(
+            UCloudFile.create(targetPath),
+            fileEntry.offset,
+            chunk,
+            WriteConflictPolicy.REPLACE,
+            lastChunk,
+            fileEntry.modifiedAt
+        )
     }
 
     override suspend fun RequestContext.handleUploadWs(
@@ -398,7 +400,8 @@ class UCloudFilePlugin : FilePlugin {
                             // The sizes are equal, but the modification time differs.
                             // If the size of the file is larger than 1 GB, it is most likely cheaper to do a checksum
                             // check with the client. Otherwise, tell the client to start the upload.
-                            if (existingFile.status.sizeInBytes!! > 1_000_000_000) {
+                            // NOTE: Checksums are currently disabled.
+                            /*if (existingFile.status.sizeInBytes!! > 1_000_000_000) {
                                 val fileStream = fs.openForReading(pathConverter.ucloudToInternal(ucloudFile))
                                 val checksumFrameTypeByte = byteArrayOf(FolderUploadMessageType.CHECKSUM.ordinal.toByte())
                                 val digest = MessageDigest.getInstance("SHA-1")
@@ -415,9 +418,9 @@ class UCloudFilePlugin : FilePlugin {
                                 }
 
                                 websocket.send(checksumFrameTypeByte + entryKeyBytes + digest.digest())
-                            } else {
+                            } else {*/
                                 websocket.send(okFrameTypeByte + entryKeyBytes)
-                            }
+                            //}
                         }
                     }
                 }
@@ -433,7 +436,11 @@ class UCloudFilePlugin : FilePlugin {
                             DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
                                 val fileEntry: FileListingEntry = listing[fileId]
                                     ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                                val data = buffer.moveToByteArray()
+                                val data = if (buffer.hasArray()) {
+                                    buffer.array().sliceArray(5..<buffer.array().size)
+                                } else {
+                                    buffer.moveToByteArray()
+                                }
 
                                 try {
                                     var offset = 0
@@ -465,7 +472,11 @@ class UCloudFilePlugin : FilePlugin {
                             val fileEntry: FileListingEntry = listing[fileId]
                                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-                            val data = buffer.moveToByteArray()
+                            val data = if (buffer.hasArray()) {
+                                buffer.array().sliceArray(5..<buffer.array().size)
+                            } else {
+                                buffer.moveToByteArray()
+                            }
 
                             handleFolderUpload(
                                 session,

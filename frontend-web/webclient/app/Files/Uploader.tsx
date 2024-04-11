@@ -23,14 +23,13 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
-import {formatDistance} from "date-fns";
+import {formatDistance, getUnixTime} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
-import * as Rusha from "rusha";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 64;
@@ -61,16 +60,6 @@ function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadI
     return parsed;
 }
 
-function fetchValidFolderUploadFromLocalStorage(path: string): LocalStorageFolderUploadInfo | null {
-    const item = localStorage.getItem(createLocalStorageFolderUploadKey(path));
-    if (item === null) return null;
-
-    const parsed = JSON.parse(item) as LocalStorageFolderUploadInfo;
-    if (parsed.expiration < new Date().getTime()) return null;
-
-    return parsed;
-}
-
 async function processUpload(upload: Upload) {
     const strategy = upload.uploadResponse;
     if (!strategy) {
@@ -90,10 +79,6 @@ async function processUpload(upload: Upload) {
 
 
     if (upload.folderName) {
-        const theFiles = files;
-
-        const uploadInfo = fetchValidFolderUploadFromLocalStorage(upload.folderName);
-
         upload.initialProgress = 0;
         upload.fileSizeInBytes = upload.row.reduce((sum, current) => sum + current.size, 0);
 
@@ -123,7 +108,8 @@ enum FolderUploadMessageType {
     SKIP
 }
 
-function computeFileChecksum(file: PackagedFile, terminationRequested: boolean|undefined): Promise<string> {
+function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string> {
+    const start = Date.now();
     return new Promise<string>(async (resolve) => {
         const reader = new ChunkedFileReader(file.fileObject);
         const shaSumWorkerModule = await import("@/Files/ShaSumWorker?worker");
@@ -135,13 +121,12 @@ function computeFileChecksum(file: PackagedFile, terminationRequested: boolean|u
 
         shaSumWorker.postMessage({type: "Start"});
 
-        while (!reader.isEof() && !terminationRequested) {
+        while (!reader.isEof() && !upload.terminationRequested) {
             const chunk = await reader.readChunk(maxChunkSize);
             shaSumWorker.postMessage({type: "Update", data: chunk});
         }
 
         shaSumWorker.postMessage({type: "End"});
-
     });
 }
 
@@ -176,7 +161,7 @@ function createResumeableFolder(
 
                 switch (messageType as FolderUploadMessageType) {
                     // @ts-ignore
-                    case FolderUploadMessageType.CHECKSUM: {
+                    /*case FolderUploadMessageType.CHECKSUM: {
                         const theFile = files.get(fileId);
                         const serverChecksumBuffer = frame.buffer.slice(5);
 
@@ -184,7 +169,9 @@ function createResumeableFolder(
                         const serverChecksum = serverChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
                        
                         if (theFile) {
-                            const clientChecksum = await computeFileChecksum(theFile, upload.terminationRequested);
+                            const resolvedFile = await resolveFile(theFile);
+
+                            const clientChecksum = await computeFileChecksum(resolvedFile, upload);
 
                             if (clientChecksum === serverChecksum) {
                                 upload.progressInBytes += files.get(fileId)?.size ?? 0;
@@ -195,7 +182,7 @@ function createResumeableFolder(
 
                             // NOTE(Brian): Delibirate fallthrough, in case the checksums does not match.
                         }
-                    }
+                    }*/
                     case FolderUploadMessageType.OK: {
                         const theFile = files.get(fileId);
 
@@ -223,6 +210,16 @@ function createResumeableFolder(
                             upload.filesCompleted++;
                             filesUploading--;
                             uploadTrackProgress(upload);
+
+                            if (upload.terminationRequested) {
+                                if (!upload.paused) {
+                                    localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
+                                } else {
+                                    upload.filesCompleted = 0;
+                                    upload.resume = createResumeableFolder(upload, strategy, folderPath);
+                                    uploadSocket.close();
+                                }
+                            }
                         }
 
                         break;
@@ -244,7 +241,10 @@ function createResumeableFolder(
             });
 
             uploadSocket.addEventListener("close", async (event) => {
-                upload.filesCompleted = upload.row.length; 
+                if (!upload.paused) {
+                    upload.filesCompleted = upload.row.length; 
+                    localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath))
+                }
                 resolve(true);
             });
 
@@ -277,7 +277,7 @@ function createResumeableFolder(
         } else {
             window.setTimeout(() => {
                 _resolveFile(file, onComplete);
-            }, 100);
+            }, 10);
         }
     }
 

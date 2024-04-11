@@ -390,6 +390,16 @@ JNIEXPORT jint JNICALL Java_libc_LibC_touchFile(JNIEnv *env, jobject thisRef, ji
     return futimes(fileDescriptor, NULL);
 }
 
+JNIEXPORT jint JNICALL Java_libc_LibC_modifyTimestamps(JNIEnv *env, jobject thisRef, jint fileDescriptor, jlong modifiedAt) {
+    struct timeval times[2];
+    times[0].tv_sec = modifiedAt/1000;
+    times[0].tv_usec = (modifiedAt % 1000)*1000;
+    times[1].tv_sec = modifiedAt/1000;
+    times[1].tv_usec = (modifiedAt % 1000)*1000;
+
+    return futimes(fileDescriptor, times);
+}
+
 #ifdef __cplusplus
 }
 #endif
