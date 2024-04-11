@@ -27,7 +27,7 @@ const SearchClass = injectStyle("search", k => `
     }
     
     ${k} input {
-        --width: 200px;
+        --width: 400px;
         left: 32px;
         position: relative;
         width: var(--width);
@@ -86,7 +86,7 @@ function SearchIcon(props: {
     return <form className={SearchClass} data-active={visible} onSubmit={doSearch}>
         <Input inputRef={inputRef} onBlur={close} placeholder={"Search..."} onKeyDown={handleEscape}
                defaultValue={props.initialQuery}/>
-        <Icon id={"search-icon"} size={20} color="primaryMain" name="heroMagnifyingGlass"
+        <Icon id={"search-icon"} size={24} color="primaryMain" name="heroMagnifyingGlass"
               onClick={toggleVisible} cursor={"pointer"}/>
     </form>;
 }

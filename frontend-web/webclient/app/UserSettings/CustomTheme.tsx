@@ -16,15 +16,18 @@ export function findCustomThemeColorOnLaunch() {
 
 type HexColor = `#${string}`;
 const COLORS: HexColor[] = ["#006aff", "#bed730", "#80007d", "#eaa621", "#775e43"];
+const disabled = true;
 export function CustomTheming(): React.ReactNode {
 
+    
     const root = React.useMemo(() => document.querySelector(':root')!, []);
-
+    
     const setColor = React.useCallback((color: HexColor) => {
         localStorage.setItem(CUSTOM_THEME_COLOR_KEY, color);
         root["style"].setProperty("--primaryMain", color);
     }, []);
-
+    
+    if (disabled) return null;
     const activeColor = localStorage.getItem(CUSTOM_THEME_COLOR_KEY) ?? COLORS[0];
 
     return <div>

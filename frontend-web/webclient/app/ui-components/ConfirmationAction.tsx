@@ -394,9 +394,9 @@ export function ConfirmationButtonPlainHTML(
     opts: {
         align?: "left" | "center",
         asSquare?: boolean,
-        color?: string,
-        hoverColor?: string,
-        textColor?: string,
+        color?: ThemeColor,
+        hoverColor?: ThemeColor,
+        textColor?: ThemeColor,
         disabled?: boolean,
     },
 ): HTMLElement {
@@ -406,15 +406,19 @@ export function ConfirmationButtonPlainHTML(
         button.style.overflowY = "hidden";
         button.style.maxHeight = "40px";
         button.className = classConcat(ConfirmButtonClass, ButtonClass);
-        button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.setAttribute("data-no-text", (!actionText).toString());
-        button.style.setProperty("--color", `var(--${opts.textColor ?? "white"})`)
-        button.style.setProperty("--background", `var(--${opts.color})`)
-        button.style.removeProperty("background-color");
         button.setAttribute("data-attached", "false");
         button.setAttribute("data-square", (!!opts.asSquare).toString());
         button.setAttribute("data-fullwidth", "false");
         button.setAttribute("data-size", "standard");
+
+        const colorOrDefault = opts.color ?? "errorMain";
+
+        button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
+        button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--color", `var(--${opts.textColor ?? selectContrastColor(colorOrDefault)})`)
+        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--background", `var(--${colorOrDefault})`)
         button.style.removeProperty("background-color");
         if (opts.disabled) {
             button.disabled = opts.disabled;
@@ -425,9 +429,9 @@ export function ConfirmationButtonPlainHTML(
     }
 
 
-    let timeout = {id: -1};
-    let timer = {time: holdToConfirmTime};
-    let wasReset = {state: false};
+    const timeout = {id: -1};
+    const timer = {time: holdToConfirmTime};
+    const wasReset = {state: false};
     const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
 
     function end() {
@@ -506,7 +510,7 @@ export function ConfirmationButtonPlainHTML(
         </svg>
     `);
 
-    icons.className = "icons";
+    icons.classList.add("icons");
     button.append(icons);
 
     const ul = document.createElement("ul");

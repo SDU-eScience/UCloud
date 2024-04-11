@@ -1,5 +1,5 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {FindByLongId, PaginationRequestV2} from "@/UCloud";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
@@ -337,7 +337,6 @@ export interface ApplicationGroupSpecification {
     description: string;
     defaultFlavor?: string | null;
     categories: number[];
-    backgroundColor?: string | null;
     logoHasText?: boolean;
 }
 
@@ -467,7 +466,7 @@ export function search(request: {
 export function browseOpenWithRecommendations(request: {
     files: string[];
 } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationWithExtension>> {
-    return apiBrowse(request, baseContext, "openWith");
+    return apiUpdate(request, baseContext, "openWith");
 }
 
 // Application management

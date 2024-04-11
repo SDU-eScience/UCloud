@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -582,7 +583,7 @@ ${ApiConventions.nonConformingApiWarning}
             PageV2.serializer(ApplicationWithExtension.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpBrowse(baseContext, "openWith")
+                httpUpdate(baseContext, "openWith")
 
                 documentation {
                     summary = "Finds a page of Application which can open a specific UFile"
@@ -640,7 +641,6 @@ ${ApiConventions.nonConformingApiWarning}
             val newTitle: String? = null,
             val newDefaultFlavor: String? = null,
             val newDescription: String? = null,
-            val newBackgroundColor: String? = null,
             val newLogoHasText: Boolean? = null,
         )
 
@@ -1167,7 +1167,6 @@ data class TopPick(
     val description: String,
     val defaultApplicationToRun: String? = null,
     val logoHasText: Boolean = false,
-    val logoBackgroundColor: String? = null,
 ) {
     init {
         if (applicationName != null && groupId != null) {
@@ -1247,9 +1246,12 @@ data class ApplicationGroup(
         val description: String,
         val defaultFlavor: String? = null,
         val categories: Set<Int> = emptySet(),
-        val backgroundColor: String? = null,
+        val colorReplacement: ColorReplacements = ColorReplacements(),
         val logoHasText: Boolean = false,
     )
+
+    @Serializable
+    data class ColorReplacements(val light: Map<Int, Int>? = null, val dark: Map<Int, Int>? = null)
 
     @Serializable
     data class Status(

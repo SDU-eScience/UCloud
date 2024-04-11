@@ -35,7 +35,7 @@ class ImportExport(
                 NameAndVersion(it.metadata.name, it.metadata.version)
             }
         }
-        val groupLogos = groups.map { it.metadata.id to service.retrieveGroupLogo(it.metadata.id) }.toMap()
+        val groupLogos = groups.map { it.metadata.id to service.retrieveRawGroupLogo(it.metadata.id) }.toMap()
 
         val categories: List<ApplicationCategory> = service.listCategories()
         val categoryMemberships: Map<Int, List<Int>> = categories.associate { category ->
@@ -181,7 +181,9 @@ class ImportExport(
                 a,
                 mappedId,
                 newDescription = group.specification.description,
-                newDefaultFlavor = group.specification.defaultFlavor
+                newDefaultFlavor = group.specification.defaultFlavor,
+                newLogoHasText = group.specification.logoHasText,
+                newColorRemapping = group.specification.colorReplacement,
             )
         }
 

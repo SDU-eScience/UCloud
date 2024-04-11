@@ -55,7 +55,6 @@ export const AppGroup: React.FunctionComponent = () => {
 
     const [addApplicationOpen, setAddApplicationOpen] = useState<boolean>(false);
     const [logoHasText, setLogoHasText] = useState(false);
-    const [customBackground, setCustomBackground] = useState("");
 
     const [commandLoading, invokeCommand] = useCloudCommand();
 
@@ -80,7 +79,6 @@ export const AppGroup: React.FunctionComponent = () => {
         if (group.data) {
             setDefaultApplication(group.data?.specification?.defaultFlavor ?? undefined);
             setLogoHasText(group.data?.specification?.logoHasText ?? false);
-            setCustomBackground(group.data?.specification?.backgroundColor ?? "");
         }
     }, [group.data]);
 
@@ -196,7 +194,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                         newTitle: newTitle,
                                         newDescription: newDescription,
                                         newDefaultFlavor: defaultApplication,
-                                        newBackgroundColor: customBackground,
                                         newLogoHasText: logoHasText
                                         // tags
                                     }));
@@ -266,12 +263,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <Toggle checked={logoHasText} onChange={() => setLogoHasText(!logoHasText)} />
                                     <span onClick={() => setLogoHasText(!logoHasText)}>Logo contains text</span>
                                 </Flex>
-                                <Label>
-                                    Custom background color:
-                                    <Input placeholder={"For example: #52342d"} value={customBackground} onChange={e => {
-                                        setCustomBackground((e.target as HTMLInputElement).value);
-                                    }} />
-                                </Label>
 
                                 <Flex mt="30px" flexDirection={"column"} gap={"8px"}>
                                     <Heading.h4>Categories</Heading.h4>

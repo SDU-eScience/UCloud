@@ -184,6 +184,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                                 opts={{
                                     isModal: true,
                                     initialPath: "",
+                                    managesLocalProject: true,
                                     selection: {
                                         text: "Use",
                                         onClick: res => {

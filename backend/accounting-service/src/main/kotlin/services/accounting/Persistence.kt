@@ -291,15 +291,10 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 {},
                 """
                     select
-                        max(alloc.id) maxAllocation,
-                        max(wal.id) maxWallet,
-                        max(wo.id) maxOwner,
-                        max(ag.id) maxGroup
-                    from
-                        accounting.wallets_v2 wal
-                        , accounting.wallet_allocations_v2 alloc
-                        , accounting.wallet_owner wo
-                        , accounting.allocation_groups ag
+                        (select max(id) from accounting.wallet_allocations_v2 alloc) as maxAllocation,
+                        (select max(id) from accounting.wallets_v2 wal) as maxWallet,
+                        (select max(id) from accounting.wallet_owner wo) as maxOwner,
+                        (select max(id) from accounting.allocation_groups ag) as maxGroup
                 """
             ).rows.singleOrNull() ?: throw RPCException("Cannot find ids???", HttpStatusCode.InternalServerError)
             val maxAllocationID = idRow.getLong(0)?.toInt()
@@ -310,6 +305,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             if (maxWalletID != null) walletsIdAccumulator.set(maxWalletID + 1)
             if (maxOwnerID != null) ownersIdAccumulator.set(maxOwnerID + 1)
             if (maxGroupId != null) allocationGroupIdAccumulator.set(maxGroupId + 1)
+            println("MAX OWNER ID IS $maxOwnerID")
 
             if (didChargeOldData) {
                 didChargeOldData = false

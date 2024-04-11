@@ -46,10 +46,10 @@ class ProductCache(private val db: DBContext) : IProductCache {
     private val productProviderToProductIds = HashMap<String, ArrayList<Int>>()
     private val nextFill = AtomicLong(0L)
 
-    private suspend fun fillCache() {
-        if (Time.now() < nextFill.get()) return
+    private suspend fun fillCache(force: Boolean = false) {
+        if (!force && Time.now() < nextFill.get()) return
         mutex.withWriter {
-            if (Time.now() < nextFill.get()) return
+            if (!force && Time.now() < nextFill.get()) return
 
             referenceToProductId.clear()
             productIdToReference.clear()
@@ -95,45 +95,66 @@ class ProductCache(private val db: DBContext) : IProductCache {
         }
     }
 
+    private suspend inline fun <R> tryOrRetry(block: () -> R?): R? {
+        println("Trying")
+        val result = block()
+        if (result != null) return result
+        println("Retrying!")
+        fillCache(force = true)
+        return block()
+    }
+
     override suspend fun referenceToProductId(ref: ProductReferenceV2): Int? {
-        fillCache()
-        return mutex.withReader {
-            referenceToProductId[ref]
+        return tryOrRetry {
+            fillCache()
+            mutex.withReader {
+                referenceToProductId[ref]
+            }
         }
     }
 
     override suspend fun productIdToReference(id: Int): ProductReferenceV2? {
-        fillCache()
-        return mutex.withReader {
-            productIdToReference[id]
+        return tryOrRetry {
+            fillCache()
+            mutex.withReader {
+                productIdToReference[id]
+            }
         }
     }
 
     override suspend fun productIdToProduct(id: Int): ProductV2? {
-        fillCache()
-        return mutex.withReader {
-            productInformation[id]
+        return tryOrRetry {
+            fillCache()
+            mutex.withReader {
+                productInformation[id]
+            }
         }
     }
 
     override suspend fun productNameToProductIds(name: String): List<Int>? {
-        fillCache()
-        return mutex.withReader {
-            productNameToProductIds[name]
+        return tryOrRetry {
+            fillCache()
+            mutex.withReader {
+                productNameToProductIds[name]
+            }
         }
     }
 
     override suspend fun productCategoryToProductIds(category: String): List<Int>? {
-        fillCache()
-        return mutex.withReader {
-            productCategoryToProductIds[category]
+        return tryOrRetry {
+            fillCache()
+            mutex.withReader {
+                productCategoryToProductIds[category]
+            }
         }
     }
 
     override suspend fun productProviderToProductIds(provider: String): List<Int>? {
-        fillCache()
-        return mutex.withReader {
-            productProviderToProductIds[provider]
+        return tryOrRetry {
+            fillCache()
+            return mutex.withReader {
+                productProviderToProductIds[provider]
+            }
         }
     }
 
@@ -141,6 +162,15 @@ class ProductCache(private val db: DBContext) : IProductCache {
         fillCache()
         return mutex.withReader {
             ArrayList(productInformation.values)
+        }
+    }
+
+    override suspend fun productCategory(id: ProductCategoryIdV2): ProductCategory? {
+        println("In here! $id")
+        return tryOrRetry {
+            val message = products()
+            println(message)
+            message.find { it.category.toId() == id }?.category
         }
     }
 }

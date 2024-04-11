@@ -58,6 +58,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                 opts={{
                     additionalFilters: additionalFilters,
                     isModal: true,
+                    managesLocalProject: true,
                     initialPath: "",
                     selection: {
                         text: "Use",

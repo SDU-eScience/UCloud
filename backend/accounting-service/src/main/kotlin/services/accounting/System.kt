@@ -300,8 +300,11 @@ class AccountingSystem(
         categoryId: ProductCategoryIdV2,
         type: ActionType,
     ): InternalWallet? {
+        println("Looking for owner")
         val internalOwner = findOwner(owner) ?: return null
+        println("Found owner. looking for product")
         val productCategory = productCache.productCategory(categoryId) ?: return null
+        println("found product")
         val wallets = walletsByOwner.getOrPut(internalOwner.id) { ArrayList() }
         val existingWallet = wallets.find { it.category.toId() == categoryId }
 
@@ -318,7 +321,10 @@ class AccountingSystem(
             null
         }
 
+        println("perm chec")
+
         if (ownerUid == null && ownerPid == null) return null
+        println("perm chec2")
 
         when (type) {
             ActionType.READ -> {
@@ -355,6 +361,7 @@ class AccountingSystem(
 
             ActionType.ROOT_ALLOCATE -> {
                 if (idCard != IdCard.System) {
+                    println("Got this far")
                     val providerPid = idCardService.retrieveProviderProjectPid(categoryId.provider)
                     if (providerPid == null) return null
                     if (idCard !is IdCard.User) return null
@@ -398,7 +405,7 @@ class AccountingSystem(
         val idCard = request.idCard
         //Check that we only give root allocations to Root projects
         if (idCard !is IdCard.User) {
-            return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation!")
+            return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E1 I=${idCard})")
         }
 
         if (idCard.activeProject == 0) {
@@ -409,7 +416,7 @@ class AccountingSystem(
             ?: return Response.error(HttpStatusCode.InternalServerError, "Could not lookup project from id card")
 
         val wallet = authorizeAndLocateWallet(request.idCard, projectId, request.category, ActionType.ROOT_ALLOCATE)
-            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation!")
+            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E2 U=${idCard.uid} P=${idCard.activeProject} AO=${idCard.adminOf.toList()} G=${idCard.groups.toList()})")
 
         val currentParents = wallet.allocationsByParent.keys
         if (currentParents.isNotEmpty() && currentParents.singleOrNull() != 0) {

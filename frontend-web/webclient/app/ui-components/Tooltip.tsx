@@ -41,13 +41,13 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
 
-        tooltip.style.left = ev.clientX + "px";
+        tooltip.style.left = ev.clientX + 20 + "px";
 
         if (ev.clientX + width > window.innerWidth) {
             tooltip.style.left = ev.clientX - width + "px";
         }
 
-        tooltip.style.top = ev.clientY + "px";
+        tooltip.style.top = (tooltip.getBoundingClientRect().height / 2) + "px";
         tooltip.style.display = "block";
     }, []);
 
@@ -68,6 +68,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
     </>;
 };
 
+const SMALL_OFFSET_IN_PIXELS = 8;
 export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
     const portal = getPortal();
 
@@ -80,20 +81,28 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.display = "none";
 
     function onHover(ev: MouseEvent) {
+        contentWrapper.style.display = "block";
         portal.append(contentWrapper);
-        const wrapperRect = trigger.getBoundingClientRect();
-        const expectedLeft = wrapperRect.x + wrapperRect.width / 2 - width / 2;
+        const triggerRect = trigger.getBoundingClientRect();
+        const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
         if (expectedLeft + width > window.innerWidth) {
             contentWrapper.style.left = `${window.innerWidth - width - 24}px`;
         } else {
             contentWrapper.style.left = `${expectedLeft}px`;
         }
-        contentWrapper.style.top = `${wrapperRect.y + wrapperRect.height}px`;
-        contentWrapper.style.display = "block";
+        contentWrapper.style.position = "fixed"; // Hack(Jonas): Absolute height of absolute elements are 0, so we briefly modify it.
+        const contentWrapperRect = contentWrapper.getBoundingClientRect();
+        contentWrapper.style.position = "absolute"; // Hack(Jonas): Set to absolute again as is intended state.
+        console.log(contentWrapperRect.height);
+        if (triggerRect.y + triggerRect.height + contentWrapperRect.height + SMALL_OFFSET_IN_PIXELS > window.innerHeight) {
+            contentWrapper.style.top = `${triggerRect.y - contentWrapperRect.height - SMALL_OFFSET_IN_PIXELS}px`;
+        } else {
+            contentWrapper.style.top = `${triggerRect.y + triggerRect.height + SMALL_OFFSET_IN_PIXELS}px`;
+        }
+
     }
 
     function onLeave() {
-        portal.innerHTML = "";
         contentWrapper.style.display = "none";
     }
 
