@@ -343,9 +343,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
             <Relative>
                 <div className={DeicBanner}>
                     <Box flexGrow={1} />
-                    <ExternalLink href={"https://deic.dk"}>
-                        <div>UCloud is delivered by the Danish e-Infrastructure Consortium</div>
-                    </ExternalLink>
+                    <div>Provided by the AAU, AU, SDU consortium in collaboration with</div>
                     <ExternalLink href={"https://deic.dk"}>
                         <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
                     </ExternalLink>
@@ -398,16 +396,15 @@ const DeicBanner = injectStyle("deic-banner", k => `
         width: calc(100% + 40px);
         left: -20px;
         top: -21px;
-        border-bottom-right-radius: 8px;
-        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 10px;
         text-align: center;
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 8px;
         
-        border-top: 1px solid var(--borderColor);
-        background: rgba(0, 0, 0, 5%);
+        background: var(--gray-5);
     }
    
     ${k} svg {
