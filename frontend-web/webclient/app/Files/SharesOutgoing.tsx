@@ -232,7 +232,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     if (newPath !== "/") {
                         browser.setColumns([{name: "Shared with"}, {name: "Share rights", columnWidth: 150}, {name: "State", columnWidth: 150}, {name: "", columnWidth: 50}]);
                     } else {
-                        console.log("Setting columns");
                         browser.setColumns([{name: "Filename"}, {name: "", columnWidth: 0}, {name: "Permissions", columnWidth: 150}, {name: "Shared with", columnWidth: 150}])
                     }
                     if (resource && isViewingShareGroupPreview(resource)) {
@@ -757,7 +756,5 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
         const path = getQueryParamOrElse(location.search, "path", "");
         b.open(path);
     }, [location.search]);
-
-    const main = <div ref={mountRef} />;
-    return <MainContainer main={main} />;
+    return <MainContainer main={<div ref={mountRef} />} />;
 }

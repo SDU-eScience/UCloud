@@ -104,9 +104,13 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 }
 
+interface AdditionalResourceBrowserOpts {
+    initialPath?: string;
+    managesLocalProject?: boolean
+}
 let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
-function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: string, managesLocalProject?: boolean}}): JSX.Element {
+function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -1171,7 +1175,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     if (openTriggeredByPath.current === newPath) {
                         openTriggeredByPath.current = null;
                     } else if (!isSelector) {
-                        if (!isInitialMount.current && oldPath !== newPath) navigate("/files?path=" + encodeURIComponent(newPath));
+                        //                                                     Note(Jonas): Edge case that we want to navigate to FileTable on breadcrumb click (Job/View)
+                        if (!isInitialMount.current && (oldPath !== newPath || opts?.embedded)) {
+                            navigate("/files?path=" + encodeURIComponent(newPath));
+                        }
                     }
 
                     if (!isSelector) {

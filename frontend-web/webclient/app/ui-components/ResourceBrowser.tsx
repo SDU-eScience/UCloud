@@ -1247,7 +1247,7 @@ export class ResourceBrowser<T> {
                 const listItem = document.createElement("li");
                 listItem.innerText = visualizeWhitespaces(truncatedComponents[idx]);
                 listItem.addEventListener("click", e => {
-                    this.open(myPath);
+                    if (myPath) this.open(myPath, this.opts.embedded);
                     stopPropagation(e);
                 });
                 listItem.addEventListener("mousemove", () => {
