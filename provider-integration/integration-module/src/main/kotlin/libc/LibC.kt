@@ -62,6 +62,7 @@ class LibC {
     external fun umask(mask: Int): Int
 
     external fun touchFile(fileDescriptor: Int): Int
+    external fun modifyTimestamps(fileDescriptor: Int, modifiedAt: Long): Int
 
     companion object {
         init {

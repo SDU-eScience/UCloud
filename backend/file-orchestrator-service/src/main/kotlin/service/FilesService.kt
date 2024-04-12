@@ -988,6 +988,7 @@ class FilesService(
                 FilesProviderCreateUploadRequestItem(
                     coll,
                     req.id,
+                    req.type,
                     req.supportedProtocols,
                     req.conflictPolicy
                 )

@@ -47,6 +47,7 @@ export interface FilesCreateFolderRequestItem {
 
 export interface FilesCreateUploadRequestItem {
     id: string;
+    type: ("FILE"|"FOLDER");
     supportedProtocols: UploadProtocol[];
     conflictPolicy: WriteConflictPolicy;
 }

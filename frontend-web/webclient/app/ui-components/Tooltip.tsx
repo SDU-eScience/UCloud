@@ -35,7 +35,7 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
     const width = props.tooltipContentWidth ?? 300;
 
-    const tooltipRef: React.MutableRefObject<HTMLDivElement | null> = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null);
     const onHover = useCallback((ev: React.MouseEvent) => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
@@ -92,7 +92,6 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
         contentWrapper.style.position = "fixed"; // Hack(Jonas): Absolute height of absolute elements are 0, so we briefly modify it.
         const contentWrapperRect = contentWrapper.getBoundingClientRect();
         contentWrapper.style.position = "absolute"; // Hack(Jonas): Set to absolute again as is intended state.
-        console.log(contentWrapperRect.height);
         if (triggerRect.y + triggerRect.height + contentWrapperRect.height + SMALL_OFFSET_IN_PIXELS > window.innerHeight) {
             contentWrapper.style.top = `${triggerRect.y - contentWrapperRect.height - SMALL_OFFSET_IN_PIXELS}px`;
         } else {
