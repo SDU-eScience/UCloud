@@ -21,46 +21,33 @@ export function ThemeToggler(): JSX.Element {
 
     const [active, setActive] = React.useState<boolean>(isLightTheme);
 
-    return (<Flex mx="auto" width="45px" my={"8px"}>
-        <Box width="45px">
-            <Toggle
-                checked={!active}
-                inactiveColor="sidebarColor"
-                activeColor="sidebarColor"
-                circleColor={!active ? "fixedBlack" : "fixedWhite"}
-                onChange={toggleActive}
-                colorAnimationDisabled
-            />
-        </Box>
-        <Icon data-active={active} cursor="pointer" color="fixedBlack" name="heroSun" className={Sun} onClick={toggleActive} />
-        <Icon data-active={active} cursor="pointer" color="fixedWhite" name="heroMoon" className={Moon} onClick={toggleActive} />
-    </Flex>);
+    return (
+        <button className={ThemeToggle} aria-checked={active ? "true" : "false"} onClick={toggleActive}>
+            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroSun" className={ToggleIcon} opacity={!active?0:1}/>
+            <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroMoon" className={ToggleIcon} opacity={active?0:1}/>
+        </button>
+    );
 }
 
-const Sun = injectStyle("sun", k => `
+const ToggleIcon = injectStyle("toggleicon", k => `
     ${k} {
-        position: relative;
-        left: -41.5px;
-        top: 4px;
-        animation: opacity 0.4 ease-in;
-        opacity: 1;
-    }
-    
-    ${k}[data-active="false"] {
-        opacity: 0;
+        position: absolute;
+        top: 0;
+        left: 0;
+        transition: opacity .25s ease;
     }
 `);
 
-const Moon = injectStyle("moon", k => `
+const ThemeToggle = injectStyle("themetoggle", k => `
     ${k} {
         position: relative;
-        left: -40px;
-        top: 4px;
-        animation: opacity 0.4 ease-in;
-        opacity: 1;
-    }
-    
-    ${k}[data-active="true"] {
-        opacity: 0;
+        display: block;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        border: unset;
+        background: unset;
+        margin: 0;
+        padding: 0;
     }
 `);
