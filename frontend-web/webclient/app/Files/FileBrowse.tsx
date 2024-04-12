@@ -1446,7 +1446,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         });
     }
 
-    // TODO(Brian): Drag'n'drop
     return <MainContainer
         main={<>
             <div ref={mountRef} />
