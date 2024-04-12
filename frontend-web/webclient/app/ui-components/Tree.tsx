@@ -312,7 +312,7 @@ export const TreeNode: React.FunctionComponent<{
                         data-chevron={"true"}
                         color="textPrimary"
                         size={15}
-                        name="heroChevronDown"
+                        name="chevronDownLight"
                         className={"open-chevron"}
                         cursor={"pointer"}
                         onClick={toggleOpen}

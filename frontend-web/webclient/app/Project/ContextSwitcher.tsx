@@ -189,7 +189,7 @@ export function ContextSwitcher({managed}: {
                 trigger={
                     <div className={triggerClass} ref={switcherRef}>
                         <Truncate title={activeContext} fontSize={14} width="180px"><b>{activeContext}</b></Truncate>
-                        <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
+                        <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
                     </div>
                 }
                 rightAligned

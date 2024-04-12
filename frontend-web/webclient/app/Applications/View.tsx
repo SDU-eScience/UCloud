@@ -124,8 +124,4 @@ const FlavorSelectorClass = injectStyle("flavor-selector", k => `
         color: var(--primaryContrast);
         margin: auto 0px;
     }
-
-    ${k}:hover {
-        filter: brightness(115%);
-    }
 `);
