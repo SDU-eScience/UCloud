@@ -45,7 +45,6 @@ const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 const ActionContainer = injectStyle("action-container", k => `
     ${k} {
-        max-width: 1200px;
         margin-left: auto;
         margin-right: auto;
         container-type: inline-size;
