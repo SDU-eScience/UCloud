@@ -3459,6 +3459,7 @@ export class ResourceBrowser<T> {
         const wrapper = document.createElement("label");
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "24px";
+        wrapper.style.userSelect = "none";
 
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
@@ -3988,10 +3989,10 @@ const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
 export const ShortcutClass = injectStyle("shortcut", k => `
     ${k} {
         color: var(--textPrimary);
-        background-color: var(--backgroundDefault);
+        background-color: var(--shortcutBackground);
         border-radius: 5px;
-        border: .5px solid var(--gray-70);
-        border-bottom: 2px solid var(--gray-70);
+        border: .5px solid var(--shortcutBorderColor);
+        border-bottom: 2px solid var(--shortcutBorderColor);
         mix-blend-mode: invert;
         font-size: 12px;
         min-width: 18px;
@@ -4002,6 +4003,16 @@ export const ShortcutClass = injectStyle("shortcut", k => `
         user-select: none;
         -webkit-user-select: none;
         padding: 0 5px;
+    }
+    
+    html.light ${k} {
+        --shortcutBackground: var(--backgroundDefault);
+        --shortcutBorderColor: var(--gray-70);
+    }
+    
+    html.dark ${k} {
+        --shortcutBackground: var(--backgroundDefault);
+        --shortcutBorderColor: var(--gray-60);
     }
 `);
 

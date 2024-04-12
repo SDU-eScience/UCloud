@@ -119,7 +119,13 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    const [estimatedCost, setEstimatedCost] = useState<{durationInMinutes: number, balance: number, maxUsable: number, numberOfNodes: number, product: ProductV2 | null}>({
+    const [estimatedCost, setEstimatedCost] = useState<{
+        durationInMinutes: number,
+        balance: number,
+        maxUsable: number,
+        numberOfNodes: number,
+        product: ProductV2 | null
+    }>({
         durationInMinutes: 0, balance: 0, maxUsable: 0, numberOfNodes: 1, product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
@@ -315,7 +321,7 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
+    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 
     if (application == null) {
         return (
@@ -350,37 +356,36 @@ export const Create: React.FunctionComponent = () => {
     return <MainContainer
         main={
             <>
-                <Box mx="50px" mt="32px">
-                    <Spacer
-                        left={
-                            <AppHeader
-                                title={appGroup?.specification?.title ?? application.metadata.title}
-                                application={application}
-                                flavors={appGroup?.status?.applications ?? []}
-                                allVersions={previousResp.data?.items ?? []}
-                            />}
-                        right={<>
-                            {!application.metadata.website ? null : (
-                                <Box my={"auto"} mr={"18px"}>
-                                    <ExternalLink href={application.metadata.website}>
-                                        <Button>
-                                            <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                            <div>Documentation</div>
-                                        </Button>
-                                    </ExternalLink>
-                                </Box>
-                            )}
-                            <UtilityBar />
-                        </>}
+                <Flex mx="50px" mt="32px">
+                    <AppHeader
+                        title={appGroup?.specification?.title ?? application.metadata.title}
+                        application={application}
+                        flavors={appGroup?.status?.applications ?? []}
+                        allVersions={previousResp.data?.items ?? []}
                     />
-                </Box>
+                    <Box flexGrow={1}/>
+
+                    <Flex height={"35px"}>
+                        {!application.metadata.website ? null : (
+                            <Box mr={"18px"}>
+                                <ExternalLink href={application.metadata.website}>
+                                    <Button>
+                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast"/>
+                                        <div>Documentation</div>
+                                    </Button>
+                                </ExternalLink>
+                            </Box>
+                        )}
+                        <UtilityBar/>
+                    </Flex>
+                </Flex>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gap={"24px"} width={"100%"} mb={"24px"} mt={"24px"}>
-                        {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
+                        {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode}/> : null}
                         {isMissingConnection ?
                             <Box mt={32}>
                                 <Link to={"/providers/connect"}>
-                                    <Icon name="warning" color="warningMain" mx={8} />
+                                    <Icon name="warning" color="warningMain" mx={8}/>
                                     Connection required!
                                 </Link>
                             </Box> :
@@ -398,7 +403,7 @@ export const Create: React.FunctionComponent = () => {
                                         </Markdown>
                                     </div>
 
-                                    <Box flexGrow={1} />
+                                    <Box flexGrow={1}/>
 
                                     <Label mt={"16px"}>
                                         E-mail notification settings
@@ -413,17 +418,19 @@ export const Create: React.FunctionComponent = () => {
                                     <div>
                                         <Flex>
                                             <ImportParameters application={application} onImport={onLoadParameters}
-                                                importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                                                onImportDialogClose={() => setImportDialogOpen(false)} />
+                                                              importDialogOpen={importDialogOpen}
+                                                              setImportDialogOpen={setImportDialogOpen}
+                                                              onImportDialogClose={() => setImportDialogOpen(false)}/>
 
                                             {anyError ?
                                                 <Tooltip trigger={
                                                     <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay" />
+                                                        <Icon name="heroPlay"/>
                                                         Submit
                                                     </Button>
                                                 }>
-                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve before submitting.
+                                                    {errorCount} parameter error{errorCount > 1 ? "s" : ""} to resolve
+                                                    before submitting.
                                                 </Tooltip>
                                                 :
                                                 <Button
@@ -433,7 +440,7 @@ export const Create: React.FunctionComponent = () => {
                                                     disabled={isLoading || !sshValid || isMissingConnection}
                                                     onClick={() => submitJob(false)}
                                                 >
-                                                    <Icon name="heroPlay" />
+                                                    <Icon name="heroPlay"/>
                                                     Submit
                                                 </Button>
                                             }
@@ -444,7 +451,7 @@ export const Create: React.FunctionComponent = () => {
                                                 <tbody>
                                                 <tr>
                                                     <th>Estimated cost</th>
-                                                    <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, { showSuffix: false })}</td>
+                                                    <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, {showSuffix: false})}</td>
                                                 </tr>
                                                 <tr>
                                                     <th>Current balance</th>
@@ -457,7 +464,8 @@ export const Create: React.FunctionComponent = () => {
                                                             <td><TooltipV2
                                                                 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
                                                             >
-                                                                <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                <Icon name={"heroExclamationTriangle"}
+                                                                      color={"warningMain"}/>
 
                                                                 {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
                                                             </TooltipV2>
@@ -495,8 +503,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            setErrors={setErrors}
-                                            active />
+                                                setErrors={setErrors}
+                                                active/>
                                     ))}
                                 </Grid>
                             </Card>
@@ -526,19 +534,19 @@ export const Create: React.FunctionComponent = () => {
                             <Card>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        setErrors={setErrors}
-                                        active={false}
-                                        onActivate={() => {
-                                            setActiveOptParams([...activeOptParams, param.name]);
-                                        }}
+                                            setErrors={setErrors}
+                                            active={false}
+                                            onActivate={() => {
+                                                setActiveOptParams([...activeOptParams, param.name]);
+                                            }}
                                     />
-                                )} />
+                                )}/>
                             </Card>
                         )}
 
                         {/* SSH */}
                         <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
+                                   onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled}/>
 
                         {/* Resources */}
 
@@ -568,7 +576,8 @@ function getParameterName(param: Pick<ApplicationParameter, "type" | "name">): s
         case "peer": {
             return param.name + "job";
         }
-        default: return param.name;
+        default:
+            return param.name;
     }
 }
 
@@ -608,7 +617,8 @@ function prettierType(type: string): string {
             return "file";
         case "input_directory":
             return "folder";
-        default: return prettierString(type).toLocaleLowerCase();
+        default:
+            return prettierString(type).toLocaleLowerCase();
     }
 }
 

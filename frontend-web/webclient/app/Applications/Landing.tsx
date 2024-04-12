@@ -255,7 +255,7 @@ const HeroStyle = injectStyle("hero", k => `
     
     ${k} .indicator:hover,
     ${k} .indicator.active {
-        background: var(--primaryMain);
+        background: var(--secondaryDark);
     }
 `);
 
@@ -283,13 +283,6 @@ export const Hero: React.FunctionComponent<{
             clearInterval(t);
         };
     }, [isPreview]);
-
-    const moveDelta = useCallback((delta: number) => {
-        setActiveIndex(prev => prev + delta);
-        autoPage.current = true;
-    }, []);
-    const goBack = useCallback(() => moveDelta(-1), [moveDelta]);
-    const goForwards = useCallback(() => moveDelta(1), [moveDelta]);
 
     if (slides.length == 0) return null;
 
@@ -447,7 +440,7 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     }
     
     ${k}:hover {
-        background: var(--backgroundDefault);
+        background: var(--backgroundCardHover);
     }
     
     ${k} > *:first-child {
@@ -598,7 +591,15 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     blockquote${k} {
         margin: 0;
         padding-left: 16px;
-        border-left: 5px solid var(--primaryMain);
+        border-left: 5px solid var(--spotlightBlockquoteColor);
+    }
+    
+    html.light {
+        --spotlightBlockquoteColor: var(--primaryMain);
+    }
+    
+    html.dark {
+        --spotlightBlockquoteColor: var(--textPrimary);
     }
     
     ${k} p:first-child {
@@ -669,7 +670,7 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
     }
     
     ${k}:hover {
-        background: var(--backgroundDefault);
+        background: var(--backgroundCardHover);
     }
 `);
 

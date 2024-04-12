@@ -24,7 +24,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
             borderColor="warningMain"
             width={props.width}
         >
-            <Flex alignItems="center">
+            <Flex alignItems="center" color={"warningContrast"}>
                 <div>
                     {props.warning}
                     {props.children}

@@ -15,9 +15,13 @@ export const GradientWithPolygons = injectStyle("polygon-background", k => `
         background-image: url(${bgImageInverted});
     }
     
-    html.dark ${k} #search-icon,
-    html.dark ${k} #refresh-icon {
+    html ${k} #search-icon,
+    html ${k} #refresh-icon {
         color: var(--textPrimary) !important;
+    }
+    
+    html ${k} {
+        --backgroundCard: var(--backgroundDefault);
     }
 `);
 

@@ -6,6 +6,7 @@ import {useDispatch} from "react-redux";
 import {toggleAppFavorite} from "./Redux/Actions";
 import {ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
+import {useIsLightThemeStored} from "@/ui-components/theme";
 
 export const FavoriteToggle: React.FunctionComponent<{
     application: ApplicationWithFavoriteAndTags
@@ -13,6 +14,7 @@ export const FavoriteToggle: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
     const [favorite, setFavorite] = useState(application.favorite);
     const dispatch = useDispatch();
+    const lightTheme = useIsLightThemeStored();
     useEffect(() => {
         setFavorite(application.favorite);
     }, [application]);
@@ -27,5 +29,12 @@ export const FavoriteToggle: React.FunctionComponent<{
         }
     }, [loading, favorite]);
 
-    return <Icon ml="4px" cursor="pointer" name={favorite ? "starFilled" : "starEmpty"} mb="2px" color={"primaryMain"} onClick={toggle}/>
+    return <Icon
+        ml="4px"
+        cursor="pointer"
+        name={favorite ? "starFilled" : "starEmpty"}
+        mb="2px"
+        color={lightTheme ? "primaryMain" : "iconColor"}
+        onClick={toggle}
+    />
 }

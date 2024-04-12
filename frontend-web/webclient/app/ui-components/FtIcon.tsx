@@ -247,7 +247,7 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, i
         case "FSFOLDER":
             return (<Icon name="ftFsFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY":
-            return (<Icon name="ftFolder" size={size} color={"iconColor"} color2={("iconColor2")}/>);
+            return (<Icon name="ftFolder" size={size} color={"FtFolderColor"} color2={("FtFolderColor2")}/>);
     }
 
     /* fileIcon.type should be "FILE" at this point */

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {useCallback, useEffect, useRef} from "react";
 import {ThemeColor} from "./theme";
 
@@ -9,6 +9,7 @@ interface ToggleProps {
     activeColor?: ThemeColor;
     inactiveColor?: ThemeColor;
     circleColor?: ThemeColor;
+    colorAnimationDisabled?: boolean;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -17,6 +18,7 @@ export const Toggle: React.FC<ToggleProps> = ({
     activeColor = "successMain",
     inactiveColor = "textSecondary",
     circleColor = "fixedWhite",
+    colorAnimationDisabled = false
 }) => {
     const checkedRef = useRef(checked);
     useEffect(() => {
@@ -34,7 +36,12 @@ export const Toggle: React.FC<ToggleProps> = ({
     style["--activeColor"] = `var(--${activeColor})`;
     style["--circleColor"] = `var(--${circleColor})`
 
-    return <div onClick={handler} style={style} data-active={checked} className={ToggleWrapperClass}>
+    return <div
+        onClick={handler}
+        style={style}
+        data-active={checked}
+        className={classConcat(ToggleWrapperClass, colorAnimationDisabled ? "color-anim-disabled" : undefined)}
+    >
         <div />
     </div>
 }
@@ -51,7 +58,7 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
         height: 26px;
         width: 45px;
         background-color: var(--inactiveColor);
-        transition: 0.2s;
+        transition: 0.2s all;
         padding-top: 2px;
         padding-left: 2px;
         cursor: pointer;
@@ -68,5 +75,13 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
         background-color: var(--circleColor);
         animation: background-color 0.2;
         height: 22px;
+    }
+    
+    ${k}.color-anim-disabled {
+        transition: 0.2s padding;
+    }
+    
+    ${k}.color-anim-disabled > div {
+        animation: unset;
     }
 `);

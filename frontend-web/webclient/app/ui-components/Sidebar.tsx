@@ -331,12 +331,6 @@ function UserMenu({avatar}: {
                 <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
                 Logout
             </Flex>
-            <Divider />
-            <span>
-                <Flex cursor="auto">
-                    <ThemeToggler />
-                </Flex>
-            </span>
         </Box>
     </ClickableDropdown>;
 }
@@ -435,6 +429,8 @@ export function Sidebar(): JSX.Element | null {
 
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
                     <Downtimes />
+
+                    <ThemeToggler />
                     <Notification />
                     <Support />
                     <UserMenu avatar={avatar} />

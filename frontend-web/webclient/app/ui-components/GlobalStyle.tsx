@@ -258,9 +258,9 @@ const UIGlobalStyle = `
     --errorDark: var(--red-70);
     --errorContrast: #ffffff;
     --errorContrastAlt: #a6a8a9;
-    --warningMain: var(--orange-40);
-    --warningLight: var(--orange-30);
-    --warningDark: var(--orange-50);
+    --warningMain: var(--orange-30);
+    --warningLight: var(--orange-20);
+    --warningDark: var(--orange-40);
     --warningContrast: #000000;
     --warningContrastAlt: #222222;
     --infoMain: var(--gray-70);
@@ -276,9 +276,8 @@ const UIGlobalStyle = `
     --backgroundDefault: #ffffff;
     --borderColor: var(--gray-20);
     --borderColorHover: var(--gray-30);
-    --backgroundCard: var(--backgroundDefault);
-    --backgroundCardBorder: red;
-    --backgroundCardBorderHover: red;
+    --backgroundCard: var(--gray-5);
+    --backgroundCardHover: var(--gray-5);
     --backgroundDisabled: var(--gray-5);
     --textPrimary: #212529;
     --textSecondary: #646669;
@@ -287,6 +286,8 @@ const UIGlobalStyle = `
     --rowActive: var(--blue-10);
     --gradientStart: var(--blue-30);
     --gradientEnd: var(--blue-20);
+    --linkColorHover: var(--primaryDark);
+    --linkColor: var(--primaryMain);
   }
   html.dark {
     --modalShadow: rgba(0, 0, 0, 0.75);
@@ -305,9 +306,9 @@ const UIGlobalStyle = `
     --errorDark: var(--red-70);
     --errorContrast: #ffffff;
     --errorContrastAlt: #a6a8a9;
-    --warningMain: var(--orange-40);
-    --warningLight: var(--orange-30);
-    --warningDark: var(--orange-50);
+    --warningMain: var(--orange-30);
+    --warningLight: var(--orange-20);
+    --warningDark: var(--orange-40);
     --warningContrast: #000000;
     --warningContrastAlt: #222222;
     --infoMain: var(--gray-30);
@@ -323,17 +324,18 @@ const UIGlobalStyle = `
     --backgroundDefault: var(--gray-100);
     --borderColor: var(--gray-80);
     --borderColorHover: var(--gray-70);
-    --backgroundCard: var(--backgroundDefault);
-    --backgroundCardBorder: red;
-    --backgroundCardBorderHover: red;
+    --backgroundCard: var(--gray-90);
+    --backgroundCardHover: var(--gray-90);
     --backgroundDisabled: var(--gray-90);
     --textPrimary: #ffffff;
     --textSecondary: #bcbebf;
     --textDisabled: #909294;
     --rowHover: var(--gray-90);
     --rowActive: var(--blue-90);
-    --gradientStart: #000;
-    --gradientEnd: var(--blue-90);
+    --gradientStart: var(--blue-90);
+    --gradientEnd: var(--blue-80);
+    --linkColor: var(--blue-50);
+    --linkColorHover: var(--blue-70);
   }
 
 html.light {
@@ -407,6 +409,7 @@ html {
     --gray-60: #627288;
     --gray-70: #4F6178;
     --gray-80: #404D60;
+    --gray-85: #2E3845;
     --gray-90: #2A313B;
     --gray-100: #21262D;
     --blue-5: #F4F8FE;
@@ -418,6 +421,7 @@ html {
     --blue-60: #096DE3;
     --blue-70: #035BC3;
     --blue-80: #03499D;
+    --blue-85: #023572;
     --blue-90: #023774;
     /* New color palette END */
 
@@ -474,8 +478,6 @@ html.dark {
 ::after {
   background-repeat: no-repeat; /* 1 */
   box-sizing: border-box; /* 2 */
-  transition: 1s cubic-bezier(0,1,0,1);
-  transition-property: background, background-color, background-image, border;
 }
 
 /**

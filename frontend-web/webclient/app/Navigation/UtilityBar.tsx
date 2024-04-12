@@ -128,5 +128,5 @@ function RefreshIcon(): React.ReactNode {
     }, [refresh]);
     if (!refresh) return null;
     return <Icon cursor="pointer" size={24} onClick={delayedRefresh} spin={spin || loading}
-                 id={"refresh-icon"} className={refreshIconClass} color="#fff" name="heroArrowPath"/>
+                 id={"refresh-icon"} className={refreshIconClass} color="textPrimary" name="heroArrowPath"/>
 }

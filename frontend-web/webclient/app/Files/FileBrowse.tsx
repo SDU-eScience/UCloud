@@ -31,7 +31,18 @@ import FilesApi, {
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {createHTMLElements, defaultErrorHandler, displayErrorMessageOrDefault, doNothing, extensionFromPath, extensionType, extractErrorMessage, randomUUID, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    createHTMLElements,
+    defaultErrorHandler,
+    displayErrorMessageOrDefault,
+    doNothing,
+    extensionFromPath,
+    extensionType,
+    extractErrorMessage,
+    isLightThemeStored,
+    randomUUID,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -206,6 +217,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     if (!entry || entry.type === "deleted") return SensitivityLevel.PRIVATE;
                     return entry.specification.document.sensitivity;
                 };
+
+                function translateFilters(record?: Record<string, string>): Record<string, string> {
+                    const result = {...record};
+                    const showHiddenFiles = result["showHiddenFiles"] == "true";
+                    delete result["showHiddenFiles"];
+                    result["filterHiddenFiles"] = (!showHiddenFiles).toString();
+                    return result;
+                }
 
                 // Operations
                 // =========================================================================================================
@@ -547,8 +566,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
 
                 browser.on("fetchFilters", () => [{
                     type: "checkbox",
-                    key: "filterHiddenFiles",
-                    text: "Filter hidden files",
+                    key: "showHiddenFiles",
+                    text: "Show hidden files",
                     icon: "heroMagnifyingGlass",
                 }]);
 
@@ -823,9 +842,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
+                        const filledStarColor: ThemeColor = isLightThemeStored() ? "primaryMain" : "iconColor";
+                        const unfilledStarColor: ThemeColor = "iconColor";
                         const icon = await browser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
-                            color: (isFavorite ? "primaryMain" : "iconColor"),
+                            color: (isFavorite ? filledStarColor : unfilledStarColor),
                             color2: "iconColor2",
                             height: 64,
                             width: 64
@@ -1121,7 +1142,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                     lastFetch[path] = now;
                     delete browser.emptyReasons[path];
 
-                    const promise = callAPI(FilesApi.browse({path, ...defaultRetrieveFlags, ...browser.browseFilters, ...opts?.additionalFilters}))
+                    const promise =
+                        callAPI(
+                            FilesApi.browse({
+                                path,
+                                ...defaultRetrieveFlags,
+                                ...translateFilters(browser.browseFilters),
+                                ...opts?.additionalFilters
+                            })
+                        )
                         .then(result => {
                             browser.registerPage(result, path, true);
                             return false;
@@ -1234,7 +1263,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & {initialPath?: 
                             path,
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters,
+                            ...translateFilters(browser.browseFilters),
                             ...opts?.additionalFilters
                         }
                         ));

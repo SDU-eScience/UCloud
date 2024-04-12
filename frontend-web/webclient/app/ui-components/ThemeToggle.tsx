@@ -21,8 +21,17 @@ export function ThemeToggler(): JSX.Element {
 
     const [active, setActive] = React.useState<boolean>(isLightTheme);
 
-    return (<Flex mx="auto" width="45px">
-        <Box width="45px"><Toggle checked={!active} inactiveColor="primaryMain" activeColor="primaryLight" circleColor={!active ? "fixedBlack" : "fixedWhite"} onChange={toggleActive} /></Box>
+    return (<Flex mx="auto" width="45px" my={"8px"}>
+        <Box width="45px">
+            <Toggle
+                checked={!active}
+                inactiveColor="sidebarColor"
+                activeColor="sidebarColor"
+                circleColor={!active ? "fixedBlack" : "fixedWhite"}
+                onChange={toggleActive}
+                colorAnimationDisabled
+            />
+        </Box>
         <Icon data-active={active} cursor="pointer" color="fixedBlack" name="heroSun" className={Sun} onClick={toggleActive} />
         <Icon data-active={active} cursor="pointer" color="fixedWhite" name="heroMoon" className={Moon} onClick={toggleActive} />
     </Flex>);
