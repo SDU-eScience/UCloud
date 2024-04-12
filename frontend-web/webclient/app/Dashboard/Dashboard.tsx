@@ -210,7 +210,6 @@ function DashboardResources({wallets}: {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     const now = timestampUnixMs();
-
     const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
 
     mapped.sort((a, b) => {
@@ -226,7 +225,7 @@ function DashboardResources({wallets}: {
         if (compare !== 0) return compare;
 
         return (a.quota < b.quota) ? 1 : -1;
-    });
+    }).slice(0,7);
 
     return (
         <DashboardCard
@@ -245,9 +244,9 @@ function DashboardResources({wallets}: {
                 <Flex flexDirection="column" height={"calc(100% - 55px)"}>
                     <Table>
                         <tbody>
-                            {mapped.slice(0, 7).map((n, i) => (
+                            {mapped.map((n, i) => (
                                 <TableRow height="55px" key={i}>
-                                    <TableCell fontSize={FONT_SIZE}>
+                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                         <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
                                             <ProviderLogo providerId={n.paysFor.provider} size={30} />
                                             <code>{n.paysFor.name}</code>
@@ -343,9 +342,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Elemen
             <Relative>
                 <div className={DeicBanner}>
                     <Box flexGrow={1} />
-                    <ExternalLink href={"https://deic.dk"}>
-                        <div>UCloud is delivered by the Danish e-Infrastructure Consortium</div>
-                    </ExternalLink>
+                    <div>Provided by the AAU, AU, SDU consortium in collaboration with</div>
                     <ExternalLink href={"https://deic.dk"}>
                         <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
                     </ExternalLink>
@@ -398,16 +395,15 @@ const DeicBanner = injectStyle("deic-banner", k => `
         width: calc(100% + 40px);
         left: -20px;
         top: -21px;
-        border-bottom-right-radius: 8px;
-        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 10px;
+        border-bottom-left-radius: 10px;
         text-align: center;
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 8px;
         
-        border-top: 1px solid var(--borderColor);
-        background: rgba(0, 0, 0, 5%);
+        background: var(--gray-5);
     }
    
     ${k} svg {

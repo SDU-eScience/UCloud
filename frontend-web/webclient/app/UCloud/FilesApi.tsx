@@ -1250,6 +1250,9 @@ const ItemWrapperClass = injectStyle("item-wrapper", k => `
         justify-content: center;
         height: 100%;
         width: 100%;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: var(--defaultShadow);
     }
 `);
 
