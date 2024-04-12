@@ -34,7 +34,7 @@ const ToggleIcon = injectStyle("toggleicon", k => `
         position: absolute;
         top: 0;
         left: 0;
-        transition: opacity .25s ease;
+        transition: opacity .8s cubic-bezier(0.5,1,0.5,1);
     }
 `);
 
