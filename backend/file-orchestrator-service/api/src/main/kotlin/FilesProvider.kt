@@ -112,6 +112,7 @@ typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 data class FilesProviderCreateUploadRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPath

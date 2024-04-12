@@ -1,35 +1,5 @@
-/*
-                               The MIT License
-
-Project jumpstarted using kriasoft/babel-starter-kit, which is
-Copyright (c) 2015-2016 Konstantin Tarkus, Kriasoft LLC. All rights reserved.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-
- */
-
-// NOTE: The following code snippet has been ported from JavaScript to TypeScript. The original code location was:
+// Originally inspired from, but has been rewritten
 // https://github.com/quarklemotion/html5-file-selector/blob/e20a0422cd583dfb3b490c0b2ccc2da06de41a25/src/Html5FileSelector.js
-
-// The code has since been, quite heavily, modified to improve performance.
-
-import {doNothing} from "@/UtilityFunctions";
 
 interface FileSystemEntry {
     readonly filesystem: unknown,
@@ -38,7 +8,7 @@ interface FileSystemEntry {
     readonly isFile: boolean;
     readonly name: string;
 
-    file(callback: (File) => void): File
+    file(callback: (f: File) => void): void
 }
 
 interface FileSystemDirectoryEntry extends FileSystemEntry {
@@ -53,61 +23,57 @@ interface FileSystemDirectoryReader {
 
 type FileListFetcher = () => Promise<PackagedFile[]>;
 
-export interface FileUploadEvent {
+/*export interface FileUploadEvent {
     rootEntry: {name: string, isDirectory: boolean};
     fetcher: FileListFetcher;
-}
+}*/
 
-function traverseDirectory(entry: FileSystemDirectoryEntry): FileListFetcher {
-    let reader: FileSystemDirectoryReader | null | undefined = entry.createReader();
-    const stack: FileSystemDirectoryEntry[] = [];
+class FileTraverser {
+    private root: FileSystemEntry;
+    private stack: FileSystemDirectoryEntry[] = [];
+    private didReturnRoot: boolean = false;
+    private reader: FileSystemDirectoryReader | null = null;
 
-    function fetchNewReader(): boolean {
-        if (!reader) {
-            reader = stack.pop()?.createReader();
-            if (!reader) {
-                return false;
-            }
+    constructor(root: FileSystemEntry) {
+        this.root = root;
+        if (root.isDirectory) {
+            this.stack.push(root as FileSystemDirectoryEntry);
         }
-        return true;
     }
 
-    return function readEntries(): Promise<PackagedFile[]> {
-        // According to the FileSystem API spec, readEntries() must be called until
-        // it calls the callback with an empty array.
-        if (!fetchNewReader()) return Promise.resolve([]);
+    async fetchFiles(): Promise<PackagedFile[] | null> {
+        if (!this.root.isDirectory) {
+            if (this.didReturnRoot) return null;
+            this.didReturnRoot = true;
+            return [await getFile(this.root)];
+        }
 
-        const promises: Promise<PackagedFile>[] = [];
-
-        return new Promise((resolve) => {
-            reader!.readEntries((batchEntries) => {
-                if (!batchEntries.length) {
-                    // Done iterating this particular directory
-                } else {
-                    for (const batchEntry of batchEntries) {
-                        // NOTE(Dan): Performance starts getting bad once we have folders with more than 5000 files
-                        //   We might need to consider chunking files from a single folder. It is a bit weird this isn't
-                        //   done for us, given that this is clearly why the spec is laid out as it is.
-                        if (batchEntry.isDirectory) {
-                            stack.push(batchEntry as FileSystemDirectoryEntry);
-                        } else {
-                            promises.push(new Promise<PackagedFile>((resolveFile) => {
-                                batchEntry.file((file) => {
-                                    if (shouldIgnoreFile(file)) return;
-                                    resolveFile(packageFile(file, entry));
-                                });
-                            }));
-                        }
+        if (this.reader) {
+            const batch = await getDirectoryListing(this.reader);
+            if (batch.length === 0) {
+                this.reader = null;
+            } else {
+                const result: PackagedFile[] = [];
+                for (const entry of batch) {
+                    if (entry.isDirectory) {
+                        this.stack.push(entry as FileSystemDirectoryEntry);
+                    } else {
+                        result.push(await getFile(entry));
                     }
                 }
+                return result;
+            }
+        }
 
-                resolve(Promise.all(promises));
-            }, doNothing);
-        });
+        const next = this.stack.pop();
+        if (!next) return null;
+
+        this.reader = next.createReader();
+        return this.fetchFiles();
     }
 }
 
-interface PackagedFile {
+export interface PackagedFile {
     fullPath: string;
     size: number;
     fileObject: File;
@@ -148,6 +114,19 @@ function getFile(entry: FileSystemEntry): Promise<PackagedFile> {
     });
 }
 
+function getDirectoryListing(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+    return new Promise((resolve) => {
+        reader.readEntries(
+            batch => {
+                resolve(batch)
+            },
+            error => {
+                resolve([]);
+            }
+        );
+    });
+}
+
 const DEFAULT_FILES_TO_IGNORE = [
     '.DS_Store', // OSX indexing file
     'Thumbs.db'  // Windows indexing file
@@ -157,65 +136,57 @@ function shouldIgnoreFile(file: PackagedFile) {
     return DEFAULT_FILES_TO_IGNORE.indexOf(file.name) >= 0;
 }
 
-function once<T>(callback: () => T, defaultValue: T): () => T {
-    let didFetch = false;
-    return () => {
-        if (didFetch) return defaultValue;
-        didFetch = true;
-        return callback();
-    };
-}
+export async function filesFromDropOrSelectEvent(event): Promise<PackagedFile[]> {
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) {
+        const files: PackagedFile[] = [];
+        const inputFieldFileList = event.target && event.target.files;
+        const fileList = inputFieldFileList || [];
 
-export function fetcherFromDataTransfer(dataTransfer: DataTransfer): FileUploadEvent[] {
-    const fetchers: FileUploadEvent[] = [];
+        for (let i = 0; i < fileList.length; i++) {
+            files.push(packageFile(fileList[i], undefined));
+        }
 
+        return files;
+    }
+
+    const entries: FileSystemEntry[] = [];
     [].slice.call(dataTransfer.items).forEach((listItem) => {
         if (typeof listItem.webkitGetAsEntry === 'function') {
             const entry: FileSystemEntry = listItem.webkitGetAsEntry();
-
-            if (entry) {
-                if (entry.isDirectory) {
-                    fetchers.push({
-                        rootEntry: {isDirectory: true, name: copyString(entry.name)},
-                        fetcher: traverseDirectory(entry as FileSystemDirectoryEntry)
-                    });
-                } else {
-                    fetchers.push({
-                        rootEntry: {isDirectory: false, name: copyString(entry.name)},
-                        fetcher: once(async () => [await getFile(entry)], Promise.resolve([]))
-                    });
-                }
-            }
+            entries.push(entry);
         } else {
-            const file: File = listItem.getAsFile();
-            fetchers.push({
-                rootEntry: {isDirectory: false, name: file.name},
-                fetcher: once(async () => [packageFile(file)], Promise.resolve([]))
-            });
+            const theFile: File = listItem.getAsFile();
+
+            const entry: FileSystemEntry = {
+                filesystem: 1,
+                isDirectory: false,
+                isFile: true,
+                fullPath: theFile.name,
+                name: theFile.name,
+                file: (callback: ((f: File) => void)) => {
+                    callback(theFile);
+                },
+            };
+
+            entries.push(entry);
         }
     });
 
-    return fetchers;
-}
+    return await (async () => {
+        let result: PackagedFile[] = [];
+        for (const entry of entries) {
+            const traverser = new FileTraverser(entry);
+            while (true) {
+                const chunk = await traverser.fetchFiles();
+                if (!chunk) break;
+                result = [...result, ...chunk];
 
-export function fetcherFromDropOrSelectEvent(event): FileUploadEvent[] {
-    const dataTransfer = event.dataTransfer;
-    if (dataTransfer && dataTransfer.items) {
-        return fetcherFromDataTransfer(dataTransfer);
-    }
-
-    const files: PackagedFile[] = [];
-    const dragDropFileList = dataTransfer && dataTransfer.files;
-    const inputFieldFileList = event.target && event.target.files;
-    const fileList = dragDropFileList || inputFieldFileList || [];
-    for (let i = 0; i < fileList.length; i++) {
-        files.push(packageFile(fileList[i], undefined));
-    }
-
-    return files.map(it => {
-        return {
-            rootEntry: {isDirectory: false, name: it.name},
-            fetcher: once(() => Promise.resolve([it]), Promise.resolve([]))
+                // TODO(Brian)
+                if (result.length > 10000) break;
+            }
         }
-    });
+
+        return result;
+    })();
 }

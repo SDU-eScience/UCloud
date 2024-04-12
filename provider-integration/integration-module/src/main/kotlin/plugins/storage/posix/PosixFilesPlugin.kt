@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.controllers.FileListingEntry
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
@@ -30,6 +31,7 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
@@ -566,6 +568,35 @@ class PosixFilesPlugin : FilePlugin {
                 }
             }
         }
+    }
+
+    override suspend fun RequestContext.handleFolderUpload(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        fileEntry: FileListingEntry,
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.handleUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    }
+
+    override suspend fun RequestContext.handleFolderUploadWs(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        websocket: WebSocketSession
+    ) {
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
     override suspend fun RequestContext.createDownload(

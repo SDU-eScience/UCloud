@@ -1,4 +1,5 @@
 export const UPLOAD_LOCALSTORAGE_PREFIX = "file-upload"
+export const FOLDER_UPLOAD_LOCALSTORAGE_PREFIX = "folder-upload"
 
 // NOTE(Dan): This used to have a more specific type but it did not compile for me. I am not sure why but it doesn't
 // appear that this specific type was really needed.
@@ -6,8 +7,13 @@ export function createLocalStorageUploadKey(path: string): string {
     return `${UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
 }
 
+export function createLocalStorageFolderUploadKey(path: string): string {
+    return `${FOLDER_UPLOAD_LOCALSTORAGE_PREFIX}:${path}`;
+}
+
 export function removeUploadFromStorage(path: string): void {
     localStorage.removeItem(createLocalStorageUploadKey(path));
+    localStorage.removeItem(createLocalStorageFolderUploadKey(path));
 }
 
 export class ChunkedFileReader {

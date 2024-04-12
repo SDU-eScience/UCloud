@@ -10,7 +10,6 @@ import libc.clib
 import java.io.Closeable
 import java.io.EOFException
 import java.nio.ByteBuffer
-import kotlin.math.max
 import kotlin.math.min
 
 class LinuxOutputStream(private val handle: LinuxFileHandle) : Closeable {
