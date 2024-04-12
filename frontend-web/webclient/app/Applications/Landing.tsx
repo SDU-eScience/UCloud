@@ -93,8 +93,8 @@ const LandingPage: React.FunctionComponent = () => {
                     <div>
                         <h3>Browse by category</h3>
                         <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
-                            {landingPage.categories.map(c =>
-                                <CategoryCard key={c.metadata.id} id={c.metadata.id}
+                            {landingPage.categories.map((c, idx) =>
+                                <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
                                     categoryTitle={c.specification.title} />
                             )}
                         </Grid>
@@ -561,8 +561,9 @@ const CategoryCardStyle = injectStyle("category-card", k => `
 const CategoryCard: React.FunctionComponent<{
     id: number;
     categoryTitle: string;
+    idx: number;
 }> = props => {
-    const appCIdx = props.id % appColors.length;
+    const appCIdx = props.idx % appColors.length;
     const appC = appColors[appCIdx][1];
 
     const baseColor = tint(appC, 0.0);

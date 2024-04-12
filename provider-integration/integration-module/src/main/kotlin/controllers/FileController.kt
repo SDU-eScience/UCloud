@@ -63,6 +63,7 @@ object FilesUploadIpc : IpcContainer("files.upload") {
 }
 
 data class FileListingEntry(
+    val id: UInt,
     val path: String,
     val size: Long,
     val modifiedAt: Long,

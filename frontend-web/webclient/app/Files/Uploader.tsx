@@ -11,13 +11,25 @@ import {
     preventDefault
 } from "@/UtilityFunctions";
 import {PackagedFile, filesFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
-import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress, useUploads} from "@/Files/Upload";
+import {
+    supportedProtocols,
+    Upload,
+    uploadCalculateSpeed,
+    UploadState,
+    uploadTrackProgress,
+    useUploads
+} from "@/Files/Upload";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
-import {ChunkedFileReader, createLocalStorageFolderUploadKey, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {
+    ChunkedFileReader,
+    createLocalStorageFolderUploadKey,
+    createLocalStorageUploadKey,
+    UPLOAD_LOCALSTORAGE_PREFIX
+} from "@/Files/ChunkedFileReader";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -105,7 +117,8 @@ enum FolderUploadMessageType {
     OK,
     CHECKSUM,
     CHUNK,
-    SKIP
+    SKIP,
+    LISTING,
 }
 
 function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string> {
@@ -144,7 +157,7 @@ function createResumeableFolder(
         files.set(fileIndex, f);
         fileIndex++;
     }
-        
+
     return async () => {
         const uploadSocket = new WebSocket(
             strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
@@ -156,80 +169,77 @@ function createResumeableFolder(
         await new Promise((resolve, reject) => {
             uploadSocket.addEventListener("message", async (message) => {
                 const frame = new DataView(message.data as ArrayBuffer);
-                const messageType = frame.getUint8(0);
-                const fileId = frame.getUint32(1);
+                let frameCursor = 0;
 
-                switch (messageType as FolderUploadMessageType) {
-                    // @ts-ignore
-                    /*case FolderUploadMessageType.CHECKSUM: {
-                        const theFile = files.get(fileId);
-                        const serverChecksumBuffer = frame.buffer.slice(5);
+                function getU8(): number {
+                    const result = frame.getUint8(frameCursor);
+                    frameCursor += 1;
+                    return result;
+                }
 
-                        const serverChecksumArray = Array.from(new Uint8Array(serverChecksumBuffer));
-                        const serverChecksum = serverChecksumArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-                       
-                        if (theFile) {
-                            const resolvedFile = await resolveFile(theFile);
+                function getU32(): number {
+                    const result = frame.getUint32(frameCursor);
+                    frameCursor += 4;
+                    return result;
+                }
 
-                            const clientChecksum = await computeFileChecksum(resolvedFile, upload);
+                function frameRemaining(): number {
+                    return frame.byteLength - frameCursor;
+                }
 
-                            if (clientChecksum === serverChecksum) {
-                                upload.progressInBytes += files.get(fileId)?.size ?? 0;
+                while (frameRemaining() > 0) {
+                    const messageType = getU8();
+                    const fileId = getU32();
+
+                    switch (messageType as FolderUploadMessageType) {
+                        case FolderUploadMessageType.OK: {
+                            const theFile = files.get(fileId);
+
+                            if (theFile) {
+                                const resolvedFile = await resolveFile(theFile);
+                                const reader = new ChunkedFileReader(resolvedFile.fileObject);
+
+                                while (!reader.isEof() && !upload.terminationRequested) {
+                                    const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, fileId);
+                                    await sendWsChunk(uploadSocket, message);
+
+                                    upload.progressInBytes += message.byteLength;
+                                    uploadTrackProgress(upload);
+
+                                    const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                                    localStorage.setItem(
+                                        createLocalStorageFolderUploadKey(folderPath),
+                                        JSON.stringify({
+                                            size: totalSize,
+                                            strategy: strategy!,
+                                            expiration
+                                        } as LocalStorageFolderUploadInfo)
+                                    );
+                                }
                                 upload.filesCompleted++;
-                                uploadTrackProgress(upload);
-                                break;
-                            }
-
-                            // NOTE(Brian): Delibirate fallthrough, in case the checksums does not match.
-                        }
-                    }*/
-                    case FolderUploadMessageType.OK: {
-                        const theFile = files.get(fileId);
-
-                        if (theFile) {
-                            const resolvedFile = await resolveFile(theFile);
-                            const reader = new ChunkedFileReader(resolvedFile.fileObject);
-
-                            while (!reader.isEof() && !upload.terminationRequested) {
-                                const message = await constructUploadChunk(reader, FolderUploadMessageType.CHUNK, fileId);
-                                await sendWsChunk(uploadSocket, message);
-
-                                upload.progressInBytes += message.byteLength;
+                                filesUploading--;
                                 uploadTrackProgress(upload);
 
-                                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
-                                localStorage.setItem(
-                                    createLocalStorageFolderUploadKey(folderPath),
-                                    JSON.stringify({
-                                        size: totalSize,
-                                        strategy: strategy!,
-                                        expiration
-                                    } as LocalStorageFolderUploadInfo)
-                                );
-                            }
-                            upload.filesCompleted++;
-                            filesUploading--;
-                            uploadTrackProgress(upload);
-
-                            if (upload.terminationRequested) {
-                                if (!upload.paused) {
-                                    localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
-                                } else {
-                                    upload.filesCompleted = 0;
-                                    upload.resume = createResumeableFolder(upload, strategy, folderPath);
-                                    uploadSocket.close();
+                                if (upload.terminationRequested) {
+                                    if (!upload.paused) {
+                                        localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath));
+                                    } else {
+                                        upload.filesCompleted = 0;
+                                        upload.resume = createResumeableFolder(upload, strategy, folderPath);
+                                        uploadSocket.close();
+                                    }
                                 }
                             }
-                        }
 
-                        break;
-                    }
-                    case FolderUploadMessageType.SKIP: {
-                        // Skip this file, since existing version of file appears to be identical
-                        upload.progressInBytes += files.get(fileId)?.size ?? 0;
-                        upload.filesCompleted++;
-                        uploadTrackProgress(upload);
-                        break;
+                            break;
+                        }
+                        case FolderUploadMessageType.SKIP: {
+                            // Skip this file, since existing version of file appears to be identical
+                            upload.progressInBytes += files.get(fileId)?.size ?? 0;
+                            upload.filesCompleted++;
+                            uploadTrackProgress(upload);
+                            break;
+                        }
                     }
                 }
 
@@ -242,7 +252,7 @@ function createResumeableFolder(
 
             uploadSocket.addEventListener("close", async (event) => {
                 if (!upload.paused) {
-                    upload.filesCompleted = upload.row.length; 
+                    upload.filesCompleted = upload.row.length;
                     localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath))
                 }
                 resolve(true);
@@ -250,15 +260,58 @@ function createResumeableFolder(
 
             uploadSocket.addEventListener("open", async (event) => {
                 // Generate and send file listing
-                const listing: string[] = [];
-                
-                for (const [id, f] of files) {
-                    const path = f.fullPath.split("/").slice(2).join("/");
-                    listing.push(`${id} ${path} ${f.size} ${f.lastModified}`);
-                    totalSize += f.size;
+                const capacity = 1024 * 64;
+                const rawBuffer = new ArrayBuffer(capacity);
+                const buffer = new DataView(rawBuffer);
+                let bufferCursor = 0;
+                const encoder = new TextEncoder();
+
+                function putU32(value: number) {
+                    console.log("U32", bufferCursor, value);
+                    buffer.setInt32(bufferCursor, value, false);
+                    bufferCursor += 4;
                 }
 
-                uploadSocket.send(listing.join("\n"));
+                function putU64(value: number) {
+                    console.log("U64", value);
+                    buffer.setBigInt64(bufferCursor, BigInt(value), false);
+                    bufferCursor += 8;
+                }
+
+                function putString(data: string) {
+                    bufferCursor += 4;
+                    const {written} = encoder.encodeInto(data, new Uint8Array(rawBuffer, bufferCursor))
+                    buffer.setInt32(bufferCursor - 4, written, false);
+                    console.log("U32 (size)", written, data);
+                    bufferCursor += written;
+                }
+
+                function flush() {
+                    if (bufferCursor > 1) {
+                        const view = new Uint8Array(rawBuffer, 0, bufferCursor);
+                        console.log(view);
+                        uploadSocket.send(view);
+                    }
+                    buffer.setInt8(0, FolderUploadMessageType.LISTING);
+                    bufferCursor = 1;
+                }
+
+                function remainingCapacity() {
+                    return capacity - bufferCursor;
+                }
+
+                flush(); // Prepare the buffer
+
+                for (const [id, f] of files) {
+                    if (remainingCapacity() < 1024 * 4) flush();
+
+                    putU32(id);
+                    putU64(f.size);
+                    putU64(f.lastModified);
+                    putString(f.fullPath.split("/").slice(2).join("/"));
+                    totalSize += f.size;
+                }
+                flush();
             });
         });
     }
@@ -356,7 +409,7 @@ function createResumeable(
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
 
-            
+
             await new Promise((resolve, reject) => {
                 uploadSocket.addEventListener("message", async (message) => {
                     upload.progressInBytes = parseInt(message.data);
@@ -704,15 +757,17 @@ const Uploader: React.FunctionComponent = () => {
             <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
                 <div>
                     <Flex onClick={closeModal}>
-                        <Box ml="auto" />
-                        <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
+                        <Box ml="auto"/>
+                        <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close"/>
                     </Flex>
-                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
+                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files
+                    </div>
                     <Text color="white">{uploadingText}</Text>
                 </div>
                 <div style={{
                     // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
-                    maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`, overflowY: "scroll"
+                    maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
+                    overflowY: "scroll"
                 }}>
                     <div className="uploads" style={{width: "100%"}}>
                         {uploads.map((upload, idx) => (
@@ -724,15 +779,18 @@ const Uploader: React.FunctionComponent = () => {
                         ))}
                     </div>
                     <Flex justifyContent="center">
-                        <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}} htmlFor={"fileUploadBrowse"}>
-                            <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                                onDragOver={preventDefault} data-slim={hasUploads}>
+                        <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}}
+                               htmlFor={"fileUploadBrowse"}>
+                            <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault}
+                                 onDragLeave={preventDefault}
+                                 onDragOver={preventDefault} data-slim={hasUploads}>
                                 <div data-has-uploads={hasUploads} className={UploadMoreClass}>
                                     {hasUploads ? null :
-                                        <UploaderArt />
+                                        <UploaderArt/>
                                     }
                                     <div className="upload-more-text" style={{marginTop: "22px"}}>
-                                        <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast" name="upload" /></TextSpan>
+                                        <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
+                                                                   name="upload"/></TextSpan>
                                         <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
                                         <i style={{cursor: "pointer"}}>browse</i>
                                         <input
@@ -755,29 +813,33 @@ const Uploader: React.FunctionComponent = () => {
                             {resumables.map(it =>
                                 <div className={UploaderRowClass} key={it}>
                                     <Spacer paddingTop="20px"
-                                        left={<>
-                                            <div>
-                                                <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}} size="32px" />
-                                            </div>
-                                            <div>
-                                                <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
-                                            </div>
-                                        </>}
-                                        right={<>
-                                            <label htmlFor="fileUploadBrowseResume">
-                                                <input
-                                                    id={"fileUploadBrowseResume"}
-                                                    type={"file"}
-                                                    style={{display: "none"}}
-                                                    onChange={onSelectedFile}
-                                                />
-                                                <Icon cursor="pointer" title="Resume upload" name="play" color="primaryMain" mr="12px" />
-                                            </label>
-                                            <Icon cursor="pointer" title="Remove" name="close" color="errorMain" mr="12px" onClick={() => {
-                                                setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                                removeUploadFromStorage(it);
-                                            }} />
-                                        </>}
+                                            left={<>
+                                                <div>
+                                                    <FtIcon
+                                                        fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
+                                                        size="32px"/>
+                                                </div>
+                                                <div>
+                                                    <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
+                                                </div>
+                                            </>}
+                                            right={<>
+                                                <label htmlFor="fileUploadBrowseResume">
+                                                    <input
+                                                        id={"fileUploadBrowseResume"}
+                                                        type={"file"}
+                                                        style={{display: "none"}}
+                                                        onChange={onSelectedFile}
+                                                    />
+                                                    <Icon cursor="pointer" title="Resume upload" name="play"
+                                                          color="primaryMain" mr="12px"/>
+                                                </label>
+                                                <Icon cursor="pointer" title="Remove" name="close" color="errorMain"
+                                                      mr="12px" onClick={() => {
+                                                    setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                                    removeUploadFromStorage(it);
+                                                }}/>
+                                            </>}
                                     />
                                 </div>
                             )}
@@ -884,7 +946,7 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
 `);
 
 
-function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): JSX.Element {
+function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallback }): JSX.Element {
     const [hoverPause, setHoverPause] = React.useState(false);
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const paused = upload.paused;
@@ -895,12 +957,13 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
     return upload.folderName ? (
         <div className={UploaderRowClass} data-has-error={upload.error != null}>
             <div>
-                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
+                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px"/></div>
                 <div>
                     <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
-                    <Text fontSize="12px">Uploaded {upload.filesCompleted} of {upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
+                    <Text
+                        fontSize="12px">Uploaded {upload.filesCompleted} of {upload.row.length} {upload.row.length > 1 ? "files" : "file"}</Text>
                 </div>
-                <div />
+                <div/>
                 <Flex mr="16px">
                     <Text style={{fontSize: "var(--secondaryText)"}}>
                         {sizeToString(upload.progressInBytes + upload.initialProgress)}
@@ -909,22 +972,28 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                         {" "}
                         ({sizeToString(uploadCalculateSpeed(upload))}/s)
                     </Text>
-                    <Box mr="8px" />
+                    <Box mr="8px"/>
                     {inProgress ? <>
-                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
-                    </>
+                            {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
+                                               onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
+                                               color="primaryMain"/> : null}
+                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
+                                                onMouseEnter={() => setHoverPause(true)}/> : null}
+                            <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                                  onClick={() => callbacks.stopUploads([upload])}/>
+                        </>
                         :
                         <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
+                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
+                                            onClick={() => callbacks.resumeUploads([upload])}
+                                            color="primaryMain"/> : null}
                             <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                                 callbacks.clearUploads([upload]);
                                 const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
                                 removeUploadFromStorage(fullFilePath);
                                 upload.state = UploadState.DONE;
                                 if (upload.row.length === 0) return;
-                            }} color={stopped ? "errorMain" : "primaryMain"} />
+                            }} color={stopped ? "errorMain" : "primaryMain"}/>
                         </>}
                 </Flex>
             </div>
@@ -935,12 +1004,13 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
     ) : (
         <div className={UploaderRowClass} data-has-error={upload.error != null}>
             <div>
-                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row[0].name)}} size="32px" /></div>
+                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.row[0].name)}} size="32px"/></div>
                 <div>
-                    <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.row[0].name}</Truncate>
+                    <Truncate maxWidth="270px" color="var(--textPrimary)"
+                              fontSize="18px">{upload.row[0].name}</Truncate>
                     <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
                 </div>
-                <div />
+                <div/>
                 <Flex mr="16px">
                     <Text style={{fontSize: "var(--secondaryText)"}}>
                         {sizeToString(upload.progressInBytes + upload.initialProgress)}
@@ -949,15 +1019,21 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                         {" "}
                         ({sizeToString(uploadCalculateSpeed(upload))}/s)
                     </Text>
-                    <Box mr="8px" />
+                    <Box mr="8px"/>
                     {inProgress ? <>
-                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)} onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid" color="primaryMain" /> : null}
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin onMouseEnter={() => setHoverPause(true)} /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => callbacks.stopUploads([upload])} />
-                    </>
+                            {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
+                                               onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
+                                               color="primaryMain"/> : null}
+                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
+                                                onMouseEnter={() => setHoverPause(true)}/> : null}
+                            <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                                  onClick={() => callbacks.stopUploads([upload])}/>
+                        </>
                         :
                         <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> : null}
+                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
+                                            onClick={() => callbacks.resumeUploads([upload])}
+                                            color="primaryMain"/> : null}
                             <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                                 callbacks.clearUploads([upload]);
                                 const fullFilePath = upload.targetPath + "/" + upload.row[0].name;
@@ -969,7 +1045,7 @@ function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallba
                                     upload.state = UploadState.DONE;
                                     return;
                                 }
-                            }} color={stopped ? "errorMain" : "primaryMain"} />
+                            }} color={stopped ? "errorMain" : "primaryMain"}/>
                         </>}
                 </Flex>
             </div>
@@ -992,11 +1068,11 @@ const ErrorSpan = injectStyleSimple("error-span", `
 
 const UploaderArt: React.FunctionComponent = () => {
     return <div className={UploadArtWrapper}>
-        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
-        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />
-        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"} />
-        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"} />
-        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"}/>
     </div>;
 };
 

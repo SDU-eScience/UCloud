@@ -21,89 +21,12 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-const AppSearchBoxClass = injectStyle("app-search-box", k => `
-    ${k} {
-        align-items: center;
-    }
-
-    ${k} div {
-        width: 300px;
-        position: relative;
-        align-items: center;
-        justify-content: space-evenly;
-    }
-
-    ${k} input.search-field {
-        width: 100%;
-        padding-right: 2.5rem;
-    }
-
-    ${k} button {
-        background: none;
-        border: 0;
-        padding: 0px 10px 1px 10px;
-        cursor: pointer;
-        position: absolute;
-        right: 0;
-        height: 2.4rem;
-    }
-
-    ${k} .search-icon {
-        margin-right: 15px;
-        margin-left: 15px;
-    }
-`);
-
 export function useAppSearch(): (query: string) => void {
     const navigate = useNavigate();
     return useCallback(query => {
         navigate(AppRoutes.apps.search(query));
     }, [navigate]);
 }
-
-export const AppSearchBox: React.FunctionComponent<{value?: string; hidden?: boolean}> = props => {
-    const navigate = useNavigate();
-    const inputRef = React.useRef<HTMLInputElement>(null);
-    const [isHidden, setHidden] = React.useState(props.hidden ?? true);
-
-    const onSearch = useCallback(() => {
-        const queryCurrent = inputRef.current;
-        if (!queryCurrent) return;
-
-        const queryValue = queryCurrent.value;
-
-        if (queryValue === "") return;
-
-        navigate(AppRoutes.apps.search(queryValue));
-    }, [inputRef.current]);
-
-
-    return <Flex className={AppSearchBoxClass}>
-        {isHidden ? null : (
-            <Flex>
-                <Input
-                    className="search-field"
-                    defaultValue={props.value}
-                    inputRef={inputRef}
-                    placeholder="Search for applications..."
-                    onKeyUp={e => {
-                        if (e.key === "Enter") {
-                            onSearch();
-                        }
-                    }}
-                    autoFocus
-                />
-                <button>
-                    <Icon name="search" size={20} color="textSecondary" my="auto" onClick={onSearch} />
-                </button>
-            </Flex>
-        )}
-        <Icon name="heroMagnifyingGlass" cursor="pointer" size="24" color="primaryMain" className="search-icon" onClick={() =>
-            setHidden(!isHidden)
-        } />
-    </Flex>;
-}
-
 
 function readQuery(queryParams: string): string {
     return getQueryParamOrElse(queryParams, "q", "");

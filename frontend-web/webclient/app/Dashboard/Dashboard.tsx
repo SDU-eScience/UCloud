@@ -402,8 +402,14 @@ const DeicBanner = injectStyle("deic-banner", k => `
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        
+    }
+    
+    html.light ${k} {
         background: var(--gray-5);
+    }
+    
+    html.dark ${k} {
+        background: var(--gray-90);
     }
    
     ${k} svg {
