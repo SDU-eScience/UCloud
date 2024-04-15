@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class UsageOverTimeDatePointAPI(
-    val usage: Long,
+    val usage: Double,
     val quota: Long,
     val timestamp: Long
 )
@@ -20,7 +20,7 @@ data class UsageOverTimeAPI(
 data class BreakdownByProjectPointAPI(
     val title: String,
     val projectId: String?,
-    val usage: Long,
+    val usage: Double,
 )
 
 @Serializable

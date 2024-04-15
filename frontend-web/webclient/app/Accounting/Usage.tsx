@@ -1130,7 +1130,7 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
     const chartProps = useMemo(() => {
         chartCounter.current++;
         return usageChartToChart(chart, {
-            valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(0)),
+            valueFormatter: val => Accounting.addThousandSeparators(val.toFixed(1)),
         });
     }, [chart]);
 
@@ -1151,7 +1151,7 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
     })();
 
     const difference = React.useMemo(() => {
-        let difference = 0;
+        let difference = 0.0;
         for (let idx = 0; idx < chart.dataPoints.length; idx++) {
             const point = chart.dataPoints[idx];
             if (idx == 0) continue;
@@ -1196,8 +1196,8 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
                             if (change === 0) return null;
                             return <tr key={idx}>
                                 <td>{dateToString(point.timestamp)}</td>
-                                <td>{Accounting.addThousandSeparators(point.usage.toFixed(0))}</td>
-                                <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(0))}</td>
+                                <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
+                                <td>{change >= 0 ? "+" : ""}{Accounting.addThousandSeparators(change.toFixed(2))}</td>
                             </tr>;
                         }) : (chart.dataPoints.length === 0 ? null : <tr>
                             <td>{dateToString(chart.dataPoints[0].timestamp)}</td>

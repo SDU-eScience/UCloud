@@ -163,12 +163,21 @@ class DataVisualization(
                         setParameter("end", request.end)
                     },
                     """
-                        select distinct w.product_category, s.tree_usage, s.quota, provider.timestamp_to_unix(s.sampled_at)::int8
+                        select distinct 
+                            w.product_category, 
+                            case 
+                                when au.floating_point = true then s.tree_usage / 1000000.0
+                                when au.floating_point = false then s.tree_usage::double precision
+                            end tusage, 
+                            s.quota, 
+                            provider.timestamp_to_unix(s.sampled_at)::int8
                         from
                             accounting.wallet_allocations_v2 alloc
                             join accounting.allocation_groups ag on ag.id = alloc.associated_allocation_group
                             join accounting.wallets_v2 w on ag.associated_wallet = w.id
-                            join accounting.wallet_samples_v2 s on w.id = s.wallet_id
+                            join accounting.wallet_samples_v2 s on w.id = s.wallet_id 
+                            join accounting.product_categories pc on w.product_category = pc.id 
+                            join accounting.accounting_units au on pc.accounting_unit = au.id
                         where
                             alloc.id = some(:allocation_group_ids::int8[])
                             and s.sampled_at >= to_timestamp(:start / 1000.0)
@@ -190,7 +199,7 @@ class DataVisualization(
 
                 for (row in rows) {
                     val allocCategory = row.getLong(0)!!
-                    val usage = row.getLong(1)!!
+                    val usage = row.getDouble(1)!!
                     val quota = row.getLong(2)!!
                     val timestamp = row.getLong(3)!!
 
@@ -276,12 +285,17 @@ class DataVisualization(
                                 u.product_category,
                                 p.id,
                                 coalesce(p.title, wo.username),
-                                u.usage
+                                case 
+                                    when au.floating_point = true then u.usage / 1000000.0
+                                    when au.floating_point = false then u.usage::double precision
+                                end tusage
                             from
                                 with_usage u
                                 join accounting.wallets_v2 w on u.id = w.id
                                 join accounting.wallet_owner wo on w.wallet_owner = wo.id
-                                left join project.projects p on wo.project_id = p.id
+                                join accounting.product_categories pc on w.product_category = pc.id 
+                                join accounting.accounting_units au on au.id = pc.accounting_unit
+                                left join project.projects p on wo.project_id = p.id 
                             order by product_category;
                         """,
                     ).rows
@@ -304,7 +318,7 @@ class DataVisualization(
                         val categoryId = row.getLong(0)!!
                         val projectId = row.getString(1)
                         val workspaceTitle = row.getString(2)!!
-                        val usage = row.getLong(3)!!
+                        val usage = row.getDouble(3)!!
 
                         if (categoryId != currentCategory) {
                             flushChart()
