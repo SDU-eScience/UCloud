@@ -17,13 +17,13 @@ class RandomTest {
         }
     }
 
-    private suspend fun randomCharge(walletId: Int, maxAmount: Long, repetitions: Int, context: TestContext): Long {
+    private suspend fun randomCharge(walletId: Int, maxAmount: Long, repetitions: Int, context: TestContext, isDelta: Boolean): Long {
         var total = 0L
         for (i in 0..repetitions) {
             val request = AccountingRequest.SystemCharge(
                 amount = (1..maxAmount).random(),
                 walletId = walletId.toLong(),
-                isDelta = true
+                isDelta = isDelta
             )
             total += request.amount
             val success = runCatching {
@@ -144,6 +144,7 @@ class RandomTest {
         maxHierarchyLevel: Int,
         numberOfCharges: Int,
         context: TestContext,
+        isDelta: Boolean = true,
         singleWalletToCharge: Boolean = true,
         rootQuota: Long = 1000L,
         specificChargeAmount: Long? = null,
@@ -166,7 +167,7 @@ class RandomTest {
                                     AccountingRequest.SystemCharge(
                                         amount = specificChargeAmount,
                                         walletId = walletToCharge.toLong(),
-                                        isDelta = true
+                                        isDelta = isDelta
                                     )
                                 )
                             }.isSuccess
@@ -175,7 +176,8 @@ class RandomTest {
                             walletId = walletToCharge,
                             maxAmount = 100,
                             repetitions = (1..3).random(),
-                            context = this
+                            context = this,
+                            isDelta
                         )
                     }
                 }
@@ -189,7 +191,7 @@ class RandomTest {
                                 AccountingRequest.SystemCharge(
                                     amount = specificChargeAmount,
                                     walletId = walletToCharge,
-                                    isDelta = true
+                                    isDelta = isDelta
                                 )
                             )
                         }.isSuccess
@@ -200,7 +202,8 @@ class RandomTest {
                             walletId = walletToCharge.toInt(),
                             maxAmount = 100,
                             repetitions = (1..3).random(),
-                            context = this
+                            context = this,
+                            isDelta
                         )
                     }
                 }
@@ -214,7 +217,6 @@ class RandomTest {
                 }
             }
 
-            makeGraphFile(context)
             if (specificChargeAmount != null) {
                 assertEquals(specificChargeAmount * numberOfCharges, charged)
             }
@@ -225,67 +227,67 @@ class RandomTest {
     Delta Product Testing
      */
     @Test
-    fun singleRandomChargeNonCapacityLowHierarchyTree() = withTest {
+    fun singleRandomChargeDeltaLowHierarchyTree() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 1, context = this)
     }
 
     @Test
-    fun singleRandomChargeNonCapacityLowHierarchyTreeNoQuotaInRoot() = withTest {
+    fun singleRandomChargeDeltaLowHierarchyTreeNoQuotaInRoot() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 0, context = this)
     }
 
     @Test
-    fun singleRandomChargeNonCapacityLowHierarchyTreeManyWallets() = withTest {
+    fun singleRandomChargeDeltaLowHierarchyTreeManyWallets() = withTest {
         randomTest(provider.nonCapacityProduct, 200, 2, 1, context = this)
     }
 
     @Test
-    fun singleRandomChargeNonCapacityHighHierarchyTreeManyWallets() = withTest {
+    fun singleRandomChargeDeltaHighHierarchyTreeManyWallets() = withTest {
         randomTest(provider.nonCapacityProduct, 200, 15, 1, context = this)
     }
 
     @Test
-    fun singleSpecificChargeNonCapacityLowHierarchyTreeHighCharge() = withTest {
+    fun singleSpecificChargeDeltaLowHierarchyTreeHighCharge() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 1000, specificChargeAmount = 950, context = this)
     }
 
     @Test
-    fun singleSpecificChargeNonCapacityLowHierarchyTreeOverCharge() = withTest {
+    fun singleSpecificChargeDeltaLowHierarchyTreeOverCharge() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 1000, specificChargeAmount = 10000, context = this)
     }
 
     @Test
-    fun multipleRandomChargesNonCapacityLowHierarchyTree() = withTest {
+    fun multipleRandomChargesDeltaLowHierarchyTree() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 100, context = this)
     }
 
     @Test
-    fun multipleRandomChargeNonCapacityLowHierarchyTreeNoQuotaInRoot() = withTest {
+    fun multipleRandomChargeDeltaLowHierarchyTreeNoQuotaInRoot() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 0, context = this)
     }
 
     @Test
-    fun multipleRandomChargesNonCapacityLowHierarchyManyWalletsTree() = withTest {
+    fun multipleRandomChargesDeltaLowHierarchyManyWalletsTree() = withTest {
         randomTest(provider.nonCapacityProduct, 200, 2, 100, context = this)
     }
 
     @Test
-    fun multipleRandomChargesNonCapacityHighHierarchyTree() = withTest {
+    fun multipleRandomChargesDeltaHighHierarchyTree() = withTest {
         randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this)
     }
 
     @Test
-    fun multipleSpecificChargeNonCapacityLowHierarchyTreeHighCharge() = withTest {
+    fun multipleSpecificChargeDeltaLowHierarchyTreeHighCharge() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 950, context = this)
     }
 
     @Test
-    fun multipleSpecificChargeNonCapacityLowHierarchyTreeOverCharge() = withTest {
+    fun multipleSpecificChargeDeltaLowHierarchyTreeOverCharge() = withTest {
         randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 10000, context = this)
     }
 
     @Test
-    fun multipleRandomChargesDifferentWalletsNonCapacityHighHierarchyTree() = withTest {
+    fun multipleRandomChargesDifferentWalletsDeltaHighHierarchyTree() = withTest {
         randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this, singleWalletToCharge = false)
     }
 
@@ -294,12 +296,67 @@ class RandomTest {
      */
 
     @Test
-    fun singleRandomChargeCapacityLowHierarchyTree() = withTest {
-        randomTest(provider.capacityProduct, 2, 2, 1, context = this)
+    fun singleRandomChargeNonDeltaLowHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 1, context = this)
     }
 
     @Test
-    fun multipleRandomChargesCapacityLowHierarchyTree() = withTest {
-        randomTest(provider.capacityProduct, 2, 2, 100, context = this)
+    fun singleRandomChargeNonDeltaLowHierarchyTreeNoQuotaInRoot() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 0, context = this)
+    }
+
+    @Test
+    fun singleRandomChargeNonDeltaLowHierarchyTreeManyWallets() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 2, 1, context = this)
+    }
+
+    @Test
+    fun singleRandomChargeNonDeltaHighHierarchyTreeManyWallets() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 15, 1, context = this)
+    }
+
+    @Test
+    fun singleSpecificChargeNonDeltaLowHierarchyTreeHighCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 1000, specificChargeAmount = 950, context = this)
+    }
+
+    @Test
+    fun singleSpecificChargeNonDeltaLowHierarchyTreeOverCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 1, rootQuota = 1000, specificChargeAmount = 10000, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesNonDeltaLowHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargeNonDeltaLowHierarchyTreeNoQuotaInRoot() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 0, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesNonDeltaLowHierarchyManyWalletsTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 2, 100, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesNonDeltaHighHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this)
+    }
+
+    @Test
+    fun multipleSpecificChargeNonDeltaLowHierarchyTreeHighCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 950, context = this)
+    }
+
+    @Test
+    fun multipleSpecificChargeNonDeltaLowHierarchyTreeOverCharge() = withTest {
+        randomTest(provider.nonCapacityProduct, 2, 2, 100, rootQuota = 1000, specificChargeAmount = 10000, context = this)
+    }
+
+    @Test
+    fun multipleRandomChargesDifferentWalletsNonDeltaHighHierarchyTree() = withTest {
+        randomTest(provider.nonCapacityProduct, 200, 15, 100, context = this, singleWalletToCharge = false)
     }
 }
