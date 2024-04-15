@@ -549,6 +549,15 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
+        this.header.onclick = e => {
+            // Note(Jonas): Clear selected
+            e.stopPropagation();
+            const page = this.cachedData[this.currentPath] ?? [];
+            this.closeContextMenu();
+            this.isSelected = new Uint8Array(page.length);
+            this.renderRows();
+        }
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
@@ -1477,7 +1486,7 @@ export class ResourceBrowser<T> {
                         ("operations" in op ? "primaryMain" : "secondaryMain")
                 )
             );
-            
+
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
             // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
             if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
