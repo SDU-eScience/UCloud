@@ -136,6 +136,84 @@ function shouldIgnoreFile(file: PackagedFile) {
     return DEFAULT_FILES_TO_IGNORE.indexOf(file.name) >= 0;
 }
 
+
+type DropEvent =
+    | DropEventSingle
+    | DropEventFolder;
+
+interface DropEventSingle {
+    type: "single";
+    file: PackagedFile;
+}
+
+interface DropEventFolder {
+    type: "folder";
+    folderName: string;
+    fileFetcher: () => Promise<PackagedFile[] | null>;
+}
+
+export function filesFromDropOrSelectEvent2(event): DropEvent[] {
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) {
+        const files: PackagedFile[] = [];
+        const inputFieldFileList = event.target && event.target.files;
+        const fileList = inputFieldFileList || [];
+
+        for (let i = 0; i < fileList.length; i++) {
+            files.push(packageFile(fileList[i], undefined));
+        }
+
+        return files.map(file => ({type: "single", file}));
+    }
+
+    const entries: FileSystemEntry[] = [];
+    [].slice.call(dataTransfer.items).forEach((listItem) => {
+        if (typeof listItem.webkitGetAsEntry === 'function') {
+            const entry: FileSystemEntry = listItem.webkitGetAsEntry();
+            entries.push(entry);
+        } else {
+            const theFile: File = listItem.getAsFile();
+
+            const entry: FileSystemEntry = {
+                filesystem: 1,
+                isDirectory: false,
+                isFile: true,
+                fullPath: theFile.name,
+                name: theFile.name,
+                file: (callback: ((f: File) => void)) => {
+                    callback(theFile);
+                },
+            };
+
+            entries.push(entry);
+        }
+    });
+
+    return entries.map(entry => {
+        const traverser = new FileTraverser(entry);
+
+        return {
+            type: "folder",
+            folderName: entry.name,
+            fileFetcher: async () => {
+                let result: PackagedFile[] = [];
+                while (result.length < 5000) {
+                    const batch = await traverser.fetchFiles()
+                    if (batch === null) {
+                        if (result.length === 0) {
+                            return null;
+                        } else {
+                            break;
+                        }
+                    }
+                    result = [...result, ...batch];
+                }
+                return result;
+            }
+        };
+    });
+}
+
 export async function filesFromDropOrSelectEvent(event): Promise<PackagedFile[]> {
     const dataTransfer = event.dataTransfer;
     if (!dataTransfer) {

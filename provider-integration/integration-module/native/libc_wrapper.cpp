@@ -15,6 +15,9 @@
 #include <grp.h>
 #include <errno.h>
 
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -392,12 +395,76 @@ JNIEXPORT jint JNICALL Java_libc_LibC_touchFile(JNIEnv *env, jobject thisRef, ji
 
 JNIEXPORT jint JNICALL Java_libc_LibC_modifyTimestamps(JNIEnv *env, jobject thisRef, jint fileDescriptor, jlong modifiedAt) {
     struct timeval times[2];
-    times[0].tv_sec = modifiedAt/1000;
-    times[0].tv_usec = (modifiedAt % 1000)*1000;
-    times[1].tv_sec = modifiedAt/1000;
-    times[1].tv_usec = (modifiedAt % 1000)*1000;
+    times[0].tv_sec = modifiedAt / 1000;
+    times[0].tv_usec = (modifiedAt % 1000) * 1000;
+    times[1].tv_sec = modifiedAt / 1000;
+    times[1].tv_usec = (modifiedAt % 1000) * 1000;
 
     return futimes(fileDescriptor, times);
+}
+
+typedef struct OpenedDescriptors {
+    int fileHandles[1024];
+    int indexes[1024]; // points into fileHandles
+    int length;
+} OpenedDescriptors;
+
+static char **splitString(Arena *arena, const char *input, char separator) {
+    int largestSegment = 0;
+    int count = 0;
+    int segmentCounter = 0;
+    char *current = input;
+    while (*current != "\0") {
+        if (*current == separator) {
+            count++;
+            if (segmentCounter > largestSegment) largestSegment = segmentCounter;
+            segmentCounter = 0;
+        }
+        segmentCounter++;
+        current++;
+    }
+
+    if (segmentCounter > largestSegment) largestSegment = segmentCounter;
+    count++;
+    segmentCounter = 0;
+
+    char **result = (char **) arena_alloc(arena, sizeof(char *) * count);
+    current = input;
+
+    char *temp = (char *)arena_alloc(arena, sizeof(char) * (largestSegment + 1));
+    int tempPtr = 0;
+
+    count = 0;
+    while (*current != "\0") {
+        char c = *current;
+        if (c == separator) {
+            temp[tempPtr++] = "\0";
+            char *segment = arena_alloc(arena, sizeof(char) * tempPtr);
+            strncopy(segment, temp, tempPtr);
+            result[count++] = segment;
+            tempPtr = 0;
+        } else {
+            temp[tempPtr++] = c;
+        }
+        current++;
+    }
+}
+
+static OpenedDescriptors openFiles(int count, const char **paths) {
+    Arena temp = {0};
+    OpenedDescriptors result = {0};
+
+    for (int i = 0; i < count; i++) {
+        const char *path = paths[i];
+
+    }
+
+    arena_free(&temp);
+    return result;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_modifyTimestamps(JNIEnv *env, jobject thisRef, jint destinationFolder, jlong modifiedAt) {
+
 }
 
 #ifdef __cplusplus

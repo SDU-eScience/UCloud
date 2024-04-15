@@ -48,20 +48,16 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.pool.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import org.cliffc.high_scale_lib.NonBlockingHashSet
 import java.nio.ByteBuffer
 import kotlin.math.min
 
@@ -270,14 +266,13 @@ class UCloudFilePlugin : FilePlugin {
         }
     }
 
-    override suspend fun RequestContext.handleFolderUpload(
-        session: String,
+    private suspend fun RequestContext.doHandleFolderUpload(
         pluginData: String,
         fileCollections: SimpleCache<String, FileCollection>,
         fileEntry: FileListingEntry,
         chunk: ByteReadChannel,
         lastChunk: Boolean
-    ) {
+    ): Boolean {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
 
         val collection = fileCollections.get(sessionData.target.split("/")[1])
@@ -289,7 +284,12 @@ class UCloudFilePlugin : FilePlugin {
 
         var i = 0
         while (i < folders.size) {
-            allFolders.add(folders.subList(0, i + 1).joinToString("/"))
+            // TODO This really needs to be improved
+            val element = folders.subList(0, i + 1).joinToString("/")
+            if (element.contains("../")) error("Bailing")
+            if (element == "..") error("Bailing")
+
+            allFolders.add(element)
             i++
         }
 
@@ -311,7 +311,7 @@ class UCloudFilePlugin : FilePlugin {
 
         val targetPath = sessionData.target + "/" + fileEntry.path
 
-        uploads.receiveChunk(
+        return uploads.receiveChunk(
             UCloudFile.create(targetPath),
             fileEntry.offset,
             chunk,
@@ -319,6 +319,17 @@ class UCloudFilePlugin : FilePlugin {
             lastChunk,
             fileEntry.modifiedAt
         )
+    }
+
+    override suspend fun RequestContext.handleFolderUpload(
+        session: String,
+        pluginData: String,
+        fileCollections: SimpleCache<String, FileCollection>,
+        fileEntry: FileListingEntry,
+        chunk: ByteReadChannel,
+        lastChunk: Boolean
+    ) {
+        doHandleFolderUpload(pluginData, fileCollections, fileEntry, chunk, lastChunk)
     }
 
     override suspend fun RequestContext.handleUploadWs(
@@ -389,7 +400,11 @@ class UCloudFilePlugin : FilePlugin {
     ) {
         val sessionData = defaultMapper.decodeFromString<FileUploadSessionPluginData>(pluginData)
         val listing = HashMap<UInt, FileListingEntry>()
+        val backlog = NonBlockingHashSet<Int>()
 
+        val destinationFolder = pathConverter.ucloudToInternal(UCloudFile.create(sessionData.target))
+
+        val filesCompleted = AtomicInteger(0)
         val responseBuffer = ByteBuffer.allocateDirect(1024 * 4)
         suspend fun flushResponses() {
             responseBuffer.flip()
@@ -399,155 +414,207 @@ class UCloudFilePlugin : FilePlugin {
             responseBuffer.clear()
         }
 
-        for (frame in websocket.incoming) {
-            val buffer = frame.buffer
-            val frameType = FolderUploadMessageType.entries.getOrNull(buffer.get().toInt())
-                ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
+        ProcessingScope.launch {
+            var last = 0
+            val buf = ByteBuffer.allocateDirect(5)
+            while (isActive && websocket.isActive) {
+                val firstBacklog = backlog.firstOrNull()
+                firstBacklog?.let { println("Backlog: ${listing[it.toUInt()]} ${backlog.size}") }
 
-            when (frameType) {
-                FolderUploadMessageType.LISTING -> {
-                    val workChannel = Channel<FileListingEntry>(Channel.BUFFERED)
-                    val workResponses = Channel<Pair<FolderUploadMessageType, UInt>>(Channel.BUFFERED)
-                    val workerCount = Runtime.getRuntime().availableProcessors()
-                    val workersActive = AtomicInteger(workerCount)
+                val current = filesCompleted.get()
+                if (last != current) {
+                    buf.clear()
+                    buf.put(FolderUploadMessageType.FILES_COMPLETED.ordinal.toByte())
+                    buf.putInt(current)
+                    buf.flip()
+                    websocket.send(Frame.Binary(true, buf))
+                    last = current
+                }
+                delay(100)
+            }
+        }
 
-                    coroutineScope {
-                        repeat(workerCount) { id ->
-                            ProcessingScope.launch {
-                                try {
-                                    while (isActive) {
-                                        val entry = workChannel.receiveCatching().getOrNull() ?: break
-                                        val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.path)
-                                        val exists = queries.fileExists(ucloudFile)
+        coroutineScope {
+            for (frame in websocket.incoming) {
+                val buffer = frame.buffer
+                val frameType = FolderUploadMessageType.entries.getOrNull(buffer.get().toInt())
+                    ?: throw RPCException("Invalid frame type", HttpStatusCode.BadRequest)
 
-                                        if (!exists) {
-                                            // The file does not exist. Respond with OK (start the transfer) for this file.
-                                            workResponses.send(FolderUploadMessageType.OK to entry.id)
-                                        } else {
-                                            val existingFile =
-                                                queries.retrieve(ucloudFile, UFileIncludeFlags(includeSizes = true))
+                when (frameType) {
+                    FolderUploadMessageType.LISTING -> {
+                        val workChannel = Channel<FileListingEntry>(Channel.BUFFERED)
+                        val workResponses = Channel<Pair<FolderUploadMessageType, UInt>>(Channel.BUFFERED)
+                        val workerCount = Runtime.getRuntime().availableProcessors()
+                        val workersActive = AtomicInteger(workerCount)
 
-                                            if (existingFile.status.sizeInBytes != entry.size) {
-                                                // The file sizes differ. Respond with OK (start the transfer) for this file.
+                        coroutineScope {
+                            repeat(workerCount) { id ->
+                                ProcessingScope.launch {
+                                    try {
+                                        while (isActive) {
+                                            val entry = workChannel.receiveCatching().getOrNull()
+                                            if (entry == null) {
+                                                break
+                                            }
+                                            println(entry)
+                                            val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.path)
+                                            val exists = queries.fileExists(ucloudFile)
+
+                                            if (!exists) {
+                                                // The file does not exist. Respond with OK (start the transfer) for this file.
                                                 workResponses.send(FolderUploadMessageType.OK to entry.id)
-                                            } else if (existingFile.status.modifiedAt == entry.modifiedAt) {
-                                                // The sizes and modifiedAt are the same, SKIP this file.
-                                                listing[entry.id]?.offset = entry.size
-                                                workResponses.send(FolderUploadMessageType.SKIP to entry.id)
                                             } else {
-                                                workResponses.send(FolderUploadMessageType.OK to entry.id)
+                                                val existingFile =
+                                                    queries.retrieve(ucloudFile, UFileIncludeFlags(includeSizes = true))
+
+                                                if (existingFile.status.sizeInBytes != entry.size) {
+                                                    // The file sizes differ. Respond with OK (start the transfer) for this file.
+                                                    workResponses.send(FolderUploadMessageType.OK to entry.id)
+                                                } else if (existingFile.status.modifiedAt == entry.modifiedAt) {
+                                                    // The sizes and modifiedAt are the same, SKIP this file.
+                                                    listing[entry.id]?.offset = entry.size
+                                                    filesCompleted.getAndIncrement()
+                                                    workResponses.send(FolderUploadMessageType.SKIP to entry.id)
+                                                } else {
+                                                    workResponses.send(FolderUploadMessageType.OK to entry.id)
+                                                }
                                             }
                                         }
+                                    } catch (ex: Throwable) {
+                                        ex.printStackTrace()
+                                    } finally {
+                                        if (workersActive.decrementAndGet() == 0) {
+                                            workResponses.close()
+                                        }
                                     }
-                                } finally {
-                                    workersActive.decrementAndGet()
                                 }
                             }
-                        }
 
-                        ProcessingScope.launch {
-                            while (buffer.hasRemaining()) {
-                                val fileId = buffer.getInt().toUInt()
-                                val size = buffer.getLong()
-                                val modifiedAt = buffer.getLong()
-                                val pathSize = buffer.getInt()
-                                if (pathSize > 1024 * 64) error("Refusing allocate space for this file: $pathSize")
-                                val pathBytes = ByteArray(pathSize)
-                                buffer.get(pathBytes)
-                                val path = pathBytes.decodeToString()
+                            ProcessingScope.launch {
+                                try {
+                                    while (buffer.hasRemaining()) {
+                                        val fileId = buffer.getInt().toUInt()
+                                        val size = buffer.getLong()
+                                        val modifiedAt = buffer.getLong()
+                                        val pathSize = buffer.getInt()
+                                        if (pathSize > 1024 * 64) error("Refusing allocate space for this file: $pathSize")
+                                        val pathBytes = ByteArray(pathSize)
+                                        buffer.get(pathBytes)
+                                        val path = pathBytes.decodeToString()
 
-                                val fileListingEntry = FileListingEntry(fileId, path, size, modifiedAt, 0)
-                                listing[fileId] = fileListingEntry
-                                workChannel.send(fileListingEntry)
-                            }
-                            workChannel.close()
-                        }
-
-                        while (isActive && workersActive.get() > 0) {
-                            select<Unit> {
-                                workResponses.onReceive { (type, entry) ->
-                                    if (responseBuffer.remaining() < 64) flushResponses()
-                                    responseBuffer.put(type.ordinal.toByte())
-                                    responseBuffer.putInt(entry.toInt())
+                                        val fileListingEntry = FileListingEntry(fileId, path, size, modifiedAt, 0)
+                                        println("ACK ${fileId} ${fileListingEntry}")
+                                        listing[fileId] = fileListingEntry
+                                        workChannel.send(fileListingEntry)
+                                    }
+                                    workChannel.close()
+                                } catch (ex: Throwable) {
+                                    ex.printStackTrace()
                                 }
-
-                                onTimeout(100) {
-                                    flushResponses()
-                                }
-                            }
-                        }
-                    }
-
-                    flushResponses()
-                }
-
-                FolderUploadMessageType.CHUNK -> {
-                    val fileId = buffer.getInt().toUInt()
-                    if (!frame.buffer.isDirect) {
-                        DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
-                            val fileEntry: FileListingEntry = listing[fileId]
-                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                            val data = if (buffer.hasArray()) {
-                                buffer.array().sliceArray(5..<buffer.array().size)
-                            } else {
-                                buffer.moveToByteArray()
                             }
 
                             try {
-                                var offset = 0
-                                while (offset < data.size) {
-                                    if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                    val count = min(data.size - offset, nativeBuffer.remaining())
-                                    nativeBuffer.put(data, offset, count)
-                                    nativeBuffer.flip()
-                                    offset += count
-                                    val channel = ByteReadChannel(nativeBuffer)
+                                while (isActive && !workResponses.isClosedForReceive) {
+                                    select<Unit> {
+                                        workResponses.onReceive { (type, entry) ->
+                                            if (responseBuffer.remaining() < 64) flushResponses()
+                                            if (type == FolderUploadMessageType.OK) {
+                                                backlog.add(entry.toInt())
+                                            }
+                                            responseBuffer.put(type.ordinal.toByte())
+                                            responseBuffer.putInt(entry.toInt())
 
-                                    handleFolderUpload(
-                                        session,
-                                        pluginData,
-                                        fileCollections,
-                                        fileEntry,
-                                        channel,
-                                        fileEntry.offset + count >= fileEntry.size
-                                    )
+                                            println("$type $entry")
+                                        }
 
-                                    fileEntry.offset += count
+                                        onTimeout(100) {
+                                            flushResponses()
+                                        }
+                                    }
                                 }
                             } catch (ex: Throwable) {
                                 ex.printStackTrace()
-                                throw ex
                             }
                         }
-                    } else {
+
+                        flushResponses()
+                    }
+
+                    FolderUploadMessageType.CHUNK -> {
+                        val fileId = buffer.getInt().toUInt()
                         val fileEntry: FileListingEntry = listing[fileId]
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        ProcessingScope.launch {
+                            if (!frame.buffer.isDirect) {
+                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
+                                    val data = if (buffer.hasArray()) {
+                                        buffer.array().sliceArray(5..<buffer.array().size)
+                                    } else {
+                                        buffer.moveToByteArray()
+                                    }
 
-                        val data = if (buffer.hasArray()) {
-                            buffer.array().sliceArray(5..<buffer.array().size)
-                        } else {
-                            buffer.moveToByteArray()
+                                    try {
+                                        var offset = 0
+                                        var first = true
+                                        while (offset < data.size || first) {
+                                            first = false
+                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                            val count = min(data.size - offset, nativeBuffer.remaining())
+                                            nativeBuffer.put(data, offset, count)
+                                            nativeBuffer.flip()
+                                            offset += count
+                                            val channel = ByteReadChannel(nativeBuffer)
+
+                                            println("Receiving data for ${fileEntry.path} $count ${fileEntry.offset + count} -- ${fileEntry.size}")
+                                            val isDone = doHandleFolderUpload(
+                                                pluginData,
+                                                fileCollections,
+                                                fileEntry,
+                                                channel,
+                                                fileEntry.offset + count >= fileEntry.size
+                                            )
+
+                                            fileEntry.offset += count
+                                            if (isDone || fileEntry.offset >= fileEntry.size) {
+                                                filesCompleted.getAndIncrement()
+                                                backlog.remove(fileEntry.id.toInt())
+                                            }
+                                        }
+                                    } catch (ex: Throwable) {
+                                        ex.printStackTrace()
+                                        throw ex
+                                    }
+                                }
+                            } else {
+                                val data = if (buffer.hasArray()) {
+                                    buffer.array().sliceArray(5..<buffer.array().size)
+                                } else {
+                                    buffer.moveToByteArray()
+                                }
+
+                                println("Receiving data for ${fileEntry.path} ${data.size} ${fileEntry.offset + data.size} -- ${fileEntry.size}")
+                                val isDone = doHandleFolderUpload(
+                                    pluginData,
+                                    fileCollections,
+                                    fileEntry,
+                                    ByteReadChannel(data),
+                                    fileEntry.offset + data.size >= fileEntry.size
+                                )
+
+                                fileEntry.offset += data.size
+                                if (isDone || fileEntry.offset >= fileEntry.size) {
+                                    filesCompleted.getAndIncrement()
+                                    backlog.remove(fileEntry.id.toInt())
+                                }
+                            }
                         }
-
-                        handleFolderUpload(
-                            session,
-                            pluginData,
-                            fileCollections,
-                            fileEntry,
-                            ByteReadChannel(data),
-                            fileEntry.offset + data.size >= fileEntry.size
-                        )
-
-                        fileEntry.offset += data.size
                     }
+
+                    else -> {}
                 }
-
-                else -> {}
             }
 
-            if (listing.entries.sumOf { it.value.offset } >= listing.entries.sumOf { it.value.size }) {
-                break
-            }
+            println("Done?")
         }
     }
 
@@ -1178,4 +1245,5 @@ enum class FolderUploadMessageType {
     CHUNK,
     SKIP,
     LISTING,
+    FILES_COMPLETED,
 }

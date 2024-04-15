@@ -17,16 +17,21 @@ class ChunkedUploadService(
         conflictPolicy: WriteConflictPolicy,
         shouldClose: Boolean = false,
         modifiedAt: Long? = null
-    ) {
+    ): Boolean {
+        println("Retrieving file descriptor ${target.path} shouldClose=${shouldClose}")
         val descriptor = openFileDescriptors.get(target.path, offset, modifiedAt = modifiedAt)
         val stream = LinuxOutputStream(descriptor.handle)
 
+        println("Receiving data for ${target.path} shouldClose=${shouldClose}")
         payload.copyTo(stream)
-        descriptor.release()
 
         if (shouldClose) {
             openFileDescriptors.close(descriptor, conflictPolicy, modifiedAt = modifiedAt)
         }
+        descriptor.release()
+        println("Released ${target.path}")
+
+        return shouldClose
     }
 
     companion object : Loggable {

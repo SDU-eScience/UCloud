@@ -15,11 +15,14 @@ export enum UploadState {
 }
 
 export interface Upload {
-    row: PackagedFile[];
+    name: string;
+    row?: PackagedFile;
+    fileFetcher?: () => Promise<PackagedFile[] | null>;
     folderName?: string;
     state: UploadState;
     fileSizeInBytes?: number;
     filesCompleted: number;
+    filesDiscovered: number;
     initialProgress: number;
     progressInBytes: number;
     error?: string;

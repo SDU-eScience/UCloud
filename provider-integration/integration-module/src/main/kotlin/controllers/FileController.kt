@@ -659,13 +659,17 @@ class FileController(
                     val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                         ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
-                    with(plugin) {
-                        handleFolderUploadWs(
-                            handler.session,
-                            handler.pluginData,
-                            collectionCache,
-                            this@webSocket
-                        )
+                    try {
+                        with(plugin) {
+                            handleFolderUploadWs(
+                                handler.session,
+                                handler.pluginData,
+                                collectionCache,
+                                this@webSocket
+                            )
+                        }
+                    } catch (ex: Throwable) {
+                        log.warn("Exception in upload: ${ex.toReadableStacktrace()}")
                     }
 
                     ipcClient.sendRequest(FilesUploadIpc.delete, FindByStringId(token))
