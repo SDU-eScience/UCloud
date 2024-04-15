@@ -549,15 +549,14 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
-        this.header.onclick = e => {
-            // Note(Jonas): Clear selected
-            e.stopPropagation();
-            const page = this.cachedData[this.currentPath] ?? [];
-            this.closeContextMenu();
-            this.isSelected = new Uint8Array(page.length);
-            this.renderRows();
-        }
-
+        // Note(Jonas): Clear selected
+        // Note(Jonas): This won't work with drag to select that starts below
+        // this.scrolling.onclick = e => e.stopPropagation();
+        // this.root.onclick = e => {
+        //     e.stopPropagation();
+        //     this.clearSelected();
+        // }
+        
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
