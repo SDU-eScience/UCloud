@@ -1003,7 +1003,7 @@ const style = injectStyle("grant-editor", k => `
         gap: 8px;
         
         height: 50px;
-        width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
+        width: calc(100vw - var(${CSSVarCurrentSidebarStickyWidth}));
         
         padding: 0 16px;
         z-index: 9;
