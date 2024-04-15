@@ -3,6 +3,8 @@ package dk.sdu.cloud.utils
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -67,13 +69,7 @@ fun convertFromBaseUnitsToProductUnits(
             val actualUnit = StorageUnit.valueOf(unit ?: "GB")
             actualUnit.convertToThisUnitFromBytes(baseUnits)
         }
-        ProductType.COMPUTE -> {
-            val actualUnit = ComputeResourceType.valueOf(unit ?: "Cpu")
-            val computeProduct = product.spec as IndividualProduct.ProductSpec.Compute
-            val factor = computeProduct.getResource(actualUnit)
-
-            return baseUnits * factor
-        }
+        ProductType.COMPUTE -> baseUnits
         ProductType.INGRESS -> baseUnits
         ProductType.LICENSE -> baseUnits
         ProductType.NETWORK_IP -> baseUnits
@@ -96,7 +92,7 @@ suspend fun reportUsage(
 
     val cost = category.cost
 
-    var timeFactor = 1L
+    var timeFactor = 1.0
 
     val productTimeInterval = when (cost) {
         ProductCost.Free -> null
@@ -111,11 +107,30 @@ suspend fun reportUsage(
         }
 
         val millisUsed = ProductCost.AccountingInterval.Minutely.toMillis(minutesUsed)
-        timeFactor = productTimeInterval.convertFromMillis(millisUsed).wholePart
+
+        if (cost is ProductCost.Money) {
+            val factor = when (cost.interval) {
+                ProductCost.AccountingInterval.Minutely -> {
+                    millisUsed.toDouble() / 1000.0 / 60.0
+                }
+                ProductCost.AccountingInterval.Hourly -> {
+                    millisUsed.toDouble() / 1000.0 / 60.0 / 60.0
+                }
+                ProductCost.AccountingInterval.Daily -> {
+                    millisUsed.toDouble() / 1000.0 / 60.0 / 60.0 / 24.0
+                }
+                else -> {
+                    throw RPCException("No interval given", HttpStatusCode.BadRequest)
+                }
+            }
+            timeFactor = factor
+        } else {
+            timeFactor = productTimeInterval.convertFromMillis(millisUsed).wholePart.toDouble()
+        }
     }
 
-    var balanceUsed = usageInProductUnits
-    if (cost is ProductCost.Money) balanceUsed *= cfgProduct.price
+
+    var balanceUsed = usageInProductUnits.toDouble() * cfgProduct.price
     balanceUsed *= timeFactor
 
     return AccountingV2.reportUsage.call(
@@ -124,7 +139,7 @@ suspend fun reportUsage(
                 isDeltaCharge = false,
                 workspace,
                 category.category.toV2Id(),
-                balanceUsed,
+                balanceUsed.toLong(),
                 ChargeDescription(scope),
             )
         ),
