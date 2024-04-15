@@ -84,7 +84,7 @@ const Select: React.FunctionComponent<SelectProps & BoxProps> = props => {
     return <Flex alignItems="center" style={unbox(boxProps)}>
         <select className={SelectClass} {...cleanProps} ref={props.selectRef}
                 data-slim={(props.slim === true).toString()}/>
-        <Icon name="heroChevronDown" size="14px" />
+        <Icon name="chevronDownLight" size="14px" />
     </Flex>;
 };
 
