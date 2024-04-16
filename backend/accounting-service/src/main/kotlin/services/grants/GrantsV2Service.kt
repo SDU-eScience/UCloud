@@ -1481,7 +1481,6 @@ class GrantsV2Service(
                         session.sendQuery("commit") // commit state changes immediately in case we crash
                         session.sendQuery("begin")
 
-                        // TODO GrantedIn
                         doc.allocationRequests.forEach { req ->
                             ctx.accountingService.sendRequest(
                                 AccountingRequest.SubAllocate(

@@ -234,12 +234,4 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
                 """.trimIndent()
         }
     }
-
-
-    /*
-    // TODO Interface TBD
-    val search = call<FileMetadataSearchRequest, FileMetadataSearchResponse, CommonErrorMessage>("search", FileMetadataSearchRequest.serializer(), FileMetadataSearchResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpSearch(baseContext)
-    }
-     */
 }
