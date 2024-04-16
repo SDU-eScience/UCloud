@@ -62,12 +62,12 @@ import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
         background-color: var(--sidebarSecondaryColor);
-        transition: left 0.15s;
+        transition: transform 0.25s cubic-bezier(0.5,1,0.5,1);
         display: flex;
         width: var(--secondarySidebarWidth);
         position: absolute;
         flex-direction: column;
-        left: calc(0px - var(--secondarySidebarWidth));
+        left: 0;
         box-sizing: border-box;
         overflow-y: auto;
         overflow-x: hidden;
@@ -76,20 +76,23 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         z-index: 10;
         font-size: 14px;
     }
+
+    ${k}[data-open="false"] {
+        transform: translateX(-100%);
+    }
     
-    ${k}[data-open="true"] {
-        position: unset;
+    ${k}[data-open="true"][data-as-pop-over="true"] {
+        transform: translateX(var(--sidebarWidth));
     }
 
-    ${k}[data-as-pop-over="true"] {
-        left: var(--sidebarWidth);
-        position: absolute;
+    ${k}[data-open="true"][data-as-pop-over="false"] {
+        position: static;
     }
     
     @media screen and (max-width: 640px) {
-        ${k}[data-open="true"] {
+        ${k}[data-open="true"][data-as-pop-over="true"] {
             position: absolute;
-            left: var(--sidebarWidth);
+            transform: translateX(var(--sidebarWidth));
         }
     }
 
