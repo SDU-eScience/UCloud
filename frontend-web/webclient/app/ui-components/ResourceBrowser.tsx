@@ -549,20 +549,24 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
-        // Note(Jonas): Clear selected
-        // Note(Jonas): This won't work with drag to select that starts below
-        // this.scrolling.onclick = e => e.stopPropagation();
-        // this.root.onclick = e => {
-        //     e.stopPropagation();
-        //     this.clearSelected();
-        // }
-        
+
+        // Attempt to allow deselecting by clicking outside table
+        const clearEntriesListener = () => {
+            this.clearSelected();
+        }
+
+        document.addEventListener("click", clearEntriesListener);
+        // Attempt to allow deselecting by clicking outside table END
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.resourceName);
                 removeProjectListener(this.resourceName);
+                // Attempt to allow deselecting by clicking outside table
+                document.removeEventListener("click", clearEntriesListener);
+                // Attempt to allow deselecting by clicking outside table END
                 window.clearInterval(unmountInterval);
             }
         }, 1000);
@@ -742,6 +746,10 @@ export class ResourceBrowser<T> {
                 return;
             }
 
+            // Attempt to allow deselecting by clicking outside table
+            ev.stopPropagation();
+            // Attempt to allow deselecting by clicking outside table END
+
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
             }
@@ -798,6 +806,9 @@ export class ResourceBrowser<T> {
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {
+                // Attempt to allow deselecting by clicking outside table
+                e.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
             row.addEventListener("dblclick", () => {
@@ -2202,7 +2213,7 @@ export class ResourceBrowser<T> {
             let didMount = false;
             document.body.setAttribute("data-no-select", "true");
 
-            const dragMoveHandler = (e) => {
+            const dragMoveHandler = (e: MouseEvent) => {
                 if (!didMount && isBeyondDeadZone(e)) {
                     if (!isNaN(entryIdx)) {
                         this.select(entryIdx, SelectionMode.SINGLE);
@@ -2213,6 +2224,9 @@ export class ResourceBrowser<T> {
                     didMount = true;
                 }
                 if (!didMount) return;
+                // Attempt to allow deselecting by clicking outside table
+                e.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table END
                 const s = this.dragIndicator.style;
                 s.display = "block";
                 s.left = Math.min(e.clientX, startX) + "px";
