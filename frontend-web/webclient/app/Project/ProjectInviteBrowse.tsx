@@ -203,9 +203,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                         shortcut: ShortcutKey.Backspace
                     }];
                 });
-                browser.on("generateBreadcrumbs", () => {
-                    return [{title: "Providers", absolutePath: ""}]
-                });
+                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
 
                 browser.on("searchHidden", () => {
                     browser.searchQuery = "";

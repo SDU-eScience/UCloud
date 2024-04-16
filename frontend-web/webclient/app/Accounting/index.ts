@@ -1,10 +1,7 @@
 import {IconName} from "@/ui-components/Icon";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
-import { BulkRequest, PageV2, PaginationRequestV2 } from "@/UCloud";
+import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import * as AccountingB from "./AccountingBinary";
-import {timestampUnixMs} from "@/UtilityFunctions";
-import {ExtendedYearParser} from "date-fns/parse/_lib/parsers/ExtendedYearParser";
 
 export const UCLOUD_PROVIDER = "ucloud";
 export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
@@ -244,8 +241,7 @@ export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): 
 
     const aName = a.name;
     const bName = b.name;
-    const nameCmp = aName.localeCompare(bName);
-    return nameCmp;
+    return aName.localeCompare(bName);
 }
 
 export type ProductV2 =

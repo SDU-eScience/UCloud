@@ -736,7 +736,7 @@ export class ResourceBrowser<T> {
             document.addEventListener("keydown", keyDownListener);
         }
 
-        const clickHandler = ev => {
+        const clickHandler = (ev: MouseEvent) => {
             if (!this.root.isConnected) {
                 document.removeEventListener("click", clickHandler);
                 return;
@@ -1339,7 +1339,7 @@ export class ResourceBrowser<T> {
             posX: number,
             posY: number
         ) => {
-            var counter = 1;
+            const counter = 1;
             this.prepareContextMenu(posX, posY, options.length);
             const menu = this.contextMenu;
             const menuList = document.createElement("ul");
