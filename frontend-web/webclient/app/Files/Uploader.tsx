@@ -113,12 +113,14 @@ async function processUpload(upload: Upload) {
 }
 
 enum FolderUploadMessageType {
+    // ONLY ADD STUFF AT THE BOTTOM
     OK,
-    CHECKSUM,
+    CHECKSUM, // DO NOT REMOVE, YOU WILL BREAK THE PROTOCOL
     CHUNK,
     SKIP,
     LISTING,
     FILES_COMPLETED,
+    // ADD STUFF HERE
 }
 
 function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string> {
