@@ -176,7 +176,7 @@ class ProviderIntegrationService(
                         providerTitle,
                         manifest?.manifest?.requiresMessageSigning ?: false
                     )
-                } catch (ex: CertPathValidatorException) {
+                } catch (ex: Throwable) {
                     return@mapNotNull null
                 }
             }
