@@ -415,7 +415,7 @@ export const Overview: React.FunctionComponent = () => {
     }, [uiState.devices]);
 
     useEffectSkipMount(() => {
-        // TODO(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
+        // NOTE(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
         //  in production. We will need to investigate this later. For now, don't attempt to update if we don't have
         //  all the details yet.
         if (folders.length === 0 && devices.length === 0) return;

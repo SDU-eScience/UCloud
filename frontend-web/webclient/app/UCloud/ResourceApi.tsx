@@ -232,7 +232,6 @@ export abstract class ResourceApi<Res extends Resource,
 
         this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
         this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
-        // TODO We need to add a pill for provider and product
     }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {

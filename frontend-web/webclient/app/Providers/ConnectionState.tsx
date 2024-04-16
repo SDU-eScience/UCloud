@@ -47,7 +47,8 @@ class ConnectionState extends UState<ConnectionState> {
                             isPinned: true,
                             uniqueId: `${p.providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
                             onAction: () => {
-                                document.location.href = "/app/providers/connect"; // TODO(???)
+                                // Hacky way to navigate to the connection page. We are missing the navigate hook here.
+                                document.location.href = "/app/providers/connect";
                             }
                         });
                     }

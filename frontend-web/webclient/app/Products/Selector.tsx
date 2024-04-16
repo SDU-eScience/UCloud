@@ -223,7 +223,7 @@ export const ProductSelector: React.FunctionComponent<{
         };
     }, [isOpen]);
 
-    const showHeadings = filteredProducts.length >= 5 || categorizedProducts.some(it => it === NEED_CONNECT);
+    const showHeadings = true;
 
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
