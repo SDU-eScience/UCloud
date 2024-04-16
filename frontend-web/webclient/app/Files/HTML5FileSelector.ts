@@ -152,7 +152,7 @@ interface DropEventFolder {
     fileFetcher: () => Promise<PackagedFile[] | null>;
 }
 
-export function filesFromDropOrSelectEvent2(event): DropEvent[] {
+export function filesFromDropOrSelectEvent(event): DropEvent[] {
     const dataTransfer = event.dataTransfer;
     if (!dataTransfer) {
         const files: PackagedFile[] = [];
@@ -212,59 +212,4 @@ export function filesFromDropOrSelectEvent2(event): DropEvent[] {
             }
         };
     });
-}
-
-export async function filesFromDropOrSelectEvent(event): Promise<PackagedFile[]> {
-    const dataTransfer = event.dataTransfer;
-    if (!dataTransfer) {
-        const files: PackagedFile[] = [];
-        const inputFieldFileList = event.target && event.target.files;
-        const fileList = inputFieldFileList || [];
-
-        for (let i = 0; i < fileList.length; i++) {
-            files.push(packageFile(fileList[i], undefined));
-        }
-
-        return files;
-    }
-
-    const entries: FileSystemEntry[] = [];
-    [].slice.call(dataTransfer.items).forEach((listItem) => {
-        if (typeof listItem.webkitGetAsEntry === 'function') {
-            const entry: FileSystemEntry = listItem.webkitGetAsEntry();
-            entries.push(entry);
-        } else {
-            const theFile: File = listItem.getAsFile();
-
-            const entry: FileSystemEntry = {
-                filesystem: 1,
-                isDirectory: false,
-                isFile: true,
-                fullPath: theFile.name,
-                name: theFile.name,
-                file: (callback: ((f: File) => void)) => {
-                    callback(theFile);
-                },
-            };
-
-            entries.push(entry);
-        }
-    });
-
-    return await (async () => {
-        let result: PackagedFile[] = [];
-        for (const entry of entries) {
-            const traverser = new FileTraverser(entry);
-            while (true) {
-                const chunk = await traverser.fetchFiles();
-                if (!chunk) break;
-                result = [...result, ...chunk];
-
-                // TODO(Brian)
-                if (result.length > 10000) break;
-            }
-        }
-
-        return result;
-    })();
 }

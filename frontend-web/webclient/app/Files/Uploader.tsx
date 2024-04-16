@@ -11,7 +11,7 @@ import {
     inSuccessRange,
     preventDefault
 } from "@/UtilityFunctions";
-import {PackagedFile, filesFromDropOrSelectEvent, filesFromDropOrSelectEvent2} from "@/Files/HTML5FileSelector";
+import {PackagedFile, filesFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
 import {
     supportedProtocols,
     Upload,
@@ -186,6 +186,7 @@ function createResumeableFolder(
                     await sendDirectoryListing();
                 }
 
+                upload.fileSizeInBytes = totalSize;
                 upload.progressInBytes = dataSent - uploadSocket.bufferedAmount;
                 uploadTrackProgress(upload);
 
@@ -253,7 +254,6 @@ function createResumeableFolder(
                     const f = files.get(id)!;
                     if (remainingCapacity() < 1024 * 4) flush();
 
-                    if (filesTracked.get(id) == true) debugger;
                     putU32(id);
                     putU64(f.size);
                     putU64(f.lastModified);
@@ -686,7 +686,7 @@ const Uploader: React.FunctionComponent = () => {
         e.stopPropagation();
 
         let allUploads: Upload[] = [];
-        const events = filesFromDropOrSelectEvent2(e);
+        const events = filesFromDropOrSelectEvent(e);
         for (const u of events) {
             switch (u.type) {
                 case "single": {
