@@ -381,13 +381,12 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
 
                         row.title.append(icon);
-                        // TODO(Jonas): For some reason, the arrow is not rendered.
                         browser.icons.renderIcon({
                             name: "ftSharesFolder",
                             color: "FtFolderColor",
                             color2: "FtFolderColor2",
-                            height: 32,
-                            width: 32
+                            height: 64,
+                            width: 64
                         }).then(setIcon);
                     }
 
