@@ -2,10 +2,6 @@ import * as React from "react";
 
 import {Box, Flex, Heading} from "@/ui-components";
 
-// TODO(Jonas): {
-//      - add gradient colors;    
-// }
-
 export const CUSTOM_THEME_COLOR_KEY = "custom-theme-color-key";
 export function findCustomThemeColorOnLaunch() {
     const root = document.querySelector(":root")!;
