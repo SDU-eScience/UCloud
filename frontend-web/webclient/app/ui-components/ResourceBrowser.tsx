@@ -2173,7 +2173,10 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = () => {
+            const releaseHandler = e => {
+                // Attempt to allow deselecting by clicking outside table
+                e.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table END
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
