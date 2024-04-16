@@ -57,6 +57,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
+import libc.clib
 import org.cliffc.high_scale_lib.NonBlockingHashSet
 import java.nio.ByteBuffer
 import kotlin.math.min
@@ -418,8 +419,10 @@ class UCloudFilePlugin : FilePlugin {
             var last = 0
             val buf = ByteBuffer.allocateDirect(5)
             while (isActive && websocket.isActive) {
+                /*
                 val firstBacklog = backlog.firstOrNull()
                 firstBacklog?.let { println("Backlog: ${listing[it.toUInt()]} ${backlog.size}") }
+                 */
 
                 val current = filesCompleted.get()
                 if (last != current) {
@@ -442,8 +445,9 @@ class UCloudFilePlugin : FilePlugin {
 
                 when (frameType) {
                     FolderUploadMessageType.LISTING -> {
-                        val workChannel = Channel<FileListingEntry>(Channel.BUFFERED)
-                        val workResponses = Channel<Pair<FolderUploadMessageType, UInt>>(Channel.BUFFERED)
+                        data class ListingResponse(val message: FolderUploadMessageType, val entry: UInt)
+                        val workChannel = Channel<List<FileListingEntry>>(Channel.BUFFERED)
+                        val workResponses = Channel<List<ListingResponse>>(Channel.BUFFERED)
                         val workerCount = Runtime.getRuntime().availableProcessors()
                         val workersActive = AtomicInteger(workerCount)
 
@@ -452,33 +456,29 @@ class UCloudFilePlugin : FilePlugin {
                                 ProcessingScope.launch {
                                     try {
                                         while (isActive) {
-                                            val entry = workChannel.receiveCatching().getOrNull()
-                                            if (entry == null) {
-                                                break
-                                            }
-                                            println(entry)
-                                            val ucloudFile = UCloudFile.create(sessionData.target + "/" + entry.path)
-                                            val exists = queries.fileExists(ucloudFile)
+                                            val entries = workChannel.receiveCatching().getOrNull() ?: break
 
-                                            if (!exists) {
-                                                // The file does not exist. Respond with OK (start the transfer) for this file.
-                                                workResponses.send(FolderUploadMessageType.OK to entry.id)
-                                            } else {
-                                                val existingFile =
-                                                    queries.retrieve(ucloudFile, UFileIncludeFlags(includeSizes = true))
+                                            val paths = Array(entries.size) { destinationFolder.path + "/" + entries[it].path }
+                                            val sizes = LongArray(entries.size) { entries[it].size }
+                                            val modifiedTimestamps = LongArray(entries.size) { entries[it].modifiedAt }
+                                            val results = BooleanArray(entries.size)
 
-                                                if (existingFile.status.sizeInBytes != entry.size) {
-                                                    // The file sizes differ. Respond with OK (start the transfer) for this file.
-                                                    workResponses.send(FolderUploadMessageType.OK to entry.id)
-                                                } else if (existingFile.status.modifiedAt == entry.modifiedAt) {
-                                                    // The sizes and modifiedAt are the same, SKIP this file.
-                                                    listing[entry.id]?.offset = entry.size
-                                                    filesCompleted.getAndIncrement()
-                                                    workResponses.send(FolderUploadMessageType.SKIP to entry.id)
-                                                } else {
-                                                    workResponses.send(FolderUploadMessageType.OK to entry.id)
+                                            clib.scanFiles(paths, sizes, modifiedTimestamps, results)
+
+                                            workResponses.send(
+                                                results.mapIndexed { index, skip ->
+                                                    val entry = entries[index]
+                                                    if (skip) {
+                                                        filesCompleted.incrementAndGet()
+                                                        listing[entry.id]?.offset = entry.size
+                                                    }
+
+                                                    ListingResponse(
+                                                        if (skip) FolderUploadMessageType.SKIP else FolderUploadMessageType.OK,
+                                                        entry.id,
+                                                    )
                                                 }
-                                            }
+                                            )
                                         }
                                     } catch (ex: Throwable) {
                                         ex.printStackTrace()
@@ -492,6 +492,8 @@ class UCloudFilePlugin : FilePlugin {
 
                             ProcessingScope.launch {
                                 try {
+                                    var batch = ArrayList<FileListingEntry>()
+
                                     while (buffer.hasRemaining()) {
                                         val fileId = buffer.getInt().toUInt()
                                         val size = buffer.getLong()
@@ -503,10 +505,15 @@ class UCloudFilePlugin : FilePlugin {
                                         val path = pathBytes.decodeToString()
 
                                         val fileListingEntry = FileListingEntry(fileId, path, size, modifiedAt, 0)
-                                        println("ACK ${fileId} ${fileListingEntry}")
                                         listing[fileId] = fileListingEntry
-                                        workChannel.send(fileListingEntry)
+                                        batch.add(fileListingEntry)
+                                        if (batch.size > 100) {
+                                            workChannel.send(batch)
+                                            batch = ArrayList()
+                                        }
                                     }
+
+                                    if (batch.isNotEmpty()) workChannel.send(batch)
                                     workChannel.close()
                                 } catch (ex: Throwable) {
                                     ex.printStackTrace()
@@ -516,15 +523,15 @@ class UCloudFilePlugin : FilePlugin {
                             try {
                                 while (isActive && !workResponses.isClosedForReceive) {
                                     select<Unit> {
-                                        workResponses.onReceive { (type, entry) ->
-                                            if (responseBuffer.remaining() < 64) flushResponses()
-                                            if (type == FolderUploadMessageType.OK) {
-                                                backlog.add(entry.toInt())
+                                        workResponses.onReceive { batch ->
+                                            for ((type, entry) in batch) {
+                                                if (responseBuffer.remaining() < 64) flushResponses()
+                                                if (type == FolderUploadMessageType.OK) {
+                                                    backlog.add(entry.toInt())
+                                                }
+                                                responseBuffer.put(type.ordinal.toByte())
+                                                responseBuffer.putInt(entry.toInt())
                                             }
-                                            responseBuffer.put(type.ordinal.toByte())
-                                            responseBuffer.putInt(entry.toInt())
-
-                                            println("$type $entry")
                                         }
 
                                         onTimeout(100) {
@@ -565,7 +572,6 @@ class UCloudFilePlugin : FilePlugin {
                                             offset += count
                                             val channel = ByteReadChannel(nativeBuffer)
 
-                                            println("Receiving data for ${fileEntry.path} $count ${fileEntry.offset + count} -- ${fileEntry.size}")
                                             val isDone = doHandleFolderUpload(
                                                 pluginData,
                                                 fileCollections,
@@ -592,7 +598,6 @@ class UCloudFilePlugin : FilePlugin {
                                     buffer.moveToByteArray()
                                 }
 
-                                println("Receiving data for ${fileEntry.path} ${data.size} ${fileEntry.offset + data.size} -- ${fileEntry.size}")
                                 val isDone = doHandleFolderUpload(
                                     pluginData,
                                     fileCollections,
@@ -613,8 +618,6 @@ class UCloudFilePlugin : FilePlugin {
                     else -> {}
                 }
             }
-
-            println("Done?")
         }
     }
 

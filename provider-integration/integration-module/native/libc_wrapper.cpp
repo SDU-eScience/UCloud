@@ -15,12 +15,12 @@
 #include <grp.h>
 #include <errno.h>
 
-#define ARENA_IMPLEMENTATION
-#include "arena.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ARENA_IMPLEMENTATION
+#include "arena.h"
 
 JNIEXPORT jint JNICALL Java_libc_LibC_open(JNIEnv *env, jobject thisRefect, jstring pathRef, jint flags, jint mode) {
     const char *path = env->GetStringUTFChars(pathRef, NULL);
@@ -403,18 +403,36 @@ JNIEXPORT jint JNICALL Java_libc_LibC_modifyTimestamps(JNIEnv *env, jobject this
     return futimes(fileDescriptor, times);
 }
 
-typedef struct OpenedDescriptors {
-    int fileHandles[1024];
-    int indexes[1024]; // points into fileHandles
-    int length;
-} OpenedDescriptors;
 
-static char **splitString(Arena *arena, const char *input, char separator) {
+static char *stringDuplicate(Arena *arena, const char *input) {
+    int length = strlen(input);
+    char *result = (char *)arena_alloc(arena, length + 1);
+    memcpy(result, input, length);
+    result[length] = '\0';
+    return result;
+}
+
+typedef struct StringArray {
+    int length;
+    char **elements;
+} StringArray;
+
+static int stringArrayIndexOf(StringArray array, char *needle) {
+    for (int i = 0; i < array.length; i++) {
+        char *element = array.elements[i];
+        if (strcmp(element, needle) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static StringArray splitString(Arena *arena, const char *input, char separator) {
     int largestSegment = 0;
     int count = 0;
     int segmentCounter = 0;
-    char *current = input;
-    while (*current != "\0") {
+    const char *current = input;
+    while (*current != '\0') {
         if (*current == separator) {
             count++;
             if (segmentCounter > largestSegment) largestSegment = segmentCounter;
@@ -424,23 +442,25 @@ static char **splitString(Arena *arena, const char *input, char separator) {
         current++;
     }
 
-    if (segmentCounter > largestSegment) largestSegment = segmentCounter;
-    count++;
-    segmentCounter = 0;
+    if (segmentCounter > 0) {
+        if (segmentCounter > largestSegment) largestSegment = segmentCounter;
+        count++;
+        segmentCounter = 0;
+    }
 
-    char **result = (char **) arena_alloc(arena, sizeof(char *) * count);
+    char **result = (char **) arena_alloc(arena, sizeof(char *) * (count + 1));
     current = input;
 
     char *temp = (char *)arena_alloc(arena, sizeof(char) * (largestSegment + 1));
     int tempPtr = 0;
 
     count = 0;
-    while (*current != "\0") {
+    while (*current != '\0') {
         char c = *current;
         if (c == separator) {
-            temp[tempPtr++] = "\0";
-            char *segment = arena_alloc(arena, sizeof(char) * tempPtr);
-            strncopy(segment, temp, tempPtr);
+            temp[tempPtr++] = '\0';
+            char *segment = (char *) arena_alloc(arena, sizeof(char) * tempPtr);
+            memcpy(segment, temp, tempPtr);
             result[count++] = segment;
             tempPtr = 0;
         } else {
@@ -448,23 +468,209 @@ static char **splitString(Arena *arena, const char *input, char separator) {
         }
         current++;
     }
-}
-
-static OpenedDescriptors openFiles(int count, const char **paths) {
-    Arena temp = {0};
-    OpenedDescriptors result = {0};
-
-    for (int i = 0; i < count; i++) {
-        const char *path = paths[i];
-
+    if (tempPtr > 0) {
+        temp[tempPtr++] = '\0';
+        char *segment = (char *) arena_alloc(arena, sizeof(char) * tempPtr);
+        strncpy(segment, temp, tempPtr);
+        result[count++] = segment;
     }
 
-    arena_free(&temp);
+    StringArray arr = {0};
+    arr.length = count;
+    arr.elements = result;
+    return arr;
+}
+
+static char *joinStringEx(Arena *arena, StringArray input, char separator, int startInclusive, int endExclusive) {
+    char *emptyString = stringDuplicate(arena, "");
+
+    if (startInclusive < 0 || startInclusive >= input.length) return emptyString;
+    if (endExclusive < 0 || endExclusive > input.length) return emptyString;
+
+    int size = 0;
+    int i = 0;
+    for (i = startInclusive; i < endExclusive; i++) {
+        char *element = input.elements[i];
+        size += strlen(element) + 1;
+    }
+
+    if (size == 0) return emptyString;
+
+    char *result = (char *)arena_alloc(arena, sizeof(char) * size);
+
+    size = 0;
+    for (i = startInclusive; i < endExclusive; i++) {
+        char *element = input.elements[i];
+
+        int elementSize = strlen(element);
+        memcpy(result + size, element, elementSize);
+        size += elementSize;
+        result[size++] = separator;
+    }
+    result[size - 1] = '\0';  // Overwrite the last separator with a null terminator
     return result;
 }
 
-JNIEXPORT jint JNICALL Java_libc_LibC_modifyTimestamps(JNIEnv *env, jobject thisRef, jint destinationFolder, jlong modifiedAt) {
+static char *joinString(Arena *arena, StringArray input, char separator) {
+    return joinStringEx(arena, input, separator, 0, input.length);
+}
 
+static StringArray createStringArray(Arena *arena, int elementCount) {
+    StringArray result = {0};
+    result.length = elementCount;
+    result.elements = (char **) arena_alloc(arena, sizeof(char *) * elementCount);
+    return result;
+}
+
+static StringArray ancestors(Arena *arena, char *path) {
+    char *rootPath = stringDuplicate(arena, "/");
+    StringArray components = splitString(arena, path, '/');
+    StringArray result = createStringArray(arena, components.length);
+
+    for (int i = 1; i <= components.length; i++) {
+        if (i == 1) {
+            result.elements[i - 1] = rootPath;
+        } else {
+            result.elements[i - 1] = joinStringEx(arena, components, '/', 0, i);
+        }
+    }
+    return result;
+}
+
+#define MAX_DESCRIPTORS 1024
+typedef struct OpenedDescriptors {
+    int fileHandles[MAX_DESCRIPTORS]; // file handle or -1 if invalid
+    int indexes[MAX_DESCRIPTORS]; // points into fileHandles
+    int length;
+} OpenedDescriptors;
+
+static void closeAllDescriptors(OpenedDescriptors descriptors) {
+    for (int i = 0; i < MAX_DESCRIPTORS; i++) {
+        int handle = descriptors.fileHandles[i];
+        if (handle >= 0) {
+            close(handle);
+        }
+    }
+}
+
+static OpenedDescriptors openFiles(StringArray paths) {
+    Arena arena = {0};
+    char *emptyString = stringDuplicate(&arena, "");
+    OpenedDescriptors result = {0};
+    StringArray openedFilePaths = createStringArray(&arena, MAX_DESCRIPTORS);
+    for (int i = 0; i < MAX_DESCRIPTORS; i++) openedFilePaths.elements[i] = emptyString;
+    for (int i = 0; i < MAX_DESCRIPTORS; i++) result.fileHandles[i] = -1;
+
+    int openedFiles = 0;
+    int requestsCompleted = 0;
+
+    for (int i = 0; i < paths.length; i++) {
+        if (openedFiles >= MAX_DESCRIPTORS) break;
+
+        char *path = paths.elements[i];
+        StringArray allAncestors = ancestors(&arena, path);
+        for (int j = 0; j < allAncestors.length; j++) {
+            if (openedFiles >= MAX_DESCRIPTORS) break;
+
+            char *ancestor = allAncestors.elements[j];
+            StringArray ancestorComponents = splitString(&arena, ancestor, '/');
+            int fileIndex = stringArrayIndexOf(openedFilePaths, ancestor);
+
+            if (fileIndex < 0) {
+                int handle = -1;
+                if (j == 0) {
+                    handle = open("/", O_NOFOLLOW, 0);
+                } else {
+                    char *lastComponent = ancestorComponents.elements[ancestorComponents.length - 1];
+                    char *parentPath = allAncestors.elements[j - 1];
+                    int parentIndex = stringArrayIndexOf(openedFilePaths, parentPath);
+                    assert(parentIndex >= 0);
+                    int parentHandle = result.fileHandles[parentIndex];
+                    if (parentHandle >= 0) {
+                        handle = openat(parentHandle, lastComponent, O_NOFOLLOW, 0);
+                    }
+                }
+
+                fileIndex = openedFiles;
+                openedFilePaths.elements[openedFiles] = ancestor;
+                result.fileHandles[openedFiles] = handle;
+                openedFiles++;
+            }
+
+            if (j == allAncestors.length - 1) {
+                result.indexes[i] = fileIndex;
+                requestsCompleted++;
+            }
+        }
+    }
+
+    result.length = requestsCompleted;
+    arena_free(&arena);
+    return result;
+}
+
+jlong getLongArrayElement(JNIEnv *env, jlongArray array, jsize index) {
+    jlong buf;
+    env->GetLongArrayRegion(array, index, 1, &buf);
+    return buf;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_scanFiles(JNIEnv *env, jobject thisRef,
+        jobjectArray paths, jlongArray sizes, jlongArray modifiedTimestamps, jbooleanArray result) {
+    Arena arena = {0};
+
+    StringArray pathArray = createStringArray(&arena, env->GetArrayLength(paths));
+    for (int i = 0; i < pathArray.length; i++) {
+        jstring element = (jstring) env->GetObjectArrayElement(paths, i);
+        const char *chars = env->GetStringUTFChars(element, NULL);
+        pathArray.elements[i] = stringDuplicate(&arena, chars);
+        env->ReleaseStringUTFChars(element, chars);
+    }
+
+    jboolean *booleans = (jboolean *) arena_alloc(&arena, pathArray.length);
+    for (int i = 0; i < pathArray.length; i++) booleans[i] = JNI_FALSE;
+
+    struct stat st;
+    OpenedDescriptors descriptors = openFiles(pathArray);
+    for (int i = 0; i < descriptors.length; i++) {
+        int fileHandle = descriptors.fileHandles[descriptors.indexes[i]];
+        if (fileHandle < 0) {
+            booleans[i] = JNI_FALSE;
+        } else {
+            fstat(fileHandle, &st);
+
+            {
+                jlong actualSize = st.st_size;
+                jlong expectedSize = getLongArrayElement(env, sizes, i);
+                if (actualSize != expectedSize) {
+                    booleans[i] = JNI_FALSE;
+                    continue;
+                }
+            }
+
+            {
+                jlong actualModifiedAt = (st.st_mtim.tv_sec * 1000) + (st.st_mtim.tv_nsec / 1000000);
+                jlong expectedModifiedAt = getLongArrayElement(env, modifiedTimestamps, i);
+
+                jlong diff = expectedModifiedAt - actualModifiedAt;
+                if (diff < 0) diff *= -1;
+
+                if (diff > 1000) {
+                    booleans[i] = JNI_FALSE;
+                    continue;
+                }
+            }
+
+            booleans[i] = JNI_TRUE;
+        }
+    }
+
+    env->SetBooleanArrayRegion(result, 0, pathArray.length, booleans);
+
+    // Cleanup
+    closeAllDescriptors(descriptors);
+    arena_free(&arena);
+    return 0;
 }
 
 #ifdef __cplusplus

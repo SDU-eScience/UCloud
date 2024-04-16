@@ -64,6 +64,8 @@ class LibC {
     external fun touchFile(fileDescriptor: Int): Int
     external fun modifyTimestamps(fileDescriptor: Int, modifiedAt: Long): Int
 
+    external fun scanFiles(paths: Array<String>, sizes: LongArray, modifiedTimestamps: LongArray, result: BooleanArray): Int
+
     companion object {
         init {
             var didLoad = false

@@ -66,7 +66,6 @@ class UploadDescriptors(
         modifiedAt: Long? = null
     ): UploadDescriptor {
         val descriptor = descriptorsMutex.withLock {
-            println("Got mutex $path")
             val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
             val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
 
@@ -90,17 +89,12 @@ class UploadDescriptors(
 
             val newDescriptor = UploadDescriptor(resolvedPartialPath, internalTargetFile.path, handle, Time.now(), Mutex(), AtomicInteger(0))
             openDescriptors.add(newDescriptor)
-            println("We currently have ${openDescriptors.size} open files")
-
             return@withLock newDescriptor
         }
-
-        println("Waiting for lock $path")
 
         descriptor.waiting.getAndIncrement()
         descriptor.inUse.lock()
         descriptor.waiting.getAndDecrement()
-        println("Opening file $path ${descriptor.handle.fd}")
         if (offset != null) {
             descriptor.handle.seek(offset)
         }
@@ -108,7 +102,6 @@ class UploadDescriptors(
     }
 
     suspend fun close(descriptor: UploadDescriptor, conflictPolicy: WriteConflictPolicy, modifiedAt: Long? = null) {
-        println("Closing file ${descriptor.targetPath}")
         val partialInternalFile = InternalFile(descriptor.partialPath)
         val targetInternalFile = InternalFile(descriptor.targetPath)
 
@@ -121,7 +114,6 @@ class UploadDescriptors(
         descriptorsMutex.withLock {
             descriptor.handle.close()
             openDescriptors.remove(descriptor)
-            println("We currently have ${openDescriptors.size} open files ${openDescriptors.lastOrNull()?.targetPath}")
         }
     }
 
