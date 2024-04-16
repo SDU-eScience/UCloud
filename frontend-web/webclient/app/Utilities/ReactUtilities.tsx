@@ -3,8 +3,7 @@ import {useCallback, useState, useEffect, useRef, useMemo, DependencyList} from 
 
 export function useForcedRender(): () => void {
     const [generation, setGeneration] = useState(0);
-    const cb = useCallback(() => setGeneration(prev => prev + 1), []);
-    return cb;
+    return useCallback(() => setGeneration(prev => prev + 1), []);
 }
 
 export function useDidUnmount(): React.RefObject<boolean> {

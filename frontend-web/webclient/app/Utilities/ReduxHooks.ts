@@ -7,9 +7,6 @@ export interface HookStore {
     uploadPath?: string;
 
     projectCache?: ProjectCache;
-    frameHidden?: boolean;
-
-    mainContainerHeaderSize?: number;
 }
 
 type Action = GenericSetAction | GenericMergeAction;
