@@ -789,30 +789,8 @@ export class ResourceBrowser<T> {
         });
         // Attempt to allow deselecting by clicking outside table
 
-        const sizeListener = () => {
-            if (!this.root.isConnected) {
-                window.removeEventListener("resize", sizeListener);
-                return;
-            }
-
-            const parent = this.scrolling.parentElement!;
-            const rect = parent.getBoundingClientRect();
-
-            this.root.style.setProperty("--rowWidth", rect.width + "px");
-
-            this.scrollingContainerWidth = rect.width;
-            this.scrollingContainerHeight = rect.height;
-            this.scrollingContainerTop = rect.top;
-            this.scrollingContainerLeft = rect.left;
-
-            if (this.didPerformInitialOpen) {
-                this.renderBreadcrumbs();
-                this.renderOperations();
-                this.renderRows();
-            }
-        };
-        window.addEventListener("resize", sizeListener);
-        sizeListener();
+        window.addEventListener("resize", () => this.reevaluateSize());
+        this.reevaluateSize();
 
         // Mount rows and attach event handlers
         const rows: HTMLDivElement[] = [];
@@ -831,14 +809,11 @@ export class ResourceBrowser<T> {
             row.addEventListener("pointerdown", e => {
                 e.stopPropagation();
                 // Attempt to allow deselecting by clicking outside table
-                e.stopImmediatePropagation();
                 // Attempt to allow deselecting by clicking outside table
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {
                 // Attempt to allow deselecting by clicking outside table
-                e.stopPropagation();
-                e.stopImmediatePropagation();
                 e.preventDefault();
                 // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
@@ -899,6 +874,29 @@ export class ResourceBrowser<T> {
 
                 this.open(path, true);
             })
+        }
+    }
+
+    reevaluateSize() {
+        if (!this.root.isConnected) {
+            window.removeEventListener("resize", () => this.reevaluateSize());
+            return;
+        }
+
+        const parent = this.scrolling.parentElement!;
+        const rect = parent.getBoundingClientRect();
+
+        this.root.style.setProperty("--rowWidth", rect.width + "px");
+
+        this.scrollingContainerWidth = rect.width;
+        this.scrollingContainerHeight = rect.height;
+        this.scrollingContainerTop = rect.top;
+        this.scrollingContainerLeft = rect.left;
+
+        if (this.didPerformInitialOpen) {
+            this.renderBreadcrumbs();
+            this.renderOperations();
+            this.renderRows();
         }
     }
 
@@ -3969,10 +3967,6 @@ export function resourceCreationWithProductSelector<T>(
     };
 
     const onOutsideClick = (e: MouseEvent) => {
-        // Attempt to allow deselecting by clicking outside table
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        // Attempt to allow deselecting by clicking outside table
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }
