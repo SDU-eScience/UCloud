@@ -9,17 +9,22 @@ import (
 	"ucloud.dk/pkg/log"
 )
 
-func validate_name(s string) bool {
+func validateName(s string) bool {
 	re := regexp.MustCompile(`^([a-z][a-z0-9_-]+)$`)
 	return re.MatchString(s)
 }
 
-func run_command(arg []string) (string, bool) {
+func runCommand(arg []string) (string, bool) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
 	str := strings.Join(arg[:], " ")
 	log.Debug("slurm command: %s", str)
+
+	if true {
+		// TODO(Dan): Exit here to make sure we don't accidentally start running commands on Hippo
+		return "", false
+	}
 
 	cmd := exec.Command("ssh", "hippo-fe", str) // "ssh", "hippo-fe", str ----- "bash", "-c", str
 	cmd.Stdout = &stdout

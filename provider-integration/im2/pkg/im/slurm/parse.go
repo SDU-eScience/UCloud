@@ -15,7 +15,7 @@ type Tag struct {
 	multiline bool
 }
 
-func time_to_seconds(ts string) int {
+func timeToSeconds(ts string) int {
 	re := regexp.MustCompile(`^((\d+)-)?(\d+):(\d+):(\d+)$`)
 	p := re.FindStringSubmatch(ts)
 	if p == nil {
@@ -35,7 +35,7 @@ func time_to_seconds(ts string) int {
 }
 
 func atoi(s string) int {
-	if v := time_to_seconds(s); v > 0 {
+	if v := timeToSeconds(s); v > 0 {
 		return v
 	}
 

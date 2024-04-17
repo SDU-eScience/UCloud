@@ -140,7 +140,7 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 		return false
 	}
 
-	if err := ipa_handle_error(rw, method); err != nil {
+	if err := ipaHandleError(rw, method); err != nil {
 		log.Printf("%v", err)
 		return false
 	}
@@ -258,7 +258,7 @@ func (c *Client) UserQuery(name string) (User, bool) {
 
 func (c *Client) UserCreate(u *User) bool {
 	// Check variables
-	if ok := ipa_validate_name(u.Username); !ok {
+	if ok := ipaValidateName(u.Username); !ok {
 		return false
 	}
 
@@ -285,7 +285,7 @@ func (c *Client) UserCreate(u *User) bool {
 		p["employeenumber"] = u.EmployeeNumber
 	}
 
-	if ok := ipa_validate_mail(u.Mail); ok {
+	if ok := ipaValidateMail(u.Mail); ok {
 		p["mail"] = u.Mail
 	}
 
@@ -337,7 +337,7 @@ func (c *Client) UserModify(u *User) bool {
 		p["employeenumber"] = u.EmployeeNumber
 	}
 
-	if ok := ipa_validate_mail(u.Mail); ok {
+	if ok := ipaValidateMail(u.Mail); ok {
 		p["mail"] = u.Mail
 	}
 
@@ -362,7 +362,7 @@ func (c *Client) GroupQuery(name string) (Group, bool) {
 	}
 
 	// Handle response
-	result.Users = ipa_extract_users(&rd)
+	result.Users = ipaExtractUsers(&rd)
 
 	if len(rd.Description) > 0 {
 		result.Description = rd.Description[0]
@@ -381,7 +381,7 @@ func (c *Client) GroupQuery(name string) (Group, bool) {
 
 func (c *Client) GroupCreate(g *Group) bool {
 	// Check variables
-	if ok := ipa_validate_name(g.Name); !ok {
+	if ok := ipaValidateName(g.Name); !ok {
 		return false
 	}
 

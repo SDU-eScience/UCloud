@@ -439,8 +439,8 @@ type EnvoyRoute struct {
 	Cluster      string
 	Identifier   string
 	CustomDomain string
-	AuthTokens []string
-	Type       RouteType
+	AuthTokens   []string
+	Type         RouteType
 }
 
 const standardRouteTemplate = `{

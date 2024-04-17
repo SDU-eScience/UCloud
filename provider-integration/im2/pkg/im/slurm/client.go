@@ -12,7 +12,7 @@ type Client struct {
 
 func NewClient() *Client {
 	cmd := []string{"squeue", "--version"}
-	data, ok := run_command(cmd)
+	data, ok := runCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -32,7 +32,7 @@ func (c *Client) AccountExists(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-nP", "show", "account", name}
-	stdout, _ := run_command(cmd)
+	stdout, _ := runCommand(cmd)
 	return (len(stdout) > 0)
 }
 
@@ -42,7 +42,7 @@ func (c *Client) AccountQuery(name string) *Account {
 	}
 
 	cmd := []string{"sacctmgr", "-sP", "show", "account", name, "format=account,desc,org,parentname,defaultqos,qos,user,maxjobs,maxsubmitjobs"}
-	stdout, ok := run_command(cmd)
+	stdout, ok := runCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -54,7 +54,7 @@ func (c *Client) AccountQuery(name string) *Account {
 	}
 
 	cmd = []string{"sshare", "-lPA", name, "-o", "rawshares,rawusage,grptresmins,grptresraw"}
-	stdout, ok = run_command(cmd)
+	stdout, ok = runCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -68,7 +68,7 @@ func (c *Client) AccountCreate(a *Account) bool {
 		return false
 	}
 
-	if !validate_name(a.Name) {
+	if !validateName(a.Name) {
 		return false
 	}
 
@@ -78,7 +78,7 @@ func (c *Client) AccountCreate(a *Account) bool {
 
 	cmd := []string{"sacctmgr", "-i", "create", "account", a.Name}
 	cmd = append(cmd, marshal(a)...)
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -93,7 +93,7 @@ func (c *Client) AccountModify(a *Account) bool {
 
 	cmd := []string{"sacctmgr", "-i", "modify", "account", a.Name, "set"}
 	cmd = append(cmd, marshal(a)...)
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -103,7 +103,7 @@ func (c *Client) AccountDelete(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "delete", "account", name}
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -117,7 +117,7 @@ func (c *Client) AccountAddUser(user, account string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "add", "user", "account=" + account}
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -131,7 +131,7 @@ func (c *Client) AccountRemoveUser(user, account string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "remove", "user", "account=" + account}
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -141,7 +141,7 @@ func (c *Client) UserExists(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-nP", "show", "user", name}
-	stdout, _ := run_command(cmd)
+	stdout, _ := runCommand(cmd)
 	return (len(stdout) > 0)
 }
 
@@ -151,7 +151,7 @@ func (c *Client) UserQuery(name string) *User {
 	}
 
 	cmd := []string{"sacctmgr", "-sP", "show", "user", name, "format=user,defaultaccount,account,adminlevel"}
-	stdout, ok := run_command(cmd)
+	stdout, ok := runCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -170,7 +170,7 @@ func (c *Client) UserCreate(u *User) bool {
 		return false
 	}
 
-	if !validate_name(u.Name) {
+	if !validateName(u.Name) {
 		return false
 	}
 
@@ -184,7 +184,7 @@ func (c *Client) UserCreate(u *User) bool {
 
 	cmd := []string{"sacctmgr", "-i", "create", "user", u.Name}
 	cmd = append(cmd, marshal(u)...)
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -199,7 +199,7 @@ func (c *Client) UserModify(u *User) bool {
 
 	cmd := []string{"sacctmgr", "-i", "modify", "user", u.Name, "set"}
 	cmd = append(cmd, marshal(u)...)
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -209,7 +209,7 @@ func (c *Client) UserDelete(name string) bool {
 	}
 
 	cmd := []string{"sacctmgr", "-i", "delete", "user", name}
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
 
@@ -219,7 +219,7 @@ func (c *Client) JobQuery(id int) *Job {
 	}
 
 	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres"}
-	stdout, ok := run_command(cmd)
+	stdout, ok := runCommand(cmd)
 	if !ok {
 		return nil
 	}
@@ -239,6 +239,6 @@ func (c *Client) JobCancel(id int) bool {
 	}
 
 	cmd := []string{"scancel", fmt.Sprint(id)}
-	_, ok := run_command(cmd)
+	_, ok := runCommand(cmd)
 	return ok
 }
