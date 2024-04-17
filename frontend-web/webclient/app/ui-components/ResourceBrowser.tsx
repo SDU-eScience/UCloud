@@ -1917,9 +1917,15 @@ export class ResourceBrowser<T> {
     }
 
     // Page modification (outside normal loads)
-    insertEntryIntoCurrentPage(item: T) {
-        const page = this.cachedData[this.currentPath] ?? [];
-        page.push(item);
+    insertEntryIntoCurrentPage(item: T, prepend?: boolean) {
+        let page = this.cachedData[this.currentPath] ?? [];
+        if (prepend === true) {
+            page = [item, ...page];
+        } else {
+            page.push(item);
+        }
+
+        this.cachedData[this.currentPath] = page;
         this.dispatchMessage("sort", fn => fn(page));
     }
 
@@ -3884,7 +3890,7 @@ export function resourceCreationWithProductSelector<T>(
     const startCreation = () => {
         if (isSelectingProduct()) return;
         selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry);
+        browser.insertEntryIntoCurrentPage(dummyEntry, true);
         browser.renderRows();
     };
 

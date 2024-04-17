@@ -277,7 +277,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JS
                 });
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => f.specification.product.id);
-                browser.on("sort", page => page.sort((a, b) => a.specification.product.id.localeCompare(b.specification.product.id)));
+                browser.on("sort", page => page.sort((a, b) => {
+                    if (a.id === "dummy" && b.id !== "dummy") return -1;
+                    if (a.id !== "dummy" && b.id === "dummy") return 1;
+                    return a.specification.product.id.localeCompare(b.specification.product.id);
+                }));
             });
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
