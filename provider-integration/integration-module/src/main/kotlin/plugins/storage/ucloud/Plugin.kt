@@ -225,15 +225,9 @@ class UCloudFilePlugin : FilePlugin {
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
         return request.items.map {
             val ucloudFile = UCloudFile.create(it.id)
-            val targetPath = if (it.type == UploadType.FILE) {
-                val descriptor = uploadDescriptors.get(ucloudFile.path, truncate = true)
-                limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(InternalFile(descriptor.targetPath)).drive.ucloudId.toString())
-                pathConverter.internalToUCloud(InternalFile(descriptor.targetPath)).path
-            } else {
-                val internalFile = pathConverter.ucloudToInternal(ucloudFile)
-                limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(internalFile).drive.ucloudId.toString())
-                it.id
-            }
+            val internalFile = pathConverter.ucloudToInternal(ucloudFile)
+            limitChecker.checkLimit(driveLocator.resolveDriveByInternalFile(internalFile).drive.ucloudId.toString())
+            val targetPath = it.id
 
             val pluginData = defaultMapper.encodeToJsonElement(
                 FileUploadSessionPluginData(targetPath, it.type, it.conflictPolicy)

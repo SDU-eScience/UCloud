@@ -29,8 +29,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.utils.io.*
-import io.ktor.utils.io.pool.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -462,7 +460,6 @@ class FileController(
 
             request.items.forEach { uploadRequest ->
                 val plugin = lookupPlugin(uploadRequest.resolvedCollection.specification.product)
-                val name = plugin.pluginName
 
                 with(requestContext(controllerContext)) {
                     with(plugin) {
@@ -509,7 +506,7 @@ class FileController(
 
                             ipcClient.sendRequest(
                                 FilesUploadIpc.register,
-                                FileSessionWithPlugin(name, it.session, it.pluginData)
+                                FileSessionWithPlugin(plugin.pluginName, it.session, it.pluginData)
                             )
                         }
                     }
