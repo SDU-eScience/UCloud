@@ -338,7 +338,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             val notBefore: Long,
 
             @UCloudApiDoc("The earliest timestamp at which the reported balance is no longer fully usable")
-            val notAfter: Long?,
+            val notAfter: Long,
 
             val quota: Long,
         )

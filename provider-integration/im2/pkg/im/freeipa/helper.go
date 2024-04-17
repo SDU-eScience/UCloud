@@ -6,17 +6,17 @@ import (
 	"strings"
 )
 
-func ipa_validate_name(s string) bool {
+func ipaValidateName(s string) bool {
 	re := regexp.MustCompile(`^([a-z][a-z0-9_-]+)$`)
 	return re.MatchString(s)
 }
 
-func ipa_validate_mail(s string) bool {
+func ipaValidateMail(s string) bool {
 	re := regexp.MustCompile(`^([^@\s]+)@([^@\s]+)\.([^@\s]+)$`)
 	return re.MatchString(s)
 }
 
-func ipa_handle_error(rw *ResponseWrapper, method string) error {
+func ipaHandleError(rw *ResponseWrapper, method string) error {
 	if rw.Error == nil {
 		return nil
 	}
@@ -36,7 +36,7 @@ func ipa_handle_error(rw *ResponseWrapper, method string) error {
 	return fmt.Errorf("ipa error (%d): %s", rw.Error.Code, rw.Error.Message)
 }
 
-func ipa_extract_users(r *ResponseGroup) []string {
+func ipaExtractUsers(r *ResponseGroup) []string {
 	var users []string
 
 	re := regexp.MustCompile(`uid=(.*?),`)
