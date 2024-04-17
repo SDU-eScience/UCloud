@@ -8,7 +8,14 @@ import {
     selectHoverColor
 } from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    capitalized,
+    createHTMLElements,
+    doNothing,
+    inDevEnvironment,
+    stopPropagation,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -42,6 +49,7 @@ const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
+
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
@@ -297,16 +305,16 @@ export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, Co
 
 export class ResourceBrowser<T> {
     // DOM component references
-    /* private */ root: HTMLElement;
+    root: HTMLElement;
     private operations: HTMLElement;
-    /* private */ filters: HTMLElement;
-    /* private */ rightFilters: HTMLElement;
+    filters: HTMLElement;
+    rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
     public header: HTMLElement;
     public breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
-    /* private */ entryDragIndicatorContent: HTMLDivElement;
+    entryDragIndicatorContent: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
     private rows: ResourceBrowserRow[] = [];
 
@@ -408,8 +416,10 @@ export class ResourceBrowser<T> {
     };
 
     public static isAnyModalOpen = false;
-    private isModal: boolean;
-    private overrideDisabledKeyhandlers = false;
+    private readonly isModal: boolean;
+    // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
+    private readonly overrideDisabledKeyhandlers: boolean;
+
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
@@ -550,23 +560,13 @@ export class ResourceBrowser<T> {
         }
 
 
-        // Attempt to allow deselecting by clicking outside table
-        const clearEntriesListener = () => {
-            this.clearSelected();
-        }
-
-        document.addEventListener("click", clearEntriesListener);
-        // Attempt to allow deselecting by clicking outside table END
-
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.resourceName);
                 removeProjectListener(this.resourceName);
-                // Attempt to allow deselecting by clicking outside table
-                document.removeEventListener("click", clearEntriesListener);
-                // Attempt to allow deselecting by clicking outside table END
+
                 window.clearInterval(unmountInterval);
             }
         }, 1000);
@@ -601,7 +601,13 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            this.icons.renderIcon({
+                name: "heroMagnifyingGlass",
+                color: UTILITY_COLOR,
+                color2: UTILITY_COLOR,
+                width: 64,
+                height: 64
+            })
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -668,7 +674,13 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            this.icons.renderIcon({
+                name: "heroArrowPath",
+                color: UTILITY_COLOR,
+                color2: UTILITY_COLOR,
+                width: 64,
+                height: 64
+            })
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -748,7 +760,8 @@ export class ResourceBrowser<T> {
 
             // Attempt to allow deselecting by clicking outside table
             ev.stopPropagation();
-            // Attempt to allow deselecting by clicking outside table END
+            ev.stopImmediatePropagation();
+            // Attempt to allow deselecting by clicking outside table
 
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
@@ -759,8 +772,22 @@ export class ResourceBrowser<T> {
                     this.closeRenameField("submit");
                 }
             }
+
+            // Attempt to allow deselecting by clicking outside table
+            if (!ResourceBrowser.isAnyModalOpen) {
+                this.clearSelected();
+            }
+            // Attempt to allow deselecting by clicking outside table
         };
         document.addEventListener("click", clickHandler);
+
+        // Attempt to allow deselecting by clicking outside table
+        this.scrolling.addEventListener("click", e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            if (this.contextMenuHandlers.length) this.closeContextMenu();
+        });
+        // Attempt to allow deselecting by clicking outside table
 
         const sizeListener = () => {
             if (!this.root.isConnected) {
@@ -803,11 +830,16 @@ export class ResourceBrowser<T> {
             const myIndex = i;
             row.addEventListener("pointerdown", e => {
                 e.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table
+                e.stopImmediatePropagation();
+                // Attempt to allow deselecting by clicking outside table
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {
                 // Attempt to allow deselecting by clicking outside table
                 e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
                 // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
@@ -956,7 +988,13 @@ export class ResourceBrowser<T> {
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
             if (!filter) return;
-            this.icons.renderIcon({name: filter.icon, color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(icon =>
+            this.icons.renderIcon({
+                name: filter.icon,
+                color: "textPrimary",
+                color2: "textPrimary",
+                height: 32,
+                width: 32
+            }).then(icon =>
                 it.src = icon
             );
         })
@@ -1115,7 +1153,7 @@ export class ResourceBrowser<T> {
             return (e: MouseEvent) => {
                 const now = new Date().getTime();
                 const idx = row.container.getAttribute("data-idx")!;
-                var lastClick = ResourceBrowser.lastClickCache[idx];
+                let lastClick = ResourceBrowser.lastClickCache[idx];
                 if (lastClick + ALLOWED_CLICK_DELAY > now) {
                     row.container.dispatchEvent(new Event("dblclick"))
                     e.stopPropagation();
@@ -2179,10 +2217,12 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = e => {
+            const releaseHandler = (e: MouseEvent) => {
                 // Attempt to allow deselecting by clicking outside table
                 e.stopPropagation();
-                // Attempt to allow deselecting by clicking outside table END
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                // Attempt to allow deselecting by clicking outside table
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
@@ -2235,7 +2275,9 @@ export class ResourceBrowser<T> {
                 if (!didMount) return;
                 // Attempt to allow deselecting by clicking outside table
                 e.stopPropagation();
-                // Attempt to allow deselecting by clicking outside table END
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                // Attempt to allow deselecting by clicking outside table
                 const s = this.dragIndicator.style;
                 s.display = "block";
                 s.left = Math.min(e.clientX, startX) + "px";
@@ -2291,7 +2333,11 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const dragReleaseHandler = ev => {
+            const dragReleaseHandler = (ev: MouseEvent) => {
+                // Attempt to allow deselecting by clicking outside table
+                ev.stopPropagation()
+                ev.stopImmediatePropagation();
+                // Attempt to allow deselecting by clicking outside table
                 document.body.removeAttribute("data-no-select");
                 this.dragIndicator.style.display = "none";
                 document.removeEventListener("mousemove", dragMoveHandler);
@@ -3819,7 +3865,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: JSX.Element) => void,
+    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.JSX.Element) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void
     }
@@ -3922,7 +3968,11 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = () => {
+    const onOutsideClick = (e: MouseEvent) => {
+        // Attempt to allow deselecting by clicking outside table
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        // Attempt to allow deselecting by clicking outside table
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }
