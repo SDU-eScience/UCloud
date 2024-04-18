@@ -13,13 +13,7 @@ import dk.sdu.cloud.auth.services.OneTimeTokenAsyncDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.calls.server.bearer
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -33,6 +27,7 @@ import io.ktor.server.application.*
 import io.ktor.server.plugins.cachingheaders.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.util.*
 import org.slf4j.LoggerFactory
 import java.net.MalformedURLException
 import java.net.URL
@@ -86,14 +81,15 @@ class CoreAuthController(
         ktor?.apply {
             install(CachingHeaders) {
                 options { call, content ->
-                    // For some reason there is no other way to specify which version we want.
-                    // Likely working around a bug.
-                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)
+                    if (call.attributes.getOrNull(KtorAllowCachingKey) != true) {
+                        // For some reason there is no other way to specify which version we want.
+                        // Likely working around a bug.
+                        call.response.header(HttpHeaders.Pragma, "no-cache")
+                        CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)
+                    } else {
+                        CachingOptions()
+                    }
                 }
-            }
-
-            intercept(ApplicationCallPipeline.Features) {
-                call.response.header(HttpHeaders.Pragma, "no-cache")
             }
         }
 
