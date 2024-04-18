@@ -338,25 +338,35 @@ function createResumeableFolder(
 
             const [theFile, fileId] = entry;
 
-            awaiting[theFile.fullPath] = 0;
-            const reader = new ChunkedFileReader(theFile.fileObject);
-            delete awaiting[theFile.fullPath];
-            startedUploads++;
+            try {
+                awaiting[theFile.fullPath] = 0;
+                const reader = new ChunkedFileReader(theFile.fileObject);
+                delete awaiting[theFile.fullPath];
+                startedUploads++;
 
-            if (theFile.size === 0) {
-                console.log("Sending empty file", theFile);
-                const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
-                const message = concatArrayBuffers(meta, new ArrayBuffer(0));
-                sent[theFile.fullPath] = 0;
-                await sendWsChunk(uploadSocket, message)
-            } else {
-                while (!reader.isEof() && !upload.terminationRequested) {
-                    const [message, chunkSize] = await constructUploadChunk(reader, fileId);
-                    await sendWsChunk(uploadSocket, message);
-                    sent[theFile.fullPath] = (sent[theFile.fullPath] ?? 0) + chunkSize;
+                if (theFile.size === 0) {
+                    console.log("Sending empty file", theFile);
+                    const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
+                    const message = concatArrayBuffers(meta, new ArrayBuffer(0));
+                    sent[theFile.fullPath] = 0;
+                    await sendWsChunk(uploadSocket, message)
+                } else {
+                    let fileBytes = 0;
+                    while (!reader.isEof() && !upload.terminationRequested) {
+                        const [message, chunkSize] = await constructUploadChunk(reader, fileId);
+                        await sendWsChunk(uploadSocket, message);
+                        sent[theFile.fullPath] = (sent[theFile.fullPath] ?? 0) + chunkSize;
 
-                    dataSent += chunkSize;
+                        dataSent += chunkSize;
+                        fileBytes += chunkSize;
+                    }
+
+                    //if (fileBytes < expectedAmount) {
+                        // send skip
+                    //}
                 }
+            } catch (e) {
+                console.log("file not found");
             }
 
             if (upload.terminationRequested) {
@@ -1003,7 +1013,7 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
     const [hoverPause, setHoverPause] = React.useState(false);
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const paused = upload.paused;
-    const showPause = hoverPause && !paused;
+    const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;
 
