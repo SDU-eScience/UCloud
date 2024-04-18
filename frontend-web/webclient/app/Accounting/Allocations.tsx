@@ -609,6 +609,8 @@ function stateReducer(state: State, action: UIAction): State {
                     allocations: [],
                 };
 
+                const uq = newGroup.usageAndQuota;
+                uq.maxUsable = uq.quota - uq.usage;
 
                 for (const alloc of childGroup.group.allocations) {
                     newGroup.allocations.push({
@@ -1007,25 +1009,6 @@ const Allocations: React.FunctionComponent = () => {
         const input = ev.target as HTMLInputElement;
         const newQuery = input.value;
         dispatchEvent({type: "UpdateSearchQuery", newQuery});
-
-        // TODO!
-        /*
-        window.clearTimeout(searchTimeout.current);
-        searchTimeout.current = window.setTimeout(async () => {
-            if (input.disabled) return;
-            dispatchEvent({type: "UpdateSearchInflight", delta: 1});
-            try {
-                const page = await callAPI(Accounting.searchSubAllocations({
-                    query: newQuery,
-                    itemsPerPage: 250,
-                }));
-
-                dispatchEvent({type: "MergeSearchResults", subAllocations: page.items});
-            } finally {
-                dispatchEvent({type: "UpdateSearchInflight", delta: -1});
-            }
-        }, 200);
-         */
     }, [dispatchEvent]);
 
     const onSearchKey = useCallback<React.KeyboardEventHandler>(ev => {

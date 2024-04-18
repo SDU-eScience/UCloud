@@ -406,13 +406,6 @@ async function cleanupImportResult(
 
         if (type === "input_file" || type === "input_directory") {
             if (!param["path"]) delete parameters[paramName];
-            /*
-            TODO
-            else if (!await checkIfFileExists(param["path"] as string, Client)) {
-                result.messages.push({type: "warning", message: "File no longer exists: " + param["path"]});
-                delete parameters[paramName];
-            }
-             */
         }
     }
 
@@ -426,14 +419,6 @@ async function cleanupImportResult(
                 resources.splice(i, 1);
                 continue;
             }
-
-            /*
-            TODO
-            if (!await checkIfFileExists(param.path, Client)) {
-                result.messages.push({type: "warning", message: "File no longer exists: " + param.path});
-                resources.splice(i, 1);
-            }
-             */
         }
     }
 

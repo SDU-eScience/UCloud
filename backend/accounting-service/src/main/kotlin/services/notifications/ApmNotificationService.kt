@@ -359,8 +359,6 @@ class ApmNotificationService(
         return bytes.decodeToString()
     }
 
-    // TODO(Dan): This might not be enough to not run out of memory in the buffers. If Java only gave us a way of
-    //  allocating virtual memory, then this wouldn't be an issue.
     private val bufferPool by lazy { DirectByteBufferPool(4, 1024 * 1024 * 16) }
     private val bufferMutex = Mutex()
 

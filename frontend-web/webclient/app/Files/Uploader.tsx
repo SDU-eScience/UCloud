@@ -20,7 +20,7 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {addFileSensitivityDialog, api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
@@ -36,14 +36,13 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
-import {formatDistance, getUnixTime} from "date-fns";
+import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
 import {Spacer} from "@/ui-components/Spacer";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
-import {Simulate} from "react-dom/test-utils";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 256;

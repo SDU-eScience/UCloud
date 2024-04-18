@@ -321,8 +321,6 @@ export const AppGroup: React.FunctionComponent = () => {
                                                                 <Checkbox
                                                                     checked={app.metadata.name === defaultApplication}
                                                                     onChange={() => {
-                                                                        stopPropagation;
-
                                                                         if (app.metadata.name === defaultApplication) {
                                                                             setDefaultApplication(undefined);
                                                                         } else {

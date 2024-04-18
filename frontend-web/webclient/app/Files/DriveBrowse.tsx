@@ -82,6 +82,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     } else {
                         browser.header.removeAttribute("data-has-filters");
                     }
+                    browser.reevaluateSize();
                     browser.rerender();
                 });
 

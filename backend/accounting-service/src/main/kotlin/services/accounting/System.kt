@@ -761,7 +761,6 @@ class AccountingSystem(
         val now = Time.now()
 
         val currentUsage = if (scope == null) {
-            // TODO This is probably wrong when isDelta = false
             wallet.localUsage
         } else {
             scopedUsage[scopeKey(wallet, scope)] ?: 0L

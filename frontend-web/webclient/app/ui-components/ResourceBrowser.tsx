@@ -8,7 +8,14 @@ import {
     selectHoverColor
 } from "@/ui-components/theme";
 import {SvgCache} from "@/Utilities/SvgCache";
-import {capitalized, createHTMLElements, doNothing, inDevEnvironment, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    capitalized,
+    createHTMLElements,
+    doNothing,
+    inDevEnvironment,
+    stopPropagation,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
@@ -42,6 +49,7 @@ const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
+
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
@@ -297,16 +305,16 @@ export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, Co
 
 export class ResourceBrowser<T> {
     // DOM component references
-    /* private */ root: HTMLElement;
+    root: HTMLElement;
     private operations: HTMLElement;
-    /* private */ filters: HTMLElement;
-    /* private */ rightFilters: HTMLElement;
+    filters: HTMLElement;
+    rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
     public header: HTMLElement;
     public breadcrumbs: HTMLUListElement;
     private scrolling: HTMLDivElement;
     private entryDragIndicator: HTMLDivElement;
-    /* private */ entryDragIndicatorContent: HTMLDivElement;
+    entryDragIndicatorContent: HTMLDivElement;
     private dragIndicator: HTMLDivElement;
     private rows: ResourceBrowserRow[] = [];
 
@@ -408,8 +416,10 @@ export class ResourceBrowser<T> {
     };
 
     public static isAnyModalOpen = false;
-    private isModal: boolean;
-    private overrideDisabledKeyhandlers = false;
+    private readonly isModal: boolean;
+    // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
+    private readonly overrideDisabledKeyhandlers: boolean;
+
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
@@ -549,20 +559,14 @@ export class ResourceBrowser<T> {
             this.scrolling.style.overflowY = "auto";
         }
 
-        // Note(Jonas): Clear selected
-        // Note(Jonas): This won't work with drag to select that starts below
-        // this.scrolling.onclick = e => e.stopPropagation();
-        // this.root.onclick = e => {
-        //     e.stopPropagation();
-        //     this.clearSelected();
-        // }
-        
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.resourceName);
                 removeProjectListener(this.resourceName);
+
                 window.clearInterval(unmountInterval);
             }
         }, 1000);
@@ -597,7 +601,13 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            this.icons.renderIcon({
+                name: "heroMagnifyingGlass",
+                color: UTILITY_COLOR,
+                color2: UTILITY_COLOR,
+                width: 64,
+                height: 64
+            })
                 .then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
@@ -664,7 +674,13 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            this.icons.renderIcon({
+                name: "heroArrowPath",
+                color: UTILITY_COLOR,
+                color2: UTILITY_COLOR,
+                width: 64,
+                height: 64
+            })
                 .then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
@@ -736,11 +752,16 @@ export class ResourceBrowser<T> {
             document.addEventListener("keydown", keyDownListener);
         }
 
-        const clickHandler = ev => {
+        const clickHandler = (ev: MouseEvent) => {
             if (!this.root.isConnected) {
                 document.removeEventListener("click", clickHandler);
                 return;
             }
+
+            // Attempt to allow deselecting by clicking outside table
+            ev.stopPropagation();
+            ev.stopImmediatePropagation();
+            // Attempt to allow deselecting by clicking outside table
 
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
@@ -751,33 +772,25 @@ export class ResourceBrowser<T> {
                     this.closeRenameField("submit");
                 }
             }
+
+            // Attempt to allow deselecting by clicking outside table
+            if (!ResourceBrowser.isAnyModalOpen) {
+                this.clearSelected();
+            }
+            // Attempt to allow deselecting by clicking outside table
         };
         document.addEventListener("click", clickHandler);
 
-        const sizeListener = () => {
-            if (!this.root.isConnected) {
-                window.removeEventListener("resize", sizeListener);
-                return;
-            }
+        // Attempt to allow deselecting by clicking outside table
+        this.scrolling.addEventListener("click", e => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            if (this.contextMenuHandlers.length) this.closeContextMenu();
+        });
+        // Attempt to allow deselecting by clicking outside table
 
-            const parent = this.scrolling.parentElement!;
-            const rect = parent.getBoundingClientRect();
-
-            this.root.style.setProperty("--rowWidth", rect.width + "px");
-
-            this.scrollingContainerWidth = rect.width;
-            this.scrollingContainerHeight = rect.height;
-            this.scrollingContainerTop = rect.top;
-            this.scrollingContainerLeft = rect.left;
-
-            if (this.didPerformInitialOpen) {
-                this.renderBreadcrumbs();
-                this.renderOperations();
-                this.renderRows();
-            }
-        };
-        window.addEventListener("resize", sizeListener);
-        sizeListener();
+        window.addEventListener("resize", () => this.reevaluateSize());
+        this.reevaluateSize();
 
         // Mount rows and attach event handlers
         const rows: HTMLDivElement[] = [];
@@ -795,9 +808,14 @@ export class ResourceBrowser<T> {
             const myIndex = i;
             row.addEventListener("pointerdown", e => {
                 e.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table
+                // Attempt to allow deselecting by clicking outside table
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {
+                // Attempt to allow deselecting by clicking outside table
+                e.preventDefault();
+                // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
             row.addEventListener("dblclick", () => {
@@ -856,6 +874,29 @@ export class ResourceBrowser<T> {
 
                 this.open(path, true);
             })
+        }
+    }
+
+    reevaluateSize() {
+        if (!this.root.isConnected) {
+            window.removeEventListener("resize", () => this.reevaluateSize());
+            return;
+        }
+
+        const parent = this.scrolling.parentElement!;
+        const rect = parent.getBoundingClientRect();
+
+        this.root.style.setProperty("--rowWidth", rect.width + "px");
+
+        this.scrollingContainerWidth = rect.width;
+        this.scrollingContainerHeight = rect.height;
+        this.scrollingContainerTop = rect.top;
+        this.scrollingContainerLeft = rect.left;
+
+        if (this.didPerformInitialOpen) {
+            this.renderBreadcrumbs();
+            this.renderOperations();
+            this.renderRows();
         }
     }
 
@@ -945,7 +986,13 @@ export class ResourceBrowser<T> {
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
             if (!filter) return;
-            this.icons.renderIcon({name: filter.icon, color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(icon =>
+            this.icons.renderIcon({
+                name: filter.icon,
+                color: "textPrimary",
+                color2: "textPrimary",
+                height: 32,
+                width: 32
+            }).then(icon =>
                 it.src = icon
             );
         })
@@ -1104,7 +1151,7 @@ export class ResourceBrowser<T> {
             return (e: MouseEvent) => {
                 const now = new Date().getTime();
                 const idx = row.container.getAttribute("data-idx")!;
-                var lastClick = ResourceBrowser.lastClickCache[idx];
+                let lastClick = ResourceBrowser.lastClickCache[idx];
                 if (lastClick + ALLOWED_CLICK_DELAY > now) {
                     row.container.dispatchEvent(new Event("dblclick"))
                     e.stopPropagation();
@@ -1339,7 +1386,7 @@ export class ResourceBrowser<T> {
             posX: number,
             posY: number
         ) => {
-            var counter = 1;
+            const counter = 1;
             this.prepareContextMenu(posX, posY, options.length);
             const menu = this.contextMenu;
             const menuList = document.createElement("ul");
@@ -1906,9 +1953,15 @@ export class ResourceBrowser<T> {
     }
 
     // Page modification (outside normal loads)
-    insertEntryIntoCurrentPage(item: T) {
-        const page = this.cachedData[this.currentPath] ?? [];
-        page.push(item);
+    insertEntryIntoCurrentPage(item: T, prepend?: boolean) {
+        let page = this.cachedData[this.currentPath] ?? [];
+        if (prepend === true) {
+            page = [item, ...page];
+        } else {
+            page.push(item);
+        }
+
+        this.cachedData[this.currentPath] = page;
         this.dispatchMessage("sort", fn => fn(page));
     }
 
@@ -2162,7 +2215,12 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const releaseHandler = () => {
+            const releaseHandler = (e: MouseEvent) => {
+                // Attempt to allow deselecting by clicking outside table
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                // Attempt to allow deselecting by clicking outside table
                 document.removeEventListener("mousemove", moveHandler);
                 document.removeEventListener("pointerup", releaseHandler);
                 if (!this.root.isConnected) return;
@@ -2202,7 +2260,7 @@ export class ResourceBrowser<T> {
             let didMount = false;
             document.body.setAttribute("data-no-select", "true");
 
-            const dragMoveHandler = (e) => {
+            const dragMoveHandler = (e: MouseEvent) => {
                 if (!didMount && isBeyondDeadZone(e)) {
                     if (!isNaN(entryIdx)) {
                         this.select(entryIdx, SelectionMode.SINGLE);
@@ -2213,6 +2271,11 @@ export class ResourceBrowser<T> {
                     didMount = true;
                 }
                 if (!didMount) return;
+                // Attempt to allow deselecting by clicking outside table
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                // Attempt to allow deselecting by clicking outside table
                 const s = this.dragIndicator.style;
                 s.display = "block";
                 s.left = Math.min(e.clientX, startX) + "px";
@@ -2268,7 +2331,11 @@ export class ResourceBrowser<T> {
                 }
             };
 
-            const dragReleaseHandler = ev => {
+            const dragReleaseHandler = (ev: MouseEvent) => {
+                // Attempt to allow deselecting by clicking outside table
+                ev.stopPropagation()
+                ev.stopImmediatePropagation();
+                // Attempt to allow deselecting by clicking outside table
                 document.body.removeAttribute("data-no-select");
                 this.dragIndicator.style.display = "none";
                 document.removeEventListener("mousemove", dragMoveHandler);
@@ -3796,7 +3863,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: JSX.Element) => void,
+    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.JSX.Element) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void
     }
@@ -3867,7 +3934,7 @@ export function resourceCreationWithProductSelector<T>(
     const startCreation = () => {
         if (isSelectingProduct()) return;
         selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry);
+        browser.insertEntryIntoCurrentPage(dummyEntry, true);
         browser.renderRows();
     };
 
@@ -3899,7 +3966,7 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = () => {
+    const onOutsideClick = (e: MouseEvent) => {
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }

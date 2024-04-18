@@ -680,13 +680,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         newAllocators.forEach(it => it.checked = true);
 
         const newResources: EditorState["resources"] = {};
-        for (const [provider, categories] of Object.entries(state.resources)) {
-            const relevantCategories = categories.filter(it => {
-                return newAllocators.some(a => it.allocators.has(a.id))
-            });
-
-            if (relevantCategories.length <= 0) continue;
-
+        let entries = Object.entries(state.resources);
+        for (const [provider, categories] of entries) {
             newResources[provider] = categories.map(it => ({
                 ...it,
                 totalBalanceRequested: {}
@@ -701,6 +696,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {priceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
+                category.allocators.add(request.grantGiver);
                 category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * priceFactor;
             }
         }

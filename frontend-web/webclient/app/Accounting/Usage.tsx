@@ -92,35 +92,15 @@ function stateReducer(state: State, action: UIAction): State {
         case "LoadCharts": {
             // TODO Move this into selectChart
             function translateBreakdown(category: Accounting.ProductCategoryV2, chart: BreakdownByProjectAPI): BreakdownChart {
-                const {name, priceFactor} = Accounting.explainUnit(category);
+                const {name} = Accounting.explainUnit(category);
                 const dataPoints = chart.data
-
-                /*const dataPointsLength = chart.data.count;
-                for (let i = 0; i < dataPointsLength; i++) {
-                    const dataPoint = chart.data.get(i);
-                    dataPoints.push({
-                        usage: Number(dataPoint.usage) * priceFactor,
-                        projectId: dataPoint.projectId,
-                        title: dataPoint.title
-                    });
-                }*/
 
                 return {unit: name, dataPoints};
             }
 
             function translateChart(category: Accounting.ProductCategoryV2, chart: UsageOverTimeAPI): UsageChart {
-                const {name, priceFactor} = Accounting.explainUnit(category);
+                const {name} = Accounting.explainUnit(category);
                 const dataPoints = chart.data
-
-                /*const dataPointsLength = chart.data.count;
-                for (let i = 0; i < dataPointsLength; i++) {
-                    const dataPoint = chart.data.get(i);
-                    dataPoints.push({
-                        usage: Number(dataPoint.usage) * priceFactor,
-                        quota: Number(dataPoint.quota) * priceFactor,
-                        timestamp: Number(dataPoint.timestamp)
-                    });
-                }*/
 
                 return {unit: name, dataPoints};
             }
