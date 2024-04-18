@@ -151,7 +151,6 @@ function createResumeableFolder(
 ) {
     const files: Map<number, PackagedFile> = new Map();
     const filesTracked: Map<number, boolean> = new Map();
-    const reportedSizes: Map<number, number> = new Map();
     let totalSize = 0;
     let dataSent = 0;
 
@@ -258,9 +257,6 @@ function createResumeableFolder(
                     const f = files.get(id)!;
                     if (remainingCapacity() < 1024 * 4) flush();
 
-                    // Used to track the size of each file which was initially reported to the server.
-                    reportedSizes.set(id, f.size);
-
                     putU32(id);
                     putU64(f.size);
                     putU64(f.lastModified);
@@ -356,14 +352,12 @@ function createResumeableFolder(
                     sent[theFile.fullPath] = 0;
                     await sendWsChunk(uploadSocket, message)
                 } else {
-                    let fileBytes = 0;
                     while (!reader.isEof() && !upload.terminationRequested) {
                         const [message, chunkSize] = await constructUploadChunk(reader, fileId);
                         await sendWsChunk(uploadSocket, message);
                         sent[theFile.fullPath] = (sent[theFile.fullPath] ?? 0) + chunkSize;
 
                         dataSent += chunkSize;
-                        fileBytes += chunkSize;
                     }
                 }
             } catch (e) {
