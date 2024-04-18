@@ -43,7 +43,11 @@ export function setStoredProject(value: string | null): void {
     emitProjects(value);
 }
 
+let lastProject: string | null = getStoredProject();
+
 export function emitProjects(project: string | null) {
+    if (project === lastProject) return;
+    lastProject = project;
     for (const listener of Object.values(projectListeners)) {
         listener(project);
     }

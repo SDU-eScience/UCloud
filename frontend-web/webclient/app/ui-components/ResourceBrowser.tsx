@@ -863,17 +863,23 @@ export class ResourceBrowser<T> {
         });
         const path = this.initialPath;
         if (path !== undefined) {
-            addProjectListener(this.resourceName, project => {
+            const evaluateProjectStatus = (projectId?: string | null) => {
                 this.canConsumeResources = checkCanConsumeResources(
-                    project,
-                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
+                    projectId ?? null,
+                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}},
+
                 );
                 if (!this.canConsumeResources) {
                     this.renderCantConsumeResources();
                 }
+            };
 
+            addProjectListener(this.resourceName, project => {
+                evaluateProjectStatus(project);
                 this.open(path, true);
-            })
+            });
+
+            evaluateProjectStatus(Client.projectId);
         }
     }
 
@@ -4019,7 +4025,10 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(projectId: string | null, callbacks: null | {api: {isCoreResource: boolean}}): boolean {
+export function checkCanConsumeResources(
+    projectId: string | null,
+    callbacks: null | {api: {isCoreResource: boolean}},
+): boolean {
     if (!projectId) return true;
     if (!callbacks) return true;
 
