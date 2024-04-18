@@ -317,7 +317,6 @@ function createResumeableFolder(
 
             uploadSocket.addEventListener("close", async (event) => {
                 if (!upload.paused) {
-                    upload.filesCompleted = upload.filesDiscovered;
                     localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath))
                 }
                 resolve(true);
@@ -372,11 +371,8 @@ function createResumeableFolder(
 
             if (upload.terminationRequested) {
                 if (!upload.paused) {
-                } else {
                     if (uploadSocket.readyState === WebSocket.OPEN) {
                         uploadSocket.close();
-                        upload.filesCompleted = 0;
-                        upload.resume = createResumeableFolder(upload, strategy, folderPath);
                     }
                 }
             }
@@ -1037,19 +1033,12 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
                     </Text>
                     <Box mr="8px"/>
                     {inProgress ? <>
-                            {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                                               onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                                               color="primaryMain"/> : null}
-                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                                                onMouseEnter={() => setHoverPause(true)}/> : null}
+                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
                             <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
                                   onClick={() => callbacks.stopUploads([upload])}/>
                         </>
                         :
                         <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                                            onClick={() => callbacks.resumeUploads([upload])}
-                                            color="primaryMain"/> : null}
                             <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                                 callbacks.clearUploads([upload]);
                                 const fullFilePath = upload.targetPath + "/" + upload.name;
