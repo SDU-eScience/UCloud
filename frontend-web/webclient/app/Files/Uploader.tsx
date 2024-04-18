@@ -798,7 +798,7 @@ const Uploader: React.FunctionComponent = () => {
     );
 
     if (uploadTimings.timeRemaining !== 0) {
-        uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
+        uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
 
     const uploadFilePaths = uploads.map(it => it.name);
