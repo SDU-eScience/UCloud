@@ -143,60 +143,58 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
     }, []);
 
     return <MainContainer
-        header={<>{ResourceOptions.SSH_KEYS}</>}
+        header={<Heading.h2>Add SSH key</Heading.h2>}
         headerSize={48}
         main={
-            <Flex maxWidth={"1200px"} mx="auto">
-                <Box maxWidth={"1200px"}>
-                    <form onSubmit={onSubmit}>
-                        <GenericTextField
-                            name={titleKey}
-                            title={"Title"}
-                            description={"Something which will help you remember which key this is. For example: Office PC."}
-                            error={titleError}
-                        />
-                        <GenericTextArea
-                            name={contentKey}
-                            title={"Public key"}
-                            description={keyHelp}
-                            error={contentError}
-                        />
+            <Box>
+                <form onSubmit={onSubmit}>
+                    <GenericTextField
+                        name={titleKey}
+                        title={"Title"}
+                        description={"Something which will help you remember which key this is. For example: Office PC."}
+                        error={titleError}
+                    />
+                    <GenericTextArea
+                        name={contentKey}
+                        title={"Public key"}
+                        description={keyHelp}
+                        error={contentError}
+                    />
 
-                        <Button type={"submit"} color={"successMain"} fullWidth>
-                            {loading ?
-                                <Icon name={"refresh"} spin /> :
-                                <>Add SSH key</>
-                            }
-                        </Button>
-                    </form>
+                    <Button type={"submit"} color={"successMain"} fullWidth>
+                        {loading ?
+                            <Icon name={"refresh"} spin /> :
+                            <>Add SSH key</>
+                        }
+                    </Button>
+                </form>
 
-                    <Divider my={32} />
-                    <Heading.h3>What does this do?</Heading.h3>
-                    <p>
-                        Your public SSH key is automaticially made available to any provider, for which you have been
-                        allocated resources, to use. The providers will use these keys to authenticate your identity
-                        when using any of their SSH enabled services.
-                    </p>
+                <Divider my={32} />
+                <Heading.h3>What does this do?</Heading.h3>
+                <p>
+                    Your public SSH key is automaticially made available to any provider, for which you have been
+                    allocated resources, to use. The providers will use these keys to authenticate your identity
+                    when using any of their SSH enabled services.
+                </p>
 
-                    <p>
-                        Not all providers support SSH through this method. The following table summarizes which
-                        providers support SSH services:
-                    </p>
+                <p>
+                    Not all providers support SSH through this method. The following table summarizes which
+                    providers support SSH services:
+                </p>
 
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHeaderCell width={40} />
-                                <TableHeaderCell textAlign={"left"}>Provider</TableHeaderCell>
-                                <TableHeaderCell textAlign={"left"}>Support</TableHeaderCell>
-                            </TableRow>
-                        </TableHeader>
-                        <tbody>
-                            {hardcodedSshSupport.map(it => <ProviderSupportRow support={it} key={it.providerId} />)}
-                        </tbody>
-                    </Table>
-                </Box>
-            </Flex>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell width={40} />
+                            <TableHeaderCell textAlign={"left"}>Provider</TableHeaderCell>
+                            <TableHeaderCell textAlign={"left"}>Support</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+                    <tbody>
+                        {hardcodedSshSupport.map(it => <ProviderSupportRow support={it} key={it.providerId} />)}
+                    </tbody>
+                </Table>
+            </Box>
         }
     />;
 };
