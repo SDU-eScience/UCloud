@@ -151,6 +151,7 @@ function createResumeableFolder(
 ) {
     const files: Map<number, PackagedFile> = new Map();
     const filesTracked: Map<number, boolean> = new Map();
+    const reportedSizes: Map<number, number> = new Map();
     let totalSize = 0;
     let dataSent = 0;
 
@@ -174,7 +175,10 @@ function createResumeableFolder(
                     return;
                 }
 
-                if (uploadSocket.readyState !== WebSocket.OPEN) return;
+                if (uploadSocket.readyState !== WebSocket.OPEN) {
+                    window.setTimeout(loop, 50);
+                    return;
+                };
 
                 if (!didInit) {
                     didInit = true;
@@ -198,7 +202,6 @@ function createResumeableFolder(
             async function sendDirectoryListing() {
                 const fileList = await upload.fileFetcher!();
                 if (fileList == null) {
-                    console.log("No more files!");
                     resolve(true);
                     upload.state = UploadState.DONE;
                     uploadSocket.close();
@@ -254,6 +257,9 @@ function createResumeableFolder(
                 for (const id of newEntries) {
                     const f = files.get(id)!;
                     if (remainingCapacity() < 1024 * 4) flush();
+
+                    // Used to track the size of each file which was initially reported to the server.
+                    reportedSizes.set(id, f.size);
 
                     putU32(id);
                     putU64(f.size);
@@ -345,7 +351,6 @@ function createResumeableFolder(
                 startedUploads++;
 
                 if (theFile.size === 0) {
-                    console.log("Sending empty file", theFile);
                     const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
                     const message = concatArrayBuffers(meta, new ArrayBuffer(0));
                     sent[theFile.fullPath] = 0;
@@ -360,13 +365,15 @@ function createResumeableFolder(
                         dataSent += chunkSize;
                         fileBytes += chunkSize;
                     }
-
-                    //if (fileBytes < expectedAmount) {
-                        // send skip
-                    //}
                 }
             } catch (e) {
-                console.log("file not found");
+                snackbarStore.addFailure(`Error occurred while uploading file ${theFile.fullPath}. Content might be corrupt or missing.`, false);
+                const rawBuffer = new ArrayBuffer(5);
+                const buffer = new DataView(rawBuffer);
+                buffer.setInt8(0, FolderUploadMessageType.SKIP);
+                buffer.setInt32(1, fileId, false);
+                const view = new Uint8Array(rawBuffer, 0, 5);
+                uploadSocket.send(view);
             }
 
             if (upload.terminationRequested) {
@@ -425,7 +432,6 @@ function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () 
         onComplete();
     } else {
         window.setTimeout(() => {
-            console.log("Waiting...", connection.bufferedAmount);
             _sendWsChunk(connection, chunk, onComplete)
         }, 50);
     }

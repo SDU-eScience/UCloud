@@ -541,6 +541,12 @@ class UCloudFilePlugin : FilePlugin {
                         flushResponses()
                     }
 
+                    FolderUploadMessageType.SKIP -> {
+                        val fileId = buffer.getInt().toUInt()
+                        filesCompleted.getAndIncrement()
+                        backlog.remove(fileId.toInt())
+                    }
+
                     FolderUploadMessageType.CHUNK -> {
                         val fileId = buffer.getInt().toUInt()
                         val fileEntry: FileListingEntry = listing[fileId]
