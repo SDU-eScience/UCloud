@@ -698,7 +698,7 @@ export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({t
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 4} id={pick.groupId}
+                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
                         title={pick.title} link={link} />;
                 } else {
                     return null;
@@ -713,14 +713,14 @@ export const StarredApplications2: React.FunctionComponent<{
 }> = ({apps}) => {
     return <div>
         <h3>Starred applications</h3>
-        <div className={classConcat(TopPickCardGridStyle, apps.length <= 4 ? "small" : undefined)}>
+        <div className={classConcat(TopPickCardGridStyle, apps.length <= 5 ? "small" : undefined)}>
             {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
                 return <LogoCard
                     key={app.metadata.name}
-                    large={idx === 0 && apps.length > 4}
+                    large={idx === 0 && apps.length > 5}
                     title={app.metadata.title}
                     id={app.metadata.name}
                     link={link}
