@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import {
     EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
     addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
-     providerIcon, resourceCreationWithProductSelector, setFilterStorageValue
+    providerIcon, resourceCreationWithProductSelector, setFilterStorageValue
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";

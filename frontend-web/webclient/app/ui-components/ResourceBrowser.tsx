@@ -876,7 +876,6 @@ export class ResourceBrowser<T> {
 
             addProjectListener(this.resourceName, project => {
                 evaluateProjectStatus(project);
-                this.open(path, true);
             });
 
             evaluateProjectStatus(Client.projectId);
