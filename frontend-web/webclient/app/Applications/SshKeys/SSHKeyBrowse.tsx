@@ -92,7 +92,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0)
                                 e.reason.append("No SSH key found with active filters.")
-                            else e.reason.append("You has no SSH keys.");
+                            else e.reason.append("You have no SSH keys.");
                             break;
                         }
 
