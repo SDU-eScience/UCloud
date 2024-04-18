@@ -5,7 +5,7 @@ import dk.sdu.cloud.service.StaticTimeProvider
 import kotlin.math.max
 import kotlin.test.*
 
-class NonDeltaChargeTesting {
+class NonDeltaChargeTest {
 
     @Test
     fun basicTest() = withTest {
