@@ -1087,9 +1087,7 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
                 if (foundFileType.length === 0) {
                     const text = tryDecodeText(contentBuffer);
                     if (text !== null) {
-                        if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
-                            setType("markdown")
-                        } else setType("text");
+                        setType("text");
                         setData(text);
                         setError(null);
                     } else {
@@ -1176,11 +1174,16 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
     if (file.status.type !== "FILE") return null;
     if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
 
-    let node: JSX.Element | null;
+    let node: JSX.Element | null = null;
 
     switch (type) {
         case "text":
         case "code":
+            // Note(Jonas): In the special case that Markdown starts with `[`, this will be considered `type = "code"`. We handle this at the last minute here.
+            if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
+                setType("markdown");
+                break;
+            }
             node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
             break;
         case "image":

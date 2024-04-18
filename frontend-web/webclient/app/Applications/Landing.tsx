@@ -20,6 +20,7 @@ import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import { position } from "styled-system";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -212,18 +213,17 @@ const HeroStyle = injectStyle("hero", k => `
     
     ${k} > .carousel > div:nth-child(1) > img {
         object-fit: cover;
-        width: calc(100% + 20px);
-        height: calc(100% + 80px);
-        object-position: 0 28%;
-        margin-top: -20px;
-        margin-left: -20px;
+        width: 100%;
+        height: 100%;
+        object-position: 50% 50%;
     }
     
     ${k} > .carousel > div:nth-child(2) {
         display: flex;
         flex-direction: column;
         width: 400px;
-        padding-left: 20px;
+        min-width: 400px;
+        padding: 20px;
     }
     
     ${k} > .carousel h1 {
@@ -232,9 +232,8 @@ const HeroStyle = injectStyle("hero", k => `
     }
     
     ${k} .indicators {
-        position: relative;
-        top: -88px;
-        margin-left: -20px;
+        position: absolute;
+        bottom: 0;
         width: 300px;
         left: calc(50% - 150px); 
         display: flex;
@@ -305,12 +304,12 @@ export const Hero: React.FunctionComponent<{
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
     const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: nextSlideIndex, slideTitle: nextSlide.title});
 
-    return <Card style={{overflow: "hidden", border: 0}}>
+    return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
-        <img src={nextImageLink} style={{opacity: 1, width: 1, height: 1, position: "absolute"}} />
+        <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
-                <div>
+                <div style={{position: "relative"}}>
                     <img alt={"cover image"} src={imageLink} />
                     <div className="indicators">
                         {slides.map((s, i) =>
@@ -699,7 +698,7 @@ export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({t
                         link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
                     }
 
-                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 4} id={pick.groupId}
+                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
                         title={pick.title} link={link} />;
                 } else {
                     return null;
@@ -714,14 +713,14 @@ export const StarredApplications2: React.FunctionComponent<{
 }> = ({apps}) => {
     return <div>
         <h3>Starred applications</h3>
-        <div className={classConcat(TopPickCardGridStyle, apps.length <= 4 ? "small" : undefined)}>
+        <div className={classConcat(TopPickCardGridStyle, apps.length <= 5 ? "small" : undefined)}>
             {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
                 const groupId = app.metadata.group?.metadata?.id ?? 0;
 
                 return <LogoCard
                     key={app.metadata.name}
-                    large={idx === 0 && apps.length > 4}
+                    large={idx === 0 && apps.length > 5}
                     title={app.metadata.title}
                     id={app.metadata.name}
                     link={link}

@@ -112,7 +112,7 @@ class SshKeyApi {
         return [
             {
                 icon: "upload",
-                text: "Create SSH key",
+                text: "Add SSH key",
                 primary: true,
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {

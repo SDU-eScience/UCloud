@@ -20,6 +20,7 @@ import io.ktor.server.engine.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.*
 import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.withContext
@@ -29,6 +30,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.TimeUnit
+
+val KtorAllowCachingKey = AttributeKey<Boolean>("allowCaching")
 
 class IngoingHttpInterceptor(
     private val engine: ApplicationEngine,

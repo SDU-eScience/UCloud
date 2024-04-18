@@ -2,9 +2,7 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.messages.BinaryAllocator
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
-import java.math.BigDecimal
 
 @Serializable
 data class AccountingUnit(
@@ -44,13 +42,6 @@ private val periodicalFrequencies = listOf<AccountingFrequency>(
     AccountingFrequency.PERIODIC_MINUTE,
     AccountingFrequency.PERIODIC_HOUR,
     AccountingFrequency.PERIODIC_DAY
-)
-
-@Serializable
-data class AccountingUnitConversion(
-    @Contextual
-    val factor: BigDecimal,
-    val destinationUnit: AccountingUnit
 )
 
 @Serializable
