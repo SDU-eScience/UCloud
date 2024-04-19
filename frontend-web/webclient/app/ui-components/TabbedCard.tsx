@@ -18,12 +18,13 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         margin-top: -20px;
         margin-left: -20px;
         width: calc(100% + 40px);
+        max-width: calc(100% + 40px);
         display: flex;
         flex-direction: row;
         gap: 4px;
         margin-bottom: 8px;
         overflow-x: auto;
-        max-width: calc(100% + 40px);
+        border-bottom: 1px solid var(--borderColor);
     }
     
     ${k} nav > div {
@@ -47,9 +48,6 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         border-bottom: 2px solid var(--secondaryDark);
     }
     
-    ${k} nav:has(> div[data-active=true]:only-child) {
-        border-bottom: 2px solid var(--secondaryDark);
-    }
 `);
 
 const TabClass = makeClassName("tabbed-card-tab");

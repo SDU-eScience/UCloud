@@ -75,11 +75,10 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         width: 250px;
         border-radius: 5px;
         position: relative;
-        display: inline-flex;
         background: linear-gradient(
         120deg,
-        #4BD823 0%, #389F1A var(--percentage),
-        #ECEEF0 var(--percentage), #D0D5DC  var(--limit)
+        var(--primaryLight) 0%, var(--primaryMain) var(--percentage),
+        var(--secondaryMain) var(--percentage), var(--secondaryDark)  var(--limit)
         );
     }
     
@@ -87,16 +86,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         content: '';
         border-radius: 0 5px 5px 0;
         position: absolute;
-        align-content: center;
         top: 0;
         right: 0;
-        width: calc(100% - var(--limit));
+        width: 100%;
         height: 100%;
-        background: repeating-linear-gradient(
-        135deg,
-        #E11005 0 3px,
-        #FF805F 3px 6px
-        );
+        background: linear-gradient(
+            120deg, #0000 0%, #0000 var(--limit), var(--errorMain) var(--limit), var(--errorMain) 100%)
     }
     
     ${k}:after {
@@ -105,7 +100,6 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         position: absolute;
         color: var(--textPrimary);
         text-align: center;
-        align-content: center;
         top: -1.4em;
         width: 100%;
     }
