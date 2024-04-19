@@ -867,6 +867,7 @@ textarea {
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
   height: auto;
+  -webkit-appearance: none;
 }
 
 /**
