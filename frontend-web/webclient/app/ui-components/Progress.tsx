@@ -75,6 +75,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         width: 250px;
         border-radius: 5px;
         position: relative;
+        display: inline-flex;
         background: linear-gradient(
         120deg,
         var(--primaryLight) 0%, var(--primaryDark) var(--percentage),
