@@ -276,7 +276,7 @@ const UIGlobalStyle = `
     --backgroundDefault: #ffffff;
     --borderColor: var(--gray-20);
     --borderColorHover: var(--gray-30);
-    --backgroundCard: var(--gray-5);
+    --backgroundCard: #ffffff;
     --backgroundCardHover: var(--gray-5);
     --backgroundDisabled: var(--gray-5);
     --textPrimary: #212529;
