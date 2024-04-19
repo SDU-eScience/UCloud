@@ -77,7 +77,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         position: relative;
         background: linear-gradient(
         120deg,
-        var(--primaryLight) 0%, var(--primaryMain) var(--percentage),
+        var(--primaryLight) 0%, var(--primaryDark) var(--percentage),
         var(--secondaryMain) var(--percentage), var(--secondaryDark)  var(--limit)
         );
     }
@@ -91,7 +91,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         width: 100%;
         height: 100%;
         background: linear-gradient(
-            120deg, #0000 0%, #0000 var(--limit), var(--errorMain) var(--limit), var(--errorMain) 100%)
+            120deg, #0000 0%, #0000 var(--limit), var(--errorLight) var(--limit), var(--errorDark) 100%)
     }
     
     ${k}:after {

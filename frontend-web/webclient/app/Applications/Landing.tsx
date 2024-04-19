@@ -370,10 +370,14 @@ const AppCard1Style = injectStyle("app-card-1", k => `
         display: flex;
         gap: 8px;
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--appCardBorderColor, var(--borderColor));
+        border-bottom: 0.5px solid var(--appCardBorderColor, var(--borderColor));
         width: 331px;
         cursor: pointer;
         align-items: center;
+    }
+
+    ${k}:last-of-type {
+        border-bottom: unset;
     }
     
     ${k}.full-width {
@@ -442,7 +446,6 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     ${k} {
         display: flex;
         gap: 16px;
-        border-bottom: 1px solid var(--appCardBorderColor, var(--borderColor));
         width: 331px;
         cursor: pointer;
         align-items: center;
