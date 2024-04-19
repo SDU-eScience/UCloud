@@ -20,7 +20,6 @@ import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import { position } from "styled-system";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -207,18 +206,32 @@ const HeroStyle = injectStyle("hero", k => `
         width: 100%;
     }
     
-    ${k} > .carousel > div:nth-child(1) {
+    ${k} > .carousel > .carouselImages {
         flex-grow: 1;
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        overflow: hidden;
     }
     
-    ${k} > .carousel > div:nth-child(1) > img {
+    @keyframes translateImage {
+        0%   {transform: translateX(-100%);}
+        100%   {transform: translateX(0);}
+    }
+
+    ${k} > .carousel > .carouselImages img {
         object-fit: cover;
         width: 100%;
         height: 100%;
+        flex-grow: 0;
+        flex-shrink: 0;
+        flex-basis: 100%;
         object-position: 50% 50%;
+        animation: translateImage 0.5s;
     }
+
     
-    ${k} > .carousel > div:nth-child(2) {
+    ${k} > .carousel > .carouselText  {
         display: flex;
         flex-direction: column;
         width: 400px;
@@ -244,7 +257,7 @@ const HeroStyle = injectStyle("hero", k => `
         padding: 20px;
     }
     
-    ${k} .indicator {
+    ${k} .indicators > .indicator {
         background: var(--secondaryMain);
         width: 24px;
         height: 12px;
@@ -252,11 +265,11 @@ const HeroStyle = injectStyle("hero", k => `
         cursor: pointer;
     }
     
-    ${k} .indicator:hover,
-    ${k} .indicator.active {
+    ${k} .indicators > .indicator:hover,
+    ${k} .indicators > .indicator.active {
         background: var(--secondaryDark);
     }
-`);
+`);  
 
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
@@ -287,8 +300,10 @@ export const Hero: React.FunctionComponent<{
 
     const index = activeIndex % slides.length;
     const slide = slides[index];
-    const nextSlideIndex = (activeIndex + 1) % slides.length;
+    const nextSlideIndex = (index + 1) % slides.length;
     const nextSlide = slides[nextSlideIndex];
+    const prevSlideIndex = (index == 0) ? slides.length - 1 : index - 1;
+    const prevSlide = slides[prevSlideIndex];
 
     let slideLink = slide.linkedWebPage;
     let slideLinkIsExternal = true;
@@ -303,14 +318,16 @@ export const Hero: React.FunctionComponent<{
 
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
     const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: nextSlideIndex, slideTitle: nextSlide.title});
+    const prevImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: prevSlideIndex, slideTitle: prevSlide.title});
 
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
         <link rel="prefetch" as="image" href={nextImageLink} />
         <div className={HeroStyle}>
             <div className={"carousel"}>
-                <div style={{position: "relative"}}>
-                    <img alt={"cover image"} src={imageLink} />
+                <div className={"carouselImages"}>
+                    <img key={2*activeIndex+1} alt={"cover image"} src={imageLink} />
+                    <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
                     <div className="indicators">
                         {slides.map((s, i) =>
                             <HeroIndicator
@@ -323,7 +340,7 @@ export const Hero: React.FunctionComponent<{
                             />)}
                     </div>
                 </div>
-                <div>
+                <div className={"carouselText"}>
                     <h1>{slide.title}</h1>
                     <div className={SpotlightDescription}>
                         <Markdown allowedElements={["p"]}>
@@ -331,7 +348,7 @@ export const Hero: React.FunctionComponent<{
                         </Markdown>
                     </div>
                     <Box flexGrow={1} />
-                    <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>
+                    {(slide.imageCredit != "Unknown") && <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
                     <ReactRouterLink
                         to={slideLink}
                         style={{width: "100%"}}
