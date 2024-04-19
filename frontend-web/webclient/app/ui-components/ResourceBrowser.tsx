@@ -488,7 +488,7 @@ export class ResourceBrowser<T> {
                         <input class="location-bar">
                     </div>
                     <div style="flex-grow: 1;"></div>
-                    <input class="${InputClass} search-field" data-hidden>
+                    <div class="search-field-wrapper"><input class="${InputClass} search-field" data-hidden></div>
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
@@ -2623,6 +2623,7 @@ export class ResourceBrowser<T> {
         } else {
             // NOTE(Dan): Don't add printable keys to the switch statement here, as it will break the search
             // functionality. Instead, add it to the default case.
+            // NOTE(Jonas): ev.key instead of ev.code should handle things like NumpadEnter and Enter should work the same.
             switch (ev.code) {
                 case "Escape": {
                     if (this.contextMenuHandlers.length) {
@@ -3209,35 +3210,36 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} header input.search-field {
+                width: 100%;
+                height: 35px;
+                margin-left: 5px;
+            }
+
+            ${browserClass.dot} header div.search-field-wrapper {
                 position: relative;
                 right: -46px;
                 width: 400px;
-                height: 35px;
-                margin-left: 5px;
-                transition: transform .2s;
+                display: flex;
+                transition: width .2s;
             }
 
-            ${browserClass.dot} header input.search-field[data-hidden] {
-                transform: translate(calc(200px / 2), 0) scale(0, 1)
+            ${browserClass.dot} header div.search-field-wrapper > input.search-field[data-hidden] {
+                padding: 0;
             }
 
-            /* Note(Jonas): If showing search-field, resize navbar */
-            ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -308px;
-            }
-
-            ${browserClass.dot}:has(header[shows-dropdown] input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -256px;
-            }
-
-            ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
-                margin-right: -42px;
+            ${browserClass.dot} header .search-field-wrapper:has(> input.search-field[data-hidden]) {
+                width: 0;
             }
             
-            ${browserClass.dot} header input.search-field:not([data-hidden]) {
-                transform: translate(0, 0) scale(1);
+            /* If not hidden, make of for the relative position */
+            ${browserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
+                margin-left: -46px;
             }
-            
+
+            ${browserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
+                border: none;
+            }
+                        
             ${browserClass.dot} header > div > div > ul {
                 margin-top: 0px;
             }
