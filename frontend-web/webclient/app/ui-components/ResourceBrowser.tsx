@@ -3991,7 +3991,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
     outer.className = "provider-icon"
-    outer.style.background = "var(--primaryMain)";
+    outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
