@@ -121,6 +121,13 @@ export function NewAndImprovedProgress({label, percentage, limitPercentage, with
     }, []);
 
     const style: CSSProperties = {};
+    // for visualization purposes we round values too small or too close to 100%
+    if (percentage != 0 && percentage < 2) {
+        percentage = 2
+    }
+    if (limitPercentage != 100 && limitPercentage > 98) {
+        limitPercentage = 98
+    }
     style["--percentage"] = percentage + "%";
     style["--limit"] = limitPercentage + "%";
     const warning = withWarning ? <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
