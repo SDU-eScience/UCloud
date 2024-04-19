@@ -594,8 +594,9 @@ class AccountingSystem(
         if (wallet.excessUsage > 0) {
             val amount = wallet.excessUsage
             wallet.localUsage -= amount
-            internalCharge(wallet, amount, now)
+            val (chargedAmount) = internalCharge(wallet, amount, now)
             wallet.localUsage += amount
+            wallet.excessUsage = amount - chargedAmount
         }
 
         markSignificantUpdate(wallet, now)
