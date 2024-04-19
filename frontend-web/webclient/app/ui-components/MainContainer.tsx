@@ -29,11 +29,10 @@ export function MainContainer({
     }, [mainYpad]);
 
     return (
-        <Box zIndex={-1} data-component={"main"} pb={pad} pl={pad} pr="0" marginX="auto" maxWidth={"1400px"} pt={"13px"}>
+        <Box zIndex={-1} data-component={"main"} p={pad} marginX="auto" maxWidth={"1400px"}>
             {header && (
                 <Box
                     className={HeaderContainer}
-                    pt="8px"
                     zIndex={1}
                     height={headerSize}
                     bg="var(--backgroundDefault)"
@@ -41,9 +40,7 @@ export function MainContainer({
                     {header}
                 </Box>
             )}
-            <Box pr={mainXpad}>
-                {main}
-            </Box>
+            {main}
             {additional}
         </Box>
     );

@@ -85,7 +85,7 @@ function Dashboard(): React.JSX.Element {
     useSetRefreshFunction(reload);
 
     const main = (<div>
-        <Flex pt="3px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="1px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
         <Box>
             <DashboardNews news={news} />
             <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />

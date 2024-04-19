@@ -28,8 +28,6 @@ const landingStyle = injectStyle("landing-page", k => `
     
     ${k} {
         margin: 0 auto;
-        padding-top: 16px;
-        padding-bottom: 16px;
         display: flex;
         flex-direction: column;
         gap: 24px;
@@ -76,11 +74,10 @@ const LandingPage: React.FunctionComponent = () => {
         </div>
     </div>;
 
-    return <div>
-        <div className={Gradient}>
+    return <div className={Gradient}>
             <div className={GradientWithPolygons}>
                 <MainContainer main={<article className={landingStyle}>
-                    <Flex mt="-13px" alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
+                    <Flex alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
                     <Hero slides={landingPage.carrousel} />
                     {starred.data.items.length > 0 ?
                         <StarredApplications2 apps={starred.data.items} /> : null}
@@ -128,8 +125,7 @@ const LandingPage: React.FunctionComponent = () => {
                     </div>
                 </article>} />
             </div>
-        </div>
-    </div>;
+        </div>;
 };
 
 export const SpotlightCard: React.FunctionComponent<{
