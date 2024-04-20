@@ -3430,7 +3430,7 @@ export class ResourceBrowser<T> {
                 border: 1px solid #E2DDDD;
                 cursor: pointer;
                 background: var(--backgroundDefault);
-                box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
+                box-shadow: var(--defaultShadow);
                 width: 400px;
                 display: none;
                 overflow-y: auto;

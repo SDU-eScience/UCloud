@@ -46,7 +46,7 @@ interface DropdownProps {
 export const DropdownContentClass = injectStyle("dropdown-content", k => `
     ${k} {
         border-radius: 6px;
-        box-shadow: 0px 3px 6px rgba(0, 0, 0, 16%);
+        box-shadow: var(--defaultShadow);
         position: absolute;
         background: var(--backgroundDefault);
         color: var(--textPrimary);
