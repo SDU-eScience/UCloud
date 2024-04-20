@@ -553,11 +553,11 @@ const CategoryCardStyle = injectStyle("category-card", k => `
         overflow: hidden;
         color: var(--fixedWhite);
         box-shadow: var(--defaultShadow);
-        background: linear-gradient(var(--card-start), var(--card-end));
+        background: var(--primaryLight);
     }
     
     ${k}:hover {
-        background: linear-gradient(var(--card-start), var(--card-end-hover));
+        background: var(--primaryMain);
     }
     
     ${k} .logo-wrapper {

@@ -17,7 +17,18 @@ const TooltipContent = injectStyleSimple("tooltip-content", `
     color: var(--backgroundDefault);
     position: fixed;
     z-index: 10000;
+    transition: opacity .25s ease;
+    transition-delay: 0s;
+    opacity: 0;
+    visibility: hidden;
 `);
+
+const TooltipVisible = injectStyleSimple("tooltip-visible", `
+    transition-delay: 1s;
+    opacity: 1;
+    visibility: visible;
+`);
+
 
 function getPortal(): HTMLElement {
     let portal = document.getElementById(tooltipPortalId);
@@ -47,13 +58,13 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
         }
 
         tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
-        tooltip.style.display = "block";
+        tooltip.classList.add(TooltipVisible);
     }, []);
 
     const onLeave = useCallback(() => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
-        tooltip.style.display = "none";
+        tooltip.className = TooltipContent;
     }, []);
 
     return <>
@@ -77,10 +88,15 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
-    contentWrapper.style.display = "none";
+    contentWrapper.style.display = "block";
+    contentWrapper.style.transition = "opacity .25s ease";
+    contentWrapper.style.opacity = "0";
+    contentWrapper.style.visibility = "hidden";
+    
 
     function onHover(ev: MouseEvent) {
-        contentWrapper.style.display = "block";
+        contentWrapper.style.opacity = "1";
+        contentWrapper.style.visibility = "visible";
         portal.append(contentWrapper);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
@@ -101,7 +117,8 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
-        contentWrapper.style.display = "none";
+        contentWrapper.style.opacity = "0";
+        contentWrapper.style.visibility = "hidden";
     }
 
     trigger.onmouseover = onHover;
