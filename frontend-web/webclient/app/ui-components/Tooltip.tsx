@@ -33,6 +33,9 @@ function getPortal(): HTMLElement {
     if (!portal) {
         const elem = document.createElement("div");
         elem.id = tooltipPortalId;
+        const tooltip = document.createElement("div");
+        tooltip.id = tooltipElementID
+        elem.appendChild(tooltip);
         document.body.appendChild(elem);
         portal = elem;
     }
@@ -81,21 +84,18 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     const portal = getPortal();
 
     const width = opts?.tooltipContentWidth ?? 200;
-    const contentWrapper = document.createElement("div");
-    contentWrapper.append(tooltip);
+    const contentWrapper = document.getElementById(tooltipElementID);
+    contentWrapper.replaceChildren(tooltip);
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
-    contentWrapper.style.display = "block";
-    contentWrapper.style.transition = "opacity .25s ease";
-    contentWrapper.style.opacity = "0";
-    contentWrapper.style.transitionDelay = "0s";
-    
+    contentWrapper.style.display = "block";    
 
     function onHover(ev: MouseEvent) {
-        contentWrapper.style.transitionDelay = "1s";
-        contentWrapper.style.opacity = "1";
-        portal.append(contentWrapper);
+        contentWrapper.classList.add(TooltipVisible);
+        // contentWrapper.style.transitionDelay = "1s";
+        // contentWrapper.style.opacity = "1";
+        // portal.append(contentWrapper);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
         if (expectedLeft + width > window.innerWidth) {
@@ -115,8 +115,7 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
-        contentWrapper.style.transitionDelay = "0s";
-        contentWrapper.style.opacity = "0";
+        contentWrapper.className = TooltipContent;
     }
 
     trigger.onmouseover = onHover;
@@ -134,5 +133,6 @@ export function TooltipV2(props: {
 }
 
 const tooltipPortalId = "tooltip-portal";
+const tooltipElementID = "tooltip-element";
 
 export default Tooltip;
