@@ -20,13 +20,11 @@ const TooltipContent = injectStyleSimple("tooltip-content", `
     transition: opacity .25s ease;
     transition-delay: 0s;
     opacity: 0;
-    visibility: hidden;
 `);
 
 const TooltipVisible = injectStyleSimple("tooltip-visible", `
     transition-delay: 1s;
     opacity: 1;
-    visibility: visible;
 `);
 
 
@@ -91,12 +89,12 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.display = "block";
     contentWrapper.style.transition = "opacity .25s ease";
     contentWrapper.style.opacity = "0";
-    contentWrapper.style.visibility = "hidden";
+    contentWrapper.style.transitionDelay = "0s";
     
 
     function onHover(ev: MouseEvent) {
+        contentWrapper.style.transitionDelay = "1s";
         contentWrapper.style.opacity = "1";
-        contentWrapper.style.visibility = "visible";
         portal.append(contentWrapper);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
@@ -117,8 +115,8 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
+        contentWrapper.style.transitionDelay = "0s";
         contentWrapper.style.opacity = "0";
-        contentWrapper.style.visibility = "hidden";
     }
 
     trigger.onmouseover = onHover;
