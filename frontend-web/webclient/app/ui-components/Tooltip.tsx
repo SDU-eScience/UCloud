@@ -93,9 +93,6 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
 
     function onHover(ev: MouseEvent) {
         contentWrapper.classList.add(TooltipVisible);
-        // contentWrapper.style.transitionDelay = "1s";
-        // contentWrapper.style.opacity = "1";
-        // portal.append(contentWrapper);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
         if (expectedLeft + width > window.innerWidth) {
