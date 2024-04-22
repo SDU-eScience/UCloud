@@ -81,10 +81,9 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
 const SMALL_OFFSET_IN_PIXELS = 8;
 export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
-    const portal = getPortal();
-
     const width = opts?.tooltipContentWidth ?? 200;
     const contentWrapper = document.getElementById(tooltipElementID);
+    if (!contentWrapper) return trigger;
     contentWrapper.replaceChildren(tooltip);
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
@@ -92,6 +91,7 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.display = "block";    
 
     function onHover(ev: MouseEvent) {
+        if (!contentWrapper) return; 
         contentWrapper.classList.add(TooltipVisible);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
@@ -112,6 +112,7 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
+        if (!contentWrapper) return;
         contentWrapper.className = TooltipContent;
     }
 
