@@ -2624,7 +2624,7 @@ export class ResourceBrowser<T> {
             // NOTE(Dan): Don't add printable keys to the switch statement here, as it will break the search
             // functionality. Instead, add it to the default case.
             // NOTE(Jonas): ev.key instead of ev.code should handle things like NumpadEnter and Enter should work the same.
-            switch (ev.code) {
+            switch (ev.key) {
                 case "Escape": {
                     if (this.contextMenuHandlers.length) {
                         this.closeContextMenu();
@@ -2685,6 +2685,7 @@ export class ResourceBrowser<T> {
                         this.onContextMenuItemSelection();
                     } else {
                         const selected = this.isSelected;
+                        if (this.findSelectedEntries().length > 1) break;
                         for (let i = 0; i < selected.length; i++) {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
