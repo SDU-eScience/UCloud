@@ -8,11 +8,12 @@ import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-suspend fun makeGraphFile(context: TestContext) {
+suspend fun makeGraphFile(context: TestContext, filename: String? = null) {
     with(context) {
         accounting.sendRequest(AccountingRequest.DebugState(IdCard.System)).also {
             val time = DateTime.now()
-            File("/tmp/hierarchy-${time}.txt").writeText(buildString {
+            val name = filename ?: "hierarchy-${time}"
+            File("/tmp/${filename}.txt").writeText(buildString {
                 appendLine("```mermaid")
                 appendLine(it)
                 appendLine("```")

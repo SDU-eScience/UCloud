@@ -1,9 +1,67 @@
 package dk.sdu.cloud.accounting.services.accounting
 
+import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.service.StaticTimeProvider
 import kotlin.test.*
 import kotlin.test.assertEquals
 class AllocationAddingAndRetiringTest {
 
+
+
+    @Test
+    fun injectResourcesAfterRetirementNormalCharge() = withTest {
+        injectResourcesAfterRetirement(false, this)
+    }
+
+
+    @Test
+    fun injectResourcesAfterRetirementOverCharge() = withTest {
+        injectResourcesAfterRetirement(true, this)
+    }
+
+    private suspend fun injectResourcesAfterRetirement(massiveOvercharge: Boolean, context: TestContext) = with(context) {
+        val project = createProject()
+        val product = provider.nonCapacityProduct
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 0, 2000000)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 10, 0, 1000)
+        )
+
+        runCatching {
+            accounting.sendRequest(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = if (massiveOvercharge) 500L else 10,
+                    isDelta = true,
+                )
+            )
+        }
+
+        StaticTimeProvider.time = 2000L
+
+        accounting.sendRequest(AccountingRequest.ScanRetirement(IdCard.System))
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 10, 0, 10000)
+        )
+
+        val maxUsable = accounting.sendRequest(
+            AccountingRequest.MaxUsable(project.idCard, product)
+        )
+
+        if (massiveOvercharge) {
+            assertEquals(0, maxUsable)
+        } else {
+            assertEquals(10, maxUsable)
+        }
+
+    }
 
     @Test
     fun injectResourcesAfterTotalUsageMassiveOvercharge() {
