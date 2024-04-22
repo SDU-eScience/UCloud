@@ -81,6 +81,8 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
 const SMALL_OFFSET_IN_PIXELS = 8;
 export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
+    getPortal(); // Note(Jonas): Init portal.
+
     const width = opts?.tooltipContentWidth ?? 200;
     const contentWrapper = document.getElementById(tooltipElementID);
     if (!contentWrapper) return trigger;
