@@ -5,9 +5,7 @@ import dk.sdu.cloud.service.StaticTimeProvider
 import kotlin.test.*
 import kotlin.test.assertEquals
 class AllocationAddingAndRetiringTest {
-
-
-
+    
     @Test
     fun injectResourcesAfterRetirementNormalCharge() = withTest {
         injectResourcesAfterRetirement(false, this)
@@ -51,14 +49,26 @@ class AllocationAddingAndRetiringTest {
             AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 10, 0, 10000)
         )
 
-        val maxUsable = accounting.sendRequest(
-            AccountingRequest.MaxUsable(project.idCard, product)
-        )
 
+        val wallet = accounting.sendRequest(
+            AccountingRequest.BrowseWallets(project.idCard)
+        ).first()
         if (massiveOvercharge) {
-            assertEquals(0, maxUsable)
+            assertEquals(0, wallet.maxUsable)
+            assertEquals(500, wallet.localUsage)
+            assertEquals(500, wallet.totalUsage)
+            val allocs = wallet.allocationGroups.first().group.allocations
+            val originalAlloc = allocs.first()
+            assertEquals(10, originalAlloc.retiredUsage)
+            assertEquals(10, wallet.allocationGroups.first().group.usage)
         } else {
-            assertEquals(10, maxUsable)
+            assertEquals(10, wallet.maxUsable)
+            assertEquals(10, wallet.localUsage)
+            assertEquals(10, wallet.totalUsage)
+            val allocs = wallet.allocationGroups.first().group.allocations
+            val originalAlloc = allocs.first()
+            assertEquals(10, originalAlloc.retiredUsage)
+            assertEquals(0, wallet.allocationGroups.first().group.usage)
         }
 
     }
