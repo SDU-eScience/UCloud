@@ -774,7 +774,7 @@ export class ResourceBrowser<T> {
             }
 
             // Attempt to allow deselecting by clicking outside table
-            if (!ResourceBrowser.isAnyModalOpen) {
+            if (!ResourceBrowser.isAnyModalOpen && !this.isDragging()) {
                 this.clearSelected();
             }
             // Attempt to allow deselecting by clicking outside table
@@ -818,8 +818,13 @@ export class ResourceBrowser<T> {
                 // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
-            row.addEventListener("dblclick", () => {
+            row.addEventListener("dblclick", ev => {
                 this.onRowDoubleClicked(myIndex);
+                // Attempt to allow deselecting by clicking outside table
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+                ev.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table END
             });
             row.addEventListener("mousemove", () => {
                 this.onRowMouseMove(myIndex);
@@ -2358,6 +2363,10 @@ export class ResourceBrowser<T> {
             document.addEventListener("mousemove", dragMoveHandler);
             document.addEventListener("pointerup", dragReleaseHandler);
         }
+    }
+
+    private isDragging() {
+        return document.body.getAttribute("data-cursor") !== "grabbing";
     }
 
     private onRowClicked(index: number, event: MouseEvent) {
