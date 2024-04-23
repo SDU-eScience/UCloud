@@ -381,7 +381,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
 
                         row.title.append(icon);
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             name: "ftSharesFolder",
                             color: "FtFolderColor",
                             color2: "FtFolderColor2",
@@ -504,7 +504,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         }
 
                         row.stat2.append(text);
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
                             height: 32,

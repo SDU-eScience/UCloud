@@ -727,10 +727,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 break;
                         }
 
-                        return browser.icons.renderIcon({name, color, color2, width, height});
+                        return ResourceBrowser.icons.renderIcon({name, color, color2, width, height});
                     }
 
-                    return browser.icons.renderSvg(
+                    return ResourceBrowser.icons.renderSvg(
                         "file-" + extension,
                         () => <SvgFt color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")} hasExt={hasExt}
                             ext={extension} type={type} width={width} height={height} />,
@@ -777,7 +777,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         syncThingIcon.style.marginTop = "-2px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
-                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
+                        ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
@@ -809,7 +809,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         readonlyIcon.style.marginTop = "-2px";
                         readonlyIcon.style.display = "block";
                         iconWrapper.appendChild(readonlyIcon);
-                        browser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
+                        ResourceBrowser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
@@ -849,7 +849,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     findFavoriteStatus(file).then(async isFavorite => {
                         const filledStarColor: ThemeColor = isLightThemeStored() ? "primaryMain" : "iconColor";
                         const unfilledStarColor: ThemeColor = "iconColor";
-                        const icon = await browser.icons.renderIcon({
+                        const icon = await ResourceBrowser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
                             color: (isFavorite ? filledStarColor : unfilledStarColor),
                             color2: "iconColor2",
@@ -898,7 +898,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
                 });
 
-                browser.icons.renderIcon({
+                ResourceBrowser.icons.renderIcon({
                     name: "ftFolder",
                     color: "FtFolderColor",
                     color2: "FtFolderColor2",
@@ -1014,7 +1014,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
-                            browser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
+                            ResourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
                                 const rect = driveIcon.getBoundingClientRect();

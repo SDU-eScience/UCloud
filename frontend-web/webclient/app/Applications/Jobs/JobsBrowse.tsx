@@ -170,7 +170,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                         const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             name: statusIconName,
                             width: 32,
                             height: 32,

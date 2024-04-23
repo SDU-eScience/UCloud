@@ -367,7 +367,7 @@ export class ResourceBrowser<T> {
     private entryBelowCursorTemporary: T | string | null = null;
     private entryBelowCursor: T | string | null = null;
 
-    icons: SvgCache = new SvgCache();
+    static icons: SvgCache = new SvgCache();
     private didPerformInitialOpen = false;
 
     // Filters
@@ -601,7 +601,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: "heroMagnifyingGlass",
                 color: UTILITY_COLOR,
                 color2: UTILITY_COLOR,
@@ -674,7 +674,7 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: "heroArrowPath",
                 color: UTILITY_COLOR,
                 color2: UTILITY_COLOR,
@@ -996,7 +996,7 @@ export class ResourceBrowser<T> {
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
             if (!filter) return;
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: filter.icon,
                 color: "textPrimary",
                 color2: "textPrimary",
@@ -1241,11 +1241,11 @@ export class ResourceBrowser<T> {
 
     rerenderUtilityIcons() {
         const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
-        this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+        ResourceBrowser.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
             .then(url => icon.src = url);
         if (this.features.search) {
             const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            ResourceBrowser.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => searchIcon.src = url);
         }
     }
@@ -1369,7 +1369,7 @@ export class ResourceBrowser<T> {
                 // Set the icon
                 const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
                 element.append(icon);
-                this.icons.renderIcon({
+                ResourceBrowser.icons.renderIcon({
                     name: op.icon as IconName,
                     color: op.color as ThemeColor,
                     color2: "iconColor2",
@@ -1547,7 +1547,7 @@ export class ResourceBrowser<T> {
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
             // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
             if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: op.icon as IconName,
                 color: contrastColor,
                 color2: contrastColor,
@@ -3740,12 +3740,12 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        this.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
+        ResourceBrowser.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
 
     public setEmptyIcon(icon: IconName) {
-        this.icons.renderIcon({
+        ResourceBrowser.icons.renderIcon({
             name: icon,
             color: "primaryContrast",
             color2: "primaryContrast",
@@ -3846,7 +3846,7 @@ export class ResourceBrowser<T> {
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",
                 color2: "textPrimary",

@@ -94,7 +94,7 @@ function Scripts(): React.ReactNode {
                 browser.on("renderRow", (script, row, dim) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    browser.icons.renderIcon({
+                    ResourceBrowser.icons.renderIcon({
                         name: "play",
                         color: "textPrimary",
                         color2: "textPrimary",

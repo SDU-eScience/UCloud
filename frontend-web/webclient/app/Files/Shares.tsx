@@ -432,7 +432,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 browser.on("renderRow", (share, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    browser.icons.renderIcon({
+                    ResourceBrowser.icons.renderIcon({
                         name: "ftSharesFolder",
                         color: "FtFolderColor",
                         color2: "FtFolderColor2",
@@ -502,7 +502,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
                             height: 64,
