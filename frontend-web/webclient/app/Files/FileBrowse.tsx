@@ -770,6 +770,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
+                        syncThingIcon.style.minWidth = syncThingIcon.style.minHeight = "";
                         syncThingIcon.style.marginLeft = "-2px";
                         syncThingIcon.style.marginTop = "-2px";
                         syncThingIcon.style.display = "block";
@@ -802,6 +803,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
                         readonlyIcon.style.height = "8px";
                         readonlyIcon.style.width = "8px";
+                        readonlyIcon.style.minWidth = readonlyIcon.style.minHeight = "";
                         readonlyIcon.style.marginLeft = "-2px";
                         readonlyIcon.style.marginTop = "-2px";
                         readonlyIcon.style.display = "block";
