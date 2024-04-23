@@ -840,6 +840,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const favoriteIcon = image(placeholderImage, {width: 20, height: 20, alt: "Star"});
                     {
                         row.star.innerHTML = "";
+                        row.star.style.minWidth = "20px"
                         row.star.append(favoriteIcon);
                         row.star.style.cursor = "pointer";
                         row.star.style.marginRight = "8px";

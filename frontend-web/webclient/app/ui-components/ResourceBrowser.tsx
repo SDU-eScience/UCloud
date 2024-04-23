@@ -1183,6 +1183,7 @@ export class ResourceBrowser<T> {
             tagType: "div", style: {
                 width: "30px",
                 height: "30px",
+                minWidth: "30px",
                 backgroundSize: "contain",
                 marginRight: "8px",
                 display: "inline-block",
