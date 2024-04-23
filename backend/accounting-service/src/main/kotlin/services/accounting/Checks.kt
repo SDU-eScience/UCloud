@@ -10,7 +10,7 @@ fun checkTreeUsageHierarchy() {
             val treeUsage = wallet.treeUsage(pId)
 
             if (childUsage != treeUsage) {
-                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage")
+                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage (tree hierarchy)")
             }
         }
     }
@@ -23,10 +23,11 @@ fun checkWalletHierarchyTreeUsage(walletId: Int) {
         for ((pId) in w.allocationsByParent) {
             if (pId == 0) continue
             val p = walletsById.getValue(pId)
-            val childUsage = p.childrenUsage[id] ?: 0L
+            var childUsage = p.childrenUsage[id] ?: 0L
+            childUsage += p.childrenRetiredUsage[id] ?: 0L
             val treeUsage = w.treeUsage(pId)
             if (treeUsage != childUsage) {
-                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage")
+                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage (treeUsage)")
             }
         }
     }
@@ -51,10 +52,11 @@ fun checkWalletHierarchyTreeUsageLimit(walletId: Int) {
         for ((pId) in w.allocationsByParent) {
             if (pId == 0) continue
             val p = walletsById.getValue(pId)
-            val childUsage = p.childrenUsage[id] ?: 0L
+            var childUsage = p.childrenUsage[id] ?: 0L
+            childUsage += p.childrenRetiredUsage[id] ?: 0L
             val treeUsage = w.treeUsage(pId)
             if (treeUsage != childUsage) {
-                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage")
+                error("Wrong usage in W${pId} for child W${id}: found $childUsage instead of $treeUsage (tree usage limit)")
             }
         }
     }

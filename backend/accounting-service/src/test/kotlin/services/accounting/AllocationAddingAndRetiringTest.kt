@@ -1,9 +1,77 @@
 package dk.sdu.cloud.accounting.services.accounting
 
+import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.service.StaticTimeProvider
 import kotlin.test.*
 import kotlin.test.assertEquals
 class AllocationAddingAndRetiringTest {
+    
+    @Test
+    fun injectResourcesAfterRetirementNormalCharge() = withTest {
+        injectResourcesAfterRetirement(false, this)
+    }
 
+
+    @Test
+    fun injectResourcesAfterRetirementOverCharge() = withTest {
+        injectResourcesAfterRetirement(true, this)
+    }
+
+    private suspend fun injectResourcesAfterRetirement(massiveOvercharge: Boolean, context: TestContext) = with(context) {
+        val project = createProject()
+        val product = provider.nonCapacityProduct
+
+        accounting.sendRequest(
+            AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 0, 2000000)
+        )
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 10, 0, 1000)
+        )
+
+        runCatching {
+            accounting.sendRequest(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = if (massiveOvercharge) 500L else 10,
+                    isDelta = true,
+                )
+            )
+        }
+
+        StaticTimeProvider.time = 2000L
+
+        accounting.sendRequest(AccountingRequest.ScanRetirement(IdCard.System))
+
+        accounting.sendRequest(
+            AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 10, 0, 10000)
+        )
+
+
+        val wallet = accounting.sendRequest(
+            AccountingRequest.BrowseWallets(project.idCard)
+        ).first()
+        if (massiveOvercharge) {
+            assertEquals(0, wallet.maxUsable)
+            assertEquals(500, wallet.localUsage)
+            assertEquals(500, wallet.totalUsage)
+            val allocs = wallet.allocationGroups.first().group.allocations
+            val originalAlloc = allocs.first()
+            assertEquals(10, originalAlloc.retiredUsage)
+            assertEquals(10, wallet.allocationGroups.first().group.usage)
+        } else {
+            assertEquals(10, wallet.maxUsable)
+            assertEquals(10, wallet.localUsage)
+            assertEquals(10, wallet.totalUsage)
+            val allocs = wallet.allocationGroups.first().group.allocations
+            val originalAlloc = allocs.first()
+            assertEquals(10, originalAlloc.retiredUsage)
+            assertEquals(0, wallet.allocationGroups.first().group.usage)
+        }
+
+    }
 
     @Test
     fun injectResourcesAfterTotalUsageMassiveOvercharge() {
