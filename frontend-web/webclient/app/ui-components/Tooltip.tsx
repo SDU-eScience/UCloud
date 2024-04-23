@@ -17,13 +17,16 @@ const TooltipContent = injectStyleSimple("tooltip-content", `
     color: var(--backgroundDefault);
     position: fixed;
     z-index: 10000;
-    transition: opacity .25s ease;
+    transition: opacity ease;
+    transition-duration: 0s;
     transition-delay: 0s;
     opacity: 0;
+    pointer-events: none;
 `);
 
 const TooltipVisible = injectStyleSimple("tooltip-visible", `
     transition-delay: 1s;
+    transition-duration: .25s;
     opacity: 1;
 `);
 
