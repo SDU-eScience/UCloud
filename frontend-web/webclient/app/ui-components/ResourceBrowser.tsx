@@ -246,6 +246,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "fetchOperations": () => OperationOrGroup<T, unknown>[];
     "fetchOperationsCallback": () => unknown | null;
+    "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
     "validDropTarget": (entry: T) => boolean;
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
@@ -1514,6 +1515,12 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
+
+        if (!useContextMenu && !this.isModal) {
+            const custom = this.dispatchMessage("fetchBrowserFeatures", f => f());
+            operations.unshift(controlsOperation(this.features, custom));
+        }
+
         if (operations.length === 0 || !this.canConsumeResources) {
             this.operations.innerHTML = "";
             return;
@@ -2962,6 +2969,7 @@ export class ResourceBrowser<T> {
         startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
+        fetchBrowserFeatures: () => undefined,
         fetchFilters: () => [],
         searchHidden: () => {},
 

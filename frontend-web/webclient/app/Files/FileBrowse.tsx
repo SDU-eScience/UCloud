@@ -604,10 +604,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const enabledOperations = [
-                        controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]),
-                        ...FilesApi.retrieveOperations()
-                    ].filter(op => op.enabled(selected, callbacks, selected));
+                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     const ops = groupOperations(enabledOperations);
                     return ops;
                 });
@@ -1010,7 +1007,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
+                            driveIcon.style.minWidth = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
+                            const location = browser.root.querySelector(":scope .location");
+                            if (location) location["style"].maxWidth = "480px";
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
@@ -1279,6 +1279,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     if (path !== browser.currentPath) return;
 
                     browser.registerPage(result, path, false);
+                });
+
+                browser.on("fetchBrowserFeatures", () => {
+                    return [{name: "Rename", shortcut: {keys: "F2"}}];
                 });
 
                 browser.on("search", query => {
