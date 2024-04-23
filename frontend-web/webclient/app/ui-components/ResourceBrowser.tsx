@@ -420,6 +420,8 @@ export class ResourceBrowser<T> {
     // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
     private readonly overrideDisabledKeyhandlers: boolean;
 
+    static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true" ?? false;
+
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
@@ -1384,7 +1386,7 @@ export class ResourceBrowser<T> {
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("div");
-                    shortcutElem.className = ShortcutClass;
+                    shortcutElem.classList.add(ShortcutClass);
                     shortcutElem.style.marginLeft = "auto";
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
@@ -1641,6 +1643,7 @@ export class ResourceBrowser<T> {
                     for (const [index, item] of shortcutItems.entries()) {
                         const shortcutElement = document.createElement("div");
                         shortcutElement.className = ShortcutClass;
+                        if (!inContextMenu && ResourceBrowser.hideShortcuts) shortcutElement.classList.add("HideShortcuts");
                         if (index === 0) shortcutElement.style.marginLeft = "auto";
                         shortcutElement.innerText = item;
                         element.append(shortcutElement);
@@ -2627,6 +2630,10 @@ export class ResourceBrowser<T> {
                 ev.preventDefault();
                 ev.stopPropagation();
                 this.shortCuts[ev.code]();
+            } else if (ev.code === "KeyH") {
+                ResourceBrowser.hideShortcuts = !ResourceBrowser.hideShortcuts;
+                localStorage.setItem("hide-shortcuts", ResourceBrowser.hideShortcuts.toString());
+                this.renderOperations();
             } else {
                 this.dispatchMessage("unhandledShortcut", fn => fn(ev));
             }
@@ -3474,6 +3481,10 @@ export class ResourceBrowser<T> {
                 }
             }
 
+            ${browserClass.dot} .HideShortcuts {
+                display: none;
+            }
+
             ${browserClass.dot} .context-menu li[data-selected=true] {
                 background: var(--rowHover);
             }
@@ -4204,6 +4215,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                         <td>{c.description}</td>
                     </tr>}
                 </React.Fragment>)}
+                <Shortcut name="Hide shortcuts" alt keys={"H"} />
             </tbody>
         </table>
     </div>
