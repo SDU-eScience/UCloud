@@ -143,7 +143,7 @@ type DropEvent =
 
 interface DropEventSingle {
     type: "single";
-    file: PackagedFile;
+    file: Promise<PackagedFile>;
 }
 
 interface DropEventFolder {
@@ -152,7 +152,7 @@ interface DropEventFolder {
     fileFetcher: () => Promise<PackagedFile[] | null>;
 }
 
-export function filesFromDropOrSelectEvent(event): DropEvent[] {
+export async function filesFromDropOrSelectEvent(event): Promise<DropEvent[]> {
     const dataTransfer = event.dataTransfer;
     if (!dataTransfer) {
         const files: PackagedFile[] = [];
@@ -163,7 +163,10 @@ export function filesFromDropOrSelectEvent(event): DropEvent[] {
             files.push(packageFile(fileList[i], undefined));
         }
 
-        return files.map(file => ({type: "single", file}));
+        return files.map(file => {
+            const thisFile = new Promise<PackagedFile>((resolve) => resolve(file));    
+            return {type: "single", file: thisFile}
+        });
     }
 
     const entries: FileSystemEntry[] = [];
@@ -192,24 +195,31 @@ export function filesFromDropOrSelectEvent(event): DropEvent[] {
     return entries.map(entry => {
         const traverser = new FileTraverser(entry);
 
-        return {
-            type: "folder",
-            folderName: entry.name,
-            fileFetcher: async () => {
-                let result: PackagedFile[] = [];
-                while (result.length < 5000) {
-                    const batch = await traverser.fetchFiles()
-                    if (batch === null) {
-                        if (result.length === 0) {
-                            return null;
-                        } else {
-                            break;
+        if (entry.isDirectory) {
+            return {
+                type: "folder",
+                folderName: entry.name,
+                fileFetcher: async () => {
+                    let result: PackagedFile[] = [];
+                    while (result.length < 5000) {
+                        const batch = await traverser.fetchFiles()
+                        if (batch === null) {
+                            if (result.length === 0) {
+                                return null;
+                            } else {
+                                break;
+                            }
                         }
+                        result = [...result, ...batch];
                     }
-                    result = [...result, ...batch];
+                    return result;
                 }
-                return result;
             }
-        };
+        } else {
+            return {
+                type: "single",
+                file: getFile(entry)
+            };
+        }
     });
 }

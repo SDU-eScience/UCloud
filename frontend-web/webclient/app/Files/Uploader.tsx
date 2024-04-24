@@ -693,13 +693,14 @@ const Uploader: React.FunctionComponent = () => {
         e.stopPropagation();
 
         let allUploads: Upload[] = uploads;
-        const events = filesFromDropOrSelectEvent(e);
+        const events = await filesFromDropOrSelectEvent(e);
         for (const u of events) {
             switch (u.type) {
                 case "single": {
+                    const theFile = await u.file;
                     allUploads.push({
-                        name: u.file.name,
-                        row: u.file,
+                        name: theFile.name,
+                        row: theFile,
                         progressInBytes: 0,
                         filesCompleted: 0,
                         filesDiscovered: 1,
