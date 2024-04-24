@@ -846,8 +846,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
-                        const filledStarColor: ThemeColor = isLightThemeStored() ? "primaryMain" : "iconColor";
-                        const unfilledStarColor: ThemeColor = "iconColor";
+                        const filledStarColor: ThemeColor = "favoriteColor";
+                        const unfilledStarColor: ThemeColor = "secondaryDark";
                         const icon = await ResourceBrowser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
                             color: (isFavorite ? filledStarColor : unfilledStarColor),
