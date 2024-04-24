@@ -451,6 +451,7 @@ html {
     --fixedBlack: #000000;
 
     --favoriteColor: var(--yellow-20);    
+    --favoriteColorEmpty: var(--secondaryDark);    
     --wayfGreen: #c8dd51;
     
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
