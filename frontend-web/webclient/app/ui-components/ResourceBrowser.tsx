@@ -3865,6 +3865,7 @@ export class ResourceBrowser<T> {
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
+            arrow.style.minWidth = "";
             ResourceBrowser.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",
