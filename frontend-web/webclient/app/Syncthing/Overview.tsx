@@ -1132,7 +1132,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                 browser.on("renderRow", (folder, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon);
-                    browser.icons.renderIcon({
+                    ResourceBrowser.icons.renderIcon({
                         color: "FtFolderColor",
                         color2: "FtFolderColor2",
                         name: "ftFolder",
@@ -1148,7 +1148,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
 
                     if (permissionProblems[folder.id]) {
                         const [permissionIcon, setPermissionIcon] = ResourceBrowser.defaultIconRenderer();
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             name: "warning",
                             color: "errorMain",
                             color2: "primaryMain",

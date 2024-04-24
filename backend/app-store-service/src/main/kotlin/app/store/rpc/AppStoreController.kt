@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.server.KtorAllowCachingKey
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.Page
 import io.ktor.client.*
@@ -258,7 +259,10 @@ class AppStoreController(
                 null
             ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            (ctx as HttpCall).call.respond(
+            val ktorCall = (ctx as HttpCall).call
+            ktorCall.attributes.put(KtorAllowCachingKey, true)
+            ktorCall.response.header(HttpHeaders.CacheControl, "max-age=3600")
+            ktorCall.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = bytes.size.toLong()
                     override val contentType = ContentType.Image.PNG
@@ -300,7 +304,10 @@ class AppStoreController(
                 ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
 
-            (ctx as HttpCall).call.respond(
+            val ktorCall = (ctx as HttpCall).call
+            ktorCall.attributes.put(KtorAllowCachingKey, true)
+            ktorCall.response.header(HttpHeaders.CacheControl, "max-age=3600")
+            ktorCall.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = bytes.size.toLong()
                     override val contentType = ContentType.Image.PNG
@@ -397,7 +404,10 @@ class AppStoreController(
             // NOTE(Dan): request.slideTitle is used mostly to circumvent the cache in case the carrousel is updated.
 
             val bytes = service.retrieveCarrouselImage(request.index)
-            (ctx as HttpCall).call.respond(
+            val ktorCall = (ctx as HttpCall).call
+            ktorCall.attributes.put(KtorAllowCachingKey, true)
+            ktorCall.response.header(HttpHeaders.CacheControl, "max-age=3600")
+            ktorCall.respond(
                 object : OutgoingContent.ReadChannelContent() {
                     override val contentLength = bytes.size.toLong()
                     override val contentType = ContentType.Image.Any

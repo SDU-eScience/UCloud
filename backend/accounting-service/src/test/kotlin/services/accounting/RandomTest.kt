@@ -8,6 +8,20 @@ import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+suspend fun makeGraphFile(context: TestContext, filename: String? = null) {
+    with(context) {
+        accounting.sendRequest(AccountingRequest.DebugState(IdCard.System)).also {
+            val time = DateTime.now()
+            val name = filename ?: "hierarchy-${time}"
+            File("/tmp/${filename}.txt").writeText(buildString {
+                appendLine("```mermaid")
+                appendLine(it)
+                appendLine("```")
+            })
+        }
+    }
+}
+
 class RandomTest {
 
     private suspend fun randomRetire(numberOfAllocationsToRetire: Int) {
@@ -121,19 +135,6 @@ class RandomTest {
 
                     }
                 }
-            }
-        }
-    }
-
-    private suspend fun makeGraphFile(context: TestContext) {
-        with(context) {
-            accounting.sendRequest(AccountingRequest.DebugState(IdCard.System)).also {
-                val time = DateTime.now()
-                File("/tmp/hierarchy-${time}.txt").writeText(buildString {
-                    appendLine("```mermaid")
-                    appendLine(it)
-                    appendLine("```")
-                })
             }
         }
     }

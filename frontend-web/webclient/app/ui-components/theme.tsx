@@ -69,6 +69,9 @@ export type ThemeColor =
     | "fixedWhite"
     | "fixedBlack"
 
+    | "favoriteColor"
+    | "favoriteColorEmpty"
+    
     | "wayfGreen"
 
     | "borderColor"

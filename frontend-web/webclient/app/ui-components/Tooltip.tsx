@@ -13,17 +13,32 @@ interface Tooltip extends SpaceProps {
 const TooltipContent = injectStyleSimple("tooltip-content", `
     padding: 16px;
     border-radius: 8px;
-    background: var(--infoDark);
-    color: var(--infoContrast);
+    background: var(--textPrimary);
+    color: var(--backgroundDefault);
     position: fixed;
     z-index: 10000;
+    transition: opacity ease;
+    transition-duration: 0s;
+    transition-delay: 0s;
+    opacity: 0;
+    pointer-events: none;
 `);
+
+const TooltipVisible = injectStyleSimple("tooltip-visible", `
+    transition-delay: 1s;
+    transition-duration: .25s;
+    opacity: 1;
+`);
+
 
 function getPortal(): HTMLElement {
     let portal = document.getElementById(tooltipPortalId);
     if (!portal) {
         const elem = document.createElement("div");
         elem.id = tooltipPortalId;
+        const tooltip = document.createElement("div");
+        tooltip.id = tooltipElementID
+        elem.appendChild(tooltip);
         document.body.appendChild(elem);
         portal = elem;
     }
@@ -47,13 +62,13 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
         }
 
         tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
-        tooltip.style.display = "block";
+        tooltip.classList.add(TooltipVisible);
     }, []);
 
     const onLeave = useCallback(() => {
         const tooltip = tooltipRef.current;
         if (!tooltip) return;
-        tooltip.style.display = "none";
+        tooltip.className = TooltipContent;
     }, []);
 
     return <>
@@ -69,19 +84,20 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
 const SMALL_OFFSET_IN_PIXELS = 8;
 export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {tooltipContentWidth: number}): HTMLElement {
-    const portal = getPortal();
+    getPortal(); // Note(Jonas): Init portal.
 
     const width = opts?.tooltipContentWidth ?? 200;
-    const contentWrapper = document.createElement("div");
-    contentWrapper.append(tooltip);
+    const contentWrapper = document.getElementById(tooltipElementID);
+    if (!contentWrapper) return trigger;
+    contentWrapper.replaceChildren(tooltip);
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
-    contentWrapper.style.display = "none";
+    contentWrapper.style.display = "block";    
 
     function onHover(ev: MouseEvent) {
-        contentWrapper.style.display = "block";
-        portal.append(contentWrapper);
+        if (!contentWrapper) return; 
+        contentWrapper.classList.add(TooltipVisible);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
         if (expectedLeft + width > window.innerWidth) {
@@ -101,7 +117,8 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     }
 
     function onLeave() {
-        contentWrapper.style.display = "none";
+        if (!contentWrapper) return;
+        contentWrapper.className = TooltipContent;
     }
 
     trigger.onmouseover = onHover;
@@ -119,5 +136,6 @@ export function TooltipV2(props: {
 }
 
 const tooltipPortalId = "tooltip-portal";
+const tooltipElementID = "tooltip-element";
 
 export default Tooltip;

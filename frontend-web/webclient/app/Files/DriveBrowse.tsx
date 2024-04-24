@@ -322,7 +322,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         if (isShare(drive)) {
                             const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                             row.title.append(icon);
-                            browser.icons.renderIcon({
+                            ResourceBrowser.icons.renderIcon({
                                 name: "ftSharesFolder",
                                 color: "FtFolderColor",
                                 color2: "FtFolderColor2",

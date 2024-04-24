@@ -10,7 +10,7 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class ScopeTesting {
+class ScopeTest {
 
 
     private data class TestActor(

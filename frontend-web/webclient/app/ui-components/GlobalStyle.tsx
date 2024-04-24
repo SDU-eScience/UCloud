@@ -276,7 +276,7 @@ const UIGlobalStyle = `
     --backgroundDefault: #ffffff;
     --borderColor: var(--gray-20);
     --borderColorHover: var(--gray-30);
-    --backgroundCard: var(--gray-5);
+    --backgroundCard: #ffffff;
     --backgroundCardHover: var(--gray-5);
     --backgroundDisabled: var(--gray-5);
     --textPrimary: #212529;
@@ -409,7 +409,6 @@ html {
     --gray-60: #627288;
     --gray-70: #4F6178;
     --gray-80: #404D60;
-    --gray-85: #2E3845;
     --gray-90: #2A313B;
     --gray-100: #21262D;
     --blue-5: #F4F8FE;
@@ -421,7 +420,6 @@ html {
     --blue-60: #096DE3;
     --blue-70: #035BC3;
     --blue-80: #03499D;
-    --blue-85: #023572;
     --blue-90: #023774;
     /* New color palette END */
 
@@ -451,7 +449,9 @@ html {
     
     --fixedWhite: #ffffff;
     --fixedBlack: #000000;
-    
+
+    --favoriteColor: var(--yellow-20);    
+    --favoriteColorEmpty: var(--secondaryDark);    
     --wayfGreen: #c8dd51;
     
     font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
@@ -867,6 +867,7 @@ textarea {
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
   height: auto;
+  -webkit-appearance: none;
 }
 
 /**

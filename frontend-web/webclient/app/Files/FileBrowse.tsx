@@ -604,10 +604,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const enabledOperations = [
-                        controlsOperation(features, [{name: "Rename", shortcut: {keys: "F2"}}]),
-                        ...FilesApi.retrieveOperations()
-                    ].filter(op => op.enabled(selected, callbacks, selected));
+                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     const ops = groupOperations(enabledOperations);
                     return ops;
                 });
@@ -727,10 +724,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 break;
                         }
 
-                        return browser.icons.renderIcon({name, color, color2, width, height});
+                        return ResourceBrowser.icons.renderIcon({name, color, color2, width, height});
                     }
 
-                    return browser.icons.renderSvg(
+                    return ResourceBrowser.icons.renderSvg(
                         "file-" + extension,
                         () => <SvgFt color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")} hasExt={hasExt}
                             ext={extension} type={type} width={width} height={height} />,
@@ -773,11 +770,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
                         syncThingIcon.style.height = "8px";
                         syncThingIcon.style.width = "8px";
+                        syncThingIcon.style.minWidth = syncThingIcon.style.minHeight = "";
                         syncThingIcon.style.marginLeft = "-2px";
                         syncThingIcon.style.marginTop = "-2px";
                         syncThingIcon.style.display = "block";
                         iconWrapper.appendChild(syncThingIcon);
-                        browser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
+                        ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
@@ -805,11 +803,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
                         readonlyIcon.style.height = "8px";
                         readonlyIcon.style.width = "8px";
+                        readonlyIcon.style.minWidth = readonlyIcon.style.minHeight = "";
                         readonlyIcon.style.marginLeft = "-2px";
                         readonlyIcon.style.marginTop = "-2px";
                         readonlyIcon.style.display = "block";
                         iconWrapper.appendChild(readonlyIcon);
-                        browser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
+                        ResourceBrowser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
                     }
 
                     const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
@@ -840,15 +839,16 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const favoriteIcon = image(placeholderImage, {width: 20, height: 20, alt: "Star"});
                     {
                         row.star.innerHTML = "";
+                        row.star.style.minWidth = "20px"
                         row.star.append(favoriteIcon);
                         row.star.style.cursor = "pointer";
                         row.star.style.marginRight = "8px";
                     }
 
                     findFavoriteStatus(file).then(async isFavorite => {
-                        const filledStarColor: ThemeColor = isLightThemeStored() ? "primaryMain" : "iconColor";
-                        const unfilledStarColor: ThemeColor = "iconColor";
-                        const icon = await browser.icons.renderIcon({
+                        const filledStarColor: ThemeColor = "favoriteColor";
+                        const unfilledStarColor: ThemeColor = "favoriteColorEmpty";
+                        const icon = await ResourceBrowser.icons.renderIcon({
                             name: (isFavorite ? "starFilled" : "starEmpty"),
                             color: (isFavorite ? filledStarColor : unfilledStarColor),
                             color2: "iconColor2",
@@ -897,7 +897,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
                 });
 
-                browser.icons.renderIcon({
+                ResourceBrowser.icons.renderIcon({
                     name: "ftFolder",
                     color: "FtFolderColor",
                     color2: "FtFolderColor2",
@@ -1009,11 +1009,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
+                            driveIcon.style.minWidth = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
+                            const location = browser.root.querySelector(":scope .location");
+                            if (location) location["style"].maxWidth = "480px";
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
-                            browser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
+                            ResourceBrowser.icons.renderIcon({name: "chevronDownLight", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
                             driveIcon.onclick = e => {
                                 e.stopImmediatePropagation();
                                 const rect = driveIcon.getBoundingClientRect();
@@ -1278,6 +1281,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     if (path !== browser.currentPath) return;
 
                     browser.registerPage(result, path, false);
+                });
+
+                browser.on("fetchBrowserFeatures", () => {
+                    return [{name: "Rename", shortcut: {keys: "F2"}}];
                 });
 
                 browser.on("search", query => {

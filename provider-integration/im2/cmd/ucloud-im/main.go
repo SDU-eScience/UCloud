@@ -1,18 +1,19 @@
 package main
 
 import (
-    "crypto/rsa"
-    "crypto/x509"
-    "database/sql"
-    "encoding/pem"
-    "fmt"
-    _ "github.com/golang-jwt/jwt/v5"
-    _ "github.com/lib/pq"
-    "log"
-    "net"
-    "os"
-    "strings"
-    "ucloud.dk/pkg/im/gateway"
+	"crypto/rsa"
+	"crypto/x509"
+	"database/sql"
+	"encoding/pem"
+	"fmt"
+	_ "github.com/golang-jwt/jwt/v5"
+	_ "github.com/lib/pq"
+	"log"
+	"net"
+	"os"
+	"strings"
+	"ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/gateway"
 )
 
 var ucloudPublicKey *rsa.PublicKey
@@ -49,99 +50,103 @@ func authInterceptor(ctx context.Context, req interface{}, _ *grpc.UnaryServerIn
 */
 
 func readPublicKey() *rsa.PublicKey {
-    content, _ := os.ReadFile("/etc/ucloud/ucloud_crt.pem")
-    if content == nil {
-        return nil
-    }
+	content, _ := os.ReadFile("/etc/ucloud/ucloud_crt.pem")
+	if content == nil {
+		return nil
+	}
 
-    var keyBuilder strings.Builder
-    keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
-    keyBuilder.WriteString(chunkString(string(content), 64))
-    keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
+	var keyBuilder strings.Builder
+	keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
+	keyBuilder.WriteString(chunkString(string(content), 64))
+	keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
 
-    key := keyBuilder.String()
+	key := keyBuilder.String()
 
-    block, _ := pem.Decode([]byte(key))
-    if block == nil {
-        return nil
-    }
+	block, _ := pem.Decode([]byte(key))
+	if block == nil {
+		return nil
+	}
 
-    pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
-    if pubKey == nil {
-        return nil
-    }
+	pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
+	if pubKey == nil {
+		return nil
+	}
 
-    rsaKey, _ := pubKey.(*rsa.PublicKey)
-    return rsaKey
+	rsaKey, _ := pubKey.(*rsa.PublicKey)
+	return rsaKey
 }
 
 func chunkString(input string, chunkSize int) string {
-    var builder strings.Builder
-    for i, c := range input {
-        if i != 0 && i%chunkSize == 0 {
-            builder.WriteString("\n")
-        }
-        builder.WriteRune(c)
-    }
-    return builder.String()
+	var builder strings.Builder
+	for i, c := range input {
+		if i != 0 && i%chunkSize == 0 {
+			builder.WriteString("\n")
+		}
+		builder.WriteRune(c)
+	}
+	return builder.String()
 }
 
 type ServerMode int
 
 const (
-    ServerModeUser ServerMode = iota
-    ServerModeServer
-    ServerModeProxy
-    ServerModePlugin
+	ServerModeUser ServerMode = iota
+	ServerModeServer
+	ServerModeProxy
+	ServerModePlugin
 )
 
 func main() {
-    db, err := sql.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
-    if err != nil {
-        log.Fatalf("Could not open database %v", err)
-    }
-    _ = db
-    ucloudPublicKey = readPublicKey()
-    if ucloudPublicKey == nil {
-        log.Fatalf("Unable to load certificate from UCloud. It was expected at /etc/ucloud/ucloud_crt.pem!")
-    }
+	if true {
+		config.Parse("/tmp/foo.yaml")
+		return
+	}
+	db, err := sql.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
+	if err != nil {
+		log.Fatalf("Could not open database %v", err)
+	}
+	_ = db
+	ucloudPublicKey = readPublicKey()
+	if ucloudPublicKey == nil {
+		log.Fatalf("Unable to load certificate from UCloud. It was expected at /etc/ucloud/ucloud_crt.pem!")
+	}
 
-    mode := ServerModePlugin
-    plugin := ""
-    switch os.Args[1] {
-    case "user":
-        mode = ServerModeUser
-    case "server":
-        mode = ServerModeServer
-    case "proxy":
-        mode = ServerModeProxy
-    default:
-        mode = ServerModePlugin
-        plugin = os.Args[1]
-    }
+	mode := ServerModePlugin
+	plugin := ""
+	switch os.Args[1] {
+	case "user":
+		mode = ServerModeUser
+	case "server":
+		mode = ServerModeServer
+	case "proxy":
+		mode = ServerModeProxy
+	default:
+		mode = ServerModePlugin
+		plugin = os.Args[1]
+	}
 
-    _ = mode
-    _ = plugin
+	_ = mode
+	_ = plugin
 
-    var listener net.Listener = nil
-    _ = listener
-    if mode == ServerModeServer {
-        lis, err := net.Listen("tcp", fmt.Sprintf(":%v", gateway.ServerClusterPort))
-        if err != nil {
-            log.Fatalf("Failed to start listener")
-        }
+	var listener net.Listener = nil
+	_ = listener
+	if mode == ServerModeServer {
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%v", gateway.ServerClusterPort))
+		if err != nil {
+			log.Fatalf("Failed to start listener")
+		}
 
-        gateway.Initialize(gateway.Config{
-            ListenAddress:   "0.0.0.0",
-            Port:            8889,
-            InitialClusters: nil,
-            InitialRoutes:   nil,
-        })
+		gateway.Initialize(gateway.Config{
+			ListenAddress:   "0.0.0.0",
+			Port:            8889,
+			InitialClusters: nil,
+			InitialRoutes:   nil,
+		})
 
-        gateway.Resume()
+		gateway.Resume()
 
-        listener = lis
-    } else if mode == ServerModeUser {
+		listener = lis
+	} else if mode == ServerModeUser {
 
-    }
+	}
 }

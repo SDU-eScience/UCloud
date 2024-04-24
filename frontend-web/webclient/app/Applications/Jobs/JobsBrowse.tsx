@@ -6,7 +6,6 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
 import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
-import {AppLogo, hashF} from "../AppToolLogo";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
@@ -15,7 +14,6 @@ import {useDispatch} from "react-redux";
 import AppRoutes from "@/Routes";
 import {Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {logoDataUrls} from "./LogoDataCache";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -172,7 +170,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     } else {
                         const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
                         const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                        browser.icons.renderIcon({
+                        ResourceBrowser.icons.renderIcon({
                             name: statusIconName,
                             width: 32,
                             height: 32,

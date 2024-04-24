@@ -1664,6 +1664,8 @@ const PanelClass = injectStyle("panel", k => `
         /* Required for flexible cards to ensure that they are not allowed to grow their height based on their 
            content */
         min-height: 100px; 
+        max-height: 1000px;
+
         
         display: flex;
         flex-direction: column;
@@ -1979,6 +1981,7 @@ const VisualizationStyle = injectStyle("visualization", k => `
         width: 100%;
         border-collapse: separate;
         border-spacing: 0;
+        border-color: var(--borderColor);
     }
     
     ${k} tr:nth-child(even) {
@@ -1991,22 +1994,30 @@ const VisualizationStyle = injectStyle("visualization", k => `
     
     ${k} tr > td:first-child,
     ${k} tr > th:first-child {
-        border-left: 2px solid var(--borderColor);
+        border-left: 1px solid var(--borderColor);
     }
 
     ${k} td, 
     ${k} th {
         padding: 0 8px;
-        border-right: 2px solid var(--borderColor);
+        border-right: 1px solid var(--borderColor);
     }
 
     ${k} tbody > tr:last-child > td {
-        border-bottom: 2px solid var(--borderColor);
+        border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} tr > th:first-child {
+        border-radius: 6px 0 0 0;
+    }
+
+    ${k} tr > th:last-child {
+        border-radius: 0 6px 0 0;
     }
 
     ${k} th {
         text-align: left;
-        border-top: 2px solid var(--borderColor);
+        border-top: 1px solid var(--borderColor);
         border-bottom: 2px solid var(--borderColor);
         position: sticky;
         top: 0;

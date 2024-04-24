@@ -246,6 +246,7 @@ interface ResourceBrowserListenerMap<T> {
 
     "fetchOperations": () => OperationOrGroup<T, unknown>[];
     "fetchOperationsCallback": () => unknown | null;
+    "fetchBrowserFeatures": () => ControlDescription[] | undefined;
 
     "validDropTarget": (entry: T) => boolean;
     "renderDropIndicator": (selectedEntries: T[], currentTarget: string | null) => void;
@@ -367,7 +368,7 @@ export class ResourceBrowser<T> {
     private entryBelowCursorTemporary: T | string | null = null;
     private entryBelowCursor: T | string | null = null;
 
-    icons: SvgCache = new SvgCache();
+    static icons: SvgCache = new SvgCache();
     private didPerformInitialOpen = false;
 
     // Filters
@@ -419,6 +420,8 @@ export class ResourceBrowser<T> {
     private readonly isModal: boolean;
     // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
     private readonly overrideDisabledKeyhandlers: boolean;
+
+    static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true" ?? false;
 
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
@@ -488,7 +491,7 @@ export class ResourceBrowser<T> {
                         <input class="location-bar">
                     </div>
                     <div style="flex-grow: 1;"></div>
-                    <input class="${InputClass} search-field" data-hidden>
+                    <div class="search-field-wrapper"><input class="${InputClass} search-field" data-hidden></div>
                     <img alt="search" class="search-icon">
                     <img alt="refresh" class="refresh-icon">
                 </div>
@@ -601,7 +604,7 @@ export class ResourceBrowser<T> {
             searchIcon.setAttribute("data-shown", "");
             searchIcon.src = placeholderImage;
             searchIcon.style.display = "block";
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: "heroMagnifyingGlass",
                 color: UTILITY_COLOR,
                 color2: UTILITY_COLOR,
@@ -674,7 +677,7 @@ export class ResourceBrowser<T> {
             icon.width = 24;
             icon.height = 24;
             icon.style.marginRight = "16px";
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: "heroArrowPath",
                 color: UTILITY_COLOR,
                 color2: UTILITY_COLOR,
@@ -774,7 +777,7 @@ export class ResourceBrowser<T> {
             }
 
             // Attempt to allow deselecting by clicking outside table
-            if (!ResourceBrowser.isAnyModalOpen) {
+            if (!ResourceBrowser.isAnyModalOpen && !this.isDragging()) {
                 this.clearSelected();
             }
             // Attempt to allow deselecting by clicking outside table
@@ -818,8 +821,13 @@ export class ResourceBrowser<T> {
                 // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
-            row.addEventListener("dblclick", () => {
+            row.addEventListener("dblclick", ev => {
                 this.onRowDoubleClicked(myIndex);
+                // Attempt to allow deselecting by clicking outside table
+                ev.preventDefault();
+                ev.stopImmediatePropagation();
+                ev.stopPropagation();
+                // Attempt to allow deselecting by clicking outside table END
             });
             row.addEventListener("mousemove", () => {
                 this.onRowMouseMove(myIndex);
@@ -863,17 +871,22 @@ export class ResourceBrowser<T> {
         });
         const path = this.initialPath;
         if (path !== undefined) {
-            addProjectListener(this.resourceName, project => {
+            const evaluateProjectStatus = (projectId?: string | null) => {
                 this.canConsumeResources = checkCanConsumeResources(
-                    project,
-                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}}
+                    projectId ?? null,
+                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}},
+
                 );
                 if (!this.canConsumeResources) {
                     this.renderCantConsumeResources();
                 }
+            };
 
-                this.open(path, true);
-            })
+            addProjectListener(this.resourceName, project => {
+                evaluateProjectStatus(project);
+            });
+
+            evaluateProjectStatus(Client.projectId);
         }
     }
 
@@ -986,7 +999,7 @@ export class ResourceBrowser<T> {
         this.sessionFilters.querySelectorAll<HTMLImageElement>("img").forEach((it, index) => {
             const filter = filters[index];
             if (!filter) return;
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: filter.icon,
                 color: "textPrimary",
                 color2: "textPrimary",
@@ -1173,6 +1186,7 @@ export class ResourceBrowser<T> {
             tagType: "div", style: {
                 width: "30px",
                 height: "30px",
+                minWidth: "30px",
                 backgroundSize: "contain",
                 marginRight: "8px",
                 display: "inline-block",
@@ -1230,11 +1244,11 @@ export class ResourceBrowser<T> {
 
     rerenderUtilityIcons() {
         const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
-        this.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+        ResourceBrowser.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
             .then(url => icon.src = url);
         if (this.features.search) {
             const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            this.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
+            ResourceBrowser.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
                 .then(url => searchIcon.src = url);
         }
     }
@@ -1358,7 +1372,7 @@ export class ResourceBrowser<T> {
                 // Set the icon
                 const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
                 element.append(icon);
-                this.icons.renderIcon({
+                ResourceBrowser.icons.renderIcon({
                     name: op.icon as IconName,
                     color: op.color as ThemeColor,
                     color2: "iconColor2",
@@ -1373,7 +1387,7 @@ export class ResourceBrowser<T> {
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("div");
-                    shortcutElem.className = ShortcutClass;
+                    shortcutElem.classList.add(ShortcutClass);
                     shortcutElem.style.marginLeft = "auto";
                     shortcutElem.append(shortcut);
                     element.append(shortcutElem);
@@ -1501,6 +1515,12 @@ export class ResourceBrowser<T> {
         if (callbacks === null) return;
 
         const operations = this.dispatchMessage("fetchOperations", fn => fn());
+
+        if (!useContextMenu && !this.isModal) {
+            const custom = this.dispatchMessage("fetchBrowserFeatures", f => f());
+            operations.unshift(controlsOperation(this.features, custom));
+        }
+
         if (operations.length === 0 || !this.canConsumeResources) {
             this.operations.innerHTML = "";
             return;
@@ -1536,7 +1556,7 @@ export class ResourceBrowser<T> {
             // Hack(Jonas): Very specific DriveBrowser fix, for Delete Drive coloring of Trash-icon.
             // The `errorContrast` is white. So kinda works for Dark Theme, not for Light Theme.
             if (inContextMenu && isOperation(op) && op.tag === DELETE_TAG && !op.confirm) contrastColor = op.color!;
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: op.icon as IconName,
                 color: contrastColor,
                 color2: contrastColor,
@@ -1630,6 +1650,7 @@ export class ResourceBrowser<T> {
                     for (const [index, item] of shortcutItems.entries()) {
                         const shortcutElement = document.createElement("div");
                         shortcutElement.className = ShortcutClass;
+                        if (!inContextMenu && ResourceBrowser.hideShortcuts) shortcutElement.classList.add("HideShortcuts");
                         if (index === 0) shortcutElement.style.marginLeft = "auto";
                         shortcutElement.innerText = item;
                         element.append(shortcutElement);
@@ -2355,6 +2376,10 @@ export class ResourceBrowser<T> {
         }
     }
 
+    private isDragging() {
+        return document.body.getAttribute("data-cursor") !== "grabbing";
+    }
+
     private onRowClicked(index: number, event: MouseEvent) {
         if (timestampUnixMs() < this.ignoreRowClicksUntil) return;
         if (index < 0 || index >= this.rows.length) return;
@@ -2612,13 +2637,18 @@ export class ResourceBrowser<T> {
                 ev.preventDefault();
                 ev.stopPropagation();
                 this.shortCuts[ev.code]();
+            } else if (ev.code === "KeyH") {
+                ResourceBrowser.hideShortcuts = !ResourceBrowser.hideShortcuts;
+                localStorage.setItem("hide-shortcuts", ResourceBrowser.hideShortcuts.toString());
+                this.renderOperations();
             } else {
                 this.dispatchMessage("unhandledShortcut", fn => fn(ev));
             }
         } else {
             // NOTE(Dan): Don't add printable keys to the switch statement here, as it will break the search
             // functionality. Instead, add it to the default case.
-            switch (ev.code) {
+            // NOTE(Jonas): ev.key instead of ev.code should handle things like NumpadEnter and Enter should work the same.
+            switch (ev.key) {
                 case "Escape": {
                     if (this.contextMenuHandlers.length) {
                         this.closeContextMenu();
@@ -2679,6 +2709,7 @@ export class ResourceBrowser<T> {
                         this.onContextMenuItemSelection();
                     } else {
                         const selected = this.isSelected;
+                        if (this.findSelectedEntries().length > 1) break;
                         for (let i = 0; i < selected.length; i++) {
                             if (selected[i] !== 0) {
                                 const entry = this.cachedData[this.currentPath][i];
@@ -2938,6 +2969,7 @@ export class ResourceBrowser<T> {
         startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
+        fetchBrowserFeatures: () => undefined,
         fetchFilters: () => [],
         searchHidden: () => {},
 
@@ -3097,7 +3129,6 @@ export class ResourceBrowser<T> {
             ${browserClass.dot} header .header-first-row {
                 display: flex;
                 align-items: center;
-                margin-top: 8px;
                 margin-bottom: 8px;
             }
 
@@ -3204,35 +3235,36 @@ export class ResourceBrowser<T> {
             }
 
             ${browserClass.dot} header input.search-field {
+                width: 100%;
+                height: 35px;
+                margin-left: 5px;
+            }
+
+            ${browserClass.dot} header div.search-field-wrapper {
                 position: relative;
                 right: -46px;
                 width: 400px;
-                height: 35px;
-                margin-left: 5px;
-                transition: transform .2s;
+                display: flex;
+                transition: width .2s;
             }
 
-            ${browserClass.dot} header input.search-field[data-hidden] {
-                transform: translate(calc(200px / 2), 0) scale(0, 1)
+            ${browserClass.dot} header div.search-field-wrapper > input.search-field[data-hidden] {
+                padding: 0;
             }
 
-            /* Note(Jonas): If showing search-field, resize navbar */
-            ${browserClass.dot}:has(header input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -308px;
-            }
-
-            ${browserClass.dot}:has(header[shows-dropdown] input.search-field[data-hidden]) .header-first-row .location {
-                margin-right: -256px;
-            }
-
-            ${browserClass.dot}:has(header input.search-field:not([data-hidden])) .header-first-row .location {
-                margin-right: -42px;
+            ${browserClass.dot} header .search-field-wrapper:has(> input.search-field[data-hidden]) {
+                width: 0;
             }
             
-            ${browserClass.dot} header input.search-field:not([data-hidden]) {
-                transform: translate(0, 0) scale(1);
+            /* If not hidden, make of for the relative position */
+            ${browserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
+                margin-left: -46px;
             }
-            
+
+            ${browserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
+                border: none;
+            }
+                        
             ${browserClass.dot} header > div > div > ul {
                 margin-top: 0px;
             }
@@ -3424,7 +3456,7 @@ export class ResourceBrowser<T> {
                 border: 1px solid #E2DDDD;
                 cursor: pointer;
                 background: var(--backgroundDefault);
-                box-shadow: 0 3px 6px rgba(0, 0, 0, 30%);
+                box-shadow: var(--defaultShadow);
                 width: 400px;
                 display: none;
                 overflow-y: auto;
@@ -3455,6 +3487,10 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .${ShortcutClass}, ${browserClass.dot} .ShortCutPlusSymbol {
                     display: none;
                 }
+            }
+
+            ${browserClass.dot} .HideShortcuts {
+                display: none;
             }
 
             ${browserClass.dot} .context-menu li[data-selected=true] {
@@ -3723,12 +3759,12 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        this.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
+        ResourceBrowser.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
         return c;
     }
 
     public setEmptyIcon(icon: IconName) {
-        this.icons.renderIcon({
+        ResourceBrowser.icons.renderIcon({
             name: icon,
             color: "primaryContrast",
             color2: "primaryContrast",
@@ -3829,7 +3865,7 @@ export class ResourceBrowser<T> {
         if (this.browseFilters["sortBy"] === filter) {
             wrapper.style.fontWeight = "bold";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
-            this.icons.renderIcon({
+            ResourceBrowser.icons.renderIcon({
                 name: this.browseFilters[SORT_DIRECTION] === DESC ? "heroArrowDown" : "heroArrowUp",
                 color: "textPrimary",
                 color2: "textPrimary",
@@ -3986,7 +4022,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
     const outer = div("");
     outer.className = "provider-icon"
-    outer.style.background = "var(--primaryMain)";
+    outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
@@ -4019,7 +4055,10 @@ export function checkIsWorkspaceAdmin(): boolean {
     return isAdminOrPI(project.status.myRole);
 }
 
-export function checkCanConsumeResources(projectId: string | null, callbacks: null | {api: {isCoreResource: boolean}}): boolean {
+export function checkCanConsumeResources(
+    projectId: string | null,
+    callbacks: null | {api: {isCoreResource: boolean}},
+): boolean {
     if (!projectId) return true;
     if (!callbacks) return true;
 
@@ -4184,6 +4223,7 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
                         <td>{c.description}</td>
                     </tr>}
                 </React.Fragment>)}
+                <Shortcut name="Hide shortcuts" alt keys={"H"} />
             </tbody>
         </table>
     </div>

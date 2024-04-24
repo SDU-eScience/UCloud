@@ -52,6 +52,7 @@ dependencies {
         ktor("server-default-headers")
         ktor("server-call-logging")
         ktor("server-caching-headers")
+        ktor("server-compression")
 
         ktor("websockets")
     }

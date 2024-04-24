@@ -34,7 +34,7 @@ export const FavoriteToggle: React.FunctionComponent<{
         cursor="pointer"
         name={favorite ? "starFilled" : "starEmpty"}
         mb="2px"
-        color={lightTheme ? "primaryMain" : "iconColor"}
+        color={favorite ? "favoriteColor" : "favoriteColorEmpty"}
         onClick={toggle}
     />
 }

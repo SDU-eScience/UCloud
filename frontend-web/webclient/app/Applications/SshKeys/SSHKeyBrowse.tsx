@@ -76,7 +76,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));
 
-                    browser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
+                    ResourceBrowser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name
@@ -92,7 +92,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0)
                                 e.reason.append("No SSH key found with active filters.")
-                            else e.reason.append("You has no SSH keys.");
+                            else e.reason.append("You have no SSH keys.");
                             break;
                         }
 
@@ -110,7 +110,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                     }
                 });
 
-                browser.icons.renderIcon({
+                ResourceBrowser.icons.renderIcon({
                     name: "key",
                     color: "iconColor",
                     color2: "iconColor",
