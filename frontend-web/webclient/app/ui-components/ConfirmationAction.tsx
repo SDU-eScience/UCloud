@@ -22,7 +22,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         -webkit-user-select: none;
         cursor: pointer;
         backface-visibility: hidden;
-        min-width: 250px;
+        min-width: 200px;
         background: var(--background, #f00);
         font-size: 16px;
         font-weight: 700;
