@@ -240,14 +240,14 @@ export function ContextSwitcher({managed}: {
 
                         {showMyWorkspace ? (
                             <div
-                                key={"My Workspace"}
+                                key={"My workspace"}
                                 style={{width: "100%"}}
                                 data-active={activeProject == null}
                                 className={BottomBorderedRow}
                                 onClick={() => {setActiveProject();}}
                             >
                                 <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={"starFilled"} />
-                                <Text fontSize="var(--breadText)">My Workspace</Text>
+                                <Text fontSize="var(--breadText)">My workspace</Text>
                             </div>
                         ) : null}
                         {filteredProjects.map(it =>
