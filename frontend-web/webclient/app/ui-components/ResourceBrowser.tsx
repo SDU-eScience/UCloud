@@ -2377,7 +2377,7 @@ export class ResourceBrowser<T> {
     }
 
     private isDragging() {
-        return document.body.getAttribute("data-cursor") !== "grabbing";
+        return document.body.getAttribute("data-cursor") === "grabbing";
     }
 
     private onRowClicked(index: number, event: MouseEvent) {
