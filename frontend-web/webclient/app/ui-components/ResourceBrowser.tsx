@@ -421,7 +421,7 @@ export class ResourceBrowser<T> {
     // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
     private readonly overrideDisabledKeyhandlers: boolean;
 
-    static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true" ?? false;
+    static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true";
 
     private allowEventListenerAction(): boolean {
         if (this.overrideDisabledKeyhandlers) return true;
