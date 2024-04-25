@@ -4048,7 +4048,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
 }
 
 export function checkIsWorkspaceAdmin(): boolean {
-    if (!Client.hasActiveProject) return true; // My Workspace.
+    if (!Client.hasActiveProject) return true; // My workspace.
     const projects = projectCache.retrieveFromCacheOnly("");
     if (!projects) return false;
     const project = projects.items.find(it => it.id === Client.projectId);

@@ -82,6 +82,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     } else {
                         browser.header.removeAttribute("data-has-filters");
                     }
+                    fetchSupport(p ?? undefined);
                     browser.reevaluateSize();
                     browser.rerender();
                 });
@@ -109,67 +110,68 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     permissions: {myself: []}
                 };
 
-                const supportPromise = supportByProvider.retrieve("", () => retrieveSupportV2(FileCollectionsApi));
-
-                supportPromise.then(res => {
-                    browser.renderOperations();
-
-                    const creatableProducts: ProductV2[] = [];
-                    for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product, support} of provider) {
-                            if (support.collection.usersCanCreate) {
-                                creatableProducts.push(supportV2ProductMatch(product, res));
+                function fetchSupport(projectId?: string) {
+                    supportByProvider.retrieve(projectId ?? "", () => retrieveSupportV2(FileCollectionsApi)).then(res => {
+                        const creatableProducts: ProductV2[] = [];
+                        for (const provider of Object.values(res.productsByProvider)) {
+                            for (const {product, support} of provider) {
+                                if (support.collection.usersCanCreate) {
+                                    creatableProducts.push(supportV2ProductMatch(product, res));
+                                }
                             }
                         }
-                    }
 
-                    const resourceCreator = resourceCreationWithProductSelector(
-                        browser,
-                        creatableProducts,
-                        dummyEntry,
-                        async product => {
-                            const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
-                            const productReference = {
-                                id: product.name,
-                                category: product.category.name,
-                                provider: product.category.provider
-                            };
+                        const resourceCreator = resourceCreationWithProductSelector(
+                            browser,
+                            creatableProducts,
+                            dummyEntry,
+                            async product => {
+                                const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
+                                const productReference = {
+                                    id: product.name,
+                                    category: product.category.name,
+                                    provider: product.category.provider
+                                };
 
-                            const driveBeingCreated = {
-                                ...dummyEntry,
-                                id: temporaryFakeId,
-                                specification: {
-                                    title: browser.renameValue,
-                                    product: productReference
-                                },
-                            } as FileCollection;
+                                const driveBeingCreated = {
+                                    ...dummyEntry,
+                                    id: temporaryFakeId,
+                                    specification: {
+                                        title: browser.renameValue,
+                                        product: productReference
+                                    },
+                                } as FileCollection;
 
-                            if (!browser.renameValue) return;
+                                if (!browser.renameValue) return;
 
-                            browser.insertEntryIntoCurrentPage(driveBeingCreated);
-                            browser.renderRows();
-                            browser.selectAndShow(it => it === driveBeingCreated);
-
-                            try {
-                                const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
-                                    product: productReference,
-                                    title: browser.renameValue
-                                })))).responses[0] as unknown as FindByStringId;
-
-                                driveBeingCreated.id = response.id;
+                                browser.insertEntryIntoCurrentPage(driveBeingCreated);
                                 browser.renderRows();
-                            } catch (e) {
-                                snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
-                                browser.refresh();
-                                return;
-                            }
-                        },
-                        "STORAGE"
-                    );
+                                browser.selectAndShow(it => it === driveBeingCreated);
 
-                    startCreation = resourceCreator.startCreation;
-                    setProductSelectorPortal(resourceCreator.portal);
-                });
+                                try {
+                                    const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
+                                        product: productReference,
+                                        title: browser.renameValue
+                                    })))).responses[0] as unknown as FindByStringId;
+
+                                    driveBeingCreated.id = response.id;
+                                    browser.renderRows();
+                                } catch (e) {
+                                    snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
+                                    browser.refresh();
+                                    return;
+                                }
+                            },
+                            "STORAGE"
+                        );
+
+                        startCreation = resourceCreator.startCreation;
+                        setProductSelectorPortal(resourceCreator.portal);
+                        browser.renderOperations();
+                    });
+                }
+
+                fetchSupport(Client.projectId);
 
                 // Operations
                 // =========================================================================================================
@@ -224,7 +226,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 });
 
                 browser.on("fetchOperationsCallback", () => {
-                    const cachedSupport = supportByProvider.retrieveFromCacheOnly("");
+                    const cachedSupport = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "");
                     const support = cachedSupport ?? {productsByProvider: {}};
                     const callbacks: ResourceBrowseCallbacks<FileCollection> = {
                         supportByProvider: support,
