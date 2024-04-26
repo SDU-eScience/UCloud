@@ -61,6 +61,10 @@ import {
 } from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {UpdatePlaceholdersEmailSettings, UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmailSettings";
+import {mail} from "@/UCloud";
+import retrieveEmailSettings = mail.retrieveEmailSettings;
+import toggleEmailSettings = mail.toggleEmailSettings;
 
 interface InsufficientFunds {
     why?: string;
@@ -89,7 +93,13 @@ const EstimatesContainerClass = injectStyle("estimates-container", k => `
 
 const PARAMETER_TYPE_FILTER = ["input_directory", "input_file", "ingress", "peer", "license_server", "network_ip"];
 
+const initialState: UserDetailsState = {
+    settings: defaultEmailSettings
+};
+
 export const Create: React.FunctionComponent = () => {
+    const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
+    const [jobEmailNotifications, setJobEmailNotifications] = useState<"never"|"start"|"ends"|"start_or_ends">("never");
     const navigate = useNavigate();
     const location = useLocation();
     const appName = getQueryParam(location.search, "app");
@@ -151,6 +161,77 @@ export const Create: React.FunctionComponent = () => {
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     // Note(Jonas): Should be safe to remove.
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
+
+    const retrieveEmailNotificationSettings = useCallback(async () => {
+        const emailSettings = await invokeCommand(
+            retrieveEmailSettings({}),
+            { defaultErrorHandler: false }
+        );
+
+        setEmailNotifications({
+            settings: emailSettings?.settings ?? defaultEmailSettings
+        });
+    }, []);
+
+    useEffect(() => {
+        const jobStarted = emailNotifications.settings.jobStarted
+        const jobStopped = emailNotifications.settings.jobStopped
+
+        if (jobStarted && jobStopped) {
+            setJobEmailNotifications("start_or_ends");
+        } else if (jobStarted && !jobStopped) {
+            setJobEmailNotifications("start");
+        } else if (!jobStarted && jobStopped) {
+            setJobEmailNotifications("ends");
+        } else {
+            setJobEmailNotifications("never");
+        }
+    }, [emailNotifications]);
+
+    useEffect(() => {
+        retrieveEmailNotificationSettings();
+    }, []);
+
+    const onChangeJobEmailNotification = useCallback(async (ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
+        const elem = ev.target as HTMLSelectElement;
+        const value = elem.value;
+        switch (value) {
+            case "never": {
+                emailNotifications.settings.jobStarted = false;
+                emailNotifications.settings.jobStopped = false;
+                break;
+            }
+            case "start": {
+                emailNotifications.settings.jobStarted = true;
+                emailNotifications.settings.jobStopped = false;
+                break;
+            }
+            case "ends": {
+                emailNotifications.settings.jobStarted = false;
+                emailNotifications.settings.jobStopped = true;
+                break;
+            }
+            case "start_or_ends": {
+                emailNotifications.settings.jobStarted = true;
+                emailNotifications.settings.jobStopped = true;
+                break;
+            }
+        }
+
+        setEmailNotifications(emailNotifications);
+
+        const wasSuccessful = await invokeCommand(toggleEmailSettings(bulkRequestOf({
+            settings: emailNotifications.settings
+        }))) !== null;
+
+        if (!wasSuccessful) {
+            snackbarStore.addFailure("Failed to update user email settings", false);
+        } else {
+            snackbarStore.addSuccess("User email settings updated", false);
+        }
+
+    }, [emailNotifications]);
 
     useUState(connectionState);
 
@@ -407,10 +488,11 @@ export const Create: React.FunctionComponent = () => {
 
                                     <Label mt={"16px"}>
                                         E-mail notification settings
-                                        <Select width={"300px"}>
-                                            <option value="never">Do not notify me</option>
-                                            <option value="start">Notify me when a job starts</option>
-                                            <option value="ends">Notify me when a job starts or stops</option>
+                                        <Select width={"300px"} onChange={onChangeJobEmailNotification} name={"job-email-notifications"}>
+                                            <option value="never" selected={jobEmailNotifications === "never"}>Do not notify me</option>
+                                            <option value="start" selected={jobEmailNotifications === "start"}>Notify me when a job starts</option>
+                                            <option value="ends" selected={jobEmailNotifications === "ends"}>Notify me when a job stops</option>
+                                            <option value="start_or_ends" selected={jobEmailNotifications === "start_or_ends"}>Notify me when a job starts or stops</option>
                                         </Select>
                                     </Label>
                                 </Flex>}
