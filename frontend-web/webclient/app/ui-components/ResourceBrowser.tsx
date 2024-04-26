@@ -777,7 +777,7 @@ export class ResourceBrowser<T> {
             }
 
             // Attempt to allow deselecting by clicking outside table
-            if (!ResourceBrowser.isAnyModalOpen && !this.isDragging()) {
+            if (!ResourceBrowser.isAnyModalOpen && document.body.getAttribute("data-no-select") !== "true") {
                 this.clearSelected();
             }
             // Attempt to allow deselecting by clicking outside table
@@ -2357,7 +2357,10 @@ export class ResourceBrowser<T> {
                 ev.stopPropagation()
                 ev.stopImmediatePropagation();
                 // Attempt to allow deselecting by clicking outside table
-                document.body.removeAttribute("data-no-select");
+                // Note(Jonas): Let outside handler check this value before removing it
+                window.setTimeout(() => {
+                    document.body.removeAttribute("data-no-select");
+                }, 0);
                 this.dragIndicator.style.display = "none";
                 document.removeEventListener("mousemove", dragMoveHandler);
                 document.removeEventListener("pointerup", dragReleaseHandler);
