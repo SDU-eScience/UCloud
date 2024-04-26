@@ -790,6 +790,11 @@ export class ResourceBrowser<T> {
             e.stopImmediatePropagation();
             if (this.contextMenuHandlers.length) this.closeContextMenu();
         });
+        
+        const clearEntryBelowCursor = () => {
+            this.entryBelowCursor = null;
+        }
+        document.addEventListener("mouseover", clearEntryBelowCursor);
         // Attempt to allow deselecting by clicking outside table
 
         window.addEventListener("resize", () => this.reevaluateSize());
@@ -2377,10 +2382,6 @@ export class ResourceBrowser<T> {
             document.addEventListener("mousemove", dragMoveHandler);
             document.addEventListener("pointerup", dragReleaseHandler);
         }
-    }
-
-    private isDragging() {
-        return document.body.getAttribute("data-cursor") === "grabbing";
     }
 
     private onRowClicked(index: number, event: MouseEvent) {
