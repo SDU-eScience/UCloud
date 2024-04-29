@@ -3422,7 +3422,7 @@ export class ResourceBrowser<T> {
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border: 0.2em solid var(--borderColor);
+                border: 0.2em solid var(--badgeColor);
                 border-radius: 100%;
             }
 

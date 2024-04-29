@@ -120,7 +120,7 @@ interface AdditionalResourceBrowserOpts {
     managesLocalProject?: boolean
 }
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -870,22 +870,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         const badge = div("");
                         badge.classList.add("sensitivity-badge");
-                        badge.classList.add(sensitivity.toString());
+                        badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString()[0];
                         badge.style.cursor = "pointer";
                         badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
-                            // TODO(Jonas): handle inherit better.
-                            if (value === SensitivityLevelMap.INHERIT) {
-                                browserRef.current?.refresh();
-                                return;
-                            }
-                            const b: HTMLDivElement | null = row.stat1.querySelector("div.sensitivity-badge");
-                            if (!b) return;
-                            b.classList.remove(sensitivity.toString());
-                            b.classList.add(value);
-                            b.innerText = value.toString()[0];
+                            browserRef.current?.refresh();
                         });
-
 
                         HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
