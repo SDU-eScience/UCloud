@@ -174,7 +174,10 @@ function createResumeableFolder(
                     return;
                 }
 
-                if (uploadSocket.readyState !== WebSocket.OPEN) return;
+                if (uploadSocket.readyState !== WebSocket.OPEN) {
+                    window.setTimeout(loop, 50);
+                    return;
+                };
 
                 if (!didInit) {
                     didInit = true;
@@ -198,7 +201,6 @@ function createResumeableFolder(
             async function sendDirectoryListing() {
                 const fileList = await upload.fileFetcher!();
                 if (fileList == null) {
-                    console.log("No more files!");
                     resolve(true);
                     upload.state = UploadState.DONE;
                     uploadSocket.close();
@@ -315,7 +317,6 @@ function createResumeableFolder(
 
             uploadSocket.addEventListener("close", async (event) => {
                 if (!upload.paused) {
-                    upload.filesCompleted = upload.filesDiscovered;
                     localStorage.removeItem(createLocalStorageFolderUploadKey(folderPath))
                 }
                 resolve(true);
@@ -338,34 +339,40 @@ function createResumeableFolder(
 
             const [theFile, fileId] = entry;
 
-            awaiting[theFile.fullPath] = 0;
-            const reader = new ChunkedFileReader(theFile.fileObject);
-            delete awaiting[theFile.fullPath];
-            startedUploads++;
+            try {
+                awaiting[theFile.fullPath] = 0;
+                const reader = new ChunkedFileReader(theFile.fileObject);
+                delete awaiting[theFile.fullPath];
+                startedUploads++;
 
-            if (theFile.size === 0) {
-                console.log("Sending empty file", theFile);
-                const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
-                const message = concatArrayBuffers(meta, new ArrayBuffer(0));
-                sent[theFile.fullPath] = 0;
-                await sendWsChunk(uploadSocket, message)
-            } else {
-                while (!reader.isEof() && !upload.terminationRequested) {
-                    const [message, chunkSize] = await constructUploadChunk(reader, fileId);
-                    await sendWsChunk(uploadSocket, message);
-                    sent[theFile.fullPath] = (sent[theFile.fullPath] ?? 0) + chunkSize;
+                if (theFile.size === 0) {
+                    const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
+                    const message = concatArrayBuffers(meta, new ArrayBuffer(0));
+                    sent[theFile.fullPath] = 0;
+                    await sendWsChunk(uploadSocket, message)
+                } else {
+                    while (!reader.isEof() && !upload.terminationRequested) {
+                        const [message, chunkSize] = await constructUploadChunk(reader, fileId);
+                        await sendWsChunk(uploadSocket, message);
+                        sent[theFile.fullPath] = (sent[theFile.fullPath] ?? 0) + chunkSize;
 
-                    dataSent += chunkSize;
+                        dataSent += chunkSize;
+                    }
                 }
+            } catch (e) {
+                snackbarStore.addFailure(`Error occurred while uploading file ${theFile.fullPath}. Content might be corrupt or missing.`, false);
+                const rawBuffer = new ArrayBuffer(5);
+                const buffer = new DataView(rawBuffer);
+                buffer.setInt8(0, FolderUploadMessageType.SKIP);
+                buffer.setInt32(1, fileId, false);
+                const view = new Uint8Array(rawBuffer, 0, 5);
+                uploadSocket.send(view);
             }
 
             if (upload.terminationRequested) {
                 if (!upload.paused) {
-                } else {
                     if (uploadSocket.readyState === WebSocket.OPEN) {
                         uploadSocket.close();
-                        upload.filesCompleted = 0;
-                        upload.resume = createResumeableFolder(upload, strategy, folderPath);
                     }
                 }
             }
@@ -415,7 +422,6 @@ function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () 
         onComplete();
     } else {
         window.setTimeout(() => {
-            console.log("Waiting...", connection.bufferedAmount);
             _sendWsChunk(connection, chunk, onComplete)
         }, 50);
     }
@@ -686,14 +692,15 @@ const Uploader: React.FunctionComponent = () => {
         e.preventDefault();
         e.stopPropagation();
 
-        let allUploads: Upload[] = [];
-        const events = filesFromDropOrSelectEvent(e);
+        let allUploads: Upload[] = uploads;
+        const events = await filesFromDropOrSelectEvent(e);
         for (const u of events) {
             switch (u.type) {
                 case "single": {
+                    const theFile = await u.file;
                     allUploads.push({
-                        name: u.file.name,
-                        row: u.file,
+                        name: theFile.name,
+                        row: theFile,
                         progressInBytes: 0,
                         filesCompleted: 0,
                         filesDiscovered: 1,
@@ -792,7 +799,7 @@ const Uploader: React.FunctionComponent = () => {
     );
 
     if (uploadTimings.timeRemaining !== 0) {
-        uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining, 0)}`;
+        uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
 
     const uploadFilePaths = uploads.map(it => it.name);
@@ -1003,7 +1010,7 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
     const [hoverPause, setHoverPause] = React.useState(false);
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const paused = upload.paused;
-    const showPause = hoverPause && !paused;
+    const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;
 
@@ -1027,19 +1034,12 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
                     </Text>
                     <Box mr="8px"/>
                     {inProgress ? <>
-                            {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                                               onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                                               color="primaryMain"/> : null}
-                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                                                onMouseEnter={() => setHoverPause(true)}/> : null}
+                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
                             <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
                                   onClick={() => callbacks.stopUploads([upload])}/>
                         </>
                         :
                         <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                                            onClick={() => callbacks.resumeUploads([upload])}
-                                            color="primaryMain"/> : null}
                             <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                                 callbacks.clearUploads([upload]);
                                 const fullFilePath = upload.targetPath + "/" + upload.name;
