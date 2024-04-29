@@ -89,14 +89,14 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     const width = opts?.tooltipContentWidth ?? 200;
     const contentWrapper = document.getElementById(tooltipElementID);
     if (!contentWrapper) return trigger;
-    contentWrapper.replaceChildren(tooltip);
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
     contentWrapper.style.display = "block";    
-
+    
     function onHover(ev: MouseEvent) {
         if (!contentWrapper) return; 
+        contentWrapper.replaceChildren(tooltip);
         contentWrapper.classList.add(TooltipVisible);
         const triggerRect = trigger.getBoundingClientRect();
         const expectedLeft = triggerRect.x + triggerRect.width / 2 - width / 2;
