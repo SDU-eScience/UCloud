@@ -96,8 +96,6 @@ class NonDeltaChargeTest {
             AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 2000L, 5000L),
         )
 
-        makeGraphFile(this, "nondelta")
-
         success = runCatching {
             accounting.sendRequest(
                 AccountingRequest.Charge(
@@ -109,9 +107,6 @@ class NonDeltaChargeTest {
                 )
             )
         }.isSuccess
-
-
-        makeGraphFile(this, "lastcharge")
 
         wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
 
