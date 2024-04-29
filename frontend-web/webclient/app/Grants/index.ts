@@ -303,6 +303,6 @@ export function stateToIconAndColor(state: State): { icon: IconName, color: Them
         case State.CLOSED:
             return { icon: "heroXMark", color: "errorMain" };
         case State.IN_PROGRESS:
-            return { icon: "heroMinus", color: "secondaryMain" };
+            return { icon: "heroMinus", color: "primaryMain" };
     }
 }
