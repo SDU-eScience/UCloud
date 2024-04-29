@@ -74,14 +74,15 @@ services:
   ssh:
     enabled: true
     installKeys: true
-    hostname: frontend.example.com
-    port: 22
+    host:
+      address: frontend.example.com
+      port: 22
 
   licenses:
     enabled: false
 
   slurm:
-    accountManagment:
+    accountManagement:
       type: Scripted
       walletUpdated: "/opt/ucloud/on-compute-wallet-updated"
       fetchUsage: "/opt/ucloud/on-compute-wallet-updated"

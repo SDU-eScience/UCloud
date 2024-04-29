@@ -326,6 +326,13 @@ export const Create: React.FunctionComponent = () => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network");
             injectResources(newSpace, resources, "network");
         }
+
+        folders.setErrors({});
+        ingress.setErrors({});
+        networks.setErrors({});
+        peers.setErrors({});
+        setErrors({});
+        setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
