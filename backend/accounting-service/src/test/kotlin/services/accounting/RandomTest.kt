@@ -24,13 +24,6 @@ suspend fun makeGraphFile(context: TestContext, filename: String? = null) {
 
 class RandomTest {
 
-    private suspend fun randomRetire(numberOfAllocationsToRetire: Int) {
-        for (i in 0..numberOfAllocationsToRetire) {
-            val allocationId = (1..allocations.maxOf { it.key }).random()
-            allocations[allocationId]!!.retired = true
-        }
-    }
-
     private suspend fun randomCharge(walletId: Int, maxAmount: Long, repetitions: Int, context: TestContext, isDelta: Boolean): Long {
         var total = 0L
         for (i in 0..repetitions) {
