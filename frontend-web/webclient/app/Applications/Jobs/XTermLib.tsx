@@ -84,7 +84,7 @@ export function appendToXterm(term: Terminal, textToAppend: string): void {
 function getTheme(): ITheme {
     if (!isLightThemeStored()) {
         return {
-            background: "#282c2f",
+            background: "#2a313b",
             selectionForeground: "#44475a",
             foreground: "#f8f8f2",
             cyan: "#8be9fd",
@@ -106,7 +106,7 @@ function getTheme(): ITheme {
         };
     } else {
         return {
-            background: "#f8f8f9",
+            background: "#fff",
             selectionForeground: "#d6d6d6",
             foreground: "#4d4d4c",
             red: "#c82829",
