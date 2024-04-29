@@ -11,7 +11,7 @@ import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-interface UserDetailsState {
+export interface UserDetailsState {
     settings: EmailSettings
 }
 
@@ -62,7 +62,7 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
-type UpdatePlaceholdersEmailSettings = PayloadAction<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
+export type UpdatePlaceholdersEmailSettings = PayloadAction<"UpdatePlaceholdersEmailSettings", UserDetailsState>;
 
 const reducer = (state: UserDetailsState, action: UpdatePlaceholdersEmailSettings): UserDetailsState => {
     switch (action.type) {
