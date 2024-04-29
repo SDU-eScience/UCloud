@@ -210,7 +210,7 @@ export async function filesFromDropOrSelectEvent(event): Promise<DropEvent[]> {
                                 break;
                             }
                         }
-                        result = [...result, ...batch];
+                        result.push(...batch);
                     }
                     return result;
                 }
