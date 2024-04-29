@@ -15,7 +15,13 @@ import {
 } from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
-    displayErrorMessageOrDefault, doNothing, inDevEnvironment, onDevSite, prettierString, removeTrailingSlash
+    displayErrorMessageOrDefault,
+    doNothing,
+    inDevEnvironment,
+    onDevSite,
+    prettierString,
+    removeTrailingSlash,
+    stopPropagation
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
@@ -79,8 +85,6 @@ export function normalizeDownloadEndpoint(endpoint: string): string {
         return e + "?" + queryParameter;
     }
 }
-
-
 
 export interface ExtraFileCallbacks {
     collection?: FileCollection;
@@ -913,8 +917,6 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invok
                     }
                 }
 
-                onUpdated(value as SensitivityLevelMap);
-
                 await invokeCommand(
                     metadataDocumentApi.create(bulkRequestOf({
                         fileId: file.id,
@@ -929,6 +931,8 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invok
                     })),
                     {defaultErrorHandler: false}
                 );
+
+                onUpdated(value as SensitivityLevelMap);
             }
 
             dialogStore.success();
@@ -953,6 +957,7 @@ function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invok
             width="100%"
             rows={4}
             placeholder="Reason for sensitivity change..."
+            onKeyDown={stopPropagation}
         />
         <Spacer
             mt="12px"
@@ -1219,6 +1224,7 @@ const HEIGHT = "calc(100vh - 30px);"
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: ${MAX_HEIGHT};
     width: 100%;
+    margin: 32px;
 `);
 
 const Audio = injectStyleSimple("preview-audio", `

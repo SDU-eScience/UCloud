@@ -92,7 +92,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     {name: "Drive name", sortById: "title"},
                     {name: "", columnWidth: 0},
                     {name: "Created by", sortById: "createdBy", columnWidth: 150},
-                    {name: "Created at", sortById: "createdAt", columnWidth: 150},
+                    {name: "Created at", sortById: "createdAt", columnWidth: 160},
                 ]);
 
                 // Load products and initialize dependencies
