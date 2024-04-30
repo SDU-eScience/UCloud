@@ -836,7 +836,7 @@ function SecondarySidebar({
 }
 
 function AppLogo({name}: {name: string}): JSX.Element {
-    return <SafeLogo size="16px" name={name} type="APPLICATION" forceBackground />;
+    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
 }
 
 function SidebarSectionEmptyHeader(): React.JSX.Element {
