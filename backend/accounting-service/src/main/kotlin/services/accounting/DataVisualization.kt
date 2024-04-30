@@ -7,6 +7,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.days
 
 class DataVisualization(
@@ -151,23 +154,27 @@ class DataVisualization(
                 }
             }
 
-            run {
-                // Usage over time
-                val rows = session.sendPreparedStatement(
-                    {
-                        setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                            w.allocationGroups.map { it.group.id }
-                        })
+            runBlocking {
+                val usageOverTime = launch {
+                    // Usage over time
+                    val rows = session.sendPreparedStatement(
+                        {
+                            setParameter("allocation_group_ids", allWallets.flatMap { w ->
+                                w.allocationGroups.map { it.group.id }
+                            })
 
-                        setParameter("start", request.start)
-                        setParameter("end", request.end)
-                    },
-                    """
+                            setParameter("start", request.start)
+                            setParameter("end", request.end)
+                        },
+                        """
                         select distinct 
                             w.product_category, 
                             case 
                                 when au.floating_point = true then s.tree_usage / 1000000.0
-                                when au.floating_point = false then s.tree_usage::double precision
+                                when au.floating_point = false and pc.accounting_frequency = 'ONCE' then s.tree_usage::double precision                       
+                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then s.tree_usage::double precision / 60.0
+                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then s.tree_usage::double precision / 60.0 / 60.0
+                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
                             end tusage, 
                             s.quota, 
                             provider.timestamp_to_unix(s.sampled_at)::int8
@@ -179,53 +186,52 @@ class DataVisualization(
                             join accounting.product_categories pc on w.product_category = pc.id 
                             join accounting.accounting_units au on pc.accounting_unit = au.id
                         where
-                            alloc.id = some(:allocation_group_ids::int8[])
+                            ag.id = some(:allocation_group_ids::int8[])
                             and s.sampled_at >= to_timestamp(:start / 1000.0)
                             and s.sampled_at <= to_timestamp(:end / 1000.0)
                         order by w.product_category, provider.timestamp_to_unix(s.sampled_at)::int8;
                     """
-                ).rows
+                    ).rows
 
-                var currentProductCategory = -1L
+                    var currentProductCategory = -1L
 
-                var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
-                fun flushChart() {
-                    if (currentProductCategory != -1L) {
-                        usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
-
-                        dataPoints = ArrayList()
-                    }
-                }
-
-                for (row in rows) {
-                    val allocCategory = row.getLong(0)!!
-                    val usage = row.getDouble(1)!!
-                    val quota = row.getLong(2)!!
-                    val timestamp = row.getLong(3)!!
-
-                    if (currentProductCategory != allocCategory) {
-                        flushChart() // no-op if currentProductCategory = -1L
-                        currentProductCategory = allocCategory
+                    var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                    fun flushChart() {
+                        if (currentProductCategory != -1L) {
+                            usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
+                            dataPoints = ArrayList()
+                        }
                     }
 
-                    dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                    for (row in rows) {
+                        val allocCategory = row.getLong(0)!!
+                        val usage = row.getDouble(1)!!
+                        val quota = row.getLong(2)!!
+                        val timestamp = row.getLong(3)!!
+
+                        if (currentProductCategory != allocCategory) {
+                            flushChart() // no-op if currentProductCategory = -1L
+                            currentProductCategory = allocCategory
+                        }
+
+                        dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                    }
+                    flushChart()
                 }
-                flushChart()
-            }
 
-            run {
-                // Breakdown by project
-                db.withSession { session ->
-                    val rows = session.sendPreparedStatement(
-                        {
-                            setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                                w.allocationGroups.map { it.group.id }
-                            })
+                val breakDownByProject = launch {
+                    // Breakdown by project
+                    db.withSession { session ->
+                        val rows = session.sendPreparedStatement(
+                            {
+                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
+                                    w.allocationGroups.map { it.group.id }
+                                })
 
-                            setParameter("start", request.start)
-                            setParameter("end", request.end)
-                        },
-                        """
+                                setParameter("start", request.start)
+                                setParameter("end", request.end)
+                            },
+                            """
                             with
                                 project_wallets as (
                                     select wal.id
@@ -247,6 +253,7 @@ class DataVisualization(
                                         accounting.wallet_allocations_v2 alloc on child.id = alloc.associated_allocation_group join
                                         accounting.wallets_v2 wal on child.associated_wallet = wal.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
+                                    order by wal.id
                                 ),
                                 data_timestamps as (
                                     select
@@ -287,7 +294,10 @@ class DataVisualization(
                                 coalesce(p.title, wo.username),
                                 case 
                                     when au.floating_point = true then u.usage / 1000000.0
-                                    when au.floating_point = false then u.usage::double precision
+                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision                       
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.usage::double precision / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.usage::double precision / 60.0 / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0 
                                 end tusage
                             from
                                 with_usage u
@@ -298,45 +308,46 @@ class DataVisualization(
                                 left join project.projects p on wo.project_id = p.id 
                             order by product_category;
                         """,
-                    ).rows
+                        ).rows
+                        var currentCategory = -1L
+                        var dataPoints = ArrayList<BreakdownByProjectPointAPI>()
+                        fun flushChart() {
+                            if (currentCategory != -1L) {
+                                breakdownByProjectCharts[currentCategory] = BreakdownByProjectAPI(
+                                    data = dataPoints
+                                )
 
-
-
-                    var currentCategory = -1L
-                    var dataPoints = ArrayList<BreakdownByProjectPointAPI>()
-                    fun flushChart() {
-                        if (currentCategory != -1L) {
-                            breakdownByProjectCharts[currentCategory] = BreakdownByProjectAPI(
-                                data = dataPoints
-                            )
-
-                            dataPoints = ArrayList()
-                        }
-                    }
-
-                    for (row in rows) {
-                        val categoryId = row.getLong(0)!!
-                        val projectId = row.getString(1)
-                        val workspaceTitle = row.getString(2)!!
-                        val usage = row.getDouble(3)!!
-
-                        if (categoryId != currentCategory) {
-                            flushChart()
-                            currentCategory = categoryId
+                                dataPoints = ArrayList()
+                            }
                         }
 
-                        dataPoints.add(
-                            BreakdownByProjectPointAPI(
-                                title = workspaceTitle,
-                                projectId = projectId,
-                                usage = usage,
+                        for (row in rows) {
+                            val categoryId = row.getLong(0)!!
+                            val projectId = row.getString(1)
+                            val workspaceTitle = row.getString(2)!!
+                            val usage = row.getDouble(3)!!
+
+                            if (categoryId != currentCategory) {
+                                flushChart()
+                                currentCategory = categoryId
+                            }
+
+                            dataPoints.add(
+                                BreakdownByProjectPointAPI(
+                                    title = workspaceTitle,
+                                    projectId = projectId,
+                                    usage = usage,
+                                )
                             )
-                        )
+                        }
+                        flushChart()
                     }
-                    flushChart()
                 }
+
+                joinAll(usageOverTime, breakDownByProject)
             }
         }
+
 
         return assembleResult()
     }
