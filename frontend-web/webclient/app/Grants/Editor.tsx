@@ -1084,11 +1084,22 @@ const style = injectStyle("grant-editor", k => `
     
     /* section and form styling */
     /* -------------------------------------------------------------------------------------------------------------- */
+    
     ${k} .project-info, ${k} .select-resources, ${k} .application {
         display: grid;
         grid-template-columns: 450px 550px;
         row-gap: 30px;
     }
+    
+@media screen and (max-width: 1120px) {
+    ${k} .application {
+        display: block;
+    }
+    
+    ${k} .application > .form-body {
+        margin-bottom: 16px;
+    }
+}
     
     ${k}.is-editing .project-info, ${k} .select-resources, ${k} .application {
         row-gap: 30px;
