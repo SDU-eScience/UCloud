@@ -17,7 +17,6 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation,
     ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -26,7 +25,6 @@ import FilesApi, {
     FileSensitivityNamespace,
     FileSensitivityVersion,
     isSensitivitySupported,
-    SensitivityLevelMap,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -39,7 +37,6 @@ import {
     extensionFromPath,
     extensionType,
     extractErrorMessage,
-    isLightThemeStored,
     randomUUID,
     timestampUnixMs
 } from "@/UtilityFunctions";
