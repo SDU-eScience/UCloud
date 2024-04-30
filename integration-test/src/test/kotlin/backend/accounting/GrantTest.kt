@@ -53,9 +53,9 @@ class GrantTest : IntegrationTest() {
             class Out(
                 val grantApplication: GrantApplication,
                 val projectsOfUser: List<UserProjectSummary>,
-                val walletsOfUser: List<Wallet>,
+                val walletsOfUser: List<WalletV2>,
                 val childProjectsOfGrantGiver: List<MemberInProject>,
-                val walletsOfGrantGiver: List<Wallet>,
+                val walletsOfGrantGiver: List<WalletV2>,
             )
 
             test<In, Out>("Grant applications, expected flow") {
@@ -79,28 +79,24 @@ class GrantTest : IntegrationTest() {
                         )
                     }
 
-                    val walletAllocations = Wallets.browse.call(
-                        WalletBrowseRequest(),
+                    val walletAllocations = AccountingV2.browseWallets.call(
+                        AccountingV2.BrowseWallets.Request(),
                         createdProject.piClient.withProject(createdProject.projectId)
                     ).orThrow()
 
                     val requestedResources = input.resourcesRequested.map { requested ->
                         val alloc = walletAllocations.items.find {
-                            it.paysFor == ProductCategoryId(
-                                requested.category,
-                                requested.provider
-                            )
+                            it.paysFor.name == requested.category
                         }
                         GrantApplication.AllocationRequest(
                             requested.category,
                             requested.provider,
                             createdProject.projectId,
                             requested.balance,
-                            period = GrantApplication.Period(
+                            GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + 1_000_000
-                            ),
-                            sourceAllocation = alloc?.allocations?.singleOrNull()?.id?.toLong()
+                            )
                         )
                     }
 
@@ -348,8 +344,8 @@ class GrantTest : IntegrationTest() {
                         evilUser.client
                     ).assertUserError()
 
-                    val wallets = Wallets.retrieveWalletsInternal.call(
-                        WalletsInternalRetrieveRequest(
+                    val wallets = AccountingV2.browseWalletsInternal.call(
+                        AccountingV2.BrowseWalletsInternal.Request(
                             WalletOwner.User(createdProject.projectId)
                         ),
                         adminClient
@@ -357,9 +353,8 @@ class GrantTest : IntegrationTest() {
 
                     //setting source allocations
                     val withAllocations = requestedResources.map { request ->
-                        val wallet =
-                            wallets.wallets.find { it.paysFor.name == request.category && it.paysFor.provider == request.provider }
-                        request.copy(sourceAllocation = wallet?.allocations?.first()?.id?.toLong())
+                        //wallets.items.find { it.paysFor.name == request.category && it.paysFor.provider == request.provider }
+                        request
                     }
 
                     GrantsV2.submitRevision.call(
@@ -428,8 +423,8 @@ class GrantTest : IntegrationTest() {
                         is GrantApplication.Recipient.ExistingProject, is GrantApplication.Recipient.NewProject -> {
                             val project = userProjects.singleOrNull()?.projectId
                             if (project == null) emptyList()
-                            else Wallets.retrieveWalletsInternal.call(
-                                WalletsInternalRetrieveRequest(
+                            else AccountingV2.browseWalletsInternal.call(
+                                AccountingV2.BrowseWalletsInternal.Request(
                                     WalletOwner.Project(project)
                                 ),
                                 adminClient
@@ -437,20 +432,20 @@ class GrantTest : IntegrationTest() {
                         }
 
                         is GrantApplication.Recipient.PersonalWorkspace -> {
-                            Wallets.retrieveWalletsInternal.call(
-                                WalletsInternalRetrieveRequest(
+                            AccountingV2.browseWalletsInternal.call(
+                                AccountingV2.BrowseWalletsInternal.Request(
                                     WalletOwner.User(normalUser.username),
                                 ),
                                 adminClient
                             ).orThrow().wallets
                         }
                     }
-                    val grantWallets = Wallets.retrieveWalletsInternal.call(
-                        WalletsInternalRetrieveRequest(
-                            WalletOwner.Project(createdProject.projectId)
+                    val grantWallets = AccountingV2.browseWallets.call(
+                        AccountingV2.BrowseWallets.Request(
+                            // WalletOwner.Project(createdProject.projectId)
                         ),
                         adminClient
-                    ).orThrow().wallets
+                    ).orThrow().items
 
                     Out(
                         outputApplication,
@@ -532,7 +527,7 @@ class GrantTest : IntegrationTest() {
                                 val expectedBalance = resolvedRequest.balance
                                 assertThatPropertyEquals(
                                     wallet,
-                                    { it.allocations.sumOf { it.balance } },
+                                    { it.totalAllocated },
                                     expectedBalance
                                 )
                             }
