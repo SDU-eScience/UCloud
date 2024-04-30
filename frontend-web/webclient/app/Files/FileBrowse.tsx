@@ -17,7 +17,6 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation,
     ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -26,7 +25,6 @@ import FilesApi, {
     FileSensitivityNamespace,
     FileSensitivityVersion,
     isSensitivitySupported,
-    SensitivityLevelMap,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -39,7 +37,6 @@ import {
     extensionFromPath,
     extensionType,
     extractErrorMessage,
-    isLightThemeStored,
     randomUUID,
     timestampUnixMs
 } from "@/UtilityFunctions";
@@ -948,7 +945,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
-                        `${collection.specification.title} (${components[0]})` :
+                        collection.specification.title :
                         components[0];
 
                     let builder = "";
@@ -1059,7 +1056,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         }
                     }
-                    const collectionName = collection ? `${collection.specification.title} (${collectionId})` : collectionId;
+                    const collectionName = collection ? collection.specification.title : collectionId;
                     const remainingPath = path.substring(endOfFirstComponent);
 
                     return {
@@ -1146,32 +1143,32 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 ...opts?.additionalFilters
                             })
                         )
-                        .then(result => {
-                            browser.registerPage(result, path, true);
-                            return false;
-                        }).catch(err => {
-                            // TODO(Dan): This partially contains logic which can be re-used.
-                            const statusCode = err["request"]?.["status"] ?? 500;
-                            const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
-                            const errorWhy: string | null = err["response"]?.["why"]?.toString() ?? null;
+                            .then(result => {
+                                browser.registerPage(result, path, true);
+                                return false;
+                            }).catch(err => {
+                                // TODO(Dan): This partially contains logic which can be re-used.
+                                const statusCode = err["request"]?.["status"] ?? 500;
+                                const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
+                                const errorWhy: string | null = err["response"]?.["why"]?.toString() ?? null;
 
-                            let tag: EmptyReasonTag;
-                            if (errorCode === "MAINTENANCE") {
-                                tag = EmptyReasonTag.UNABLE_TO_FULFILL;
-                            } else if (statusCode < 500) {
-                                tag = EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS;
-                            } else {
-                                tag = EmptyReasonTag.UNABLE_TO_FULFILL;
-                            }
+                                let tag: EmptyReasonTag;
+                                if (errorCode === "MAINTENANCE") {
+                                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                                } else if (statusCode < 500) {
+                                    tag = EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS;
+                                } else {
+                                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                                }
 
-                            browser.emptyReasons[path] = {
-                                tag,
-                                information: errorWhy ?? undefined
-                            };
+                                browser.emptyReasons[path] = {
+                                    tag,
+                                    information: errorWhy ?? undefined
+                                };
 
-                            return false;
-                        })
-                        .finally(() => delete inflightRequests[path]);
+                                return false;
+                            })
+                            .finally(() => delete inflightRequests[path]);
 
                     inflightRequests[path] = promise;
                     return promise;

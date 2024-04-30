@@ -64,22 +64,17 @@ export const IconClass = injectStyle("icon", k => `
     }
 `);
 
-const Icon: React.FunctionComponent<IconBaseProps> = props => {
+const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true, ...props}) => {
     const style: CSSProperties = unbox(props);
     if (props.color) style["--color"] = `var(--${props.color})`;
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
 
-    return <IconBase {...props} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
+    return <IconBase {...props} size={size} squared={squared} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
 };
 
 Icon.displayName = "Icon";
-
-Icon.defaultProps = {
-    size: 18,
-    squared: true,
-};
 
 // Use to see every available icon in debugging.
 export const EveryIcon = (): JSX.Element => (

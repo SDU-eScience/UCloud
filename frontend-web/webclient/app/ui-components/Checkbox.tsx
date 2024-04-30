@@ -7,8 +7,7 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
     handleWrapperClick?: () => void;
 }
 
-function Checkbox(props: CheckboxProps): JSX.Element {
-    const {disabled, size} = props;
+function Checkbox({size = 20, disabled = false, ...props}: CheckboxProps): JSX.Element {
     const checkboxProps = {...props};
     delete checkboxProps["handleWrapperClick"];
     return (
@@ -55,10 +54,5 @@ const CheckboxClass = injectStyle("checkbox", k => `
 `);
 
 Checkbox.displayName = "Checkbox";
-
-Checkbox.defaultProps = {
-    size: 20,
-    disabled: false
-};
 
 export default Checkbox;

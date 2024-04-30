@@ -216,12 +216,16 @@ export function ContextSwitcher({managed}: {
                             className={filterInputClass}
                             placeholder="Search for a workspace..."
                             defaultValue={filter}
+                            onClick={stopPropagationAndPreventDefault}
+                            enterKeyHint="enter"
                             onKeyDown={e => {
-                                if (["Escape"].includes(e.key) && e.target["value"]) {
+                                // Note(Jonas): Not reached for some reason?
+                                if (["Escape"].includes(e.code) && e.target["value"]) {
                                     setTitleFilter("");
                                     e.target["value"] = "";
-                                    e.stopPropagation();
                                 }
+                                // Note(Jonas): Stop keypropagation like `Delete`.
+                                e.stopPropagation();
                             }}
                             onKeyUp={e => {
                                 e.stopPropagation();

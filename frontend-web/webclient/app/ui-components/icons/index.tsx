@@ -1620,7 +1620,7 @@ export const ftFolder = (props: any) => (
       strokeLinejoin: "round",
       strokeMiterlimit: 1.41421,
     }}
-    viewBox="0 0 25 23"
+    viewBox="0 0 24 22"
     fill="currentcolor"
     {...props}
   >
@@ -6382,7 +6382,7 @@ export const key = (props: any) => (
           opacity: 1,
           fill: "none",
           fillOpacity: 1,
-          stroke: "currentcolor",
+          stroke: "#52647c",
           strokeWidth: 0.9328779,
           strokeLinecap: "round",
           strokeLinejoin: "round",
@@ -6396,7 +6396,7 @@ export const key = (props: any) => (
         d="M22.264 122.376h4.55v.929h-4.55z"
         style={{
           opacity: 1,
-          fill: "currentcolor",
+          fill: "#52647c",
           fillOpacity: 1,
           stroke: "none",
           strokeWidth: 9.66651249,
@@ -6413,7 +6413,7 @@ export const key = (props: any) => (
         d="M122.737-23.715h1.422v.929h-1.422zM123.205-25.021h.607v.929h-.607z"
         style={{
           opacity: 1,
-          fill: "currentcolor",
+          fill: "#52647c",
           fillOpacity: 1,
           stroke: "none",
           strokeWidth: 9.66651249,

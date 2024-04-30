@@ -28,19 +28,15 @@ const List: React.FunctionComponent<BoxProps & {
     childPadding?: number | string;
     bordered?: boolean;
     children?: React.ReactNode;
-}> = props => {
+}> = ({bordered = true,...props}) => {
     const style = unbox(props);
     if (props.childPadding) style["--listChildPadding"] = extractSize(props.childPadding);
     return <div
         className={ListClass}
-        data-bordered={props.bordered !== false}
+        data-bordered={bordered !== false}
         children={props.children}
         style={style}
     />;
-};
-
-List.defaultProps = {
-    bordered: true
 };
 
 List.displayName = "List";
