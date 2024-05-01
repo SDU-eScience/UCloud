@@ -70,7 +70,7 @@ const Progress = ({color, percent, active, label}: Progress): JSX.Element => {
 
 const NewAndImprovedProgressStyle = injectStyle("progress", k => `
     ${k} {
-        margin-top: 15px;
+        margin-top: 20px;
         height: 5px;
         width: 250px;
         border-radius: 5px;
@@ -101,7 +101,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         position: absolute;
         color: var(--textPrimary);
         text-align: center;
-        top: -1.4em;
+        top: -1.8em;
         width: 100%;
     }
 `)
@@ -121,7 +121,7 @@ export function NewAndImprovedProgress({label, percentage, limitPercentage, with
     }, []);
 
     const style: CSSProperties = {};
-    // for visualization purposes we round values too small or too close to 100%
+    // for visualization purposes we offset values too small or too close to 100%
     if (percentage != 0 && percentage < 2) {
         percentage = 2
     }
@@ -131,9 +131,9 @@ export function NewAndImprovedProgress({label, percentage, limitPercentage, with
     style["--percentage"] = percentage + "%";
     style["--limit"] = limitPercentage + "%";
     const warning = withWarning ? <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-        <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+        <Icon size={"20px"} mr="8px" name={"heroExclamationTriangle"} color={"warningMain"} />
     </TooltipV2> : null;
-    return <Flex>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
+    return <Flex alignItems={"center"}>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
 }
 
 export default Progress;
