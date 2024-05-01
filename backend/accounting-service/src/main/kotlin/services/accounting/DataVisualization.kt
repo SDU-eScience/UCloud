@@ -50,7 +50,6 @@ class DataVisualization(
         }
 
         fun assembleResult(): ChartsAPI {
-
             val charts = ArrayList<ChartsForCategoryAPI>()
             run {
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
@@ -68,7 +67,6 @@ class DataVisualization(
                     )
                 }
             }
-
             return ChartsAPI(
                 categories,
                 allocationGroups,
@@ -167,29 +165,42 @@ class DataVisualization(
                             setParameter("end", request.end)
                         },
                         """
-                        select distinct 
-                            w.product_category, 
-                            case 
-                                when au.floating_point = true then s.tree_usage / 1000000.0
-                                when au.floating_point = false and pc.accounting_frequency = 'ONCE' then s.tree_usage::double precision                       
-                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then s.tree_usage::double precision / 60.0
-                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then s.tree_usage::double precision / 60.0 / 60.0
-                                when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
-                            end tusage, 
-                            s.quota, 
-                            provider.timestamp_to_unix(s.sampled_at)::int8
+                        with samples as (
+                            select
+                                s.wallet_id,
+                                s.tree_usage,
+                                s.quota,
+                                provider.timestamp_to_unix(s.sampled_at)::int8 sample_time
+                            from
+                                accounting.allocation_groups ag join
+                                accounting.wallet_samples_v2 s on ag.associated_wallet = s.wallet_id
+                            where
+                                ag.id = some (:allocation_group_ids::int8[])
+                                and s.sampled_at >= to_timestamp(:start / 1000.0)
+                                and s.sampled_at <= to_timestamp(:end / 1000.0)
+                            order by s.wallet_id
+                        )
+                        select
+                            distinct pc.id,
+                            case
+                                 when au.floating_point = true then s.tree_usage / 1000000.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                     then s.tree_usage::double precision
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                     then s.tree_usage::double precision / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                     then s.tree_usage::double precision / 60.0 / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                     then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
+                            end tusage,
+                            s.quota,
+                            sample_time
                         from
-                            accounting.wallet_allocations_v2 alloc
-                            join accounting.allocation_groups ag on ag.id = alloc.associated_allocation_group
-                            join accounting.wallets_v2 w on ag.associated_wallet = w.id
-                            join accounting.wallet_samples_v2 s on w.id = s.wallet_id 
-                            join accounting.product_categories pc on w.product_category = pc.id 
+                            accounting.wallets_v2 w
+                            join accounting.product_categories pc on w.product_category = pc.id
                             join accounting.accounting_units au on pc.accounting_unit = au.id
-                        where
-                            ag.id = some(:allocation_group_ids::int8[])
-                            and s.sampled_at >= to_timestamp(:start / 1000.0)
-                            and s.sampled_at <= to_timestamp(:end / 1000.0)
-                        order by w.product_category, provider.timestamp_to_unix(s.sampled_at)::int8;
+                            join samples s on w.id = s.wallet_id
+                        order by pc.id, s.sample_time
                     """
                     ).rows
 
