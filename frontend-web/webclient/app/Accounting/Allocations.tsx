@@ -961,7 +961,7 @@ const Allocations: React.FunctionComponent = () => {
                     const success = (await callAPIWithErrorHandler(
                         Accounting.updateAllocationV2(bulkRequestOf({
                             allocationId: alloc.allocationId,
-                            newQuota: value * unit.invPriceFactor,
+                            newQuota: value * unit.invBalanceFactor,
                             reason: "Allocation updated with new quota",
                         }))
                     )) !== null;
@@ -972,7 +972,7 @@ const Allocations: React.FunctionComponent = () => {
                             allocationIdx: idx,
                             recipientIdx: ridx,
                             groupIdx: gidx,
-                            newQuota: value * unit.invPriceFactor,
+                            newQuota: value * unit.invBalanceFactor,
                         });
                     }
 
@@ -1093,7 +1093,7 @@ const Allocations: React.FunctionComponent = () => {
                         name: category,
                         provider,
                     },
-                    quota: amount * unit.invPriceFactor,
+                    quota: amount * unit.invBalanceFactor,
                     start: start.getTime(),
                     end: end.getTime(),
                 });
@@ -1212,7 +1212,7 @@ const Allocations: React.FunctionComponent = () => {
                 return;
             }
             const unit = Accounting.explainUnit(resolvedCategory);
-            const actualAmount = amount * unit.invPriceFactor;
+            const actualAmount = amount * unit.invBalanceFactor;
             if (actualAmount === 0) continue;
 
             gift.resources.push({

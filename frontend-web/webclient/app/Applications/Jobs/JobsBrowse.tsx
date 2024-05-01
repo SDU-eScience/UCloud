@@ -150,7 +150,14 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims, row));
                     if (!simpleView) {
-                        row.stat1.innerText = job.owner.createdBy;
+                        if (job.owner.createdBy === "_ucloud") {
+                            row.stat1.innerHTML = "";
+                            const elem = document.createElement("i");
+                            elem.innerText = "Unknown";
+                            row.stat1.append(elem);
+                        } else {
+                            row.stat1.innerText = job.owner.createdBy;
+                        }
                         row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                     } else {
                         row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());

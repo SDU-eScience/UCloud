@@ -25,7 +25,7 @@ const TooltipContent = injectStyleSimple("tooltip-content", `
 `);
 
 const TooltipVisible = injectStyleSimple("tooltip-visible", `
-    transition-delay: 1s;
+    transition-delay: 0.2s;
     transition-duration: .25s;
     opacity: 1;
 `);
