@@ -1,6 +1,6 @@
 import * as React from "react";
 import {EventHandler, MouseEvent, useState} from "react";
-import {ProjectInvite, ProjectInviteLink} from "@/Project/Api";
+import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {
@@ -22,7 +22,6 @@ import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
-import {heroUserPlus} from "@/ui-components/icons";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
@@ -462,6 +461,7 @@ const MemberCard: React.FunctionComponent<{
 }> = props => {
     const role = props.member.role;
     const amIPI = props.myRole === OldProjectRole.PI;
+    const amIUser = props.myRole === OldProjectRole.USER;
     const isInActiveGroup = props.activeGroup ?
         props.activeGroup.status.members!.some((member) => member === props.member.username) : false;
 
@@ -485,7 +485,16 @@ const MemberCard: React.FunctionComponent<{
             </> :
                 <>
                     <RadioTilesContainer>
-                        {amIPI || role === OldProjectRole.PI ?
+                        {amIUser ? <RadioTile
+                            fontSize="6px"
+                            checked height={35}
+                            icon={projectRoleToStringIcon(props.member.role)}
+                            label={props.member.role} name={props.member.role + props.member.username}
+                            onChange={() => {}}/>
+                         : null}
+
+
+                        {amIPI || role === OldProjectRole.PI && !amIUser ?
                             <RadioTile fontSize={"6px"} checked={role === OldProjectRole.PI} height={35}
                                 icon={"heroTrophy"}
                                 label={"PI"} name={"PI" + props.member.username}
@@ -501,7 +510,7 @@ const MemberCard: React.FunctionComponent<{
                                     })
                                 }} />
                             : null}
-                        {role !== OldProjectRole.PI ?
+                        {role !== OldProjectRole.PI && !amIUser ?
                             <>
                                 {isAdminOrPI(props.myRole) ? <RadioTile fontSize={"6px"} checked={isUserAdminRole} height={35}
                                     icon={"heroBriefcase"}
@@ -520,7 +529,7 @@ const MemberCard: React.FunctionComponent<{
                         <Button color={"errorMain"}
                             width={"88px"}
                             disabled={!isAdminOrPI(props.myRole) && props.member.username !== Client.username}
-                            onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>}
+                            onClick={() => props.handleRemoveFromProject(props.member.username)}>{Client.activeUsername === props.member.username ? "Leave" : "Remove"}</Button>}
                 </>}
         </Flex>}
     />;

@@ -59,6 +59,8 @@ interface VerifyProjectRequest {
 
 }
 
+export type ProjectBrowseParams = ProjectFlags & ProjectsSortByFlags & PaginationRequestV2;
+
 class ProjectApi {
     baseContext = "/api/projects/v2";
 
@@ -66,7 +68,7 @@ class ProjectApi {
         return apiRetrieve(request, this.baseContext);
     }
 
-    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters<unknown, PageV2<Project>> {
+    public browse(request: ProjectBrowseParams): APICallParameters<unknown, PageV2<Project>> {
         return apiBrowse(request, this.baseContext);
     }
 
@@ -241,9 +243,9 @@ export function projectStringToRole(role: string): ProjectRole {
 
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
-        case OldProjectRole.PI: return "userPi";
-        case OldProjectRole.ADMIN: return "userAdmin";
-        case OldProjectRole.USER: return "user";
+        case OldProjectRole.PI: return "heroTrophy";
+        case OldProjectRole.ADMIN: return "heroBriefcase";
+        case OldProjectRole.USER: return "heroUser";
         default: {
             console.log(role);
             return "bug";
