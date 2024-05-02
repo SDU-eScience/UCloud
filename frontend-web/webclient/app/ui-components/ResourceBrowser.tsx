@@ -755,26 +755,25 @@ export class ResourceBrowser<T> {
             document.addEventListener("keydown", keyDownListener);
         }
 
+        const attemptCloseRenameField = (ev: MouseEvent) => {
+            if (this.allowEventListenerAction()) {
+                if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
+                    this.closeRenameField("submit");
+                }
+            }
+        }
+
         const clickHandler = (ev: MouseEvent) => {
             if (!this.root.isConnected) {
                 document.removeEventListener("click", clickHandler);
                 return;
             }
 
-            // Attempt to allow deselecting by clicking outside table
-            ev.stopPropagation();
-            ev.stopImmediatePropagation();
-            // Attempt to allow deselecting by clicking outside table
-
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
             }
-
-            if (this.allowEventListenerAction()) {
-                if (this.renameFieldIndex !== -1 && ev.target !== this.renameField) {
-                    this.closeRenameField("submit");
-                }
-            }
+            
+            attemptCloseRenameField(ev);
 
             // Attempt to allow deselecting by clicking outside table
             if (!ResourceBrowser.isAnyModalOpen && document.body.getAttribute("data-no-select") !== "true") {
@@ -788,9 +787,12 @@ export class ResourceBrowser<T> {
         this.scrolling.addEventListener("click", e => {
             e.stopPropagation();
             e.stopImmediatePropagation();
+
+            attemptCloseRenameField(e);
+
             if (this.contextMenuHandlers.length) this.closeContextMenu();
         });
-        
+
         const clearEntryBelowCursor = () => {
             this.entryBelowCursor = null;
         }
