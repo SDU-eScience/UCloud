@@ -8,7 +8,7 @@ import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
-import {BreakdownByProjectAPI, ChartsAPI, UsageOverTimeAPI} from ".";
+import {BreakdownByProjectAPI, categoryComparator, ChartsAPI, UsageOverTimeAPI} from ".";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -19,7 +19,6 @@ import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {deviceBreakpoint} from "@/ui-components/Hide";
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 import Warning from "@/ui-components/Warning";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
@@ -109,8 +108,10 @@ function stateReducer(state: State, action: UIAction): State {
             const newSummaries: State["summaries"] = [];
             const now = BigInt(timestampUnixMs());
 
+            const sorted = data.allocGroups.sort((a,b) => categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex]));
+
             for (let i = 0; i < data.allocGroups.length; i++) {
-                const group = data.allocGroups[i];
+                const group = sorted[i];
                 //if (now < allocation.startDate || now > allocation.endDate) continue;
                 const category = data.categories[group.productCategoryIndex];
 
@@ -148,7 +149,7 @@ function stateReducer(state: State, action: UIAction): State {
             }
 
             const currentlySelectedCategory = state.activeDashboard?.category;
-            let selectedIndex = 0;
+            let selectedIndex = sorted[0].productCategoryIndex;
             if (currentlySelectedCategory) {
                 const selectedSummary = newSummaries.find(it =>
                     it.category.name === currentlySelectedCategory.name &&
@@ -238,7 +239,7 @@ function stateReducer(state: State, action: UIAction): State {
                 group.group.allocations.forEach( alloc => {
                     // @ts-ignore
                     if (earliestNextAllocation < alloc.startDate || earliestNextAllocation > alloc.endDate) {
-                        //nothingg
+                        //nothing
                     } else {
                         nextQuota += Number(alloc.quota);
                     }
@@ -418,7 +419,7 @@ const Visualization: React.FunctionComponent = () => {
     // Event handlers
     // -----------------------------------------------------------------------------------------------------------------
     // These event handlers translate, primarily DOM, events to higher-level UIEvents which are sent to
-    // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. ayou are writing
+    // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. As you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
 
     useLayoutEffect(() => {
