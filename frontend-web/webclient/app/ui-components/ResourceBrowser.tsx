@@ -4039,7 +4039,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     inner.style.fontSize = opts?.fontSize ?? "14px";
     inner.style.color = "white"
     if (myInfo) {
-        outer.style.padding = "5px";
+        outer.style.padding = "3px";
         inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
         inner.style.backgroundPosition = "center";
     } else {
