@@ -243,9 +243,9 @@ export function projectStringToRole(role: string): ProjectRole {
 
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
-        case OldProjectRole.PI: return "userPi";
-        case OldProjectRole.ADMIN: return "userAdmin";
-        case OldProjectRole.USER: return "user";
+        case OldProjectRole.PI: return "heroTrophy";
+        case OldProjectRole.ADMIN: return "heroBriefcase";
+        case OldProjectRole.USER: return "heroUser";
         default: {
             console.log(role);
             return "bug";

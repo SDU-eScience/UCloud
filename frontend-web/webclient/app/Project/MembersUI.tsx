@@ -1,6 +1,6 @@
 import * as React from "react";
 import {EventHandler, MouseEvent, useState} from "react";
-import {ProjectInvite, ProjectInviteLink} from "@/Project/Api";
+import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon} from "@/Project/Api";
 import {OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, isAdminOrPI} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {
@@ -462,6 +462,7 @@ const MemberCard: React.FunctionComponent<{
 }> = props => {
     const role = props.member.role;
     const amIPI = props.myRole === OldProjectRole.PI;
+    const amIUser = props.myRole === OldProjectRole.USER;
     const isInActiveGroup = props.activeGroup ?
         props.activeGroup.status.members!.some((member) => member === props.member.username) : false;
 
@@ -485,7 +486,16 @@ const MemberCard: React.FunctionComponent<{
             </> :
                 <>
                     <RadioTilesContainer>
-                        {amIPI || role === OldProjectRole.PI ?
+                        {amIUser ? <RadioTile
+                            fontSize="6px"
+                            checked height={35}
+                            icon={projectRoleToStringIcon(props.member.role)}
+                            label={props.member.role} name={props.member.role + props.member.username}
+                            onChange={() => {}}/>
+                         : null}
+
+
+                        {amIPI || role === OldProjectRole.PI && !amIUser ?
                             <RadioTile fontSize={"6px"} checked={role === OldProjectRole.PI} height={35}
                                 icon={"heroTrophy"}
                                 label={"PI"} name={"PI" + props.member.username}
@@ -501,7 +511,7 @@ const MemberCard: React.FunctionComponent<{
                                     })
                                 }} />
                             : null}
-                        {role !== OldProjectRole.PI ?
+                        {role !== OldProjectRole.PI && !amIUser ?
                             <>
                                 {isAdminOrPI(props.myRole) ? <RadioTile fontSize={"6px"} checked={isUserAdminRole} height={35}
                                     icon={"heroBriefcase"}
