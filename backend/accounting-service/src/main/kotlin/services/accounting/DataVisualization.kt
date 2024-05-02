@@ -246,30 +246,27 @@ class DataVisualization(
                             """
                             with
                                 project_wallets as (
-                                    select wal.id
-                                    from 
-                                        accounting.allocation_groups ag join 
-                                        accounting.wallets_v2 wal on ag.associated_wallet = wal.id
+                                    select ag.associated_wallet as id
+                                    from
+                                        accounting.allocation_groups ag
                                     where
                                         ag.id = some(:allocation_group_ids::int8[])
                                 ),
                                 relevant_wallets as (
                                     select
-                                        wal.id,
+                                        distinct wal.id,
                                         wal.product_category,
-                                        pc.accounting_frequency != 'ONCE' as is_periodic,
-                                        child.parent_wallet = wal.id as is_child
+                                        pc.accounting_frequency != 'ONCE' as is_periodic
                                     from
                                         project_wallets pwal join
-                                        accounting.allocation_groups child on child.parent_wallet = pwal.id join
-                                        accounting.wallet_allocations_v2 alloc on child.id = alloc.associated_allocation_group join
+                                        accounting.allocation_groups child on child.parent_wallet = 11 join
                                         accounting.wallets_v2 wal on child.associated_wallet = wal.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
                                     order by wal.id
                                 ),
                                 data_timestamps as (
                                     select
-                                        w.id, w.product_category, w.is_periodic, w.is_child,
+                                        w.id, w.product_category, w.is_periodic,
                                         min(s.sampled_at) as oldest_data_ts,
                                         max(s.sampled_at) as newest_data_ts
                                     from
@@ -279,17 +276,17 @@ class DataVisualization(
                                         s.sampled_at >= to_timestamp(:start / 1000.0)
                                         and s.sampled_at <= to_timestamp(:end / 1000.0)
                                     group by
-                                        w.id, w.product_category, w.id, w.is_periodic, w.is_child, w.is_periodic, w.is_child
+                                        w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
-                                with_usage as (
+                               with_usage as (
                                     select
                                         dts.id,
                                         dts.product_category,
+                                        newest_sample.tree_usage,
+                                        oldest_sample.tree_usage,
                                         case
-                                            when dts.is_periodic and dts.is_child then newest_sample.tree_usage - oldest_sample.tree_usage
-                                            when dts.is_periodic and not dts.is_child then newest_sample.local_usage - oldest_sample.local_usage
-                                            when not dts.is_periodic and dts.is_child then newest_sample.tree_usage
-                                            when not dts.is_periodic and not dts.is_child then newest_sample.local_usage
+                                            when dts.is_periodic then newest_sample.tree_usage - oldest_sample.tree_usage
+                                            when not dts.is_periodic then newest_sample.tree_usage
                                         end as usage
                                     from
                                         data_timestamps dts
@@ -304,20 +301,20 @@ class DataVisualization(
                                 u.product_category,
                                 p.id,
                                 coalesce(p.title, wo.username),
-                                case 
+                                case
                                     when au.floating_point = true then u.usage / 1000000.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision                       
+                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision
                                     when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.usage::double precision / 60.0
                                     when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.usage::double precision / 60.0 / 60.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0 
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0
                                 end tusage
                             from
                                 with_usage u
                                 join accounting.wallets_v2 w on u.id = w.id
                                 join accounting.wallet_owner wo on w.wallet_owner = wo.id
-                                join accounting.product_categories pc on w.product_category = pc.id 
+                                join accounting.product_categories pc on w.product_category = pc.id
                                 join accounting.accounting_units au on au.id = pc.accounting_unit
-                                left join project.projects p on wo.project_id = p.id 
+                                left join project.projects p on wo.project_id = p.id
                             order by product_category;
                         """,
                         ).rows
