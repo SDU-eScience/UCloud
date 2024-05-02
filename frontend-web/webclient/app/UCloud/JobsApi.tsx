@@ -340,7 +340,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
-        console.log("OPEN_INTERACTIVE_SESSION");
         return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }

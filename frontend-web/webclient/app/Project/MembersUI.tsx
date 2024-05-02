@@ -22,7 +22,6 @@ import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
-import {heroUserPlus} from "@/ui-components/icons";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
@@ -530,7 +529,7 @@ const MemberCard: React.FunctionComponent<{
                         <Button color={"errorMain"}
                             width={"88px"}
                             disabled={!isAdminOrPI(props.myRole) && props.member.username !== Client.username}
-                            onClick={() => props.handleRemoveFromProject(props.member.username)}>Remove</Button>}
+                            onClick={() => props.handleRemoveFromProject(props.member.username)}>{Client.activeUsername === props.member.username ? "Leave" : "Remove"}</Button>}
                 </>}
         </Flex>}
     />;
