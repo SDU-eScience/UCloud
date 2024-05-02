@@ -348,10 +348,10 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
     const ulStyle: CSSProperties = {};
     if (props.align === "left" && props.asSquare) ulStyle.marginLeft = "34px";
-    if (props.align !== "left") {
-        ulStyle.textAlign = "center";
-    } else {
+    if (props.align !== "center") {
         ulStyle.textAlign = "left";
+    } else {
+        ulStyle.textAlign = "center";
     }
 
     return <Button
@@ -365,6 +365,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         btnRef={buttonRef}
         className={ConfirmButtonClass}
         data-tag={"confirm-button"}
+        width={props.width}
     >
         {!props.icon ? null : <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />
