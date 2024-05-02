@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -152,7 +153,7 @@ class DataVisualization(
                 }
             }
 
-            runBlocking {
+            coroutineScope {
                 val usageOverTime = launch {
                     // Usage over time
                     val rows = session.sendPreparedStatement(
@@ -354,8 +355,6 @@ class DataVisualization(
                         flushChart()
                     }
                 }
-
-                joinAll(usageOverTime, breakDownByProject)
             }
         }
 

@@ -713,6 +713,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         """.trimIndent()
                     )
                 }
+                lastSampling = Time.now()
             }
 
             val scopedKeys = ArrayList<String>()
