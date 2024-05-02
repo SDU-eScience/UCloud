@@ -59,6 +59,8 @@ interface VerifyProjectRequest {
 
 }
 
+export type ProjectBrowseParams = ProjectFlags & ProjectsSortByFlags & PaginationRequestV2;
+
 class ProjectApi {
     baseContext = "/api/projects/v2";
 
@@ -66,7 +68,7 @@ class ProjectApi {
         return apiRetrieve(request, this.baseContext);
     }
 
-    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters<unknown, PageV2<Project>> {
+    public browse(request: ProjectBrowseParams): APICallParameters<unknown, PageV2<Project>> {
         return apiBrowse(request, this.baseContext);
     }
 

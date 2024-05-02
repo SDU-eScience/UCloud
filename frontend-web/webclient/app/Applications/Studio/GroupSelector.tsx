@@ -7,9 +7,9 @@ import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {Button, Flex} from "@/ui-components";
 import {ListRow} from "@/ui-components/List";
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 
-export const GroupSelector: React.FunctionComponent<{ onSelect: (group: ApplicationGroup) => void }> = props => {
+export const GroupSelector: React.FunctionComponent<{onSelect: (group: ApplicationGroup) => void}> = props => {
     const didCancel = useDidUnmount();
     const [groups, setGroups] = useState<ApplicationGroup[]>([]);
     useEffect(() => {
@@ -21,7 +21,7 @@ export const GroupSelector: React.FunctionComponent<{ onSelect: (group: Applicat
             <ListRow
                 key={g.metadata.id}
                 left={<><SafeLogo name={g.metadata.id.toString()} type={"GROUP"}
-                                     size={"32px"}/> {g.specification.title}</>}
+                    size={"32px"} /> {g.specification.title}</>}
                 right={<Button onClick={() => props.onSelect(g)}>Use</Button>}
             />
         )}
