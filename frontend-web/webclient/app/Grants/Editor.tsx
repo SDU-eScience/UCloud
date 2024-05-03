@@ -693,11 +693,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             if (!section) continue;
 
             for (const category of section) {
-                const {priceFactor} = Accounting.explainUnit(category.category);
+                const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
                 category.allocators.add(request.grantGiver);
-                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * priceFactor;
+                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
             }
         }
 
@@ -2538,7 +2538,7 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                 result.push({
                     category: pc.name,
                     provider: pc.provider,
-                    balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
+                    balanceRequested: Math.ceil(amount * explanation.invBalanceFactor),
                     grantGiver: allocator,
                     period,
                 });

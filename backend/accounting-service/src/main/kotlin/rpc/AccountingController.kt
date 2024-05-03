@@ -20,6 +20,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.*
+import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 
@@ -230,6 +231,12 @@ class AccountingController(
 
     fun onKtorReady() {
         val ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application ?: return
+        runCatching {
+            ktor.install(WebSockets) {
+                pingPeriod = null
+            }
+        }
+
         ktor.routing {
             webSocket(ApmNotifications.PATH) {
                 apmNotifications.handleClient(this)

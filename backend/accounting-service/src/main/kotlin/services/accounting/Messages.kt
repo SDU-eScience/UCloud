@@ -133,5 +133,9 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val roots: List<Int>? = null,
     ) : AccountingRequest<String>()
+
+    data class DebugUsable(
+        override val idCard: IdCard,
+    ) : AccountingRequest<Unit>()
 }
 
