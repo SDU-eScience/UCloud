@@ -749,7 +749,7 @@ const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
 function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
     return <div
         style={{
-            ...unbox(props),
+            ...unbox({marginTop: props.marginTop ?? "8px", marginBottom: props.marginBottom ?? "8px", ...props}),
             display: "flex",
             gap: "8px"
         }}
@@ -757,11 +757,6 @@ function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} 
         {props.children}
     </div>
 }
-
-AltButtonGroup.defaultProps = {
-    marginTop: "8px",
-    marginBottom: "8px"
-};
 
 interface ParsedSshAccess {
     success: boolean;
@@ -1402,7 +1397,7 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"errorMain"} icon={"trash"} onAction={onCancel} fullWidth={false}
+        color={"errorMain"} icon={"trash"} align="left" width={"250px"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };

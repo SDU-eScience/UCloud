@@ -17,7 +17,6 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    controlsOperation,
     ShortcutClass
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -26,7 +25,6 @@ import FilesApi, {
     FileSensitivityNamespace,
     FileSensitivityVersion,
     isSensitivitySupported,
-    SensitivityLevelMap,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -39,7 +37,6 @@ import {
     extensionFromPath,
     extensionType,
     extractErrorMessage,
-    isLightThemeStored,
     randomUUID,
     timestampUnixMs
 } from "@/UtilityFunctions";
@@ -120,7 +117,7 @@ interface AdditionalResourceBrowserOpts {
     managesLocalProject?: boolean
 }
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 150}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): JSX.Element {
     const navigate = useNavigate();
     const location = useLocation();
@@ -870,22 +867,12 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         const badge = div("");
                         badge.classList.add("sensitivity-badge");
-                        badge.classList.add(sensitivity.toString());
+                        badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString()[0];
                         badge.style.cursor = "pointer";
                         badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
-                            // TODO(Jonas): handle inherit better.
-                            if (value === SensitivityLevelMap.INHERIT) {
-                                browserRef.current?.refresh();
-                                return;
-                            }
-                            const b: HTMLDivElement | null = row.stat1.querySelector("div.sensitivity-badge");
-                            if (!b) return;
-                            b.classList.remove(sensitivity.toString());
-                            b.classList.add(value);
-                            b.innerText = value.toString()[0];
+                            browserRef.current?.refresh();
                         });
-
 
                         HTMLTooltip(badge, div("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
                         row.stat1.append(badge);
@@ -958,7 +945,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
-                        `${collection.specification.title} (${components[0]})` :
+                        collection.specification.title :
                         components[0];
 
                     let builder = "";
@@ -1011,8 +998,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             driveIcon.style.cursor = "pointer";
                             driveIcon.style.minWidth = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
-                            const location = browser.root.querySelector(":scope .location");
-                            if (location) location["style"].maxWidth = "480px";
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
 
@@ -1071,7 +1056,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         }
                     }
-                    const collectionName = collection ? `${collection.specification.title} (${collectionId})` : collectionId;
+                    const collectionName = collection ? collection.specification.title : collectionId;
                     const remainingPath = path.substring(endOfFirstComponent);
 
                     return {
@@ -1158,32 +1143,32 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                 ...opts?.additionalFilters
                             })
                         )
-                        .then(result => {
-                            browser.registerPage(result, path, true);
-                            return false;
-                        }).catch(err => {
-                            // TODO(Dan): This partially contains logic which can be re-used.
-                            const statusCode = err["request"]?.["status"] ?? 500;
-                            const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
-                            const errorWhy: string | null = err["response"]?.["why"]?.toString() ?? null;
+                            .then(result => {
+                                browser.registerPage(result, path, true);
+                                return false;
+                            }).catch(err => {
+                                // TODO(Dan): This partially contains logic which can be re-used.
+                                const statusCode = err["request"]?.["status"] ?? 500;
+                                const errorCode: string | null = err["response"]?.["errorCode"]?.toString() ?? null;
+                                const errorWhy: string | null = err["response"]?.["why"]?.toString() ?? null;
 
-                            let tag: EmptyReasonTag;
-                            if (errorCode === "MAINTENANCE") {
-                                tag = EmptyReasonTag.UNABLE_TO_FULFILL;
-                            } else if (statusCode < 500) {
-                                tag = EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS;
-                            } else {
-                                tag = EmptyReasonTag.UNABLE_TO_FULFILL;
-                            }
+                                let tag: EmptyReasonTag;
+                                if (errorCode === "MAINTENANCE") {
+                                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                                } else if (statusCode < 500) {
+                                    tag = EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS;
+                                } else {
+                                    tag = EmptyReasonTag.UNABLE_TO_FULFILL;
+                                }
 
-                            browser.emptyReasons[path] = {
-                                tag,
-                                information: errorWhy ?? undefined
-                            };
+                                browser.emptyReasons[path] = {
+                                    tag,
+                                    information: errorWhy ?? undefined
+                                };
 
-                            return false;
-                        })
-                        .finally(() => delete inflightRequests[path]);
+                                return false;
+                            })
+                            .finally(() => delete inflightRequests[path]);
 
                     inflightRequests[path] = promise;
                     return promise;

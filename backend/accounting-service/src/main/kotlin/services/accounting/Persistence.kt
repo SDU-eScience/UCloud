@@ -306,16 +306,6 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             if (maxOwnerID != null) ownersIdAccumulator.set(maxOwnerID + 1)
             if (maxGroupId != null) allocationGroupIdAccumulator.set(maxGroupId + 1)
 
-            if (didChargeOldData) {
-                didChargeOldData = false
-
-                session.sendPreparedStatement(
-                    {},
-                    """
-                        delete from accounting.intermediate_usage where true;
-                    """
-                )
-            }
 
         }
     }
@@ -343,7 +333,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             }
 
             charges.map { charge ->
-                system.sendRequest(
+                system.sendRequestNoUnwrap(
                     AccountingRequest.SystemCharge(
                         walletId = charge.walletId,
                         amount = charge.usage,
@@ -713,6 +703,7 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         """.trimIndent()
                     )
                 }
+                lastSampling = Time.now()
             }
 
             val scopedKeys = ArrayList<String>()
@@ -750,6 +741,17 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                         update "grant".applications
                         set synchronized = true
                         where overall_state = 'APPROVED'
+                    """
+                )
+            }
+
+            if (didChargeOldData) {
+                didChargeOldData = false
+
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        delete from accounting.intermediate_usage where true;
                     """
                 )
             }

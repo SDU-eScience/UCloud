@@ -24,18 +24,14 @@ export const DropdownClass = injectStyle("dropdown", k => `
 export const Dropdown: React.FunctionComponent<DropdownProps & {
     children?: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;
-}> = props => {
+}> = ({hover = true, ...props}) => {
     return <div
         className={DropdownClass}
-        data-hover={props.hover === true}
+        data-hover={hover === true}
         data-full-width={props.fullWidth === true}
         ref={props.divRef}
         children={props.children}
     />;
-};
-
-Dropdown.defaultProps = {
-    hover: true
 };
 
 interface DropdownProps {
@@ -108,13 +104,25 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 `);
 
-export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<DropdownContentProps>> = props => {
+export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<DropdownContentProps>> = ({
+    squareTop = false,
+    hover = true,
+    width = "auto",
+    color = "textPrimary",
+    colorOnHover = true,
+    disabled = false,
+    cursor = "pointer",
+    minWidth = "138px",
+    boxShadow = "md",
+    visible = false,
+    ...props
+}) => {
     const style: CSSProperties = {};
-    if (props.width) style.width = extractSize(props.width);
-    if (props.minWidth) style.minWidth = extractSize(props.minWidth);
+    if (width) style.width = extractSize(width);
+    if (minWidth) style.minWidth = extractSize(minWidth);
     if (props.maxHeight) style.maxHeight = extractSize(props.maxHeight);
-    if (props.cursor) style.cursor = props.cursor;
-    if (props.color) style.color = `var(--${props.color})`;
+    if (cursor) style.cursor = cursor;
+    if (color) style.color = `var(--${color})`;
     if (props.top !== undefined) style.top = extractSize(props.top);
     if (props.left !== undefined) style.left = extractSize(props.left);
     if (props.bottom !== undefined) style.bottom = extractSize(props.bottom);
@@ -122,30 +130,17 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
 
     return <div
         className={DropdownContentClass}
-        data-hover={props.hover === true}
+        data-hover={hover === true}
         ref={props.dropdownRef}
-        data-square={props.squareTop === true}
+        data-square={squareTop === true}
         data-fixed={props.fixed === true}
-        data-hover-color={props.colorOnHover === true}
+        data-hover-color={colorOnHover === true}
         data-padding-controlled={props.paddingControlledByContent === true}
         data-no-y-padding={props.noYPadding === true}
-        data-visible={props.visible === true}
+        data-visible={visible === true}
         style={style}
         children={props.children}
     />;
-};
-
-DropdownContent.defaultProps = {
-    squareTop: false,
-    hover: true,
-    width: "auto",
-    color: "textPrimary",
-    colorOnHover: true,
-    disabled: false,
-    cursor: "pointer",
-    minWidth: "138px",
-    boxShadow: "md",
-    visible: false
 };
 
 Dropdown.displayName = "Dropdown";

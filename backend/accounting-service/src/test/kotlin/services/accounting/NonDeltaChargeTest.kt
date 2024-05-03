@@ -20,19 +20,34 @@ class NonDeltaChargeTest {
             AccountingRequest.SubAllocate(provider.idCard, product, project.projectId, 1000000L, 0, 10000)
         )
 
-//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        var wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
 
-        accounting.sendRequest(
-            AccountingRequest.Charge(
-                provider.providerCard,
-                project.projectId,
-                product,
-                amount = 500L,
-                isDelta = false,
+        assertEquals(1000L, wallet.maxUsable)
+        assertEquals(1000000L, wallet.quota)
+        assertEquals(0L, wallet.localUsage)
+        assertEquals(0L, wallet.totalUsage)
+        var success: Boolean
+
+        success = runCatching {
+            accounting.sendRequest(
+                AccountingRequest.Charge(
+                    provider.providerCard,
+                    project.projectId,
+                    product,
+                    amount = 500L,
+                    isDelta = false,
+                )
             )
-        )
+        }.isSuccess
 
-//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        assertEquals(true, success)
+
+        wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
+
+        assertEquals(500L, wallet.maxUsable)
+        assertEquals(1000000L, wallet.quota)
+        assertEquals(500L, wallet.localUsage)
+        assertEquals(500L, wallet.totalUsage)
 
         accounting.sendRequest(
             AccountingRequest.Charge(
@@ -43,13 +58,20 @@ class NonDeltaChargeTest {
                 isDelta = false,
             )
         )
+        assertEquals(true, success)
 
-//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
+
+        assertEquals(1000L, wallet.maxUsable)
+        assertEquals(1000000L, wallet.quota)
+        assertEquals(0L, wallet.localUsage)
+        assertEquals(0L, wallet.totalUsage)
+
 
         StaticTimeProvider.time = 2000L
         accounting.sendRequest(AccountingRequest.ScanRetirement(IdCard.System))
-//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
-        runCatching {
+
+        success = runCatching {
             accounting.sendRequest(
                 AccountingRequest.Charge(
                     provider.providerCard,
@@ -59,14 +81,22 @@ class NonDeltaChargeTest {
                     isDelta = false,
                 )
             )
-        }
-//        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        }.isSuccess
+
+        wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
+
+        assertEquals(false, success)
+        assertEquals(0, wallet.maxUsable)
+        assertEquals(1000000L, wallet.quota)
+        assertEquals(300L, wallet.localUsage)
+        assertEquals(300L, wallet.totalUsage)
+
 
         accounting.sendRequest(
             AccountingRequest.RootAllocate(provider.idCard, product, 1000L, 2000L, 5000L),
         )
-        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
-        runCatching {
+
+        success = runCatching {
             accounting.sendRequest(
                 AccountingRequest.Charge(
                     provider.providerCard,
@@ -76,10 +106,16 @@ class NonDeltaChargeTest {
                     isDelta = false,
                 )
             )
-        }
-        println(accounting.sendRequest(AccountingRequest.MaxUsable(project.idCard, product)))
+        }.isSuccess
 
-        println("Goodbye")
+        wallet = accounting.sendRequest(AccountingRequest.BrowseWallets(project.idCard)).first()
+
+        assertEquals(true, success)
+        assertEquals(1000L, wallet.maxUsable)
+        assertEquals(1000000L, wallet.quota)
+        assertEquals(0L, wallet.localUsage)
+        assertEquals(0L, wallet.totalUsage)
+
     }
 
     @Test

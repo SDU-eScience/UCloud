@@ -168,8 +168,7 @@ class StatisticsService {
                         group by
                             j.created_by, j.category, j.provider
                         order
-                            by j.provider, j.category, j.created_by;
-                    """
+                            by usage desc , j.provider, j.category, j.created_by;                    """
                 ).rows
 
                 var dataPoints = ArrayList<JobUsageByUserDataPoint>()

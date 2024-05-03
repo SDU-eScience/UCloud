@@ -961,7 +961,7 @@ const Allocations: React.FunctionComponent = () => {
                     const success = (await callAPIWithErrorHandler(
                         Accounting.updateAllocationV2(bulkRequestOf({
                             allocationId: alloc.allocationId,
-                            newQuota: value * unit.invPriceFactor,
+                            newQuota: value * unit.invBalanceFactor,
                             reason: "Allocation updated with new quota",
                         }))
                     )) !== null;
@@ -972,7 +972,7 @@ const Allocations: React.FunctionComponent = () => {
                             allocationIdx: idx,
                             recipientIdx: ridx,
                             groupIdx: gidx,
-                            newQuota: value * unit.invPriceFactor,
+                            newQuota: value * unit.invBalanceFactor,
                         });
                     }
 
@@ -1093,7 +1093,7 @@ const Allocations: React.FunctionComponent = () => {
                         name: category,
                         provider,
                     },
-                    quota: amount * unit.invPriceFactor,
+                    quota: amount * unit.invBalanceFactor,
                     start: start.getTime(),
                     end: end.getTime(),
                 });
@@ -1212,7 +1212,7 @@ const Allocations: React.FunctionComponent = () => {
                 return;
             }
             const unit = Accounting.explainUnit(resolvedCategory);
-            const actualAmount = amount * unit.invPriceFactor;
+            const actualAmount = amount * unit.invBalanceFactor;
             if (actualAmount === 0) continue;
 
             gift.resources.push({
@@ -1611,7 +1611,7 @@ const Allocations: React.FunctionComponent = () => {
 
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                    <h3 style={{margin: 0}}>Sub-allocations</h3>
+                    <h3 style={{margin: 0}}>Sub-projects</h3>
                     <Box flexGrow={1}/>
                     <Button height={35} onClick={onNewSubProject}>
                         <Icon name={"heroPlus"} mr={8}/>
@@ -1620,7 +1620,7 @@ const Allocations: React.FunctionComponent = () => {
 
                     <Box width={"300px"}>
                         <Input
-                            placeholder={"Search in your sub-allocations"}
+                            placeholder={"Search in your sub-projects"}
                             height={35}
                             value={state.subAllocations.searchQuery}
                             onInput={onSearchInput}

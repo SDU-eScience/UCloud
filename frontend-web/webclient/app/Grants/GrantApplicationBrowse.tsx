@@ -52,7 +52,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Grants.Application>(mount, "Grant Application", opts).init(browserRef, features, "", browser => {
-                browser.setColumns([{name: "Recipient"}, {name: "", columnWidth: 0}, {name: "Last updated", columnWidth: 150}, {name: "", columnWidth: 50}]);
+                browser.setColumns([{name: "Recipient"}, {name: "", columnWidth: 0}, {name: "Last updated", columnWidth: 160}, {name: "", columnWidth: 50}]);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));

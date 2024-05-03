@@ -30,7 +30,7 @@ function extractCss(props: TextProps): CSSProperties {
 }
 
 const Text: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
-    return <div className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
+    return <div className={classConcat(TextClass, props.className)} style={extractCss({cursor: props.cursor ?? "inherit", ...props})} {...extractEventHandlers(props)}
         title={props.title} children={props.children} />;
 };
 
@@ -89,10 +89,6 @@ export const EllipsedText: React.FunctionComponent<React.PropsWithChildren<TextP
 }
 
 EllipsedText.displayName = "EllipsedText";
-
-Text.defaultProps = {
-    cursor: "inherit"
-};
 
 Text.displayName = "Text";
 

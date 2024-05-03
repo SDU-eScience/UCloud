@@ -29,7 +29,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {createRecordFromArray, deepCopy} from "@/Utilities/CollectionUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {CSSVarCurrentSidebarStickyWidth, CSSVarCurrentSidebarWidth} from "@/ui-components/List";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
 import {Project, isAdminOrPI} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
@@ -693,11 +693,11 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             if (!section) continue;
 
             for (const category of section) {
-                const {priceFactor} = Accounting.explainUnit(category.category);
+                const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
                 category.allocators.add(request.grantGiver);
-                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * priceFactor;
+                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
             }
         }
 
@@ -1046,7 +1046,7 @@ const style = injectStyle("grant-editor", k => `
         margin: 19px 0;
     }
     
-    ${k} h4 {
+    ${k} h3 {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1084,11 +1084,22 @@ const style = injectStyle("grant-editor", k => `
     
     /* section and form styling */
     /* -------------------------------------------------------------------------------------------------------------- */
+    
     ${k} .project-info, ${k} .select-resources, ${k} .application {
         display: grid;
         grid-template-columns: 450px 550px;
         row-gap: 30px;
     }
+    
+@media screen and (max-width: 1120px) {
+    ${k} .application {
+        display: block;
+    }
+    
+    ${k} .application > .form-body {
+        margin-bottom: 16px;
+    }
+}
     
     ${k}.is-editing .project-info, ${k} .select-resources, ${k} .application {
         row-gap: 30px;
@@ -1947,8 +1958,8 @@ export function Editor(): React.JSX.Element {
                                 if (relevantCategories.length === 0) return null;
 
                                 return <React.Fragment key={providerId}>
-                                    <h4><ProviderLogo providerId={providerId} size={30} /> <ProviderTitle
-                                        providerId={providerId} /></h4>
+                                    <h3><ProviderLogo providerId={providerId} size={40} /> <ProviderTitle
+                                        providerId={providerId} /></h3>
 
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
@@ -2527,7 +2538,7 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                 result.push({
                     category: pc.name,
                     provider: pc.provider,
-                    balanceRequested: Math.ceil(amount * explanation.invPriceFactor),
+                    balanceRequested: Math.ceil(amount * explanation.invBalanceFactor),
                     grantGiver: allocator,
                     period,
                 });

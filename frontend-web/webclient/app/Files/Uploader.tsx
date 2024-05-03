@@ -857,6 +857,7 @@ const Uploader: React.FunctionComponent = () => {
                                             id={"fileUploadBrowse"}
                                             type={"file"}
                                             style={{display: "none"}}
+                                            multiple
                                             onChange={onSelectedFile}
                                         />
                                     </div>

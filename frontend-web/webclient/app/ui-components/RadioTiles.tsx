@@ -19,7 +19,7 @@ function RadioTilesContainer(props: React.PropsWithChildren<BoxProps>): React.JS
     return <Box {...props} className={RadioTilesContainerClass} />;
 }
 
-function RadioTile(props: RadioTileProps): JSX.Element {
+function RadioTile({labeled = true, ...props}: RadioTileProps): JSX.Element {
     const {height, label, icon, checked, disabled, fontSize, onChange, name} = props;
 
     return (
@@ -40,9 +40,9 @@ function RadioTile(props: RadioTileProps): JSX.Element {
             />
 
             <div className={RadioTileIconClass}>
-                <Icon name={icon} color2={checked ? "textSecondary" : "primaryContrastAlt"} size={props.labeled ? "65%" : "85%"} />
+                <Icon name={icon} color2={checked ? "textSecondary" : "primaryContrastAlt"} size={labeled ? "65%" : "85%"} />
                 <label htmlFor={label}>
-                    {props.labeled ? label : undefined}
+                    {labeled ? label : undefined}
                 </label>
             </div>
         </div>
@@ -62,11 +62,6 @@ interface RadioTileWrapProps {
     checked: boolean;
     disabled?: boolean;
 }
-
-
-RadioTile.defaultProps = {
-    labeled: true
-};
 
 const RadioTileIconClass = injectStyle("radio-tile-icon", () => ``);
 

@@ -8,12 +8,14 @@ interface AppToolLogoProps {
     name: string;
     size?: string;
     type: LogoType;
+    isLightOverride?: boolean;
 }
 
 export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
 
 export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
-    const isLight = useIsLightThemeStored();
+    let isLight = useIsLightThemeStored();
+    if (props.isLightOverride !== undefined) isLight = props.isLightOverride;
     const size = props.size !== undefined ? props.size : "48px";
 
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
@@ -135,12 +137,14 @@ export const SafeLogo: React.FunctionComponent<{
     name: string;
     type: "APPLICATION" | "TOOL" | "GROUP";
     size: string;
-    forceBackground?: boolean;
+    isLightOverride?: boolean;
 }> = props => {
+    const sizeInPixels = parseInt(props.size.toString().replace("px", ""));
+    const paddingInPixels = sizeInPixels / 8;
     return <div
-        style={{padding: `${parseInt(props.size.toString().replace("px", "")) / 8}px`}}
+        style={{padding: `${paddingInPixels}px`, width: `${sizeInPixels + paddingInPixels * 2}px`, textAlign: "center"}}
     >
-        <AppToolLogo size={props.size} name={props.name} type={props.type}/>
+        <AppToolLogo size={props.size} name={props.name} type={props.type} isLightOverride={props.isLightOverride}/>
     </div>;
 }
 

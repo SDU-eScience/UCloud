@@ -32,6 +32,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
 
 object PosixCollectionIpc : IpcContainer("posixfscoll") {
     val retrieveCollections = retrieveHandler(ResourceOwner.serializer(), PageV2.serializer(FindByPath.serializer()))
@@ -98,11 +99,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 )
             })
 
-            println("Adding request handler")
             ipcServer.addHandler(StorageScanIpc.requestScan.handler { user, request ->
-                println("Got message in request handler")
                 if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                println("Doing something")
                 nextScan.set(0L)
             })
         }
@@ -173,7 +171,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private var nextScan = AtomicLong(0L)
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
-        println("accountingExtension = $accountingExtension")
         if (accountingExtension == null) return
 
         val productCategories = productAllocation.map { it.category }.toSet()
@@ -187,10 +184,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         try {
             val now = Time.now()
             val get = nextScan.get()
-            println("Checking $now $get ${now >= get}")
             if (now >= get) {
                 try {
-                    println("Scan is starting!")
                     debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Posix collection monitoring") {
                         val requestChannel = Channel<ScanRequest>(Channel.BUFFERED)
                         val scanJob = startDriveScanning(requestChannel)
@@ -212,9 +207,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                     rpcClient
                                 ).orThrow()
 
-                                println("filterCategory = $category")
-                                println(summary.items)
-
                                 summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
                                     val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
                                     val colls = locateAndRegisterCollections(resourceOwner)
@@ -227,14 +219,13 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 if (next == null) shouldBreak = true
                             }
                         }
-                        println("No more requests to start!")
 
                         requestChannel.close()
                         scanJob.join()
-                        println("Done")
                     }
                 } finally {
-                    nextScan.set(Time.now() + (1000L * 60 * 60 * 4))
+                    nextScan.set(Time.now() + (1000L * 60 * 60 * 12))
+                    log.info("Posix drive scan completed. It took: ${(Time.now() - now).milliseconds}")
                 }
             }
 
@@ -255,20 +246,34 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             coroutineScope {
                 repeat(min(2, Runtime.getRuntime().availableProcessors())) { id ->
                     launch {
-                        while (isActive) {
-                            val request = channel.receiveCatching().getOrNull() ?: break
-                            println("ID loop: $request")
-                            val bytesUsed = request.drives.sumOf {
-                                runCatching { calculateUsage(it) }.getOrElse { 0 }
-                            }
-
-                            reportUsage(request.owner, request.category, bytesUsed, null)
-                        }
+                        graalRunDriveScanning(this, channel, this@PosixCollectionPlugin)
                     }
                 }
             }
         }
         return job
+    }
+
+    private suspend fun graalRunDriveScanning(
+        coroutineScope: CoroutineScope,
+        channel: ReceiveChannel<ScanRequest>,
+        posixCollectionPlugin: PosixCollectionPlugin
+    ) {
+        while (coroutineScope.isActive) {
+            val request = channel.receiveCatching().getOrNull() ?: break
+            val bytesUsed = graalRunDriveScanningIterationBecauseItSucks(request, posixCollectionPlugin)
+
+            reportUsage(request.owner, request.category, bytesUsed, null)
+        }
+    }
+
+    private suspend fun graalRunDriveScanningIterationBecauseItSucks(
+        request: ScanRequest,
+        posixCollectionPlugin: PosixCollectionPlugin
+    ): Long {
+        return request.drives.sumOf {
+            runCatching { posixCollectionPlugin.calculateUsage(it) }.getOrElse { 0 }
+        }
     }
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {

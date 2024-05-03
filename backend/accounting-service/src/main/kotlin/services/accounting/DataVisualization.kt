@@ -7,6 +7,10 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.days
 
 class DataVisualization(
@@ -47,7 +51,6 @@ class DataVisualization(
         }
 
         fun assembleResult(): ChartsAPI {
-
             val charts = ArrayList<ChartsForCategoryAPI>()
             run {
                 val allKeys = usageOverTimeCharts.keys + breakdownByProjectCharts.keys
@@ -65,7 +68,6 @@ class DataVisualization(
                     )
                 }
             }
-
             return ChartsAPI(
                 categories,
                 allocationGroups,
@@ -151,71 +153,9 @@ class DataVisualization(
                 }
             }
 
-            run {
-                // Usage over time
-                val rows = session.sendPreparedStatement(
-                    {
-                        setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                            w.allocationGroups.map { it.group.id }
-                        })
-
-                        setParameter("start", request.start)
-                        setParameter("end", request.end)
-                    },
-                    """
-                        select distinct 
-                            w.product_category, 
-                            case 
-                                when au.floating_point = true then s.tree_usage / 1000000.0
-                                when au.floating_point = false then s.tree_usage::double precision
-                            end tusage, 
-                            s.quota, 
-                            provider.timestamp_to_unix(s.sampled_at)::int8
-                        from
-                            accounting.wallet_allocations_v2 alloc
-                            join accounting.allocation_groups ag on ag.id = alloc.associated_allocation_group
-                            join accounting.wallets_v2 w on ag.associated_wallet = w.id
-                            join accounting.wallet_samples_v2 s on w.id = s.wallet_id 
-                            join accounting.product_categories pc on w.product_category = pc.id 
-                            join accounting.accounting_units au on pc.accounting_unit = au.id
-                        where
-                            alloc.id = some(:allocation_group_ids::int8[])
-                            and s.sampled_at >= to_timestamp(:start / 1000.0)
-                            and s.sampled_at <= to_timestamp(:end / 1000.0)
-                        order by w.product_category, provider.timestamp_to_unix(s.sampled_at)::int8;
-                    """
-                ).rows
-
-                var currentProductCategory = -1L
-
-                var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
-                fun flushChart() {
-                    if (currentProductCategory != -1L) {
-                        usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
-
-                        dataPoints = ArrayList()
-                    }
-                }
-
-                for (row in rows) {
-                    val allocCategory = row.getLong(0)!!
-                    val usage = row.getDouble(1)!!
-                    val quota = row.getLong(2)!!
-                    val timestamp = row.getLong(3)!!
-
-                    if (currentProductCategory != allocCategory) {
-                        flushChart() // no-op if currentProductCategory = -1L
-                        currentProductCategory = allocCategory
-                    }
-
-                    dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
-                }
-                flushChart()
-            }
-
-            run {
-                // Breakdown by project
-                db.withSession { session ->
+            coroutineScope {
+                val usageOverTime = launch {
+                    // Usage over time
                     val rows = session.sendPreparedStatement(
                         {
                             setParameter("allocation_group_ids", allWallets.flatMap { w ->
@@ -226,31 +166,107 @@ class DataVisualization(
                             setParameter("end", request.end)
                         },
                         """
+                        with samples as (
+                            select
+                                s.wallet_id,
+                                s.tree_usage,
+                                s.quota,
+                                provider.timestamp_to_unix(s.sampled_at)::int8 sample_time
+                            from
+                                accounting.allocation_groups ag join
+                                accounting.wallet_samples_v2 s on ag.associated_wallet = s.wallet_id
+                            where
+                                ag.id = some (:allocation_group_ids::int8[])
+                                and s.sampled_at >= to_timestamp(:start / 1000.0)
+                                and s.sampled_at <= to_timestamp(:end / 1000.0)
+                            order by s.wallet_id
+                        )
+                        select
+                            distinct pc.id,
+                            case
+                                 when au.floating_point = true then s.tree_usage / 1000000.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'ONCE'
+                                     then s.tree_usage::double precision
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE'
+                                     then s.tree_usage::double precision / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR'
+                                     then s.tree_usage::double precision / 60.0 / 60.0
+                                 when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY'
+                                     then s.tree_usage::double precision / 60.0 / 60.0 / 24.0
+                            end tusage,
+                            s.quota,
+                            sample_time
+                        from
+                            accounting.wallets_v2 w
+                            join accounting.product_categories pc on w.product_category = pc.id
+                            join accounting.accounting_units au on pc.accounting_unit = au.id
+                            join samples s on w.id = s.wallet_id
+                        order by pc.id, s.sample_time
+                    """
+                    ).rows
+
+                    var currentProductCategory = -1L
+
+                    var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                    fun flushChart() {
+                        if (currentProductCategory != -1L) {
+                            usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
+                            dataPoints = ArrayList()
+                        }
+                    }
+
+                    for (row in rows) {
+                        val allocCategory = row.getLong(0)!!
+                        val usage = row.getDouble(1)!!
+                        val quota = row.getLong(2)!!
+                        val timestamp = row.getLong(3)!!
+
+                        if (currentProductCategory != allocCategory) {
+                            flushChart() // no-op if currentProductCategory = -1L
+                            currentProductCategory = allocCategory
+                        }
+
+                        dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                    }
+                    flushChart()
+                }
+
+                val breakDownByProject = launch {
+                    // Breakdown by project
+                    db.withSession { session ->
+                        val rows = session.sendPreparedStatement(
+                            {
+                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
+                                    w.allocationGroups.map { it.group.id }
+                                })
+
+                                setParameter("start", request.start)
+                                setParameter("end", request.end)
+                            },
+                            """
                             with
                                 project_wallets as (
-                                    select wal.id
-                                    from 
-                                        accounting.allocation_groups ag join 
-                                        accounting.wallets_v2 wal on ag.associated_wallet = wal.id
+                                    select ag.associated_wallet as id
+                                    from
+                                        accounting.allocation_groups ag
                                     where
                                         ag.id = some(:allocation_group_ids::int8[])
                                 ),
                                 relevant_wallets as (
                                     select
-                                        wal.id,
+                                        distinct wal.id,
                                         wal.product_category,
-                                        pc.accounting_frequency != 'ONCE' as is_periodic,
-                                        child.parent_wallet = wal.id as is_child
+                                        pc.accounting_frequency != 'ONCE' as is_periodic
                                     from
                                         project_wallets pwal join
                                         accounting.allocation_groups child on child.parent_wallet = pwal.id join
-                                        accounting.wallet_allocations_v2 alloc on child.id = alloc.associated_allocation_group join
                                         accounting.wallets_v2 wal on child.associated_wallet = wal.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
+                                    order by wal.id
                                 ),
                                 data_timestamps as (
                                     select
-                                        w.id, w.product_category, w.is_periodic, w.is_child,
+                                        w.id, w.product_category, w.is_periodic,
                                         min(s.sampled_at) as oldest_data_ts,
                                         max(s.sampled_at) as newest_data_ts
                                     from
@@ -260,17 +276,17 @@ class DataVisualization(
                                         s.sampled_at >= to_timestamp(:start / 1000.0)
                                         and s.sampled_at <= to_timestamp(:end / 1000.0)
                                     group by
-                                        w.id, w.product_category, w.id, w.is_periodic, w.is_child, w.is_periodic, w.is_child
+                                        w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
-                                with_usage as (
+                               with_usage as (
                                     select
                                         dts.id,
                                         dts.product_category,
+                                        newest_sample.tree_usage,
+                                        oldest_sample.tree_usage,
                                         case
-                                            when dts.is_periodic and dts.is_child then newest_sample.tree_usage - oldest_sample.tree_usage
-                                            when dts.is_periodic and not dts.is_child then newest_sample.local_usage - oldest_sample.local_usage
-                                            when not dts.is_periodic and dts.is_child then newest_sample.tree_usage
-                                            when not dts.is_periodic and not dts.is_child then newest_sample.local_usage
+                                            when dts.is_periodic then newest_sample.tree_usage - oldest_sample.tree_usage
+                                            when not dts.is_periodic then newest_sample.tree_usage
                                         end as usage
                                     from
                                         data_timestamps dts
@@ -285,58 +301,60 @@ class DataVisualization(
                                 u.product_category,
                                 p.id,
                                 coalesce(p.title, wo.username),
-                                case 
+                                case
                                     when au.floating_point = true then u.usage / 1000000.0
-                                    when au.floating_point = false then u.usage::double precision
+                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.usage::double precision / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.usage::double precision / 60.0 / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0
                                 end tusage
                             from
                                 with_usage u
                                 join accounting.wallets_v2 w on u.id = w.id
                                 join accounting.wallet_owner wo on w.wallet_owner = wo.id
-                                join accounting.product_categories pc on w.product_category = pc.id 
+                                join accounting.product_categories pc on w.product_category = pc.id
                                 join accounting.accounting_units au on au.id = pc.accounting_unit
-                                left join project.projects p on wo.project_id = p.id 
+                                left join project.projects p on wo.project_id = p.id
                             order by product_category;
                         """,
-                    ).rows
+                        ).rows
+                        var currentCategory = -1L
+                        var dataPoints = ArrayList<BreakdownByProjectPointAPI>()
+                        fun flushChart() {
+                            if (currentCategory != -1L) {
+                                breakdownByProjectCharts[currentCategory] = BreakdownByProjectAPI(
+                                    data = dataPoints
+                                )
 
-
-
-                    var currentCategory = -1L
-                    var dataPoints = ArrayList<BreakdownByProjectPointAPI>()
-                    fun flushChart() {
-                        if (currentCategory != -1L) {
-                            breakdownByProjectCharts[currentCategory] = BreakdownByProjectAPI(
-                                data = dataPoints
-                            )
-
-                            dataPoints = ArrayList()
-                        }
-                    }
-
-                    for (row in rows) {
-                        val categoryId = row.getLong(0)!!
-                        val projectId = row.getString(1)
-                        val workspaceTitle = row.getString(2)!!
-                        val usage = row.getDouble(3)!!
-
-                        if (categoryId != currentCategory) {
-                            flushChart()
-                            currentCategory = categoryId
+                                dataPoints = ArrayList()
+                            }
                         }
 
-                        dataPoints.add(
-                            BreakdownByProjectPointAPI(
-                                title = workspaceTitle,
-                                projectId = projectId,
-                                usage = usage,
+                        for (row in rows) {
+                            val categoryId = row.getLong(0)!!
+                            val projectId = row.getString(1)
+                            val workspaceTitle = row.getString(2)!!
+                            val usage = row.getDouble(3)!!
+
+                            if (categoryId != currentCategory) {
+                                flushChart()
+                                currentCategory = categoryId
+                            }
+
+                            dataPoints.add(
+                                BreakdownByProjectPointAPI(
+                                    title = workspaceTitle,
+                                    projectId = projectId,
+                                    usage = usage,
+                                )
                             )
-                        )
+                        }
+                        flushChart()
                     }
-                    flushChart()
                 }
             }
         }
+
 
         return assembleResult()
     }

@@ -19,6 +19,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import AppRoutes from "@/Routes";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./ReduxState";
+import {addStandardDialog} from "@/UtilityComponents";
 
 export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
@@ -582,7 +583,16 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             dispatch({type: "ChangeRole", changes: [{username: username, role: newRole}]});
         }}
         onRemoveFromProject={(username) => {
-            dispatch({type: "RemoveMember", members: [username]});
+            const isSelf = username === Client.activeUsername;
+            if (isSelf) {
+                addStandardDialog({
+                    title: "Leave project?",
+                    message: "Clicking 'confirm' will leave the project. To return to the project, you must be re-invited.",
+                    onConfirm: () => dispatch({type: "RemoveMember", members: [username]})
+                });
+            } else {
+                dispatch({type: "RemoveMember", members: [username]});
+            }
         }}
         onCreateInviteLink={async () => {
             const link = await callAPI(Api.createInviteLink());

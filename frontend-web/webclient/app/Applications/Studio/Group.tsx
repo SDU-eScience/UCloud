@@ -8,7 +8,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SafeLogo} from "../AppToolLogo";
-import {doNothing, stopPropagation} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";

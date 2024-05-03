@@ -25,6 +25,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import org.slf4j.Logger
 import java.io.File
+import java.io.FileWriter
+import java.io.PrintWriter
 import java.math.BigInteger
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -177,6 +179,8 @@ class AccountingSystem(
         GlobalScope.launch {
             delay(1000)
             persistence.loadOldData(this@AccountingSystem)
+
+            sendRequestNoUnwrap(AccountingRequest.DebugUsable(IdCard.System))
         }
 
         while (currentCoroutineContext().isActive && isActiveProcessor.get()) {
@@ -214,6 +218,26 @@ class AccountingSystem(
                                             Response.error(HttpStatusCode.Forbidden, "Forbidden")
                                         } else {
                                             Response.ok(produceMermaidGraph(msg.roots))
+                                        }
+                                    }
+
+                                    is AccountingRequest.DebugUsable -> {
+                                        if (msg.idCard != IdCard.System) {
+                                            Response.error(HttpStatusCode.Forbidden, "Forbidden")
+                                        } else {
+                                            println("Dumping max usable")
+                                            val out = FileWriter("/tmp/max_usable.csv")
+                                            val writer = PrintWriter(out)
+                                            writer.println("WalletId,MaxUsable")
+                                            for ((walletId, wallet) in walletsById) {
+                                                writer.println("$walletId,${maxUsableForWallet(wallet)}")
+                                            }
+
+                                            writer.close()
+                                            out.close()
+                                            println("OK")
+
+                                            Response.ok(Unit)
                                         }
                                     }
                                 }
