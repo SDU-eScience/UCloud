@@ -259,7 +259,7 @@ class DataVisualization(
                                         pc.accounting_frequency != 'ONCE' as is_periodic
                                     from
                                         project_wallets pwal join
-                                        accounting.allocation_groups child on child.parent_wallet = 11 join
+                                        accounting.allocation_groups child on child.parent_wallet = pwal.id join
                                         accounting.wallets_v2 wal on child.associated_wallet = wal.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
                                     order by wal.id

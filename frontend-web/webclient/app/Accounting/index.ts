@@ -360,7 +360,7 @@ export function combineBalances(
     // view. This is useful when we want to give a unified view of how many resources you have available.
     for (const it of balances) {
         const unit = explainUnit(it.category);
-        const normalizedBalance = unit.priceFactor * it.balance;
+        const normalizedBalance = unit.balanceFactor * it.balance;
 
         const existing = result.find(it => it.unit === unit.name && it.productType === unit.productType);
         if (existing) {
@@ -376,7 +376,8 @@ export function combineBalances(
 export interface FrontendAccountingUnit {
     name: string;
     priceFactor: number;
-    invPriceFactor: number;
+    invBalanceFactor: number;
+    balanceFactor: number;
     productType: ProductType;
     frequencyFactor: number;
     desiredFrequency: AccountingFrequency;
@@ -386,6 +387,7 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
     const unit = category.accountingUnit;
     let priceFactor = 1;
     let frequencyFactor = 1;
+    let balanceFactor = 1;
     let unitName = unit.namePlural;
     let suffix = "";
     let desiredFrequency: AccountingFrequency = "ONCE";
@@ -404,16 +406,30 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
         const actualFrequency = category.accountingFrequency;
         frequencyFactor = frequencyToMillis(actualFrequency) / frequencyToMillis(desiredFrequency);
         priceFactor = frequencyFactor;
+        balanceFactor = priceFactor;
 
         if (unit.displayFrequencySuffix) {
             suffix = "-" + frequencyToSuffix(desiredFrequency, true);
             unitName = unit.name;
+        } else {
+            balanceFactor = 1;
         }
     }
 
-    if (unit.floatingPoint) priceFactor *= 1 / 1000000;
+    if (unit.floatingPoint) {
+        priceFactor *= 1 / 1000000;
+        balanceFactor *= 1 / 1000000;
+    }
 
-    return { name: unitName + suffix, priceFactor, invPriceFactor: 1 / priceFactor, productType: category.productType, frequencyFactor, desiredFrequency};
+    return {
+        name: unitName + suffix,
+        priceFactor,
+        invBalanceFactor: 1 / balanceFactor,
+        balanceFactor,
+        productType: category.productType,
+        frequencyFactor,
+        desiredFrequency
+    };
 }
 
 export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: { showSuffix: boolean }): string {
@@ -450,7 +466,7 @@ export function balanceToString(
     opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     const unit = explainUnit(category);
-    const normalizedBalance = balance * unit.priceFactor;
+    const normalizedBalance = balance * unit.balanceFactor;
     return balanceToStringFromUnit(unit.productType, unit.name, normalizedBalance, opts)
 }
 

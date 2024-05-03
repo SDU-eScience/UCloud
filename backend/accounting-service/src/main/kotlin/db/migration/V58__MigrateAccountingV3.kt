@@ -1,20 +1,15 @@
 package db.migration
 
-import com.github.jasync.sql.db.util.length
-import dk.sdu.cloud.accounting.api.ProductCategory
-import dk.sdu.cloud.accounting.services.accounting.InternalAllocationGroup
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.Schema
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.toTimestamp
 import dk.sdu.cloud.toReadableStacktrace
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
-import org.joda.time.DateTime
 import java.sql.ResultSet
-import java.sql.Struct
 import java.time.LocalDateTime
 import kotlin.math.max
+import kotlin.math.min
 
 @Schema("newaccounting")
 @Suppress("ClassNaming", "NestedBlockDepth")
@@ -208,7 +203,7 @@ class V58__MigrateAccountingV3 : BaseJavaMigration() {
                         allocGroup.id,
                         alloc.quota,
                         alloc.startDate,
-                        alloc.endDate ?: LocalDateTime.of(2024, 12, 31, 23, 59, 59).toTimestamp(),
+                        alloc.endDate ?: LocalDateTime.of(2025, 12, 31, 23, 59, 59).toTimestamp(),
                         retired = false,
                         retiredUsage = 0,
                         alloc.grantedIn
@@ -223,18 +218,23 @@ class V58__MigrateAccountingV3 : BaseJavaMigration() {
                 val usage = ArrayList<Long>()
 
                 newWallets.values.forEach { wallet ->
-                    val childGroups = newAllocationGroups.filter { it.value.parentWallet == wallet.id }
-                    val allocationsBelongingToWallet =
-                        newAllocations.values.filter { it.belongsToAllocationGroup in childGroups }
+                    run {
+                        // Determine how much each wallet has sub-allocated
+                        val childGroups = newAllocationGroups.filter { it.value.parentWallet == wallet.id }
+                        val allocationsFromChildren =
+                            newAllocations.values.filter { it.belongsToAllocationGroup in childGroups }
 
-                    wallet.totalAllocated = allocationsBelongingToWallet.sumOf { it.quota }
+                        wallet.totalAllocated = allocationsFromChildren.sumOf { it.quota }
+                    }
 
-                    walletIds.add(wallet.id)
-                    usage.add(allocationsBelongingToWallet.map { allocations[it.id]!! }
-                        .sumOf { max(0, it.quota - it.localBalance) })
-
+                    run {
+                        // Determine how much each wallet has used locally
+                        val myOldAllocations = allocations.values.filter { it.associatedWallet == wallet.id }
+                        val localUsage = myOldAllocations.sumOf { min(it.quota, it.quota - it.localBalance) }
+                        walletIds.add(wallet.id)
+                        usage.add(localUsage)
+                    }
                 }
-
 
                 connection.prepareStatement(
                     """
