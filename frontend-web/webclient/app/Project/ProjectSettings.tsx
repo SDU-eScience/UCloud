@@ -313,7 +313,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     </form>
                 </Card>
 
-                <Card>
+                {/* Note(Jonas): Disabling for now  */}
+                {/* <Card>
                     <ArchiveSingleProject
                         isArchived={status.archived}
                         projectId={projectId}
@@ -321,7 +322,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         title={project.specification.title}
                         onSuccess={() => projectOps.reload()}
                     />
-                </Card>
+                </Card> */}
 
                 <Card>
                     <LeaveProject

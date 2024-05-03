@@ -1397,7 +1397,7 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"errorMain"} icon={"trash"} onAction={onCancel} fullWidth={false}
+        color={"errorMain"} icon={"trash"} align="left" width={"250px"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };

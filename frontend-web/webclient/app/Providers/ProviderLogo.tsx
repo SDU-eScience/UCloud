@@ -36,7 +36,7 @@ const LogoWrapper = injectStyle("logo-wrapper", k => `
         --logo-padding: calc(var(--wrapper-size) / 10);
         padding: var(--logo-padding);
         background-position: center;
-        max-width: calc(var(--wrapper-size) - var(--logo-padding));
-        max-height: calc(var(--wrapper-size) - var(--logo-padding));
+        max-width: 100%;
+        max-height: 100%;
     }
 `);

@@ -10,7 +10,7 @@ import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {useProjectId} from "@/Project/Api";
+import ProjectAPI, {ProjectBrowseParams, useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import Api from "@/Project/Api";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -23,14 +23,15 @@ import {Project} from ".";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
-const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS = {
+const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
     itemsPerPage: PROJECT_ITEMS_PER_PAGE,
     includeFavorite: true,
 
     includeMembers: true,
-    sortBy: "favorite" as const,
-    sortDirection: "descending" as const
-}
+    sortBy: "favorite",
+    sortDirection: "descending",
+    includeArchived: true
+};
 
 export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
 
@@ -214,7 +215,7 @@ export function ContextSwitcher({managed}: {
                         <Input
                             autoFocus
                             className={filterInputClass}
-                            placeholder="Search for a workspace..."
+                            placeholder="Search for a project..."
                             defaultValue={filter}
                             onClick={stopPropagationAndPreventDefault}
                             enterKeyHint="enter"

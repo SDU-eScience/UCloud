@@ -125,6 +125,7 @@ const ListRowClass = injectStyle("list-item", k => `
         width: 100%;
         align-items: center;
         display: flex;
+        min-height: 48px;
     }
 
     ${k}:first-of-type {

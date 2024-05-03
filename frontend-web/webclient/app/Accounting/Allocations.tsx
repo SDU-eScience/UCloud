@@ -1611,7 +1611,7 @@ const Allocations: React.FunctionComponent = () => {
 
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
-                    <h3 style={{margin: 0}}>Sub-allocations</h3>
+                    <h3 style={{margin: 0}}>Sub-projects</h3>
                     <Box flexGrow={1}/>
                     <Button height={35} onClick={onNewSubProject}>
                         <Icon name={"heroPlus"} mr={8}/>
@@ -1620,7 +1620,7 @@ const Allocations: React.FunctionComponent = () => {
 
                     <Box width={"300px"}>
                         <Input
-                            placeholder={"Search in your sub-allocations"}
+                            placeholder={"Search in your sub-projects"}
                             height={35}
                             value={state.subAllocations.searchQuery}
                             onInput={onSearchInput}
