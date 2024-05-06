@@ -149,7 +149,8 @@ function stateReducer(state: State, action: UIAction): State {
             }
 
             const currentlySelectedCategory = state.activeDashboard?.category;
-            let selectedIndex = sorted[0].productCategoryIndex;
+            let selectedIndex = sorted[0]?.productCategoryIndex ?? 0;
+
             if (currentlySelectedCategory) {
                 const selectedSummary = newSummaries.find(it =>
                     it.category.name === currentlySelectedCategory.name &&

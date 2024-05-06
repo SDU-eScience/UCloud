@@ -422,6 +422,7 @@ class GrantsV2Service(
                             where
                                 (:show_active or app.overall_state != 'IN_PROGRESS')
                                 and (:show_inactive or app.overall_state = 'IN_PROGRESS')
+                            order by app.id desc
                             limit $pageSize
                         )
                     select "grant".application_to_json(a.id)
