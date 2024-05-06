@@ -13,6 +13,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
+import AppRoutes from "./Routes";
 
 enum KeyCode {
     ENTER = 13,
@@ -387,7 +388,7 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
                         <Spacer
                             left={<Text>Delete files. Your personal workspace files, including job results
                                 and trash also count towards your storage quota, and so does the contents of your trash folder.</Text>}
-                            right={<Link to={"/drives/"}><Button width="150px" height="30px">Workspace
+                            right={<Link to={AppRoutes.files.drives()}><Button width="150px" height="30px">Workspace
                                 files</Button></Link>}
                         />
                     </Box>

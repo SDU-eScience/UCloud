@@ -144,7 +144,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         case "JOB_FAILED":
         case "JOB_EXPIRED":
             if (notification.meta.jobIds.length > 1) {
-                navigate(`/jobs/`);
+                navigate(AppRoutes.jobs.list());
             } else {
                 navigate(`/jobs/properties/${notification.meta.jobIds[0]}`);
             }
