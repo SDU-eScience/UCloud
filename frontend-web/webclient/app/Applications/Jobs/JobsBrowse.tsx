@@ -198,12 +198,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browser.on("pathToEntry", j => j.id);
                 browser.on("fetchOperationsCallback", () => {
                     const support = {productsByProvider: {}};
-                    const callbacks: ResourceBrowseCallbacks<Job> = {
+                    const callbacks: ResourceBrowseCallbacks<Job> & {isModal: boolean} = {
                         api: JobsApi,
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         onSelect: opts?.selection?.onClick,
+                        isModal: !!opts?.isModal,
                         embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
