@@ -562,7 +562,7 @@ class DriveLocator(
     }
 
     suspend fun fillDriveDatabase() {
-        DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems, config.skipUCloudSynchronization)
+        DriveAndSystemStore.fill(serviceClient, legacySystem, allSystems, true)
     }
 
     /**

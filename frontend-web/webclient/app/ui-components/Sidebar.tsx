@@ -687,13 +687,6 @@ function SecondarySidebar({
                     />
 
                     <SidebarEntry
-                        to={AppRoutes.project.subprojects()}
-                        icon={"heroUserGroup"}
-                        text={"Sub-projects"}
-                        tab={SidebarTabId.WORKSPACE}
-                    />
-
-                    <SidebarEntry
                         to={AppRoutes.project.settings("")}
                         text={"Project settings"}
                         icon={"heroWrenchScrewdriver"}
@@ -707,6 +700,15 @@ function SecondarySidebar({
                     icon={"heroBanknotes"}
                     tab={SidebarTabId.WORKSPACE}
                 />
+
+                {!isPersonalWorkspace ? <>
+                    <SidebarEntry
+                        to={AppRoutes.project.subprojects()}
+                        icon={"heroUserGroup"}
+                        text={"Sub-projects"}
+                        tab={SidebarTabId.WORKSPACE}
+                    />
+                </> : null}
 
                 <SidebarEntry
                     to={AppRoutes.accounting.usage()}

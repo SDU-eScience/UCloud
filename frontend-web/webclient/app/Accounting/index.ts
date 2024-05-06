@@ -436,12 +436,12 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
     const unit = explainUnit(product.category);
     const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
     const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
-    let normalizedDuration = durationInMinutesOrDefault * (frequencyToMillis("PERIODIC_MINUTE") / frequencyToMillis(unit.desiredFrequency));
+    let normalizedDuration = durationInMinutesOrDefault * unit.frequencyFactor;
     if (unit.desiredFrequency === "ONCE") {
         normalizedDuration = 1;
     }
 
-    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.priceFactor;
+    const totalPrice = normalizedDuration * pricePerUnitPerFrequency * numberOfUnits * unit.balanceFactor;
 
     if (totalPrice === 0 || product.category.freeToUse) return "Free";
     let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice);
