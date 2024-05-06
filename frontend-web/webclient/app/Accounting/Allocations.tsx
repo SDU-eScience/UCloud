@@ -1656,8 +1656,10 @@ const Allocations: React.FunctionComponent = () => {
                 </Flex>
 
                 {state.subAllocations.recipients.length !== 0 ? null : <>
-                    You do not have any sub-allocations at the moment. You can create a sub-project by clicking{" "}
-                    <a href="#" onClick={onNewSubProject}>here</a>.
+                    You do not have any sub-allocations at the moment.
+                    {projectRole === OldProjectRole.USER ? null : <>
+                        You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                    </>}
                 </>}
 
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
