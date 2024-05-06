@@ -193,56 +193,73 @@ class AccountingSystem(
                             processPeriodicTasks()
 
                             toCheck.clear()
+                            val timeoutTime = 1000L
                             var response = try {
-                                when (val msg = request.message) {
-                                    is AccountingRequest.Charge -> charge(msg)
-                                    is AccountingRequest.RootAllocate -> rootAllocate(msg)
-                                    is AccountingRequest.SubAllocate -> subAllocate(msg)
-                                    is AccountingRequest.ScanRetirement -> scanRetirement(msg)
-                                    is AccountingRequest.MaxUsable -> maxUsable(msg)
-                                    is AccountingRequest.BrowseWallets -> browseWallets(msg)
-                                    is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
-                                    is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(msg)
-                                    is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
-                                    is AccountingRequest.SystemCharge -> systemCharge(msg)
-                                    is AccountingRequest.ProviderCheckUsable -> providerCheckUsable(msg)
-                                    is AccountingRequest.ForEachUpdatedWallet -> forEachUpdatedWallet(msg)
-                                    is AccountingRequest.StopSystem -> {
-                                        isActiveProcessor.set(false)
-                                        Response.ok(Unit)
-                                    }
+                                withTimeout(timeoutTime) {
+                                    when (val msg = request.message) {
+                                        is AccountingRequest.Charge -> charge(msg)
+                                        is AccountingRequest.RootAllocate -> rootAllocate(msg)
+                                        is AccountingRequest.SubAllocate -> subAllocate(msg)
+                                        is AccountingRequest.ScanRetirement -> scanRetirement(msg)
+                                        is AccountingRequest.MaxUsable -> maxUsable(msg)
+                                        is AccountingRequest.BrowseWallets -> browseWallets(msg)
+                                        is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
+                                        is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
+                                            msg
+                                        )
 
-                                    is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
-                                    is AccountingRequest.DebugState -> {
-                                        if (msg.idCard != IdCard.System) {
-                                            Response.error(HttpStatusCode.Forbidden, "Forbidden")
-                                        } else {
-                                            Response.ok(produceMermaidGraph(msg.roots))
-                                        }
-                                    }
-
-                                    is AccountingRequest.DebugUsable -> {
-                                        if (msg.idCard != IdCard.System) {
-                                            Response.error(HttpStatusCode.Forbidden, "Forbidden")
-                                        } else {
-                                            println("Dumping max usable")
-                                            val out = FileWriter("/tmp/max_usable.csv")
-                                            val writer = PrintWriter(out)
-                                            writer.println("WalletId,MaxUsable")
-                                            for ((walletId, wallet) in walletsById) {
-                                                writer.println("$walletId,${maxUsableForWallet(wallet)}")
-                                            }
-
-                                            writer.close()
-                                            out.close()
-                                            println("OK")
-
+                                        is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
+                                        is AccountingRequest.SystemCharge -> systemCharge(msg)
+                                        is AccountingRequest.ProviderCheckUsable -> providerCheckUsable(msg)
+                                        is AccountingRequest.ForEachUpdatedWallet -> forEachUpdatedWallet(msg)
+                                        is AccountingRequest.StopSystem -> {
+                                            isActiveProcessor.set(false)
                                             Response.ok(Unit)
+                                        }
+
+                                        is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
+                                        is AccountingRequest.DebugState -> {
+                                            if (msg.idCard != IdCard.System) {
+                                                Response.error(HttpStatusCode.Forbidden, "Forbidden")
+                                            } else {
+                                                Response.ok(produceMermaidGraph(msg.roots))
+                                            }
+                                        }
+
+                                        is AccountingRequest.DebugUsable -> {
+                                            if (msg.idCard != IdCard.System) {
+                                                Response.error(HttpStatusCode.Forbidden, "Forbidden")
+                                            } else {
+                                                println("Dumping max usable")
+                                                val out = FileWriter("/tmp/max_usable.csv")
+                                                val writer = PrintWriter(out)
+                                                writer.println("WalletId,MaxUsable")
+                                                for ((walletId, wallet) in walletsById) {
+                                                    writer.println("$walletId,${maxUsableForWallet(wallet)}")
+                                                }
+
+                                                writer.close()
+                                                out.close()
+                                                println("OK")
+
+                                                Response.ok(Unit)
+                                            }
                                         }
                                     }
                                 }
                             } catch (e: Throwable) {
-                                Response.error(HttpStatusCode.InternalServerError, e.toReadableStacktrace().toString())
+                                if (e is TimeoutCancellationException) {
+                                    log.warn("request: $request took more than $timeoutTime ms")
+                                    Response.error(
+                                        HttpStatusCode.RequestTimeout,
+                                        "Request took to long"
+                                    )
+                                } else {
+                                    Response.error(
+                                        HttpStatusCode.InternalServerError,
+                                        e.toReadableStacktrace().toString()
+                                    )
+                                }
                             }
 
                             try {
