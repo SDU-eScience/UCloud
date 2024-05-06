@@ -3,7 +3,6 @@ package dk.sdu.cloud.integration.backend.accounting
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -14,6 +13,8 @@ import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.integration.utils.assertThatInstance
 import dk.sdu.cloud.integration.utils.assertThatPropertyEquals
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.api.v2.FindByProjectId
+import dk.sdu.cloud.project.api.v2.ProjectsCreateInviteRequestItem
 import dk.sdu.cloud.service.Time
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -60,8 +61,9 @@ class GrantTest : IntegrationTest() {
 
             test<In, Out>("Grant applications, expected flow") {
                 execute {
+                    val root = initializeRootProject()
                     val uniqueAdmin = createUser(role = Role.ADMIN)
-                    val root = initializeRootProject(uniqueAdmin.client)
+
                     createSampleProducts(root)
                     val grantAdmins = (0 until input.numberOfProjectAdmins).map {
                         createUser("admin-${UUID.randomUUID()}")
@@ -72,7 +74,7 @@ class GrantTest : IntegrationTest() {
                         organization = input.userOrganization
                     )
 
-                    val createdProject = initializeNormalProject(root, admin = uniqueAdmin)
+                    val createdProject = initializeNormalProject(root)
                     val evilUser = createUser("evil-${UUID.randomUUID()}").let {
                         it.copy(
                             client = it.client.withProject(createdProject.projectId)
