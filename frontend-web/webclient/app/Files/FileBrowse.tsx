@@ -939,6 +939,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         return [{absolutePath: SEARCH, title: `Search results for "${browser.searchQuery}"`}]
                     }
 
+                    collectionCacheForCompletion.retrieve("", () =>
+                        callAPI(FileCollectionsApi.browse({
+                            itemsPerPage: 250,
+                            filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                        })).then(res => res.items)
+                    ).then(doNothing);
+
                     // Note(Jonas): Allow locationbar as we are not in search mode.
                     browser.features.locationBar = true;
 
@@ -986,12 +993,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     }
 
                     if (browser.opts.embedded || browser.opts.selector) {
-                        collectionCacheForCompletion.retrieve("", () =>
-                            callAPI(FileCollectionsApi.browse({
-                                itemsPerPage: 250,
-                                filterMemberFiles: "DONT_FILTER_COLLECTIONS",
-                            })).then(res => res.items)
-                        ).then(doNothing);
                         if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
                             const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
                             driveIcon.className = "drive-icon-dropdown";
@@ -1038,6 +1039,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             const parsedNumber = parseInt(firstComponent);
                             if (!isNaN(parsedNumber) && parsedNumber > 0) {
                                 collectionId = parsedNumber.toString();
+                            } else {
+                                const result = collectionCacheForCompletion.retrieveFromCacheOnly("")?.find(it => it.specification.title === firstComponent)?.id;
+                                if (result) collectionId = result;
                             }
                         }
                     }

@@ -333,7 +333,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     /* Untested */
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
-        console.log("USUSPEND");
+        console.log("UNSUSPEND");
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
