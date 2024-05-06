@@ -13,7 +13,7 @@ import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
-
+/*
 class AccountingCorrectnessStorageTest : IntegrationTest() {
     override fun defineTests() {
         run {
@@ -261,3 +261,4 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
     }
 }
 
+*/

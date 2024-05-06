@@ -60,9 +60,9 @@ class GrantTest : IntegrationTest() {
 
             test<In, Out>("Grant applications, expected flow") {
                 execute {
-                    createSampleProducts()
                     val uniqueAdmin = createUser(role = Role.ADMIN)
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER), uniqueAdmin.client)
+                    val root = initializeRootProject(uniqueAdmin.client)
+                    createSampleProducts(root)
                     val grantAdmins = (0 until input.numberOfProjectAdmins).map {
                         createUser("admin-${UUID.randomUUID()}")
                     }
@@ -827,8 +827,8 @@ class GrantTest : IntegrationTest() {
 
             test<In, Out>("Grant applications logo") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val root = initializeRootProject()
+                    createSampleProducts(root)
                     val createdProject = initializeNormalProject(root)
                     val evilUser = createUser("evil-${UUID.randomUUID()}").let {
                         it.copy(

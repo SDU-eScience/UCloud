@@ -62,8 +62,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link create and browse") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val root = initializeRootProject()
+                    createSampleProducts(root)
                     val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
@@ -125,8 +125,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update role assignment") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val root = initializeRootProject()
+                    createSampleProducts(root)
                     val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
@@ -189,8 +189,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update group assignment") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val root = initializeRootProject()
+                    createSampleProducts(root)
                     val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
@@ -254,8 +254,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link accept") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val root = initializeRootProject()
+                    createSampleProducts(root)
                     val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)

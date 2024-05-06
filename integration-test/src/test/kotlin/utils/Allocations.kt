@@ -13,29 +13,29 @@ data class TotalWalletContent(
     val currentBalance: Long
 )
 
-fun getSumOfWallets(wallets: List<Wallet>): TotalWalletContent{
-    val initialBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.initialBalance } }
+/*fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
+    val initialBalance = wallets.sumOf { wallet -> wallet. }
     val localBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.localBalance } }
     val currentBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.balance } }
     return TotalWalletContent(initialBalance, localBalance, currentBalance)
-}
+}*/
 
-suspend fun findWalletsInternal(walletOwner: WalletOwner): Set<Wallet> {
-    return Wallets.retrieveWalletsInternal.call(
-        WalletsInternalRetrieveRequest(
+suspend fun findWalletsInternal(walletOwner: WalletOwner): Set<WalletV2> {
+    return AccountingV2.browseWalletsInternal.call(
+        AccountingV2.BrowseWalletsInternal.Request(
             walletOwner
         ),
         serviceClient
     ).orThrow().wallets.toSet()
 }
 
-suspend fun findWallets(projectId: String, piClient: AuthenticatedClient): Set<Wallet> {
-    val result = HashSet<Wallet>()
+suspend fun findWallets(projectId: String, piClient: AuthenticatedClient): Set<WalletV2> {
+    val result = HashSet<WalletV2>()
 
     var next: String? = null
     while (true) {
-        val page = Wallets.browse.call(
-            WalletBrowseRequest(
+        val page = AccountingV2.browseWallets.call(
+            AccountingV2.BrowseWallets.Request(
                 itemsPerPage = 250,
                 next = next,
             ),
@@ -49,9 +49,9 @@ suspend fun findWallets(projectId: String, piClient: AuthenticatedClient): Set<W
     return result
 }
 
-suspend fun findAllocationsInternal(walletOwner: WalletOwner): Set<WalletAllocation> {
+/*suspend fun findAllocationsInternal(walletOwner: WalletOwner): Set<WalletAllocationB> {
     return findWalletsInternal(walletOwner).flatMap { it.allocations }.toSet()
 }
-suspend fun findAllocations(projectId: String, piClient: AuthenticatedClient): Set<WalletAllocation> {
-    return findWallets(projectId, piClient).flatMap { it.allocations }.toSet()
-}
+suspend fun findAllocations(projectId: String, piClient: AuthenticatedClient): Set<WalletAllocationB> {
+    return findWallets(projectId, piClient).flatMap { it.al }.toSet()
+}*/

@@ -7,10 +7,16 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.serviceClient
+import dk.sdu.cloud.project.api.v2.Project
+import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
+import dk.sdu.cloud.provider.api.basicTranslationToAccountingUnit
+import dk.sdu.cloud.provider.api.translateToAccountingFrequency
+import dk.sdu.cloud.singleIdOrNull
 
 const val OTHER_PROVIDER = "NewProvider"
 const val UCLOUD_PROVIDER = "ucloud"
@@ -94,7 +100,82 @@ val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleN
     sampleCompute2, sampleCompute3, sampleCompute4, sampleCompute5)
 val sampleProductsOtherProvider = listOf(sampleComputeOtherProvider, sampleStorageOtherProvider)
 
-suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
+fun productV1toV2(product: Product): ProductV2 {
+    val category = ProductCategory(
+        product.category.name,
+        product.category.provider,
+        product.productType,
+        basicTranslationToAccountingUnit(product.unitOfPrice, product.productType),
+        translateToAccountingFrequency(product.unitOfPrice),
+        product.freeToUse
+    )
+
+    return when (product) {
+        is Product.Compute -> {
+            ProductV2.Compute(
+                name = product.name,
+                price = product.pricePerUnit,
+                category = category,
+                description = product.description,
+                cpu = product.cpu,
+                memoryInGigs = product.memoryInGigs,
+                gpu = product.gpu,
+                cpuModel = product.cpuModel,
+                memoryModel = product.memoryModel,
+                gpuModel = product.gpuModel,
+                hiddenInGrantApplications = product.hiddenInGrantApplications
+            )
+        }
+
+        is Product.Storage -> {
+            ProductV2.Storage(
+                name = product.name,
+                price = product.pricePerUnit,
+                category = category,
+                description = product.description,
+                hiddenInGrantApplications = product.hiddenInGrantApplications
+            )
+        }
+
+        is Product.License -> {
+            ProductV2.License(
+                name = product.name,
+                price = product.pricePerUnit,
+                category = category,
+                description = product.description,
+                hiddenInGrantApplications = product.hiddenInGrantApplications,
+                tags = product.tags
+            )
+        }
+
+        is Product.NetworkIP -> {
+            ProductV2.NetworkIP(
+                name = product.name,
+                price = product.pricePerUnit,
+                category = category,
+                description = product.description,
+                hiddenInGrantApplications = product.hiddenInGrantApplications
+            )
+        }
+
+        is Product.Ingress -> {
+            ProductV2.Ingress(
+                name = product.name,
+                price = product.pricePerUnit,
+                category = category,
+                description = product.description,
+                hiddenInGrantApplications = product.hiddenInGrantApplications
+            )
+        }
+
+        else -> {
+            throw RPCException("Unknown Product Type", HttpStatusCode.InternalServerError)
+        }
+    }
+
+}
+
+suspend fun createProvider(providerName: String = UCLOUD_PROVIDER, providerProject: String) {
     Providers.create.call(
         bulkRequestOf(
             ProviderSpecification(
@@ -104,16 +185,16 @@ suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
                 port = 8080
             )
         ),
-        adminClient
+        adminClient.withProject(providerProject)
     ).orThrow()
 }
 
 /**
  * Creates a sample catalog of products
  */
-suspend fun createSampleProducts() {
+suspend fun createSampleProducts(providerProject: String) {
     try {
-        createProvider()
+        createProvider(generateId("provider"), providerProject)
     } catch (ex: RPCException) {
         if (ex.httpStatusCode == HttpStatusCode.Conflict) {
             println("Provider already exists")

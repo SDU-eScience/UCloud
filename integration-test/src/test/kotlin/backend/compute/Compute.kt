@@ -3,6 +3,8 @@ package dk.sdu.cloud.integration.backend.compute
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
@@ -25,6 +27,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 
 fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)
+fun ProductV2.toReference(): ProductReferenceV2 = ProductReferenceV2(name, category.name, category.provider)
 
 class ComputeTest : IntegrationTest() {
     private data class StartJobParameters(
@@ -149,12 +152,12 @@ class ComputeTest : IntegrationTest() {
 
     data class TestCase(
         val title: String,
-        val products: List<Product>,
+        val products: List<ProductV2>,
     )
 
     override fun defineTests() {
         val cases: List<TestCase> = runBlocking {
-            val allProducts = findProducts(findProviderIds())
+            val allProducts = findProducts()
             val productsByProviders = allProducts.groupBy { it.category.provider }
 
             productsByProviders.map { (provider, products) ->

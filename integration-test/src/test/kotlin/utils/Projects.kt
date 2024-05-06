@@ -12,7 +12,6 @@ import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
-import dk.sdu.cloud.service.Time
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -51,7 +50,6 @@ data class NormalProjectInitialization(
 )
 
 suspend fun initializeRootProject(
-    providers: Set<String>,
     admin: AuthenticatedClient? = null
 ): String {
     val adminClient = admin ?: adminClient
@@ -59,28 +57,27 @@ suspend fun initializeRootProject(
         bulkRequestOf(
             Project.Specification(
                 parent = null,
-                title = generateId("root")
+                title = generateId("root"),
+                false
             )
         ),
         adminClient
     ).orThrow().responses.single().id
 
-    val products = findProductCategories(providers)
+    val products = findProductCategories()
 
-    Accounting.rootDeposit.call(
+    AccountingV2.rootAllocate.call(
         BulkRequest(
             products.map { category ->
-                RootDepositRequestItem(
-                    category,
-                    WalletOwner.Project(rootProject),
+                AccountingV2.RootAllocate.RequestItem(
+                    ProductCategoryIdV2(category.name, category.provider),
                     10_000_000_000L,
-                    "Root deposit",
-                    startDate = 1685609520000,
-                    endDate = 4115523120000
+                    1685609520000,
+                    4115523120000
                 )
             }
         ),
-        adminClient
+        adminClient.withProject(rootProject)
     ).orThrow()
 
     return rootProject
@@ -129,24 +126,22 @@ suspend fun initializeNormalProject(
         adminClient.withProject(projectId)
     ).orThrow()
 
-    if (initializeWallet) {
-        Accounting.deposit.call(
+    /*if (initializeWallet) {
+        AccountingV2.updateAllocation.call(
             BulkRequest(
                 findAllocationsInternal(WalletOwner.Project(rootProject)).map { alloc ->
-                    DepositToWalletRequestItem(
-                        WalletOwner.Project(projectId),
+                    AccountingV2.UpdateAllocation.RequestItem(
                         alloc.id,
                         amount,
+                        Time.now(),
+                        4086579120000,
                         "wallet init",
-                        grantedIn = null,
-                        startDate = Time.now(),
-                        endDate = 4086579120000
                     )
                 }
             ),
             adminClient
         ).orThrow()
-    }
+    }*/
 
     return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }
