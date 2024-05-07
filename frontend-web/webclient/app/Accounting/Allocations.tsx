@@ -1028,6 +1028,7 @@ const Allocations: React.FunctionComponent = () => {
     }, [dispatchEvent]);
 
     const onSearchKey = useCallback<React.KeyboardEventHandler>(ev => {
+        ev.stopPropagation();
         const input = ev.target as HTMLInputElement;
         if (ev.code === "Escape") {
             input.blur();
