@@ -842,7 +842,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
-        cb.navigate("/syncthing");
+        cb.navigate(`/syncthing?provider=${cb.collection?.specification.product.provider}`);
         return;
     }
 
