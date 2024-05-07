@@ -36,7 +36,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const [switcher, setSwitcherWorkaround] = React.useState(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Grant Applications", SidebarTabId.WORKSPACE);
+        usePage("Grant Applications", SidebarTabId.PROJECT);
     }
 
     const location = useLocation();

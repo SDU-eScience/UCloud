@@ -837,7 +837,7 @@ const Allocations: React.FunctionComponent = () => {
     const projectState = useProject();
     const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
 
-    usePage("Allocations", SidebarTabId.WORKSPACE);
+    usePage("Allocations", SidebarTabId.PROJECT);
 
     useEffect(() => {
         dispatchEvent({type: "Init"});

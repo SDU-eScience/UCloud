@@ -101,7 +101,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const didUnmount = useDidUnmount();
 
-    usePage("Project Settings", SidebarTabId.WORKSPACE);
+    usePage("Project Settings", SidebarTabId.PROJECT);
     const [settings, setSettings] = useState<Grants.RequestSettings>({
         enabled: false,
         description: "No description",

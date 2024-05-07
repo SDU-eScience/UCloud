@@ -290,7 +290,9 @@ class AccountingSystem(
     }
 
     private suspend fun processPeriodicTasks() {
-        persistence.flushChanges()
+        withTimeout(15_000) {
+            persistence.flushChanges()
+        }
 
         val now = Time.now()
         if (now > nextRetirementScan) {

@@ -411,7 +411,7 @@ const Visualization: React.FunctionComponent = () => {
     const [state, rawDispatch] = useReducer(stateReducer, initialState);
     const dispatchEvent = useStateReducerMiddleware(rawDispatch);
 
-    usePage("Usage", SidebarTabId.WORKSPACE);
+    usePage("Usage", SidebarTabId.PROJECT);
 
     useEffect(() => {
         dispatchEvent({type: "Init"});

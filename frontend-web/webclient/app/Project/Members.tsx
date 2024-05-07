@@ -504,7 +504,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         dispatch({type: "ReloadInvites", invites: invitesFromApi.data});
     }, [invitesFromApi.data]);
 
-    usePage("Member and Group Management", SidebarTabId.WORKSPACE);
+    usePage("Member and Group Management", SidebarTabId.PROJECT);
     useSetRefreshFunction(reload);
     useLoading(projectFromApi.loading || invitesFromApi.loading);
 
