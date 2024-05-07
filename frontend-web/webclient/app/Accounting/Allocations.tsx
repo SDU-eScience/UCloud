@@ -1584,7 +1584,7 @@ const Allocations: React.FunctionComponent = () => {
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                             left={<Flex gap={"32px"}>
                                                 <Flex width={"200px"}>
-                                                    <Icon name={"heroBanknotes"} mr={4}/>
+                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
                                                     <div>
                                                         <b>Allocation ID:</b>
                                                         {" "}
@@ -1720,7 +1720,7 @@ const Allocations: React.FunctionComponent = () => {
                                                 data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                                 left={<Flex>
                                                     <Flex width={"200px"}>
-                                                        <Icon name={"heroBanknotes"} mr={4}/>
+                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
                                                         <div>
                                                             <b>Allocation ID:</b>
                                                             {" "}
