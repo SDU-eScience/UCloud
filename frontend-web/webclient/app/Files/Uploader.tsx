@@ -2,7 +2,15 @@ import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {default as ReactModal} from "react-modal";
-import {Box, Flex, FtIcon, Icon, Truncate, Text} from "@/ui-components";
+import {
+    Box,
+    Flex,
+    FtIcon,
+    Icon,
+    Truncate,
+    Text,
+    Button,
+} from "@/ui-components";
 import {TextSpan} from "@/ui-components/Text";
 import {
     delay,
@@ -43,6 +51,7 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 256;
@@ -52,12 +61,6 @@ const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
 
 interface LocalStorageFileUploadInfo {
     offset: number;
-    size: number;
-    strategy: FilesCreateUploadResponseItem;
-    expiration: number;
-}
-
-interface LocalStorageFolderUploadInfo {
     size: number;
     strategy: FilesCreateUploadResponseItem;
     expiration: number;
@@ -805,111 +808,111 @@ const Uploader: React.FunctionComponent = () => {
     const uploadFilePaths = uploads.map(it => it.name);
     const resumables = pausedFilesInFolder.filter(it => !uploadFilePaths.includes(fileName(it)));
 
-    return <>
-        <ReactModal
-            isOpen={uploaderVisible}
-            style={modalStyle}
-            shouldCloseOnEsc
-            ariaHideApp={false}
-            onRequestClose={closeModal}
-            className={CardClass}
-        >
-            <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
-                <div>
-                    <Flex onClick={closeModal}>
-                        <Box ml="auto"/>
-                        <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close"/>
-                    </Flex>
-                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files
-                    </div>
-                    <Text color="white">{uploadingText}</Text>
+    return <ReactModal
+        isOpen={uploaderVisible}
+        style={modalStyle}
+        shouldCloseOnEsc
+        ariaHideApp={false}
+        onRequestClose={closeModal}
+        className={CardClass}
+    >
+        <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
+            <div>
+                <Flex onClick={closeModal}>
+                    <Box ml="auto" />
+                    <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
+                </Flex>
+                <Flex>
+                    <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
+                    {uploads.find(upload => uploadIsTerminal(upload)) !== null ? <Button ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button> : null}
+                </Flex>
+                <Text color="white">{uploadingText}</Text>
+            </div>
+            <div style={{
+                // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
+                maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
+                overflowY: "scroll"
+            }}>
+                <div className="uploads" style={{width: "100%"}}>
+                    {uploads.map((upload, idx) => (
+                        <UploadRow
+                            key={`${upload.name}-${idx}`}
+                            upload={upload}
+                            callbacks={callbacks}
+                        />
+                    ))}
                 </div>
-                <div style={{
-                    // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
-                    maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
-                    overflowY: "scroll"
-                }}>
-                    <div className="uploads" style={{width: "100%"}}>
-                        {uploads.map((upload, idx) => (
-                            <UploadRow
-                                key={`${upload.name}-${idx}`}
-                                upload={upload}
-                                callbacks={callbacks}
-                            />
-                        ))}
-                    </div>
-                    <Flex justifyContent="center">
-                        <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}}
-                               htmlFor={"fileUploadBrowse"}>
-                            <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault}
-                                 onDragLeave={preventDefault}
-                                 onDragOver={preventDefault} data-slim={hasUploads}>
-                                <div data-has-uploads={hasUploads} className={UploadMoreClass}>
-                                    {hasUploads ? null :
-                                        <UploaderArt/>
-                                    }
-                                    <div className="upload-more-text" style={{marginTop: "22px"}}>
-                                        <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
-                                                                   name="upload"/></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
-                                        <i style={{cursor: "pointer"}}>browse</i>
-                                        <input
-                                            id={"fileUploadBrowse"}
-                                            type={"file"}
-                                            style={{display: "none"}}
-                                            multiple
-                                            onChange={onSelectedFile}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </label>
-                    </Flex>
-                    {resumables.length === 0 ? null :
-                        <div style={{
-                            marginBottom: "4px",
-                            marginLeft: "8px",
-                            marginRight: "4px"
-                        }}>
-                            {resumables.map(it =>
-                                <div className={UploaderRowClass} key={it}>
-                                    <Spacer paddingTop="20px"
-                                            left={<>
-                                                <div>
-                                                    <FtIcon
-                                                        fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
-                                                        size="32px"/>
-                                                </div>
-                                                <div>
-                                                    <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
-                                                </div>
-                                            </>}
-                                            right={<>
-                                                <label htmlFor="fileUploadBrowseResume">
-                                                    <input
-                                                        id={"fileUploadBrowseResume"}
-                                                        type={"file"}
-                                                        style={{display: "none"}}
-                                                        onChange={onSelectedFile}
-                                                    />
-                                                    <Icon cursor="pointer" title="Resume upload" name="play"
-                                                          color="primaryMain" mr="12px"/>
-                                                </label>
-                                                <Icon cursor="pointer" title="Remove" name="close" color="errorMain"
-                                                      mr="12px" onClick={() => {
-                                                    setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                                    removeUploadFromStorage(it);
-                                                }}/>
-                                            </>}
+                <Flex justifyContent="center">
+                    <label style={{width: "100%", height: !hasUploads ? undefined : "70px", marginBottom: "8px"}}
+                        htmlFor={"fileUploadBrowse"}>
+                        <div className={DropZoneBox} onDrop={onSelectedFile} onDragEnter={preventDefault}
+                            onDragLeave={preventDefault}
+                            onDragOver={preventDefault} data-slim={hasUploads}>
+                            <div data-has-uploads={hasUploads} className={UploadMoreClass}>
+                                {hasUploads ? null :
+                                    <UploaderArt />
+                                }
+                                <div className="upload-more-text" style={{marginTop: "22px"}}>
+                                    <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
+                                        name="upload" /></TextSpan>
+                                    <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
+                                    <i style={{cursor: "pointer"}}>browse</i>
+                                    <input
+                                        id={"fileUploadBrowse"}
+                                        type={"file"}
+                                        style={{display: "none"}}
+                                        multiple
+                                        onChange={onSelectedFile}
                                     />
                                 </div>
-                            )}
+                            </div>
                         </div>
-                    }
-                </div>
+                    </label>
+                </Flex>
+                {resumables.length === 0 ? null :
+                    <div style={{
+                        marginBottom: "4px",
+                        marginLeft: "8px",
+                        marginRight: "4px"
+                    }}>
+                        {resumables.map(it =>
+                            <div className={UploaderRowClass} key={it}>
+                                <Spacer paddingTop="20px"
+                                    left={<>
+                                        <div>
+                                            <FtIcon
+                                                fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
+                                                size="32px" />
+                                        </div>
+                                        <div>
+                                            <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
+                                        </div>
+                                    </>}
+                                    right={<>
+                                        <label htmlFor="fileUploadBrowseResume">
+                                            <input
+                                                id={"fileUploadBrowseResume"}
+                                                type={"file"}
+                                                style={{display: "none"}}
+                                                onChange={onSelectedFile}
+                                            />
+                                            <Icon cursor="pointer" title="Resume upload" name="play"
+                                                color="primaryMain" mr="12px" />
+                                        </label>
+                                        <Icon cursor="pointer" title="Remove" name="close" color="errorMain"
+                                            mr="12px" onClick={() => {
+                                                setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                                removeUploadFromStorage(it);
+                                            }} />
+                                    </>}
+                                />
+                            </div>
+                        )}
+                    </div>
+                }
             </div>
-        </ReactModal>
-    </>;
+        </div>
+    </ReactModal>;
 };
 
 function getUploadTimings(uploads: Upload[]): {
@@ -1003,14 +1006,18 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
     ${k} > div > div:nth-child(3) {
         display: flex;
         flex-grow: 1;
-    }
+}
 `);
 
 
-function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallback }): JSX.Element {
+function uploadIsTerminal(upload: Upload): boolean {
+    return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
+}
+
+function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.JSX.Element {
     const [hoverPause, setHoverPause] = React.useState(false);
-    const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const paused = upload.paused;
+    const inProgress = !uploadIsTerminal(upload);
     const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;
@@ -1018,13 +1025,13 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
     return upload.folderName ? (
         <div className={UploaderRowClass} data-has-error={upload.error != null}>
             <div>
-                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px"/></div>
+                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
                 <div>
                     <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
                     <Text
                         fontSize="12px">Uploaded {upload.filesCompleted} of {upload.filesDiscovered} {upload.filesDiscovered > 1 ? "files" : "file"}</Text>
                 </div>
-                <div/>
+                <div />
                 <Flex mr="16px">
                     <Text style={{fontSize: "var(--secondaryText)"}}>
                         {sizeToString(upload.progressInBytes + upload.initialProgress)}
@@ -1033,21 +1040,21 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
                         {" "}
                         ({sizeToString(uploadCalculateSpeed(upload))}/s)
                     </Text>
-                    <Box mr="8px"/>
+                    <Box mr="8px" />
                     {inProgress ? <>
-                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                            <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                                  onClick={() => callbacks.stopUploads([upload])}/>
-                        </>
+                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
+                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                            onClick={() => callbacks.stopUploads([upload])} />
+                    </>
                         :
-                        <>
+                        <TooltipV2 tooltip={"Click to remove row"}>
                             <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
                                 callbacks.clearUploads([upload]);
                                 const fullFilePath = upload.targetPath + "/" + upload.name;
                                 removeUploadFromStorage(fullFilePath);
                                 upload.state = UploadState.DONE;
-                            }} color={stopped ? "errorMain" : "primaryMain"}/>
-                        </>}
+                            }} color={stopped ? "errorMain" : "primaryMain"} />
+                        </TooltipV2>}
                 </Flex>
             </div>
             <div className="error-box">
@@ -1057,13 +1064,13 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
     ) : (
         <div className={UploaderRowClass} data-has-error={upload.error != null}>
             <div>
-                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.name)}} size="32px"/></div>
+                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.name)}} size="32px" /></div>
                 <div>
                     <Truncate maxWidth="270px" color="var(--textPrimary)"
-                              fontSize="18px">{upload.name}</Truncate>
+                        fontSize="18px">{upload.name}</Truncate>
                     <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
                 </div>
-                <div/>
+                <div />
                 <Flex mr="16px">
                     <Text style={{fontSize: "var(--secondaryText)"}}>
                         {sizeToString(upload.progressInBytes + upload.initialProgress)}
@@ -1072,27 +1079,29 @@ function UploadRow({upload, callbacks}: { upload: Upload, callbacks: UploadCallb
                         {" "}
                         ({sizeToString(uploadCalculateSpeed(upload))}/s)
                     </Text>
-                    <Box mr="8px"/>
+                    <Box mr="8px" />
                     {inProgress ? <>
-                            {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                                               onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                                               color="primaryMain"/> : null}
-                            {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                                                onMouseEnter={() => setHoverPause(true)}/> : null}
-                            <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                                  onClick={() => callbacks.stopUploads([upload])}/>
-                        </>
+                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
+                            onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
+                            color="primaryMain" /> : null}
+                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
+                            onMouseEnter={() => setHoverPause(true)} /> : null}
+                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                            onClick={() => callbacks.stopUploads([upload])} />
+                    </>
                         :
                         <>
                             {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                                            onClick={() => callbacks.resumeUploads([upload])}
-                                            color="primaryMain"/> : null}
-                            <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                                callbacks.clearUploads([upload]);
-                                const fullFilePath = upload.targetPath + "/" + upload.name;
-                                removeUploadFromStorage(fullFilePath);
-                                upload.state = UploadState.DONE;
-                            }} color={stopped ? "errorMain" : "primaryMain"}/>
+                                onClick={() => callbacks.resumeUploads([upload])}
+                                color="primaryMain" /> : null}
+                            <TooltipV2 tooltip={"Click to remove row"}>
+                                <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+                                    callbacks.clearUploads([upload]);
+                                    const fullFilePath = upload.targetPath + "/" + upload.name;
+                                    removeUploadFromStorage(fullFilePath);
+                                    upload.state = UploadState.DONE;
+                                }} color={stopped ? "errorMain" : "primaryMain"} />
+                            </TooltipV2>
                         </>}
                 </Flex>
             </div>
@@ -1115,11 +1124,11 @@ const ErrorSpan = injectStyleSimple("error-span", `
 
 const UploaderArt: React.FunctionComponent = () => {
     return <div className={UploadArtWrapper}>
-        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"}/>
-        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"}/>
+        <FtIcon fileIcon={{type: "FILE", ext: "png"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "pdf"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "DIRECTORY"}} size={"128px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "mp3"}} size={"64px"} />
+        <FtIcon fileIcon={{type: "FILE", ext: "mp4"}} size={"64px"} />
     </div>;
 };
 
