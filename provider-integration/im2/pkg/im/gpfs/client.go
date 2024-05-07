@@ -132,6 +132,7 @@ func (c *Client) JobWait(jobid int) (JobResponse, bool) {
 
 func (c *Client) FilesetExists(filesystem, fileset string) bool {
 	// Check variables
+	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
 	if len(filesystem) == 0 {
 		return false
 	}
