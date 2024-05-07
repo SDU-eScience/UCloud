@@ -20,6 +20,7 @@ const (
 )
 
 const (
+	LevelFatal = 0
 	LevelError = 1
 	LevelWarn  = 2
 	LevelInfo  = 3
@@ -80,6 +81,17 @@ func (log *Logger) SetLevel(level int) {
 	log.Level = level
 }
 
+func (log *Logger) Fatal(format string, args ...any) {
+	if LevelFatal > log.Level {
+		return
+	}
+	log.write(LevelFatal, format, args...)
+	if log.file != nil {
+		log.file.Close()
+	}
+	os.Exit(1)
+}
+
 func (log *Logger) Error(format string, args ...any) {
 	if LevelError > log.Level {
 		return
@@ -135,6 +147,8 @@ func (log *Logger) write(level int, format string, args ...any) {
 	}
 
 	switch level {
+	case LevelFatal:
+		lvlstr = "FATAL"
 	case LevelError:
 		lvlstr = "ERROR"
 	case LevelWarn:
