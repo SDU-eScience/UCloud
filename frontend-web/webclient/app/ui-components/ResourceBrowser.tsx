@@ -1798,6 +1798,7 @@ export class ResourceBrowser<T> {
                             (elementBounding.top + elementBounding.height),
                         );
                     } else if (isOperation(op) && enabled === true) {
+                        if (this.contextMenuHandlers.length) this.closeContextMenu();
                         op.onClick(selected, callbacks, page);
                     }
                 };
