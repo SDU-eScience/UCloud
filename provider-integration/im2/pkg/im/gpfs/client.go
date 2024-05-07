@@ -26,6 +26,7 @@ func NewClient(url string) *Client {
 		httpClient: http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
+                                         // TODO(Dan): Put this into configuration
 					InsecureSkipVerify: true,
 				},
 			},
