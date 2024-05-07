@@ -151,6 +151,7 @@ func (c *Client) FilesetQuery(filesystem, fileset string) (Fileset, bool) {
 	var result Fileset
 
 	// Check variables
+	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
 	if len(filesystem) == 0 {
 		return result, false
 	}
