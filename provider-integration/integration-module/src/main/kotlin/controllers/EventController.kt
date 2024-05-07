@@ -143,7 +143,6 @@ class EventController(
 
                             session.messages.onReceive { message ->
                                 replayFrom.set(message.lastUpdate)
-                                println(message)
 
                                 when (message) {
                                     is NotificationMessage.ProjectUpdated -> {

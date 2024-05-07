@@ -65,7 +65,7 @@ class MockStats(private val fs: NativeFS) : FastDirectoryStatsInterface {
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
         if (!allowSlowPath) return null
 
-        val mockFile = InternalFile(joinPath(file.path, "usage.txt")).also { println(it) }
+        val mockFile = InternalFile(joinPath(file.path, "usage.txt"))
         return try {
             fs.openForReading(mockFile).readString().trim().toLong()
         } catch (ex: Throwable) {

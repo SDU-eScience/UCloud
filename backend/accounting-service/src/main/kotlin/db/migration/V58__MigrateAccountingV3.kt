@@ -8,7 +8,6 @@ import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 import java.sql.ResultSet
 import java.time.LocalDateTime
-import kotlin.math.max
 import kotlin.math.min
 
 @Schema("newaccounting")
@@ -238,19 +237,18 @@ class V58__MigrateAccountingV3 : BaseJavaMigration() {
 
                 connection.prepareStatement(
                     """
-                with data as (
-                    select unnest(?::bigint[]) wallet_id, unnest(?::bigint[]) usage
-                )
-                    insert into accounting.intermediate_usage(wallet_id, usage) 
-                    select wallet_id, usage
-                    from data
-            """
+                        with data as (
+                            select unnest(?::bigint[]) wallet_id, unnest(?::bigint[]) usage
+                        )
+                        insert into accounting.intermediate_usage(wallet_id, usage) 
+                        select wallet_id, usage
+                        from data
+                    """
                 ).apply {
                     setArray(1, connection.createArrayOf("bigint", walletIds.toArray()))
                     setArray(2, connection.createArrayOf("bigint", usage.toArray()))
 
                 }.executeUpdate()
-
             }
 
             // wallets
@@ -381,6 +379,19 @@ class V58__MigrateAccountingV3 : BaseJavaMigration() {
                     // Do nothing
                 }
             }
+
+            connection.prepareStatement(
+                """
+                    -- This data is all (potentially) invalid and will be recalculated by the providers
+                    delete from accounting.intermediate_usage u
+                    using
+                        accounting.wallets_v2 w
+                        join accounting.product_categories pc on w.product_category = pc.id
+                    where
+                        u.wallet_id = w.id
+                        and pc.product_type in ('INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION');
+                """
+            ).executeUpdate()
 
             //Set sequence values
             run {

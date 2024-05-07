@@ -1,21 +1,27 @@
 import {extractDataTags, injectStyle} from "@/Unstyled";
 import * as React from "react";
+import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {
     Accordion,
     Box,
-    Button, Checkbox, DataList, Divider,
+    Button,
+    Checkbox,
+    DataList,
+    Divider,
     Flex,
     Icon,
-    Input, Label,
+    Input,
+    Label,
     Link,
-    MainContainer, Relative,
-    Select, TextArea,
+    MainContainer,
+    Relative,
+    Select,
+    TextArea,
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
 import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
 import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
-import {useCallback, useEffect, useMemo, useReducer, useRef} from "react";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -24,12 +30,18 @@ import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
-import {chunkedString, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    chunkedString,
+    doNothing,
+    extractErrorMessage,
+    stopPropagation,
+    timestampUnixMs
+} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {Tree, TreeApi, TreeNode} from "@/ui-components/Tree";
 import ProvidersApi from "@/UCloud/ProvidersApi";
@@ -47,6 +59,8 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
+import {useProject} from "@/Project/cache";
+import {OldProjectRole} from "@/Project";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -820,8 +834,10 @@ const Allocations: React.FunctionComponent = () => {
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
+    const projectState = useProject();
+    const projectRole = projectState.fetch().status.myRole ?? OldProjectRole.USER;
 
-    usePage("Allocations", SidebarTabId.WORKSPACE);
+    usePage("Allocations", SidebarTabId.PROJECT);
 
     useEffect(() => {
         dispatchEvent({type: "Init"});
@@ -1613,7 +1629,7 @@ const Allocations: React.FunctionComponent = () => {
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                     <h3 style={{margin: 0}}>Sub-projects</h3>
                     <Box flexGrow={1}/>
-                    <Button height={35} onClick={onNewSubProject}>
+                    <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
                         <Icon name={"heroPlus"} mr={8}/>
                         New sub-project
                     </Button>
@@ -1640,8 +1656,10 @@ const Allocations: React.FunctionComponent = () => {
                 </Flex>
 
                 {state.subAllocations.recipients.length !== 0 ? null : <>
-                    You do not have any sub-allocations at the moment. You can create a sub-project by clicking{" "}
-                    <a href="#" onClick={onNewSubProject}>here</a>.
+                    You do not have any sub-allocations at the moment.
+                    {projectRole === OldProjectRole.USER ? null : <>
+                        You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
+                    </>}
                 </>}
 
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>

@@ -46,7 +46,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Project invites", SidebarTabId.WORKSPACE);
+        usePage("Project invites", SidebarTabId.PROJECT);
     }
 
     const omitFilters = !!opts?.omitFilters;

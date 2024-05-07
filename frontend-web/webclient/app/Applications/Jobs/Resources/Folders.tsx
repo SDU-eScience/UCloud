@@ -8,6 +8,7 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import AppRoutes from "@/Routes";
 
 export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
@@ -53,7 +54,7 @@ export const FolderResource: React.FunctionComponent<{
                         <>
                             If you need to use your {" "}
                             <Link
-                                to={"/drives/"}
+                                to={AppRoutes.files.drives()}
                                 target="_blank"
                             >
                                 files

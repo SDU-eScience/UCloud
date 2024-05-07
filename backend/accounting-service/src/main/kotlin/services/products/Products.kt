@@ -322,9 +322,9 @@ class ProductService(
         actorAndProject: ActorAndProject,
         request: ProductsV2BrowseRequest
     ): PageV2<Pair<ProductV2, Long?>> {
-        return db.withSession { session ->
-            val itemsPerPage = request.normalize().itemsPerPage
+        val itemsPerPage = request.normalize().itemsPerPage
 
+        val products = db.withSession { session ->
             val rows = session.sendPreparedStatement(
                 {
                     setParameter("name_filter", request.filterName)
@@ -380,42 +380,50 @@ class ProductService(
                 """
             ).rows
 
-            val wallets = accountingSystem.sendRequest(
+            rows.mapNotNull {
+                defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
+            }
+        }
+
+        val wallets = if (actorAndProject.actor != Actor.guest) {
+            accountingSystem.sendRequest(
                 AccountingRequest.BrowseWallets(
                     idCards.fetchIdCard(actorAndProject),
                 )
             )
-
-            val result = rows.mapNotNull {
-                val product = defaultMapper.decodeFromString(ProductV2.serializer(), it.getString(0)!!)
-                val balance = if (request.includeBalance == true) {
-                    val wallet = wallets.find { it.paysFor.toId() == product.category.toId() }
-                    if (wallet == null) return@mapNotNull null
-
-                    wallet.maxUsable
-                } else {
-                    null
-                }
-                return@mapNotNull Pair(product, balance)
-            }
-
-            val next = if (result.size < itemsPerPage) {
-                null
-            } else buildString {
-                val lastElement = result.last().first
-                append(lastElement.category.provider)
-                append('@')
-                append(lastElement.category.name)
-                append('@')
-                append(lastElement.name)
-            }
-
-            PageV2(
-                itemsPerPage,
-                result,
-                next
-            )
+        } else {
+            emptyList()
         }
+
+        val result = products.mapNotNull { product ->
+            val balance = if (request.includeBalance == true) {
+                val wallet = wallets.find { it.paysFor.toId() == product.category.toId() }
+                if (wallet == null) return@mapNotNull null
+
+                wallet.maxUsable
+            } else {
+                null
+            }
+
+            Pair(product, balance)
+        }
+
+        val next = if (result.size < itemsPerPage) {
+            null
+        } else buildString {
+            val lastElement = result.last().first
+            append(lastElement.category.provider)
+            append('@')
+            append(lastElement.category.name)
+            append('@')
+            append(lastElement.name)
+        }
+
+        return PageV2(
+            itemsPerPage,
+            result,
+            next
+        )
     }
 
     private fun requirePermission(actor: Actor, providerId: String, readOnly: Boolean) {

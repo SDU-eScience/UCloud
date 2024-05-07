@@ -40,7 +40,7 @@ const project = {
     members: () => `/projects/members`,
     usage: () => accounting.usage(),
     allocations: () => accounting.allocations(),
-    settings: (page: string) => `/project/settings/${page}`,
+    settings: (page: string) => `/project/settings${page === "" ? "" : "/" + page}`,
     subprojects: () => accounting.allocations(),
 }
 
@@ -50,7 +50,7 @@ const syncthing = {
 
 const apps = {
     landing: () => "/applications",
-    category: (categoryId?: number) => buildQueryString(`/applications/category`, { categoryId }),
+    category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     studioGroups: () => "/applications/studio/groups",
@@ -67,7 +67,7 @@ const apps = {
 };
 
 const jobs = {
-    list: () => `/jobs/`,
+    list: () => `/jobs`,
     create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
     results: () => `/applications/results`,
@@ -99,7 +99,7 @@ const grants = {
         start: number,
         end: number,
         subAllocator: boolean,
-    }) => buildQueryString("/grants", { ...opts, type: "grantGiverInitiated" }),
+    }) => buildQueryString("/grants", {...opts, type: "grantGiverInitiated"}),
     newApplication: (values: {
         projectId?: string,
     }) => buildQueryString("/grants", {...values, type: "applicantInitiated"})

@@ -45,6 +45,7 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.encodeToString
 import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
@@ -493,6 +494,7 @@ fun main(args: Array<String>) {
             // to resolve the products.
             if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
                 val unknownProducts = HashSet<ProductV2>()
+                val unknownReasons = HashMap<ProductReferenceV2, String>()
 
                 for (plugin in allResourcePlugins) {
                     val allConfiguredProducts: List<ProductV2> = config.products.allProducts
@@ -514,28 +516,62 @@ fun main(args: Array<String>) {
 
                         if (resolvedProduct == null) {
                             unknownProducts.add(configuredProduct)
+                            unknownReasons[configuredProduct.toReference()] = "Product does not exist in UCloud"
                         } else {
+                            var reason: String? = null
                             val areEqual: Boolean = run {
                                 val a = configuredProduct
                                 val b = resolvedProduct
 
-                                val areInternalEqual = when (a) {
-                                    is ProductV2.Compute -> {
-                                        b is ProductV2.Compute && a.cpu == b.cpu && a.gpu == b.gpu
-                                                && a.memoryInGigs == b.memoryInGigs
-                                                && a.cpuModel == b.cpuModel
-                                                && a.gpuModel == b.gpuModel
-                                                && a.memoryModel == b.memoryModel
-                                    }
-
-                                    is ProductV2.Ingress -> b is ProductV2.Ingress
-                                    is ProductV2.License -> b is ProductV2.License
-                                    is ProductV2.NetworkIP -> b is ProductV2.NetworkIP
-                                    is ProductV2.Storage -> b is ProductV2.Storage
+                                if (a.productType != b.productType) {
+                                    reason = "types are different ${a.productType} != ${b.productType}"
+                                    return@run false
                                 }
 
-                                a.category == b.category && areInternalEqual && a.description == b.description &&
-                                        a.price == b.price
+                                if (a is ProductV2.Compute) {
+                                    b as ProductV2.Compute
+                                    if (a.cpu != b.cpu) {
+                                        reason = "CPU counts differ ${a.cpu} != ${b.cpu}"
+                                        return@run false
+                                    }
+                                    if (a.gpu != b.gpu) {
+                                        reason = "GPU counts differ ${a.gpu} != ${b.gpu}"
+                                        return@run false
+                                    }
+                                    if (a.memoryInGigs != b.memoryInGigs) {
+                                        reason = "Memory is different ${a.memoryInGigs} != ${b.memoryInGigs}"
+                                        return@run false
+                                    }
+                                    if (a.cpuModel != b.cpuModel) {
+                                        reason = "CPU model is different ${a.cpuModel} != ${b.cpuModel}"
+                                        return@run false
+                                    }
+                                    if (a.memoryModel != b.memoryModel) {
+                                        reason = "Memory model is different ${a.memoryModel} != ${b.memoryModel}"
+                                        return@run false
+                                    }
+                                    if (a.gpuModel != b.gpuModel) {
+                                        reason = "GPU model is different ${a.gpuModel} != ${b.gpuModel}"
+                                        return@run false
+                                    }
+                                }
+
+                                if (a.category != b.category) {
+                                    reason = "categories differ ${defaultMapper.encodeToString(ProductCategory.serializer(), a.category)} ${defaultMapper.encodeToString(ProductCategory.serializer(), b.category)}"
+                                    return@run false
+                                }
+
+                                if (a.price != b.price) {
+                                    reason = "prices are different (${a.price} != ${b.price})"
+                                    return@run false
+                                }
+
+                                if (a.description != b.description) {
+                                    reason = "descriptions are different"
+                                    return@run false
+                                }
+
+                                return@run true
                             }
 
                             if (areEqual) {
@@ -545,6 +581,7 @@ fun main(args: Array<String>) {
                                 // if it isn't the latest version we have in the configuration.
                                 resolvedProducts.add(resolvedProduct)
                                 unknownProducts.add(configuredProduct)
+                                unknownReasons[configuredProduct.toReference()] = reason ?: "unknown"
                             }
                         }
                     }
@@ -570,7 +607,7 @@ fun main(args: Array<String>) {
                         unknownProducts
                             .sortedBy { "${it.productType} / ${it.category.name} / ${it.name}" }
                             .forEach {
-                                line(" - ${it.name} / ${it.category.name} (${it.productType})")
+                                line(" - ${it.name} / ${it.category.name} (${it.productType}) [Reason: ${unknownReasons[it.toReference()]}]")
                             }
                     }
                 }

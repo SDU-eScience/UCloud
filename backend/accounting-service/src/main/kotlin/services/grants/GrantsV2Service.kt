@@ -1117,6 +1117,9 @@ class GrantsV2Service(
                     val targetPid = ctx.idCardService.lookupPidFromProjectId(command.targetProjectId)
                         ?: throw RPCException("Unknown target project? ${command.targetProjectId}", HttpStatusCode.Forbidden)
 
+                    // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
+                    //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
+                    //  not really a great solution.
                     val targetWallets = ctx.accountingService.sendRequest(
                         AccountingRequest.BrowseWallets(
                             IdCard.User(0, IntArray(0), IntArray(0), targetPid),
@@ -1483,6 +1486,9 @@ class GrantsV2Service(
                         session.sendQuery("begin")
 
                         doc.allocationRequests.forEach { req ->
+                            // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
+                            //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
+                            //  not really a great solution.
                             ctx.accountingService.sendRequest(
                                 AccountingRequest.SubAllocate(
                                     IdCard.System,

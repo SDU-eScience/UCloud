@@ -216,7 +216,7 @@ export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] 
 }
 
 class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdate, JobFlags,
-    JobStatus, ComputeSupport>  {
+    JobStatus, ComputeSupport> {
     routingNamespace = "jobs";
     title = "Run";
     productType = "COMPUTE" as const;
@@ -279,7 +279,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         ));
     }
 
-    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job>>[] {
+    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] {
         const baseOperations = super.retrieveOperations();
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
         deleteOperation.text = "Stop";
@@ -298,9 +298,9 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             return true;
         };
 
-        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job>>[] = [{
+        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] = [{
             // Re-run app
-            enabled: (selected) => selected.length === 1,
+            enabled: (selected, cb) => !cb.isModal && selected.length === 1,
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
@@ -333,7 +333,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     /* Untested */
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
-        console.log("USUSPEND");
+        console.log("UNSUSPEND");
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 

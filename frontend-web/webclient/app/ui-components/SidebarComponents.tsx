@@ -6,7 +6,7 @@ import {Flex, Truncate} from "@/ui-components";
 export enum SidebarTabId {
     NONE = "",
     FILES = "Files",
-    WORKSPACE = "Workspace",
+    PROJECT = "Project",
     RESOURCES = "Resources",
     APPLICATIONS = "Applications",
     RUNS = "Runs",

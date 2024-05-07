@@ -209,11 +209,11 @@ const sideBarMenuElements: [
 ] = [
         {
             items: [
-                {icon: "heroFolder", label: SidebarTabId.FILES, to: "/drives/"},
-                {icon: "heroUserGroup", label: SidebarTabId.WORKSPACE, to: AppRoutes.project.usage()},
+                {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.usage()},
                 {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicIps()},
                 {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: SidebarTabId.RUNS, to: "/jobs/"}
+                {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.jobs.list()}
             ],
             predicate: () => Client.isLoggedIn
         },
@@ -676,28 +676,21 @@ function SecondarySidebar({
                 </> : null}
             </>}
 
-            {active !== SidebarTabId.WORKSPACE ? null : <>
+            {active !== SidebarTabId.PROJECT ? null : <>
                 <SidebarSectionEmptyHeader />
                 {!isPersonalWorkspace ? <>
                     <SidebarEntry
                         to={AppRoutes.project.members()}
                         text={"Members"}
                         icon={"heroUsers"}
-                        tab={SidebarTabId.WORKSPACE}
-                    />
-
-                    <SidebarEntry
-                        to={AppRoutes.project.subprojects()}
-                        icon={"heroUserGroup"}
-                        text={"Sub-projects"}
-                        tab={SidebarTabId.WORKSPACE}
+                        tab={SidebarTabId.PROJECT}
                     />
 
                     <SidebarEntry
                         to={AppRoutes.project.settings("")}
                         text={"Project settings"}
                         icon={"heroWrenchScrewdriver"}
-                        tab={SidebarTabId.WORKSPACE}
+                        tab={SidebarTabId.PROJECT}
                     />
                 </> : null}
 
@@ -705,21 +698,30 @@ function SecondarySidebar({
                     to={AppRoutes.accounting.allocations()}
                     text={"Allocations"}
                     icon={"heroBanknotes"}
-                    tab={SidebarTabId.WORKSPACE}
+                    tab={SidebarTabId.PROJECT}
                 />
+
+                {!isPersonalWorkspace ? <>
+                    <SidebarEntry
+                        to={AppRoutes.project.subprojects()}
+                        icon={"heroUserGroup"}
+                        text={"Sub-projects"}
+                        tab={SidebarTabId.PROJECT}
+                    />
+                </> : null}
 
                 <SidebarEntry
                     to={AppRoutes.accounting.usage()}
                     text={"Usage"}
                     icon={"heroPresentationChartLine"}
-                    tab={SidebarTabId.WORKSPACE}
+                    tab={SidebarTabId.PROJECT}
                 />
 
                 <SidebarEntry
                     to={AppRoutes.grants.outgoing()}
                     text={"Grant applications"}
                     icon={"heroDocumentText"}
-                    tab={SidebarTabId.WORKSPACE}
+                    tab={SidebarTabId.PROJECT}
                 />
 
                 <SidebarEntry
@@ -727,7 +729,7 @@ function SecondarySidebar({
                     text={"Apply for resources"}
                     icon={"heroPencilSquare"}
                     disabled={!canApply}
-                    tab={SidebarTabId.WORKSPACE}
+                    tab={SidebarTabId.PROJECT}
                 />
             </>}
 

@@ -413,11 +413,6 @@ class UCloudFilePlugin : FilePlugin {
             var last = 0
             val buf = ByteBuffer.allocateDirect(5)
             while (isActive && websocket.isActive) {
-                /*
-                val firstBacklog = backlog.firstOrNull()
-                firstBacklog?.let { println("Backlog: ${listing[it.toUInt()]} ${backlog.size}") }
-                 */
-
                 val current = filesCompleted.get()
                 if (last != current) {
                     buf.clear()

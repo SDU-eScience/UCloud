@@ -1266,7 +1266,7 @@ export function Editor(): React.JSX.Element {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
-    usePage("Grant application", SidebarTabId.WORKSPACE);
+    usePage("Grant application", SidebarTabId.PROJECT);
     const location = useLocation();
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";

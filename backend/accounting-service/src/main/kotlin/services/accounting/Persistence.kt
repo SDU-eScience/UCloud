@@ -317,9 +317,9 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             val usage: Long
         )
 
-        db.withSession { session ->
+        val charges = db.withSession { session ->
             //Charge Intermediate table
-            val charges = session.sendPreparedStatement(
+            session.sendPreparedStatement(
                 """
                     select id, wallet_id, usage
                     from accounting.intermediate_usage
@@ -331,19 +331,19 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     usage = it.getLong(2)!!
                 )
             }
-
-            charges.map { charge ->
-                system.sendRequestNoUnwrap(
-                    AccountingRequest.SystemCharge(
-                        walletId = charge.walletId,
-                        amount = charge.usage,
-                        isDelta = true
-                    )
-                )
-            }
-
-            didChargeOldData = true
         }
+
+        charges.map { charge ->
+            system.sendRequestNoUnwrap(
+                AccountingRequest.SystemCharge(
+                    walletId = charge.walletId,
+                    amount = charge.usage,
+                    isDelta = true
+                )
+            )
+        }
+
+        didChargeOldData = true
     }
 
     override suspend fun flushChanges() {
