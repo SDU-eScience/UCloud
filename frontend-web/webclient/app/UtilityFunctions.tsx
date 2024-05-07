@@ -538,7 +538,6 @@ export function isAbsoluteUrl(url: string): boolean {
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
 
-// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
 export function removeExpiredFileUploads(): void {
     const now = new Date().getTime();
     Object.keys(localStorage).forEach(key => {
