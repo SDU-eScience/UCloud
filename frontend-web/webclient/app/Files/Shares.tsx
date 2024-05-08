@@ -329,7 +329,7 @@ interface SetShowBrowserHack {
 
 const TITLE = "Shared with me";
 
-export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
+export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): React.ReactNode {
 
     //Projects should now show this page
     const activeProjectId = useProjectId();

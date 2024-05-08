@@ -3905,7 +3905,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.JSX.Element) => void,
+    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void
     }

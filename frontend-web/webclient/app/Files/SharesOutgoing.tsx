@@ -136,7 +136,7 @@ const shareValidationCache: Record<string, ShareValidateState> = {};
 
 const TITLE = "Shared by me";
 
-export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): JSX.Element {
+export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<OutgoingShareGroup | OutgoingShareGroupPreview>}): React.ReactNode {
     // Projects should now show this page
     const activeProjectId = useProjectId();
     React.useEffect(() => {

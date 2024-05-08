@@ -30,7 +30,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
-}>): React.JSX.Element {
+}>): React.ReactNode {
     const didLoadParameters = React.useRef(false);
 
     const jobId = getQueryParam(location.search, "import");

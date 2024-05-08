@@ -28,7 +28,7 @@ const HeaderContainerClass = injectStyleSimple("header-container", `
     box-shadow: var(--defaultShadow);
 `);
 
-const Logo = (): React.JSX.Element => (
+const Logo = (): React.ReactNode => (
     <Link
         data-component={"logo"}
         to="/"

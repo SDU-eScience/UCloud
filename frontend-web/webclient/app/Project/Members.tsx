@@ -21,7 +21,7 @@ import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./ReduxState";
 import {addStandardDialog} from "@/UtilityComponents";
 
-export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
+export function ProjectPageTitle(props: React.PropsWithChildren): React.ReactNode {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
 }
 

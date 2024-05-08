@@ -5,7 +5,7 @@ import {injectStyle} from "@/Unstyled";
 
 const TIMEOUT_DURATION = 180_000;
 
-export function VersionManager(): JSX.Element {
+export function VersionManager(): React.ReactNode {
     const [initialVersion, setInitialVersion] = React.useState("");
     const [newVersion, setNewVersion] = React.useState("");
     const [notifiedUser, setNotifiedUser] = React.useState(false);

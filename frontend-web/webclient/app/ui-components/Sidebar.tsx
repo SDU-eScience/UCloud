@@ -187,7 +187,7 @@ interface SidebarElement {
     icon: IconName;
 }
 
-function SidebarTab({icon}: SidebarElement): JSX.Element {
+function SidebarTab({icon}: SidebarElement): React.ReactNode {
     return <Icon name={icon} hoverColor="fixedWhite" color="fixedWhite" color2="fixedWhite" size={"24"} />
 }
 
@@ -254,7 +254,7 @@ const SidebarItemsClass = injectStyle("sidebar-items", k => `
     }
 `);
 
-function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): JSX.Element {
+function UserMenuLink(props: {icon: IconName; text: string; to: string; close(): void;}): React.ReactNode {
     return <Link color="textPrimary" onClick={props.close} hoverColor="textPrimary" height="28px" to={props.to}>
         <Flex className={HoverClass}>
             <Icon name={props.icon} mr="0.5em" my="0.2em"
@@ -269,7 +269,7 @@ function UserMenuExternalLink(props: {
     href: string;
     text: string;
     close(): void;
-}): JSX.Element | null {
+}): React.ReactNode {
     if (!props.text) return null;
     return <div className={HoverClass}>
         <ExternalLink hoverColor="textPrimary" onClick={props.close} href={props.href}>
@@ -348,7 +348,7 @@ const HoverClass = injectStyle("hover-class", k => `
     }
 `);
 
-export function Sidebar(): JSX.Element | null {
+export function Sidebar(): React.ReactNode {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
@@ -537,7 +537,7 @@ function SecondarySidebar({
     clearHover,
     setSelectedPage,
     clearClicked
-}: SecondarySidebarProps): React.JSX.Element {
+}: SecondarySidebarProps): React.ReactNode {
     const [drives, favoriteFiles] = useSidebarFilesPage();
     const recentRuns = useSidebarRunsPage();
     const activeProjectId = useProjectId();
@@ -837,15 +837,15 @@ function SecondarySidebar({
     </div>;
 }
 
-function AppLogo({name}: {name: string}): JSX.Element {
+function AppLogo({name}: {name: string}): React.ReactNode {
     return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
 }
 
-function SidebarSectionEmptyHeader(): React.JSX.Element {
+function SidebarSectionEmptyHeader(): React.ReactNode {
     return <Box height="11px" />
 }
 
-function Username({close}: {close(): void}): JSX.Element | null {
+function Username({close}: {close(): void}): React.ReactNode {
     if (!Client.isLoggedIn) return null;
     return <Tooltip
         trigger={(
@@ -867,7 +867,7 @@ function Username({close}: {close(): void}): JSX.Element | null {
     </Tooltip>
 }
 
-function ProjectID({close}: {close(): void}): JSX.Element | null {
+function ProjectID({close}: {close(): void}): React.ReactNode {
     const projectId = useProjectId();
 
     const project = useProject();
@@ -903,7 +903,7 @@ function ProjectID({close}: {close(): void}): JSX.Element | null {
     </Tooltip>
 }
 
-function Downtimes(): JSX.Element | null {
+function Downtimes(): React.ReactNode {
     const [downtimes, fetchDowntimes] = useCloudAPI<Page<NewsPost>>({noop: true}, {
         items: [],
         itemsPerPage: 0,

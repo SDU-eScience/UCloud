@@ -81,7 +81,7 @@ const ActionContainer = injectStyle("action-container", k => `
     }
 `);
 
-function ActionBox({children}: React.PropsWithChildren): JSX.Element {
+function ActionBox({children}: React.PropsWithChildren): React.ReactNode {
     return <div className={ActionBoxClass}>
         {children}
     </div>
@@ -345,7 +345,7 @@ interface ChangeProjectTitleProps {
     onSuccess: () => void;
 }
 
-export function ChangeProjectTitle(props: ChangeProjectTitleProps): JSX.Element {
+export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactNode {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);
     const [, invokeCommand] = useCloudCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
@@ -475,7 +475,7 @@ export function getRenamingStatus(
     };
 }
 
-function SubprojectSettings(props: AllowRenamingProps): JSX.Element {
+function SubprojectSettings(props: AllowRenamingProps): React.ReactNode {
     const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
         {noop: true},
         {allowed: false}
@@ -518,7 +518,7 @@ interface ArchiveSingleProjectProps {
     onSuccess: () => void;
 }
 
-export function ArchiveSingleProject(props: ArchiveSingleProjectProps): JSX.Element {
+export function ArchiveSingleProject(props: ArchiveSingleProjectProps): React.ReactNode {
     return <>
         {props.projectRole === OldProjectRole.USER ? null : (
             <ActionBox>
@@ -591,7 +591,7 @@ interface LeaveProjectProps {
     onSuccess: () => void;
 }
 
-export function LeaveProject(props: LeaveProjectProps): JSX.Element {
+export function LeaveProject(props: LeaveProjectProps): React.ReactNode {
     return (
         <ActionBox>
             <Box flexGrow={1}>
@@ -652,7 +652,7 @@ export function LeaveProject(props: LeaveProjectProps): JSX.Element {
     );
 }
 
-export function UpdateProjectLogo(): JSX.Element | null {
+export function UpdateProjectLogo(): React.ReactNode {
     const projectId = useProjectId() ?? "";
     const [, setLogoCacheBust] = useState("" + Date.now());
 

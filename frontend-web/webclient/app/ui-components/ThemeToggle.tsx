@@ -3,13 +3,10 @@ import {useDispatch} from "react-redux";
 import {toggleThemeRedux} from "@/Applications/Redux/Actions";
 import {isLightThemeStored} from "@/UtilityFunctions";
 import {toggleTheme} from "./theme";
-import {Toggle} from "./Toggle";
 import Icon from "./Icon";
-import Box from "./Box";
-import Flex from "./Flex";
 import {injectStyle} from "@/Unstyled";
 
-export function ThemeToggler(): JSX.Element {
+export function ThemeToggler(): React.ReactNode {
     const isLightTheme = isLightThemeStored();
     const dispatch = useDispatch();
 

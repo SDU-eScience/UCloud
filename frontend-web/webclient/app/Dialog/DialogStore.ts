@@ -1,13 +1,13 @@
-import {JSX} from "react";
+import {ReactNode} from "react";
 
 export interface Dialog {
-    element: JSX.Element;
+    element: ReactNode;
     style?: Record<string, any>;
 }
 type DialogStoreSubscriber = (dialogs: Dialog[]) => void;
 
 class DialogStore {
-    private dialogs: {dialog: JSX.Element; onCancel: () => void; style?: Record<string, any>}[];
+    private dialogs: {dialog: ReactNode; onCancel: () => void; style?: Record<string, any>}[];
     private subscribers: DialogStoreSubscriber[] = [];
 
     constructor() {
@@ -22,7 +22,7 @@ class DialogStore {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public addDialog(dialog: JSX.Element, onCancel: () => void, addToFront = false, style?: Record<string, any>): void {
+    public addDialog(dialog: ReactNode, onCancel: () => void, addToFront = false, style?: Record<string, any>): void {
         const d = {dialog, onCancel, style};
         const dialogs = addToFront ?
             [d, ...this.dialogs] :

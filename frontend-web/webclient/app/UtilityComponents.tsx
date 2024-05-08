@@ -415,7 +415,7 @@ const LogOutputClass = injectStyle("log-output", k => `
     }
 `);
 
-export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: string}): React.JSX.Element {
+export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: string}): React.ReactNode {
     return <pre className={LogOutputClass} style={{maxHeight}}>{updates}</pre>;
 }
 

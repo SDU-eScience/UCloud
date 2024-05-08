@@ -33,7 +33,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Grant Applications", SidebarTabId.PROJECT);

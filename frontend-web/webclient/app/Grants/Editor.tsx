@@ -1262,7 +1262,7 @@ const style = injectStyle("grant-editor", k => `
 
 // Main user-interface
 // =====================================================================================================================
-export function Editor(): React.JSX.Element {
+export function Editor(): React.ReactNode {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);

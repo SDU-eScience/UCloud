@@ -74,7 +74,7 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
     />;
 }
 
-function AcceptProjectLinkContainer(props: PropsWithChildren): JSX.Element {
+function AcceptProjectLinkContainer(props: PropsWithChildren): React.ReactNode {
     return <Box  textAlign="center" mt="50px">
         {props.children}
     </Box>

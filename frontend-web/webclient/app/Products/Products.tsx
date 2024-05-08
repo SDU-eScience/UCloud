@@ -26,7 +26,7 @@ import {CardClass} from "@/ui-components/Card";
 import {emptyPage} from "@/Utilities/PageUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function Products(): JSX.Element {
+function Products(): React.ReactNode {
     usePage("SKUs", SidebarTabId.NONE);
 
     const main = (
@@ -197,7 +197,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
     </>);
 }
 
-function Description(): JSX.Element {
+function Description(): React.ReactNode {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
         They are divided into different product types, i.e. storage SKUs, compute SKUs, public link SKUs and license

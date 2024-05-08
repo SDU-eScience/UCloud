@@ -195,7 +195,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
         }
     }, []);
 
-    const elems: JSX.Element[] = [];
+    const elems: React.ReactNode[] = [];
 
     const baseOffset = 12;
 

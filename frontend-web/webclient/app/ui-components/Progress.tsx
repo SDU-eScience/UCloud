@@ -49,7 +49,7 @@ interface Progress {
     label: string;
 }
 
-const Progress = ({color, percent, active, label}: Progress): JSX.Element => {
+const Progress = ({color, percent, active, label}: Progress): React.ReactNode => {
     const topLevelStyle: CSSProperties = {height: "30px"};
     topLevelStyle["--progressColor"] = `var(--${color})`;
 

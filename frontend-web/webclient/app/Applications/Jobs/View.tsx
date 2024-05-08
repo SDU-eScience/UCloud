@@ -306,7 +306,7 @@ function getBackend(job?: Job): string {
     return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
 }
 
-export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
+export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
     const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
@@ -591,7 +591,7 @@ const Content = injectStyle("content", k => `
     }
 `);
 
-function PublicLinkEntry({id}: {id: string}): JSX.Element {
+function PublicLinkEntry({id}: {id: string}): React.ReactNode {
     const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
     if (!id.startsWith("fake-") && publicLink.data == null) return <div />
     let domain: string;

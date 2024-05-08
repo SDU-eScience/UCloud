@@ -36,12 +36,12 @@ const FEATURES: ResourceBrowseFeatures = {
 const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "State", columnWidth: 75}];
 const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
 
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Jobs", SidebarTabId.RUNS);

@@ -69,7 +69,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
 
-    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
     useLayoutEffect(() => {

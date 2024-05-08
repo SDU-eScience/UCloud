@@ -14,7 +14,6 @@ import Label from "./Label";
 import Radio from "./Radio";
 import Text from "./Text";
 import {Spacer} from "./Spacer";
-import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
@@ -31,7 +30,7 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
     return apiUpdate(request, "/api/support", "ticket")
 }
 
-export default function Support(): JSX.Element {
+export default function Support(): React.ReactNode {
     const textArea = useRef<HTMLInputElement>(null);
     const titleArea = useRef<HTMLInputElement>(null);
     const [type, setType] = useState(SupportType.SUGGESTION);

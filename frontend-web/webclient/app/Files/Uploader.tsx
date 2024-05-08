@@ -1013,7 +1013,7 @@ function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 
-function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.JSX.Element {
+function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
     const inProgress = !uploadIsTerminal(upload);

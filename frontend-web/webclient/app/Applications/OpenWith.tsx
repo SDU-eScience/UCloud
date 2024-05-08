@@ -26,7 +26,6 @@ import {
 import {projectTitleFromCache} from "@/Project/ContextSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
-import {logoDataUrls} from "./Jobs/LogoDataCache";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
@@ -34,7 +33,7 @@ import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
     const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ApplicationWithExtension> | null>(null);
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
     const supportRef = React.useRef<ResolvedSupport[]>([]);

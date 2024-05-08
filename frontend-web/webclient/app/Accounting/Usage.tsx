@@ -561,7 +561,7 @@ const NoDataClass = injectStyle("no-data", k => `
     }
 `);
 
-function NoData({productType}: {productType?: Accounting.ProductArea}): React.JSX.Element {
+function NoData({productType}: {productType?: Accounting.ProductArea}): React.ReactNode {
     return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
         <div className={NoDataClass}>
             <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />

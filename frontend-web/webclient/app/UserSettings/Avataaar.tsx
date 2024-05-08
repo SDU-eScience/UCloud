@@ -15,7 +15,7 @@ import {AvatarType, defaultAvatar} from "@/AvataaarLib";
 import Avatar from "@/AvataaarLib/avatar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function Modification(): React.JSX.Element {
+function Modification(): React.ReactNode {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 

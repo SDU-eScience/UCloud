@@ -225,7 +225,7 @@ function CSSPaletteColorVar({color, num}: {color: string, num: number}) {
     return <div style={style}>--{color}-{num}</div>
 }
 
-function Colors(): JSX.Element {
+function Colors(): React.ReactNode {
     return <Flex>
         {colors.map(color => {
             const style: React.CSSProperties = {
@@ -241,7 +241,7 @@ function Colors(): JSX.Element {
     </Flex>
 }
 
-function PaletteColors(): JSX.Element {
+function PaletteColors(): React.ReactNode {
     return <Flex>
         {paletteColors.map(color => <div>{numbers.map(number => <CSSPaletteColorVar color={color} num={number} />)}</div>)}
     </Flex>

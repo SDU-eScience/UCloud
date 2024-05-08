@@ -46,7 +46,7 @@ interface NewsRequestProps extends PaginationRequest {
 
 function initialCall(): void {}
 
-function Dashboard(): React.JSX.Element {
+function Dashboard(): React.ReactNode {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -193,7 +193,7 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
     </DashboardCard>;
 }
 
-function ApplyLinkButton(): React.JSX.Element {
+function ApplyLinkButton(): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />

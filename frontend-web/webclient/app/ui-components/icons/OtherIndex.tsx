@@ -30,7 +30,7 @@ export const documentation = (props: any) => (
     </svg>
 );
 
-export function sidebarFiles(props: any): JSX.Element {
+export function sidebarFiles(props: any) {
     return <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 24 27"
@@ -43,7 +43,7 @@ export function sidebarFiles(props: any): JSX.Element {
     </svg>
 }
 
-export function sidebarProjects(props: any): JSX.Element {
+export function sidebarProjects(props: any) {
     return <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 25.795 25.79"
@@ -62,7 +62,7 @@ export function sidebarProjects(props: any): JSX.Element {
     </svg >
 }
 
-export function sidebarAppStore(props: any): JSX.Element {
+export function sidebarAppStore(props: any) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -77,7 +77,7 @@ export function sidebarAppStore(props: any): JSX.Element {
     );
 }
 
-export function sidebarRuns(props: any): JSX.Element {
+export function sidebarRuns(props: any) {
     return <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 25 25"

@@ -50,8 +50,8 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState<React.ReactNode>(<></>);
     usePage("Licenses", SidebarTabId.RESOURCES);
 
     const dateRanges = dateRangeFilters("Date created");
