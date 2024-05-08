@@ -21,7 +21,6 @@ export function MainContainer({
     const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
-    const mainXpad = pad;
 
     useEffect(() => {
         // HACK(Dan): Under no circumstances should the body be scrolling if we are mounting this element.

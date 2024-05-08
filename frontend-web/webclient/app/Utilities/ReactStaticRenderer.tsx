@@ -4,7 +4,7 @@ import {useLayoutEffect, useRef} from "react";
 
 export class ReactStaticRenderer {
     private fragment = document.createDocumentFragment();
-    private _promise: Promise<this>;
+    private readonly _promise: Promise<this>;
     public get promise(): Promise<this> {
         return this._promise;
     }

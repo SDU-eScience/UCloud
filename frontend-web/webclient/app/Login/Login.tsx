@@ -29,7 +29,6 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
-const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");

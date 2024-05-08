@@ -767,7 +767,7 @@ function SecondarySidebar({
             <div style={{display: active !== SidebarTabId.APPLICATIONS ? "none" : undefined}}>
                 {appFavorites.length > 0 ? <>
                     <SidebarSectionHeader tab={SidebarTabId.APPLICATIONS}>Starred applications</SidebarSectionHeader>
-                    {appFavorites.map((fav, i) =>
+                    {appFavorites.map(fav =>
                         <SidebarEntry
                             key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}

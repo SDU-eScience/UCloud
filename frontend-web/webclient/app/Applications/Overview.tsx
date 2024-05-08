@@ -19,14 +19,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
 import BaseLink from "@/ui-components/BaseLink";
 
-function link(group: ApplicationGroup): string {
-    if (group.specification.defaultFlavor) {
-        return AppRoutes.jobs.create(group.specification.defaultFlavor);
-    } else {
-        return AppRoutes.apps.group(group.metadata.id.toString());
-    }
-}
-
 const OverviewStyle = injectStyle("app-overview", k => `
     ${k} {
         margin: 0 auto;

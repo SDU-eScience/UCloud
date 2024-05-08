@@ -569,7 +569,7 @@ export function randomUUID(): string {
     }
 }
 
-export function grantsLink(client: {hasActiveProject: boolean}): string {
+export function grantsLink(): string {
     return "/grants";
 }
 
