@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -19,6 +20,7 @@ import java.util.zip.ZipOutputStream
 
 class ImportExport(
     private val service: AppService,
+    private val developmentMode: Boolean,
 ) {
     suspend fun exportToZip(): ByteArray {
         val apps: List<ApplicationWithFavoriteAndTags> = service.listAllApplications().mapNotNull { (name, version) ->
@@ -131,31 +133,40 @@ class ImportExport(
             val logo = importedData[groupLogoFileName(it.metadata.id)] ?: return@mapNotNull null
             it.metadata.id to logo
         }.toMap()
-        val groupMembership = decode(groupMembershipFileName, MapSerializer(Int.serializer(), ListSerializer(NameAndVersion.serializer())))
+        val groupMembership = decode(
+            groupMembershipFileName,
+            MapSerializer(Int.serializer(), ListSerializer(NameAndVersion.serializer()))
+        )
         val categories = decode(categoriesFileName, ListSerializer(ApplicationCategory.serializer()))
-        val categoryMembership = decode(categoryMembershipFileName, MapSerializer(Int.serializer(), ListSerializer(Int.serializer())))
+        val categoryMembership =
+            decode(categoryMembershipFileName, MapSerializer(Int.serializer(), ListSerializer(Int.serializer())))
         val spotlights = decode(spotlightFileName, ListSerializer(Spotlight.serializer()))
         val carrousel = decode(carrouselFileName, ListSerializer(CarrouselItem.serializer()))
         val carrouselImages = carrousel.mapIndexedNotNull { index, _ -> importedData[carrouselImageFileName(index)] }
         val topPicks = decode(topPicksFileName, ListSerializer(TopPick.serializer()))
 
         val a = ActorAndProject.System
-        for (tool in tools) {
-            if (service.retrieveTool(a, tool.description.info.name, tool.description.info.version) == null) {
-                try {
-                    service.createTool(a, tool)
-                } catch (ex: Throwable) {
-                    error("Could not create tool: ${tool.description.info}\n${ex.toReadableStacktrace()}")
+
+        // NOTE(Dan): We skip tool and app creation in production mode (needed specifically for 2024.1.0, you may
+        // turn it off if you need it now).
+        if (developmentMode) {
+            for (tool in tools) {
+                if (service.retrieveTool(a, tool.description.info.name, tool.description.info.version) == null) {
+                    try {
+                        service.createTool(a, tool)
+                    } catch (ex: Throwable) {
+                        error("Could not create tool: ${tool.description.info}\n${ex.toReadableStacktrace()}")
+                    }
                 }
             }
-        }
 
-        for (app in apps) {
-            if (service.retrieveApplication(a, app.metadata.name, app.metadata.version) == null) {
-                try {
-                    service.createApplication(a, Application(app.metadata.copy(group = null), app.invocation))
-                } catch (ex: Throwable) {
-                    error("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
+            for (app in apps) {
+                if (service.retrieveApplication(a, app.metadata.name, app.metadata.version) == null) {
+                    try {
+                        service.createApplication(a, Application(app.metadata.copy(group = null), app.invocation))
+                    } catch (ex: Throwable) {
+                        error("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
+                    }
                 }
             }
         }
@@ -177,26 +188,38 @@ class ImportExport(
 
         for (group in groups) {
             val mappedId = groupIdRemapper.getValue(group.metadata.id)
-            service.updateGroup(
-                a,
-                mappedId,
-                newDescription = group.specification.description,
-                newDefaultFlavor = group.specification.defaultFlavor,
-                newLogoHasText = group.specification.logoHasText,
-                newColorRemapping = group.specification.colorReplacement,
-            )
+            try {
+                service.updateGroup(
+                    a,
+                    mappedId,
+                    newDescription = group.specification.description,
+                    newDefaultFlavor = group.specification.defaultFlavor,
+                    newLogoHasText = group.specification.logoHasText,
+                    newColorRemapping = group.specification.colorReplacement.also { println("Color replacement: ${group} $it") },
+                )
+            } catch (ex: Throwable) {
+                log.info("Could not update group: ${group.specification.title}")
+            }
         }
 
         for (group in groups) {
             val logo = groupLogos[group.metadata.id] ?: continue
             val mappedId = groupIdRemapper.getValue(group.metadata.id)
-            service.updateGroup(a, mappedId, newLogo = logo)
+            try {
+                service.updateGroup(a, mappedId, newLogo = logo)
+            } catch (ex: Throwable) {
+                log.info("Could not update group logo: ${group.specification.title}")
+            }
         }
 
         for ((rawId, members) in groupMembership) {
             val mappedId = groupIdRemapper.getValue(rawId)
             for (member in members) {
-                service.assignApplicationToGroup(a, member.name, mappedId)
+                try {
+                    service.assignApplicationToGroup(a, member.name, mappedId)
+                } catch (ex: Throwable) {
+                    log.info("Could not assign application to group: ${member.name}")
+                }
             }
         }
 
@@ -211,15 +234,23 @@ class ImportExport(
             val existingId = categoryIdRemapper[category.metadata.id]
             if (existingId != null) continue
 
-            val newId = service.createCategory(a, category.specification)
-            categoryIdRemapper[category.metadata.id] = newId
+            try {
+                val newId = service.createCategory(a, category.specification)
+                categoryIdRemapper[category.metadata.id] = newId
+            } catch (ex: Throwable) {
+                log.info("Could not create category: ${category.specification}")
+            }
         }
 
         for ((rawId, membership) in categoryMembership) {
             val mappedId = categoryIdRemapper.getValue(rawId)
             for (member in membership) {
                 val mappedMember = groupIdRemapper.getValue(member)
-                service.addGroupToCategory(a, listOf(mappedId), mappedMember)
+                try {
+                    service.addGroupToCategory(a, listOf(mappedId), mappedMember)
+                } catch (ex: Throwable) {
+                    log.info("Could not add group to category")
+                }
             }
         }
 
@@ -227,36 +258,52 @@ class ImportExport(
         val existingSpotlights = service.listSpotlights(a)
         for (spotlight in spotlights) {
             val existingId = existingSpotlights.find { it.title == spotlight.title }?.id
-            service.createOrUpdateSpotlight(
-                a,
-                existingId,
-                spotlight.title,
-                spotlight.body,
-                spotlight.active,
-                spotlight.applications.map { pick ->
-                    pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
-                }
-            )
+            try {
+                service.createOrUpdateSpotlight(
+                    a,
+                    existingId,
+                    spotlight.title,
+                    spotlight.body,
+                    spotlight.active,
+                    spotlight.applications.map { pick ->
+                        pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
+                    }
+                )
+            } catch (ex: Throwable) {
+                log.info("Could not create spotlight: ${spotlight.title}")
+            }
         }
 
         println("Updating carrousel")
-        service.updateCarrousel(a, carrousel.map { s ->
-            s.copy(
-                linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) }
-            )
-        })
+        try {
+            service.updateCarrousel(a, carrousel.map { s ->
+                s.copy(
+                    linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) }
+                )
+            })
+        } catch (ex: Throwable) {
+            log.info("Could not update carrousel")
+        }
         for ((index, image) in carrouselImages.withIndex()) {
-            service.updateCarrouselImage(a, index, image)
+            try {
+                service.updateCarrouselImage(a, index, image)
+            } catch (ex: Throwable) {
+                log.info("Failed uploading carrousel image")
+            }
         }
 
         val newTopPicks = topPicks.map { pick ->
             pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
         }
         println("These are the picks! $newTopPicks")
-        service.updateTopPicks(a, newTopPicks)
+        try {
+            service.updateTopPicks(a, newTopPicks)
+        } catch (ex: Throwable) {
+            log.info("Could not update top picks!")
+        }
     }
 
-    companion object {
+    companion object : Loggable {
         private const val categoriesFileName = "categories.json"
         private const val categoryMembershipFileName = "categoryMembership.json"
         private const val groupsFileName = "groups.json"
@@ -269,5 +316,7 @@ class ImportExport(
 
         private fun carrouselImageFileName(index: Int) = "carrousel-$index.bin"
         private fun groupLogoFileName(groupId: Int) = "group-logo-${groupId}.bin"
+
+        override val log = logger()
     }
 }

@@ -34,6 +34,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {addProjectListener} from "@/Project/ReduxState";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -90,8 +91,8 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                 browser.setColumns([
                     {name: "Drive name", sortById: "title"},
-                    {name: "", columnWidth: 0},
-                    {name: "Created by", sortById: "createdBy", columnWidth: 150},
+                    {name: "Provider", columnWidth: 100},
+                    {name: "Created by", sortById: "createdBy", columnWidth: 250},
                     {name: "Created at", sortById: "createdAt", columnWidth: 160},
                 ]);
 
@@ -341,6 +342,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
                     row.title.append(title);
+                    row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
                         row.stat2.innerText = drive.owner.createdBy;
                     }

@@ -194,10 +194,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
         });
     }, []);
 
-    const onSave = useCallback((e) => {
+    const onSave = useCallback(async (e) => {
         e.preventDefault();
 
-        callAPIWithErrorHandler(
+        await callAPIWithErrorHandler(
             Grants.updateRequestSettings({
                 ...settings,
                 description: description.current!.value,
@@ -209,6 +209,8 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 }
             })
         );
+
+        snackbarStore.addSuccess("Project settings saved!", false);
     }, [settings]);
 
     if (!projectId || !project) return null;

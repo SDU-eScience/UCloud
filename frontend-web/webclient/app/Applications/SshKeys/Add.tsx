@@ -218,11 +218,10 @@ const ProviderSupportRow: React.FunctionComponent<{support: {providerId: string;
 
 // NOTE(Dan): This is hardcoded pending proper support from providers and backend
 const hardcodedSshSupport: {providerId: string; support: string[]}[] = [
-    {providerId: "ucloud", support: []},
+    {providerId: "ucloud", support: ["SSH to jobs (on-demand)"]},
     {providerId: "aau", support: ["None, keys are added through the application"]},
     {providerId: "hippo", support: ["SSH to frontend"]},
-    {providerId: "sophia", support: ["SSH to frontend"]},
-    {providerId: "lumi", support: []},
+    {providerId: "lumi-sdu", support: []},
 ];
 
 export default SshKeysCreate;

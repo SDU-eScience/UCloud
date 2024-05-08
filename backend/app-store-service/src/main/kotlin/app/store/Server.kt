@@ -27,7 +27,7 @@ class Server(override val micro: Micro) : CommonServer {
         val distributedState = DistributedStateFactory(micro)
 
         val service = AppService(db, ProjectCache(distributedState, db), serviceClient)
-        val importer = ImportExport(service)
+        val importer = ImportExport(service, false)
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 
