@@ -62,9 +62,9 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link create and browse") {
                 execute {
-                    val root = initializeRootProject()
-                    createSampleProducts(root)
-                    val project = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val project = initializeNormalProject(root.projectId)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -125,9 +125,9 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update role assignment") {
                 execute {
-                    val root = initializeRootProject()
-                    createSampleProducts(root)
-                    val project = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val project = initializeNormalProject(root.projectId)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -189,9 +189,9 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update group assignment") {
                 execute {
-                    val root = initializeRootProject()
-                    createSampleProducts(root)
-                    val project = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val project = initializeNormalProject(root.projectId)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)
@@ -254,9 +254,9 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link accept") {
                 execute {
-                    val root = initializeRootProject()
-                    createSampleProducts(root)
-                    val project = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val project = initializeNormalProject(root.projectId)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)

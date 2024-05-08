@@ -8,10 +8,13 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.grant.api.GrantApplication
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.safeUsername
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -49,14 +52,17 @@ data class NormalProjectInitialization(
     val projectId: String
 )
 
+typealias RootProjectInitialization = NormalProjectInitialization
+
 suspend fun initializeRootProject(
+    providerProjectId: String,
     admin: AuthenticatedClient? = null
-): String {
+): RootProjectInitialization {
     val adminClient = admin ?: adminClient
     val rootProject = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
-                parent = null,
+                parent = providerProjectId,
                 title = generateId("root"),
                 false
             )
@@ -64,23 +70,49 @@ suspend fun initializeRootProject(
         adminClient
     ).orThrow().responses.single().id
 
-    val products = findProductCategories()
+    createRootAllocations(providerProjectId, rootProject)
 
-    AccountingV2.rootAllocate.call(
-        BulkRequest(
-            products.map { category ->
-                AccountingV2.RootAllocate.RequestItem(
-                    ProductCategoryIdV2(category.name, category.provider),
-                    10_000_000_000L,
-                    1685609520000,
-                    4115523120000
+    return RootProjectInitialization(
+        adminClient,
+        adminUsername,
+        rootProject
+    )
+}
+
+suspend fun createRootAllocations(
+    providerProjectId: String,
+    rootProjectId: String,
+    categories: List<ProductCategory> = emptyList(),
+    quota: Long = 10_000_000_000L,
+    start: Long? = null,
+    end: Long? = null
+) {
+    val productsCategories = categories.ifEmpty { findProductCategories() }
+    val resourceReq = productsCategories.map {
+        GrantApplication.AllocationRequest(
+                it.name,
+                it.provider,
+                providerProjectId,
+                quota,
+                GrantApplication.Period(
+                    start,
+                    end
                 )
-            }
+        )
+    }
+    GrantsV2.submitRevision.call(
+        GrantsV2.SubmitRevision.Request(
+            revision = GrantApplication.Document(
+                GrantApplication.Recipient.ExistingProject(rootProjectId),
+                resourceReq,
+                GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
+                parentProjectId = providerProjectId,
+                revisionComment = "Gifted automatically"
+            ),
+            comment = "Gift"
         ),
-        adminClient.withProject(rootProject)
-    ).orThrow()
-
-    return rootProject
+        adminClient.withProject(providerProjectId)
+    )
 }
 
 suspend fun initializeNormalProject(
@@ -125,23 +157,6 @@ suspend fun initializeNormalProject(
         bulkRequestOf(ProjectsDeleteMemberRequestItem(adminUsername)),
         adminClient.withProject(projectId)
     ).orThrow()
-
-    /*if (initializeWallet) {
-        AccountingV2.updateAllocation.call(
-            BulkRequest(
-                findAllocationsInternal(WalletOwner.Project(rootProject)).map { alloc ->
-                    AccountingV2.UpdateAllocation.RequestItem(
-                        alloc.id,
-                        amount,
-                        Time.now(),
-                        4086579120000,
-                        "wallet init",
-                    )
-                }
-            ),
-            adminClient
-        ).orThrow()
-    }*/
 
     return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }

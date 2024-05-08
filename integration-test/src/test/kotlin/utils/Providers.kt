@@ -44,6 +44,31 @@ suspend fun findProductCategories(): Set<ProductCategory> {
     return findProducts().map { it.category }.toSet()
 }
 
+suspend fun retrieveProviderProjectId(): String {
+    var next: String? = null
+
+    val adminProjects = HashSet<String>()
+    while (true) {
+        val page = Projects.browse.call(
+            ProjectsBrowseRequest(
+                itemsPerPage = 250,
+                next = next
+            ),
+            adminClient
+        ).orThrow()
+
+        val filtered = page.items.filter { it.specification.title == UCLOUD_PROVIDER}
+        filtered.forEach { adminProjects.add(it.id) }
+        next = page.next ?: break
+    }
+
+    if (adminProjects.isEmpty()) {
+        throw IllegalStateException()
+    }
+
+    return adminProjects.first()
+}
+
 suspend fun findProviders(): Set<Provider> {
     // NOTE(Dan): Assume that the providers are all registered with the admin client. This is generally true when
     // created through the launcher.
@@ -69,7 +94,9 @@ suspend fun findProviders(): Set<Provider> {
         while (true) {
             val page = Providers.browse.call(
                 ResourceBrowseRequest(
-                    ProviderIncludeFlags(),
+                    ProviderIncludeFlags(
+                        filterProvider = UCLOUD_PROVIDER
+                    ),
                     itemsPerPage = 250,
                     next = next
                 ),

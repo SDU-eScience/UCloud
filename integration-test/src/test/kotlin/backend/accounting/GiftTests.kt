@@ -35,13 +35,13 @@ class GiftTest : IntegrationTest() {
                         organization = input.userOrganization
                     )
                     val evilUser = createUser("evil-${UUID.randomUUID()}")
-                    val root = initializeRootProject()
-                    createSampleProducts(root)
-                    val createdProject = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val createdProject = initializeNormalProject(root.projectId)
                     for (simplifiedGift in input.gifts) {
                         val gift = GiftWithCriteria(
                             id = 0L,
-                            resourcesOwnedBy = root,
+                            resourcesOwnedBy = root.projectId,
                             title = "My gift ${UUID.randomUUID()}",
                             description = "Description",
                             resources = listOf(
@@ -61,7 +61,7 @@ class GiftTest : IntegrationTest() {
                         )
 
                         Gifts.createGift.call(gift, evilUser.client).assertUserError()
-                        giftId = Gifts.createGift.call(gift, adminClient.withProject(root)).orThrow().id
+                        giftId = Gifts.createGift.call(gift, adminClient.withProject(root.projectId)).orThrow().id
                     }
 
                     val availableGifts = Gifts.availableGifts.call(AvailableGiftsRequest, normalUser.client).orThrow()
@@ -71,7 +71,7 @@ class GiftTest : IntegrationTest() {
                     }
 
                     //Deletes all data about gift before next test
-                    Gifts.deleteGift.call(DeleteGiftRequest(giftId), adminClient.withProject(root)).orThrow()
+                    Gifts.deleteGift.call(DeleteGiftRequest(giftId), adminClient.withProject(root.projectId)).orThrow()
 
                     val walletsOfUser = AccountingV2.browseWalletsInternal.call(
                         AccountingV2.BrowseWalletsInternal.Request(
