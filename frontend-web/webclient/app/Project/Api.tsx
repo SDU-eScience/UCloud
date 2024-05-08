@@ -88,14 +88,8 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "toggleFavorite");
     }
 
-    // TODO(Jonas): Test
     public renameProject(request: BulkRequest<RenameProjectRequest>): APICallParameters {
         return apiUpdate(request, this.baseContext, "renameProject");
-    }
-
-    // TODO(Jonas): Handle in general.
-    public verifyProject(request: BulkRequest<VerifyProjectRequest>): APICallParameters {
-        return apiUpdate(request, this.baseContext, "verifyProject");
     }
 
     public updateSettings(request: ProjectSettings): APICallParameters {

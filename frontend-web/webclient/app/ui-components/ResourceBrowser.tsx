@@ -3376,8 +3376,6 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .stat-wrapper {
                     width: calc(var(--stat1Width));
                 }
-
-                /* TODO(Jonas): Handle if Use button is present */
             }
 
             ${browserClass.dot} .row .stat2,

@@ -630,7 +630,6 @@ const Uploader: React.FunctionComponent = () => {
                         });
                 }
             } catch (e) {
-                /* TODO(jonas): This needs to be handled for resuming uploads, I think. */
                 const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
                 for (let i = 0; i < creationRequests.length; i++) {
                     actualUploads[i].state = UploadState.DONE;
