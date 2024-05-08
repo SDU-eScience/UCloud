@@ -28,7 +28,7 @@ interface ResourcePermissionEditorProps<T extends Resource> {
 
 export function ResourcePermissionEditor<T extends Resource>(
     props: ResourcePermissionEditorProps<T>
-): React.ReactElement | null {
+): React.ReactNode {
     const {entity, reload, api} = props;
     const projectId = useProjectId();
     const project = useProject();

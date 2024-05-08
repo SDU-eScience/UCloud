@@ -23,7 +23,7 @@ enum KeyCode {
 
 interface StandardDialog {
     title?: string;
-    message: string | JSX.Element;
+    message: React.ReactNode;
     onConfirm: () => void | Promise<void>;
     onCancel?: () => void;
     cancelText?: string;
@@ -88,7 +88,7 @@ interface InputDialog {
     addToFront?: boolean;
     type?: "input" | "textarea";
     resize?: "none";
-    help?: JSX.Element;
+    help?: React.ReactNode;
     width?: string;
     rows?: number;
     confirmButtonColor?: ThemeColor;
@@ -168,7 +168,7 @@ export const ConfirmCancelButtons = ({
     height,
     showCancelButton,
     disabled
-}: ConfirmCancelButtonsProps): JSX.Element => (
+}: ConfirmCancelButtonsProps): React.ReactNode => (
     <ButtonGroup width="175px" height={height}>
         <Button disabled={disabled} onClick={onConfirm} type="button" color="successMain">{confirmText}</Button>
         {showCancelButton === false ? null :
@@ -338,7 +338,7 @@ const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
 const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
 const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 
-export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
+export function WalletWarning(props: {errorCode?: string}): React.ReactNode | null {
     if (!props.errorCode) return null;
     return (
         <ErrorWrapper
@@ -350,7 +350,7 @@ export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     );
 }
 
-function WarningToOptions(props: {errorCode: string}): JSX.Element {
+function WarningToOptions(props: {errorCode: string}): React.ReactNode {
     const applyPath = "/grants";
 
     switch (props.errorCode) {

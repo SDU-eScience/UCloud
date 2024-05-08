@@ -28,13 +28,10 @@ export const ButtonGroupClass = injectStyle("button-group", k => `
     }
 `);
 
-const ButtonGroup: React.FunctionComponent<BoxProps & { children?: React.ReactNode }> = props => {
-    return <Box className={ButtonGroupClass} {...props} />;
+const ButtonGroup: React.FunctionComponent<BoxProps & { children?: React.ReactNode }> = ({height = "35px",...props}) => {
+    return <Box className={ButtonGroupClass} height={height} {...props} />;
 };
 
 ButtonGroup.displayName = "ButtonGroup";
-ButtonGroup.defaultProps = {
-    height: "35px"
-};
 
 export default ButtonGroup;

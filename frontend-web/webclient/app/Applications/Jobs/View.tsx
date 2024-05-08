@@ -1260,7 +1260,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     </Flex>;
 };
 
-function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | null {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     if (!pathRef.current) {
         console.warn("No output folder found. Showing nothing.");

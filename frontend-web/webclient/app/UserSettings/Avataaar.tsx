@@ -180,7 +180,7 @@ function AvatarSelect<T1 extends string, T2 extends Object>({
     title,
     disabled,
     defaultValue
-}: AvatarSelect<T1, T2>): JSX.Element | null {
+}: AvatarSelect<T1, T2>): React.ReactNode {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}

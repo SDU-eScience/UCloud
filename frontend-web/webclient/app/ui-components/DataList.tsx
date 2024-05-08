@@ -42,7 +42,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         };
     }
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const results = this.state.text ?
             this.state.fuse.search(this.state.text).map(it => it.item) : this.props.options.slice(0, this.totalShown);
         return (

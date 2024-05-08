@@ -6,7 +6,7 @@ import CONF from "../../site.config.json";
 import {injectStyleSimple} from "@/Unstyled";
 
 // Note(Jonas): We need something similar NOT in the header. Or maybe keep this? Nah.
-export function NonAuthenticatedHeader(): JSX.Element {
+export function NonAuthenticatedHeader(): React.ReactNode {
     return (
         <ui.Flex background={"var(--primaryMain)"} className={HeaderContainerClass}>
             <Logo/>

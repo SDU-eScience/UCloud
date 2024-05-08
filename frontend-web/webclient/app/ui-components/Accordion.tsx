@@ -23,7 +23,7 @@ export function Accordion(props: React.PropsWithChildren<{
     panelProps?: MarginProps & PaddingProps;
     className?: string;
     style?: Partial<CSSProperties>;
-}>): JSX.Element {
+}>): React.ReactNode {
     const color = props.iconColor ?? "textPrimary";
     const [open, setOpen] = React.useState(false);
     const isOpen = props.forceOpen || open;

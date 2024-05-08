@@ -149,7 +149,7 @@ export const ResourceFilter: React.FunctionComponent<{
     </>;
 };
 
-function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): JSX.Element {
+function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): React.ReactNode {
     return props.browseType !== BrowseType.MainContent ? (
         <>{props.children}</>
     ) : (
@@ -159,7 +159,7 @@ function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}
     );
 }
 
-function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
+function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): React.ReactNode {
     return props.embedded ? (
         <ClickableDropdown chevron width="250px" trigger="Filters" keepOpenOnClick colorOnHover={false}>
             <Grid mr="5px" gridAutoFlow="row" gridGap={"12px"}>

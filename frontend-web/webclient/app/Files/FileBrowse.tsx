@@ -118,7 +118,7 @@ interface AdditionalResourceBrowserOpts {
 }
 let lastActiveProject: string | undefined = "";
 const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
-function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): JSX.Element {
+function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -163,7 +163,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
     const didUnmount = useDidUnmount();
 
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -602,8 +602,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
-                    const ops = groupOperations(enabledOperations);
-                    return ops;
+                    return groupOperations(enabledOperations);
                 });
 
                 browser.on("fetchOperationsCallback", () => {
@@ -1512,8 +1511,7 @@ export default FileBrowse;
 
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
-    const collections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
-    const filteredCollections = collections;
+    const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
         const wrapper = document.createElement("li");

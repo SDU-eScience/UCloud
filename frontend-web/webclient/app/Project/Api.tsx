@@ -55,10 +55,6 @@ interface RenameProjectRequest {
     newTitle: string;
 }
 
-interface VerifyProjectRequest {
-
-}
-
 export type ProjectBrowseParams = ProjectFlags & ProjectsSortByFlags & PaginationRequestV2;
 
 class ProjectApi {

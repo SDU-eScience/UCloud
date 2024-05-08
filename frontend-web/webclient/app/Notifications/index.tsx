@@ -36,7 +36,7 @@ function resolveNotification(event: Notification): {
     color?: ThemeColor;
     color2?: ThemeColor;
     modifiedTitle?: string;
-    modifiedMessage?: JSX.Element | string;
+    modifiedMessage?: React.ReactNode;
 } {
     switch (event.type) {
         case "REVIEW_PROJECT":
@@ -404,7 +404,7 @@ export const Notifications: React.FunctionComponent = () => {
         };
     }, []);
 
-    const pinnedEntries: JSX.Element | null = (() => {
+    const pinnedEntries: React.ReactNode = (() => {
         const pinnedItems = notificationStore.filter(it => normalizeNotification(it).isPinned);
         if (pinnedItems.length === 0) return null;
         return <div className="container">
@@ -415,7 +415,7 @@ export const Notifications: React.FunctionComponent = () => {
         </div>;
     })();
 
-    const entries: JSX.Element = (() => {
+    const entries: React.ReactNode = (() => {
         if (notificationStore.length === 0) return <NoNotifications />;
         return <>
             {notificationStore.map((notification, index) => {
@@ -548,7 +548,7 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
     }
 `);
 
-const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
+const NoNotifications = (): React.ReactNode => <TextSpan>No notifications</TextSpan>;
 
 interface Notification {
     type: string;
@@ -612,7 +612,7 @@ interface NotificationEntryProps {
     notification: NormalizedNotification;
 }
 
-function NotificationEntry(props: NotificationEntryProps): JSX.Element {
+function NotificationEntry(props: NotificationEntryProps): React.ReactNode {
     const {notification} = props;
 
     const classes: string[] = [];

@@ -31,7 +31,7 @@ function eraseCookie(name: string): void {
 type WayfTestState = "success" | "2fa";
 const testState: WayfTestState | null = null;
 
-function Wayf(): JSX.Element | null {
+function Wayf(): React.ReactNode {
     const authCookieName = "authState";
 
     if (inDevEnvironment()) {

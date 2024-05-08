@@ -53,7 +53,7 @@ const reducer = (state: UserCreationState, action: UserCreationActionType): User
     }
 };
 
-function UserCreation(): JSX.Element | null {
+function UserCreation(): React.ReactNode {
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
     const reduxDispatch = useDispatch();
     const [submitted, setSubmitted] = React.useState(false);

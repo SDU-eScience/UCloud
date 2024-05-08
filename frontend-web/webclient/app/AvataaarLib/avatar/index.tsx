@@ -5,7 +5,7 @@ import Face from "./face";
 import {AvatarComponentProps, AvatarStyle} from "@/AvataaarLib";
 import Top, {Accessories} from "./top";
 
-export default function Avatar(props: AvatarComponentProps): JSX.Element {
+export default function Avatar(props: AvatarComponentProps): React.ReactNode {
     const {avatarStyle} = props;
     const circle = avatarStyle === AvatarStyle.Circle;
     return (
@@ -144,7 +144,7 @@ const Brown = makeColor("Brown", "#D08B5B");
 const DarkBrown = makeColor("DarkBrown", "#AE5D29");
 const Black = makeColor("Black", "#614335");
 
-function Skin(props: Props): JSX.Element {
+function Skin(props: Props): React.ReactNode {
     switch (props.optionValue) {
         case SkinColors.Black:
             return <Black maskID={props.maskID} />;

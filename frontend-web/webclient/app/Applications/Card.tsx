@@ -20,7 +20,7 @@ interface ApplicationCardProps {
     application?: ApplicationSummaryWithFavorite
 }
 
-export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }): JSX.Element => (
+export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }): React.ReactNode => (
     <div style={{
         marginRight: "3px",
         background: `var(--${bg})`,
@@ -107,7 +107,7 @@ const ApplicationCardClass = injectStyle("application-card", k => `
     }
 `);
 
-function MultiLineTruncate(props: React.PropsWithChildren<{ lines: number }>): JSX.Element {
+function MultiLineTruncate(props: React.PropsWithChildren<{ lines: number }>): React.ReactNode {
     const {lines, ...p} = props;
     return <div className={MultiLineTruncateClass} style={{
         WebkitLineClamp: props.lines,
@@ -122,7 +122,7 @@ export enum AppCardType {
 export interface AppCardProps extends React.PropsWithChildren<ApplicationCardProps> {
 }
 
-export function AppCard(props: AppCardProps): JSX.Element {
+export function AppCard(props: AppCardProps): React.ReactNode {
     return React.useMemo(() => {
         const card = <div className={classConcat(CardClass, ApplicationCardClass)}>
             <SafeLogo

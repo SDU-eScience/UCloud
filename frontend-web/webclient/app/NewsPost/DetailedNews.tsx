@@ -95,7 +95,7 @@ export const DetailedNews: React.FC = () => {
     }
 };
 
-function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;}): JSX.Element {
+function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;}): React.ReactNode {
     const titleRef = React.useRef<HTMLInputElement>(null);
     const subtitleRef = React.useRef<HTMLInputElement>(null);
     const [body, setBody] = React.useState(props.post.body);

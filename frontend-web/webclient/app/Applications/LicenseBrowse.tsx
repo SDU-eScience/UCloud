@@ -45,7 +45,7 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2License, L
     globalTtl: 60_000
 });
 
-export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): JSX.Element {
+export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();

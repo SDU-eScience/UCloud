@@ -71,7 +71,7 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 
 export function ContextSwitcher({managed}: {
     managed?: {setLocalProject: (project?: string) => void}
-}): JSX.Element {
+}): React.ReactNode {
     const refresh = useRefresh();
 
     const project = useProject();
@@ -279,7 +279,7 @@ export function ContextSwitcher({managed}: {
     );
 }
 
-function Favorite({project}: {project: Project}): JSX.Element {
+function Favorite({project}: {project: Project}): React.ReactNode {
     const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
     const [commandLoading, invokeCommand] = useCloudCommand();

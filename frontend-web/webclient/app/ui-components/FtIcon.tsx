@@ -63,7 +63,7 @@ const SvgFtLabel = ({hasExt, ext, type}: { hasExt: boolean, ext: string, type: s
 };
 
 // Decoration for file type icons
-const SvgFtType = ({type}: { type: string }): JSX.Element | null => {
+const SvgFtType = ({type}: { type: string }): React.ReactNode => {
     switch (type) {
         case "image":
             return (
@@ -182,7 +182,7 @@ const SvgFtType = ({type}: { type: string }): JSX.Element | null => {
 };
 
 // File type icon component
-export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
+export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): React.ReactNode => (
     <svg
         viewBox="0 0 43 56"
         fillRule="evenodd"
@@ -219,7 +219,7 @@ interface FtIconBaseProps {
     className?: string;
 }
 
-const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, iconHint, ...props}) => {
+const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size = 24, iconHint, ...props}) => {
     const hasExt = !!fileIcon.ext;
     const ext4 = fileIcon.ext?.substring(0, 4);
     const type = fileIcon.ext ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
@@ -277,9 +277,5 @@ const FtIcon: React.FunctionComponent<FtIconBaseProps> = props => {
 }
 
 FtIcon.displayName = "FtIcon";
-
-FtIcon.defaultProps = {
-    size: 24
-};
 
 export default FtIcon;

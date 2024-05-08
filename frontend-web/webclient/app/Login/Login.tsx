@@ -397,7 +397,7 @@ interface LoginProps {
     passwordRef: React.RefObject<HTMLInputElement>;
 }
 
-const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
+const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactNode => !enabled2fa ? (
     <>
         <LoginInput type="hidden" value="web-csrf" name="service" />
         <LoginInput

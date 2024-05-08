@@ -9,7 +9,7 @@ import {ThemeColor} from "@/ui-components/theme";
 export interface NotificationProps {
     icon: IconName;
     title: string;
-    body: JSX.Element | string;
+    body: React.ReactNode;
     isPinned: boolean;
     uniqueId: string;
     read?: boolean;

@@ -7,7 +7,6 @@ import {injectStyle, unbox} from "@/Unstyled";
 interface ProgressBaseProps {
     height?: number | string;
     value?: number | string;
-    active?: boolean;
     color?: ThemeColor;
     children?: React.ReactNode;
 }
@@ -48,16 +47,14 @@ const ProgressBaseClass = injectStyle("progress-base", k => `
     }
 `);
 
-const ProgressBase: React.FunctionComponent<ProgressBaseProps> = props => {
-    const style = unbox(props);
-    if (props.color) style["--progressColor"] = `var(--${props.color})`;
-    return <div className={ProgressBaseClass} style={style} children={props.children} />;
-};
-
-ProgressBase.defaultProps = {
-    color: "successMain",
-    height: "30px",
-    active: false,
+const ProgressBase: React.FunctionComponent<ProgressBaseProps> = ({
+  color = "successMain",
+  height = "30px",
+  ...props
+}) => {
+    const style = unbox({height, ...props});
+    if (color) style["--progressColor"] = `var(--${color})`;
+    return <div className={ProgressBaseClass} style={style} children={props.children}/>;
 };
 
 interface Progress {
@@ -65,9 +62,9 @@ interface Progress {
     label: string;
 }
 
-const Progress = ({color, label}: Progress): JSX.Element => (
+const Progress = ({color, label}: Progress): React.ReactNode => (
     <>
-        <ProgressBase height="30px" color={color} />
+        <ProgressBase height="30px" color={color}/>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
     </>
 );

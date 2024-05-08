@@ -2,7 +2,7 @@ import * as React from "react";
 import {Clothes as ClothesOpts, ClothesGraphic, ColorFabric} from "@/UserSettings/AvatarOptions";
 import {generateId as uniqueId} from "@/UtilityFunctions";
 
-export default function Clothes(props: {optionValue: ClothesOpts, graphic: ClothesGraphic, color: ColorFabric}): JSX.Element {
+export default function Clothes(props: {optionValue: ClothesOpts, graphic: ClothesGraphic, color: ColorFabric}): React.ReactNode {
     const {color, graphic} = props;
     switch (props.optionValue) {
         case ClothesOpts.BlazerShirt:
@@ -215,7 +215,7 @@ class GraphicShirt extends React.Component<{color: ColorFabric; graphic: Clothes
     private path1 = uniqueId("react-path-");
     private mask1 = uniqueId("react-mask-");
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const {path1, mask1} = this;
         return (
             <g
@@ -249,7 +249,7 @@ class Hoodie extends React.Component<{color: ColorFabric}> {
     private path1 = uniqueId('react-path-');
     private mask1 = uniqueId('react-mask-');
 
-    render(): JSX.Element {
+    render(): React.ReactNode {
         const {path1, mask1} = this;
         return (
             <g id='Clothing/Hoodie' transform='translate(0.000000, 170.000000)'>
@@ -455,7 +455,7 @@ export interface ColorProps {
 
 function makeColor(name: string, color: string) {
   class ColorComponent extends React.Component<ColorProps> {
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
       return (
         <g
           id="Color/Palette/Gray-01"
@@ -489,7 +489,7 @@ const Pink = makeColor("Pink", "#FF488E");
 const Red = makeColor("Red", "#FF5C5C");
 const White = makeColor("White", "#FFFFFF");
 
-function Colors(props: ColorProps): JSX.Element {
+function Colors(props: ColorProps): React.ReactNode {
   switch (props.color) {
     case ColorFabric.Black:
       return <Black maskID={props.maskID} />;

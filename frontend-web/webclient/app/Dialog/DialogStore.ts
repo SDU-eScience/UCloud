@@ -1,3 +1,5 @@
+import {JSX} from "react";
+
 export interface Dialog {
     element: JSX.Element;
     style?: Record<string, any>;

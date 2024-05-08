@@ -10,7 +10,7 @@ interface ErrorProps {
     width?: string | number
 }
 
-function Error(props: ErrorProps): JSX.Element | null {
+function Error(props: ErrorProps): React.ReactNode {
     if (!props.error) return null;
 
     function onClearError(e: React.MouseEvent<HTMLElement, MouseEvent>): void {

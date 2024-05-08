@@ -30,12 +30,12 @@ const FEATURES: ResourceBrowseFeatures = {
 
 
 const rowTitles: ColumnTitleList = [{name: "Provider name"}, {name: "", columnWidth: 150}, {name: "", columnWidth: 150}, {name: "", columnWidth: 0}];
-function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): JSX.Element {
+function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Providers", SidebarTabId.ADMIN);
