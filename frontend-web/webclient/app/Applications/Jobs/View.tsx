@@ -38,7 +38,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
-import {chain, classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {LogOutput} from "@/UtilityComponents";
@@ -166,11 +166,11 @@ const Container = injectStyle("job-container", k => `
     animation: 800ms ${zoomInAnim};
   }
 
-  ${k} > ${chain(logoWrapper, active)} {
+  ${k} > ${logoWrapper.dot}${active.dot} {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} > ${chain(logoWrapper, active)} > ${logoScale.dot} {
+  ${k} > ${logoWrapper.dot}${active.dot} > ${logoScale.dot} {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
@@ -185,22 +185,22 @@ const Container = injectStyle("job-container", k => `
     content: '';
   }
 
-  ${k} ${chain(data, dataEnterDone)} {
+  ${k} ${data.dot}${dataEnterDone.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 
-  ${k} ${chain(data, dataEnterActive)} {
+  ${k} ${data.dot}${dataEnterActive.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} ${chain(data, dataExit)} {
+  ${k} ${data.dot}${dataExit.dot} {
     opacity: 1;
   }
 
-  ${k} ${chain(data, dataExitActive)} {
+  ${k} ${data.dot}${dataExitActive.dot} {
     display: none;
   }
 
@@ -246,7 +246,7 @@ const Container = injectStyle("job-container", k => `
     --logoSize: 96px;
   }
 
-  ${chain(k, running)} {
+  ${k}${running.dot} {
     --logoScale: 0.5;
   }
 

@@ -187,10 +187,6 @@ export function makeClassName(name: string) {
     };
 }
 
-export function chain(...names: ({dot: string}| string)[]): string {
-    return names.map(it => typeof it === "string" ? it : it.dot).join("");
-}
-
 export type WithEventHandlers = Omit<Omit<React.DOMAttributes<any>, "dangerouslySetInnerHTML">, "children">;
 
 export function extractEventHandlers(props: WithEventHandlers): WithEventHandlers {
