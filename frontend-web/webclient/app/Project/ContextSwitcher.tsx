@@ -48,10 +48,6 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
-export function projectFromCache(projectId?: string): Project | undefined {
-    return projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-}
-
 export function projectTitleFromCache(projectId?: string) {
     if (!projectId) return "My workspace";
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);

@@ -34,7 +34,6 @@ const Text: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props 
         title={props.title} children={props.children} />;
 };
 
-export const TextDiv = Text;
 export const TextSpan: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
     return <span className={classConcat(TextClass, props.className)} style={extractCss(props)} {...extractEventHandlers(props)}
         title={props.title} children={props.children} />;

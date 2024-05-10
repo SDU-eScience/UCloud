@@ -210,42 +210,12 @@ export const ItemRow = <T, CB>(
     />;
 }
 
-const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
-
 interface RenamingState<T> {
     setRenaming: (item: T) => void;
     isRenaming: (item: T) => boolean;
     renameValue: (item: T) => string;
     onRename: (item: T, text: string) => void;
     onRenameCancel: () => void;
-}
-
-export function useRenamingState<T>(
-    nameExtractor: (item: T) => string,
-    nameExtractorDeps: DependencyList,
-    eqFn: (a: T, b: T) => boolean,
-    eqFnDeps: DependencyList,
-    onRename: (item: T, text: string) => Promise<void>,
-    onRenameDeps: DependencyList,
-): RenamingState<T> {
-    const memoOnRename = useMemo(() => onRename, onRenameDeps);
-    const memoNameExtractor = useMemo(() => nameExtractor, nameExtractorDeps);
-    const memoEqFn = useMemo(() => eqFn, eqFnDeps);
-    const [renaming, setRenaming] = useState<T | null>(null);
-    const isRenaming = useCallback((item: T): boolean => {
-        return renaming !== null && memoEqFn(renaming, item);
-    }, [memoEqFn, renaming]);
-    const onRenameCancel = useCallback(() => {
-        setRenaming(null);
-    }, [setRenaming]);
-
-    return useMemo((): RenamingState<T> => ({
-        setRenaming,
-        isRenaming,
-        renameValue: memoNameExtractor,
-        onRename: memoOnRename,
-        onRenameCancel
-    }), [isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
 }
 
 export interface StandardCallbacks<T = any> {

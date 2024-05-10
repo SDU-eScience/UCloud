@@ -60,117 +60,6 @@ function mergeProperties(
     return result;
 }
 
-export const ResourceFilter: React.FunctionComponent<{
-    pills: React.FunctionComponent<PillProps>[];
-    browseType: BrowseType;
-    filterWidgets: React.FunctionComponent<FilterWidgetProps>[];
-    sortEntries: SortEntry[];
-    properties: Record<string, string>;
-    readOnlyProperties?: Record<string, string>;
-    setProperties: (props: Record<string, string>) => void;
-    sortDirection: "ascending" | "descending";
-    sortColumn?: string;
-    onSortUpdated: (direction: "ascending" | "descending", column: string) => void;
-}> = props => {
-    const {properties, setProperties} = props;
-    const [expanded, setExpanded] = useState<number | null>(null);
-    const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
-    const combinedProperties = useMemo(
-        () => ({...(props.readOnlyProperties ?? {}), ...properties}),
-        [props.readOnlyProperties, properties]
-    );
-
-    const onSortDeleted = useCallback((keys: string[]) => {
-        const result: Record<string, string> = {...(sortProperties)};
-        for (const key of keys) {
-            delete result[key];
-        }
-
-        setSortProperties(result);
-    }, [setSortProperties, sortProperties]);
-
-    const onPillDeleted = useCallback((keys: string[]) => {
-        const result: Record<string, string> = {...(properties)};
-        for (const key of keys) {
-            delete result[key];
-        }
-
-        setProperties(result);
-        setExpanded(null);
-    }, [setProperties, setExpanded, properties]);
-
-    const onPropertiesUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        mergeProperties(properties, updatedProperties, setProperties);
-    }, [setProperties, properties]);
-
-    const sortOptions = useMemo(() =>
-        props.sortEntries.map(it => ({
-            icon: it.icon,
-            title: it.title,
-            value: it.column,
-            helpText: it.helpText
-        })),
-        [props.sortEntries]
-    );
-
-    const expand = useCallback((id: number) => {
-        if (expanded === id) {
-            setExpanded(null);
-        } else {
-            setExpanded(id);
-        }
-    }, [expanded, setExpanded]);
-
-    const isEmbedded = props.browseType === BrowseType.Embedded;
-
-    return <>
-        {isEmbedded ? null :
-            <Heading.h4 mt={"32px"} mb={"16px"}>
-                <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-                Filter
-            </Heading.h4>
-        }
-        <MainContentGrid browseType={BrowseType.Embedded}>
-            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                icon={"heroAdjustmentsHorizontal"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
-            {props.pills.map((Pill, idx) =>
-                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
-            )}
-        </MainContentGrid>
-        <Grid gridGap={"20px"}
-            mt={Object.keys(props.filterWidgets).length === 0 && Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "10px"}>
-            <EmbeddedFilterDropdown embedded={isEmbedded}>
-                {props.filterWidgets.map((Widget, idx) =>
-                    <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
-                        onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
-                )}
-            </EmbeddedFilterDropdown>
-        </Grid>
-    </>;
-};
-
-function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): React.ReactNode {
-    return props.browseType !== BrowseType.MainContent ? (
-        <>{props.children}</>
-    ) : (
-        <Grid gridGap={"8px"}>
-            {props.children}
-        </Grid>
-    );
-}
-
-function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): React.ReactNode {
-    return props.embedded ? (
-        <ClickableDropdown chevron width="250px" trigger="Filters" keepOpenOnClick colorOnHover={false}>
-            <Grid mr="5px" gridAutoFlow="row" gridGap={"12px"}>
-                {props.children}
-            </Grid>
-        </ClickableDropdown>
-    ) : (<>
-        {props.children}
-    </>);
-}
-
 export const FilterPill: React.FunctionComponent<{
     icon: IconName;
     onRemove: () => void;
@@ -463,14 +352,6 @@ export function DateRangeFilter(
             icon={icon} title={title} {...props} />,
     ];
 }
-
-export const StaticPill: React.FunctionComponent<{
-    value: string
-} & PillProps & BaseFilterWidgetProps> = (props) => {
-    return <FilterPill icon={props.icon} onRemove={doNothing} canRemove={false}>
-        {props.value}
-    </FilterPill>
-};
 
 export const ValuePill: React.FunctionComponent<{
     propertyName: string;
