@@ -65,7 +65,7 @@ function Save(): React.ReactNode {
                         }));
                     }
                 }}
-                onSubmitSucceded={(res, data) => {
+                onSubmitSucceeded={(res, data) => {
                     if (res) {
                         navigate(`/providers`);
                     }

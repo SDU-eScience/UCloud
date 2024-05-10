@@ -106,7 +106,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
     title: string;
     submitText?: string;
     formatError?: (errors: string[]) => string;
-    onSubmitSucceded?: (res: Response, d: DataType) => void;
+    onSubmitSucceeded?: (res: Response, d: DataType) => void;
     onSubmitError?: (err: string) => void;
     children: React.ReactNode;
 }> {
@@ -127,7 +127,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
             const request = await this.props.createRequest(this.data);
             try {
                 const res = await callAPI<Response>(request);
-                this.props.onSubmitSucceded?.(res, this.data);
+                this.props.onSubmitSucceeded?.(res, this.data);
             } catch (err) {
                 const message = errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
                 this.props.onSubmitError?.(message);
