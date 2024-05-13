@@ -951,7 +951,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const components = pathComponents(path);
                     const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const collectionName = collection ?
-                        collection.specification.title :
+                        `${collection.specification.title} (${components[0]})` :
                         components[0];
 
                     let builder = "";
@@ -1038,9 +1038,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             const parsedNumber = parseInt(firstComponent);
                             if (!isNaN(parsedNumber) && parsedNumber > 0) {
                                 collectionId = parsedNumber.toString();
-                            } else {
-                                const result = collectionCacheForCompletion.retrieveFromCacheOnly("")?.find(it => it.specification.title === firstComponent)?.id;
-                                if (result) collectionId = result;
                             }
                         }
                     }
@@ -1059,7 +1056,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             }
                         }
                     }
-                    const collectionName = collection ? collection.specification.title : collectionId;
+                    const collectionName = collection ? `${collection.specification.title} (${collectionId})` : collectionId;
                     const remainingPath = path.substring(endOfFirstComponent);
 
                     return {
