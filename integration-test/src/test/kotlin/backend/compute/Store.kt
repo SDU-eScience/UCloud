@@ -1,6 +1,7 @@
 package dk.sdu.cloud.integration.backend.compute
 
 import dk.sdu.cloud.Page
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.client.call
@@ -30,7 +31,7 @@ class AppStoreTest : IntegrationTest() {
             )
 
             class Out(
-                val appsFound: Page<ApplicationSummaryWithFavorite>
+                val appsFound: PageV2<ApplicationSummaryWithFavorite>
             )
 
             test<In, Out>("simple search tests") {
@@ -48,7 +49,7 @@ class AppStoreTest : IntegrationTest() {
                         )
 
                         AppStore.findByNameAndVersion.call(
-                            FindApplicationAndOptionalDependencies(
+                            FindByNameAndVersionRequest(
                                 it.app.name,
                                 it.app.version
                             ),
@@ -62,8 +63,8 @@ class AppStoreTest : IntegrationTest() {
                         } else {
                             createUser()
                         }
-                    val appsFound = AppStore.searchApps.call(
-                        AppSearchRequest(
+                    val appsFound = AppStore.search.call(
+                        AppStore.Search.Request(
                             input.searchQuery
                         ),
                         user.client
@@ -94,7 +95,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.2", output.appsFound.items.first().metadata.version)
                     }
@@ -120,7 +121,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.2", output.appsFound.items.first().metadata.version)
                     }
@@ -146,7 +147,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(0, output.appsFound.itemsInTotal)
+                        assertEquals(0, output.appsFound.items.size)
                     }
                 }
 
@@ -175,7 +176,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.2", output.appsFound.items.first().metadata.version)
                     }
@@ -215,7 +216,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.40", output.appsFound.items.first().metadata.version)
                     }
@@ -255,7 +256,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.2", output.appsFound.items.first().metadata.version)
                     }
@@ -295,7 +296,7 @@ class AppStoreTest : IntegrationTest() {
                     )
 
                     check {
-                        assertEquals(1, output.appsFound.itemsInTotal)
+                        assertEquals(1, output.appsFound.items.size)
                         assertEquals(nameToUse, output.appsFound.items.first().metadata.name)
                         assertEquals("1.64.40", output.appsFound.items.first().metadata.version)
                     }

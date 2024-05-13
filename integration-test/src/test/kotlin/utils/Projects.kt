@@ -8,11 +8,13 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.grant.api.GrantApplication
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.safeUsername
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -50,40 +52,67 @@ data class NormalProjectInitialization(
     val projectId: String
 )
 
+typealias RootProjectInitialization = NormalProjectInitialization
+
 suspend fun initializeRootProject(
-    providers: Set<String>,
+    providerProjectId: String,
     admin: AuthenticatedClient? = null
-): String {
+): RootProjectInitialization {
     val adminClient = admin ?: adminClient
     val rootProject = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
-                parent = null,
-                title = generateId("root")
+                parent = providerProjectId,
+                title = generateId("root"),
+                false
             )
         ),
         adminClient
     ).orThrow().responses.single().id
 
-    val products = findProductCategories(providers)
+    createRootAllocations(providerProjectId, rootProject)
 
-    Accounting.rootDeposit.call(
-        BulkRequest(
-            products.map { category ->
-                RootDepositRequestItem(
-                    category,
-                    WalletOwner.Project(rootProject),
-                    10_000_000_000L,
-                    "Root deposit",
-                    startDate = 1685609520000,
-                    endDate = 4115523120000
+    return RootProjectInitialization(
+        adminClient,
+        adminUsername,
+        rootProject
+    )
+}
+
+suspend fun createRootAllocations(
+    providerProjectId: String,
+    rootProjectId: String,
+    categories: List<ProductCategory> = emptyList(),
+    quota: Long = 10_000_000_000L,
+    start: Long? = null,
+    end: Long? = null
+) {
+    val productsCategories = categories.ifEmpty { findProductCategories() }
+    val resourceReq = productsCategories.map {
+        GrantApplication.AllocationRequest(
+                it.name,
+                it.provider,
+                providerProjectId,
+                quota,
+                GrantApplication.Period(
+                    start,
+                    end
                 )
-            }
+        )
+    }
+    GrantsV2.submitRevision.call(
+        GrantsV2.SubmitRevision.Request(
+            revision = GrantApplication.Document(
+                GrantApplication.Recipient.ExistingProject(rootProjectId),
+                resourceReq,
+                GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
+                parentProjectId = providerProjectId,
+                revisionComment = "Gifted automatically"
+            ),
+            comment = "Gift"
         ),
-        adminClient
-    ).orThrow()
-
-    return rootProject
+        adminClient.withProject(providerProjectId)
+    )
 }
 
 suspend fun initializeNormalProject(
@@ -128,25 +157,6 @@ suspend fun initializeNormalProject(
         bulkRequestOf(ProjectsDeleteMemberRequestItem(adminUsername)),
         adminClient.withProject(projectId)
     ).orThrow()
-
-    if (initializeWallet) {
-        Accounting.deposit.call(
-            BulkRequest(
-                findAllocationsInternal(WalletOwner.Project(rootProject)).map { alloc ->
-                    DepositToWalletRequestItem(
-                        WalletOwner.Project(projectId),
-                        alloc.id,
-                        amount,
-                        "wallet init",
-                        grantedIn = null,
-                        startDate = Time.now(),
-                        endDate = 4086579120000
-                    )
-                }
-            ),
-            adminClient
-        ).orThrow()
-    }
 
     return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }

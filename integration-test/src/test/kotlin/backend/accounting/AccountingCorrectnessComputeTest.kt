@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.Time
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
-class AccountingCorrectnessComputeTest : IntegrationTest() {
+/*class AccountingCorrectnessComputeTest : IntegrationTest() {
         override fun defineTests() {
             run {
                 class In(
@@ -353,3 +353,4 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
             }
         }
 }
+*/

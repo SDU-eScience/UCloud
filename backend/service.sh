@@ -36,7 +36,7 @@ restartsvc() {
 
 installpsql() {
     if ! hash psql &> /dev/null ; then
-        apt-get update && apt-get install postgresql-client -y
+        yum install postgresql -y
     fi
 }
 

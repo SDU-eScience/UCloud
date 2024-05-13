@@ -1,8 +1,10 @@
 package dk.sdu.cloud.integration.backend.accounting
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.adminClient
@@ -21,7 +23,7 @@ class GiftTest : IntegrationTest() {
             )
             class Out(
                 val availableGifts: AvailableGiftsResponse,
-                val walletsOfUser: List<Wallet>
+                val walletsOfUser: List<WalletV2>
             )
 
             test<In, Out>("Gifts, expected flow") {
@@ -33,13 +35,13 @@ class GiftTest : IntegrationTest() {
                         organization = input.userOrganization
                     )
                     val evilUser = createUser("evil-${UUID.randomUUID()}")
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
-                    val createdProject = initializeNormalProject(root)
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
+                    val createdProject = initializeNormalProject(root.projectId)
                     for (simplifiedGift in input.gifts) {
                         val gift = GiftWithCriteria(
                             id = 0L,
-                            resourcesOwnedBy = createdProject.projectId,
+                            resourcesOwnedBy = root.projectId,
                             title = "My gift ${UUID.randomUUID()}",
                             description = "Description",
                             resources = listOf(
@@ -48,7 +50,6 @@ class GiftTest : IntegrationTest() {
                                     sampleCompute.category.provider,
                                     createdProject.projectId,
                                     1000,
-                                    null,
                                     GrantApplication.Period(
                                         null,
                                         null
@@ -60,7 +61,7 @@ class GiftTest : IntegrationTest() {
                         )
 
                         Gifts.createGift.call(gift, evilUser.client).assertUserError()
-                        giftId = Gifts.createGift.call(gift, createdProject.piClient).orThrow().id
+                        giftId = Gifts.createGift.call(gift, adminClient.withProject(root.projectId)).orThrow().id
                     }
 
                     val availableGifts = Gifts.availableGifts.call(AvailableGiftsRequest, normalUser.client).orThrow()
@@ -69,11 +70,11 @@ class GiftTest : IntegrationTest() {
                         Gifts.claimGift.call(ClaimGiftRequest(gift.id), normalUser.client).assertUserError()
                     }
 
-                    //Deletes all data about gift before next text
-                    Gifts.deleteGift.call(DeleteGiftRequest(giftId), createdProject.piClient).orThrow()
+                    //Deletes all data about gift before next test
+                    Gifts.deleteGift.call(DeleteGiftRequest(giftId), adminClient.withProject(root.projectId)).orThrow()
 
-                    val walletsOfUser = Wallets.retrieveWalletsInternal.call(
-                        WalletsInternalRetrieveRequest(
+                    val walletsOfUser = AccountingV2.browseWalletsInternal.call(
+                        AccountingV2.BrowseWalletsInternal.Request(
                             WalletOwner.User(normalUser.username)
                         ),
                         adminClient
@@ -93,8 +94,7 @@ class GiftTest : IntegrationTest() {
                     check {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
-                            it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000L
+                            it.find { it.paysFor.name == sampleCompute.category.name }?.quota == 1000L
                         }
                     }
                 }
@@ -111,10 +111,7 @@ class GiftTest : IntegrationTest() {
 
                     check {
                         assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
-                        assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
-                            (wallets.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } ?: 0L) == 0L
-                        }
+                        assertThatInstance(output.walletsOfUser, "has no new allocations") { it.isEmpty() }
                     }
                 }
 
@@ -130,10 +127,7 @@ class GiftTest : IntegrationTest() {
 
                     check {
                         assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
-                        assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
-                            (wallets.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } ?: 0L) == 0L
-                        }
+                        assertThatInstance(output.walletsOfUser, "has a no new allocations") { it.isEmpty() }
                     }
                 }
 
@@ -150,8 +144,7 @@ class GiftTest : IntegrationTest() {
                     check {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
-                            it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000L
+                            it.find { it.paysFor.name == sampleCompute.category.name }?.quota == 1000L
                         }
                     }
                 }
@@ -169,8 +162,7 @@ class GiftTest : IntegrationTest() {
                     check {
                         assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
                         assertThatInstance(output.walletsOfUser, "has a new allocation") {
-                            it.find { it.paysFor == sampleCompute.category }?.allocations
-                                ?.sumOf { it.balance } == 1000L
+                            it.find { it.paysFor.name == sampleCompute.category.name }?.quota == 1000L
                         }
                     }
                 }

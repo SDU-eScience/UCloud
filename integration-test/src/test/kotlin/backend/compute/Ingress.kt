@@ -22,7 +22,7 @@ class IngressTest : IntegrationTest() {
 
     override fun defineTests() {
         val cases: List<TestCase> = runBlocking {
-            val allProducts = findProducts(findProviderIds())
+            val allProducts = findProducts()
             val productsByProviders = allProducts.groupBy { it.category.provider }
 
             productsByProviders.mapNotNull { (provider, products) ->

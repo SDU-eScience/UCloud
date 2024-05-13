@@ -1,12 +1,9 @@
 package dk.sdu.cloud.integration.backend.accounting
 
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.*
@@ -20,7 +17,6 @@ import io.ktor.http.*
 import io.ktor.utils.io.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.util.*
-import kotlin.test.assertTrue
 
 class GrantTest : IntegrationTest() {
     sealed class CommentPoster {
@@ -30,6 +26,7 @@ class GrantTest : IntegrationTest() {
     }
 
     override fun defineTests() {
+
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
             class SimpleResourceRequest(val category: String, val provider: String, val balance: Long)
@@ -53,16 +50,17 @@ class GrantTest : IntegrationTest() {
             class Out(
                 val grantApplication: GrantApplication,
                 val projectsOfUser: List<UserProjectSummary>,
-                val walletsOfUser: List<Wallet>,
+                val walletsOfUser: List<WalletV2>,
                 val childProjectsOfGrantGiver: List<MemberInProject>,
-                val walletsOfGrantGiver: List<Wallet>,
+                val walletsOfGrantGiver: List<WalletV2>,
             )
 
             test<In, Out>("Grant applications, expected flow") {
                 execute {
-                    createSampleProducts()
-                    val uniqueAdmin = createUser(role = Role.ADMIN)
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER), uniqueAdmin.client)
+                    val provider = createSampleProducts()
+
+                    val root = initializeRootProject(provider.projectId)
+
                     val grantAdmins = (0 until input.numberOfProjectAdmins).map {
                         createUser("admin-${UUID.randomUUID()}")
                     }
@@ -72,77 +70,67 @@ class GrantTest : IntegrationTest() {
                         organization = input.userOrganization
                     )
 
-                    val createdProject = initializeNormalProject(root, admin = uniqueAdmin)
-                    val evilUser = createUser("evil-${UUID.randomUUID()}").let {
-                        it.copy(
-                            client = it.client.withProject(createdProject.projectId)
-                        )
-                    }
-
-                    val walletAllocations = Wallets.browse.call(
-                        WalletBrowseRequest(),
-                        createdProject.piClient.withProject(createdProject.projectId)
+                    val walletAllocations = AccountingV2.browseWallets.call(
+                        AccountingV2.BrowseWallets.Request(),
+                        adminClient.withProject(root.projectId)
                     ).orThrow()
 
                     val requestedResources = input.resourcesRequested.map { requested ->
                         val alloc = walletAllocations.items.find {
-                            it.paysFor == ProductCategoryId(
-                                requested.category,
-                                requested.provider
-                            )
+                            it.paysFor.name == requested.category
                         }
                         GrantApplication.AllocationRequest(
                             requested.category,
                             requested.provider,
-                            createdProject.projectId,
+                            alloc?.owner?.reference() ?: root.projectId,
                             requested.balance,
-                            period = GrantApplication.Period(
+                            GrantApplication.Period(
                                 Time.now(),
                                 Time.now() + 1_000_000
-                            ),
-                            sourceAllocation = alloc?.allocations?.singleOrNull()?.id?.toLong()
+                            )
                         )
                     }
 
                     if (grantAdmins.isNotEmpty()) {
                         Projects.invite.call(
-                            InviteRequest(createdProject.projectId, grantAdmins.map { it.username }.toSet()),
-                            createdProject.piClient
+                            InviteRequest(root.projectId, grantAdmins.map { it.username }.toSet()),
+                            root.piClient
                         ).orThrow()
 
                         for (admin in grantAdmins) {
-                            Projects.acceptInvite.call(AcceptInviteRequest(createdProject.projectId), admin.client)
+                            Projects.acceptInvite.call(AcceptInviteRequest(root.projectId), admin.client)
                                 .orThrow()
                             Projects.changeUserRole.call(
-                                ChangeUserRoleRequest(createdProject.projectId, admin.username, ProjectRole.ADMIN),
-                                createdProject.piClient
+                                ChangeUserRoleRequest(root.projectId, admin.username, ProjectRole.ADMIN),
+                                root.piClient
                             ).orThrow()
                         }
                     }
 
                     var actualRecipient = input.grantRecipient
-                    if (input.grantRecipient is GrantApplication.Recipient.ExistingProject && input.ifExistingDoCreate) {
+                    val createdProject = if (input.grantRecipient is GrantApplication.Recipient.ExistingProject && input.ifExistingDoCreate) {
                         val created = Projects.create.call(
                             CreateProjectRequest(
                                 "Existing child-${UUID.randomUUID()}",
-                                parent = createdProject.projectId,
+                                parent = root.projectId,
                                 principalInvestigator = normalUser.username
                             ),
-                            createdProject.piClient
+                            root.piClient
                         ).orThrow()
-                        Projects.invite.call(
-                            InviteRequest(created.id, setOf(normalUser.username)),
-                            createdProject.piClient
-                        )
-                            .orThrow()
-                        Projects.acceptInvite.call(AcceptInviteRequest(created.id), normalUser.client).orThrow()
-                        Projects.transferPiRole.call(
-                            TransferPiRoleRequest(normalUser.username),
-                            createdProject.piClient.withProject(created.id)
-                        ).orThrow()
-                        Projects.leaveProject.call(LeaveProjectRequest, createdProject.piClient.withProject(created.id))
-                            .orThrow()
+
                         actualRecipient = GrantApplication.Recipient.ExistingProject(created.id)
+                        NormalProjectInitialization(
+                            normalUser.client,
+                            normalUser.username,
+                            created.id
+                        )
+                    } else null
+
+
+                    val evilUser = createUser("evil-${UUID.randomUUID()}").let {
+                        it.copy(
+                            client = if (createdProject != null ) it.client.withProject(createdProject.projectId) else it.client
+                        )
                     }
 
                     val baseSettings = GrantRequestSettings(
@@ -154,7 +142,7 @@ class GrantTest : IntegrationTest() {
                     )
                     GrantsV2.updateRequestSettings.call(
                         baseSettings,
-                        serviceClient.withProject(createdProject.projectId)
+                        serviceClient.withProject(root.projectId)
                     ).orThrow()
 
                     GrantsV2.updateRequestSettings.call(
@@ -162,17 +150,17 @@ class GrantTest : IntegrationTest() {
                             allowRequestsFrom = input.allowList,
                             excludeRequestsFrom = input.excludeList,
                         ),
-                        createdProject.piClient.withProject(createdProject.projectId)
+                        root.piClient.withProject(root.projectId)
                     ).orThrow()
 
                     GrantsV2.updateRequestSettings.call(
                         baseSettings,
-                        evilUser.client.withProject(createdProject.projectId)
+                        evilUser.client.withProject(root.projectId)
                     ).assertUserError()
 
                     val settingsAfterUpload = GrantsV2.retrieveRequestSettings.call(
                         Unit,
-                        createdProject.piClient.withProject(createdProject.projectId)
+                        root.piClient.withProject(root.projectId)
                     ).orThrow()
 
                     assertThatInstance(settingsAfterUpload, "has the new allow list") {
@@ -208,7 +196,7 @@ class GrantTest : IntegrationTest() {
                                 GrantApplication.Form.PlainText(input.initialDocument),
                                 null,
                                 "revision",
-                                createdProject.projectId
+                                root.projectId
                             ),
                             "Initial"
                         ),
@@ -217,7 +205,7 @@ class GrantTest : IntegrationTest() {
 
                     // Also check that the products were visible
                     val allCategories = productsToChoose.orThrow().grantGivers
-                        .find { it.id == createdProject.projectId }?.categories ?: emptyList()
+                        .find { it.id == root.projectId }?.categories ?: emptyList()
 
                     for (request in input.resourcesRequested) {
                         assertThatInstance(allCategories, "has the product for $request") {
@@ -231,7 +219,7 @@ class GrantTest : IntegrationTest() {
                             GrantsV2.Browse.Request(
                                 includeIngoingApplications = true
                             ),
-                            createdProject.piClient.withProject(createdProject.projectId)
+                            root.piClient.withProject(root.projectId)
                         ).orThrow().items,
                         "has the ingoing application"
                     ) {
@@ -260,7 +248,7 @@ class GrantTest : IntegrationTest() {
                     assertThatInstance(
                         GrantsV2.browse.call(
                             GrantsV2.Browse.Request(),
-                            evilUser.client.withProject(createdProject.projectId)
+                            if (createdProject != null) evilUser.client.withProject(createdProject.projectId) else evilUser.client
                         ).orNull()?.items ?: emptyList(),
                         "is empty or fails"
                     ) { it.isEmpty() }
@@ -275,26 +263,26 @@ class GrantTest : IntegrationTest() {
 
                     // Create and delete a single comment (it shouldn't affect the output)
                     val commentId = GrantsV2.postComment.call(
-                        GrantsV2.PostComment.Request(applicationId.toString(), "To be deleted!"),
-                        createdProject.piClient
+                        GrantsV2.PostComment.Request(applicationId, "To be deleted!"),
+                        root.piClient
                     ).orThrow().id
 
                     GrantsV2.deleteComment.call(
-                        GrantsV2.DeleteComment.Request(applicationId.toString(), commentId),
+                        GrantsV2.DeleteComment.Request(applicationId, commentId),
                         evilUser.client
                     ).assertUserError()
 
                     GrantsV2.deleteComment.call(
-                        GrantsV2.DeleteComment.Request(applicationId.toString(), commentId),
-                        createdProject.piClient
+                        GrantsV2.DeleteComment.Request(applicationId, commentId),
+                        root.piClient
                     ).orThrow()
 
                     for (comment in input.comments) {
                         GrantsV2.postComment.call(
-                            GrantsV2.PostComment.Request(applicationId.toString(), comment.commentToPost),
+                            GrantsV2.PostComment.Request(applicationId, comment.commentToPost),
                             when (comment.poster) {
                                 is CommentPoster.Admin -> grantAdmins[comment.poster.idx].client
-                                CommentPoster.Pi -> createdProject.piClient
+                                CommentPoster.Pi -> createdProject?.piClient ?: normalUser.client
                                 CommentPoster.User -> normalUser.client
                             }
                         ).orThrow()
@@ -326,12 +314,12 @@ class GrantTest : IntegrationTest() {
                                 actualRecipient,
                                 requestedResources,
                                 GrantApplication.Form.PlainText("Totally wrong document which should be updated"),
-                                parentProjectId = createdProject.projectId
+                                parentProjectId = root.projectId
                             ),
                             "comment",
                             applicationId,
                         ),
-                        createdProject.piClient
+                        normalUser.client
                     ).orThrow()
 
                     GrantsV2.submitRevision.call(
@@ -340,7 +328,7 @@ class GrantTest : IntegrationTest() {
                                 actualRecipient,
                                 requestedResources.map { it.copy(balanceRequested = 1337) },
                                 GrantApplication.Form.PlainText("Evil document"),
-                                parentProjectId = createdProject.projectId
+                                parentProjectId = root.projectId
                             ),
                             "comment",
                             applicationId,
@@ -348,18 +336,9 @@ class GrantTest : IntegrationTest() {
                         evilUser.client
                     ).assertUserError()
 
-                    val wallets = Wallets.retrieveWalletsInternal.call(
-                        WalletsInternalRetrieveRequest(
-                            WalletOwner.User(createdProject.projectId)
-                        ),
-                        adminClient
-                    ).orThrow()
-
                     //setting source allocations
                     val withAllocations = requestedResources.map { request ->
-                        val wallet =
-                            wallets.wallets.find { it.paysFor.name == request.category && it.paysFor.provider == request.provider }
-                        request.copy(sourceAllocation = wallet?.allocations?.first()?.id?.toLong())
+                        request
                     }
 
                     GrantsV2.submitRevision.call(
@@ -368,24 +347,17 @@ class GrantTest : IntegrationTest() {
                                 actualRecipient,
                                 withAllocations,
                                 GrantApplication.Form.PlainText("Totally wrong document which should be updated"),
-                                parentProjectId = createdProject.projectId
+                                parentProjectId = root.projectId
                             ),
                             "comment",
                             applicationId,
                         ),
-                        createdProject.piClient.withProject(createdProject.projectId)
+                        createdProject?.piClient?.withProject(createdProject.projectId) ?: normalUser.client
                     )
 
-                    val items = GrantsV2.browse.call(
-                        GrantsV2.Browse.Request(
-                            includeIngoingApplications = true
-                        ),
-                        createdProject.piClient.withProject(createdProject.projectId)
-                    ).orThrow().items
-
                     val clientToChange = when (val change = input.changeStatusBy) {
-                        is CommentPoster.Admin -> grantAdmins[change.idx].client.withProject(createdProject.projectId)
-                        CommentPoster.Pi -> createdProject.piClient.withProject(createdProject.projectId)
+                        is CommentPoster.Admin -> grantAdmins[change.idx].client.withProject(root.projectId)
+                        CommentPoster.Pi -> root.piClient.withProject(root.projectId)
                         CommentPoster.User -> normalUser.client
                     }
 
@@ -419,38 +391,48 @@ class GrantTest : IntegrationTest() {
 
                     val userProjects = Projects.listProjects.call(ListProjectsRequest(), normalUser.client)
                         .orThrow().items
+
                     val childProjects = Projects.listSubProjects.call(
                         ListSubProjectsRequest(),
-                        createdProject.piClient.withProject(createdProject.projectId)
+                        root.piClient.withProject(root.projectId)
                     ).orThrow().items
 
                     val userWallets = when (input.grantRecipient) {
                         is GrantApplication.Recipient.ExistingProject, is GrantApplication.Recipient.NewProject -> {
                             val project = userProjects.singleOrNull()?.projectId
-                            if (project == null) emptyList()
-                            else Wallets.retrieveWalletsInternal.call(
-                                WalletsInternalRetrieveRequest(
-                                    WalletOwner.Project(project)
-                                ),
-                                adminClient
-                            ).orThrow().wallets
+                            if (project == null) {
+                                emptyList()
+                            } else {
+
+                                AccountingV2.browseWalletsInternal.call(
+                                    AccountingV2.BrowseWalletsInternal.Request(
+                                        WalletOwner.Project(project)
+                                    ),
+                                    adminClient.withProject(project)
+                                ).orThrow().wallets
+                            }
                         }
 
                         is GrantApplication.Recipient.PersonalWorkspace -> {
-                            Wallets.retrieveWalletsInternal.call(
-                                WalletsInternalRetrieveRequest(
+                            AccountingV2.browseWalletsInternal.call(
+                                AccountingV2.BrowseWalletsInternal.Request(
                                     WalletOwner.User(normalUser.username),
                                 ),
                                 adminClient
                             ).orThrow().wallets
                         }
                     }
-                    val grantWallets = Wallets.retrieveWalletsInternal.call(
-                        WalletsInternalRetrieveRequest(
-                            WalletOwner.Project(createdProject.projectId)
+                    val grantWallets = AccountingV2.browseWallets.call(
+                        AccountingV2.BrowseWallets.Request(
+                            // WalletOwner.Project(createdProject.projectId)
                         ),
                         adminClient
-                    ).orThrow().wallets
+                    ).orThrow().items
+
+                    GrantsV2.updateRequestSettings.call(
+                        baseSettings,
+                        serviceClient.withProject(root.projectId)
+                    ).orThrow()
 
                     Out(
                         outputApplication,
@@ -473,7 +455,7 @@ class GrantTest : IntegrationTest() {
                                     when (inputComment.poster) {
                                         is CommentPoster.Admin -> "admin-"
                                         CommentPoster.User -> "user-"
-                                        CommentPoster.Pi -> "pi-"
+                                        CommentPoster.Pi -> "user-"
                                     }
                                 )
                             }
@@ -532,7 +514,7 @@ class GrantTest : IntegrationTest() {
                                 val expectedBalance = resolvedRequest.balance
                                 assertThatPropertyEquals(
                                     wallet,
-                                    { it.allocations.sumOf { it.balance } },
+                                    { it.quota },
                                     expectedBalance
                                 )
                             }
@@ -832,9 +814,11 @@ class GrantTest : IntegrationTest() {
 
             test<In, Out>("Grant applications logo") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
-                    val createdProject = initializeNormalProject(root)
+
+                    val info  = createSampleProducts()
+
+                    val root = initializeRootProject(info.projectId)
+                    val createdProject = initializeNormalProject(root.projectId)
                     val evilUser = createUser("evil-${UUID.randomUUID()}").let {
                         it.copy(
                             client = it.client.withProject(createdProject.projectId)
