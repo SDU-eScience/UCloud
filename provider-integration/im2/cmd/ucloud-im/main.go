@@ -10,6 +10,7 @@ import (
     _ "github.com/lib/pq"
     "log"
     "net"
+    "net/http"
     "os"
     "strings"
     cfg "ucloud.dk/pkg/im/config"
@@ -122,11 +123,6 @@ func main() {
     var listener net.Listener = nil
     _ = listener
     if mode == cfg.ServerModeServer {
-        lis, err := net.Listen("tcp", fmt.Sprintf(":%v", gateway.ServerClusterPort))
-        if err != nil {
-            log.Fatalf("Failed to start listener")
-        }
-
         gateway.Initialize(gateway.Config{
             ListenAddress:   "0.0.0.0",
             Port:            8889,
@@ -135,9 +131,13 @@ func main() {
         })
 
         gateway.Resume()
-
-        listener = lis
     } else if mode == cfg.ServerModeUser {
 
+    }
+
+    mux := http.NewServeMux()
+    err = http.ListenAndServe(fmt.Sprintf(":%v", gateway.ServerClusterPort), mux)
+    if err != nil {
+        log.Fatalf("Failed to start listener")
     }
 }

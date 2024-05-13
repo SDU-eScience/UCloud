@@ -3,7 +3,7 @@
         {
             "id": "aau",
             "title": "DeiC Interactive HPC (AAU)",
-            "shortTitle": "AAU/OpenStack",
+            "shortTitle": "AAU/VM",
             "logo": "aau_openstack.png",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",

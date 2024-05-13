@@ -8,8 +8,9 @@ import (
     "strconv"
     "strings"
     "time"
-    "ucloud.dk/pkg/foundation"
+    fnd "ucloud.dk/pkg/foundation"
     "ucloud.dk/pkg/im/config"
+    ctrl "ucloud.dk/pkg/im/controller"
     "ucloud.dk/pkg/orchestrators"
     "ucloud.dk/pkg/util"
 )
@@ -21,59 +22,10 @@ func InitializeFiles() {
     browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 }
 
-// -- Start of the plugin interface stuff --
-// NOTE(Dan): Let's assume that the plugin interface will look something like this (it will be in a different file)
-type OpCode int
-
-type ProviderMessage struct {
-    Op   OpCode
-    Data any
-}
-
-const (
-    OpCodeFilesBrowse OpCode = iota
-)
-
-type SortDirection string
-
-const (
-    SortDirectionAscending  SortDirection = "ASCENDING"
-    SortDirectionDescending SortDirection = "DESCENDING"
-)
-
-type FilesBrowseFlags struct {
-    IncludePermissions bool
-    IncludeTimestamps  bool
-    IncludeSizes       bool
-    IncludeUnixInfo    bool
-    IncludeMetadata    bool
-
-    FilterByFileExtension string
-}
-
-type ProviderMessageFilesBrowse struct {
-    Path          string
-    Drive         *orchestrators.Drive
-    SortBy        string
-    SortDirection SortDirection
-    Next          string
-    ItemsPerPage  int
-    Flags         FilesBrowseFlags
-}
-
-func (op *ProviderMessage) FilesBrowse() *ProviderMessageFilesBrowse {
-    if op.Op == OpCodeFilesBrowse {
-        return op.Data.(*ProviderMessageFilesBrowse)
-    }
-    return nil
-}
-
-// -- End of the plugin interface stuff --
-
 // NOTE(Dan): Let's assume that this is how the equivalent of a controller talks to us
-func HandleFileMessage(message *ProviderMessage) bool {
+func HandleFileMessage(message *ctrl.ProviderMessage) bool {
     switch message.Op {
-    case OpCodeFilesBrowse:
+    case ctrl.OpCodeFilesBrowse:
         browse(message.FilesBrowse())
     }
     return true
@@ -134,8 +86,8 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
     }
 }
 
-func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators.ProviderFile] {
-    internalPath := mapPath(request.Path, request.Drive)
+func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.ProviderFile] {
+    internalPath := mapPath(request.Path, &request.Drive)
     sortBy := request.SortBy
 
     fileList, ok := browseCache.Get(internalPath)
@@ -151,12 +103,12 @@ func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators
         if err != nil {
             // TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
             //   was just added to the project. See the current Kotlin implementation for more details.
-            return foundation.EmptyPage[orchestrators.ProviderFile]()
+            return fnd.EmptyPage[orchestrators.ProviderFile]()
         }
 
         fileNames, err := file.Readdirnames(-1)
         if err != nil {
-            return foundation.EmptyPage[orchestrators.ProviderFile]()
+            return fnd.EmptyPage[orchestrators.ProviderFile]()
         }
 
         if len(fileNames) > 10000 {
@@ -193,7 +145,7 @@ func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators
         }
 
         slices.SortFunc(entries, cmpFunction)
-        if request.SortDirection == SortDirectionDescending {
+        if request.SortDirection == orchestrators.SortDirectionDescending {
             slices.Reverse(entries)
         }
 
@@ -210,7 +162,7 @@ func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators
     }
 
     if offset >= len(fileList) || offset < 0 {
-        return foundation.EmptyPage[orchestrators.ProviderFile]()
+        return fnd.EmptyPage[orchestrators.ProviderFile]()
     }
 
     items := make([]orchestrators.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
@@ -236,10 +188,7 @@ func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators
             itemIdx += 1
         }
 
-        item.Id = "TODO"
-        //item.CreatedAt = ...
-        //item.Status = ...
-        //item.LegacySensitivity = ...
+        readMetadata(entry.absPath, entry.info, item)
     }
 
     nextToken := ""
@@ -247,8 +196,30 @@ func browse(request *ProviderMessageFilesBrowse) foundation.PageV2[orchestrators
         nextToken = fmt.Sprintf("%v", i)
     }
 
-    return foundation.PageV2[orchestrators.ProviderFile]{
+    return fnd.PageV2[orchestrators.ProviderFile]{
         Items: items[:itemIdx],
         Next:  nextToken,
     }
+}
+
+func readMetadata(internalPath string, stat os.FileInfo, file *orchestrators.ProviderFile) {
+    file.Status.Type = orchestrators.FileTypeFile
+    if stat.IsDir() {
+        file.Status.Type = orchestrators.FileTypeDirectory
+    }
+
+    // TODO These two
+    file.Id = ""
+    file.Status.Icon = orchestrators.FileIconHintNone
+
+    file.CreatedAt = FileModTime(stat)
+    file.Status.ModifiedAt = FileModTime(stat)
+    file.Status.AccessedAt = FileAccessTime(stat)
+
+    file.Status.SizeInBytes = stat.Size()
+    file.Status.SizeIncludingChildrenInBytes = stat.Size()
+
+    file.Status.UnixOwner = FileUid(stat)
+    file.Status.UnixGroup = FileGid(stat)
+    file.Status.UnixMode = int(stat.Mode()) & 0777 // only keep permissions bits
 }

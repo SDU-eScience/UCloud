@@ -210,8 +210,8 @@ const sideBarMenuElements: [
         {
             items: [
                 {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.usage()},
-                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicIps()},
+                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
                 {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
                 {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.jobs.list()}
             ],
