@@ -35,6 +35,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {addProjectListener} from "@/Project/ReduxState";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {projectCache} from "@/Project/ContextSwitcher";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -62,6 +63,16 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
+// HACK(Jonas): Waits for the context switcher to fetch the projects and do an action when it's actually in the cache.
+// Should be handled in the project listener event, but isn't triggering for some reason.
+function pollProjects(onFinished: () => void): void {
+    if (projectCache.retrieveFromCacheOnly("") === undefined) {
+        window.setTimeout(() => pollProjects(onFinished), 200);
+    } else {
+        onFinished();
+    }
+}
+
 const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -86,6 +97,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     fetchSupport(p ?? undefined);
                     browser.reevaluateSize();
                     browser.rerender();
+
                 });
 
 
@@ -454,7 +466,10 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         }
 
         const b = browserRef.current;
-        if (b) b.renameField.style.left = "43px";
+        if (b) {
+            pollProjects(() => b.renderOperations());
+            b.renameField.style.left = "43px";
+        }
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
