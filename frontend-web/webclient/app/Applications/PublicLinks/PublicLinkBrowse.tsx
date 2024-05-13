@@ -121,6 +121,11 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
+                                if (browser.renameValue.length < 1) {
+                                    browser.refresh();
+                                    return;
+                                }
+
                                 const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
                                     domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
