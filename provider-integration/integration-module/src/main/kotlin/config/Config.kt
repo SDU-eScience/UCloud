@@ -49,6 +49,7 @@ data class ConfigSchema(
         val disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: Boolean = false,
 
         val maintenance: Maintenance? = null,
+        val experimental: Experimental = Experimental(),
     ) {
         @Serializable
         data class Hosts(
@@ -80,6 +81,11 @@ data class ConfigSchema(
         @Serializable
         data class Maintenance(
             val alwaysAllowAccessFrom: List<String> = emptyList()
+        )
+
+        @Serializable
+        data class Experimental(
+            val sensitiveProjects: List<String> = emptyList()
         )
     }
 

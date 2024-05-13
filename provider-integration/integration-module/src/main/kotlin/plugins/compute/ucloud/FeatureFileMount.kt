@@ -113,7 +113,7 @@ class FeatureFileMount(
         for (coll in fileCollections) {
             limitChecker.checkLimit(coll)
         }
- 
+
         val fileMounts = run {
             val allMounts = job.files.map {
                 val internalFile = ucloudToRelative(UCloudFile.create(it.path))
@@ -126,6 +126,11 @@ class FeatureFileMount(
         val jobFolder = findJobFolder(job, initializeFolder = true)
         val relativeJobFolder = internalToRelative(jobFolder)
         val ucloudJobFolder = pathConverter.internalToUCloud(jobFolder)
+
+        val allFiles = job.files.map { UCloudFile.create(it.path) } + ucloudJobFolder
+        if (!pathConverter.shouldAllowUsageOfFilesTogether(allFiles)) {
+            throw RPCException("This project does not allow using files from other projects", HttpStatusCode.Forbidden)
+        }
 
         val jobFolderCollection = ucloudJobFolder.path.components().getOrNull(0)
             ?: error("Unexpected job folder: $ucloudJobFolder")

@@ -2,6 +2,7 @@ package dk.sdu.cloud.extract.data.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.extract.data.api.*
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.security.MessageDigest
 import java.time.Duration
@@ -14,7 +15,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         return MessageDigest.getInstance("SHA-256").digest(username.toByteArray()).fold("",{ str, it -> str + "%02x".format(it) })
     }
 
-    fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, aau:Boolean) {
+    suspend fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, aau:Boolean) {
         val daysInPeriod = Duration.between(startDate, endDate).toDays()
         val hoursInPeriod = daysInPeriod * 24L
         val usedCPUInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.CPU, aau)
@@ -43,7 +44,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
 
     }
 
-    fun reportCenterDaily(startDate: LocalDateTime, endDate: LocalDateTime) {
+    suspend fun reportCenterDaily(startDate: LocalDateTime, endDate: LocalDateTime) {
         val daysInPeriod = Duration.between(startDate, endDate).toDays()
         println("[")
         for (day in 0..daysInPeriod) {
@@ -70,21 +71,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val username: String?,
         val project: String?
     )
-    fun makeMappingOfUsage( input: List<PostgresDataService.Usage>):Map<UserInProject, Long> {
-        val mapping = mutableMapOf<UserInProject, Long>()
-        input.forEach { usage ->
-            val uip = UserInProject(usage.username, usage.projectID)
-            val found = mapping[uip]
-            if (found == null) {
-                mapping[uip] = usage.coreHours
-            } else {
-                mapping[uip] = found + usage.coreHours
-            }
-        }
-        return mapping
-    }
 
-    fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
+    suspend fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
         //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
         val fileName = "/tmp/CenterDaily.json"
         val file = File(fileName)
@@ -93,16 +81,16 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         for (day in 0..daysInPeriod) {
             println("days to go: ${daysInPeriod-day}")
             val start = startDate.plusDays(day)
-            val usageSDUCOMPUTE = makeMappingOfUsage(postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.CPU))
-            val usageSDUGPU = makeMappingOfUsage(postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.GPU))
-            val storageSDU = postgresDataService.getSDUStorage()
-            val usageAAUCOMPUTE = makeMappingOfUsage(postgresDataService.retrieveUsageAAU(start, start.plusDays(1), ProductType.CPU))
-            val usageAAUGPU = makeMappingOfUsage(postgresDataService.retrieveUsageAAU(start, start.plusDays(1), ProductType.GPU))
+            val usageSDUCOMPUTE = postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.CPU)
+            val usageSDUGPU = postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.GPU)
+            val storageSDU = postgresDataService.getSDUCeph()
+            val usageAAUCOMPUTE = postgresDataService.retrieveUsageAAU(start, start.plusDays(1), ProductType.CPU)
+            val usageAAUGPU = postgresDataService.retrieveUsageAAU(start, start.plusDays(1), ProductType.GPU)
 
             postgresDataService.getUsernames().forEach { user ->
-                val foundCOMPUTE = usageSDUCOMPUTE[UserInProject(user.username, null)] ?: 0L
-                val foundGPU = usageSDUGPU[UserInProject(user.username, null)] ?: 0L
-                val storage = storageSDU[UserInProject(user.username, null)] ?: 0L
+                val foundCOMPUTE = usageSDUCOMPUTE[user.username] ?: 0L
+                val foundGPU = usageSDUGPU[user.username] ?: 0L
+                val storage = storageSDU[user.username] ?: 0L
                 val universityId = postgresDataService.getUniversity(user.username)
                 val accessType = AccessType.LOCAL.value
 
@@ -131,8 +119,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     file.appendText("\t$json,\n")
                 }
 
-                val computeaau = usageAAUCOMPUTE[UserInProject(user.username, null)] ?: 0
-                val gpuaau = usageAAUGPU[UserInProject(user.username, null)] ?: 0
+                val computeaau = usageAAUCOMPUTE[user.username] ?: 0
+                val gpuaau = usageAAUGPU[user.username] ?: 0
 
                 if (computeaau == 0L && gpuaau == 0L) {
                     // NOTHING
@@ -171,9 +159,9 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                     val universityId = postgresDataService.getUniversity(projectMember.username)
                     val accessType = AccessType.LOCAL.value
 
-                    val cpuUsedSDU = usageSDUCOMPUTE[UserInProject(null, deicProject)] ?: 0L
-                    val gpuUsedSDU = usageSDUGPU[UserInProject(null, deicProject)] ?: 0L
-                    val storageUsedSDU = storageSDU[UserInProject(null, deicProject)] ?: 0L
+                    val cpuUsedSDU = usageSDUCOMPUTE[deicProject] ?: 0L
+                    val gpuUsedSDU = usageSDUGPU[deicProject] ?: 0L
+                    val storageUsedSDU = storageSDU[deicProject] ?: 0L
 
                     if (cpuUsedSDU == 0L && gpuUsedSDU == 0L) {
                         //NOTHING
@@ -202,8 +190,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         file.appendText("\t$json,\n")
                     }
 
-                    val cpuUsedAAU = usageAAUCOMPUTE[UserInProject(projectMember.username, deicProject)] ?: 0L
-                    val gpuUsedAAU = usageAAUGPU[UserInProject(projectMember.username, deicProject)] ?: 0L
+                    val cpuUsedAAU = usageAAUCOMPUTE[deicProject] ?: 0L
+                    val gpuUsedAAU = usageAAUGPU[deicProject] ?: 0L
                     val storageUsedAAU = 1000000L
 
                     if (cpuUsedAAU == 0L && gpuUsedAAU == 0L) {
@@ -242,40 +230,33 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         while(true){}
     }
 
-    fun reportPerson() {
+    suspend fun reportPerson() {
         val endDate = LocalDateTime.now()
         val fileName = "/tmp/Person.json"
         val file = File(fileName)
         file.writeText("[\n")
 
-        val cpuUsed = makeMappingOfUsage(
-            postgresDataService.retrieveUsageSDU(
-                LocalDateTime.parse("2022-01-01T00:00:00"),
-                LocalDateTime.now(),
-                ProductType.CPU
-            )
+        val cpuUsed = postgresDataService.retrieveUsageSDU(
+            LocalDateTime.parse("2022-01-01T00:00:00"),
+            LocalDateTime.now(),
+            ProductType.CPU
         )
-        val gpuUsed = makeMappingOfUsage(
-            postgresDataService.retrieveUsageSDU(
-                LocalDateTime.parse("2022-01-01T00:00:00"),
-                LocalDateTime.now(),
-                ProductType.GPU
-            )
+
+        val gpuUsed = postgresDataService.retrieveUsageSDU(
+            LocalDateTime.parse("2022-01-01T00:00:00"),
+            LocalDateTime.now(),
+            ProductType.GPU
         )
-        val storageSDU = postgresDataService.getSDUStorage()
-        val computeAAU = makeMappingOfUsage(
-            postgresDataService.retrieveUsageAAU(
-                LocalDateTime.parse("2022-01-01T00:00:00"),
-                LocalDateTime.now(),
-                ProductType.CPU
-            )
+        val storageSDU = postgresDataService.getSDUCeph()
+        val computeAAU = postgresDataService.retrieveUsageAAU(
+            LocalDateTime.parse("2022-01-01T00:00:00"),
+            LocalDateTime.now(),
+            ProductType.CPU
         )
-        val gpuAAU = makeMappingOfUsage(
-            postgresDataService.retrieveUsageAAU(
-                LocalDateTime.parse("2022-01-01T00:00:00"),
-                LocalDateTime.now(),
-                ProductType.GPU
-            )
+        val gpuAAU = postgresDataService.retrieveUsageAAU(
+            LocalDateTime.parse("2022-01-01T00:00:00"),
+            LocalDateTime.now(),
+            ProductType.GPU
         )
 
         postgresDataService.findProjects().forEach { project ->
@@ -311,7 +292,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
 
             postgresDataService.findProjectMembers(deicProject).forEach { projectMember ->
-                val uip = UserInProject(null, project.id)
+                val uip = project.id
                 val universityId = postgresDataService.getUniversity(projectMember.username)
                 val accessType = AccessType.LOCAL.value
 

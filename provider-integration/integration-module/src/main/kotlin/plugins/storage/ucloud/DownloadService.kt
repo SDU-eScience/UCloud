@@ -20,6 +20,10 @@ class DownloadService(
     private val fs: NativeFS,
 ) {
     suspend fun download(file: UCloudFile, ctx: HttpCall) {
+        if (pathConverter.pathIsSensitive(file)) {
+            throw RPCException("Downloads are disabled for this project.", dk.sdu.cloud.calls.HttpStatusCode.Forbidden)
+        }
+
         val internalFile = pathConverter.ucloudToInternal(file)
 
         val stat = fs.stat(internalFile)
@@ -30,6 +34,7 @@ class DownloadService(
                 dk.sdu.cloud.calls.HttpStatusCode.BadRequest
             )
         }
+
 
         // TODO Ban the downloads of sensitive files
         val contentType = ContentType.defaultForFilePath(internalFile.path)

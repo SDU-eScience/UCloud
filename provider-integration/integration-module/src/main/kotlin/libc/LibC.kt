@@ -91,6 +91,7 @@ class LibC {
                     try {
                         System.load(outputFile.absolutePath)
                     } catch (ex: Throwable) {
+                        ex.printStackTrace()
                         runCatching { outputFile.delete() }
                         continue
                     }
@@ -119,7 +120,7 @@ class LibC {
 
             if (!didLoad) {
                 sendTerminalMessage {
-                    bold { red { line("Could not load native library!") } }
+                    bold { red { line("Could not load native library! (os.arch = ${System.getProperty("os.arch")})") } }
                     line()
                     line("The native support library must be loaded but it wasn't found in any of the expected locations.")
                     line()

@@ -390,6 +390,7 @@ class SyncthingService(
         builder.vCpuMillis = 400
         builder.memoryMegabytes = 2000
         builder.mountSharedMemory(2000)
+        builder.removeRealReservationFromPod()
         builder.upsertAnnotation(UCLOUD_SYNCTHING_ANNOTATION, job.owner.createdBy)
     }
 
