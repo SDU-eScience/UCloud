@@ -823,7 +823,9 @@ const Uploader: React.FunctionComponent = () => {
                 </Flex>
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
-                    {uploads.find(upload => uploadIsTerminal(upload)) !== null ? <Button ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button> : null}
+                    {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
+                        <Button ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        : null}
                 </Flex>
                 <Text color="white">{uploadingText}</Text>
             </div>
