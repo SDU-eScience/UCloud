@@ -71,17 +71,16 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
 
-    const project = useProject();
-
+    
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
-
+    
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
+    const project = useProject();
 
     React.useEffect(() => {
         const p = project.fetch();
         const oldPermission = isWorkspaceAdmin.current;
-        console.log("re-evaluating project", p.specification.title, p.id);
         if (p.id) {
             isWorkspaceAdmin.current = isAdminOrPI(p.status.myRole);
         } else {
