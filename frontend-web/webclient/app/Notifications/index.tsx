@@ -61,11 +61,17 @@ function resolveNotification(event: Notification): {
             }
             return {icon};
         case "JOB_COMPLETED":
-            const jobsCompletedTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs completed`
-                :
-                `${event.meta.appTitles[0]} completed`
-                ;
+            var jobsCompletedTitle: string;
+            
+            if (event.meta.jobIds.length > 1) {
+                jobsCompletedTitle = `${event.meta.jobIds.length} jobs completed`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsCompletedTitle = `${event.meta.jobNames[0]} completed`;
+                } else {
+                    jobsCompletedTitle = `${event.meta.appTitles[0]} completed`;
+                }
+            }
 
             const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs completed successfully.`
@@ -81,11 +87,17 @@ function resolveNotification(event: Notification): {
                 modifiedMessage: jobsCompletedMessage
             };
         case "JOB_STARTED":
-            const jobsStartedTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs started`
-                :
-                `${event.meta.appTitles[0]} started`
-                ;
+            var jobsStartedTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsStartedTitle = `${event.meta.jobIds.length} jobs started`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsStartedTitle = `${event.meta.jobNames[0]} started`;
+                } else {
+                    jobsStartedTitle = `${event.meta.appTitles[0]} started`;
+                }
+            }
 
             const jobsStartedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs are now running.` :
@@ -99,9 +111,17 @@ function resolveNotification(event: Notification): {
                 modifiedMessage: jobsStartedMessage
             };
         case "JOB_EXPIRED":
-            const jobsExpiredTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs expired` :
-                `${event.meta.appTitles[0]} expired`;
+            var jobsExpiredTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsExpiredTitle = `${event.meta.jobIds.length} jobs expired`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsExpiredTitle = `${event.meta.jobNames[0]} expired`;
+                } else {
+                    jobsExpiredTitle = `${event.meta.appTitles[0]} expired`;
+                }
+            }
 
             const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
@@ -117,9 +137,17 @@ function resolveNotification(event: Notification): {
                 modifiedMessage: jobsExpiredMessage
             };
         case "JOB_FAILED":
-            const jobsFailedTitle = event.meta.jobIds.length > 1 ?
-                `${event.meta.jobIds.length} jobs failed` :
-                `${event.meta.appTitles[0]} failed`;
+            var jobsFailedTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsFailedTitle = `${event.meta.jobIds.length} jobs failed`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsFailedTitle = `${event.meta.jobNames[0]} failed`;
+                } else {
+                    jobsFailedTitle = `${event.meta.appTitles[0]} failed`;
+                }
+            }
 
             const jobsFailedMessage = event.meta.jobIds.length > 1 ?
                 `${event.meta.jobIds.length} jobs terminated with a failure.` :
