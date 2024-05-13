@@ -282,7 +282,7 @@ const UIGlobalStyle = `
     --textPrimary: #212529;
     --textSecondary: #646669;
     --textDisabled: #909294;
-    --rowHover: var(--gray-10);
+    --rowHover: var(--gray-5);
     --rowActive: var(--blue-10);
     --gradientStart: var(--blue-30);
     --gradientEnd: var(--blue-20);

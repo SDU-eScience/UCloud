@@ -651,7 +651,6 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
         display: flex;
         gap: 10px;
         align-items: center;
-        background: var(--backgroundCard);
         border-radius: 6px;
         padding: 10px;
         width: 100%;
