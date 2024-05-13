@@ -6,7 +6,6 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {image} from "@/Utilities/HTMLUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
@@ -110,18 +109,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     }
                 });
 
-                ResourceBrowser.icons.renderIcon({
-                    name: "key",
-                    color: "iconColor",
-                    color2: "iconColor",
-                    height: 256,
-                    width: 256
-                }).then(icon => {
-                    const fragment = document.createDocumentFragment();
-                    fragment.append(image(icon, {height: 60, width: 60}));
-                    browser.defaultEmptyGraphic = fragment;
-                });
-
+                browser.setEmptyIcon("heroKey");
                 browser.on("fetchOperationsCallback", () =>
                     ({dispatch, navigate, isCreating: false, api: {isCoreResource: true}})
                 );

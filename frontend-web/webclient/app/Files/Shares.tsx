@@ -505,9 +505,12 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         ResourceBrowser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
-                            height: 64,
-                            width: 64,
+                            height: 32,
+                            width: 32,
                         }).then(setStateIcon);
+
+                        stateIcon.style.width = "24px";
+                        stateIcon.style.height = "24px";
                     }
 
                     // Row stat2

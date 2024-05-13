@@ -247,7 +247,7 @@ export function ContextSwitcher({managed}: {
                                 className={BottomBorderedRow}
                                 onClick={() => {setActiveProject();}}
                             >
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={"starFilled"} />
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="favoriteColor" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My workspace</Text>
                             </div>
                         ) : null}
@@ -293,7 +293,7 @@ function Favorite({project}: {project: Project}): React.ReactNode {
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {

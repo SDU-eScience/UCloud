@@ -478,6 +478,8 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         stateIcon.style.marginRight = "4px";
+                        stateIcon.style.width = "24px";
+                        stateIcon.style.height = "24px";
                         row.stat2.appendChild(stateIcon);
                         const text = createHTMLElements({tagType: "div", style: {marginTop: "auto", marginBottom: "auto"}});
                         let state: ShareState;
@@ -510,6 +512,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                             height: 32,
                             width: 32,
                         }).then(setStateIcon);
+
+                        stateIcon.style.width = "24px";
+                        stateIcon.style.height = "24px";
                     }
 
                     // Row stat3

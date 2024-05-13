@@ -629,6 +629,7 @@ class JobResourceService(
 
                 val jobIds = sameType.map { JsonPrimitive(it.jobId) }
                 val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+                val jobNames = sameType.map { JsonPrimitive(it.jobName) }
 
                 val type = when (notification.type) {
                     JobState.SUCCESS -> "JOB_COMPLETED"
@@ -644,7 +645,8 @@ class JobResourceService(
                     meta = JsonObject(
                         mapOf(
                             "jobIds" to JsonArray(jobIds),
-                            "appTitles" to JsonArray(appTitles),
+                            "jobNames" to JsonArray(jobNames),
+                            "appTitles" to JsonArray(appTitles)
                         )
                     )
                 )
