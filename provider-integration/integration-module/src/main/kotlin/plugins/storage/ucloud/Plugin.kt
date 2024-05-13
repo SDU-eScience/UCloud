@@ -105,7 +105,7 @@ class UCloudFilePlugin : FilePlugin {
             pluginConfig,
             rpcClient
         )
-        pathConverter = PathConverter(rpcClient, driveLocator)
+        pathConverter = PathConverter(config.core.experimental.sensitiveProjects.toSet(), rpcClient, driveLocator)
         fs = NativeFS(pathConverter)
         trash = TrashService(pathConverter)
         directoryStats = FastDirectoryStats(driveLocator, fs)
