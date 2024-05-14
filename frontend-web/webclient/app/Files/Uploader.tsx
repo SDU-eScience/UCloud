@@ -1026,7 +1026,7 @@ function uploadIsTerminal(upload: Upload): boolean {
 function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
-    const inProgress = !uploadIsTerminal(upload);
+    const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;
