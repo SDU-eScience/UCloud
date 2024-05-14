@@ -266,7 +266,7 @@ export function ContextSwitcher({managed}: {
                         )}
 
                         {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
-                            <Box my="32px" textAlign="center">No workspaces found</Box>
+                            <Box my="32px" textAlign="center">No projects found</Box>
                         )}
                     </div>
                 </div>
