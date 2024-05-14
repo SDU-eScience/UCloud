@@ -824,15 +824,15 @@ const Uploader: React.FunctionComponent = () => {
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="4px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="6px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
-                <Text color="white">{uploadingText}</Text>
+                <Text className={UploaderSpeedTextClass}>{uploadingText}</Text>
             </div>
             <div style={{
                 // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
                 maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
-                overflowY: "scroll"
+                overflowY: "auto"
             }}>
                 <div className="uploads" style={{width: "100%"}}>
                     {uploads.map((upload, idx) => (
@@ -945,9 +945,17 @@ interface UploadCallback {
 
 const UploaderText = injectStyle("uploader-text", k => `
     ${k} {
-        margin-left: 12px;
+        margin-left: 10px;
+        margin-top: 6px;
         color: var(--textPrimary);
         font-size: 25px;
+    }
+`);
+
+const UploaderSpeedTextClass = injectStyle("uploader-speed-text", k => `
+    ${k} {
+        margin: 10px;
+        color: var(--textPrimary);
     }
 `);
 
