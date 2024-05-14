@@ -23,7 +23,7 @@ function Error(props: ErrorProps): React.ReactNode {
             borderColor="errorMain"
         >
             <Flex alignItems="center">
-                <div style={{whiteSpace: "pre", color: "var(--errorMain)"}}>{props.error}</div>
+                <div style={{whiteSpace: "pre", color: "var(--primaryContrast)"}}>{props.error}</div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon
