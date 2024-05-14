@@ -38,6 +38,7 @@ import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
+import {withinDelta} from "@/Accounting/Allocations";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -254,7 +255,7 @@ function DashboardResources({wallets}: {
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
-                                            {n.maxUsable == (n.quota - n.totalUsage) ? null :
+                                            {withinDelta(n.quota, n.maxUsable, n.totalUsage) ? null :
                                                 <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                     <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
                                                 </TooltipV2>}

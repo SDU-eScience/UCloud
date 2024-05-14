@@ -107,7 +107,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
 `)
 
 const DEBUGGING_PURPOSES = DEVELOPMENT_ENV;
-export function NewAndImprovedProgress({label, percentage, limitPercentage, withWarning}: {label: string; percentage: number; limitPercentage: number; withWarning?: boolean}) {
+export function NewAndImprovedProgress({
+    label,
+    percentage,
+    limitPercentage,
+    withWarning
+}: {label: string; percentage: number; limitPercentage: number; withWarning?: boolean}): React.ReactNode {
     React.useEffect(() => {
         if (DEBUGGING_PURPOSES) {
             if (percentage > 100) {
@@ -122,10 +127,10 @@ export function NewAndImprovedProgress({label, percentage, limitPercentage, with
 
     const style: CSSProperties = {};
     // for visualization purposes we offset values too small or too close to 100%
-    if (percentage != 0 && percentage < 2) {
+    if (percentage > 0.1 && percentage < 2) {
         percentage = 2
     }
-    if (limitPercentage != 100 && limitPercentage > 98) {
+    if (limitPercentage < 99.9 && limitPercentage > 98) {
         limitPercentage = 98
     }
     style["--percentage"] = percentage + "%";
