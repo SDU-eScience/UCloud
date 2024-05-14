@@ -817,14 +817,14 @@ const Uploader: React.FunctionComponent = () => {
     >
         <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
             <div>
-                <Flex onClick={closeModal}>
+                <Flex>
                     <Box ml="auto" />
-                    <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
+                    <Icon onClick={closeModal} cursor="pointer" color="textPrimary" size="16px" name="close" />
                 </Flex>
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="4px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
                 <Text color="white">{uploadingText}</Text>
