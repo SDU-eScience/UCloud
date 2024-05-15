@@ -97,7 +97,7 @@ export default function Support(): React.ReactNode {
             bottom="-60px"
         >
             <div style={{cursor: "default"}}>
-                <Box width="100%" p="16px" color="text">
+                <Box width="100%" p="16px" color="text" onKeyDown={e => e.stopPropagation()}>
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
