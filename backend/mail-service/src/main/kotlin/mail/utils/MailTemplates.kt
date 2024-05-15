@@ -250,7 +250,7 @@ fun jobEventsTemplate(
         }
     }
 
-    val jobOrJobs = if (jobIds.length > 1) { "${jobIds.length} of your jobs" } else { "your job" }
+    val jobOrJobs = if (jobIds.length > 1) { "${jobIds.toSet().length} of your jobs" } else { "your job" }
 
     var message = """
         <p>Dear ${escapeHtml(recipient)}</p>

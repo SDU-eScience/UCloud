@@ -713,7 +713,7 @@ class JobResourceService(
                 } else if (notifications.all { it.type == JobState.EXPIRED }) {
                     "${notifications.size} of your jobs on UCloud have expired"
                 } else {
-                    "The state of ${notifications.size} of your jobs on UCloud has changed"
+                    "The state of ${notifications.map { it.jobId }.toSet().size} of your jobs on UCloud has changed"
                 }
             } else {
                 when (notifications.first().type) {
