@@ -652,21 +652,6 @@ const ServerRenderer: ItemRenderer<Job> = {
 
 const serverOperations: Operation<Job, OperationCallbacks>[] = [
     {
-        text: "Open interface",
-        icon: "open",
-        enabled: selected => selected.length === 1,
-        onClick: ([job]) => {
-            const element = document.createElement("a");
-            element.setAttribute("href", `/app/applications/web/${job.id}/0?hide-frame`);
-            element.setAttribute("target", "_blank");
-            element.style.display = "none";
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-        },
-        shortcut: ShortcutKey.O
-    },
-    {
         text: "Show device ID",
         icon: "id",
         enabled: selected => selected.length === 1,
