@@ -71,10 +71,10 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
 
-    
+
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
-    
+
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
 
@@ -366,7 +366,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     row.title.append(title);
                     row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
-                        row.stat2.innerText = drive.owner.createdBy;
+                        const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, dims, row);
+                        createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
+                        row.stat2.append(createdByElement);
                     }
                     if (drive.id.startsWith(isCreatingPrefix)) {
                         row.stat2.append(browser.createSpinner(30));

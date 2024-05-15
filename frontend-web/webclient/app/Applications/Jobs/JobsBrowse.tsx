@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -156,7 +156,9 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             elem.innerText = "Unknown";
                             row.stat1.append(elem);
                         } else {
-                            row.stat1.innerText = job.owner.createdBy;
+                            const createdByElement = ResourceBrowser.defaultTitleRenderer(job.owner.createdBy, dims, row);
+                            createdByElement.style.maxWidth = `calc(var(--stat1Width) - 20px)`;
+                            row.stat1.append(createdByElement);
                         }
                         row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                     } else {
