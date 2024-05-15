@@ -588,15 +588,21 @@ class JobResourceService(
     }
 
     private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+        log.info("Adding job notification for $user: $jobId $newState ${jobSpecification.application.name}")
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
+        log.info("Found title: $appTitle")
 
         if (!jobNotifications.containsKey(user)) {
             jobNotifications[user] = mutableListOf()
+        }
+
+        if (!jobMailNotifications.containsKey(user)) {
             jobMailNotifications[user] = mutableListOf()
         }
 
+        log.info("Adding notification")
         jobNotifications[user]!!.add(
             JobNotificationInfo(
                 newState,
@@ -606,6 +612,7 @@ class JobResourceService(
             )
         )
 
+        log.info("Adding mailNotification")
         jobMailNotifications[user]!!.add(
             JobNotificationInfo(
                 newState,
@@ -617,7 +624,9 @@ class JobResourceService(
     }
 
     private suspend fun sendNotifications() {
+        log.info("sendNotifications called: $jobNotifications")
         for (user in jobNotifications.keys) {
+            log.info("send notifications for $user")
             val handledTypes = mutableListOf<JobState>()
             val notifications = jobNotifications[user] ?: continue
 
@@ -652,21 +661,30 @@ class JobResourceService(
                 )
             }
 
+            log.info("Sending ${summarizedNotifications.size} notifications to $user")
+
             summarizedNotifications.forEach { notification ->
-                NotificationDescriptions.create.call(
-                    CreateNotification(
-                        user,
-                        notification
-                    ),
-                    serviceClient
-                )
+                try {
+                    NotificationDescriptions.create.call(
+                        CreateNotification(
+                            user,
+                            notification
+                        ),
+                        serviceClient
+                    )
+                } catch (ex: Throwable) {
+                    log.info("FAILED TO CREATE NOTIFICATION ${ex.toReadableStacktrace()}")
+                }
             }
         }
 
+        log.info("clearing ${jobNotifications.size} jobNotifications")
         jobNotifications.clear()
+        log.info("is now $jobNotifications")
     }
 
     private suspend fun sendMails() {
+        log.info("sendMails called: $jobMailNotifications")
         for (user in jobMailNotifications.keys) {
             val notifications = jobMailNotifications[user] ?: continue
             if (notifications.isEmpty()) continue
@@ -707,23 +725,28 @@ class JobResourceService(
                 }
             }
 
-            MailDescriptions.sendToUser.call(
-                bulkRequestOf(
-                    SendRequestItem(
-                        user,
-                        Mail.JobEvents(
-                            jobIds,
-                            jobNames,
-                            appTitles,
-                            types,
-                            subject = subject
+            try {
+                MailDescriptions.sendToUser.call(
+                    bulkRequestOf(
+                        SendRequestItem(
+                            user,
+                            Mail.JobEvents(
+                                jobIds,
+                                jobNames,
+                                appTitles,
+                                types,
+                                subject = subject
+                            )
                         )
-                    )
-                ),
-                serviceClient
-            )
+                    ),
+                    serviceClient
+                )
+            } catch (ex: Throwable) {
+                log.info("FAILED TO SEND MAIL TO USER ${ex.toReadableStacktrace()}")
+            }
         }
 
+        log.info("clearing ${jobMailNotifications.size} jobMailNotifications")
         jobMailNotifications.clear()
     }
 

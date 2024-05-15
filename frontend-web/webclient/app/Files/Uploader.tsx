@@ -817,22 +817,22 @@ const Uploader: React.FunctionComponent = () => {
     >
         <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
             <div>
-                <Flex onClick={closeModal}>
+                <Flex>
                     <Box ml="auto" />
-                    <Icon mr="8px" mt="8px" cursor="pointer" color="primaryContrast" size="16px" name="close" />
+                    <Icon onClick={closeModal} cursor="pointer" color="textPrimary" size="16px" name="close" />
                 </Flex>
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="6px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
-                <Text color="white">{uploadingText}</Text>
+                <Text className={UploaderSpeedTextClass}>{uploadingText}</Text>
             </div>
             <div style={{
                 // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
                 maxHeight: `calc(${modalStyle.content?.maxHeight} - 24px - 37.5px - 20px - 20px)`,
-                overflowY: "scroll"
+                overflowY: "auto"
             }}>
                 <div className="uploads" style={{width: "100%"}}>
                     {uploads.map((upload, idx) => (
@@ -945,9 +945,17 @@ interface UploadCallback {
 
 const UploaderText = injectStyle("uploader-text", k => `
     ${k} {
-        margin-left: 12px;
+        margin-left: 10px;
+        margin-top: 6px;
         color: var(--textPrimary);
         font-size: 25px;
+    }
+`);
+
+const UploaderSpeedTextClass = injectStyle("uploader-speed-text", k => `
+    ${k} {
+        margin: 10px;
+        color: var(--textPrimary);
     }
 `);
 
@@ -1018,7 +1026,7 @@ function uploadIsTerminal(upload: Upload): boolean {
 function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
-    const inProgress = !uploadIsTerminal(upload);
+    const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || upload.error;

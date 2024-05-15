@@ -37,11 +37,10 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
-                // Ensure no refecthing on `beforeOpen`.
+                // Ensure no refecthing on `skipOpen`.
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     // For initial fetch.
-                    if (oldPath === newPath) return;
                     callAPI(SshKeyApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
@@ -52,7 +51,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
@@ -110,9 +109,14 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                 });
 
                 browser.setEmptyIcon("heroKey");
-                browser.on("fetchOperationsCallback", () =>
-                    ({dispatch, navigate, isCreating: false, api: {isCoreResource: true}})
-                );
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch,
+                    navigate,
+                    isCreating: false,
+                    api: {isCoreResource: true},
+                    invokeCommand: callAPI,
+                    reload: () => browser.refresh()
+                }));
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();

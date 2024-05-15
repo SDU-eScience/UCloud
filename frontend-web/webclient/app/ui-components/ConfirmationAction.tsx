@@ -124,6 +124,10 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         transform: translate3d(0, 0, 0);
         animation: button-shake 0.82s cubic-bezier(.36, .07, .19, .97) both;
     }
+    
+    ${k}:disabled:hover {
+        background: var(--hoverColor);
+    }
 
     ${k} ul li {
         backface-visibility: hidden;

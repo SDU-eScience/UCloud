@@ -118,7 +118,7 @@ export default function Support(): React.ReactNode {
                     />
 
                     {["Operational\n", ""].includes(statusUCloud) ? null : (<Box my="6px">
-                        <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
+                        <Error error={<>One or more systems are experiencing issues. See <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
                     <Flex mt="8px" gap={"8px"}>
