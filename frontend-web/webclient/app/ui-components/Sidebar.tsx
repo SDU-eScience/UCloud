@@ -770,7 +770,7 @@ function SecondarySidebar({
                     {appFavorites.map(fav =>
                         <SidebarEntry
                             key={fav.metadata.name}
-                            to={AppRoutes.jobs.create(fav.metadata.name, fav.metadata.version)}
+                            to={AppRoutes.jobs.create(fav.metadata.name)}
                             text={fav.metadata.title}
                             icon={<AppLogo name={fav.metadata.name} />}
                             tab={SidebarTabId.APPLICATIONS}
