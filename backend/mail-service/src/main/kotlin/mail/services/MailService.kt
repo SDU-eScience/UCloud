@@ -77,7 +77,7 @@ class MailService(
             <head>
                 <style type="text/css" media="screen">
                     a {
-                        color: #0069FD;
+                        color: #096DE3;
                         text-decoration: none;
                     }
                     a:hover {
@@ -88,7 +88,7 @@ class MailService(
             <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
                 Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
                 "Segoe UI Symbol", "Noto Color Emoji";'>
-                <div style="padding: .4em .3em .1em 2em; background: #0069FD;">
+                <div style="padding: .4em .3em .1em 2em; background: #096DE3;">
                     <a href="https://cloud.sdu.dk">
                         <img style="margin-right: .2em;" src="cid:ucloud_logo">
                     </a>
