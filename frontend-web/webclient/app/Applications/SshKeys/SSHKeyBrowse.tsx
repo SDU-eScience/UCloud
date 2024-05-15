@@ -74,7 +74,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, dims, row));
 
-                    ResourceBrowser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
+                    ResourceBrowser.icons.renderIcon({name: "heroKey", color: "textPrimary", color2: "textPrimary", height: 64, width: 64}).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name
