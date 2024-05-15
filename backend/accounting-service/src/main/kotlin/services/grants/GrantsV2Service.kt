@@ -1535,136 +1535,143 @@ class GrantsV2Service(
                 is GrantApplication.Recipient.NewProject -> r.title // should not happen
                 is GrantApplication.Recipient.PersonalWorkspace -> "Personal workspace: ${r.username}" // will happen
             }
-            val grantGiverPlaceholder = "grant giver"
 
-            for (action in actionQueue) {
-                when (action) {
-                    Action.Initialize -> {
-                        notificationsForGrantGivers.add(
-                            NotificationBundle(
+            // TODO(Dan): Hack hack hack
+            val isGift = application.currentRevision.document.revisionComment == "Gifted automatically"
+                    || application.status.comments.firstOrNull()?.comment == "Gift"
+                    || application.currentRevision.document.form is GrantApplication.Form.GrantGiverInitiated
+
+            if (!isGift) {
+                val grantGiverPlaceholder = "grant giver"
+
+                for (action in actionQueue) {
+                    when (action) {
+                        Action.Initialize -> {
+                            notificationsForGrantGivers.add(
+                                NotificationBundle(
+                                    notification = Notification(
+                                        "NEW_GRANT_APPLICATION",
+                                        "New grant application from '${applicationTitle}'",
+                                        meta = JsonObject(
+                                            mapOf(
+                                                "appId" to JsonPrimitive(application.id),
+                                            )
+                                        )
+                                    ),
+                                    email = Mail.NewGrantApplicationMail(
+                                        application.createdBy,
+                                        grantGiverPlaceholder,
+                                        "New grant application from '${applicationTitle}'",
+                                    ),
+                                )
+                            )
+                        }
+
+                        is Action.NewComment -> {
+                            val b = NotificationBundle(
                                 notification = Notification(
-                                    "NEW_GRANT_APPLICATION",
-                                    "New grant application from '${applicationTitle}'",
+                                    "NEW_GRANT_COMMENT",
+                                    "New comment in application '${applicationTitle}'",
                                     meta = JsonObject(
                                         mapOf(
                                             "appId" to JsonPrimitive(application.id),
                                         )
                                     )
-                                ),
-                                email = Mail.NewGrantApplicationMail(
-                                    application.createdBy,
-                                    grantGiverPlaceholder,
-                                    "New grant application from '${applicationTitle}'",
-                                ),
+                                )
                             )
-                        )
-                    }
 
-                    is Action.NewComment -> {
-                        val b = NotificationBundle(
-                            notification = Notification(
-                                "NEW_GRANT_COMMENT",
-                                "New comment in application '${applicationTitle}'",
+                            notificationsForGrantGivers.add(b)
+                            notificationForSenders.add(b)
+                        }
+
+                        is Action.NewRevision -> {
+                            val b = NotificationBundle(
+                                notification = Notification(
+                                    "UPDATED_GRANT_APPLICATION",
+                                    "New update in application '${applicationTitle}'",
+                                    meta = JsonObject(
+                                        mapOf(
+                                            "appId" to JsonPrimitive(application.id),
+                                        )
+                                    )
+                                )
+                            )
+
+                            notificationsForGrantGivers.add(b)
+                            notificationForSenders.add(b)
+                        }
+
+                        is Action.UpdateOverallState -> {
+                            val notification = Notification(
+                                "GRANT_APPLICATION_RESPONSE",
+                                when (action.overallState) {
+                                    GrantApplication.State.APPROVED -> "Application from '$applicationTitle' has been approved"
+                                    GrantApplication.State.REJECTED -> "Application from '$applicationTitle' has been rejected"
+                                    GrantApplication.State.CLOSED -> "Application from '$applicationTitle' has been withdrawn"
+                                    GrantApplication.State.IN_PROGRESS -> "Application from '$applicationTitle' has been resumed"
+                                },
                                 meta = JsonObject(
                                     mapOf(
                                         "appId" to JsonPrimitive(application.id),
                                     )
                                 )
                             )
-                        )
 
-                        notificationsForGrantGivers.add(b)
-                        notificationForSenders.add(b)
-                    }
-
-                    is Action.NewRevision -> {
-                        val b = NotificationBundle(
-                            notification = Notification(
-                                "UPDATED_GRANT_APPLICATION",
-                                "New update in application '${applicationTitle}'",
-                                meta = JsonObject(
-                                    mapOf(
-                                        "appId" to JsonPrimitive(application.id),
-                                    )
-                                )
-                            )
-                        )
-
-                        notificationsForGrantGivers.add(b)
-                        notificationForSenders.add(b)
-                    }
-
-                    is Action.UpdateOverallState -> {
-                        val notification = Notification(
-                            "GRANT_APPLICATION_RESPONSE",
-                            when (action.overallState) {
-                                GrantApplication.State.APPROVED -> "Application from '$applicationTitle' has been approved"
-                                GrantApplication.State.REJECTED -> "Application from '$applicationTitle' has been rejected"
-                                GrantApplication.State.CLOSED -> "Application from '$applicationTitle' has been withdrawn"
-                                GrantApplication.State.IN_PROGRESS -> "Application from '$applicationTitle' has been resumed"
-                            },
-                            meta = JsonObject(
-                                mapOf(
-                                    "appId" to JsonPrimitive(application.id),
-                                )
-                            )
-                        )
-
-                        notificationsForGrantGivers.add(
-                            NotificationBundle(
-                                notification = notification,
-                                email = Mail.GrantApplicationStatusChangedToAdmin(
-                                    action.overallState.name,
-                                    grantGiverPlaceholder,
-                                    application.createdBy,
-                                    applicationTitle,
-                                    notification.message
-                                )
-                            )
-                        )
-
-                        notificationForSenders.add(
-                            NotificationBundle(
-                                notification,
-                                email = when (action.overallState) {
-                                    GrantApplication.State.APPROVED -> Mail.GrantApplicationApproveMail(
+                            notificationsForGrantGivers.add(
+                                NotificationBundle(
+                                    notification = notification,
+                                    email = Mail.GrantApplicationStatusChangedToAdmin(
+                                        action.overallState.name,
+                                        grantGiverPlaceholder,
+                                        application.createdBy,
                                         applicationTitle,
                                         notification.message
                                     )
-
-                                    GrantApplication.State.REJECTED -> Mail.GrantApplicationRejectedMail(
-                                        applicationTitle,
-                                        notification.message
-                                    )
-
-                                    GrantApplication.State.CLOSED -> Mail.GrantApplicationWithdrawnMail(
-                                        applicationTitle,
-                                        actorAndProject.actor.safeUsername(),
-                                        notification.message
-                                    )
-
-                                    GrantApplication.State.IN_PROGRESS -> null
-                                }
+                                )
                             )
-                        )
-                    }
 
-                    Action.GrantResources,
-                    is Action.UpdateApprovalState,
-                    is Action.DeleteComment -> {
-                        // Do nothing
+                            notificationForSenders.add(
+                                NotificationBundle(
+                                    notification,
+                                    email = when (action.overallState) {
+                                        GrantApplication.State.APPROVED -> Mail.GrantApplicationApproveMail(
+                                            applicationTitle,
+                                            notification.message
+                                        )
+
+                                        GrantApplication.State.REJECTED -> Mail.GrantApplicationRejectedMail(
+                                            applicationTitle,
+                                            notification.message
+                                        )
+
+                                        GrantApplication.State.CLOSED -> Mail.GrantApplicationWithdrawnMail(
+                                            applicationTitle,
+                                            actorAndProject.actor.safeUsername(),
+                                            notification.message
+                                        )
+
+                                        GrantApplication.State.IN_PROGRESS -> null
+                                    }
+                                )
+                            )
+                        }
+
+                        Action.GrantResources,
+                        is Action.UpdateApprovalState,
+                        is Action.DeleteComment -> {
+                            // Do nothing
+                        }
                     }
                 }
-            }
 
-            val allEmailsToSend = ArrayList<SendRequestItem>()
+                val allEmailsToSend = ArrayList<SendRequestItem>()
 
-            if (notificationsForGrantGivers.isNotEmpty()) {
-                // NOTE(Dan): This, purposefully, throws away any but the first grant giver we find for a single user.
-                // We do not want to send multiple emails to a single user.
-                val usernamesAndGrantGiverTitles = session.sendPreparedStatement(
-                    { setParameter("pids", grantGiverProjects().toList()) },
-                    """
+                if (notificationsForGrantGivers.isNotEmpty()) {
+                    // NOTE(Dan): This, purposefully, throws away any but the first grant giver we find for a single user.
+                    // We do not want to send multiple emails to a single user.
+                    val usernamesAndGrantGiverTitles = session.sendPreparedStatement(
+                        { setParameter("pids", grantGiverProjects().toList()) },
+                        """
                         select
                             pm.username, p.title
                         from
@@ -1674,38 +1681,38 @@ class GrantsV2Service(
                             (pm.role = 'ADMIN' or pm.role = 'PI')
                             and p.pid = some(:pids)
                     """
-                ).rows.associate { Pair(it.getString(0)!!, it.getString(1)!!) }
+                    ).rows.associate { Pair(it.getString(0)!!, it.getString(1)!!) }
 
-                for ((username, grantGiver) in usernamesAndGrantGiverTitles) {
-                    if (actorAndProject.actor.safeUsername() == username) continue
-                    val bundle = notificationsForGrantGivers.lastOrNull() ?: continue
+                    for ((username, grantGiver) in usernamesAndGrantGiverTitles) {
+                        if (actorAndProject.actor.safeUsername() == username) continue
+                        val bundle = notificationsForGrantGivers.lastOrNull() ?: continue
 
-                    if (bundle.notification != null) {
-                        NotificationDescriptions.create.call(
-                            CreateNotification(username, bundle.notification),
-                            ctx.serviceClient
-                        )
-                    }
-
-                    if (bundle.email != null) {
-                        // This is annoying...
-                        val fixedEmail = when (bundle.email) {
-                            is Mail.NewGrantApplicationMail -> bundle.email.copy(projectTitle = grantGiver)
-                            is Mail.GrantApplicationStatusChangedToAdmin -> bundle.email.copy(projectTitle = grantGiver)
-                            else -> bundle.email
+                        if (bundle.notification != null) {
+                            NotificationDescriptions.create.call(
+                                CreateNotification(username, bundle.notification),
+                                ctx.serviceClient
+                            )
                         }
 
-                        allEmailsToSend.add(SendRequestItem(username, fixedEmail))
+                        if (bundle.email != null) {
+                            // This is annoying...
+                            val fixedEmail = when (bundle.email) {
+                                is Mail.NewGrantApplicationMail -> bundle.email.copy(projectTitle = grantGiver)
+                                is Mail.GrantApplicationStatusChangedToAdmin -> bundle.email.copy(projectTitle = grantGiver)
+                                else -> bundle.email
+                            }
+
+                            allEmailsToSend.add(SendRequestItem(username, fixedEmail))
+                        }
                     }
                 }
-            }
 
-            if (notificationForSenders.isNotEmpty()) {
-                val recipients = when (val r = application.currentRevision.document.recipient) {
-                    is GrantApplication.Recipient.ExistingProject -> {
-                        session.sendPreparedStatement(
-                            { setParameter("pid", r.id) },
-                            """
+                if (notificationForSenders.isNotEmpty()) {
+                    val recipients = when (val r = application.currentRevision.document.recipient) {
+                        is GrantApplication.Recipient.ExistingProject -> {
+                            session.sendPreparedStatement(
+                                { setParameter("pid", r.id) },
+                                """
                                 select
                                     pm.username
                                 from
@@ -1715,34 +1722,35 @@ class GrantsV2Service(
                                     (pm.role = 'ADMIN' or pm.role = 'PI')
                                     and p.id = :pid
                             """
-                        ).rows.map { it.getString(0)!! }
+                            ).rows.map { it.getString(0)!! }
+                        }
+
+                        is GrantApplication.Recipient.NewProject -> listOf(application.createdBy)
+                        is GrantApplication.Recipient.PersonalWorkspace -> listOf(application.createdBy)
                     }
 
-                    is GrantApplication.Recipient.NewProject -> listOf(application.createdBy)
-                    is GrantApplication.Recipient.PersonalWorkspace -> listOf(application.createdBy)
+                    for (username in recipients) {
+                        if (actorAndProject.actor.safeUsername() == username) continue
+                        val bundle = notificationForSenders.lastOrNull() ?: continue
+                        if (bundle.notification != null) {
+                            NotificationDescriptions.create.call(
+                                CreateNotification(username, bundle.notification),
+                                ctx.serviceClient
+                            )
+                        }
+
+                        if (bundle.email != null) {
+                            allEmailsToSend.add(SendRequestItem(username, bundle.email))
+                        }
+                    }
                 }
 
-                for (username in recipients) {
-                    if (actorAndProject.actor.safeUsername() == username) continue
-                    val bundle = notificationForSenders.lastOrNull() ?: continue
-                    if (bundle.notification != null) {
-                        NotificationDescriptions.create.call(
-                            CreateNotification(username, bundle.notification),
-                            ctx.serviceClient
-                        )
-                    }
-
-                    if (bundle.email != null) {
-                        allEmailsToSend.add(SendRequestItem(username, bundle.email))
-                    }
+                if (allEmailsToSend.isNotEmpty()) {
+                    MailDescriptions.sendToUser.call(
+                        bulkRequestOf(allEmailsToSend),
+                        ctx.serviceClient
+                    )
                 }
-            }
-
-            if (allEmailsToSend.isNotEmpty()) {
-                MailDescriptions.sendToUser.call(
-                    bulkRequestOf(allEmailsToSend),
-                    ctx.serviceClient
-                )
             }
 
             return ModificationResult(application.id, commentsCreated)

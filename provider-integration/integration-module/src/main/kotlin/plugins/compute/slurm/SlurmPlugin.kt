@@ -584,20 +584,16 @@ class SlurmPlugin : ComputePlugin {
 
     // NOTE(Dan): This cannot be inlined in the loop due to a limitation in GraalVM (AOT native images only)
     private suspend fun PluginContext.loop(accountingScan: Boolean) {
-        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm monitoring") {
-            try {
-                monitorStates()
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
-            }
+        try {
+            monitorStates()
+        } catch (ex: Throwable) {
+            log.info("Slurm monitoring error: ${ex.toReadableStacktrace()}")
         }
 
-        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm accounting") {
-            try {
-                monitorAccounting(accountingScan)
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
-            }
+        try {
+            monitorAccounting(accountingScan)
+        } catch (ex: Throwable) {
+            log.info("Slurm monitoring error: ${ex.toReadableStacktrace()}")
         }
 
         delay(5000)
@@ -625,6 +621,7 @@ class SlurmPlugin : ComputePlugin {
         // 2. Compare with list of known UCloud jobs
         // 3. Register any unknown jobs (if possible, jobs are not required to be for a UCloud project)
         // 4. Establish a mapping between Slurm jobs and UCloud jobs
+
         val accountingRows = cli.retrieveAccountingData(lastScan, pluginConfig.partition)
         lastScan = Time.now()
 
@@ -706,11 +703,7 @@ class SlurmPlugin : ComputePlugin {
                 categories.map { category ->
                     Pair(
                         project.project.id,
-                        accountMapper.lookupByUCloud(
-                            WalletOwner.Project(project.project.id),
-                            category.category.name,
-                            pluginConfig.partition
-                        )?.account
+                        project.localId,
                     )
                 }
             }
@@ -722,7 +715,7 @@ class SlurmPlugin : ComputePlugin {
             val workspaces = userMappings.items.map {
                 UidOrGid(it.uid)
             } + projectMappings.map {
-                UidOrGid(null, it.second!!)
+                UidOrGid(null, it.second)
             }
 
             if (workspaces.isEmpty()) continue
@@ -736,14 +729,15 @@ class SlurmPlugin : ComputePlugin {
 
             usageResponse.usage.forEach { workspaceUsage ->
                 val ucloudId = if (workspaceUsage.gid != null) {
-                    projectMappings.find { it.second == workspaceUsage.gid}?.first
+                    projectMappings.find { it.second == workspaceUsage.gid }?.first
                 } else {
                     userMappings.items.find { it.uid == workspaceUsage.uid }?.username
                 }
 
                 if (ucloudId != null) {
+                    val workspace = walletOwnerFromOwnerString(ucloudId)
                     reportRawUsage(
-                        walletOwnerFromOwnerString(ucloudId),
+                        workspace,
                         ProductCategoryIdV2(category.name, providerId),
                         workspaceUsage.usage
                     )
@@ -893,7 +887,7 @@ class SlurmPlugin : ComputePlugin {
 @Serializable
 data class UidOrGid(
     val uid: Int? = null,
-    val gid: String? = null
+    val gid: Int? = null
 )
 
 @Serializable
@@ -905,7 +899,7 @@ data class FetchComputeUsageRequest(
 @Serializable
 data class FetchComputeUsageItem(
     val uid: Int? = null,
-    val gid: String? = null,
+    val gid: Int? = null,
     val usage: Long
 )
 
