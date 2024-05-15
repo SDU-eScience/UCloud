@@ -72,7 +72,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, dims, row));
 
                     ResourceBrowser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
                 });
