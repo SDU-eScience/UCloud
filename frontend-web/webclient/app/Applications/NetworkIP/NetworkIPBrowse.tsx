@@ -206,7 +206,10 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                         row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims, row));
                     }
 
-                    if (ip.status.boundTo.length === 1) {
+                    if (opts?.selection) {
+                        const useButton = browser.defaultButtonRenderer(opts.selection, ip);
+                        if (useButton) row.stat3.append(useButton);
+                    } else if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
                         row.stat3.innerText = boundTo;
                     }
