@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.service.Logger
 import java.util.Comparator
 import kotlin.math.min
 
@@ -147,11 +148,14 @@ suspend fun PaymentService.chargeOrCheckCredits(
 
                 if (resolvedProduct.freeToUse) continue
 
+                val units = (doc.data as? InternalJobState)?.specification?.replicas?.toLong() ?: 1L
+                resourceStoreLog.info("Wanted to charge ${reqItem.units} but is choosing to charge $units")
+
                 paymentRequests.add(
                     Payment(
                         reqItem.chargeId,
                         reqItem.periods,
-                        reqItem.units,
+                        units,
                         resolvedProduct.pricePerUnit,
                         reqItem.id,
                         reqItem.performedBy ?: createdBy,
@@ -187,3 +191,5 @@ suspend fun PaymentService.chargeOrCheckCredits(
 
     return ResourceChargeCreditsResponse(insufficient, emptyList())
 }
+
+private val resourceStoreLog = Logger("ResourceStoreLog")
