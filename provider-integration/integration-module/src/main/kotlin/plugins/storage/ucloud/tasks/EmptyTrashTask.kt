@@ -32,6 +32,7 @@ class EmptyTrashTask(
     private val fs: NativeFS,
     private val stagingFolder: InternalFile?
 ) : TaskHandler {
+    /*
     init {
         if (stagingFolder != null) {
             ProcessingScope.launch {
@@ -55,6 +56,7 @@ class EmptyTrashTask(
             }
         }
     }
+     */
 
     override fun TaskContext.canHandle(name: String, request: JsonObject): Boolean {
         return name == Files.emptyTrash.fullName && runCatching {
@@ -78,7 +80,6 @@ class EmptyTrashTask(
             BulkRequest.serializer(EmptyTrashRequestItem.serializer()),
             task.rawRequest
         )
-
 
         val numberOfCoroutines = if (realRequest.items.size >= 1000) 10 else 1
 
@@ -116,7 +117,6 @@ class EmptyTrashTask(
                     }
                     return@doWork
                 }
-
             }
         )
     }

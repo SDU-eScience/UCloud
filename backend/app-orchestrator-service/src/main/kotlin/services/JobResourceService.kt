@@ -588,11 +588,9 @@ class JobResourceService(
     }
 
     private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
-        log.info("Adding job notification for $user: $jobId $newState ${jobSpecification.application.name}")
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
-        log.info("Found title: $appTitle")
 
         if (!jobNotifications.containsKey(user)) {
             jobNotifications[user] = mutableListOf()
@@ -602,7 +600,6 @@ class JobResourceService(
             jobMailNotifications[user] = mutableListOf()
         }
 
-        log.info("Adding notification")
         jobNotifications[user]!!.add(
             JobNotificationInfo(
                 newState,
@@ -612,7 +609,6 @@ class JobResourceService(
             )
         )
 
-        log.info("Adding mailNotification")
         jobMailNotifications[user]!!.add(
             JobNotificationInfo(
                 newState,
@@ -624,9 +620,7 @@ class JobResourceService(
     }
 
     private suspend fun sendNotifications() {
-        log.info("sendNotifications called: $jobNotifications")
         for (user in jobNotifications.keys) {
-            log.info("send notifications for $user")
             val handledTypes = mutableListOf<JobState>()
             val notifications = jobNotifications[user] ?: continue
 
@@ -645,7 +639,7 @@ class JobResourceService(
                     JobState.RUNNING -> "JOB_STARTED"
                     JobState.FAILURE -> "JOB_FAILED"
                     JobState.EXPIRED -> "JOB_EXPIRED"
-                    else -> return;
+                    else -> return@mapNotNull null
                 }
 
                 Notification(
@@ -660,8 +654,6 @@ class JobResourceService(
                     )
                 )
             }
-
-            log.info("Sending ${summarizedNotifications.size} notifications to $user")
 
             summarizedNotifications.forEach { notification ->
                 try {
@@ -680,11 +672,9 @@ class JobResourceService(
 
         log.info("clearing ${jobNotifications.size} jobNotifications")
         jobNotifications.clear()
-        log.info("is now $jobNotifications")
     }
 
     private suspend fun sendMails() {
-        log.info("sendMails called: $jobMailNotifications")
         for (user in jobMailNotifications.keys) {
             val notifications = jobMailNotifications[user] ?: continue
             if (notifications.isEmpty()) continue
@@ -746,7 +736,6 @@ class JobResourceService(
             }
         }
 
-        log.info("clearing ${jobMailNotifications.size} jobMailNotifications")
         jobMailNotifications.clear()
     }
 
