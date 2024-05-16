@@ -158,9 +158,9 @@ export const MembersContainer: React.FunctionComponent<{
     useSetRefreshFunction(props.onRefresh);
 
     return <MainContainer
-        header={<Spacer
-            left={<Heading.h3>{props.project.specification.title}</Heading.h3>}
-            right={<Flex marginRight={"16px"} height={"26px"}><UtilityBar /></Flex>}
+        header={<Spacer mt="4.5px"
+            left={<h3 className="title">{props.project.specification.title}</h3>}
+            right={<Flex height={"26px"}><UtilityBar /></Flex>}
         />}
         main={<div className={TwoColumnLayout}>
             <ReactModal
@@ -189,7 +189,7 @@ export const MembersContainer: React.FunctionComponent<{
                         <Input
                             value={username}
                             type="text"
-                            placeholder="Add by username ..."
+                            placeholder="Add by username..."
                             style={{flexGrow: 1}}
                             onChange={(event) => {
                                 setUsername((event.target as HTMLInputElement).value);

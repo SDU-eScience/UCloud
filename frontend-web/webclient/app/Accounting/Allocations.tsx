@@ -787,7 +787,6 @@ const AllocationsStyle = injectStyle("allocations", k => `
     
     ${k} h1,
     ${k} h2,
-    ${k} h3,
     ${k} h4 {
         margin: 15px 0;
     }
@@ -1302,7 +1301,7 @@ const Allocations: React.FunctionComponent = () => {
         headerSize={0}
         main={<div className={AllocationsStyle}>
             <header>
-                <h2>Resource allocations</h2>
+                <h3 className="title">Resource allocations</h3>
                 <Box flexGrow={1}/>
                 <ContextSwitcher/>
             </header>

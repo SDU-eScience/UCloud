@@ -491,7 +491,7 @@ const Visualization: React.FunctionComponent = () => {
         )}
         >
             <header>
-                <h2>Resource usage</h2>
+                <h3 className="title" style={{marginTop:"auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>

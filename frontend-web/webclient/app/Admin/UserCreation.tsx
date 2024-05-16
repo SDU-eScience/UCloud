@@ -3,7 +3,7 @@ import {setLoading, usePage} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Box, Button, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label, MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
@@ -78,80 +78,82 @@ function UserCreation(): React.ReactNode {
     } = state;
 
     return (
-        <Box maxWidth={"1200px"} mx="auto">
-            <Heading.h1>User Creation</Heading.h1>
-            <p>Admins can create new users on this page.</p>
-            <form autoComplete="off" onSubmit={e => submit(e)}>
-                <Label mb="1em">
-                    Username
-                    <Input
-                        autoComplete="off"
-                        value={username}
-                        error={usernameError}
-                        onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
-                        placeholder="Username..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Password
-                    <Input
-                        value={password}
-                        type="password"
-                        error={passwordError}
-                        onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
-                        placeholder="Password..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Repeat password
-                    <Input
-                        value={repeatedPassword}
-                        type="password"
-                        error={passwordError}
-                        onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
-                        placeholder="Repeat password..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Email
-                    <Input
-                        value={email}
-                        type="email"
-                        error={emailError}
-                        onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
-                        placeholder="Email..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    First Names
-                    <Input
-                        value={firstnames}
-                        type="firstnames"
-                        error={firstnamesError}
-                        onChange={e => dispatch({type: "UpdateFirstnames", payload: {firstnames: e.target.value}})}
-                        placeholder="First names..."
-                    />
-                </Label>
-                <Label mb="1em">
-                    Last Name
-                    <Input
-                        value={lastname}
-                        type="lastname"
-                        error={lastnameError}
-                        onChange={e => dispatch({type: "UpdateLastname", payload: {lastname: e.target.value}})}
-                        placeholder="Last name..."
-                    />
-                </Label>
-                <Button
-                    mt="8px"
-                    type="submit"
-                    color="successMain"
-                    disabled={submitted}
-                >
-                    Create user
-                </Button>
-            </form>
-        </Box>
+        <MainContainer
+            main={<>
+                <h3 className="title">User Creation</h3>
+                <p>Admins can create new users on this page.</p>
+                <form autoComplete="off" onSubmit={e => submit(e)}>
+                    <Label mb="1em">
+                        Username
+                        <Input
+                            autoComplete="off"
+                            value={username}
+                            error={usernameError}
+                            onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
+                            placeholder="Username..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Password
+                        <Input
+                            value={password}
+                            type="password"
+                            error={passwordError}
+                            onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
+                            placeholder="Password..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Repeat password
+                        <Input
+                            value={repeatedPassword}
+                            type="password"
+                            error={passwordError}
+                            onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
+                            placeholder="Repeat password..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Email
+                        <Input
+                            value={email}
+                            type="email"
+                            error={emailError}
+                            onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
+                            placeholder="Email..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        First Names
+                        <Input
+                            value={firstnames}
+                            type="firstnames"
+                            error={firstnamesError}
+                            onChange={e => dispatch({type: "UpdateFirstnames", payload: {firstnames: e.target.value}})}
+                            placeholder="First names..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Last Name
+                        <Input
+                            value={lastname}
+                            type="lastname"
+                            error={lastnameError}
+                            onChange={e => dispatch({type: "UpdateLastname", payload: {lastname: e.target.value}})}
+                            placeholder="Last name..."
+                        />
+                    </Label>
+                    <Button
+                        mt="8px"
+                        type="submit"
+                        color="successMain"
+                        disabled={submitted}
+                    >
+                        Create user
+                    </Button>
+                </form>
+            </>}
+        />
     );
 
     async function submit(e: React.SyntheticEvent): Promise<void> {

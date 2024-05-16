@@ -1705,7 +1705,7 @@ export function Editor(): React.ReactNode {
             </> :
                 <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
-                        <h3>Information about your project</h3>
+                        <h3 className="title">Information about your project</h3>
 
                         <div style={{flexGrow: 1}} />
 

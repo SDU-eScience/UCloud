@@ -61,7 +61,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                 <div className={GradientWithPolygons}>
                     <div className={OverviewStyle}>
                         <Flex alignItems={"center"}>
-                            <h3>{title}</h3>
+                            <h3 className="title">{title}</h3>
                             <Box ml="auto"/>
                             <UtilityBar onSearch={appSearch}/>
                         </Flex>

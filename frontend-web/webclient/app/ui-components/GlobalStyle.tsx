@@ -1098,6 +1098,11 @@ h1, h2, h3, h4, h5, h6 {
     margin: 0;
 }
 
+h3.title {
+  font-size: calc(16px * 1.1);
+  font-weight: bold;
+}
+
 `;
 
 export default UIGlobalStyle;

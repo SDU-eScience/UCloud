@@ -221,7 +221,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
         key={project.id}
         header={
             <Spacer
-                left={<h2 style={{margin: "0"}}>Project settings</h2>}
+                left={<h3 className="title">Project settings</h3>}
                 right={null}
             />
         }
