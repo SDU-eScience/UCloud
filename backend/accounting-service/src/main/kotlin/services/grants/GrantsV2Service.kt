@@ -162,7 +162,10 @@ class GrantsV2Service(
                     is GrantApplication.Recipient.ExistingProject -> {
                         val (title, pi) = session.sendPreparedStatement(
                             {
-                                setParameter("username", username)
+                                // Grant giver initiated will check for permissions later
+                                val isGrantGiverInitiated = doc.form is GrantApplication.Form.GrantGiverInitiated
+
+                                setParameter("username", if (isGrantGiverInitiated) null else username)
                                 setParameter("project_id", r.id)
                             },
                             """
@@ -174,9 +177,14 @@ class GrantsV2Service(
                                 where
                                     p.id = :project_id
                                     
-                                    and pm.username = :username
-                                    and pm.project_id = p.id
-                                    and (pm.role = 'ADMIN' or pm.role = 'PI')
+                                    and (
+                                        :username::text is null
+                                        or (
+                                            pm.username = :username::text
+                                            and pm.project_id = p.id
+                                            and (pm.role = 'ADMIN' or pm.role = 'PI')
+                                        )
+                                    )
                                     
                                     and pi.project_id = p.id
                                     and pi.role = 'PI'
