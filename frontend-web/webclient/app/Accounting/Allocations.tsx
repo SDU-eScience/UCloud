@@ -1667,7 +1667,7 @@ const Allocations: React.FunctionComponent = () => {
                         <TreeNode
                             key={recipientIdx}
                             left={<Flex gap={"4px"} alignItems={"center"}>
-                                <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
+                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
                                             style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                             avatarStyle={"Circle"}/>
