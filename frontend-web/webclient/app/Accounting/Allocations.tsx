@@ -1686,7 +1686,7 @@ const Allocations: React.FunctionComponent = () => {
                                             subAllocator: false,
                                         })}
                                     >
-                                        <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
+                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
                                                          subColor1={"primaryContrast"} subColor2={"primaryContrast"}/>
                                     </Link>
                                 }
@@ -1899,6 +1899,7 @@ const SmallIconButton: React.FunctionComponent<{
     subColor1?: ThemeColor;
     subColor2?: ThemeColor;
     color?: ThemeColor;
+    title?: string;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
 }> = props => {
@@ -1913,6 +1914,7 @@ const SmallIconButton: React.FunctionComponent<{
         color={props.color}
         disabled={props.disabled}
         btnRef={ref}
+        title={props.title}
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
