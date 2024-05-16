@@ -1112,7 +1112,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                 browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {});
-                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("SyncThing folders", e, {}))
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("Syncthing folders", e, {}))
 
                 browser.on("renderRow", (folder, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
