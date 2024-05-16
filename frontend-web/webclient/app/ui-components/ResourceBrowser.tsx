@@ -3241,6 +3241,11 @@ export class ResourceBrowser<T> {
                 color: var(--textPrimary);
             }
 
+            ${browserClass.dot} header:not([has-location-bar]) > div.header-first-row {
+                font-weight: bold;
+                cursor: default;
+            }
+
             ${browserClass.dot} header input.search-field {
                 width: 100%;
                 height: 35px;
