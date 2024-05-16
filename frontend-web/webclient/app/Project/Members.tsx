@@ -407,7 +407,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     const [sortUpdate, setSortUpdate] = useState("");
     const reduxDispatch = useDispatch();
 
-
     const [memberQuery, setMemberQuery] = useState<string>("");
 
     // UI callbacks and state manipulation

@@ -160,7 +160,7 @@ export const MembersContainer: React.FunctionComponent<{
     return <MainContainer
         header={<Spacer
             left={<Heading.h3>{props.project.specification.title}</Heading.h3>}
-            right={<Flex marginRight={"16px"} height={"26px"}><UtilityBar /></Flex>}
+            right={<Flex height={"26px"}><UtilityBar /></Flex>}
         />}
         main={<div className={TwoColumnLayout}>
             <ReactModal
