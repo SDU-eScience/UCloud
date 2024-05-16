@@ -779,17 +779,18 @@ class Pod2Runtime(
 
         return when {
             memory.isNullOrBlank() -> 0
-            memory.contains("K") -> notNumbers.replace(memory, "").toLong() * k
-            memory.contains("M") -> notNumbers.replace(memory, "").toLong() * m
-            memory.contains("G") -> notNumbers.replace(memory, "").toLong() * g
-            memory.contains("T") -> notNumbers.replace(memory, "").toLong() * t
-            memory.contains("P") -> notNumbers.replace(memory, "").toLong() * p
 
             memory.contains("Ki") -> notNumbers.replace(memory, "").toLong() * ki
             memory.contains("Mi") -> notNumbers.replace(memory, "").toLong() * mi
             memory.contains("Gi") -> notNumbers.replace(memory, "").toLong() * gi
             memory.contains("Ti") -> notNumbers.replace(memory, "").toLong() * ti
             memory.contains("Pi") -> notNumbers.replace(memory, "").toLong() * pi
+
+            memory.contains("K") -> notNumbers.replace(memory, "").toLong() * k
+            memory.contains("M") -> notNumbers.replace(memory, "").toLong() * m
+            memory.contains("G") -> notNumbers.replace(memory, "").toLong() * g
+            memory.contains("T") -> notNumbers.replace(memory, "").toLong() * t
+            memory.contains("P") -> notNumbers.replace(memory, "").toLong() * p
             else -> notNumbers.replace(memory, "").toLong()
         }
     }
