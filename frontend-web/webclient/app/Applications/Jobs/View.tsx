@@ -1266,7 +1266,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
-    return <Card key={job.id} className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
+    return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />
