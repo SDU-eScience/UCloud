@@ -31,6 +31,7 @@ export const FavoriteToggle: React.FunctionComponent<{
 
     return <Icon
         ml="4px"
+        size={20}
         cursor="pointer"
         name={favorite ? "starFilled" : "starEmpty"}
         mb="2px"
