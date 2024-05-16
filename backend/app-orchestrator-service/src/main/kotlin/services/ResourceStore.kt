@@ -344,27 +344,29 @@ class ResourceStore<T>(
             throw RPCException("Invalid product supplied", HttpStatusCode.Forbidden)
         }
 
-        var hasCollision = false
-        val rootStore = findOrLoadBucket(if (pid == 0) uid else 0, pid)
-        val consumer = object : SearchConsumer {
-            var currentStore: ResourceStoreBucket<T>? = null
-            override fun call(arrIdx: Int) {
-                val store = currentStore ?: return
-                if (store.id[arrIdx] == 0L) return
-                if (store.providerGeneratedId[arrIdx] == providerId) {
-                    hasCollision = true
+        if (providerId != null) {
+            var hasCollision = false
+            val rootStore = findOrLoadBucket(if (pid == 0) uid else 0, pid)
+            val consumer = object : SearchConsumer {
+                var currentStore: ResourceStoreBucket<T>? = null
+                override fun call(arrIdx: Int) {
+                    val store = currentStore ?: return
+                    if (store.id[arrIdx] == 0L) return
+                    if (store.providerGeneratedId[arrIdx] == providerId) {
+                        hasCollision = true
+                    }
                 }
             }
-        }
 
-        useBuckets(rootStore) { store ->
-            consumer.currentStore = store
-            store.searchAndConsume(IdCard.System, Permission.READ, consumer)
-            ShouldContinue.ifThisIsTrue(!hasCollision)
-        }
+            useBuckets(rootStore) { store ->
+                consumer.currentStore = store
+                store.searchAndConsume(IdCard.System, Permission.READ, consumer)
+                ShouldContinue.ifThisIsTrue(!hasCollision)
+            }
 
-        if (hasCollision) {
-            throw RPCException("A resource with this ID already exists", HttpStatusCode.Conflict)
+            if (hasCollision) {
+                throw RPCException("A resource with this ID already exists", HttpStatusCode.Conflict)
+            }
         }
 
         return createDocument(
