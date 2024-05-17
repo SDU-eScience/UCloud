@@ -787,7 +787,6 @@ const AllocationsStyle = injectStyle("allocations", k => `
     
     ${k} h1,
     ${k} h2,
-    ${k} h3,
     ${k} h4 {
         margin: 15px 0;
     }
@@ -1302,7 +1301,7 @@ const Allocations: React.FunctionComponent = () => {
         headerSize={0}
         main={<div className={AllocationsStyle}>
             <header>
-                <h2>Resource allocations</h2>
+                <h3 className="title">Resource allocations</h3>
                 <Box flexGrow={1}/>
                 <ContextSwitcher/>
             </header>
@@ -1668,7 +1667,7 @@ const Allocations: React.FunctionComponent = () => {
                         <TreeNode
                             key={recipientIdx}
                             left={<Flex gap={"4px"} alignItems={"center"}>
-                                <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
+                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
                                             style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                             avatarStyle={"Circle"}/>
@@ -1687,7 +1686,7 @@ const Allocations: React.FunctionComponent = () => {
                                             subAllocator: false,
                                         })}
                                     >
-                                        <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
+                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
                                                          subColor1={"primaryContrast"} subColor2={"primaryContrast"}/>
                                     </Link>
                                 }
@@ -1900,6 +1899,7 @@ const SmallIconButton: React.FunctionComponent<{
     subColor1?: ThemeColor;
     subColor2?: ThemeColor;
     color?: ThemeColor;
+    title?: string;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
 }> = props => {
@@ -1914,6 +1914,7 @@ const SmallIconButton: React.FunctionComponent<{
         color={props.color}
         disabled={props.disabled}
         btnRef={ref}
+        title={props.title}
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >

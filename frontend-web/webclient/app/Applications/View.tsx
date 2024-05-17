@@ -29,46 +29,53 @@ export const AppHeader: React.FunctionComponent<{
             <Flex flexDirection={"column"} minWidth={0}>
                 <Box>
                     <Flex>
-                        <Text verticalAlign="center" alignItems="center" fontSize={30} mr="15px">
+                        <Text verticalAlign="center" alignItems="center" fontSize={30} mr="5px">
                             {props.title}
                         </Text>
-                        <Flex style={{alignSelf: "center"}}>
-                            {props.flavors.length <= 1 ? null :
-                                <ClickableDropdown
-                                    closeFnRef={close}
-                                    paddingControlledByContent
-                                    noYPadding
-                                    trigger={
-                                        <Flex className={FlavorSelectorClass}>
-                                            {props.application.metadata.flavorName ?? props.application.metadata.title}
-                                            {" "}
-                                            <Icon ml="8px" name="chevronDownLight" size={12} />
-                                        </Flex>
-                                    }>
-                                    {props.flavors.map(f =>
-                                        <Box
-                                            cursor="pointer"
-                                            key={f.metadata.name}
-                                            minWidth={"300px"}
-                                            p={"8px"}
-                                            onClick={() => {
-                                                close.current();
-                                                navigate(Pages.runApplicationWithName(f.metadata.name));
-                                            }}
-                                        >
-                                            {f.metadata.flavorName ?? f.metadata.title}
-                                        </Box>
-                                    )}
-                                </ClickableDropdown>
-                            }
-                        </Flex>
+                        <Box style={{alignSelf: "center", marginRight: "10px"}}>
+                            <FavoriteToggle application={props.application} />
+                        </Box>
                     </Flex>
                 </Box>
-                <Flex>
-                    <FavoriteToggle application={props.application} />
+                <Flex marginTop="2px">
+                    {props.flavors.length <= 1 ? null :
+                        <Box marginRight="5px">
+                            <ClickableDropdown
+                                closeFnRef={close}
+                                paddingControlledByContent
+                                noYPadding
+                                trigger={
+                                    <Flex className={FlavorSelectorClass}>
+                                        {props.application.metadata.flavorName ?? props.application.metadata.title}
+                                        {" "}
+                                        <Icon ml="8px" name="chevronDownLight" size={12} />
+                                    </Flex>
+                                }>
+                                {props.flavors.map(f =>
+                                    <Box
+                                        cursor="pointer"
+                                        key={f.metadata.name}
+                                        minWidth={"300px"}
+                                        p={"8px"}
+                                        onClick={() => {
+                                            close.current();
+                                            navigate(Pages.runApplicationWithName(f.metadata.name));
+                                        }}
+                                    >
+                                        {f.metadata.flavorName ?? f.metadata.title}
+                                    </Box>
+                                )}
+                            </ClickableDropdown>
+                        </Box>
+                    }
                     <ClickableDropdown
-                        trigger={<TextSpan ml="8px">{props.application.metadata.version}</TextSpan>}
-                        chevron
+                        trigger={
+                            <Flex className={FlavorSelectorClass}>
+                                {props.application.metadata.version}
+                                {" "}
+                                <Icon ml="8px" name="chevronDownLight" size={12} />
+                            </Flex>
+                        }
                         paddingControlledByContent
                         noYPadding
                     >
@@ -115,13 +122,11 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
 
 const FlavorSelectorClass = injectStyle("flavor-selector", k => `
     ${k} {
-        height: 35px;
+        height: 30px;
         border-radius: 8px;
-        padding: 0px 15px;
-        font-size: var(--buttonText);
+        padding: 0px 10px;
         align-items: center;
-        background-color: var(--primaryMain);
-        color: var(--primaryContrast);
+        border: 1px solid var(--borderColor);
         margin: auto 0px;
     }
 `);

@@ -75,7 +75,7 @@ function NewsManagement(): React.ReactNode {
 
     return (
         <MainContainer
-            header={<Heading.h2>News</Heading.h2>}
+            header={<h3 className="title">News</h3>}
             main={(
                 <Flex justifyContent="center">
                     <Box maxWidth="800px" width={1}>

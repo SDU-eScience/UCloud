@@ -45,7 +45,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application groups</Heading.h2>}
+            header={<h3 className="title">Application groups</h3>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
