@@ -60,6 +60,9 @@ function resolveNotification(event: Notification): {
                 return {icon, modifiedMessage, modifiedTitle};
             }
             return {icon};
+        case "NEW_GRANT_COMMENT": {
+            return {icon: "heroPaperAirplane"};
+        }
         case "JOB_COMPLETED":
             var jobsCompletedTitle: string;
             
@@ -185,6 +188,7 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             navigate(AppRoutes.dashboard.dashboardA());
             break;
         case "NEW_GRANT_APPLICATION":
+        case "NEW_GRANT_COMMENT":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
         case "UPDATED_GRANT_APPLICATION":
