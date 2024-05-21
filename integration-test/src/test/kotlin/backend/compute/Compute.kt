@@ -26,9 +26,6 @@ import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 
-fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)
-fun ProductV2.toReference(): ProductReferenceV2 = ProductReferenceV2(name, category.name, category.provider)
-
 class ComputeTest : IntegrationTest() {
     private data class StartJobParameters(
         val longRunning: Boolean,

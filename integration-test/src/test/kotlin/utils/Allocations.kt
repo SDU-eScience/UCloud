@@ -8,17 +8,17 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.integration.serviceClient
 
 data class TotalWalletContent(
-    val initialBalance: Long,
-    val localBalance: Long,
-    val currentBalance: Long
+    val initialQuota: Long,
+    val localUsage: Long,
+    val treeUsage: Long
 )
 
-/*fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
-    val initialBalance = wallets.sumOf { wallet -> wallet. }
-    val localBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.localBalance } }
-    val currentBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.balance } }
-    return TotalWalletContent(initialBalance, localBalance, currentBalance)
-}*/
+fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
+    val initialQuota = wallets.sumOf { wallet -> wallet.quota }
+    val localUsage = wallets.sumOf { wallet -> wallet.localUsage }
+    val treeUsage = wallets.sumOf { wallet -> wallet.allocationGroups.sumOf { it.group.usage } }
+    return TotalWalletContent(initialQuota, localUsage, treeUsage)
+}
 
 suspend fun findWalletsInternal(walletOwner: WalletOwner): Set<WalletV2> {
     return AccountingV2.browseWalletsInternal.call(
@@ -28,30 +28,3 @@ suspend fun findWalletsInternal(walletOwner: WalletOwner): Set<WalletV2> {
         serviceClient
     ).orThrow().wallets.toSet()
 }
-
-suspend fun findWallets(projectId: String, piClient: AuthenticatedClient): Set<WalletV2> {
-    val result = HashSet<WalletV2>()
-
-    var next: String? = null
-    while (true) {
-        val page = AccountingV2.browseWallets.call(
-            AccountingV2.BrowseWallets.Request(
-                itemsPerPage = 250,
-                next = next,
-            ),
-            piClient.withProject(projectId)
-        ).orThrow()
-
-        page.items.forEach { result.add(it) }
-
-        next = page.next ?: break
-    }
-    return result
-}
-
-/*suspend fun findAllocationsInternal(walletOwner: WalletOwner): Set<WalletAllocationB> {
-    return findWalletsInternal(walletOwner).flatMap { it.allocations }.toSet()
-}
-suspend fun findAllocations(projectId: String, piClient: AuthenticatedClient): Set<WalletAllocationB> {
-    return findWallets(projectId, piClient).flatMap { it.al }.toSet()
-}*/

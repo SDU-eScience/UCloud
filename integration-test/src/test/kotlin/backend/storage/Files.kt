@@ -15,7 +15,6 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.assertThatInstance
 import dk.sdu.cloud.integration.backend.initializeResourceTestContext
 import dk.sdu.cloud.integration.utils.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
 class FileTest : IntegrationTest() {
