@@ -42,6 +42,7 @@ class CreateFolderTask : TaskHandler {
                 try {
                     nativeFs.createDirectories(internalFile)
                 } catch (ex: FSException) {
+                    if (ex is FSException.AlreadyExists) return@doWork
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while creating folders: ${ex.stackTraceToString()}")
                     }
