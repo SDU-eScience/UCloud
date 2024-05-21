@@ -8,17 +8,17 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.integration.serviceClient
 
 data class TotalWalletContent(
-    val initialBalance: Long,
-    val localBalance: Long,
-    val currentBalance: Long
+    val initialQuota: Long,
+    val localUsage: Long,
+    val treeUsage: Long
 )
 
-/*fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
-    val initialBalance = wallets.sumOf { wallet -> wallet. }
-    val localBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.localBalance } }
-    val currentBalance = wallets.sumOf { wallet -> wallet.allocations.sumOf { it.balance } }
-    return TotalWalletContent(initialBalance, localBalance, currentBalance)
-}*/
+fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
+    val initialQuota = wallets.sumOf { wallet -> wallet.quota }
+    val localUsage = wallets.sumOf { wallet -> wallet.localUsage }
+    val treeUsage = wallets.sumOf { wallet -> wallet.allocationGroups.sumOf { it.group.usage } }
+    return TotalWalletContent(initialQuota, localUsage, treeUsage)
+}
 
 suspend fun findWalletsInternal(walletOwner: WalletOwner): Set<WalletV2> {
     return AccountingV2.browseWalletsInternal.call(

@@ -818,7 +818,7 @@ class GrantTest : IntegrationTest() {
                     val info  = createSampleProducts()
 
                     val root = initializeRootProject(info.projectId)
-                    val createdProject = initializeNormalProject(root.projectId)
+                    val createdProject = initializeNormalProject(root)
                     val evilUser = createUser("evil-${UUID.randomUUID()}").let {
                         it.copy(
                             client = it.client.withProject(createdProject.projectId)

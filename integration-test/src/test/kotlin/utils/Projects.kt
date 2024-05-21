@@ -15,6 +15,7 @@ import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Time
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -116,7 +117,7 @@ suspend fun createRootAllocations(
 }
 
 suspend fun initializeNormalProject(
-    rootProject: String,
+    rootProject: NormalProjectInitialization,
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000_000,
     userRole: Role = Role.USER,
@@ -129,7 +130,7 @@ suspend fun initializeNormalProject(
     val projectId = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
-                parent = rootProject,
+                parent = rootProject.projectId,
                 title = generateId("normal")
             )
         ),
@@ -158,6 +159,44 @@ suspend fun initializeNormalProject(
         adminClient.withProject(projectId)
     ).orThrow()
 
+    if (initializeWallet) {
+        GrantsV2.submitRevision.call(
+            GrantsV2.SubmitRevision.Request(
+                revision = GrantApplication.Document(
+                    GrantApplication.Recipient.ExistingProject(projectId),
+                    listOf(
+                        GrantApplication.AllocationRequest(
+                            sampleCompute.category.name,
+                            UCLOUD_PROVIDER,
+                            rootProject.projectId,
+                            amount,
+                            GrantApplication.Period(
+                                Time.now(),
+                                Time.now() + 10000000
+                            )
+                        )
+                    ),
+                    GrantApplication.Form.PlainText("test"),
+                    parentProjectId = rootProject.projectId,
+                    revisionComment = "test"
+                ),
+                comment = "test"
+            ),
+            piClient.withProject(projectId)
+        ).orThrow()
+
+        val grants = GrantsV2.browse.call(
+            GrantsV2.Browse.Request(includeIngoingApplications = true, includeOutgoingApplications = false),
+            adminClient.withProject(rootProject.projectId)
+        ).orThrow().items
+
+        grants.forEach { grant ->
+            GrantsV2.updateState.call(
+                GrantsV2.UpdateState.Request(grant.id, GrantApplication.State.APPROVED),
+                rootProject.piClient.withProject(rootProject.projectId)
+            )
+        }
+    }
     return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }
 

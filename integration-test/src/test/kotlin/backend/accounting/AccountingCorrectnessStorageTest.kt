@@ -13,8 +13,8 @@ import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
-/*
-class AccountingCorrectnessStorageTest : IntegrationTest() {
+
+/*class AccountingCorrectnessStorageTest : IntegrationTest() {
     override fun defineTests() {
         run {
             class In(
@@ -24,16 +24,16 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
             )
 
             class Out(
-                val initialWallets: List<Wallet>,
-                val postWallets: List<Wallet>,
-                val initialRootWallets: List<Wallet>,
-                val postRootWallets: List<Wallet>
+                val initialWallets: List<WalletV2>,
+                val postWallets: List<WalletV2>,
+                val initialRootWallets: List<WalletV2>,
+                val postRootWallets: List<WalletV2>
             )
 
             test<In, Out>("test correctness of charges storage"){
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val providerInfo = createSampleProducts()
+                    val root = initializeRootProject()
                     val createdProject = initializeNormalProject(root, amount = 1_000_000_000)
                     val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
                     val initialRootWallets = findWalletsInternal(WalletOwner.Project(root)).filter { it.paysFor == sampleStorageDifferential.category  }
@@ -260,5 +260,4 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
         }
     }
 }
-
 */

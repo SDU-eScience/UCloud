@@ -64,7 +64,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -127,7 +127,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -191,7 +191,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)
@@ -256,7 +256,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)
