@@ -3,14 +3,16 @@ package log
 import "os"
 
 var logger = &Logger{
-	Level:      LevelInfo,
-	Console:    true,
-	DateFormat: "2006-01-02T15:04:05.000",
+	level:      LevelInfo,
+	logConsole: true,
+	dateFormat: "2006-01-02T15:04:05.000",
 	writer:     os.Stdout,
+	calldepth:  3,
 }
 
 func SetDefaultLogger(l *Logger) {
 	logger = l
+	logger.calldepth = 3
 }
 
 func SetLogFile(path string) error {
@@ -23,6 +25,10 @@ func SetRotation(period, retain int, compress bool) {
 
 func SetLevel(level int) {
 	logger.SetLevel(level)
+}
+
+func SetFlags(flags uint) {
+	logger.SetFlags(flags)
 }
 
 func Fatal(format string, args ...any) {
