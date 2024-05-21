@@ -527,23 +527,18 @@ class AccountingSystem(
 
         val childOwner = ownersById.getValue(internalChild.ownedBy)
         if (ownerProjectInfo.canConsumeResources) {
-            if (!childOwner.isProject()) {
-                return Response.error(
-                    HttpStatusCode.BadRequest,
-                    "You are not allowed to sub-allocate to a personal workspace"
-                )
-            }
+            if (childOwner.isProject()) {
+                val childPid = idCardService.lookupPidFromProjectId(childOwner.reference)
+                    ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
+                val childInfo = idCardService.lookupProjectInformation(childPid)
+                    ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
 
-            val childPid = idCardService.lookupPidFromProjectId(childOwner.reference)
-                ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
-            val childInfo = idCardService.lookupProjectInformation(childPid)
-                ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
-
-            if (childInfo.parentProject != owner.reference) {
-                return Response.error(
-                    HttpStatusCode.BadRequest,
-                    "You are only allowed to sub-allocate to your own sub-projects"
-                )
+                if (childInfo.parentProject != owner.reference) {
+                    return Response.error(
+                        HttpStatusCode.BadRequest,
+                        "You are only allowed to sub-allocate to your own sub-projects"
+                    )
+                }
             }
         }
 
