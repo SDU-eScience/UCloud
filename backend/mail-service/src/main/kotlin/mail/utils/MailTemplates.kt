@@ -1,10 +1,11 @@
 package dk.sdu.cloud.mail.utils
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.calls.client.urlEncode
 import dk.sdu.cloud.service.escapeHtml
 
 const val NO_NOTIFICATIONS_DISCLAIMER = """<p>If you do not want to receive these email notifications, 
-    you can unsubscribe to non-critical emails in your <a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud</p>"""
+    you can unsubscribe from non-critical emails in your <a href="https://cloud.sdu.dk/app/users/settings">personal settings</a> on UCloud</p>"""
 
 fun transferOfApplication(receiver: String, senderProject: String, receiverProject: String, applicationProjectTitle: String) =
     """
@@ -227,6 +228,58 @@ fun lowResourcesTemplate(
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
+fun jobEventsTemplate(
+    recipient: String,
+    jobIds: List<String>,
+    jobNames: List<String?>,
+    appTitles: List<String>,
+    events: List<String>
+): String {
+    val notificationLimit = 25
+    fun jobEventString(app: String, id: String, event: String, name: String? = null): String  {
+        val nameOrId = name ?: id
+
+        val link = """<a href="https://cloud.sdu.dk/app/jobs/properties/${escapeHtml(id)}">${escapeHtml(nameOrId)}</a>"""
+
+        return when (event) {
+            "JOB_STARTED" -> "$link: ${escapeHtml(app)} has started successfully, and is now running."
+            "JOB_COMPLETED" -> "$link: ${escapeHtml(app)} has completed successfully."
+            "JOB_FAILED" -> "$link: ${escapeHtml(app)} failed unexpectedly, and has been terminated."
+            "JOB_EXPIRED" -> "$link: ${escapeHtml(app)} has reached its time limit, and has been terminated."
+            else -> "$link: Unknown event"
+        }
+    }
+
+    val jobOrJobs = if (jobIds.length > 1) { "${jobIds.toSet().length} of your jobs" } else { "your job" }
+
+    var message = """
+        <p>Dear ${escapeHtml(recipient)}</p>
+        <p>
+            The state of $jobOrJobs on UCloud has changed.
+        </p>
+        <ul>
+    """.trimIndent()
+
+    for (i in events.indices) {
+        if (i >= notificationLimit) {
+            break
+        }
+
+        message += "<li>${jobEventString(appTitles[i], jobIds[i], events[i], jobNames[i])}</li>"
+    }
+
+    message += "</ul>"
+
+    if (events.size > notificationLimit) {
+        message += """<p>.. and <a href="https://cloud.sdu.dk/app/jobs/">${events.size - notificationLimit} other updates</a>.</p>"""
+    }
+
+    message += """
+        $NO_NOTIFICATIONS_DISCLAIMER
+    """.trimIndent()
+
+    return message;
+}
 
 fun verifyEmailAddress(
     type: String,

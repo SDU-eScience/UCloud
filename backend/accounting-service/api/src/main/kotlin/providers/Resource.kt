@@ -1,5 +1,7 @@
 package dk.sdu.cloud.provider.api
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -72,6 +74,10 @@ data class ResourceOwner(
         } else {
             DocVisualization.Inline(createdBy)
         }
+    }
+
+    fun toActorAndProject(): ActorAndProject {
+        return ActorAndProject(Actor.SystemOnBehalfOfUser(createdBy), project)
     }
 }
 

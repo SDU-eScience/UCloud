@@ -1,19 +1,18 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo} from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiBrowse, apiUpdate, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {apiBrowse, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {PageV2} from "@/UCloud";
-import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Box, Flex, Icon, List} from "@/ui-components";
-import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
-import {Operation, Operations} from "@/ui-components/Operation";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {formatDistanceToNow} from "date-fns";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {usePage} from "@/Navigation/Redux";
+import {format} from "date-fns";
+import {ResourceBrowseFeatures, ResourceBrowser, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {DATE_FORMAT} from "./NewsManagement";
+import {ButtonClass} from "@/ui-components/Button";
+import {createHTMLElements} from "@/UtilityFunctions";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const baseContext = "/api/scripts";
 
@@ -48,88 +47,112 @@ interface ScriptInfo {
     lastRun: number;
 }
 
-const Scripts: React.FunctionComponent = () => {
-    const [scripts, fetchScripts] = useCloudAPI<PageV2<ScriptInfo>>({noop: true}, emptyPageV2);
+const FEATURES: ResourceBrowseFeatures = {
+    breadcrumbsSeparatedBySlashes: false,
+    showColumnTitles: true,
+    dragToSelect: true,
+    renderSpinnerWhenLoading: true,
+};
 
-    const toggleSet = useToggleSet(scripts.data.items);
-    const [commandLoading, invokeCommand] = useCloudCommand();
+const ROW_TITLES: ColumnTitleList = [{name: "Script"}, {name: "", columnWidth: 0}, {name: "Last run", columnWidth: 250}, {name: "", columnWidth: 50}];
+function Scripts(): React.ReactNode {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<ScriptInfo> | null>(null);
+    usePage("Scripts", SidebarTabId.ADMIN);
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<ScriptInfo>(mount, "Scripts", {}).init(browserRef, FEATURES, "", browser => {
+                browser.setColumns(ROW_TITLES);
+                browser.on("skipOpen", (oldPath, newPath, res) => res != null)
+                browser.on("open", (oldPath, newPath, res) => {
+                    if (res) return;
+                    callAPI(apiBrowse({itemsPerPage: 250}, baseContext)).then((it: PageV2<ScriptInfo>) => {
+                        browser.registerPage(it, newPath, true);
+                        browser.renderRows()
+                    });
+                })
 
-    const reload = useCallback(() => {
-        if (Client.userIsAdmin) fetchScripts(apiBrowse({itemsPerPage: 50}, baseContext));
-        toggleSet.uncheckAll();
+                browser.on("wantToFetchNextPage", async path => {
+                    const result = await callAPI(apiBrowse({
+                        next: browser.cachedNext[path] ?? undefined,
+                    }, baseContext));
+                    browser.registerPage(result, "", false);
+                });
+
+                browser.setEmptyIcon("play");
+                browser.on("pathToEntry", entry => entry.metadata.title);
+                browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
+                browser.on("fetchOperationsCallback", () => ({}));
+                browser.on("fetchOperations", () => {
+                    const entries = browser.findSelectedEntries();
+                    return operations.filter(it => it.enabled(entries, {}, entries))
+                });
+                browser.on("renderEmptyPage", reason => browser.defaultEmptyPage("scripts", reason, {}));
+                browser.on("unhandledShortcut", listener => void 0);
+
+                browser.on("renderRow", (script, row, dim) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(icon);
+                    ResourceBrowser.icons.renderIcon({
+                        name: "play",
+                        color: "textPrimary",
+                        color2: "textPrimary",
+                        height: 32,
+                        width: 32,
+                    }).then(setIcon);
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim, row));
+
+                    const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
+                    const textNode = document.createTextNode(lastRun);
+                    row.stat2.append(textNode);
+                    row.stat2.style.marginTop = row.stat2.style.marginBottom = "auto";
+
+                    const runButton = createHTMLElements({
+                        tagType: "button",
+                        style: {height: "32px", width: "64px"},
+                        className: ButtonClass,
+                        handlers: {
+                            onClick(e) {
+                                e.stopImmediatePropagation();
+                                const [start] = operations;
+                                if (start.text !== "Start") {
+                                    console.warn("Something went wrong. This is the wrong operation.")
+                                    return;
+                                }
+                                start.onClick([script], {});
+                            }
+                        }
+                    });
+                    runButton.innerText = "Run";
+                    row.stat3.append(runButton);
+                });
+            })
+        }
     }, []);
 
-    useSidebarPage(SidebarPages.Admin);
-    useTitle("Scripts");
-    useRefreshFunction(reload);
-    useEffect(() => reload(), [reload]);
-
-    const callbacks: Callbacks = useMemo(() => ({
-        invokeCommand,
-        reload
-    }), [reload]);
+    useSetRefreshFunction(() => {
+        browserRef.current?.refresh();
+    });
 
     if (!Client.userIsAdmin) return null;
 
-    return <MainContainer
-        main={
-            <List>
-                {scripts.data.items.map(it =>
-                    <ItemRow
-                        key={it.metadata.id}
-                        browseType={BrowseType.MainContent}
-                        renderer={scriptRenderer}
-                        toggleSet={toggleSet}
-                        operations={operations}
-                        callbacks={callbacks}
-                        itemTitle={"Script"}
-                        item={it}
-                    />
-                )}
-            </List>
-        }
-        sidebar={
-            <Operations location={"SIDEBAR"} operations={operations} selected={toggleSet.checked.items}
-                        extra={callbacks} entityNameSingular={"Script"} />
-        }
-    />;
-};
-
-const scriptRenderer: ItemRenderer<ScriptInfo> = {
-    Icon: props => {
-        return <Icon name={"play"} size={props.size} />
-    },
-
-    MainTitle: props => {
-        return <>{props.resource?.metadata?.title}</>
-    },
-
-    ImportantStats: props => {
-        if (props.resource == null) return null;
-        return <Flex alignItems={"center"} mx={32} flexShrink={0}>
-            Last run: {props.resource.lastRun === 0 ? "Never" : formatDistanceToNow(props.resource.lastRun)}
-            {" "}ago
-        </Flex>;
-    }
-};
-
-interface Callbacks {
-    invokeCommand: InvokeCommand;
-    reload: () => void;
+    return <MainContainer main={<div ref={mountRef} />} />
 }
 
-const operations: Operation<ScriptInfo, Callbacks>[] = [
+const operations: Operation<ScriptInfo, Record<string, never>>[] = [
     {
         text: "Start",
         icon: "play",
         primary: true,
         enabled: (selected) => selected.length >= 1,
-        onClick: async (selected, cb) => {
-            await cb.invokeCommand(
+        onClick: async (selected) => {
+            await callAPI(
                 apiUpdate(bulkRequestOf(...selected.map(it => ({scriptId: it.metadata.id}))), baseContext, "start")
             );
-            cb.reload();
-        }
+        },
+        shortcut: ShortcutKey.S
     }
 ];
 

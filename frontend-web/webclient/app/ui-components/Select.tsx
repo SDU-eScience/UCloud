@@ -1,74 +1,91 @@
 import * as React from "react";
-import styled, {css} from "styled-components";
-import {fontSize, space, SpaceProps, WidthProps} from "styled-system";
+import {SpaceProps, WidthProps} from "styled-system";
 import Flex from "./Flex";
-import Icon from "./Icon";
-import theme from "./theme";
+import Icon, {IconClass} from "./Icon";
+import {injectStyle, unbox} from "@/Unstyled";
+import {BoxProps} from "@/ui-components/Types";
 
-const ClickableIcon = styled(Icon)`
-  pointer-events: none;
-`;
-
-const left = ({leftLabel}: {leftLabel?: boolean}) =>
-    leftLabel ? css`border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({rightLabel}: {rightLabel?: boolean}) =>
-    rightLabel ? css`border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
-
-
-interface SelectProps extends SpaceProps, WidthProps {
-    fontSize?: number | string;
-    leftLabel?: boolean;
-    rightLabel?: boolean;
+interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
     error?: boolean;
+    selectRef?: React.RefObject<HTMLSelectElement>;
+    slim?: boolean;
 }
 
-const SelectBase = styled.select<SelectProps>`
-  appearance: none;
-  display: block;
-  width: 100%;
-  font-family: inherit;
-  color: inherit;
+const SelectClass = injectStyle("select", k => `
+    ${k} {
+        appearance: none;
+        display: block;
+        font-family: inherit;
+        font-weight: bold;
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
+        margin: 0;
+        border-width: 0px;
+        width: 100%;
+        border-radius: 5px;
+        height: 35px;
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
+        border: 1px solid var(--borderColor);
+        padding-left: 12px;
+        padding-right: 32px;
+        padding-top: 7px;
+        padding-bottom: 7px;
+    }
 
-  & > option {
-    color: black;
-  }
+    ${k}[data-slim=true] {
+        height: 35px;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    
+    ${k}:disabled:hover {
+        border: 1px solid var(--borderColor);
+    }
+    
+    ${k}:hover {
+        border-color: var(--borderColorHover);
+    }
+    
+    ${k}::placeholder {
+        color: var(--textSecondary);
+    }
+    
+    ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
+        border-color: var(--errorMain, #f00);
+    }
 
-  &:invalid {
-    border-color: var(--red, #f00);
-  }
+    ${k}:focus {
+        outline: 0;
+        border-color: var(--primaryMain);
+        box-shadow: 0 0 3px -1px var(--primaryMain);
+    }
 
-  background-color: transparent;
-  border-radius: ${theme.radius};
-  border-width: ${p => p.theme.borderWidth};
-  border-style: solid;
-  border-color: var(--borderGray, #f00);
-  ${p => p.error ? "border-color: var(--red, #f00);" : null}
+    ${k}:disabled {
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
+        opacity: 1;
+    }
+    
+    ${k} + .${IconClass} {
+        pointer-events: none;
+        margin-left: -25px;
+    }
+`);
 
-  &:focus {
-    outline: none;
-    border-color: var(--blue, #f00);
-  }
+const Select: React.FunctionComponent<SelectProps & BoxProps> = props => {
+    const cleanProps: any = {...props};
+    delete cleanProps["slim"];
 
-  ${space} ${fontSize}
-  ${left} ${right}
-`;
+    const boxProps = {...props};
+    if (props.width == null) {
+        boxProps["width"] = "100%";
+    }
 
-SelectBase.defaultProps = {
-    m: 0,
-    pl: 12,
-    pr: 32,
-    py: 7
+    return <Flex alignItems="center" style={unbox(boxProps)}>
+        <select className={SelectClass} {...cleanProps} ref={props.selectRef}
+                data-slim={(props.slim === true).toString()}/>
+        <Icon name="chevronDownLight" size="14px" />
+    </Flex>;
 };
-
-type Props = SelectProps &
-    React.SelectHTMLAttributes<HTMLSelectElement> &
-{selectRef?: React.RefObject<HTMLSelectElement>};
-
-const Select = styled((props: Props) => (
-    <Flex width={1} alignItems="center">
-        <SelectBase {...props} ref={props.selectRef} />
-        <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
-    </Flex>
-))``;
 
 export default Select;

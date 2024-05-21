@@ -20,7 +20,7 @@ interface ListProps<T> {
 }
 
 export class List<T> extends React.PureComponent<ListProps<T>> {
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const {props} = this;
         const body = this.renderBody();
 

@@ -1,7 +1,7 @@
 version = rootProject.file("./version.txt").readText().trim()
 
 application {
-    mainClassName = "dk.sdu.cloud.accounting.MainKt"
+    mainClass.set("dk.sdu.cloud.accounting.MainKt")
 }
 
 kotlin.sourceSets {
@@ -10,6 +10,7 @@ kotlin.sourceSets {
             implementation(project(":auth-service:api"))
             implementation(project(":mail-service:api"))
             implementation(project(":notification-service:api"))
+            implementation(project(":slack-service:api"))
         }
     }
 }

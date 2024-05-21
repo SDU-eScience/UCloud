@@ -95,8 +95,8 @@ suspend fun createApp(name: String, version: String, toolName: String, toolVersi
     ).orThrow()
 
     if (isPublic) {
-        AppStore.setPublic.call(
-            SetPublicRequest(name, version, true),
+        AppStore.updatePublicFlag.call(
+            AppStore.UpdatePublicFlag.Request(name, version, true),
             adminClient
         ).orThrow()
     }
@@ -131,13 +131,13 @@ object ApplicationTestData {
             adminClient.withHttpBody(appYaml, ContentType("text", "yaml"))
         ).throwIfInternalOrBadRequest()
 
-        AppStore.setPublic.call(
-            SetPublicRequest(name, version, true),
+        AppStore.updatePublicFlag.call(
+            AppStore.UpdatePublicFlag.Request(name, version, true),
             adminClient
         ).orThrow()
 
         return AppStore.findByNameAndVersion.call(
-            FindApplicationAndOptionalDependencies(name, version),
+            FindByNameAndVersionRequest(name, version),
             adminClient
         ).orThrow()
     }

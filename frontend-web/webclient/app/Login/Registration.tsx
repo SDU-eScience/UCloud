@@ -6,9 +6,9 @@ import {Box, Button, Input, Label} from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {PropsWithChildren, useEffect, useRef, useState} from "react";
 import {apiRetrieve, useCloudAPI} from "@/Authentication/DataHook";
-import styled from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import {Feature, hasFeature} from "@/Features";
+import {injectStyle} from "@/Unstyled";
 
 interface Registration {
     sessionId: string;
@@ -21,7 +21,7 @@ interface Registration {
     position?: string | null;
 }
 
-const Registration: React.FunctionComponent = props => {
+const Registration: React.FunctionComponent = () => {
     const firstNames = useRef<HTMLInputElement>(null);
     const lastName = useRef<HTMLInputElement>(null);
     const email = useRef<HTMLInputElement>(null);
@@ -39,7 +39,7 @@ const Registration: React.FunctionComponent = props => {
 
     const [registration] = useCloudAPI<Registration>(
         {...apiRetrieve({id: sessionId}, "/auth/registration"), unauthenticated: true},
-        { sessionId: sessionId ?? "" }
+        {sessionId: sessionId ?? ""}
     );
 
     if (!sessionId && !message || registration.error) {
@@ -68,71 +68,71 @@ const Registration: React.FunctionComponent = props => {
     }
 
     return <>
-        <NonAuthenticatedHeader/>
-        <Box mb="72px"/>
+        <NonAuthenticatedHeader />
+        <Box mb="72px" />
         <Box m={[0, 0, "15px"]}>
-            <Styling>
+            <div className={Styling}>
                 {!message ? null : <InfoBox isError={isErrorHint}>{message}</InfoBox>}
                 <form action={"/auth/registration/complete"} method={"post"}>
                     <input type={"hidden"} value={sessionId ?? ""} name={"sessionId"} />
 
                     <h3>Mandatory fields</h3>
                     <Label>
-                        First name(s) <MandatoryField/>
-                        <Input ref={firstNames} name={"firstNames"} required placeholder={"Example: Jane"}/>
+                        First name(s) <MandatoryField />
+                        <Input inputRef={firstNames} name={"firstNames"} required placeholder={"Example: Jane"} />
                     </Label>
 
                     <Label>
-                        Last name <MandatoryField/>
-                        <Input ref={lastName} name={"lastName"} required placeholder={"Example: Doe"}/>
+                        Last name <MandatoryField />
+                        <Input inputRef={lastName} name={"lastName"} required placeholder={"Example: Doe"} />
                     </Label>
 
                     <Label>
-                        Email <MandatoryField/>
-                        <Input ref={email} name={"email"} required type={"email"}
-                               placeholder={"Example: jane@example.com"}/>
+                        Email <MandatoryField />
+                        <Input inputRef={email} name={"email"} required type={"email"}
+                            placeholder={"Example: jane@example.com"} />
                         {!showResendButton ?
                             null :
-                            <a href={buildQueryString("/auth/registration/reverify", { id: sessionId })}>
+                            <a href={buildQueryString("/auth/registration/reverify", {id: sessionId})}>
                                 Send new verification email
                             </a>
                         }
                     </Label>
 
                     {!hasFeature(Feature.ADDITIONAL_USER_INFO) ? null : <>
-                        <br/>
+                        <br />
                         <h3>Optional fields</h3>
 
                         <Label>
                             Full name of organization
-                            <Input ref={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"}/>
+                            <Input inputRef={organizationFullName} name={"organizationFullName"} placeholder={"Example: University of Example"} />
                         </Label>
 
                         <Label>
                             Department
-                            <Input ref={department} name={"department"} placeholder={"Example: Department of Examples"}/>
+                            <Input inputRef={department} name={"department"} placeholder={"Example: Department of Examples"} />
                         </Label>
 
                         <Label>
                             Position
-                            <Input ref={position} name={"position"} placeholder={"Example: Professor"}/>
+                            <Input inputRef={position} name={"position"} placeholder={"Example: Professor"} />
                         </Label>
 
                         <Label>
                             Research field(s)
-                            <Input ref={researchField} name={"researchField"} placeholder={"Example: Experimental examples"}/>
+                            <Input inputRef={researchField} name={"researchField"} placeholder={"Example: Experimental examples"} />
                         </Label>
                     </>}
 
                     <Button type={"submit"}>Finish registration</Button>
                 </form>
-            </Styling>
+            </div>
         </Box>
     </>;
 };
 
-const Styling = styled.div`
-  .info-box {
+const Styling = injectStyle("styling", k => `
+  ${k} .info-box {
     color: white;
     margin-bottom: 32px;
     padding: 16px;
@@ -141,27 +141,27 @@ const Styling = styled.div`
     text-align: center;
   }
 
-  form {
+  ${k} form {
     max-width: 600px;
     width: 100%;
     margin: 0 auto;
   }
 
-  label, button {
+  ${k} label, ${k} button {
     margin-top: 16px;
   }
 
-  button {
+  ${k} button {
     width: 100%;
   }
-`;
+`);
 
-const InfoBox: React.FunctionComponent<PropsWithChildren<{ isError: boolean }>> = ({isError, children}) => {
-    return <div className={"info-box"} style={{background: `var(--${isError ? "red" : "blue"})`, color: "white", marginBottom: "16px"}}>
+const InfoBox: React.FunctionComponent<PropsWithChildren<{isError: boolean}>> = ({isError, children}) => {
+    return <div className={"info-box"} style={{background: `var(--${isError ? "errorMain" : "primaryMain"})`, color: "white", marginBottom: "16px"}}>
         {children}
     </div>;
 };
 
-const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;
+const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;
 
 export default Registration;

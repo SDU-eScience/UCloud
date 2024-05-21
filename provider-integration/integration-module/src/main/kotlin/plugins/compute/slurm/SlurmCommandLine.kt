@@ -173,6 +173,7 @@ class SlurmCommandLine(
         val gpu: Int,
         val timeAllocationMillis: Long,
         val state: UcloudStateInfo,
+        val submittedAt: String,
     )
 
     suspend fun retrieveAccountingData(
@@ -184,7 +185,7 @@ class SlurmCommandLine(
 
             addArg("-a")
             if (since != 0L) addArg("-S", gmtTime(since).formatForSlurm())
-            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit")
+            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit,Submit")
             addArg("-r", partition)
             addArg("-X")
             addArg("--parsable2")
@@ -192,7 +193,7 @@ class SlurmCommandLine(
 
         return rows.mapNotNull { row ->
             val columns = row.split("|")
-            if (columns.size != 10) return@mapNotNull null
+            if (columns.size != 11) return@mapNotNull null
 
             val cpusRequested = columns[3].toIntOrNull() ?: return@mapNotNull null
             val nodesRequested = columns[7].toIntOrNull() ?: return@mapNotNull null
@@ -230,6 +231,7 @@ class SlurmCommandLine(
             val slurmAccount = columns[6].takeIf { it.isNotBlank() }
             val jobName = columns[8]
             val timeAllocationMillis = slurmDurationToMillis(columns[9]) ?: return@mapNotNull null
+            val submittedAt = columns[10]
             val state = SlurmStateToUCloudState.slurmToUCloud[columns[5].substringBefore(' ')] ?: return@mapNotNull null
 
             SlurmAccountingRow(
@@ -244,6 +246,7 @@ class SlurmCommandLine(
                 0, // TODO(Dan): Parse the number of GPUs
                 timeAllocationMillis,
                 state,
+                submittedAt,
             )
         }
     }

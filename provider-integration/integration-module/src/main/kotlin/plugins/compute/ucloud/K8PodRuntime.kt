@@ -427,6 +427,16 @@ class K8PodContainerBuilder(
 
         pod.metadata!!.annotations = JsonObject(annotationEntries)
     }
+
+    override fun upsertLabel(key: String, value: String) {
+        val entries = (pod.metadata?.labels?.entries ?: emptySet())
+            .associate { it.key to it.value }
+            .toMutableMap()
+
+        entries[key] = JsonPrimitive(value)
+
+        pod.metadata!!.labels = JsonObject(entries)
+    }
 }
 
 private const val K8_POD_NETWORK_POLICY_PREFIX = "policy-"

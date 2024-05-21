@@ -1,60 +1,48 @@
 import * as React from "react";
-import styled from "styled-components";
 import {
-    alignItems,
-    AlignItemsProps,
-    color,
-    ColorProps,
-    gridAutoFlow,
     GridAutoFlowProps,
-    gridGap,
     GridGapProps,
-    gridTemplateColumns,
     GridTemplateColumnsProps,
-    gridTemplateRows,
     GridTemplateRowsProps,
-    height,
-    HeightProps,
-    justifyItems,
-    JustifyItemsProps,
-    maxHeight,
-    MaxHeightProps,
-    maxWidth,
-    MaxWidthProps,
-    space,
-    SpaceProps,
-    width,
-    WidthProps
 } from "styled-system";
+import {extractSize, injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
 
 export type GridProps =
-    SpaceProps &
-    WidthProps &
-    HeightProps &
-    MaxHeightProps &
-    MaxWidthProps &
-    ColorProps &
-    AlignItemsProps &
-    JustifyItemsProps &
+    BoxProps &
     GridGapProps &
+    {gap?: string} &
     GridTemplateColumnsProps &
     GridAutoFlowProps &
-    GridTemplateRowsProps;
+    GridTemplateRowsProps &
+    {
+        children?: React.ReactNode;
+        style?: CSSProperties;
+        className?: string;
+    };
 
-const Grid = styled.div<GridProps>`
-    display: grid;
-    ${gridAutoFlow}
-    ${space} ${width} ${height} ${color}
-    ${alignItems} ${justifyItems} ${gridGap}
-    ${gridTemplateColumns} ${gridTemplateRows}
-    ${maxHeight} ${maxWidth}
-`;
+const GridClass = injectStyle("grid", k => `
+    ${k} {
+        display: grid;
+    }
+`);
+
+const Grid: React.FunctionComponent<GridProps> = props => {
+    const style: CSSProperties = {...unbox(props), ...(props.style ?? {})};
+    if (props.gridGap) style.gap = extractSize(props.gridGap);
+    if (props.gap) style.gap = extractSize(props.gap);
+    if (props.gridTemplateColumns) style.gridTemplateColumns = props.gridTemplateColumns.toString();
+    if (props.gridAutoFlow) style.gridAutoFlow = props.gridAutoFlow.toString();
+    if (props.gridTemplateRows) style.gridTemplateRows = props.gridTemplateRows.toString();
+    return <div className={GridClass + " " + (props.className ?? "")} style={style}>{props.children}</div>;
+};
 
 export const GridCardGroup = ({
     minmax = 400,
-    gridGap = 10,
+    gridGap = 15,
     ...props
-}): JSX.Element => (
+}): React.ReactNode => (
     <Grid
         mt="2px"
         width="100%"

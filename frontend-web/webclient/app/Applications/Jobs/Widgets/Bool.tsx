@@ -1,13 +1,13 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
-import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {findElement, widgetId, WidgetProps, WidgetValidationAnswer} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 interface BoolProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.Bool;
+    parameter: ApplicationParameterNS.Bool;
 }
 
 export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
@@ -23,7 +23,7 @@ export const BoolParameter: React.FunctionComponent<BoolProps> = props => {
     </Flex>;
 };
 
-export function BoolValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
+export function BoolValidator(param: ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "boolean") {
         const elem = findElement(param);
         if (elem === null || elem.value === "") {
@@ -38,7 +38,7 @@ export function BoolValidator(param: compute.ApplicationParameter): WidgetValida
     return {valid: true};
 }
 
-export function BoolSetter(param: compute.ApplicationParameter, value: compute.AppParameterValue): void {
+export function BoolSetter(param: ApplicationParameter, value: compute.AppParameterValue): void {
     if (param.type !== "boolean") return;
 
     const selector = findElement(param);

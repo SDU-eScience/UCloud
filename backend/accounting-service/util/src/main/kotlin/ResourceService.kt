@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.v2.FindByProjectId
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.provider.api.*
@@ -1086,12 +1087,13 @@ abstract class ResourceService<
         ctx: DBContext? = null,
     ): List<String> {
         val relevantProviders = mutableSetOf<String>()
-        Accounting.findRelevantProviders.call(
+        AccountingV2.findRelevantProviders.call(
             bulkRequestOf(
-                FindRelevantProvidersRequestItem(
+                AccountingV2.FindRelevantProviders.RequestItem(
                     actorAndProject.actor.safeUsername(),
                     actorAndProject.project,
-                    useProject
+                    useProject,
+                    productArea,
                 )
             ),
             serviceClient

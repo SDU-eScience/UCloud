@@ -9,7 +9,6 @@ import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
@@ -21,11 +20,9 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import java.time.OffsetDateTime
 import java.util.*
@@ -325,7 +322,7 @@ class ShareService(
             )
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == "23505") {
-                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared. Check shares page.")
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "File has already been shared with the user. Check shares page.")
             }
             else throw ex
         }
@@ -336,7 +333,7 @@ class ShareService(
                     CreateNotification(
                         it.second.sharedWith,
                         Notification(
-                            NotificationType.SHARE_REQUEST.name,
+                            "SHARE_REQUEST",
                             "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
                             meta = JsonObject(emptyMap())
                         )
@@ -595,7 +592,7 @@ class ShareService(
                         requests req join
                         updated_shares share on req.id = share.resource
                     where
-                        share.available_at is not null
+                        share.available_at is not null and req.should_update_permissions
                     on conflict do nothing
                 """
             )

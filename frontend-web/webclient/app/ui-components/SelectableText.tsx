@@ -1,19 +1,42 @@
-import styled from "styled-components";
-import theme from "@/ui-components/theme";
-import Flex from "./Flex";
-import Text from "./Text";
+import Flex, {FlexCProps} from "./Flex";
+import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import * as React from "react";
+import {BoxProps} from "./Types";
 
-const SelectableTextWrapper = styled(Flex)`
-    border-bottom: ${theme.borderWidth} solid ${p => p.theme.colors.borderGray};
-    cursor: pointer;
-`;
+const SelectableTextContainerClass = injectStyle("tab-container", k => `
+    ${k} {
+        display: flex;
+        border-bottom: 2px solid var(--borderColor);
+        cursor: pointer;
+    }
+    
+    ${k} > * {
+        margin-right: 1em;
+        cursor: pointer;
+        font-size: 20px;
+    }
+    
+    ${k} > [data-selected="true"] {
+        border-bottom: 3px solid var(--primaryMain);
+    }
+`);
 
-const SelectableText = styled(Text) <{selected: boolean}>`
-    margin-right: 1em;
-    cursor: pointer;
-    font-size: 20px;
-    border-bottom: ${props => props.selected ? `3px solid ${theme.colors.blue}` : ""};
-`;
+
+const SelectableTextWrapper: React.FunctionComponent<FlexCProps & { children?: React.ReactNode; }> = props => {
+    return <Flex className={SelectableTextContainerClass} {...props} />;
+}
+
+const SelectableText: React.FunctionComponent<BoxProps & {
+    selected: boolean;
+    children?: React.ReactNode;
+}> = props => {
+    return <div
+        style={unbox(props)}
+        data-selected={props.selected}
+        children={props.children}
+        {...extractEventHandlers(props)}
+    />;
+}
 
 SelectableText.displayName = "SelectableText";
 

@@ -1,6 +1,3 @@
-import theme from "./theme";
-import {device} from "@/ui-components/Hide";
-
 import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
 import inter from "@/Assets/Inter.woff";
 
@@ -26,190 +23,445 @@ export function injectFonts(): void {
     document.head.appendChild(styleTag);
 }
 
-const UIGlobalStyle = `
-
-/*  /files/metadata/templates/create/ START */
-
-div.modal.fade.show { 
-    max-width: 800px;
-    background-color: var(--lightGray, #f00);
-    border-color: 2px solid var(--black, #f00);
+export function hexToRgb(color: string): [number, number, number] {
+    const normalized = color.replace("#", "")
+    const r = parseInt(normalized.substring(0, 2), 16);
+    const g = parseInt(normalized.substring(2, 4), 16);
+    const b = parseInt(normalized.substring(4, 6), 16);
+    return [r, g, b];
 }
 
-div.tooltip.show.bs-tooltip-auto {
-    color: var(--text, #f00);
-    background-color: var(--white);
-    border: 1px solid var(--midGray);
-    border-radius: 5px;
-    padding: 2px 5px 2px 5px;
+export function mixColors(initialColor: string, endColor: string, percentage: number): string {
+    const colorA = hexToRgb(initialColor);
+    const colorB = hexToRgb(endColor);
+
+    const diff = [colorB[0] - colorA[0], colorB[1] - colorA[1], colorB[2] - colorA[2]];
+
+    const newR = Math.round(Math.min(255, colorA[0] + (diff[0] * percentage))).toString(16).padStart(2, '0');
+    const newG = Math.round(Math.min(255, colorA[1] + (diff[1] * percentage))).toString(16).padStart(2, '0');
+    const newB = Math.round(Math.min(255, colorA[2] + (diff[2] * percentage))).toString(16).padStart(2, '0');
+    return "#" + newR + newG + newB;
 }
 
-div#form-builder_add_popover.popover-inner h3.popover-header {
-    margin-top: 0px;
-    border-bottom: none;
+export function colorDistanceRgb(color1Hex: string, color2Hex: string): number {
+    const [r1, g1, b1] = hexToRgb(color1Hex);
+    const [r2, g2, b2] = hexToRgb(color2Hex);
+    return Math.sqrt(((r2 - r1) * (r2 - r1)) + ((g2 - g1) * (g2 - g1)) + ((b2 - b1) * (b2 - b1)));
 }
 
-div.popover.show.bs-popover-auto {
-    background-color: var(--lightGray);
-    border: 2px solid var(--blue);
-    border-radius: 10px;
-    padding-left: 4px;
-    padding-right: 4px;
-    padding-bottom: 4px;
-    padding-top: 4px;
+export function grayScaleRgb(r: number, g: number, b: number): [number, number, number] {
+    const avg = (r + g + b) / 3;
+    return [avg, avg, avg];
+}
 
-    .popover-inner {
-        border: none;
+export function invertColorRgb(r: number, g: number, b: number): [number, number, number] {
+    return [255 - r, 255 - b, 255 - g];
+}
+
+export function rgbToHex(r: number, g: number, b: number): string {
+    let result = "#";
+    result += Math.min(255, r).toString(16).padStart(2, '0');
+    result += Math.min(255, g).toString(16).padStart(2, '0');
+    result += Math.min(255, b).toString(16).padStart(2, '0');
+    return result;
+}
+
+export function shade(color: string, percentage: number): string {
+    return mixColors(color, "#000000", percentage);
+}
+
+export function tint(color: string, percentage: number): string {
+    return mixColors(color, "#ffffff", percentage);
+}
+
+export function compRgbToHsl(r: number, g: number, b: number): [number, number, number] {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const vmax = Math.max(r, g, b);
+    const vmin = Math.min(r, g, b);
+    let h: number = 0;
+    let s: number;
+    let l: number;
+    l = (vmax + vmin) / 2;
+
+    if (vmax === vmin) {
+        return [0, 0, l]; // achromatic
     }
+
+    const d = vmax - vmin;
+    s = l > 0.5 ? d / (2 - vmax - vmin) : d / (vmax + vmin);
+    if (vmax === r) h = (g - b) / d + (g < b ? 6 : 0);
+    if (vmax === g) h = (b - r) / d + 2;
+    if (vmax === b) h = (r - g) / d + 4;
+    h /= 6;
+
+    return [h, s, l];
 }
 
-span.toggle-collapse {
-    display: hidden;
+export function hslToRgb(h: number, s: number, l: number): string {
+    function hueToRgb(p, q, t) {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+    }
+
+    let r, g, b;
+
+    if (s === 0) {
+        r = g = b = l; // achromatic
+    } else {
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hueToRgb(p, q, h + 1 / 3);
+        g = hueToRgb(p, q, h);
+        b = hueToRgb(p, q, h - 1 / 3);
+    }
+
+    return rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
 }
 
-div.popover.show.bs-popover-auto > div.popover-inner > h3.popover-header {
-    border-bottom: none;
-    margin-top: 0px;
+export function rgbToHsl(rgbHex: string): [h: number, s: number, l: number] {
+    const [r, g, b] = hexToRgb(rgbHex)
+    return compRgbToHsl(r, g, b);
 }
 
-div > div > div.modal { 
-    margin-left: calc(50% - 400px);
-    padding: 10px 10px 10px 10px;
-    background-color: var(--white, #f00);
-    border: 1px solid var(--gray, #f00);
-    border-radius: 5px;
+function luminance(r: number, g: number, b: number) {
+    const RED = 0.2126;
+    const GREEN = 0.7152;
+    const BLUE = 0.0722;
+    const GAMMA = 2.4;
+
+    const a = [r, g, b].map((v) => {
+        v /= 255;
+        return v <= 0.03928
+            ? v / 12.92
+            : Math.pow((v + 0.055) / 1.055, GAMMA);
+    });
+    return a[0] * RED + a[1] * GREEN + a[2] * BLUE;
 }
 
-
-div.modal-footer > button {
-    margin-right: 5px;
+export function contrast(rgb1: string, rgb2: string) {
+    const lum1 = luminance(...hexToRgb(rgb1));
+    const lum2 = luminance(...hexToRgb(rgb2));
+    const brightest = Math.max(lum1, lum2);
+    const darkest = Math.min(lum1, lum2);
+    return (brightest + 0.05) / (darkest + 0.05);
 }
 
-div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
-    font-smoothing: antialiased;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    text-decoration: none;
-    font-family: inherit;
-    font-weight: ${theme.bold};
-    cursor: pointer;
-    border-radius: ${theme.radius};
-    background-color: var(--blue, #f00);
-    color: var(--white, #f00);
-    border-width: 0;
-    border-style: solid;
-    line-height: 1.5;
-    width: 100px;
-    height: 40px;
+function generateColors(name: string, mainColor: string, darkTheme: boolean): string {
+    const lightFn = darkTheme ? shade : tint;
+    const darkFn = darkTheme ? tint : shade;
+
+    let builder = "";
+    builder += `--${name}Main: ${mainColor};\n`;
+    builder += `--${name}Light: ${lightFn(mainColor, 0.2)};\n`
+    builder += `--${name}Dark: ${darkFn(mainColor, 0.2)};\n`
+
+    // NOTE(Dan): We grant a small advantage to white as a sort of tie-breaker.
+    const contrastToWhite = contrast(mainColor, "#ffffff") + 0.2
+    const contrastToBlack = contrast(mainColor, "#000000");
+    if (contrastToWhite > contrastToBlack) {
+        builder += `--${name}Contrast: #ffffff;\n`;
+        builder += `--${name}ContrastAlt: #a6a8a9;\n`;
+    } else {
+        builder += `--${name}Contrast: #000000;\n`;
+        builder += `--${name}ContrastAlt: #222222;\n`;
+    }
+
+    return builder;
 }
 
+const colors = {
+    primary: "#146EF5",
+    secondary: "#d3cdc8",
+    error: "#d32f2f",
+    warning: "#ed6c02",
+    info: "#0288d1",
+    success: "#198754"
+};
 
-/* /files/metadata/templates/create/ END */
-
-/* Colors */
-html {
-    --black: #000;
-    --white: #fff;
-    --textBlack: #1e252e;
-    --lightGray: #f5f7f9;
-    --midGray: #c9d3df;
-    --gray: #8393A7;
-    --darkGray: #53657d;
-    --lightBlue: #D9E9FF;
-    --lightBlue2: #cdf;
-    --blue: #006aff;
-    --darkBlue: #049;
-    --lightGreen: #00ff77;
-    --green: #00C05A;
-    --darkGreen: #00823c;
-    --lightRed: #fcc;
-    --red: #c00;
-    --darkRed: #800;
-    --orange: #ff6400;
-    --darkOrange: #ff5722;
-    --lightPurple: #ecf;
-    --purple: #70b;
-    --yellow: #ffed33;
-    --text: var(--textBlack, #f00);
-    --textHighlight: var(--blue, #f00);
-    --headerText: var(--white, #f00);
-    --headerBg: #006aff;
-    --headerIconColor: #fff;
-    --headerIconColor2: #c9d3df;
-    --borderGray: var(--midGray, #f00);
-    --paginationHoverColor: var(--lightBlue, #f00);
-    --paginationDisabled: var(--lightGray, #f00);
-    --iconColor: var(--darkGray, #f00);
-    --iconColor2: var(--gray, #f00);
-    --FtIconColor: #f5f7f9;
-    --FtIconColor2: #c9d3df;
-    --FtFolderColor: var(--gray, #f00);
-    --FtFolderColor2: var(--midGray, #f00);
-    --spinnerColor: var(--blue, #f00);
-    --tableRowHighlight: var(--lightBlue, #f00);
-    --appCard: #ebeff3;
-    --wayfGreen: #c8dd51;
-    --appStoreFavBg: #e8f1fc
-    --invertedThemeColor: #fff;
-    --fixedBlack: #000;
-    --activeSpreadsheet: #dcebf6;
-    --lightOrange: #ffc107;
-    
-    /* TODO This is not currently enforced in the header */
-    --headerHeight: 48px;
-    /* TODO This is not currently enforced in the sidebar */
-    --sidebarWidth: 68px;
-
-    font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
+interface ThemedColors {
+    background: string;
+    foreground: string;
 }
+
+const colorsByTheme: { dark: ThemedColors; light: ThemedColors; } = {
+    dark: {
+        background: "#212529",
+        foreground: "#ffffff",
+    },
+    light: {
+        background: "#ffffff",
+        foreground: "#212529",
+    }
+};
+
+// Note(Jonas): Do keep around.
+function generatePalette(): string {
+    let builder = "";
+
+    function generateThemedColors(c: ThemedColors) {
+        builder += `--backgroundDefault: ${c.background};\n`;
+        builder += `--borderColor: ${mixColors(c.background, c.foreground, 0.20)};\n`;
+        builder += `--borderColorHover: ${mixColors(c.background, c.foreground, 0.40)};\n`;
+
+        builder += `--backgroundCard: ${mixColors(c.background, c.foreground, 0.030)};\n`;
+        builder += `--backgroundCardBorder: ${mixColors(c.background, c.foreground, 0.25)};\n`;
+        builder += `--backgroundCardBorderHover: ${mixColors(c.background, c.foreground, 0.60)};\n`;
+
+        builder += `--textPrimary: ${c.foreground};\n`;
+        builder += `--textSecondary: ${mixColors(c.foreground, c.background, 0.3)};\n`;
+        builder += `--textDisabled: ${mixColors(c.foreground, c.background, 0.5)};\n`;
+
+        builder += `--rowHover: ${mixColors(c.background, colors.primary, 0.15)};\n`;
+        builder += `--rowActive: ${mixColors(c.background, colors.primary, 0.3)};\n`;
+
+        const gradientStart = mixColors(c.background, colors.primary, 0.5);
+        builder += `--gradientStart: ${gradientStart};\n`;
+        builder += `--gradientEnd: ${mixColors(gradientStart, c.background, 0.75)};\n`;
+    }
+
+    builder += "html.light {\n"
+    for (const [name, mainColor] of Object.entries(colors)) {
+        builder += generateColors(name, mainColor, false);
+    }
+    generateThemedColors(colorsByTheme.light);
+    builder += "}\n";
+
+    builder += "html.dark {\n"
+    for (const [name, mainColor] of Object.entries(colors)) {
+        builder += generateColors(name, mainColor, true);
+    }
+    generateThemedColors(colorsByTheme.dark);
+    builder += "}\n";
+    return builder;
+}
+
+const UIGlobalStyle = `
+  html.light {
+    --primaryMain: var(--blue-60);
+    --primaryLight: var(--blue-50);
+    --primaryDark: var(--blue-70);
+    --primaryContrast: #ffffff;
+    --primaryContrastAlt: #a6a8a9;
+    --secondaryMain: var(--gray-10);
+    --secondaryLight: var(--gray-5);
+    --secondaryDark: var(--gray-20);
+    --secondaryContrast: #000000;
+    --secondaryContrastAlt: #222222;
+    --errorMain: var(--red-60);
+    --errorLight: var(--red-50);
+    --errorDark: var(--red-70);
+    --errorContrast: #ffffff;
+    --errorContrastAlt: #a6a8a9;
+    --warningMain: var(--orange-30);
+    --warningLight: var(--orange-20);
+    --warningDark: var(--orange-40);
+    --warningContrast: #000000;
+    --warningContrastAlt: #222222;
+    --infoMain: var(--gray-70);
+    --infoLight: var(--gray-60);
+    --infoDark: var(--gray-80);
+    --infoContrast: #ffffff;
+    --infoContrastAlt: #a6a8a9;
+    --successMain: var(--green-50);
+    --successLight: var(--green-40);
+    --successDark: var(--green-60);
+    --successContrast: #ffffff;
+    --successContrastAlt: #a6a8a9;
+    --backgroundDefault: #ffffff;
+    --borderColor: var(--gray-20);
+    --borderColorHover: var(--gray-30);
+    --backgroundCard: #ffffff;
+    --backgroundCardHover: var(--gray-5);
+    --backgroundDisabled: var(--gray-5);
+    --textPrimary: #212529;
+    --textSecondary: #646669;
+    --textDisabled: #909294;
+    --rowHover: var(--gray-5);
+    --rowActive: var(--blue-10);
+    --gradientStart: var(--blue-30);
+    --gradientEnd: var(--blue-20);
+    --linkColorHover: var(--primaryDark);
+    --linkColor: var(--primaryMain);
+  }
+  html.dark {
+    --modalShadow: rgba(0, 0, 0, 0.75);
+    --primaryMain: var(--blue-80);
+    --primaryLight: var(--blue-70);
+    --primaryDark: var(--blue-90);  
+    --primaryContrast: #ffffff;
+    --primaryContrastAlt: #a6a8a9;
+    --secondaryMain: var(--gray-30);
+    --secondaryLight: var(--gray-20);
+    --secondaryDark: var(--gray-40);
+    --secondaryContrast: #000000;
+    --secondaryContrastAlt: #222222;
+    --errorMain: var(--red-60);
+    --errorLight: var(--red-50);
+    --errorDark: var(--red-70);
+    --errorContrast: #ffffff;
+    --errorContrastAlt: #a6a8a9;
+    --warningMain: var(--orange-30);
+    --warningLight: var(--orange-20);
+    --warningDark: var(--orange-40);
+    --warningContrast: #000000;
+    --warningContrastAlt: #222222;
+    --infoMain: var(--gray-30);
+    --infoLight: var(--gray-20);
+    --infoDark: var(--gray-40);
+    --infoContrast: #000000;
+    --infoContrastAlt: #222222;
+    --successMain: var(--green-50);
+    --successLight: var(--green-40);
+    --successDark: var(--green-60);
+    --successContrast: #ffffff;
+    --successContrastAlt: #a6a8a9;
+    --backgroundDefault: var(--gray-100);
+    --borderColor: var(--gray-80);
+    --borderColorHover: var(--gray-70);
+    --backgroundCard: var(--gray-90);
+    --backgroundCardHover: var(--gray-90);
+    --backgroundDisabled: var(--gray-90);
+    --textPrimary: #ffffff;
+    --textSecondary: #bcbebf;
+    --textDisabled: #909294;
+    --rowHover: var(--gray-90);
+    --rowActive: var(--blue-90);
+    --gradientStart: var(--blue-90);
+    --gradientEnd: var(--blue-80);
+    --linkColor: var(--blue-50);
+    --linkColorHover: var(--blue-70);
+  }
 
 html.light {
-    --white: #fff;
-    --tableRowHighlight: var(--lightBlue, #f00);
-    --black: #000;
-    --text: #1e252e;
-    --lightGray: #f5f7f9;
-    --lightBlue: #E6F1FF;
-    --midGray: #c9d3df;
-    --paginationDisabled: var(--lightGray, #f00);
-    --paginationHoverColor: var(--lightBlue, #f00);
-    --appCard: #ebeff3;
-    --borderGray: var(--midGray, #f00);
-    --invertedThemeColor: #000;
-    --projectHighlight: #dfffee;
-    --appStoreFavBg: #e8f1fc;
-    --activeSpreadsheet: #dcebf6;
-    --modalShadow: rgba(255, 255, 255, 0.75);
+    color-scheme: light;
 }
 
 html.dark {
-    --white: #282c35;
-    --tableRowHighlight: #000;
-    --black: #a4a5a9;
-    --text: #e5e5e6;
-    --lightGray: #111;
-    --lightBlue: #000;
-    --midGray: #555;
-    --paginationDisabled: #111;
-    --paginationHoverColor: #444;
-    --appCard: #131616;
-    --borderGray: #111;
-    --invertedThemeColor: #fff;
-    --projectHighlight: #00c05a;
-    --appStoreFavBg: #00204d;
-    --activeSpreadsheet: #000;
-    --modalShadow: rgba(0, 0, 0, 0.75);
+    color-scheme: dark;
 }
 
-${device("xxl")} {
-    html {
-        /* TODO This is not currently enforced in the sidebar */
-        --sidebarWidth: 190px;
-    }
+html {
+    --modalShadow: rgba(255, 255, 255, 0.75);
+
+    /* New color palette */
+    --purple-5: #FBF7FB;
+    --purple-10: #F5EBF5;
+    --purple-20: #E6CDE6;
+    --purple-30: #D8B0D8;
+    --purple-40: #C993C9;
+    --purple-50: #B972B9;
+    --purple-60: #A74EA7;
+    --purple-70: #993399;
+    --purple-80: #870F87;
+    --purple-90: #680068;
+    --red-5: #FFF6F6;
+    --red-10: #FFE9E1;
+    --red-20: #FFC9B6;
+    --red-30: #FFA78C;
+    --red-40: #FF805F;
+    --red-50: #FF4628;
+    --red-60: #E11005;
+    --red-70: #BD1809;
+    --red-80: #961B0B;
+    --red-90: #6C1A0C;
+    --orange-5: #FFF6EF;
+    --orange-10: #FFEAD7;
+    --orange-20: #FFCA9A;
+    --orange-30: #FFA95B;
+    --orange-40: #FF8018;
+    --orange-50: #E0680D;
+    --orange-60: #B7540A;
+    --orange-70: #9B4708;
+    --orange-80: #7D3806;
+    --orange-90: #5D2A05;
+    --yellow-5: #FFF8D6;
+    --yellow-10: #FFEE98;
+    --yellow-20: #FFCF04;
+    --yellow-30: #E6B704;
+    --yellow-40: #CA9F04;
+    --yellow-50: #AC8604;
+    --yellow-60: #8E6C03;
+    --yellow-70: #795B02;
+    --yellow-80: #624802;
+    --yellow-90: #493501;
+    --green-5: #EDFCE9;
+    --green-10: #D3F8C9;
+    --green-20: #89EC6D;
+    --green-30: #4BD823;
+    --green-40: #42BD1F;
+    --green-50: #389F1A;
+    --green-60: #2D8215;
+    --green-70: #266D12;
+    --green-80: #1F580E;
+    --green-90: #17410B;
+    --gray-5: #F7F8F9;
+    --gray-10: #ECEEF0;
+    --gray-20: #D0D5DC;
+    --gray-30: #B6BEC8;
+    --gray-40: #9BA6B4;
+    --gray-50: #7F8C9E;
+    --gray-60: #627288;
+    --gray-70: #4F6178;
+    --gray-80: #404D60;
+    --gray-90: #2A313B;
+    --gray-100: #21262D;
+    --blue-5: #F4F8FE;
+    --blue-10: #E4EFFC;
+    --blue-20: #BCD7F7;
+    --blue-30: #95C0F3;
+    --blue-40: #6DA8EE;
+    --blue-50: #3E8CE9;
+    --blue-60: #096DE3;
+    --blue-70: #035BC3;
+    --blue-80: #03499D;
+    --blue-90: #023774;
+    /* New color palette END */
+
+    --defaultShadow: rgba(0, 0, 0, 0.16) 0px 3px 6px, rgba(0, 0, 0, 0.10) 0px -3px 12px, rgba(0, 0, 0, 0.23) 0px 3px 6px;
+    --sidebarWidth: 64px;
+    --secondarySidebarWidth: 220px;
+    --popInWidth: 368px;
+    --sidebarColor: var(--blue-60);
+    --sidebarSecondaryColor: var(--blue-70);
+    --appLogoBackground: transparent;
+
+    --secondaryText: 10px;
+    --buttonText: 14px;
+    --breadText: 14px;
+    --interactiveElementsSize: 20px;
+    font-size: 14px;
+
+    --monospace: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
+    --sansSerif: 'Inter', sans-serif;
+    
+    --iconColor: var(--textPrimary);
+    --iconColor2: var(--textPrimary);
+    --FtIconColor: #f5f7f9;
+    --FtIconColor2: #c9d3df;
+    --FtFolderColor: #8393A7;
+    --FtFolderColor2: #c9d3df;
+    
+    --fixedWhite: #ffffff;
+    --fixedBlack: #000000;
+
+    --favoriteColor: var(--yellow-20);    
+    --favoriteColorEmpty: var(--secondaryDark);    
+    --wayfGreen: #c8dd51;
+    
+    font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
 }
 
+html.dark {
+    --sidebarColor: var(--blue-90);
+    --sidebarSecondaryColor: var(--blue-80);
+    --appLogoBackground: #ffffff;
+}
 
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 
@@ -252,7 +504,7 @@ ${device("xxl")} {
 html {
   cursor: default; /* 1 */
   font-family:
-    ${theme.fontFamily},
+    'Inter',
     system-ui,
     /* macOS 10.11-10.12 */ -apple-system,
     /* Windows 6+ */ Segoe UI,
@@ -266,9 +518,9 @@ html {
     /* Windows emoji */ "Segoe UI Symbol",
     /* Linux emoji */ "Noto Color Emoji"; /* 2 */
 
-  line-height: ${theme.lineHeights.standard}; /* 3 */
-  font-weight: ${theme.fontWeights.regular};
-  color: var(--text, #f00);
+  line-height: 1.5; /* 3 */
+  font-weight: 400;
+  color: var(--textPrimary, #f00);
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */
@@ -277,7 +529,7 @@ html {
 }
 
 div.ReactModal__Content.ReactModal__Content--after-open {
-  background-color: var(--white, #f00);
+  background-color: var(--backgroundDefault, #f00);
 }
 
 /* Sections
@@ -289,7 +541,7 @@ div.ReactModal__Content.ReactModal__Content--after-open {
 
 body {
   margin: 0;
-  background-color: var(--white, #f00);
+  background-color: var(--backgroundDefault, #f00);
 }
 
 /**
@@ -299,7 +551,6 @@ body {
 
 h1 {
   font-size: 2em;
-  margin: 0.67em 0;
 }
 
 /* Grouping content
@@ -318,10 +569,6 @@ hr {
 /**
  * Add the correct display in IE.
  */
-
-main {
-  display: block;
-}
 
 /**
  * Remove the list style on navigation lists in all browsers (opinionated).
@@ -390,14 +637,7 @@ strong {
 code,
 kbd,
 samp {
-  font-family:
-    /* macOS 10.10+ */ Menlo,
-    /* Windows 6+ */ Consolas,
-    /* Android 4+ */ Roboto Mono,
-    /* Ubuntu 10.10+ */ Ubuntu Monospace,
-    /* KDE Plasma 4+ */ Oxygen Mono,
-    /* Linux/OpenOffice fallback */ Liberation Mono,
-    /* fallback */ monospace; /* 1 */
+  font-family: var(--monospace);
 
   font-size: 1em; /* 2 */
 }
@@ -439,7 +679,6 @@ audio,
 canvas,
 iframe,
 img,
-svg,
 video {
   vertical-align: middle;
 }
@@ -628,6 +867,7 @@ textarea {
 ::-webkit-inner-spin-button,
 ::-webkit-outer-spin-button {
   height: auto;
+  -webkit-appearance: none;
 }
 
 /**
@@ -671,7 +911,7 @@ textarea {
  */
 
 :-moz-focusring {
-  outline: 1px dotted ButtonText;
+  outline: 1px dotted var(--button-text);
 }
 
 /* Interactive
@@ -814,39 +1054,53 @@ textarea,
 }
 
 div.tooltip-content {
-    box-shadow: ${theme.shadows.sm};
+    box-shadow: var(--defaultShadow);
     position: absolute;
     margin-left: 50px;
     padding: 5px 5px 5px 5px;
     width: 350px;
     height: auto;
     display: none;
-    color: var(--black);
-    background-color: var(--white);
+    color: var(--textPrimary);
+    background-color: var(--backgroundDefault);
     z-index: 1;
 }
 
 div.tooltip-content.centered {
     justify-content: center;
-
-    .user-box {
-        width: 350px;
-        height: 190px;
-        .centered {
-            display: flex;
-            justify-content: center;
-        }
-    }
 }
 
-div.tooltip:hover {
-    div.tooltip-content {
-        display: flex;
-    }
+div.tooltip-content.centered.user-box {
+    width: 350px;
+    height: 190px;
+}
+
+div.tooltip-content.centered.user-box.centered {
+    display: flex;
+    justify-content: center;
+}
+
+div.tooltip:hover > div.tooltip-content {
+    display: flex;
 }
 
 a {
     color: var(--textHighlight);
+}
+
+input.search-field {
+    width: 250px;
+    height: 35px;
+    margin-left: 8px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    margin: 0;
+}
+
+h3.title {
+  font-size: calc(16px * 1.1);
+  font-weight: bold;
 }
 
 `;

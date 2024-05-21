@@ -1,110 +1,40 @@
 import * as React from "react";
-import styled from "styled-components";
-import {fontSize, space, SpaceProps} from "styled-system";
 import {Box, Icon, Text} from ".";
 import {IconName} from "./Icon";
-import theme, {Theme, ThemeColor} from "./theme";
+import {injectStyle} from "@/Unstyled";
 
-const useFullWidth = ({fullWidth}: {fullWidth?: boolean}): {width: string} | null => fullWidth ? {width: "100%"} : null;
+const StampClass = injectStyle("stamp", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: top;
+        min-height: 24px;
+        font-weight: 600;
+        letter-spacing: 0.025em;
+        border-radius: 4px;
+        border-width: 1px;
+        border-style: solid;
+        cursor: pointer;
+        
+        padding: 0 1px;
+        margin-right: 4px;
+        
+        background-color: var(--primaryLight);
+        border-color: var(--primaryLight);
+        color: var(--primaryDark);
+    }
+`);
 
-export const colorScheme = (props: {theme: Theme; color?: string}): {backgroundColor: string; borderColor: string; color: string;} => {
-    const badgeColors: Record<string, {backgroundColor: string; borderColor: string; color: string}> = {
-        white: {
-            backgroundColor: props.theme.colors.black,
-            borderColor: props.theme.colors.black,
-            color: props.theme.colors.black
-        },
-        blue: {
-            backgroundColor: props.theme.colors.blue,
-            borderColor: props.theme.colors.blue,
-            color: props.theme.colors.white
-        },
-        lightBlue: {
-            backgroundColor: props.theme.colors.lightBlue,
-            borderColor: props.theme.colors.lightBlue,
-            color: props.theme.colors.darkBlue
-        },
-        green: {
-            backgroundColor: props.theme.colors.green,
-            borderColor: props.theme.colors.green,
-            color: props.theme.colors.white
-        },
-        lightGreen: {
-            backgroundColor: props.theme.colors.lightGreen,
-            borderColor: props.theme.colors.lightGreen,
-            color: props.theme.colors.darkGreen
-        },
-        red: {
-            backgroundColor: props.theme.colors.red,
-            borderColor: props.theme.colors.red,
-            color: props.theme.colors.white
-        },
-        lightRed: {
-            backgroundColor: props.theme.colors.lightRed,
-            borderColor: props.theme.colors.lightRed,
-            color: props.theme.colors.darkRed
-        },
-        orange: {
-            backgroundColor: props.theme.colors.orange,
-            borderColor: props.theme.colors.orange,
-            color: props.theme.colors.text
-        },
-        gray: {
-            backgroundColor: props.theme.colors.gray,
-            borderColor: props.theme.colors.gray,
-            color: props.theme.colors.white
-        },
-        lightGray: {
-            backgroundColor: props.theme.colors.lightGray,
-            borderColor: props.theme.colors.lightGray,
-            color: props.theme.colors.text
-        }
-    };
-    const color = badgeColors[props.color ?? ""];
-    return color || badgeColors.white;
-};
-
-const StampBase = styled.div<StampProps>`
-  display: inline-flex;
-  align-items: center;
-  vertical-align: top;
-  min-height: 24px;
-  ${useFullWidth}
-  font-weight: 600;
-  letter-spacing: ${theme.letterSpacings.caps};
-  border-radius: 4px;
-  border-width: 1px;
-  border-style: solid;
-  ${colorScheme}
-  ${space} ${fontSize};
-  ${p => p.onClick ? ({cursor: "pointer"}) : null}
-`;
-
-StampBase.displayName = "Stamp";
-
-interface StampProps extends SpaceProps {
-    color?: ThemeColor;
-    theme?: Theme;
-    fontSize?: number | string;
-    fullWidth?: boolean;
+interface StampProps {
     children?: React.ReactNode;
 }
 
-StampBase.defaultProps = {
-    px: 1,
-    py: 0,
-    mr: "4px",
-    color: "gray",
-    fontSize: 0,
-    fullWidth: false
-};
-
 const Stamp: React.FunctionComponent<StampProps & {icon?: IconName; onClick?: () => void; text?: string}> = (props) =>
-    <StampBase {...props}>
+    <div className={StampClass} onClick={props.onClick}>
         {props.icon ? <Icon name={props.icon} size={12} /> : null}
         <Text ml="4px" mr="6px">{props.text}{props.children}</Text>
         <Box flexGrow={1} />
         {props.onClick ? <Icon name={"close"} size={12} onClick={props.onClick} /> : null}
-    </StampBase>
+    </div>
 
 export default Stamp;

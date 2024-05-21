@@ -84,7 +84,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
-<td>Retrieves a logo associated with an Application</td>
+<td>Retrieves a logo associated with a group</td>
 </tr>
 <tr>
 <td><a href='#findbyname'><code>findByName</code></a></td>
@@ -92,7 +92,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#findbynameandversion'><code>findByNameAndVersion</code></a></td>
-<td>Retrieves an Application by name and version</td>
+<td>Retrieves an Application by name and version, or newest Application if version is not specified</td>
 </tr>
 <tr>
 <td><a href='#findbysupportedfileextension'><code>findBySupportedFileExtension</code></a></td>
@@ -119,16 +119,20 @@ changes are expected:
 <td>Lists all Applications</td>
 </tr>
 <tr>
+<td><a href='#listgroups'><code>listGroups</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#listtags'><code>listTags</code></a></td>
 <td>List all application tags</td>
 </tr>
 <tr>
-<td><a href='#overview'><code>overview</code></a></td>
-<td>Returns the application catalog overview</td>
-</tr>
-<tr>
 <td><a href='#retrievefavorites'><code>retrieveFavorites</code></a></td>
 <td>Retrieves the list of favorite Applications for the curent user</td>
+</tr>
+<tr>
+<td><a href='#retrievegroup'><code>retrieveGroup</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#searchapps'><code>searchApps</code></a></td>
@@ -139,8 +143,20 @@ changes are expected:
 <td>Browses the Application catalog by tag</td>
 </tr>
 <tr>
+<td><a href='#store'><code>store</code></a></td>
+<td>Returns the application catalog sections</td>
+</tr>
+<tr>
+<td><a href='#cleargrouplogo'><code>clearGroupLogo</code></a></td>
+<td>Removes a logo associated with a group</td>
+</tr>
+<tr>
 <td><a href='#clearlogo'><code>clearLogo</code></a></td>
 <td>Removes a logo associated with an Application</td>
+</tr>
+<tr>
+<td><a href='#creategroup'><code>createGroup</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#createtag'><code>createTag</code></a></td>
@@ -151,12 +167,20 @@ changes are expected:
 <td>Removes an Application from the catalog</td>
 </tr>
 <tr>
+<td><a href='#deletegroup'><code>deleteGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#devimport'><code>devImport</code></a></td>
 <td>An endpoint for importing applications - Only usable in dev environments</td>
 </tr>
 <tr>
 <td><a href='#removetag'><code>removeTag</code></a></td>
 <td>Removes a set of tags from an Application</td>
+</tr>
+<tr>
+<td><a href='#setgroup'><code>setGroup</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#setpublic'><code>setPublic</code></a></td>
@@ -169,6 +193,26 @@ changes are expected:
 <tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Updates the permissions associated with an Application</td>
+</tr>
+<tr>
+<td><a href='#updateflavor'><code>updateFlavor</code></a></td>
+<td>Updates the flavor name for a set of applications</td>
+</tr>
+<tr>
+<td><a href='#updategroup'><code>updateGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updatelanding'><code>updateLanding</code></a></td>
+<td>Updates the landing page of the application store</td>
+</tr>
+<tr>
+<td><a href='#updateoverview'><code>updateOverview</code></a></td>
+<td>Updates the overview page of the application store</td>
+</tr>
+<tr>
+<td><a href='#uploadgrouplogo'><code>uploadGroupLogo</code></a></td>
+<td>Uploads a logo and associates it with a group</td>
 </tr>
 <tr>
 <td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
@@ -342,15 +386,11 @@ changes are expected:
 <td>A textual value</td>
 </tr>
 <tr>
+<td><a href='#appstorepagetype'><code>AppStorePageType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#appstoresection'><code>AppStoreSection</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#appstoresection.tag'><code>AppStoreSection.Tag</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#appstoresection.tool'><code>AppStoreSection.Tool</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -358,7 +398,15 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#applicationgroup'><code>ApplicationGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#applicationparameter.enumoption'><code>ApplicationParameter.EnumOption</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationsummary'><code>ApplicationSummary</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -390,6 +438,10 @@ changes are expected:
 <td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
+<td><a href='#modulessection'><code>ModulesSection</code></a></td>
+<td>Section describing the module capabilities of an application</td>
+</tr>
+<tr>
 <td><a href='#project'><code>Project</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -418,11 +470,23 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#appstoresectionsrequest'><code>AppStoreSectionsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#creategrouprequest'><code>CreateGroupRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#createtagsrequest'><code>CreateTagsRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#deleteapprequest'><code>DeleteAppRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#deletegrouprequest'><code>DeleteGroupRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -450,6 +514,14 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#retrievegrouprequest'><code>RetrieveGroupRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#setgrouprequest'><code>SetGroupRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#setpublicrequest'><code>SetPublicRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -462,11 +534,27 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#appstoreoverviewresponse'><code>AppStoreOverviewResponse</code></a></td>
+<td><a href='#updateflavorrequest'><code>UpdateFlavorRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updategrouprequest'><code>UpdateGroupRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#appstoresectionsresponse'><code>AppStoreSectionsResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#creategroupresponse'><code>CreateGroupResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#ispublicresponse'><code>IsPublicResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievegroupresponse'><code>RetrieveGroupResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -546,6 +634,7 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("value"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Bool(
             defaultValue = null, 
@@ -601,6 +690,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-batch", 
         public = true, 
@@ -654,7 +751,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme batch",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -757,7 +863,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -822,6 +929,7 @@ ApplicationWithFavoriteAndTags(
         fileExtensions = emptyList(), 
         invocation = emptyList(), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = false, 
@@ -863,6 +971,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-os", 
         public = true, 
@@ -905,7 +1021,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme os",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -962,7 +1087,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1029,6 +1155,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1072,6 +1199,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-web", 
         public = true, 
@@ -1114,7 +1249,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme web",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1177,7 +1321,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1244,6 +1389,7 @@ ApplicationWithFavoriteAndTags(
             word = "vnc-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1288,6 +1434,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-remote-desktop", 
         public = true, 
@@ -1330,7 +1484,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme remote desktop",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1394,7 +1557,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1466,6 +1630,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -1509,6 +1674,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-web", 
         public = true, 
@@ -1555,7 +1728,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme web",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1619,7 +1801,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #             ".c"
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1695,12 +1878,15 @@ ApplicationWithFavoriteAndTags(
             variableNames = listOf("variable"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = JsonObject(mapOf("type" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "text", 
                 isString = true, 
             )),"value" to JsonLiteral(
+                coerceToInlineType = null, 
                 content = "hello", 
                 isString = true, 
             )),)), 
@@ -1750,6 +1936,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-web", 
         public = true, 
@@ -1793,7 +1987,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme web",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1879,7 +2082,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -1938,7 +2142,7 @@ _Creates a new Application and inserts it into the catalog_
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves a logo associated with an Application_
+_Retrieves a logo associated with a group_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -1966,7 +2170,7 @@ _Finds Applications given an exact name_
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves an Application by name and version_
+_Retrieves an Application by name and version, or newest Application if version is not specified_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -2059,6 +2263,19 @@ _Lists all Applications_
 Results are not ordered in any specific fashion
 
 
+### `listGroups`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `listTags`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2073,20 +2290,6 @@ _List all application tags_
 
 
 
-### `overview`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Returns the application catalog overview_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstoreoverviewresponse'>AppStoreOverviewResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `retrieveFavorites`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2098,6 +2301,19 @@ _Retrieves the list of favorite Applications for the curent user_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#retrievegrouprequest'>RetrieveGroupRequest</a></code>|<code><a href='#retrievegroupresponse'>RetrieveGroupResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2129,6 +2345,34 @@ _Browses the Application catalog by tag_
 
 
 
+### `store`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Returns the application catalog sections_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstoresectionsrequest'>AppStoreSectionsRequest</a></code>|<code><a href='#appstoresectionsresponse'>AppStoreSectionsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `clearGroupLogo`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Removes a logo associated with a group_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.ClearLogoRequest.md'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `clearLogo`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2140,6 +2384,19 @@ _Removes a logo associated with an Application_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.ClearLogoRequest.md'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `createGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#creategrouprequest'>CreateGroupRequest</a></code>|<code><a href='#creategroupresponse'>CreateGroupResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2171,6 +2428,19 @@ _Removes an Application from the catalog_
 
 
 
+### `deleteGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#deletegrouprequest'>DeleteGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `devImport`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2196,6 +2466,19 @@ _Removes a set of tags from an Application_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `setGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#setgrouprequest'>SetGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2238,6 +2521,75 @@ _Updates the permissions associated with an Application_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#updateaclrequest'>UpdateAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateFlavor`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Updates the flavor name for a set of applications_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#updateflavorrequest'>UpdateFlavorRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#updategrouprequest'>UpdateGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateLanding`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Updates the landing page of the application store_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateOverview`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Updates the overview page of the application store_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `uploadGroupLogo`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Uploads a logo and associates it with a group_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest.md'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2324,6 +2676,8 @@ data class ApplicationMetadata(
     val description: String,
     val website: String?,
     val public: Boolean,
+    val flavorName: String?,
+    val group: ApplicationGroup?,
     val isPublic: Boolean,
 )
 ```
@@ -2414,6 +2768,28 @@ The metadata describes information mostly useful for presentation purposes. The 
 
 <details>
 <summary>
+<code>flavorName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Name of the Application within the ApplicationGroup. If not defined, the title will be used.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a>?</code></code> The ApplicationGroup of the Application
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>isPublic</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
 </summary>
 
@@ -2457,6 +2833,7 @@ data class ApplicationInvocationDescription(
     val allowPublicLink: Boolean?,
     val fileExtensions: List<String>?,
     val licenseServers: List<String>?,
+    val modules: ModulesSection?,
     val shouldAllowAdditionalMounts: Boolean,
     val shouldAllowAdditionalPeers: Boolean,
 )
@@ -2670,6 +3047,17 @@ This list used as a suffix filter. As a result, this list should typically inclu
 <details>
 <summary>
 <code>licenseServers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> Hint used by the frontend to find appropriate license servers
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>modules</code>: <code><code><a href='#modulessection'>ModulesSection</a>?</code></code> A section describing integration with a module system. Currently only valid for `CONTAINER` based applications.
 </summary>
 
 
@@ -5644,18 +6032,16 @@ When this is used with an `Enumeration` it must match the value of one of the as
 
 ---
 
-### `AppStoreSection`
+### `AppStorePageType`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-sealed class AppStoreSection {
-    abstract val name: String
-
-    class Tag : AppStoreSection()
-    class Tool : AppStoreSection()
+enum class AppStorePageType {
+    LANDING,
+    FULL,
 }
 ```
 
@@ -5666,7 +6052,18 @@ sealed class AppStoreSection {
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>LANDING</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>FULL</code>
 </summary>
 
 
@@ -5683,19 +6080,18 @@ sealed class AppStoreSection {
 
 ---
 
-### `AppStoreSection.Tag`
+### `AppStoreSection`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class Tag(
+data class AppStoreSection(
+    val id: Int,
     val name: String,
-    val applications: List<ApplicationSummaryWithFavorite>,
-    val columns: Int,
-    val rows: Int,
-    val type: String /* "tag" */,
+    val featured: List<ApplicationGroup>,
+    val items: List<ApplicationGroup>,
 )
 ```
 
@@ -5703,6 +6099,17 @@ data class Tag(
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>
@@ -5717,7 +6124,7 @@ data class Tag(
 
 <details>
 <summary>
-<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+<code>featured</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
 </summary>
 
 
@@ -5728,117 +6135,9 @@ data class Tag(
 
 <details>
 <summary>
-<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>items</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
 </summary>
 
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "tag" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AppStoreSection.Tool`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class Tool(
-    val name: String,
-    val applications: List<ApplicationSummaryWithFavorite>,
-    val columns: Int,
-    val rows: Int,
-    val type: String /* "tool" */,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>columns</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>rows</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>type</code>: <code><code>String /* "tool" */</code></code> The type discriminator
-</summary>
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -5889,6 +6188,90 @@ enum class ApplicationAccessRight {
 
 ---
 
+### `ApplicationGroup`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ApplicationGroup(
+    val id: Int,
+    val title: String,
+    val description: String?,
+    val defaultApplication: String?,
+    val tags: List<String>?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>defaultApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ApplicationParameter.EnumOption`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -5921,6 +6304,42 @@ data class EnumOption(
 <details>
 <summary>
 <code>value</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationSummary`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ApplicationSummary(
+    val metadata: ApplicationMetadata,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>metadata</code>: <code><code><a href='#applicationmetadata'>ApplicationMetadata</a></code></code>
 </summary>
 
 
@@ -6240,7 +6659,7 @@ data class DetailedEntityWithPermission(
 ```kotlin
 data class FindApplicationAndOptionalDependencies(
     val appName: String,
-    val appVersion: String,
+    val appVersion: String?,
 )
 ```
 
@@ -6262,7 +6681,7 @@ data class FindApplicationAndOptionalDependencies(
 
 <details>
 <summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -6377,6 +6796,55 @@ paginate through the results.
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ModulesSection`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Section describing the module capabilities of an application_
+
+```kotlin
+data class ModulesSection(
+    val mountPath: String,
+    val optional: List<String>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>mountPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
 </summary>
 
 
@@ -6805,6 +7273,78 @@ data class AppSearchRequest(
 
 ---
 
+### `AppStoreSectionsRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AppStoreSectionsRequest(
+    val page: AppStorePageType,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>page</code>: <code><code><a href='#appstorepagetype'>AppStorePageType</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `CreateGroupRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class CreateGroupRequest(
+    val title: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `CreateTagsRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -6814,7 +7354,7 @@ data class AppSearchRequest(
 ```kotlin
 data class CreateTagsRequest(
     val tags: List<String>,
-    val applicationName: String,
+    val groupId: Int,
 )
 ```
 
@@ -6836,7 +7376,7 @@ data class CreateTagsRequest(
 
 <details>
 <summary>
-<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -6885,6 +7425,42 @@ data class DeleteAppRequest(
 <details>
 <summary>
 <code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `DeleteGroupRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class DeleteGroupRequest(
+    val id: Int,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -6958,7 +7534,6 @@ data class DevImportRequest(
 ```kotlin
 data class FavoriteRequest(
     val appName: String,
-    val appVersion: String,
 )
 ```
 
@@ -6970,17 +7545,6 @@ data class FavoriteRequest(
 <details>
 <summary>
 <code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -7189,6 +7753,102 @@ data class ListAclRequest(
 
 ---
 
+### `RetrieveGroupRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RetrieveGroupRequest(
+    val id: Int?,
+    val name: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `SetGroupRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class SetGroupRequest(
+    val groupId: Int?,
+    val applicationName: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `SetPublicRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7369,14 +8029,146 @@ data class UpdateAclRequest(
 
 ---
 
-### `AppStoreOverviewResponse`
+### `UpdateFlavorRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class AppStoreOverviewResponse(
+data class UpdateFlavorRequest(
+    val applicationName: String,
+    val flavorName: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>flavorName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UpdateGroupRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class UpdateGroupRequest(
+    val id: Int,
+    val title: String,
+    val logo: List<Byte>?,
+    val description: String?,
+    val defaultApplication: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>logo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/'>Byte</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>defaultApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStoreSectionsResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AppStoreSectionsResponse(
     val sections: List<AppStoreSection>,
 )
 ```
@@ -7389,6 +8181,42 @@ data class AppStoreOverviewResponse(
 <details>
 <summary>
 <code>sections</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#appstoresection'>AppStoreSection</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `CreateGroupResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class CreateGroupResponse(
+    val id: Int,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -7425,6 +8253,54 @@ data class IsPublicResponse(
 <details>
 <summary>
 <code>public</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `RetrieveGroupResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RetrieveGroupResponse(
+    val group: ApplicationGroup,
+    val applications: List<ApplicationSummary>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummary'>ApplicationSummary</a>&gt;</code></code>
 </summary>
 
 

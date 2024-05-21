@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.MessageImportance
@@ -45,14 +46,17 @@ data class TaskRequirements(
 )
 
 class TaskSystem(
+    private val pluginConfig: ConfigSchema.Plugins.Files.UCloud,
     private val db: DBContext,
     private val pathConverter: PathConverter,
     private val nativeFs: NativeFS,
     private val backgroundDispatcher: CoroutineDispatcher,
     private val client: AuthenticatedClient,
     private val debug: DebugSystem,
+    private val usageScan: UsageScan,
 ) {
-    private val taskContext = TaskContext(pathConverter, nativeFs, backgroundDispatcher, debug)
+    private val taskContext = TaskContext(pluginConfig, pathConverter, nativeFs, backgroundDispatcher, debug,
+        usageScan)
     private val handlers = ArrayList<TaskHandler>()
 
     fun install(handler: TaskHandler) {
@@ -276,10 +280,12 @@ class TaskSystem(
 }
 
 data class TaskContext(
+    val config: ConfigSchema.Plugins.Files.UCloud,
     val pathConverter: PathConverter,
     val nativeFs: NativeFS,
     val backgroundDispatcher: CoroutineDispatcher,
-    val debug: DebugSystem?
+    val debug: DebugSystem?,
+    val usageScan: UsageScan,
 )
 
 interface TaskHandler {

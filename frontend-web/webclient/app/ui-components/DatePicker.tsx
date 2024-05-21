@@ -1,53 +1,50 @@
-import ReactDatePicker from "react-datepicker";
+import ReactDatePicker, {ReactDatePickerProps} from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import styled from "styled-components";
-import {borders, color, ColorProps, fontSize, space, width} from "styled-system";
-import theme from "@/ui-components/theme";
-import {InputProps} from "./Input";
+import {classConcat, injectStyle} from "@/Unstyled";
+import * as React from "react";
+import Box from "@/ui-components/Box";
+import {BoxProps} from "./Types";
 
-export const DatePicker = styled(ReactDatePicker) <InputProps & ColorProps>`
-    appearance: none;
-    display: block;
-    font-family: inherit;
-    color: inherit;
-    font-size: ${theme.fontSizes[1]}px;
-    background-color: transparent;
-    border-radius: ${theme.radius};
-    border-width: 0px;
-    border-style: solid;
-    border-color: var(--borderGray, #f00);
-
-    padding-top: 14px;
-    padding-bottom: 14px;
-    padding-left: 12px;
-    padding-right: 12px;
-
-    margin: 0;
-
-    ::placeholder {
-      color: var(--gray, #f00);
+export const DatePickerClass = injectStyle("date-picker", k => `
+    ${k} {
+        appearance: none;
+        display: block;
+        font-family: inherit;
+        color: inherit;
+        background-color: transparent;
+        border-radius: 8px;
+        border-width: 0;
+        border-style: solid;
+        border-color: var(--borderColor, #f00);
+        padding: 8px 12px;
+        margin: 0;
+        width: 100%;
+        font-size: 18px;
     }
-
-    ::-ms-clear {
-      display: none;
+    
+    ${k}::placeholder {
+        color: var(--borderColor, #f00);
     }
-
-    &:disabled {
-        background-color: var(--lightGray, #f00);
+    
+    ${k}::-ms-clear {
+        display: none;
     }
+    
+    ${k}:disabled {
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
+    }
+`);
 
-    ${borders} ${space} ${fontSize} ${width} ${color};
-`;
-
-DatePicker.defaultProps = {
-    width: "100%"
-}
+export const DatePicker: React.FunctionComponent<ReactDatePickerProps & BoxProps> = props => {
+    return <Box {...props}><ReactDatePicker {...props} className={classConcat(DatePickerClass, props.className)} /></Box>;
+};
 
 DatePicker.displayName = "DatePicker";
 
-export const SlimDatePickerWrapper = styled.div`
-  & .react-datepicker__day-name, & .react-datepicker__day, & .react-datepicker__time-name {
-    width: 1.4rem;
-    line-height: 1.4rem;
-  }
-`;
+export const SlimDatePickerClass = injectStyle("slim-date-picker", k => `
+    ${k} .react-datepicker__day-name, ${k} .react-datepicker__day, ${k} .react-datepicker__time-name {
+        width: 1.4rem;
+        line-height: 1.4rem;
+    }  
+`);

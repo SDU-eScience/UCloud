@@ -1,10 +1,11 @@
 import * as React from "react";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import * as Heading from "@/ui-components/Heading";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePage} from "@/Navigation/Redux";
 import {Button, Icon, Input, List} from "@/ui-components";
 import {useCallback, useMemo, useState} from "react";
 import {ListRow, ListRowStat} from "@/ui-components/List";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const LagTest: React.FunctionComponent = () => {
     const numberOfInputs = 500;
@@ -36,7 +37,7 @@ const LagTest: React.FunctionComponent = () => {
         setUseStyledComponents(prev => !prev);
     }, []);
 
-    useTitle("Lag Test");
+    usePage("Lag Test", SidebarTabId.NONE);
 
     return <MainContainer
         header={<Heading.h2>Lag Test</Heading.h2>}
@@ -92,7 +93,7 @@ const Row: React.FunctionComponent<{idx:number, state: string, onChange: (e) => 
         }
         leftSub={
             <>
-                <ListRowStat icon={"id"}>
+                <ListRowStat icon={"heroIdentification"}>
                     {state}
                 </ListRowStat>
                 <ListRowStat icon={"activity"}>

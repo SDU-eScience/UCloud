@@ -352,6 +352,7 @@ FileCollections.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("ucloud" to listOf(ResolvedSupport(
         product = Product.Storage(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-ssd", 
                 name = "example-ssd", 
@@ -369,6 +370,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-ssd", 
+            maxUsableBalance = null, 
         ), 
         support = FSSupport(
             collection = FSCollectionSupport(
@@ -381,6 +383,7 @@ SupportByProvider(
                 aclModifiable = false, 
                 isReadOnly = false, 
                 searchSupported = true, 
+                sharesSupported = false, 
                 streamingSearchSupported = false, 
                 trashSupported = false, 
             ), 
@@ -432,7 +435,7 @@ FileCollections.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -511,7 +514,7 @@ FileCollections.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -577,6 +580,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-ssd",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -587,6 +591,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                     "priority": 0,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "PER_UNIT",
 #                     "chargeType": "DIFFERENTIAL_QUOTA",
 #                     "hiddenInGrantApplications": false,
@@ -619,7 +624,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                         "trashSupported": false,
 #                         "isReadOnly": false,
 #                         "searchSupported": true,
-#                         "streamingSearchSupported": false
+#                         "streamingSearchSupported": false,
+#                         "sharesSupported": false
 #                     },
 #                     "maintenance": null
 #                 }
@@ -630,7 +636,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 
 # As we can see, the provider does support the rename operation. We now look at our collections.
 
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -686,7 +692,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 
 # The new title is observed when we browse the collections one more time
 
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -971,6 +977,7 @@ data class FSFileSupport(
     val isReadOnly: Boolean?,
     val searchSupported: Boolean?,
     val streamingSearchSupported: Boolean?,
+    val sharesSupported: Boolean?,
 )
 ```
 
@@ -1028,6 +1035,17 @@ to false in a later release. Providers should explicitly declare support for thi
 <details>
 <summary>
 <code>streamingSearchSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Declares support for the streamingSearch endpoint
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>sharesSupported</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

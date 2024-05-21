@@ -1,52 +1,41 @@
-FROM ubuntu:20.04
+FROM dreg.cloud.sdu.dk/ucloud-dev/slurm-docker-cluster:23.02.7 AS base
 
-RUN apt-get update && apt-get -y install locales
-RUN locale-gen en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LC_TYPE en_US.UTF-8
-ENV LC_MESSAGES en_US.UTF-8
-RUN rm /bin/sh && ln -s /bin/bash /bin/sh
-RUN apt-get update && apt-get -qq -y install curl wget unzip zip sudo libssl-dev gcc g++ zlib1g zlib1g-dev
+# Dependencies
+RUN dnf -y makecache
+RUN dnf install -y procps sudo
 RUN export SDKMAN_DIR="/usr/local/sdkman" && curl -s "https://get.sdkman.io" | bash
 RUN bash -c "export SDKMAN_DIR='/usr/local/sdkman' && source /usr/local/sdkman/bin/sdkman-init.sh && \
-    yes | sdk i java 22.1.0.r17-grl && \
+    yes | sdk i java 20.0.1-graalce && \
     yes | sdk i gradle 7.4.2"
-RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl -o /tmp/kubectl
-RUN mv /tmp/kubectl /usr/bin/kubectl
+RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
+    && curl https://storage.googleapis.com/kubernetes-release/release/v1.27.9/bin/linux/${ARCH}/kubectl -o /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
-RUN curl https://func-e.io/install.sh | bash -s -- -b /usr/local/bin
+RUN dnf install -y freetype fontconfig
 
-# Test users
-RUN groupadd -g 997 munge
-RUN useradd -u 999 -g 997 munge
-RUN mkdir -p /var/run/ucloud/envoy
-RUN chown -R 998:998 /var/run/ucloud
-RUN mkdir -p /var/log/ucloud
-RUN chown -R 998:998 /var/log/ucloud
-RUN mkdir -p /etc/ucloud
-RUN chown -R 998:998 /etc/ucloud
-RUN echo 'ucloud  ALL=(ALL:ALL) NOPASSWD: /etc/ucloud/extensions/*, /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module' >> /etc/sudoers
+# Users
+RUN useradd -u 11042 -M -d /etc/ucloud ucloud
+RUN install -o ucloud -g ucloud -d /var/run/ucloud
+RUN install -o ucloud -g ucloud -d /var/run/ucloud/envoy
+RUN install -o ucloud -g ucloud -d /var/log/ucloud
+RUN install -o ucloud -g ucloud -d /etc/ucloud
+RUN echo 'ucloud ALL=(ALL) NOPASSWD: /usr/bin/ucloud , /etc/ucloud/extensions/*' >> /etc/sudoers
 RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
+# Envoy
 WORKDIR /tmp
-RUN apt-get install xz-utils -y
-RUN curl -L https://archive.tetratelabs.io/envoy/download/v1.23.0/envoy-v1.23.0-linux-amd64.tar.xz -o /tmp/envoy.tar.xz
-RUN ls -lah && tar xvf /tmp/envoy.tar.xz
-RUN ls -lah && mv /tmp/envoy-v1.23.0-linux-amd64/bin/envoy /usr/bin/envoy
-RUN rm -rf /tmp/envoy-v1.23.0-linux-amd64 && rm -rf /tmp/envoy.tar.xz
+RUN dnf -y install xz
+RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=aarch_64; else ARCH=x86_64; fi \
+    && curl -L https://github.com/envoyproxy/envoy/releases/download/v1.23.10/envoy-1.23.10-linux-${ARCH} -o /usr/bin/envoy
+RUN chmod +x /usr/bin/envoy
 
-RUN apt-get update && apt-get install -y vim
+# UCloud
 WORKDIR /usr/bin
 RUN ln -s /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module ucloud
 RUN ln -s /usr/local/sdkman/candidates/java/current/bin/java java
 COPY default_config /opt/ucloud-default-config
-RUN chmod +x /opt/ucloud-default-config/config_installer.sh 
-RUN ln -s /usr/local/bin/func-e /usr/local/bin/getenvoy
-WORKDIR /opt/ucloud
+RUN chmod +x /opt/ucloud-default-config/config_installer.sh
 
-RUN apt-get update && apt-get -qq -y install munge slurm-client ssh python3
+WORKDIR /opt/ucloud
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
-
-WORKDIR /opt/ucloud

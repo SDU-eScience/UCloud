@@ -157,6 +157,7 @@ Ingresses.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Ingress(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-ingress", 
                 name = "example-ingress", 
@@ -174,6 +175,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-ingress", 
+            maxUsableBalance = null, 
         ), 
         support = IngressSupport(
             domainPrefix = "app-", 
@@ -295,6 +297,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-ingress",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -305,6 +308,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/ingresses/retrieve
 #                     "priority": 0,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "PER_UNIT",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,

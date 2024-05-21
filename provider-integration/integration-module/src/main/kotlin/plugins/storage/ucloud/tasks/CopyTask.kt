@@ -51,10 +51,13 @@ class CopyTask : TaskHandler {
             request
         )
 
+        val allPaths = ArrayList<UCloudFile>()
         val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
         val pathStack = ArrayDeque(realRequest.items.map {
-            val oldId = pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path
-            val newId = pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path
+            val source = UCloudFile.create(it.oldId).also { allPaths.add(it) }
+            val destination = UCloudFile.create(it.newId).also { allPaths.add(it) }
+            val oldId = pathConverter.ucloudToInternal(source).path
+            val newId = pathConverter.ucloudToInternal(destination).path
 
             if (newId.startsWith("$oldId/")) {
                 throw RPCException("Refusing to copy a file to a sub-directory of itself.", HttpStatusCode.BadRequest)
@@ -64,6 +67,10 @@ class CopyTask : TaskHandler {
         })
         var fileCount = pathStack.size
         var fileSize = 0L
+
+        if (!pathConverter.shouldAllowUsageOfFilesTogether(allPaths)) {
+            throw RPCException("This project does not allow copying files to other projects", HttpStatusCode.Forbidden)
+        }
 
         while (coroutineContext.isActive && (Time.now() <= deadline)) {
             if (fileCount >= COPY_REQUIREMENTS_HARD_LIMIT) break

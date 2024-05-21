@@ -1,10 +1,9 @@
 package dk.sdu.cloud.plugins.licenses.generic
 
-import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.ErrorCode
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
@@ -17,10 +16,11 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.ProductCost
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.config.toReference
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
-import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
@@ -32,24 +32,25 @@ import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.bindIntNullable
-import dk.sdu.cloud.sql.bindStringNullable
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withSession
-import dk.sdu.cloud.utils.ResourceVerification
-import dk.sdu.cloud.utils.sendTerminalMessage
-import dk.sdu.cloud.utils.sendTerminalTable
+import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlin.coroutines.coroutineContext
 import kotlin.system.exitProcess
 
 class GenericLicensePlugin : LicensePlugin {
     override val pluginTitle: String = "Generic"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
+
+    private val accountingFailureListeners = ArrayList<suspend (owner: String, category: String) -> Unit>()
+    fun onAccountingFailure(listener: suspend (owner: String, category: String) -> Unit) {
+        accountingFailureListeners.add(listener)
+    }
 
     override fun supportsRealUserMode(): Boolean = true
     override fun supportsServiceUserMode(): Boolean = true
@@ -343,6 +344,25 @@ class GenericLicensePlugin : LicensePlugin {
 
             result.singleOrNull() ?: throw RPCException("Unknown license", HttpStatusCode.NotFound)
         })
+
+        for (alloc in productAllocationResolved) {
+            val p = config.products.allCategories.find { it.category.toId() == alloc.category.toId() } ?: continue
+            when (val cost = p.cost) {
+                ProductCost.Free -> {
+                    // OK
+                }
+                is ProductCost.Money -> {
+                    if (cost.interval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+                is ProductCost.Resource -> {
+                    if (cost.accountingInterval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+            }
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<LicenseSupport> {
@@ -350,6 +370,38 @@ class GenericLicensePlugin : LicensePlugin {
     }
 
     override suspend fun RequestContext.create(resource: License): FindByStringId? {
+        val owner = resource.owner.project ?: resource.owner.createdBy
+        val category = resource.specification.product.category
+
+        try {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    //language=postgresql
+                    """
+                    insert into generic_license_instances (id, category, owner)
+                    values (:id, :category, :owner)
+                """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("id", resource.id)
+                        bindString("category", category)
+                        bindString("owner", owner)
+                    }
+                )
+
+                if (!accountNow(owner, category, session)) {
+                    throw RPCException(
+                        "You do not have any more funds to create a license!",
+                        HttpStatusCode.PaymentRequired,
+                        ErrorCode.MISSING_COMPUTE_CREDITS.name,
+                    )
+                }
+            }
+        } catch (ex: Throwable) {
+            accountNow(owner, category)
+            throw ex
+        }
+
         LicenseControl.update.call(
             bulkRequestOf(
                 ResourceUpdateAndId(
@@ -363,22 +415,22 @@ class GenericLicensePlugin : LicensePlugin {
             ),
             rpcClient
         ).orThrow()
-        LicenseControl.chargeCredits.call(
-            bulkRequestOf(
-                ResourceChargeCredits(
-                    resource.id,
-                    "Generic-${resource.id}",
-                    1,
-                    1
-                )
-            ),
-            rpcClient
-        ).orThrow()
+
         return FindByStringId(resource.id)
     }
 
     override suspend fun RequestContext.delete(resource: License) {
-        // Nothing to delete
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    delete from generic_license_instances
+                    where id = :id
+                """
+            ).useAndInvokeAndDiscard(prepare = { bindString("id", resource.id) })
+
+            accountNow(resource.owner.project ?: resource.owner.createdBy, resource.specification.product.category,
+                session)
+        }
     }
 
     override suspend fun PluginContext.buildParameter(param: AppParameterValue.License): String {
@@ -394,6 +446,80 @@ class GenericLicensePlugin : LicensePlugin {
             if (licenseInfo.license != null) {
                 append("/")
                 append(licenseInfo.license)
+            }
+        }
+    }
+
+    private suspend fun accountNow(owner: String, category: String, ctx: DBContext = dbConnection): Boolean {
+        val product = productAllocationResolved.find { it.category.name == category } ?: return true
+
+        val amountUsed = ctx.withSession { session ->
+            var count = 0L
+            session.prepareStatement(
+                """
+                    select count(*)::int8
+                    from generic_license_instances
+                    where
+                        owner = :owner
+                        and category = :category
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("owner", owner)
+                    bindString("category", category)
+                },
+                readRow = { row -> count = row.getLong(0)!! },
+            )
+            count
+        }
+
+        return reportUsage(
+            walletOwnerFromOwnerString(owner),
+            product.toReference(),
+            amountUsed,
+            minutesUsed = null,
+        )
+    }
+
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
+        var nextScan = 0L
+        while (coroutineContext.isActive) {
+            try {
+                val now = Time.now()
+                if (now > nextScan) {
+                    val ownerAndCategory = ArrayList<Pair<String, String>>()
+                    val failures = ArrayList<Pair<String, String>>()
+                    dbConnection.withSession { session ->
+                        try {
+                            session.prepareStatement(
+                                """
+                                    select distinct owner, category
+                                    from generic_license_instances
+                                """
+                            ).useAndInvoke(readRow = { row ->
+                                ownerAndCategory.add(Pair(row.getString(0)!!, row.getString(1)!!))
+                            })
+
+                            ownerAndCategory.forEachGraal { (owner, category) ->
+                                if (!accountNow(owner, category, session)) {
+                                    failures.add(Pair(owner, category))
+                                }
+                            }
+                        } catch (ex: Throwable) {
+                            log.warn("Caught exception while accounting public links: ${ex.toReadableStacktrace()}")
+                        }
+                    }
+
+                    failures.forEachGraal { failure ->
+                        accountingFailureListeners.forEachGraal { it(failure.first, failure.second) }
+                    }
+
+                    nextScan = now + (1000L * 60 * 60)
+                }
+
+                delay(30_000)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while accounting licenses: ${ex.toReadableStacktrace()}")
             }
         }
     }

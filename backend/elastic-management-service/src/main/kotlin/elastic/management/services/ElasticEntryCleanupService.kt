@@ -5,8 +5,8 @@ import co.elastic.clients.elasticsearch._types.query_dsl.MatchPhraseQuery
 import co.elastic.clients.elasticsearch._types.query_dsl.MatchQuery
 import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders
 import co.elastic.clients.elasticsearch.core.DeleteByQueryRequest
+import co.elastic.clients.elasticsearch.indices.GetIndexRequest
 import dk.sdu.cloud.service.Loggable
-import org.elasticsearch.client.RequestOptions
 import org.slf4j.Logger
 
 class ElasticEntryCleanupService(
@@ -42,7 +42,15 @@ class ElasticEntryCleanupService(
                 .build()
                 ._toQuery()
         )
-        request.index("kubernetes-production-*")
+        val indices = elastic.indices().get(
+            GetIndexRequest.Builder()
+                .index(
+                    "kubernetes-production-*"
+                )
+                .build()
+        ).result().keys.toList()
+
+        request.index(indices)
 
         val response = elastic.deleteByQuery(request.build())
         log.info("Delete done: ${response.deleted()} entires deleted")

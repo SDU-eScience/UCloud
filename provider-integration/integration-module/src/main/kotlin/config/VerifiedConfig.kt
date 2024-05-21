@@ -1,9 +1,10 @@
 package dk.sdu.cloud.config
 
 import dk.sdu.cloud.ServerMode
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.providerId
 import dk.sdu.cloud.sql.postgres.EmbeddedPostgres
 import dk.sdu.cloud.utils.*
 import libc.clib
@@ -20,14 +21,14 @@ data class VerifiedConfig(
     val serverOrNull: Server?,
     val pluginsOrNull: Plugins?,
     val rawPluginConfigOrNull: ConfigSchema.Plugins?,
-    val productsOrNull: Products?,
+    val productsOrNull: ConfigProductSchema?,
     val frontendProxyOrNull: FrontendProxy?
 ) {
     val core: Core get() = coreOrNull!!
     val server: Server get() = serverOrNull!!
     val plugins: Plugins get() = pluginsOrNull!!
     val rawPluginConfig: ConfigSchema.Plugins get() = rawPluginConfigOrNull!!
-    val products: Products get() = productsOrNull!!
+    val products: ConfigProductSchema get() = productsOrNull!!
     val frontendProxy: FrontendProxy get() = frontendProxyOrNull!!
 
     data class Core(
@@ -43,6 +44,7 @@ data class VerifiedConfig(
         val disableInsecureFileCheck: Boolean,
         val maintenance: Maintenance,
         val internalBindAddress: String,
+        val experimental: ConfigSchema.Core.Experimental,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -118,7 +120,7 @@ data class VerifiedConfig(
         val publicIps: Map<String, PublicIPPlugin>,
         val licenses: Map<String, LicensePlugin>,
         val shares: Map<String, SharePlugin>,
-        val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
+        val allocations: AllocationPlugin?,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
         //   ConnectionController. I don't have a good solution right now, so we will have to live with this weird
@@ -220,24 +222,6 @@ data class VerifiedConfig(
         }
     }
 
-    data class Products(
-        val compute: Map<String, List<Product.Compute>>? = null,
-        val storage: Map<String, List<Product.Storage>>? = null,
-        val ingress: Map<String, List<Product.Ingress>>? = null,
-        val publicIp: Map<String, List<Product.NetworkIP>>? = null,
-        val license: Map<String, List<Product.License>>? = null,
-    ) {
-        var productsUnknownToUCloud: Set<Product> = emptySet()
-
-        val allProducts: List<Product>
-            get() =
-                (compute?.values?.toList()?.flatten() ?: emptyList()) +
-                        (storage?.values?.toList()?.flatten() ?: emptyList()) +
-                        (ingress?.values?.toList()?.flatten() ?: emptyList()) +
-                        (publicIp?.values?.toList()?.flatten() ?: emptyList()) +
-                        (license?.values?.toList()?.flatten() ?: emptyList())
-    }
-
     data class FrontendProxy(
         val sharedSecret: String,
         val remote: Host
@@ -268,10 +252,12 @@ data class VerifiedConfig(
 // if additional files exists, making sure hosts are valid and so on. Once this function is done, then the
 // configuration should be valid and no plugins/other code should crash as a result of bad configuration.
 fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig {
-    fun <T : Product> mapProducts(p: Map<String, List<ConfigProduct<T>>>?): Map<String, List<T>> {
-        return p?.mapValues { (categoryName, products) ->
-            products.map { it.toProduct(categoryName, config.core!!.providerId) }
-        } ?: emptyMap()
+    fun <T : ProductV2> mapProducts(p: List<Category>?): Map<String, List<T>> {
+        if (p == null) return emptyMap()
+        return p.associate {
+            @Suppress("UNCHECKED_CAST")
+            it.name to it.coreProducts as List<T>
+        }
     }
 
     run {
@@ -281,6 +267,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 config.core.developmentMode == true
 
         if (config.core == null) missingFile(config, ConfigSchema.FILE_CORE) // Required for all
+        providerId = config.core.providerId
 
         when (mode) {
             ServerMode.FrontendProxy -> {
@@ -433,7 +420,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             cors,
             core.disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy && core.developmentMode == true,
             maintenance,
-            internalBindAddress
+            internalBindAddress,
+            core.experimental,
         )
     }
 
@@ -612,21 +600,6 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)
     }
 
-    val products: VerifiedConfig.Products? = run {
-        if (config.products == null) {
-            null
-        } else {
-            // NOTE(Dan): Products are verified later (against UCloud/Core)
-            VerifiedConfig.Products(
-                mapProducts(config.products.compute),
-                mapProducts(config.products.storage),
-                mapProducts(config.products.ingress),
-                mapProducts(config.products.publicIps),
-                mapProducts(config.products.licenses),
-            )
-        }
-    }
-
     val frontendProxy: VerifiedConfig.FrontendProxy? = run {
         if (config.frontendProxy == null) {
             null
@@ -663,6 +636,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
+    config.products?.allCategories?.forEach { it.init() }
+
     @Suppress("UNCHECKED_CAST") val plugins: VerifiedConfig.Plugins? = run {
         if (config.plugins == null) {
             null
@@ -687,16 +662,9 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 loadPlugin(config.plugins.projects, core.launchRealUserInstances) as ProjectPlugin
             }
 
-            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> =
-                if (config.plugins.allocations == null) {
-                    emptyMap()
-                } else {
-                    val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
-                    for ((productType, cfg) in config.plugins.allocations) {
-                        result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
-                    }
-                    result
-                }
+            val allocations = config.plugins.allocations?.let { cfg ->
+                loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
+            }
 
             @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
@@ -731,7 +699,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             @Suppress("unchecked_cast")
             val ingresses: Map<String, IngressPlugin> = loadProductBasedPlugins(
                 "ingresses",
-                mapProducts(config.products?.ingress),
+                mapProducts(config.products?.publicLinks),
                 config.plugins.ingresses ?: emptyMap(),
                 productReference,
                 pluginReference,
@@ -783,7 +751,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         server,
         plugins,
         config.plugins,
-        products,
+        config.products,
         frontendProxy
     )
 }
@@ -811,7 +779,7 @@ private fun <Cfg : Any> loadPlugin(config: Cfg, realUserMode: Boolean): Plugin<C
 
 private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     type: String,
-    products: Map<String, List<Product>>,
+    products: Map<String, List<ProductV2>>,
     plugins: Map<String, Cfg>,
     productRef: ConfigurationReference,
     pluginRef: ConfigurationReference,
@@ -833,7 +801,7 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
             )
 
             val score = matcher.match(product)
-            if (score == bestScore && score >= 0 && bestMatch != null) {
+            if (score == bestScore && score >= 0) {
                 emitError(
                     "Could not allocate product '$product' to a plugin. Both '$id' and '$bestMatch' " +
                             "target the product with identical specificity. Resolve this conflict by " +

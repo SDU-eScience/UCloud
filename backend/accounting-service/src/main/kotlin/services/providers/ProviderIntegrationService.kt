@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import java.security.cert.CertPathValidatorException
 
 class ProviderIntegrationService(
     private val db: DBContext,
@@ -128,15 +129,15 @@ class ProviderIntegrationService(
                                 accounting.wallet_owner wo on
                                     pm.project_id = wo.project_id and
                                     pm.username = :username join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.product_categories pc on w.category = pc.id join
+                                accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             union
                             select p.resource, p.unique_name
                             from
                                 accounting.wallet_owner wo join
-                                accounting.wallets w on w.owned_by = wo.id join
-                                accounting.product_categories pc on w.category = pc.id join
+                                accounting.wallets_v2 w on w.wallet_owner = wo.id join
+                                accounting.product_categories pc on w.product_category = pc.id join
                                 provider.providers p on pc.provider = p.unique_name
                             where
                                 wo.username = :username
@@ -159,20 +160,25 @@ class ProviderIntegrationService(
             ).rows
 
             val items = rows.mapNotNull { row ->
-                val providerTitle = row.getString(2)!!
-                val manifest = communicationCache.get(row.getLong(0)!!.toString())
+                // TODO(HENRIK): Try catch might only be temp solution to help on dev
+                try {
+                    val providerTitle = row.getString(2)!!
+                    val manifest = communicationCache.get(row.getLong(0)!!.toString())
 
-                IntegrationBrowseResponseItem(
-                    row.getLong(0)!!.toString(),
-                    when {
-                        providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
-                        providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
-                        manifest != null && !manifest.manifest.enabled -> true
-                        else -> row.getBoolean(1)!!
-                    },
-                    providerTitle,
-                    manifest?.manifest?.requiresMessageSigning ?: false
-                )
+                    IntegrationBrowseResponseItem(
+                        row.getLong(0)!!.toString(),
+                        when {
+                            providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                            providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
+                            manifest != null && !manifest.manifest.enabled -> true
+                            else -> row.getBoolean(1)!!
+                        },
+                        providerTitle,
+                        manifest?.manifest?.requiresMessageSigning ?: false
+                    )
+                } catch (ex: Throwable) {
+                    return@mapNotNull null
+                }
             }
 
             val next = if (items.size < itemsPerPage) {

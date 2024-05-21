@@ -15,7 +15,6 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.assertThatInstance
 import dk.sdu.cloud.integration.backend.initializeResourceTestContext
 import dk.sdu.cloud.integration.utils.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
 class FileTest : IntegrationTest() {
@@ -26,7 +25,7 @@ class FileTest : IntegrationTest() {
 
     override fun defineTests() {
         val cases: List<TestCase> = runBlocking {
-            val allProducts = findProducts(findProviderIds())
+            val allProducts = findProducts()
             val productsByProviders = allProducts.groupBy { it.category.provider }
 
             productsByProviders.mapNotNull { (provider, products) ->
@@ -49,7 +48,7 @@ class FileTest : IntegrationTest() {
                     // NOTE(Dan): We don't need to check the products since these endpoints are mandatory.
 
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection) = initializeCollection(
                                 project = project,
@@ -81,7 +80,7 @@ class FileTest : IntegrationTest() {
                 data class DirectoryInput(val subpaths: List<String>)
                 test<DirectoryInput, Unit>("$titlePrefix Test creation of directories") {
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection, _, support) = initializeCollection(
                                 project = project,
@@ -148,7 +147,7 @@ class FileTest : IntegrationTest() {
                 data class DeleteTest(val directoriesToCreate: List<String>, val directoriesToDelete: List<String>)
                 test<DeleteTest, Unit>("$titlePrefix Test deletion of directory") {
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection, _, support) = initializeCollection(
                                 project = project,
@@ -242,7 +241,7 @@ class FileTest : IntegrationTest() {
                 )
                 test<CopyInput, Unit>("$titlePrefix Test copy") {
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection, _, support) = initializeCollection(
                                 project = project,
@@ -355,7 +354,7 @@ class FileTest : IntegrationTest() {
                 )
                 test<MoveInput, Unit>("$titlePrefix Test move") {
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection, _, support) = initializeCollection(
                                 project = project,
@@ -476,7 +475,7 @@ class FileTest : IntegrationTest() {
                 )
                 test<TrashTest, Unit>("$titlePrefix Test trash") {
                     execute {
-                        with(initializeResourceTestContext(case.products, emptyList())) {
+                        with(initializeResourceTestContext(case.products.map { productV1toV2(it) }, emptyList())) {
                             val rpcClient = adminClient.withProject(project)
                             val (collection, _, support) = initializeCollection(
                                 project = project,

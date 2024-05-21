@@ -26,6 +26,12 @@ class FeatureSshKeys(
             return
         }
 
+        val projectOwner = job.owner.project
+        if (projectOwner != null && projectOwner in sensitiveProjects) {
+            k8.addStatus(job.id, "SSH: Failure! This project does not allow SSH servers.")
+            return
+        }
+
         val application = job.status.resolvedApplication!!
         val sshStatus = application.invocation.ssh ?: return
         if (sshStatus.mode == SshDescription.Mode.DISABLED) return

@@ -1,15 +1,14 @@
 import * as React from "react";
-import { useNavigate, useParams} from "react-router";
-import {Box, Markdown, Flex, Text, Link, theme, Button, Input, TextArea, SelectableTextWrapper, SelectableText, ButtonGroup} from "@/ui-components";
+import {useNavigate, useParams} from "react-router";
+import {Box, Markdown, Flex, Text, Link, Button, Input, TextArea, ButtonGroup, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Loading from "@/LoadingIcon/LoadingIcon";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {MainContainer} from "@/MainContainer/MainContainer";
-import {NewsPost} from "@/Dashboard/Dashboard";
-import {Tag, appColor, hashF} from "@/Applications/Card";
-import {format} from "date-fns/esm";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {MainContainer} from "@/ui-components/MainContainer";
+import {Tag} from "@/Applications/Card";
+import {format} from "date-fns";
+import {usePage} from "@/Navigation/Redux";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {DatePicker} from "@/ui-components/DatePicker";
@@ -18,6 +17,9 @@ import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
+import {Toggle} from "@/ui-components/Toggle";
+import {NewsPost} from ".";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -37,7 +39,7 @@ export const DetailedNews: React.FC = () => {
         setParams(getByIdRequest({id}));
     }, [id]);
 
-    useTitle("Post: " + newsPost.data?.title ?? "Detailed News");
+    usePage("Post: " + newsPost.data?.title ?? "Detailed News", SidebarTabId.NONE);
 
     if (newsPost.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
     if (newsPost.data == null) return <MainContainer headerSize={0} main="News post not found" />;
@@ -57,18 +59,15 @@ export const DetailedNews: React.FC = () => {
                         right={isAdmin ?
                             <ButtonGroup width="150px">
                                 <Button onClick={() => setEditing(true)}>Edit</Button>
-                                <Button color="red" onClick={deletePost}>Delete</Button>
+                                <Button color="errorMain" onClick={deletePost}>Delete</Button>
                             </ButtonGroup> : null}
                     />
                     <Heading.h4>{newsPost.data.subtitle}</Heading.h4>
                     <Box>
-                        <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
-                        <Text fontSize={1}><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
+                        <Text><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
+                        <Text><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                         <Link to={`/news/list/${newsPost.data.category}`}>
-                            <Tag
-                                label={newsPost.data.category}
-                                bg={theme.appColors[appColor(hashF(newsPost.data.category))][0]}
-                            />
+                            <Tag label={newsPost.data.category}/>
                         </Link>
                     </Box>
                     <Markdown unwrapDisallowed>
@@ -96,7 +95,7 @@ export const DetailedNews: React.FC = () => {
     }
 };
 
-function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;}): JSX.Element {
+function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;}): React.ReactNode {
     const titleRef = React.useRef<HTMLInputElement>(null);
     const subtitleRef = React.useRef<HTMLInputElement>(null);
     const [body, setBody] = React.useState(props.post.body);
@@ -138,71 +137,73 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
         main={
             <form onSubmit={onSubmit}>
                 <Box m="0 auto" maxWidth="1200px">
-                    <Spacer
-                        left={
-                            <Flex>
-                                <Text fontSize={5}>Title: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.title} ref={titleRef} fontSize={5} />
-                            </Flex>}
-                        right={<Button type="button" onClick={() => props.stopEditing(false)} color="red">Cancel</Button>}
-                    />
-                    <Flex><Text fontSize={3}>Subtitle: </Text><Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} ref={subtitleRef} fontSize={3} /></Flex>
+                    <Spacer mb="12px" left={null} right={
+                        <Button type="button" onClick={() => props.stopEditing(false)} color="errorMain">Cancel</Button>
+                    } />
+                    <Label>
+                        Title
+                        <Input pt={0} pb={0} noBorder defaultValue={props.post.title} inputRef={titleRef} />
+                    </Label>
+                    <Label>
+                        Subtitle
+                        <Input pt={0} pb={0} noBorder defaultValue={props.post.subtitle} inputRef={subtitleRef} />
+                    </Label>
                     <Box>
-                        <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
-                        <Text fontSize={1}>
-                            <Flex>
-                                <Text fontSize="18px">Visible from </Text><DatePicker
-                                    placeholderText="Show from"
-                                    fontSize="18px"
-                                    selected={showFrom}
-                                    dateFormat={DATE_FORMAT}
-                                    onChange={(d: Date) => setShowFrom(d)}
-                                    minDate={new Date()}
-                                    py={0}
-                                    selectsStart
-                                    required
-                                    showTimeSelect
-                                    endDate={hideFrom != null ? new Date(hideFrom) : null}
-                                />
-                            </Flex>
-                        </Text>
-                        <Text fontSize={1}>
-                            <Flex>
-                                <Text fontSize="18px">Hidden from </Text><DatePicker
-                                    placeholderText="Hide from"
-                                    fontSize="18px"
-                                    selected={hideFrom}
-                                    py={0}
-                                    isClearable
-                                    dateFormat={DATE_FORMAT}
-                                    onChange={(d: Date | null) => setHideFrom(d)}
-                                    minDate={showFrom}
-                                    selectsEnd
-                                    showTimeSelect
-                                    startDate={showFrom}
-                                />
-                            </Flex>
-                        </Text>
+                        <Text my="8px"><Flex>By: <Text mx="6px" bold>{props.post.postedBy}</Text></Flex></Text>
+                        <Label>
+                            Visible from
+                            <DatePicker
+                                placeholderText="Show from"
+                                selected={showFrom}
+                                dateFormat={DATE_FORMAT}
+                                onChange={d => setShowFrom(d as Date)}
+                                minDate={new Date()}
+                                py={0}
+                                selectsStart
+                                required
+                                showTimeSelect
+                                endDate={hideFrom != null ? new Date(hideFrom) : null}
+                            />
+                        </Label>
+                        <Label>
+                            Hidden from
+                            <DatePicker
+                                placeholderText="Hide from"
+                                selected={hideFrom}
+                                py={0}
+                                isClearable
+                                dateFormat={DATE_FORMAT}
+                                onChange={d => setHideFrom(d as (Date | null))}
+                                minDate={showFrom}
+                                selectsEnd
+                                showTimeSelect
+                                startDate={showFrom}
+                            />
+                        </Label>
                         <Input
-                            width={1}
+                            width={"100%"}
                             autoComplete="off"
                             onKeyUp={onKeyUp}
                             defaultValue={props.post.category}
                             my="3px"
                             placeholder="Category"
                             required
-                            ref={categoryRef}
+                            inputRef={categoryRef}
                         />
                         <Categories categories={results} onSelect={category => {
                             categoryRef.current!.value = category;
                             setResults([]);
                         }} />
                     </Box>
-                    <SelectableTextWrapper>
-                        <SelectableText onClick={() => setPreview(false)} selected={preview === false}>Edit</SelectableText>
-                        <SelectableText ml="1em" onClick={() => setPreview(true)} selected={preview}> Preview</SelectableText>
-                    </SelectableTextWrapper>
+                    <Flex my="12px">
+                        <Toggle
+                            checked={preview}
+                            onChange={() => setPreview(p => !p)}
+                        />
+                        <Text fontSize="16px" ml="12px">Preview post</Text>
+                    </Flex>
                     {preview ? <Markdown unwrapDisallowed>{body}</Markdown> :
-                        <TextArea style={{marginTop: "6px", marginBottom: "6px",  resize: "vertical"}} width={1} rows={5} value={body} onChange={e => setBody(e.target.value)} />}
+                        <TextArea my="6px" resize="vertical" width={1} rows={12} value={body} onChange={e => setBody(e.target.value)} />}
                     <Box mt="auto" />
                     <Button fullWidth>Update post</Button>
                 </Box>

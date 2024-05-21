@@ -10,11 +10,12 @@ import kotlinx.serialization.json.JsonNull
 import java.io.File
 
 class DebugSystemFeature : MicroFeature {
-    private var developmentMode: Boolean = false
+    private var enabled: Boolean = false
     lateinit var system: DebugSystem
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        developmentMode = ctx.developmentModeEnabled
+        enabled = ctx.developmentModeEnabled
+        enabled = ctx.configuration.requestChunkAtOrNull<Boolean>("debugEnabled") ?: enabled
         var logLocation = "."
         val potentialDirectories = listOf("/var/log/ucloud/structured", "/tmp", "./")
         for (loc in potentialDirectories) {
@@ -35,7 +36,7 @@ class DebugSystemFeature : MicroFeature {
             break
         }
 
-        system = DebugSystem(logLocation, serviceDescription.name, enabled = ctx.developmentModeEnabled)
+        system = DebugSystem(logLocation, serviceDescription.name, enabled = enabled)
         system.start(ctx.backgroundScope)
 
         if (ctx.featureOrNull(ClientFeature) != null) {

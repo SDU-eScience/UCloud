@@ -1,20 +1,21 @@
 import * as React from "react";
 import {useCallback} from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {Flex, Card} from "@/ui-components";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import styled from "styled-components";
+import {Flex} from "@/ui-components";
+import {classConcat, injectStyle} from "@/Unstyled";
+import Card, {CardClass} from "@/ui-components/Card";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface NotificationProps {
     icon: IconName;
     title: string;
-    body: JSX.Element | string;
+    body: React.ReactNode;
     isPinned: boolean;
     uniqueId: string;
     read?: boolean;
     ts?: number;
-    iconColor?: string;
-    iconColor2?: string;
+    iconColor?: ThemeColor;
+    iconColor2?: ThemeColor;
     onAction?: () => void;
 }
 
@@ -40,24 +41,19 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         }
     }, [props.callbackItem, props.onSnooze, props.isPinned]);
 
-    return <Style
+    return <div
+        className={classConcat(Style, props.exit ? "exit" : undefined)}
         style={{position: "fixed", top: props.top, right: "16px"}}
-        className={props.exit ? "exit" : undefined}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <HighlightedCard
-            color={props.isPinned ? "orange" : "blue"}
-            highlightSize="2px"
-            innerPaddingX="10px"
-            innerPaddingY="6px"
-        >
+        <Card backgroundColor={`${props.isPinned ? "var(--warningMain)" : "var(--backgroundDefault)" }`}>
             <div className="notification-inner">
                 <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
-                      color2={props.iconColor2 ?? "iconColor2"} />
+                    color2={props.iconColor2 ?? "iconColor2"} />
                 <div className="notification-content">
-                    <Flex>
+                    <Flex pr="20px">
                         <h3>{props.title}</h3>
                         <div className={props.isPinned ? "snooze" : "time"} onClick={onSnooze}>
                             {props.isPinned ? "Snooze" : "Now"}
@@ -67,64 +63,67 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                     <div className="notification-body">{props.body}</div>
                 </div>
             </div>
-        </HighlightedCard>
-    </Style>;
+        </Card>
+    </div>;
 };
 
-const Style = styled.div`
-    cursor: pointer;
-    animation: 0.5s ease-in notification-enter;
-    width: 450px;
-    z-index: 10;
-    color: var(--black);
+const Style = injectStyle("notification", k => `
+    ${k} {
+        cursor: pointer;
+        animation: 0.5s ease-in notification-enter;
+        width: 450px;
+        z-index: 1;
+        color: var(--textPrimary);
+    }
 
-    &.exit {
+    ${k}.exit {
         animation: 0.5s ease-in notification-exit;
     }
 
-    ${Card} {
-        background: var(--white);
-    }
-
-    .notification-inner {
+    ${k} .notification-inner {
         display: flex;
         gap: 10px;
         align-items: center;
-        background: var(--white);
+        // background: var(--backgroundCard);
+    }
 
-        h3 {
-            margin: 0;
-            font-size: 18px;
-            flex-grow: 1;
+    ${k} .notification-inner h3 {
+        margin: 0;
+        font-size: 18px;
+        flex-grow: 1;
 
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
-            width: 330px;
-        }
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        width: 330px;
+    }
+    
+    ${k} > .${CardClass} {
+        padding: 12px;
+        border-radius: 8px;
+    }
 
-        .notification-body {
+    ${k} .notification-inner .notification-body {
+        font-size: 12px;
+        margin-bottom: 5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        width: calc(450px - 30px - 32px);
+        margin-top: -3px;
+    }
+
+    ${k} .notification-inner .snooze, ${k} .notification-inner .time {
             font-size: 12px;
-            margin-bottom: 5px;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            overflow: hidden;
-            width: calc(450px - 30px - 32px);
-            margin-top: -3px;
         }
 
-        .snooze, .time {
-            font-size: 12px;
-        }
+    ${k} .notification-inner a, ${k} .notification-inner .snooze {
+        color: var(--primary);
+        cursor: pointer;
+    }
 
-        a, .snooze {
-            color: var(--blue);
-            cursor: pointer;
-        }
-
-        .time {
-            color: var(--midGray);
-        }
+    ${k} .notification-inner .time {
+        color: var(--midGray);
     }
 
     @keyframes notification-enter {
@@ -146,5 +145,5 @@ const Style = styled.div`
             transform: translate(500px, 0);
         }
     }
-`;
+`);
 

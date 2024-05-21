@@ -1,27 +1,25 @@
 import * as React from "react";
 import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PageV2} from "@/UCloud";
-import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
-import {APIError, InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
 import * as Pagination from "@/Pagination";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
-import {displayErrorMessageOrDefault, doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
+import {doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
 import {NavigateFunction, useNavigate} from "react-router";
 import {Box, List} from "@/ui-components/index";
-import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useLoading, usePage} from "@/Navigation/Redux";
 import {StickyBox} from "@/ui-components/StickyBox";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "./MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
-import {SmallScreenSearchField} from "@/Navigation/Header";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "./SidebarComponents";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -30,7 +28,6 @@ interface BrowseProps<T> {
     onLoad?: (newItems: T[]) => void;
 
     isSearch?: boolean;
-    browseType?: BrowseType;
     loadingRef?: React.MutableRefObject<boolean>;
     reloadRef?: React.MutableRefObject<() => void>;
     onReload?: () => void;
@@ -40,14 +37,14 @@ interface BrowseProps<T> {
     pageSizeRef?: React.MutableRefObject<number>;
 }
 
-export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
+function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): React.ReactNode {
     const hasPreloadedResources = !!props.preloadedResources;
-    const [remoteResources, setRemoteResources] = useState<PageV2<T>>(emptyPageV2);
+    const [remoteResources, setRemoteResources] = useState<PageV2<T>>({items: [], itemsPerPage: 0});
     const [error, setError] = useState<string | undefined>(undefined)
     const [loading, invokeCommand] = useCloudCommand();
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() =>
-        hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources,
+        hasPreloadedResources ? {items: props.preloadedResources!, itemsPerPage: 250} : remoteResources,
         [props.preloadedResources, remoteResources]);
 
     useEffect(() => {
@@ -67,7 +64,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
         try {
             const result = await invokeCommand<PageV2<T>>(
                 props.generateCall(),
-                { defaultErrorHandler: false }
+                {defaultErrorHandler: false}
             );
             if (result != null) {
                 setInfScroll(prev => prev + 1);
@@ -88,7 +85,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
             try {
                 const result = await invokeCommand<PageV2<T>>(
                     props.generateCall(resources.next),
-                    { defaultErrorHandler: false }
+                    {defaultErrorHandler: false}
                 );
 
                 if (result != null) setRemoteResources(result);
@@ -100,16 +97,17 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 
     if (props.toggleSet) props.toggleSet.allItems.current = resources.items;
 
-    useEffect(() => { reload().then(doNothing).catch(doNothing) }, [reload]);
+    useEffect(() => {
+        reload().then(doNothing).catch(doNothing)
+    }, [reload]);
 
     if (props.setRefreshFunction !== false) {
-        useRefreshFunction(reload);
+        useSetRefreshFunction(reload);
     }
 
     if (props.hide === true) return null;
 
     return <>
-        {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
             onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], {hasNext: false})} error={error}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
@@ -143,7 +141,7 @@ interface ItemRowProps<T, CB> {
 
 export const ItemRow = <T, CB>(
     props: React.PropsWithChildren<ItemRowProps<T, CB>>
-): JSX.Element | null => {
+): React.ReactNode => {
     const renderer = props.renderer;
     const renameInputRef = useRef<HTMLInputElement>(null);
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
@@ -151,7 +149,7 @@ export const ItemRow = <T, CB>(
     const onRename = useCallback(async () => {
         if (props.renaming && renameInputRef.current && props.item) {
             const text = renameInputRef.current.value;
-            await props.renaming.onRename(props.item, text);
+            props.renaming.onRename(props.item, text);
             props.renaming.onRenameCancel();
         }
     }, [props.item, props.renaming]);
@@ -170,27 +168,31 @@ export const ItemRow = <T, CB>(
     return <ListRow
         disableSelection={props.disableSelection}
         onContextMenu={onContextMenu}
-        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} callbacks={props.callbacks} /> : null}
+        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType}
+            callbacks={props.callbacks} /> : null}
         highlight={props.highlight}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
                     inputRef={renameInputRef} onSubmit={onRename}
                     defaultValue={renameValue} /> :
-                renderer.MainTitle ? <renderer.MainTitle browseType={props.browseType} resource={props.item} callbacks={props.callbacks} /> : null
+                renderer.MainTitle ? <renderer.MainTitle browseType={props.browseType} resource={props.item}
+                    callbacks={props.callbacks} /> : null
         }
         isSelected={props.item && props.toggleSet.checked.has(props.item)}
         select={() => props.item ? props.toggleSet.toggle(props.item) : 0}
         navigate={props.navigate && props.item ? () => props.navigate?.(props.item!) : undefined}
         leftSub={
             <ListStatContainer>
-                {renderer.Stats ? <renderer.Stats browseType={props.browseType} resource={props.item} callbacks={props.callbacks} /> : null}
+                {renderer.Stats ? <renderer.Stats browseType={props.browseType} resource={props.item}
+                    callbacks={props.callbacks} /> : null}
             </ListStatContainer>
         }
         right={
             <>
                 {renderer.ImportantStats ?
-                    <renderer.ImportantStats resource={props.item} browseType={props.browseType} callbacks={props.callbacks} /> : null}
+                    <renderer.ImportantStats resource={props.item} browseType={props.browseType}
+                        callbacks={props.callbacks} /> : null}
                 {props.item ?
                     <Operations
                         selected={props.toggleSet.checked.items}
@@ -208,42 +210,12 @@ export const ItemRow = <T, CB>(
     />;
 }
 
-export const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
-
 interface RenamingState<T> {
     setRenaming: (item: T) => void;
     isRenaming: (item: T) => boolean;
     renameValue: (item: T) => string;
     onRename: (item: T, text: string) => void;
     onRenameCancel: () => void;
-}
-
-export function useRenamingState<T>(
-    nameExtractor: (item: T) => string,
-    nameExtractorDeps: DependencyList,
-    eqFn: (a: T, b: T) => boolean,
-    eqFnDeps: DependencyList,
-    onRename: (item: T, text: string) => Promise<void>,
-    onRenameDeps: DependencyList,
-): RenamingState<T> {
-    const memoOnRename = useMemo(() => onRename, onRenameDeps);
-    const memoNameExtractor = useMemo(() => nameExtractor, nameExtractorDeps);
-    const memoEqFn = useMemo(() => eqFn, eqFnDeps);
-    const [renaming, setRenaming] = useState<T | null>(null);
-    const isRenaming = useCallback((item: T): boolean => {
-        return renaming !== null && memoEqFn(renaming, item);
-    }, [memoEqFn, renaming]);
-    const onRenameCancel = useCallback(() => {
-        setRenaming(null);
-    }, [setRenaming]);
-
-    return useMemo((): RenamingState<T> => ({
-        setRenaming,
-        isRenaming,
-        renameValue: memoNameExtractor,
-        onRename: memoOnRename,
-        onRenameCancel
-    }), [isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
 }
 
 export interface StandardCallbacks<T = any> {
@@ -266,10 +238,10 @@ interface StandardListBrowse<T, CB> {
     embedded?: boolean | "inline" | "dialog";
     onSelect?: (item: T) => void;
     onSelectRestriction?: (item: T) => boolean;
-    emptyPage?: JSX.Element;
-    sidebarPage?: SidebarPages;
+    emptyPage?: React.ReactNode;
     extraCallbacks?: CB;
     hide?: boolean;
+    page: SidebarTabId;
     navigate?: (item: T) => void;
     header?: React.ReactNode;
     headerSize?: number;
@@ -277,7 +249,7 @@ interface StandardListBrowse<T, CB> {
 
 export function StandardList<T, CB = EmptyObject>(
     props: React.PropsWithChildren<StandardListBrowse<T, CB>>
-): JSX.Element | null {
+): React.ReactNode {
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
     const toggleSet = useToggleSet<T>([]);
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
@@ -308,11 +280,11 @@ export function StandardList<T, CB = EmptyObject>(
         ops.push({
             text: "Use",
             primary: true,
-            canAppearInLocation: loc => loc !== "SIDEBAR",
             enabled: (selected, cb) => cb.onSelect !== undefined && selected.length === 1,
             onClick: (selected, cb) => {
                 cb.onSelect?.(selected[0]);
-            }
+            },
+            shortcut: ShortcutKey.Enter,
         });
         return ops;
     }, [props.operations]);
@@ -352,15 +324,14 @@ export function StandardList<T, CB = EmptyObject>(
     );
 
     if (isMainContainer) {
-        useTitle(titlePlural);
+        usePage(titlePlural, props.page);
         useLoading(commandLoading || loadingRef.current);
-        useSidebarPage(props.sidebarPage ?? SidebarPages.None);
     }
 
 
     if (isInDialog) {
-        return <Box ref={scrollingContainerRef}>
-            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX="20px">
+        return <Box divRef={scrollingContainerRef}>
+            <StickyBox shadow={!scrollStatus.isAtTheTop}>
                 <Operations selected={toggleSet.checked.items} location="TOPBAR"
                     entityNameSingular={props.title} entityNamePlural={titlePlural}
                     extra={callbacks} operations={allOperations} />
@@ -378,12 +349,12 @@ export function StandardList<T, CB = EmptyObject>(
         return <MainContainer
             header={props.header}
             headerSize={props.headerSize}
-            main={main}
-            sidebar={
-                <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
+            main={<>
+                <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
                     entityNameSingular={props.title} entityNamePlural={titlePlural}
                     extra={callbacks} operations={allOperations} />
-            }
+                {main}
+            </>}
         />;
     }
 }

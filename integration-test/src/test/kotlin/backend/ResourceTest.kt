@@ -3,6 +3,7 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
@@ -83,7 +84,7 @@ open class ResourceUsageTestContext(
 }
 
 suspend fun initializeResourceTestContext(
-    products: List<Product>,
+    products: List<ProductV2>,
     groups: List<String>,
 ): ResourceUsageTestContext {
     val (adminClient, adminUsername) = createUser()
@@ -92,7 +93,7 @@ suspend fun initializeResourceTestContext(
 
     val providers = products.map { it.category.provider }.toSet()
 
-    val root = initializeRootProject(providers)
+    val root = initializeRootProject(retrieveProviderProjectId())
     val ourProject = initializeNormalProject(root)
     val (piClient, piUsername, project) = ourProject
     addMemberToProject(project, piClient, adminClient, adminUsername, ProjectRole.ADMIN)
@@ -172,7 +173,10 @@ fun <Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : 
             execute {
                 initialization()
 
-                val context = initializeResourceTestContext(products, input.groups)
+                val v2products = products.map {
+                    productV1toV2(it)
+                }
+                val context = initializeResourceTestContext(v2products, input.groups)
                 with(context) {
                     val clientForRpc = when (input.creator) {
                         UserType.PI -> piClient

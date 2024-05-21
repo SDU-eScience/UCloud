@@ -3,30 +3,32 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "@/ui-components";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Relative} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {TextSpan} from "@/ui-components/Text";
+import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router";
-import wayfLogo from "@/Assets/Images/WAYFLogo.svg";
-import ucloudBlue from "@/Assets/Images/ucloud-blue.svg";
-import deicBackground from "@/Assets/Images/deic-cloud.svg";
+import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
+import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
+import deicBackground from "@/Assets/Images/deic-cloud.svg?url";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {InputProps} from "@/ui-components/Input";
+import {ButtonProps} from "@/ui-components/Button";
 import {Feature, hasFeature} from "@/Features";
 
-const BackgroundImage = styled.div<{image: string}>`
-    background: url(${({image}) => image}) no-repeat center;
+const BackgroundImage = injectStyleSimple("background-image", `
+    background: url(${deicBackground}) no-repeat center;
     background-size: calc(3000px + 80vw);
+    color: black;
     overflow: hidden;
-`;
+`);
 
 export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
-const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
@@ -238,14 +240,14 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     return (
         <LoginWrapper>
-            <LoginIcon mx="auto" name={"deiCLogo"} size="180px" />
+            <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
             <Text mx="auto" py="30px" color="#000" fontSize={32}>Integration Portal</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" style={{borderRadius: "16px"}} height={"92px"} disabled={loading} fullWidth color="wayfGreen">
+                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color="wayfGreen">
                             <Image color="#fff" width="100px" src={wayfLogo} />
-                            <LoginTextSpan fontSize={2} ml="2.5em">Login</LoginTextSpan>
+                            <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
                     {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
@@ -286,7 +288,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                         placeholder="Email address"
                                         name="email"
                                         type="email"
-                                        ref={resetEmailInput}
+                                        inputRef={resetEmailInput}
                                         autoFocus
                                         required
                                     />
@@ -316,14 +318,14 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                             mb={10}
                                             type="password"
                                             placeholder="New password"
-                                            ref={resetPasswordInput}
+                                            inputRef={resetPasswordInput}
                                             autoFocus
                                         />
 
                                         <LoginInput
                                             type="password"
                                             placeholder="Repeat new password"
-                                            ref={resetPasswordRepeatInput}
+                                            inputRef={resetPasswordRepeatInput}
                                         />
                                         <LoginButton
                                             fullWidth
@@ -357,10 +359,10 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            <Box mx="auto" mt="auto" width="280px"><img src={ucloudBlue} /> </Box>
-            <Flex height="60px" backgroundColor="#cecfd1">
+            <Box mx="auto" mt="auto" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box>
+            <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
                 <Text color="#000" mx="auto" my="auto" fontSize={12}>
-                    Delivered by the Danish e-Infrastrucure Consortium
+                    Delivered by the Danish e-Infrastructure Consortium
                 </Text>
             </Flex>
         </LoginWrapper >
@@ -374,7 +376,7 @@ interface TwoFactorProps {
 
 const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}) => enabled2fa ? (
     <LoginInput
-        ref={inputRef}
+        inputRef={inputRef}
         autoComplete="off"
         autoFocus
         type="text"
@@ -384,78 +386,112 @@ const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRe
     />
 ) : null;
 
+const BorderRadiusButton = injectStyleSimple("border-radius", `
+    border-radius: 16px;
+`)
+
 interface LoginProps {
     enabled2fa: boolean;
     usernameRef: React.RefObject<HTMLInputElement>;
     passwordRef: React.RefObject<HTMLInputElement>;
 }
 
-const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
+const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactNode => !enabled2fa ? (
     <>
         <LoginInput type="hidden" value="web-csrf" name="service" />
         <LoginInput
-            ref={usernameRef}
+            inputRef={usernameRef}
             autoFocus
             type="text"
             name="username"
             id="username"
             placeholder="Username"
         />
-        <LoginInput ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
+        <LoginInput inputRef={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
 
-const LoginExternalLink = styled(ExternalLink)`
+//ExternalLink
+const LoginExternalLinkClass = injectStyleSimple("login-external-link", `
     color: white;
-`;
+`);
 
-const LoginTextSpan = styled(TextSpan)`
+
+//TextSpan
+const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
-`;
+`);
 
-const DropdownLike = styled.div`
+function DropdownLike({children}): React.ReactNode {
+    return <div className={DropdownLikeClass}>
+        {children}
+    </div>
+}
+
+const DropdownLikeClass = injectStyleSimple("dropdown-like", `
     border-radius: 16px;
     background-color: #c8dd51;
     color: black;
     width: 315px;
     padding: 16px 16px;
-`;
+`);
 
-const LoginInput = styled(Input)`
-    margin-bottom: 0.5em;
-    border-color: gray;
-    background-color: white;
-    color: black;
+function LoginInput(props: InputProps): React.ReactNode {
+    return <Input {...props} className={LoginInputClass} />
+}
 
-    &:focus {
+const LoginInputClass = injectStyle("login-input", k => `
+    ${k} {
+        margin-bottom: 0.5em;
+        border-color: gray;
+        background-color: white;
+        color: black;
+    }
+    
+    ${k}::placeholder {
+        color: gray;
+    }
+
+    ${k}:focus {
         background-color: white;
     }
-`;
+`);
 
-const LoginIcon = styled(Icon)`
+const LoginIconClass = injectStyle("login-icon", k => `
+    ${k} {
+        color: black;
+    }
+
+    ${k}:hover {
+        color: black;
+    }
+`);
+
+function LoginButton(props: ButtonProps): React.ReactNode {
+    return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
+}
+
+function BlackLoginText(props: React.PropsWithChildren<TextProps>): React.ReactNode {
+    return <Text className={BlackLoginTextClass} {...props} />
+}
+
+const BlackLoginTextClass = injectStyleSimple("black-login-text", `
     color: black;
-`;
+    font-size: var(--interactiveElementsSize);
+`);
 
-const LoginButton = styled(Button)`
-    background-color: white;
-    color: black;
-`;
-
-const BlackLoginText = styled(Text)`
-    color: black;
-`;
-
-function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
-    return (<Box backgroundColor="#fff" height="100vh">
+function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): React.ReactNode {
+    return (<Box backgroundColor="#fff">
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
                 {!SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
                         width="238px"
-                        top="36px"
+                        top="0"
+                        left="-248px"
                         right="5px"
                         colorOnHover={false}
-                        trigger={<LoginIcon mr={"1em"} name="suggestion" />}
+                        trigger={<Relative><Icon color="fixedBlack" color2="fixedBlack" mr={"1em"} name="suggestion" /></Relative>}
                     >
                         <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
                             Need help?
@@ -464,17 +500,17 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
                     </ClickableDropdown>
                 )}
                 {!SITE_DOCUMENTATION_URL ? null : (
-                    <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
-                        <LoginIcon name="docs" /> <TextSpan color="#000">Docs</TextSpan>
-                    </LoginExternalLink>
+                    <ExternalLink className={LoginExternalLinkClass} href={SITE_DOCUMENTATION_URL}>
+                        <Icon color="fixedBlack" color2="fixedBlack" name="docs" /> <TextSpan color="#000">Docs</TextSpan>
+                    </ExternalLink>
                 )}
             </div> : null}
         </Absolute>
-        <BackgroundImage image={deicBackground}>
-            <Flex mx="auto" flexDirection={"column"} height="100vh" minHeight={"650px"}>
+        <div className={BackgroundImage}>
+            <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
                 {props.children}
             </Flex>
-        </BackgroundImage>
+        </div>
     </Box >);
 }
 
@@ -492,7 +528,7 @@ const IdpList: React.FunctionComponent = () => {
             const textResponse = await fetch("/auth/browseIdentityProviders").then(it => it.text());
             const parsed = JSON.parse(textResponse);
             if ("responses" in parsed) {
-                const providers = (parsed as { responses: IdentityProvider[] }).responses;
+                const providers = (parsed as {responses: IdentityProvider[]}).responses;
                 setIdps(providers);
             }
         })();
@@ -512,8 +548,8 @@ const IdpList: React.FunctionComponent = () => {
             }
 
             return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
-                <Button style={{borderRadius: "16px"}} fullWidth color="wayfGreen">
-                    Sign in with {title}
+                <Button borderRadius="16px" fullWidth color="wayfGreen">
+                    <Text color="fixedWhite">Sign in with {title}</Text>
                 </Button>
             </a>
         })

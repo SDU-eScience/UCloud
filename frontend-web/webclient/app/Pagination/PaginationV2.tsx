@@ -21,7 +21,7 @@ interface ListV2Props<T> {
     dataIsStatic?: boolean;
 }
 
-export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element {
+export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): React.ReactNode {
     // eslint-disable-next-line
     const [allItems, setAllItems] = useState<T[]>(props.page.items);
 

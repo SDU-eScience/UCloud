@@ -4,8 +4,139 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
-Note that each service may have more than one deployment associated with it.
-For details look in the `k8.kts` folders of each microservice.
+## 21-05-24
+
+```
+Type 1/SDU @ 2024.1.14
+UCloud/Frontend @ 2024.1.14
+UCloud/Core @ 2024.1.14
+AAU/K8 @ 2024.1.14
+```
+
+## 17-05-24
+
+```
+UCloud/Frontend @ 2024.1.12
+```
+
+## 16-05-24
+
+```
+Type 1/SDU @ 2024.1.11
+Type 3/SDU @ 2024.1.11
+AAU/K8 @ 2024.1.9
+UCloud/Frontend @ 2024.1.11
+UCloud/Core @ 2024.1.11
+```
+
+
+
+## 15-05-24
+
+```
+Type 1/SDU @ 2024.1.8
+Type 3/SDU @ 2024.1.8
+AAU/K8 @ 2024.1.8
+UCloud/Frontend @ 2024.1.1
+UCloud/Core @ 2024.1.8
+```
+
+## 14-05-24
+
+```
+Type 1/SDU @ 2024.1.0
+Type 3/SDU @ 2024.1.0
+AAU/K8 @ 2024.1.0
+UCloud/Frontend @ 2024.1.0
+UCloud/Core @ 2024.1.0
+```
+
+## 05-03-24
+
+```
+Type 1/SDU @ 2023.4.13
+```
+
+## 20-02-24
+
+```
+UCloud/Frontend @ 2023.4.12
+Type 1/SDU @ 2023.4.12
+```
+
+## 19-02-24
+
+```
+UCloud/Core @ 2023.4.10
+```
+
+## 13-02-24
+
+```
+UCloud/Core @ 2023.4.8
+```
+
+## 19-12-23
+
+```
+UCloud/Core @ 2023.4.2
+```
+
+## 18-12-23
+
+```
+UCloud/Core @ 2023.4.2
+Type 1/SDU @ 2023.4.4
+```
+
+## 08-12-23
+
+```
+UCloud/Frontend @ 2023.4.2
+```
+
+
+## 05-12-23
+
+```
+UCloud/Core @ 2023.4.2
+UCloud/Frontend @ 2023.4.1
+Type 1/SDU Provider @ 2023.4.1
+```
+
+## 04-12-23
+
+```
+UCloud/Core @ 2023.4.0
+```
+
+## 23-10-23
+
+```
+Type 1/SDU Provider @ 2023.3.9
+```
+
+## 05-09-23
+
+```
+Type 3/SDU Provider @ 2023.3.8
+UCloud/Core @ 2023.3.8
+```
+
+
+
+## 24-08-23
+
+```
+Type 1/SDU Provider @ 2023.3.7
+```
+
+## 26-07-23
+
+```
+UCloud/Accounting-service @ 2023.3.5
+UCloud/Frontend @ 2023.3.5
+```
 
 ## 03-07-23
 

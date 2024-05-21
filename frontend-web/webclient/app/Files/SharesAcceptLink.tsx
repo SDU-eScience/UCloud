@@ -1,11 +1,10 @@
 import {useCloudAPI} from "@/Authentication/DataHook";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {RetrieveLinkResponse, Share, shareLinksApi} from "@/UCloud/SharesApi";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as Heading from "@/ui-components/Heading";
-import React, {useEffect} from "react";
+import React, {PropsWithChildren, useEffect} from "react";
 import {useNavigate, useParams} from "react-router";
-import styled from "styled-components";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {Box, Button} from "@/ui-components";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -60,7 +59,7 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
                 <Heading.h3><strong>{linkInfo.data?.sharedBy}</strong> wants to share folder <strong>{linkInfo.data?.path.split("/").pop()}</strong> with you</Heading.h3>
                 <Box mt="15px">
                     <Button
-                        color="green"
+                        color="successMain"
                         mr="10px"
                         onClick={() => {
                             if (token) {
@@ -68,16 +67,17 @@ export const SharesAcceptLink: React.FunctionComponent = () => {
                             }
                         }}
                     >See files</Button>
-                    <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
+                    <Button color="errorMain" onClick={() => navigate("/")}>Ignore</Button>
                 </Box>
             </AcceptProjectLinkContainer>
         }
     />;
 }
 
-const AcceptProjectLinkContainer = styled.div`
-    text-align: center;
-    margin-top: 50px;
-`;
+function AcceptProjectLinkContainer(props: PropsWithChildren): React.ReactNode {
+    return <Box  textAlign="center" mt="50px">
+        {props.children}
+    </Box>
+}
 
 export default SharesAcceptLink;

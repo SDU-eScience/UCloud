@@ -2,7 +2,9 @@
 /* AUTO GENERATED CODE - DO NOT MODIFY */
 /* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
+import {ProductV2} from "@/Accounting";
 import {buildQueryString} from "@/Utilities/URIUtilities";
+import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
 
 /**
  * A generic error message
@@ -184,7 +186,6 @@ export interface FileMetadataDocument {
      */
     owner: provider.ResourceOwner,
     acl?: any /* unknown */,
-    billing: provider.ResourceBillingNS.Free,
     permissions?: provider.ResourcePermissions,
     providerGeneratedId?: string,
     type: ("metadata"),
@@ -487,12 +488,12 @@ export interface FilesCreateDownloadRequestItem {
 }
 export interface FilesCreateUploadResponseItem {
     endpoint: string,
-    protocol: ("CHUNKED"),
+    protocol: ("CHUNKED" | "WEBSOCKET"),
     token: string,
 }
 export interface FilesCreateUploadRequestItem {
     path: string,
-    supportedProtocols: ("CHUNKED")[],
+    supportedProtocols: ("CHUNKED"|"WEBSOCKET")[],
     conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateFolderRequestItem {
@@ -1534,9 +1535,16 @@ export interface JobSpecification {
      */
     resolvedSupport?: ComputeSupport,
 }
-export interface NameAndVersion {
-    name: string,
-    version: string,
+export interface ComputeSupport {
+    /**
+     * Support for `Tool`s using the `DOCKER` backend
+     */
+    docker: ComputeSupportNS.Docker,
+    native: ComputeSupportNS.Docker,
+    /**
+     * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+     */
+    virtualMachine: ComputeSupportNS.VirtualMachine,
 }
 /**
  * An `AppParameterValue` is value which is supplied to a parameter of an `Application`.
@@ -1559,118 +1567,7 @@ export interface SimpleDuration {
     minutes: number /* int32 */,
     seconds: number /* int32 */,
 }
-export interface Application {
-    metadata: ApplicationMetadata,
-    invocation: ApplicationInvocationDescription,
-}
-export interface ApplicationMetadata {
-    name: string,
-    version: string,
-    authors: string[],
-    title: string,
-    description: string,
-    website?: string,
-    public: boolean,
-}
-export interface ApplicationInvocationDescription {
-    tool: ToolReference,
-    invocation: InvocationParameter[],
-    parameters: ApplicationParameter[],
-    outputFileGlobs: string[],
-    applicationType: ("BATCH" | "VNC" | "WEB"),
-    vnc?: VncDescription,
-    web?: WebDescription,
-    ssh?: SshDescription,
-    container?: ContainerDescription,
-    environment?: Record<string, InvocationParameter>,
-    allowAdditionalMounts?: boolean,
-    allowAdditionalPeers?: boolean,
-    allowPublicLink?: boolean,
-    allowMultiNode: boolean,
-    allowPublicIp: boolean,
-    fileExtensions: string[],
-    licenseServers: string[],
-    // shouldAllowAdditionalMounts: boolean,
-    // shouldAllowAdditionalPeers: boolean,
-}
-export interface ToolReference {
-    name: string,
-    version: string,
-    tool?: Tool,
-}
-export interface Tool {
-    owner: string,
-    createdAt: number /* int64 */,
-    modifiedAt: number /* int64 */,
-    description: NormalizedToolDescription,
-}
-export interface NormalizedToolDescription {
-    info: NameAndVersion,
-    container?: string,
-    defaultNumberOfNodes: number /* int32 */,
-    defaultTimeAllocation: SimpleDuration,
-    requiredModules: string[],
-    authors: string[],
-    title: string,
-    description: string,
-    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE" | "NATIVE"),
-    license: string,
-    image?: string,
-    supportedProviders?: string[],
-}
-export type InvocationParameter = EnvironmentVariableParameter | WordInvocationParameter | VariableInvocationParameter | BooleanFlagParameter
-export interface EnvironmentVariableParameter {
-    variable: string,
-    type: ("env"),
-}
-export interface WordInvocationParameter {
-    word: string,
-    type: ("word"),
-}
-export interface VariableInvocationParameter {
-    variableNames: string[],
-    prefixGlobal: string,
-    suffixGlobal: string,
-    prefixVariable: string,
-    suffixVariable: string,
-    isPrefixVariablePartOfArg: boolean,
-    isSuffixVariablePartOfArg: boolean,
-    type: ("var"),
-}
-export interface BooleanFlagParameter {
-    variableName: string,
-    flag: string,
-    type: ("bool_flag"),
-}
-export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.TextArea | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
-export interface VncDescription {
-    password?: string,
-    port: number /* int32 */,
-}
-export interface WebDescription {
-    port: number /* int32 */,
-}
 
-export interface SshDescription {
-    mode: "DISABLED" | "OPTIONAL" | "MANDATORY";
-}
-
-export interface ContainerDescription {
-    changeWorkingDirectory: boolean,
-    runAsRoot: boolean,
-    runAsRealUser: boolean,
-}
-export interface ComputeSupport {
-    /**
-     * Support for `Tool`s using the `DOCKER` backend
-     */
-    docker: ComputeSupportNS.Docker,
-    native: ComputeSupportNS.Docker,
-    /**
-     * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
-     */
-    virtualMachine: ComputeSupportNS.VirtualMachine,
-}
 /**
  * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
  *
@@ -2531,140 +2428,7 @@ export interface NetworkIPControlChargeCreditsRequestItem {
      */
     units: number /* int64 */,
 }
-export interface ApplicationWithFavoriteAndTags {
-    metadata: ApplicationMetadata,
-    invocation: ApplicationInvocationDescription,
-    favorite: boolean,
-    tags: string[],
-}
-export interface FindApplicationAndOptionalDependencies {
-    appName: string,
-    appVersion: string,
-}
-export interface HasPermissionRequest {
-    appName: string,
-    appVersion: string,
-    permission: ("LAUNCH")[],
-}
-export interface DetailedEntityWithPermission {
-    entity: DetailedAccessEntity,
-    permission: ("LAUNCH"),
-}
-export interface DetailedAccessEntity {
-    user?: string,
-    project?: Project,
-    group?: Project,
-}
-export interface Project {
-    id: string,
-    title: string,
-}
-export interface ListAclRequest {
-    appName: string,
-}
-export interface UpdateAclRequest {
-    applicationName: string,
-    changes: ACLEntryRequest[],
-}
-export interface ACLEntryRequest {
-    entity: AccessEntity,
-    rights: ("LAUNCH"),
-    revoke: boolean,
-}
-export interface AccessEntity {
-    user?: string,
-    project?: string,
-    group?: string,
-}
-export interface ApplicationWithExtension {
-    metadata: ApplicationMetadata,
-    extensions: string[],
-}
-export interface FindBySupportedFileExtension {
-    files: string[],
-}
-export interface ApplicationSummaryWithFavorite {
-    metadata: ApplicationMetadata,
-    favorite: boolean,
-    tags: string[],
-}
-export interface FindByNameAndPagination {
-    appName: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface DeleteAppRequest {
-    appName: string,
-    appVersion: string,
-}
-export interface FindLatestByToolRequest {
-    tool: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface FindByNameAndVersion {
-    name: string,
-    version: string,
-}
-export interface ClearLogoRequest {
-    name: string,
-}
-export interface FetchLogoRequest {
-    name: string,
-}
-export interface CreateTagsRequest {
-    tags: string[],
-    applicationName: string,
-}
-export interface TagSearchRequest {
-    query: string,
-    excludeTools?: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface ListTagsRequest {}
-export interface AppStoreOverviewRequest {}
-export interface AppStoreOverview {
-    sections: AppStoreSection[],
-}
-export interface AppStoreSection {
-    name: string,
-    type: AppStoreSectionType,
-    applications: ApplicationSummaryWithFavorite[],
-    columns: number,
-    rows: number
-}
-export enum AppStoreSectionType {
-    TAG = "tag",
-    TOOL = "tool"
-}
-export interface AppSearchRequest {
-    query: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface AdvancedSearchRequest {
-    query?: string,
-    tags?: string[],
-    showAllVersions: boolean,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface IsPublicResponse {
-    public: Record<string, boolean>,
-}
-export interface IsPublicRequest {
-    applications: NameAndVersion[],
-}
-export interface SetPublicRequest {
-    appName: string,
-    appVersion: string,
-    public: boolean,
-}
-export interface FavoriteRequest {
-    appName: string,
-    appVersion: string,
-}
+
 export interface JobsProviderExtendRequestItem {
     job: Job,
     requestedTime: SimpleDuration,
@@ -2916,351 +2680,9 @@ export interface Ingress {
     type: ("ingress"),
 }
 }
-export namespace tools {
-export function findByName(
-    request: FindByNameAndPagination
-): APICallParameters<FindByNameAndPagination, Page<Tool>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/tools" + "/byName", {appName: request.appName, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function findByNameAndVersion(
-    request: FindByNameAndVersion
-): APICallParameters<FindByNameAndVersion, Tool> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/tools" + "/byNameAndVersion", {name: request.name, version: request.version}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function listAll(
-    request: PaginationRequest
-): APICallParameters<PaginationRequest, Page<Tool>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/tools", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function create(): APICallParameters<{}, any /* unknown */> {
-    return {
-        context: "",
-        method: "PUT",
-        path: "/api/hpc/tools",
-        reloadId: Math.random(),
-    };
-}
-export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/tools" + "/uploadLogo",
-        reloadId: Math.random(),
-    };
-}
-export function clearLogo(
-    request: ClearLogoRequest
-): APICallParameters<ClearLogoRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/hpc/tools" + "/clearLogo",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function fetchLogo(
-    request: FetchLogoRequest
-): APICallParameters<FetchLogoRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/tools" + "/logo", {name: request.name}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-}
 export namespace NetworkIPSpecificationNS {
 export interface Firewall {
     openPorts: PortRangeAndProto[],
-}
-}
-export namespace apps {
-export function findByNameAndVersion(
-    request: FindApplicationAndOptionalDependencies
-): APICallParameters<FindApplicationAndOptionalDependencies, ApplicationWithFavoriteAndTags> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/byNameAndVersion", {appName: request.appName, appVersion: request.appVersion}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function hasPermission(
-    request: HasPermissionRequest
-): APICallParameters<HasPermissionRequest, boolean> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/permission", {appName: request.appName, appVersion: request.appVersion, permission: request.permission}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function listAcl(
-    request: ListAclRequest
-): APICallParameters<ListAclRequest, DetailedEntityWithPermission[]> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/list-acl", {appName: request.appName}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function updateAcl(
-    request: UpdateAclRequest
-): APICallParameters<UpdateAclRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/updateAcl",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function findBySupportedFileExtension(
-    request: FindBySupportedFileExtension
-): APICallParameters<FindBySupportedFileExtension, ApplicationWithExtension[]> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/bySupportedFileExtension",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function findByName(
-    request: FindByNameAndPagination
-): APICallParameters<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/byName", {appName: request.appName, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function listAll(
-    request: PaginationRequest
-): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function remove(
-    request: DeleteAppRequest
-): APICallParameters<DeleteAppRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/hpc/apps",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function create(): APICallParameters<{}, any /* unknown */> {
-    return {
-        context: "",
-        method: "PUT",
-        path: "/api/hpc/apps",
-        reloadId: Math.random(),
-    };
-}
-export function findLatestByTool(
-    request: FindLatestByToolRequest
-): APICallParameters<FindLatestByToolRequest, Page<Application>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/byTool", {tool: request.tool, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function uploadLogo(): APICallParameters<{}, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/uploadLogo",
-        reloadId: Math.random(),
-    };
-}
-export function clearLogo(
-    request: ClearLogoRequest
-): APICallParameters<ClearLogoRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/hpc/apps" + "/clearLogo",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function fetchLogo(
-    request: FetchLogoRequest
-): APICallParameters<FetchLogoRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/logo", {name: request.name}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function createTag(
-    request: CreateTagsRequest
-): APICallParameters<CreateTagsRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/createTag",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function removeTag(
-    request: CreateTagsRequest
-): APICallParameters<CreateTagsRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/deleteTag",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function searchTags(
-    request: TagSearchRequest
-): APICallParameters<TagSearchRequest, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/searchTags", {query: request.query, excludeTools: request.excludeTools, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function listTags(
-    request: ListTagsRequest
-): APICallParameters<ListTagsRequest, string[]> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/listTags", {}),
-        parameters: request,
-        reloadId: Math.random(),
-    }
-}
-export function appStoreOverview(): APICallParameters<AppStoreOverviewRequest, AppStoreOverview> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps/overview", {}),
-        parameters: requestAnimationFrame,
-        reloadId: Math.random(),
-    }
-}
-export function searchApps(
-    request: AppSearchRequest
-): APICallParameters<AppSearchRequest, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/search", {query: request.query, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function advancedSearch(
-    request: AdvancedSearchRequest
-): APICallParameters<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/advancedSearch",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function isPublic(
-    request: IsPublicRequest
-): APICallParameters<IsPublicRequest, IsPublicResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/isPublic",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function setPublic(
-    request: SetPublicRequest
-): APICallParameters<SetPublicRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/setPublic",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieveFavorites(
-    request: PaginationRequest
-): APICallParameters<PaginationRequest, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/hpc/apps" + "/favorites", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function toggleFavorite(
-    request: FavoriteRequest
-): APICallParameters<FavoriteRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/hpc/apps" + "/favorites",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
 }
 }
 export namespace control {
@@ -4280,121 +3702,6 @@ export function sendUpdate(
 }
 }
 }
-export namespace ApplicationParameterNS {
-export interface InputFile {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    type: ("input_file"),
-}
-export interface InputDirectory {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    type: ("input_directory"),
-}
-export interface Text {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    type: ("text"),
-}
-export interface TextArea {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    type: ("textarea"),
-}
-export interface Integer {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    min?: number /* int64 */,
-    max?: number /* int64 */,
-    step?: number /* int64 */,
-    unitName?: string,
-    type: ("integer"),
-}
-export interface FloatingPoint {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    min?: number /* float64 */,
-    max?: number /* float64 */,
-    step?: number /* float64 */,
-    unitName?: string,
-    type: ("floating_point"),
-}
-export interface Bool {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    trueValue: string,
-    falseValue: string,
-    type: ("boolean"),
-}
-export interface Enumeration {
-    name: string,
-    optional: boolean,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    title: string,
-    description: string,
-    options: EnumOption[],
-    type: ("enumeration"),
-}
-export interface EnumOption {
-    name: string,
-    value: string,
-}
-export interface Peer {
-    name: string,
-    title: string,
-    description: string,
-    suggestedApplication?: string,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    optional: boolean,
-    type: ("peer"),
-}
-export interface Ingress {
-    name: string,
-    title: string,
-    description: string,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    optional: boolean,
-    type: ("ingress"),
-}
-export interface LicenseServer {
-    name: string,
-    title: string,
-    optional: boolean,
-    description: string,
-    tagged: string[],
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    type: ("license_server"),
-}
-export interface NetworkIP {
-    name: string,
-    title: string,
-    description: string,
-    defaultValue?: kotlinx.serialization.json.JsonElement,
-    optional: boolean,
-    type: ("network_ip"),
-}
-}
 }
 export namespace mail {
 export function send(
@@ -4488,6 +3795,8 @@ export interface EmailSettings {
     userRoleChange: boolean,
     userLeft: boolean,
     lowFunds: boolean,
+    jobStarted: boolean,
+    jobStopped: boolean,
 }
 export interface RetrieveEmailSettingsRequest {
     username?: string,
@@ -6090,10 +5399,11 @@ export interface ProductsBrowseRequest {
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+    filterName?: string,
     filterProvider?: string,
-    filterArea?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
-    filterUsable?: boolean,
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     filterCategory?: string,
+    filterUsable?: boolean,
     includeBalance?: boolean,
     includeMaxBalance?: boolean,
 }
@@ -6208,11 +5518,11 @@ export function retrieveAllFromProvider(
 }
 export function browse(
     request: ProductsBrowseRequest
-): APICallParameters<ProductsBrowseRequest, PageV2<Product>> {
+): APICallParameters<ProductsBrowseRequest, PageV2<ProductV2>> {
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
+        path: buildQueryString("/api/products/v2" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterProductType: request.filterProductType, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };

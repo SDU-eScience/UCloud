@@ -6,7 +6,7 @@
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves an Application by name and version_
+_Retrieves an Application by name and version, or newest Application if version is not specified_
 
 | Request | Response | Error |
 |---------|----------|-------|

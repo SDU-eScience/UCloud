@@ -42,6 +42,8 @@ applications = Page(
         metadata = ApplicationMetadata(
             authors = listOf("UCloud"), 
             description = "This is a batch application", 
+            flavorName = null, 
+            group = null, 
             isPublic = true, 
             name = "a-batch-application", 
             public = true, 
@@ -95,6 +97,7 @@ application = ApplicationWithFavoriteAndTags(
             variableNames = listOf("var"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = null, 
@@ -142,6 +145,8 @@ application = ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "This is a batch application", 
+        flavorName = null, 
+        group = null, 
         isPublic = true, 
         name = "a-batch-application", 
         public = true, 
@@ -164,6 +169,7 @@ val machineTypes = Products.browse.call(
         filterProvider = null, 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
         itemsPerPage = 50, 
         itemsToSkip = null, 
         next = null, 
@@ -175,6 +181,7 @@ val machineTypes = Products.browse.call(
 /*
 machineTypes = PageV2(
     items = listOf(Product.Compute(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-compute", 
             name = "example-compute", 
@@ -198,6 +205,7 @@ machineTypes = PageV2(
         version = 1, 
         balance = null, 
         id = "example-compute", 
+        maxUsableBalance = null, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -276,7 +284,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerP
 #                 "title": "A Batch Application",
 #                 "description": "This is a batch application",
 #                 "website": null,
-#                 "public": true
+#                 "public": true,
+#                 "flavorName": null,
+#                 "group": null
 #             },
 #             "favorite": false,
 #             "tags": [
@@ -303,7 +313,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "A Batch Application",
 #         "description": "This is a batch application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": null
 #     },
 #     "invocation": {
 #         "tool": {
@@ -384,7 +396,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -403,6 +416,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "compute",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-compute",
 #             "pricePerUnit": 1000000,
 #             "category": {
@@ -419,6 +433,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
 #             "chargeType": "ABSOLUTE",
 #             "hiddenInGrantApplications": false,

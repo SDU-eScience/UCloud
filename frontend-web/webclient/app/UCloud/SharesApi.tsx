@@ -9,24 +9,16 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
-import {Flex, Icon, RadioTile, RadioTilesContainer, Tooltip} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
 import {PrettyFilePath} from "@/Files/FilePath";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {accounting, BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
 import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
-import {fileName} from "@/Utilities/FileUtilities";
-import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {preventDefault, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
-import {useCallback, useState} from "react";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
-import {useAvatars} from "@/AvataaarLib/hook";
-import {api as FilesApi} from "@/UCloud/FilesApi";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;
@@ -109,136 +101,27 @@ export interface AcceptLinkRequest {
     token: string;
 }
 
+export function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShareGroupPreview): s is OutgoingShareGroupPreview {
+    return !("sourceFilePath" in s);
+}
+
 class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
     ShareFlags, ShareStatus, ShareSupport> {
     routingNamespace = "shares";
     title = "File Share";
-    page = SidebarPages.Shares;
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<Share, ResourceBrowseCallbacks<Share>> = {
-        MainTitle({resource}) {
-            return resource ? <>
-                {resource.owner.createdBy !== Client.username ?
-                    fileName(resource.specification.sourceFilePath) :
-                    resource.specification.sharedWith
-                }
-            </> : <></>
+        MainTitle() {
+            return <div />
         },
 
-        Icon({resource, size}) {
-            const avatars = useAvatars();
-            if (resource?.owner?.createdBy === Client.username) {
-                return <UserAvatar
-                    avatar={avatars.avatar(resource!.specification.sharedWith)}
-                    width={size}
-                    height={size}
-                    mx={"0"}
-                />;
-            }
-            return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />;
+        Icon() {
+            return <div />;
         },
 
-        ImportantStats({resource, callbacks}) {
-            const [isEdit, setIsEdit] = useState(
-                resource?.specification?.permissions?.some(it => it === "EDIT") === true
-            );
-
-            useEffectSkipMount(() => {
-                setIsEdit(resource?.specification?.permissions?.some(it => it === "EDIT") === true)
-            }, [resource?.specification.permissions]);
-
-            const [isValid, setIsValid] = useState(true);
-
-            const validate = useCallback(async (resource: Share) => {
-                // Note(Jonas): Remove for now as it is being triggered way too often.
-                // if (!resource || !resource.status.shareAvailableAt) return;
-                // try {
-                //     const result = await callbacks.invokeCommand(
-                //         FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
-                //     );
-                //     // Do nothing. It's valid.
-                // } catch (e) {
-                //     setIsValid(false);
-                // }
-            }, [resource, callbacks]);
-
-            React.useEffect(() => {
-                if (!resource || ["PENDING", "REJECTED"].includes(resource.status.state)) return;
-                validate(resource);
-            }, []);
-
-            const updatePermissions = useCallback(async (isEditing: boolean) => {
-                if (!resource) return;
-
-                setIsEdit(isEditing);
-                const api = callbacks.api as ShareApi;
-                await callbacks.invokeCommand(api.updatePermissions(bulkRequestOf(
-                    {
-                        id: resource.id,
-                        permissions: isEditing ? ["READ", "EDIT"] : ["READ"]
-                    }
-                )));
-                callbacks.reload();
-            }, [resource, callbacks.invokeCommand, callbacks.reload]);
-
-            const updatePermissionsRead = useCallback((e) => {
-                updatePermissions(false);
-            }, [updatePermissions]);
-
-            const updatePermissionsEdit = useCallback((e) => {
-                updatePermissions(true);
-            }, [updatePermissions]);
-
-            if (resource === undefined) return null;
-
-            const sharedByMe = resource!.specification.sharedWith !== Client.username;
-
-            return <Flex alignItems={"center"}>
-                {isValid ? null : (
-                    <Tooltip
-                        left="-50%"
-                        top="1"
-                        mb="35px"
-                        trigger={<Icon cursor="pointer" mt="6px" mr={8} color="red" name="close" />}
-                    >
-                        The folder associated with the share no longer exists.
-                    </Tooltip>
-                )}
-                {!isValid || resource.status.state !== "APPROVED" ? null :
-                    <><Icon color={"green"} name={"check"} mr={8} /> {sharedByMe ? "Approved" : null}</>
-                }
-                {!isValid || resource.status.state !== "PENDING" ? null :
-                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> {sharedByMe ? "Pending" : null}</>
-                }
-                {!isValid || resource.status.state !== "REJECTED" ? null :
-                    <><Icon color={"red"} name={"close"} mr={8} /> {sharedByMe ? "Rejected" : null}</>
-                }
-                {!isValid ? null : <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
-                    <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
-                        {sharedByMe || !isEdit ? <RadioTile
-                            disabled={resource.owner.createdBy !== Client.username}
-                            label={"Read"}
-                            onChange={updatePermissionsRead}
-                            icon={"search"}
-                            name={"READ"}
-                            checked={!isEdit && sharedByMe}
-                            height={40}
-                            fontSize={"0.5em"}
-                        /> : null}
-                        {sharedByMe || isEdit ? <RadioTile
-                            disabled={resource.owner.createdBy !== Client.username}
-                            label={"Edit"}
-                            onChange={updatePermissionsEdit}
-                            icon={"edit"}
-                            name={"EDIT"}
-                            checked={isEdit && sharedByMe}
-                            height={40}
-                            fontSize={"0.5em"}
-                        /> : null}
-                    </RadioTilesContainer>
-                </form>}
-            </Flex>;
+        ImportantStats() {
+            return <div />
         }
     };
 
@@ -271,7 +154,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 if (isEnabled !== true) return isEnabled;
                 return selected.every(share => share.owner.createdBy === Client.username);
             };
-            /* Note(Jonas): 
+            /* Note(Jonas):
                 As Shares currently don't have a properties page, why remove the context redirection on delete.
              */
             deleteOp.onClick = async (selected, cb) => {
@@ -284,7 +167,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             {
                 text: "Accept",
                 icon: "check",
-                color: "green",
+                color: "successMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
@@ -299,12 +182,13 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.A
             },
             {
                 text: "Decline",
                 icon: "close",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
@@ -318,12 +202,13 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.X
             },
             {
                 text: "Remove",
                 icon: "close",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
@@ -337,7 +222,8 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             },
             ...baseOperations
         ];

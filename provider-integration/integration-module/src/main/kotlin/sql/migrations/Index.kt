@@ -32,4 +32,12 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V1__Maintenance())
     migrationHandler.addScript(V2__UCloudStorage())
     migrationHandler.addScript(V3__UCloudStorage())
+    migrationHandler.addScript(V1__Accounting())
+    migrationHandler.addScript(V1__ActivitySystem())
+    migrationHandler.addScript(V4__UCloudStorage())
+    migrationHandler.addScript(V3__UCloudCompute())
+    migrationHandler.addScript(V2__GenericLicenses())
+    migrationHandler.addScript(V2__Events())
+    migrationHandler.addScript(V3__Events())
+    migrationHandler.addScript(V3__UserMapping())
 }

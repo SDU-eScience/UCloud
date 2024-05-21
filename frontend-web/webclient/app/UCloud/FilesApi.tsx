@@ -1,17 +1,11 @@
 import {
     CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
-    Resource,
     ResourceApi, ResourceBrowseCallbacks,
-    ResourceIncludeFlags,
-    ResourceSpecification,
-    ResourceStatus,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
-import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Error, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -20,47 +14,67 @@ import {
     sizeToString
 } from "@/Utilities/FileUtilities";
 import {
-    displayErrorMessageOrDefault, doNothing, extensionFromPath, inDevEnvironment, 
+    bulkRequestOf,
+    displayErrorMessageOrDefault,
+    doNothing,
+    inDevEnvironment,
     onDevSite,
-    prettierString, removeTrailingSlash
+    prettierString,
+    removeTrailingSlash,
+    stopPropagation
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
-import {Operation} from "@/ui-components/Operation";
-import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
-import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
-import {ResourceProperties} from "@/Resource/Properties";
-import {CheckboxFilter} from "@/Resource/Filter";
 import {ItemRenderer} from "@/ui-components/Browse";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import {MetadataBrowse} from "@/Files/Metadata/Documents/Browse";
-import {FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
-import {FileFavoriteToggle} from "@/Files/FavoriteToggle";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {OpenWith} from "@/Applications/OpenWith";
-import {FilePreview} from "@/Files/Preview";
-import {addStandardDialog, Sensitivity} from "@/UtilityComponents";
+import {OpenWithBrowser} from "@/Applications/OpenWith";
+import {addStandardDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {ListRowStat} from "@/ui-components/List";
-import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiCreate, apiUpdate, callAPI, InvokeCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import {useCallback, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useNavigate} from "react-router";
+import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {ShareModal} from "@/Files/Shares";
+import {addShareModal} from "@/Files/Shares";
+import FileBrowse from "@/Files/FileBrowse";
+import {injectStyle, makeClassName} from "@/Unstyled";
+import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
+import {usePage} from "@/Navigation/Redux";
+import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
+import {Markdown} from "@/ui-components";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
+import fileType from "magic-bytes.js";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {useSelector} from "react-redux";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
+import {
+    FilesCopyRequestItem,
+    FilesCreateDownloadRequestItem,
+    FilesCreateDownloadResponseItem,
+    FilesCreateFolderRequestItem,
+    FilesCreateUploadRequestItem,
+    FilesEmptyTrashRequestItem,
+    FilesMoveRequestItem,
+    FilesTrashRequestItem,
+    UFile,
+    UFileIncludeFlags,
+    UFileSpecification,
+    UFileStatus
+} from "./UFile";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -72,87 +86,18 @@ export function normalizeDownloadEndpoint(endpoint: string): string {
     }
 }
 
-export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
-
-export interface UFileStatus extends ResourceStatus {
-    type: FileType;
-    icon?: FileIconHint;
-    sizeInBytes?: number;
-    sizeIncludingChildrenInBytes?: number;
-    modifiedAt?: number;
-    accessedAt?: number;
-    unixMode?: number;
-    unixOwner?: number;
-    unixGroup?: number;
-    metadata?: FileMetadataHistory;
-}
-
-export interface UFileSpecification extends ResourceSpecification {
-    collection: string;
-}
-
-export interface UFileIncludeFlags extends ResourceIncludeFlags {
-    includePermissions?: boolean;
-    includeTimestamps?: boolean;
-    includeSizes?: boolean;
-    includeUnixInfo?: boolean;
-    includeMetadata?: boolean;
-    allowUnsupportedInclude?: boolean;
-    path?: string;
-}
-
-export interface FilesMoveRequestItem {
-    oldId: string;
-    newId: string;
-    conflictPolicy: WriteConflictPolicy;
-}
-
-type FilesCopyRequestItem = FilesMoveRequestItem;
-
-export interface FilesCreateFolderRequestItem {
-    id: string;
-    conflictPolicy: WriteConflictPolicy;
-}
-
-export interface FilesCreateUploadRequestItem {
-    id: string;
-    supportedProtocols: UploadProtocol[];
-    conflictPolicy: WriteConflictPolicy;
-}
-
-export interface FilesCreateUploadResponseItem {
-    endpoint: string;
-    protocol: UploadProtocol;
-    token: string;
-}
-
-export interface FilesCreateDownloadRequestItem {
-    id: string;
-}
-
-export interface FilesCreateDownloadResponseItem {
-    endpoint: string;
-}
-
-interface FilesTrashRequestItem {
-    id: string;
-}
-
-interface FilesEmptyTrashRequestItem {
-    id: string;
-}
-
-interface ExtraCallbacks {
+export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
+    isModal?: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
-    setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
+    setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
 }
 
-function isSensitivitySupported(resource: UFile): boolean {
+export function isSensitivitySupported(resource: UFile): boolean {
     // NOTE(Dan): This is a temporary frontend workaround. A proper backend solution will be implemented at a later
     // point in time. For the time being we will simply use a list of supported providers on the frontend. This list
     // contains the known production providers which support sensitive data. This list will also contain some "fake"
@@ -160,6 +105,7 @@ function isSensitivitySupported(resource: UFile): boolean {
     if (inDevEnvironment() || onDevSite()) {
         switch (resource.specification.product.provider) {
             case "k8":
+            case "K8":
             case "ucloud":
                 return true;
 
@@ -177,8 +123,8 @@ function isSensitivitySupported(resource: UFile): boolean {
     }
 }
 
-const FileSensitivityVersion = "1.0.0";
-const FileSensitivityNamespace = "sensitivity";
+export const FileSensitivityVersion = "1.0.0";
+export const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
 async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLevel> {
@@ -232,88 +178,37 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
     return sensitivity;
 }
 
+const classA = makeClassName("A");
+const classB = makeClassName("B");
+const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
+    ${k} > ${classA.dot} {
+        padding: 15px;
+        width: 100%;
+    }
+
+    ${k} > ${classB.dot} {
+        font-size: 14px;
+        width: 340px;
+        min-width: 240px;
+        padding: 15px;
+        height: 100vh;
+    }
+`);
+
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
     constructor() {
         super("files");
         this.sortEntries = [];
-        this.sortEntries.push({
-            column: "PATH",
-            icon: "id",
-            title: "Name",
-            helpText: "By the file's name"
-        }, {
-            column: "MODIFIED_AT",
-            icon: "edit",
-            title: "Modified time",
-            helpText: "When the file was last modified"
-        }, {
-            column: "SIZE",
-            icon: "fullscreen",
-            title: "Size",
-            helpText: "By size of the file"
-        });
-        this.filterWidgets = [];
-        this.filterPills = [];
-
-        this.registerFilter(CheckboxFilter("search", "filterHiddenFiles", "Show hidden files", true));
     }
 
     public routingNamespace = "files";
     public title = "File";
-    public page = SidebarPages.Files;
     public productType = "STORAGE" as const
 
     public idIsUriEncoded = true;
 
-    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks> = {
-        MainTitle({resource}) {return <>{resource ? fileName(resource.id) : ""}</>},
-        Icon(props: {resource?: UFile, size: string}) {
-            const file = props.resource;
-            const favoriteComponent = parseInt(props.size.replace("px", "")) > 40 ? null :
-                <FileFavoriteToggle file={file} />;
-            const icon = !file ?
-                <FtIcon fileIcon={{type: "DIRECTORY"}} size={props.size} /> :
-                <FtIcon
-                    iconHint={file.status.icon}
-                    fileIcon={{type: file.status.type, ext: extensionFromPath(fileName(file.id))}}
-                    size={props.size}
-                />;
-            return <>{favoriteComponent}{icon}</>
-        },
-        ImportantStats({resource, callbacks}) {
-            if (!resource) return null;
-            const sensitivity = useSensitivity(resource);
-
-            const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
-            const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
-
-            const navigate = useNavigate();
-            const openSync = useCallback(() => {
-                navigate(`/syncthing?provider=${resource.specification.product.provider}`);
-            }, []);
-
-            return <Flex>
-                {isSynchronized ?
-                    <div style={{cursor: "pointer"}} onClick={openSync}>
-                        <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
-                    </div>
-                    : null}
-                <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
-                    <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
-                </div>
-            </Flex>;
-        },
-        Stats({resource, callbacks}) {
-            if (resource == null) return null;
-            const size = fileSize(resource, callbacks.collection?.status.resolvedSupport?.support)
-            return <>
-                {size === undefined ? null : <ListRowStat icon={"rulerSolid"}>{sizeToString(size)}</ListRowStat>}
-                {resource.status.unixMode === undefined ? null :
-                    <ListRowStat icon={"verified"}>{readableUnixMode(resource.status.unixMode)}</ListRowStat>}
-            </>;
-        }
-    };
+    renderer: ItemRenderer<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -323,86 +218,121 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         allowUnsupportedInclude: true
     };
 
-    public Properties = (props) => {
-        return <ResourceProperties
-            {...props} api={this}
-            showMessages={false} showPermissions={false} showProperties={false}
-            flagsForRetrieve={this.defaultRetrieveFlags}
-            InfoChildren={props => {
-                const file = props.resource as UFile;
-                return <>
-                    <HighlightedCard color={"purple"} title={"Location"} icon={"mapMarkedAltSolid"}>
-                        <div><b>Path:</b> <PrettyFilePath path={file.id} /></div>
-                        <div>
-                            <b>Product: </b>
-                            {file.specification.product.id === file.specification.product.category ?
-                                <>{file.specification.product.id}</> :
-                                <>{file.specification.product.id} / {file.specification.product.category}</>
-                            }
-                        </div>
-                        <Flex gap="8px">
-                            <b>Provider: </b>
-                            <ProviderTitle providerId={file.specification.product.provider} />
-                        </Flex>
-                        <Box mt={"16px"} mb={"8px"}>
-                            <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
-                                <Button fullWidth>View in folder</Button>
-                            </Link>
-                        </Box>
-                    </HighlightedCard>
-                    <HighlightedCard color={"purple"} title={"Properties"} icon={"properties"}>
-                        <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-                        {file.status.modifiedAt ?
-                            <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-                        {file.status.accessedAt ?
-                            <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-                        {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                            <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-                        {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                            <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                            </div> : null
-                        }
-                        {file.status.unixOwner != null && file.status.unixGroup != null ?
-                            <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                            null
-                        }
-                        {file.status.unixMode != null ?
-                            <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                            null
-                        }
-                    </HighlightedCard>
-                </>
-            }}
-            ContentChildren={props => (
-                <>
-                    <HighlightedCard color={"purple"}>
-                        <MetadataBrowse
-                            file={props.resource as UFile}
-                            metadata={(props.resource as UFile).status.metadata ?? {metadata: {}, templates: {}}}
-                            reload={props.reload}
-                        />
-                    </HighlightedCard>
-                    {(props.resource as UFile).status.type !== "FILE" ? null :
-                        <HighlightedCard color={"purple"} title={"Preview"} icon={"search"}>
-                            <FilePreview file={props.resource as UFile} />
-                        </HighlightedCard>
-                    }
-                </>
-            )}
-        />;
-    };
+    public Properties = () => {
+        const {id} = useParams<{id?: string}>();
 
-    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] {
+        const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
+
+        React.useEffect(() => {
+            if (!id) return;
+            fetchFile(this.retrieve({
+                id,
+                includeUpdates: true,
+                includeOthers: true,
+                includeSupport: true,
+                ...this.defaultRetrieveFlags
+            }))
+        }, [id]);
+
+        const prettyPath = usePrettyFilePath(id ?? "");
+        const downloadRef = React.useRef(new Uint8Array());
+        usePage(prettyPath, SidebarTabId.FILES);
+
+        const [, invokeCommand] = useCloudCommand();
+
+        const downloadFunction = React.useMemo(() => {
+            return this.retrieveOperations().find(it => it.text === "Download");
+        }, []);
+
+        const file = fileData.data;
+
+        const downloadFile = React.useCallback(() => {
+            if (!id || !downloadFunction || !file) return;
+            if (downloadRef.current.length > 0) {
+                const url = window.URL.createObjectURL(
+                    new Blob([new Uint8Array(downloadRef.current, 0, downloadRef.current.length)])
+                );
+                const a = document.createElement("a");
+                a.style.display = "none";
+                a.href = url;
+                a.download = fileName(id);
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            } else {
+                downloadFunction.onClick([file], {invokeCommand} as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks);
+            }
+        }, [downloadRef, file, id]);
+
+        if (!id) return <h1>Missing file id.</h1>
+
+        if (fileData.loading) return <PredicatedLoadingSpinner loading />
+
+        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (!file) return <></>;
+
+        return <Flex className={FilePropertiesLayout}>
+            <div className="A">
+                {file.status.type !== "FILE" ? null :
+                    <FilePreview file={file} contentRef={downloadRef} />
+                }
+            </div>
+
+            <div className="B">
+                <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+                <div>
+                    <b>Product: </b>
+                    {file.specification.product.id === file.specification.product.category ?
+                        <>{file.specification.product.id}</> :
+                        <>{file.specification.product.id} / {file.specification.product.category}</>
+                    }
+                </div>
+                <Flex gap="8px">
+                    <b>Provider: </b>
+                    <ProviderTitle providerId={file.specification.product.provider} />
+                </Flex>
+                <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+                {file.status.modifiedAt ?
+                    <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+                {file.status.accessedAt ?
+                    <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+                {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                    <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+                {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                    <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                    </div> : null
+                }
+                {file.status.unixOwner != null && file.status.unixGroup != null ?
+                    <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                    null
+                }
+                {file.status.unixMode != null ?
+                    <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                    null
+                }
+                <Box mt={"16px"} mb={"8px"}>
+                    <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                        <Button fullWidth>View in folder</Button>
+                    </Link>
+                </Box>
+                <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
+                    <Button fullWidth>Download file</Button>
+                </Box>
+            </div>
+        </Flex>
+    }
+
+    public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
-        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraCallbacks>[] = [
+        const ourOps: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] = [
             {
                 text: "Use this folder",
                 primary: true,
-                canAppearInLocation: (loc) => loc === "TOPBAR",
+                icon: "check",
                 enabled: (selected, cb) => {
                     return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
-                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory));
+                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory) === true);
                 },
                 onClick: (selected, cb) => {
                     cb.onSelect?.(cb.directory ?? {
@@ -414,13 +344,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         createdAt: 0,
                         updates: []
                     })
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Upload files",
                 icon: "upload",
                 primary: true,
-                canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -442,13 +372,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         defaultValue: false
                     });
                 },
+                shortcut: ShortcutKey.U
             },
             {
                 text: "Create folder",
                 icon: "uploadFolder",
-                color: "blue",
                 primary: true,
-                canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: (selected, cb) => {
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
@@ -463,21 +392,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
+                shortcut: ShortcutKey.F
             },
             {
-                text: "Open with...",
+                text: "Launch with...",
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {
-                    if (cb.collection) {
-                        dialogStore.addDialog(
-                            <OpenWith file={selected[0]} collection={cb.collection} />,
-                            doNothing,
-                            true,
-                            this.fileSelectorModalStyle
-                        );
-                    }
-                }
+                    dialogStore.addDialog(
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle,
+                    );
+                },
+                shortcut: ShortcutKey.O
             },
             {
                 text: "Rename",
@@ -488,12 +417,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
+                    if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
                     return selected.length === 1 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             {
                 text: "Download",
@@ -516,42 +447,55 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     for (const {endpoint} of responses) {
                         downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
                     }
-                }
+                },
+                shortcut: ShortcutKey.D
             },
             {
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
+                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelectRestriction={f => f.status.type === "DIRECTORY"
-                        } onSelect={async res => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                            await cb.invokeCommand(
-                                this.copy({
-                                    type: "bulk",
-                                    items: selected.map(file => ({
-                                        oldId: file.id,
-                                        conflictPolicy: "RENAME",
-                                        newId: target + "/" + fileName(file.id)
-                                    }))
-                                })
-                            );
-
-                            cb.reload();
-
-                            dialogStore.success();
+                        <FileBrowse opts={{
+                            isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
+                                text: "Copy to",
+                                show(res) {return res.status.type === "DIRECTORY"},
+                                onClick: async (res) => {
+                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.copy({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                        snackbarStore.addSuccess("Files copied", false);
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
+                                }
+                            },
+                            additionalFilters: {
+                                filterProvider: selected[0].specification.product.provider
+                            },
+                            initialPath: pathRef.current,
                         }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
                     );
-                }
+                },
+                shortcut: ShortcutKey.C
             },
             {
                 icon: "move",
@@ -562,42 +506,55 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
+                    if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
+                    return (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
-                        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        <FileBrowse opts={{
+                            isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
+                                text: "Move to",
+                                show(res) {return res.status.type === "DIRECTORY"},
+                                onClick: async (res) => {
+                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
-                            await cb.invokeCommand(
-                                this.move({
-                                    type: "bulk",
-                                    items: selected.map(file => ({
-                                        oldId: file.id,
-                                        conflictPolicy: "RENAME",
-                                        newId: target + "/" + fileName(file.id)
-                                    }))
-                                })
-                            );
-
-                            cb.reload();
-
-                            dialogStore.success();
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.move({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    oldId: file.id,
+                                                    conflictPolicy: "RENAME",
+                                                    newId: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                        snackbarStore.addSuccess("Files moved", false);
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
+                                }
+                            },
+                            initialPath: pathRef.current,
+                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
                         }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
                     );
-                }
+                },
+                shortcut: ShortcutKey.M
             },
             {
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    if (Client.hasActiveProject) {return false;}
+                    if (Client.hasActiveProject) return false;
                     if (selected.length != 1) return false;
 
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -624,21 +581,16 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return true;
                 },
                 onClick: async (selected, cb) => {
-                    dialogStore.addDialog(
-                        <ShareModal
-                            selected={selected[0]}
-                            cb={cb}
-                        />,
-                        doNothing, true
-                    );
-                }
+                    addShareModal({path: selected[0].id, product: selected[0].specification.product}, cb);
+                },
+                shortcut: ShortcutKey.S
             },
             {
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) { }
+                    if ((support as FileCollectionSupport)) { /* ??? */}
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
@@ -647,28 +599,26 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
                 onClick(selected, extra) {
                     addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
-                }
+                },
+                shortcut: ShortcutKey.H
             },
             {
                 // Empty trash of current directory
                 text: "Empty Trash",
                 icon: "trash",
-                color: "red",
+                color: "errorMain",
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if ((support as FileCollectionSupport).files.trashSupported) return false;
+                    if (!(support as FileCollectionSupport).files.trashSupported) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
                     if (!(selected.length === 0 && cb.onSelect === undefined)) {
                         return false;
                     }
-                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
-                        return true;
-                    }
-                    return false;
+                    return cb.directory?.status.icon == "DIRECTORY_TRASH";
                 },
                 onClick: async (_, cb) => {
                     addStandardDialog({
@@ -676,55 +626,53 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         message: "You cannot recover deleted files!",
                         confirmText: "Empty trash",
                         addToFront: true,
-                        cancelButtonColor: "blue",
-                        confirmButtonColor: "red",
+                        cancelButtonColor: "primaryMain",
+                        confirmButtonColor: "errorMain",
                         onConfirm: async () => {
                             await cb.invokeCommand(
                                 this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                             );
-                            cb.navigate("/drives")
+                            cb.navigate("/drives");
                         },
                         onCancel: doNothing,
                     });
                 },
+                shortcut: ShortcutKey.R
             },
-            /*
+            {
+                icon: "refresh",
+                text: "Sync",
+                enabled: (files, extra) => files.length === 0 && !!extra.syncthingConfig && !extra.isModal,
+                onClick: (selected, extra) =>
+                    extra.navigate(`/syncthing?provider=${extra.collection?.specification.product.provider}`),
+                shortcut: ShortcutKey.M
+            },
             {
                 // Item row synchronization
                 text: synchronizationOpText,
                 icon: "refresh",
                 enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
-                onClick: (selected, cb) => synchronizationOpOnClick(selected, cb)
-            },
-            {
-                // Folder synchronization
-                text: synchronizationOpText,
-                icon: "refresh",
-                primary: true,
-                canAppearInLocation: location => location === "SIDEBAR",
-                enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
                 onClick: (selected, cb) => {
-                    if (!cb.directory) return;
-                    synchronizationOpOnClick([cb.directory], cb);
-                }
+                    synchronizationOpOnClick(selected, cb)
+                },
+                shortcut: ShortcutKey.Y
             },
-             */
             {
                 text: "Open terminal",
                 primary: true,
                 icon: "terminalSolid",
-                canAppearInLocation: loc => loc === "SIDEBAR",
                 enabled: () => hasFeature(Feature.INLINE_TERMINAL),
                 onClick: (selected, cb) => {
                     cb.dispatch({type: "TerminalOpen"});
                     cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
-                }
+                },
+                shortcut: ShortcutKey.O
             },
             {
                 icon: "trash",
                 text: "Move to trash",
                 confirm: true,
-                color: "red",
+                color: "errorMain",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -744,27 +692,26 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             },
             {
                 icon: "trash",
                 text: "Empty Trash",
                 confirm: true,
-                color: "red",
+                color: "errorMain",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
-                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
-                        return true;
-                    }
-                    return false
+                    return selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH";
                 },
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload()
-                }
+                },
+                shortcut: ShortcutKey.R
             },
         ];
 
@@ -812,9 +759,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     fileSelectorModalStyle = largeModalStyle;
 }
 
-function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
+function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Sync setup (BETA)";
+    if (devices.length === 0) return "Sync setup";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
@@ -824,7 +771,7 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync (BETA)";
+        return "Add to sync";
     }
 }
 
@@ -843,7 +790,7 @@ function fileSize(file: UFile, support?: FileCollectionSupport): undefined | num
     return undefined;
 }
 
-function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 
@@ -868,7 +815,7 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
@@ -895,15 +842,16 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
-        cb.navigate("/syncthing");
+        cb.navigate(`/syncthing?provider=${cb.collection?.specification.product.provider}`);
         return;
     }
 
     if (!cb.setSynchronization) return;
 
-    for (const file of files) {
-        cb.setSynchronization(file, !allSynchronized);
-    }
+
+    cb.setSynchronization(files, !allSynchronized);
+
+    snackbarStore.addSuccess(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`, false);
 }
 
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
@@ -921,10 +869,17 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
     return id;
 }
 
-function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
+export enum SensitivityLevelMap {
+    INHERIT = "INHERIT",
+    PRIVATE = "PRIVATE",
+    CONFIDENTIAL = "CONFIDENTIAL",
+    SENSITIVE = "SENSITIVE"
+}
+
+function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): React.ReactNode {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
-    const reason = React.useRef<HTMLTextAreaElement>(null);
+    const reason = React.useRef<HTMLInputElement>(null);
 
     const onUpdate = React.useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
@@ -935,10 +890,15 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             if (!value) return;
             if (value === SensitivityLevelMap.INHERIT) {
                 // Find latest that is active and remove that one. At most one will be active.
-                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId].find(
+                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId]?.find(
                     it => ["approved", "not_required"].includes(it.status.approval.type)
                 );
-                if (!entryToDelete) return;
+                if (!entryToDelete) {
+                    // Note(Jonas): In this case, I believe that user is setting to "inherit", despite it already being
+                    // the case, as it hasn't been set to anything yet, so do nothing.
+                    dialogStore.success();
+                    return;
+                }
                 await invokeCommand(
                     metadataDocumentApi.delete(
                         bulkRequestOf({
@@ -971,16 +931,18 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
                     })),
                     {defaultErrorHandler: false}
                 );
+
+                onUpdated(value as SensitivityLevelMap);
             }
 
-            reload();
             dialogStore.success();
         } catch (e) {
+            onUpdated(originalSensitivity as SensitivityLevelMap);
             displayErrorMessageOrDefault(e, "Failed to update sensitivity.")
         }
     }, []);
 
-    return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
+    return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "100%"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
         <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}>
             {Object.keys(SensitivityLevelMap).map(it =>
@@ -991,15 +953,16 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             id={"sensitivityDialogReason"}
             style={{marginTop: "6px", marginBottom: "6px"}}
             required
-            ref={reason}
+            inputRef={reason}
             width="100%"
             rows={4}
             placeholder="Reason for sensitivity change..."
+            onKeyDown={stopPropagation}
         />
         <Spacer
             mt="12px"
-            left={<Button color="red" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
-            right={<Button color="green" type={"submit"}>Update</Button>}
+            left={<Button color="errorMain" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
+            right={<Button color="successMain" type={"submit"}>Update</Button>}
         />
     </form>);
 }
@@ -1013,11 +976,11 @@ function downloadFile(url: string, usePopup: boolean) {
     document.body.removeChild(element);
 }
 
-async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): Promise<void> {
+export async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, onUpdated: (value: SensitivityLevelMap) => void): Promise<void> {
     if (!isSensitivitySupported(file)) {
         dialogStore.addDialog(
             <>
-                <Heading.h2>Sensitive files not supported <Icon name="warning" color="red" size="32" /></Heading.h2>
+                <Heading.h2>Sensitive files not supported <Icon name="warning" color="errorMain" size="32" /></Heading.h2>
                 <p>
                     This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
@@ -1046,10 +1009,270 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
     }
 
-    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
+    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
+
+const monacoCache = new AsyncCache<any>();
+
+async function getMonaco(): Promise<any> {
+    return monacoCache.retrieve("", async () => {
+        const monaco = await (import("monaco-editor"));
+        self.MonacoEnvironment = {
+            getWorker: function (workerId, label) {
+                switch (label) {
+                    case 'json':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
+                    case 'css':
+                    case 'scss':
+                    case 'less':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
+                    case 'html':
+                    case 'handlebars':
+                    case 'razor':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
+                    case 'typescript':
+                    case 'javascript':
+                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
+                    default:
+                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
+                }
+
+
+                function getWorkerModule(moduleUrl, label) {
+                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
+                        name: label,
+                        type: 'module'
+                    });
+                }
+            }
+        };
+        return monaco;
+    })
+}
+
+export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
+
+export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React.MutableRefObject<Uint8Array>}): React.ReactNode {
+    let oldOnResize: typeof window.onresize;
+
+    React.useEffect(() => {
+        oldOnResize = window.onresize;
+        return () => {window.onresize = oldOnResize}
+    }, [])
+    const [type, setType] = useState<ExtensionType>(null);
+    const [loading, invokeCommand] = useCloudCommand();
+
+    const codePreview = React.useRef<HTMLDivElement>(null);
+
+    const [data, setData] = useState("");
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = React.useCallback(async () => {
+        const size = file.status.sizeInBytes;
+        if (file.status.type !== "FILE") return;
+        if (!loading && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
+            try {
+                const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
+                    api.createDownload(bulkRequestOf({id: file.id})),
+                    {defaultErrorHandler: false}
+                );
+                const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
+                if (!downloadEndpoint) {
+                    setError("Unable to display preview. Try again later or with a different file.");
+                    return;
+                }
+                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
+                const contentBlob = await content.blob();
+                const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+
+                const foundFileType = fileType(contentBuffer);
+                if (contentRef) contentRef.current = contentBuffer;
+                if (foundFileType.length === 0) {
+                    const text = tryDecodeText(contentBuffer);
+                    if (text !== null) {
+                        setType("text");
+                        setData(text);
+                        setError(null);
+                    } else {
+                        setError("Preview is not supported for this file.");
+                    }
+                } else {
+                    const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
+
+                    switch (typeFromFileType) {
+                        case "image":
+                        case "audio":
+                        case "video":
+                        case "pdf":
+                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                            setError(null);
+                            break;
+                        case "code":
+                        case "text":
+                        case "application":
+                        case "markdown":
+                        default:
+                            const text = tryDecodeText(contentBuffer);
+                            if (text !== null) {
+                                setType("text");
+                                setData(text);
+                                setError(null);
+                            } else {
+                                setError("Preview is not supported for this file.");
+                            }
+                            break;
+                    }
+
+                    setType(typeFromFileType);
+                }
+            } catch (e) {
+                setError("Unable to display preview. Try again later or with a different file.");
+            }
+        } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
+            setError("File is too large to preview");
+        } else if (!size || size <= 0) {
+            setError("File is empty");
+        } else {
+            setError("Preview is not supported for this file.");
+        }
+    }, [file]);
+
+    useEffect(() => {
+        fetchData();
+    }, [file]);
+
+    const lightTheme = useSelector((red: ReduxObject) => red.sidebar.theme)
+    React.useEffect(() => {
+        if (type === "text" || type === "code") {
+            const theme = lightTheme === "light" ? "light" : "vs-dark";
+            getMonaco().then(monaco => monaco.editor.setTheme(theme));
+        }
+    }, [lightTheme, type]);
+
+    React.useLayoutEffect(() => {
+        const node = codePreview.current;
+        if (!node) return;
+        if (type === "text" || type === "code") {
+            getMonaco().then(monaco => {
+                const count = monaco.editor.getEditors().length;
+                if (count > 0) return;
+                monaco.editor.create(node, {
+                    value: data,
+                    language: languageFromExtension(extensionFromPath(file.id)),
+                    readOnly: true,
+                    minimap: {enabled: false},
+                    theme: isLightThemeStored() ? "light" : "vs-dark",
+                });
+                window.onresize = () => {
+                    monaco.editor.getEditors().forEach(it => it.layout());
+                };
+            });
+            return () => {
+                getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
+            }
+        }
+        return () => void 0;
+    }, [type, data]);
+
+    if (file.status.type !== "FILE") return null;
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
+
+    let node: React.ReactNode = null;
+
+    switch (type) {
+        case "text":
+        case "code":
+            // Note(Jonas): In the special case that Markdown starts with `[`, this will be considered `type = "code"`. We handle this at the last minute here.
+            if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
+                setType("markdown");
+                break;
+            }
+            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
+            break;
+        case "image":
+            node = <img className={Image} alt={fileName(file.id)} src={data} />
+            break;
+        case "audio":
+            node = <audio className={Audio} controls src={data} />;
+            break;
+        case "video":
+            node = <video className={Video} src={data} controls />;
+            break;
+        case "pdf":
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
+            break;
+        case "markdown":
+            node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
+            break;
+        default:
+            node = <div />
+            break;
+    }
+
+    if (error !== null) {
+        node = <div>{error}</div>;
+    }
+
+    return <div className={ItemWrapperClass}>{node}</div>;
+}
+
+const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
+const HEIGHT = "calc(100vh - 30px);"
+
+const MarkdownStyling = injectStyleSimple("markdown-styling", `
+    max-width: ${MAX_HEIGHT};
+    width: 100%;
+    margin: 32px;
+`);
+
+const Audio = injectStyleSimple("preview-audio", `
+    margin-top: auto;
+    margin-bottom: auto;
+`);
+
+const Editor = injectStyleSimple("m-editor", `
+    height: ${HEIGHT}
+    width: 100%;
+`);
+
+const Image = injectStyleSimple("preview-image", `
+    object-fit: contain;
+    max-width: ${MAX_HEIGHT}
+    max-height: ${HEIGHT}
+`);
+
+const Video = injectStyleSimple("preview-video", `
+    max-width: ${MAX_HEIGHT}
+`);
+
+const PreviewObject = injectStyleSimple("preview-pdf", `
+    max-width: ${MAX_HEIGHT}
+    width: 100%;
+    max-height: ${HEIGHT}
+`)
+
+const ItemWrapperClass = injectStyle("item-wrapper", k => `
+    ${k} {
+        display: flex;
+        justify-content: center;
+        height: 100%;
+        width: 100%;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: var(--defaultShadow);
+    }
+`);
+
+function tryDecodeText(buf: Uint8Array): string | null {
+    try {
+        const d = new TextDecoder("utf-8", {fatal: true});
+        return d.decode(buf);
+    } catch (e) {
+        return null;
+    }
+}
 
 export {api};
 export default api;

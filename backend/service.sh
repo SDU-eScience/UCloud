@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-PS1=fakeinteractiveshell
-source /root/.bashrc
+#PS1=fakeinteractiveshell
+#source /root/.bashrc
+PATH=$PATH:/usr/local/sdkman/candidates/gradle/current/bin
 
 isrunning() {
     test -f /tmp/service.pid && (ps -p $(cat /tmp/service.pid) > /dev/null)
@@ -10,7 +11,10 @@ isrunning() {
 
 startsvc() {
     if ! isrunning; then
-        gradle :launcher:installDist --console=plain
+        gradle wrapper
+        ./gradlew :launcher:installDist --console=plain
+	JAVA_OPTS='-Xdebug -Xrunjdwp:transport=dt_socket,server=y,address=*:51231,suspend=n'
+	export JAVA_OPTS
         nohup /opt/ucloud/launcher/build/install/launcher/bin/launcher --dev --config-dir /etc/ucloud &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
@@ -32,7 +36,7 @@ restartsvc() {
 
 installpsql() {
     if ! hash psql &> /dev/null ; then
-        apt-get update && apt-get install postgresql-client -y
+        yum install postgresql -y
     fi
 }
 

@@ -1,20 +1,9 @@
-import {HttpClient} from "../Authentication/lib";
-import {emptyPage} from "@/DefaultObjects";
+import {emptyPage} from "@/Utilities/PageUtilities";
 import {Action} from "redux";
-import {IconName} from "@/ui-components/Icon";
-import {ThemeColor} from "@/ui-components/theme";
 
 declare global {
     const DEVELOPMENT_ENV: boolean;
 }
-
-export interface SidebarOption {
-    name: string;
-    icon: string;
-    href: string;
-    children?: SidebarOption;
-}
-
 
 declare global {
     export interface PaginationRequest {
@@ -27,6 +16,18 @@ declare global {
         itemsPerPage: number;
         pageNumber: number;
         items: T[];
+    }
+
+    export interface PaginationRequestV2 {
+        itemsPerPage: number;
+        next?: string;
+        itemsToSkip?: number;
+    }
+
+    export interface PageV2<T = unknown> {
+        itemsPerPage: number;
+        items: T[];
+        next?: string;
     }
 }
 
@@ -52,26 +53,8 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
     };
 }
 
-export interface ClearRefresh {
-    clearRefresh: () => void;
-}
-
-export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
-export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
+export type SetLoadingAction<T extends string> = PayloadAction<T, {loading: boolean}>;
+export type Error<T extends string> = PayloadAction<T, {error?: string, statusCode?: number}>;
 declare global {
-    export interface PayloadAction<Act, T> extends Action<Act> {payload: T;}
-}
-
-export interface PredicatedOperation<T> {
-    predicate: (listItems: T[], client: HttpClient) => boolean;
-    onTrue: Operation<T>;
-    onFalse: Operation<T>;
-}
-
-export interface Operation<T> {
-    text: string;
-    onClick: (listItems: T[], client: HttpClient) => void;
-    disabled: (listItems: T[], client: HttpClient) => boolean;
-    icon: IconName;
-    color?: ThemeColor;
+    export interface PayloadAction<Act extends string, T> extends Action<Act> {payload: T;}
 }

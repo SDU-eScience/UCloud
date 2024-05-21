@@ -112,6 +112,7 @@ typealias FilesProviderCreateDownloadResponse = FilesCreateDownloadResponse
 data class FilesProviderCreateUploadRequestItem(
     val resolvedCollection: FileCollection,
     override val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPath
@@ -176,11 +177,11 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
     )
 
     val browse = call("browse", FilesProviderBrowseRequest.serializer(), PageV2.serializer(PartialUFile.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "browse", roles = Roles.SERVICE) // TODO FIXME
+        httpUpdate(baseContext, "browse", roles = Roles.SERVICE)
     }
 
     val retrieve = call("retrieve", FilesProviderRetrieveRequest.serializer(), FilesProviderRetrieveResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE) // TODO FIXME
+        httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE)
     }
 
     val move = call("move", BulkRequest.serializer(FilesProviderMoveRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {

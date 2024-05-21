@@ -1,9 +1,6 @@
 package dk.sdu.cloud.grant.api
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.accounting.api.projects.UserCriteria
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
@@ -41,6 +38,13 @@ interface Gift {
         """
     )
     val resourcesOwnedBy: String
+
+    @UCloudApiDoc(
+        """
+            Renewal policy for the gift
+        """
+    )
+    val renewEvery: Int
 }
 
 @UCloudApiInternal(InternalLevel.STABLE)
@@ -52,6 +56,7 @@ data class GiftWithCriteria(
     override val title: String,
     override val description: String,
     override val resources: List<GrantApplication.AllocationRequest>,
+    override val renewEvery: Int,
     val criteria: List<UserCriteria>
 ) : Gift {
     init {
@@ -189,5 +194,24 @@ ${ApiConventions.nonConformingApiWarning}
             summary = "Deletes a Gift by its DeleteGiftRequest.giftId"
             description = "Only project administrators of `Gift.resourcesOwnedBy` can delete the $TYPE_REF Gift ."
         }
+    }
+
+    val browse = Browse.call
+    object Browse {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
+
+        val call = call(
+            "browse",
+            Request.serializer(),
+            PageV2.serializer(GiftWithCriteria.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = { httpBrowse(baseContext) }
+        )
     }
 }

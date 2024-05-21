@@ -1,23 +1,32 @@
-import {Avatar} from "@/AvataaarLib";
 import * as React from "react";
-import styled from "styled-components";
-import {SpaceProps} from "styled-system";
 import Flex from "@/ui-components/Flex";
-import {AvatarType} from "@/UserSettings/Avataaar";
+import {AvatarType} from ".";
+import Avatar from "./avatar";
+import {useAvatars} from "@/AvataaarLib/hook";
 
-const ClippedBox = styled(Flex)`
-  overflow: hidden;
-`;
-
-interface UserAvatar extends SpaceProps {
+interface UserAvatar {
+    mr?: string;
     avatar: AvatarType;
     width?: string;
     height?: string;
     mx?: string;
+    avatarStyle?: "Circle" | "Transparent";
 }
 
-export const UserAvatar = ({avatar, width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element => (
-    <ClippedBox mx={mx} width={width} alignItems="center" height={height}>
-        <Avatar avatarStyle="Circle" {...avatar} />
-    </ClippedBox>
-);
+export function UserAvatar({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): React.ReactNode {
+    return (
+        <Flex overflow="hidden" mx={mx} width={width} alignItems="center" height={height}>
+            <Avatar avatarStyle={avatarStyle} {...avatar} />
+        </Flex>
+    );
+}
+
+export const AvatarForUser: React.FunctionComponent<{
+    width?: string;
+    height?: string;
+    avatarStyle?: "Circle" | "Transparent";
+    username: string;
+}> = props => {
+    const avatars = useAvatars();
+    return <UserAvatar avatar={avatars.avatar(props.username)} width={props.width} height={props.height} avatarStyle={props.avatarStyle}/>
+}

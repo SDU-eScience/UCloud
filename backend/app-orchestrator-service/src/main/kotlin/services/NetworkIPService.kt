@@ -30,7 +30,7 @@ class NetworkIPService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobOrchestrator,
+    orchestrator: JobResourceService,
 ) : Super(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.network_ips")
     override val defaultSortColumn = SqlObject.Column(table, "ip_address")
@@ -45,7 +45,7 @@ class NetworkIPService(
     override val updateSerializer = NetworkIPUpdate.serializer()
     override val productArea: ProductArea = ProductArea.NETWORK_IP
 
-    override fun resourcesFromJob(job: Job): List<AppParameterValue.Network> = job.networks
+    override fun resourcesFromJob(job: JobSpecification): List<AppParameterValue.Network> = job.networks
     override fun isReady(res: NetworkIP): Boolean = res.status.state == NetworkIPState.READY
     override fun boundUpdate(binding: JobBinding): NetworkIPUpdate = NetworkIPUpdate(binding = binding)
 

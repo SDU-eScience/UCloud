@@ -1,24 +1,19 @@
-import styled from "styled-components";
+import * as React from "react";
 import {
     BorderColorProps,
     BorderProps,
-    borderRadius,
     BorderRadiusProps,
-    boxShadow,
     BoxShadowProps,
-    height,
-    HeightProps, minHeight, MinHeightProps, padding, PaddingProps
-} from "styled-system";
-import Box, {BoxProps} from "./Box";
-import Icon from "./Icon";
-import {Theme} from "./theme";
-
-const boxBorder = (props: {theme: Theme; borderWidth: number | string; borderColor: string}): {border: string} => ({
-    border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
-});
-
-export interface CardProps extends
     HeightProps,
+    MinHeightProps,
+    PaddingProps
+} from "styled-system";
+
+import {classConcat, injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
+
+export interface CardProps extends HeightProps,
     BoxProps,
     BorderColorProps,
     BoxShadowProps,
@@ -27,27 +22,31 @@ export interface CardProps extends
     PaddingProps,
     MinHeightProps {
     borderWidth?: number | string;
+    children?: React.ReactNode; onClick?: (e: React.SyntheticEvent) => void;
+    onContextMenu?: (e: React.SyntheticEvent) => void;
+    className?: string;
+    style?: CSSProperties;
 }
 
-export const Card = styled(Box) <CardProps>`
-  ${padding} ${minHeight} ${height} ${boxShadow} ${boxBorder} ${borderRadius};
-`;
+export const CardClass = injectStyle("card", k => `
+    ${k} {
+        border-radius: 10px;
+        box-shadow: var(--defaultShadow);
+        background-color: var(--backgroundCard);
+        color: var(--textPrimary);
+        padding: 20px;
+    }
+`);
 
-Card.defaultProps = {
-    borderColor: "borderGray",
-    borderRadius: 1,
-    borderWidth: 1
+export const Card: React.FunctionComponent<CardProps> = props => {
+    return <div
+        style={{...unbox(props), ...(props.style ?? {})}}
+        className={classConcat(CardClass, props.className)}
+        onClick={props.onClick}
+        onContextMenu={props.onContextMenu}
+        children={props.children}
+    />;
 };
 
-export const PlayIconBase = styled(Icon)`
-  transition: ease 0.3s;
-
-  &:hover {
-    filter: saturate(5);
-    transition: ease 0.3s;
-  }
-`;
-
 Card.displayName = "Card";
-
 export default Card;

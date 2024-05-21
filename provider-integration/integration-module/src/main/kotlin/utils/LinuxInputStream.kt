@@ -1,10 +1,8 @@
 package dk.sdu.cloud.utils
 
-import dk.sdu.cloud.plugins.storage.ucloud.DefaultByteArrayPool
 import libc.clib
 import java.io.Closeable
 import java.nio.ByteBuffer
-import kotlin.math.min
 
 private const val SEEK_CUR = 1
 private const val EINTR = 4

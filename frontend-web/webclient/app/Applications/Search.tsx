@@ -1,120 +1,121 @@
 import * as React from "react";
-import {Box, Stamp} from "@/ui-components";
-import {emptyPage} from "@/DefaultObjects";
-import {joinToString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {useLocation, useNavigate} from "react-router";
-import {useEffect} from "react";
-import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import * as UCloud from "@/UCloud";
-import {GridCardGroup} from "@/ui-components/Grid";
-import {ApplicationCard} from "@/Applications/Card";
-import * as Pagination from "@/Pagination";
-import {SmallScreenSearchField} from "@/Navigation/Header";
-import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
+import {useCallback, useEffect} from "react";
+import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import Grid from "@/ui-components/Grid";
+import {AppCard, AppCardType} from "@/Applications/Card";
+import {Box, Flex, Icon, Input} from "@/ui-components";
+import * as Pages from "./Pages";
+import {injectStyle} from "@/Unstyled";
+import AppRoutes from "@/Routes";
+import {useDispatch, useSelector} from "react-redux";
+import {toggleAppFavorite} from "./Redux/Actions";
+import {emptyPage} from "@/Utilities/PageUtilities";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
+import {UtilityBar} from "@/Navigation/UtilityBar";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-interface SearchQuery {
-    tags: string[];
-    query: string;
-    showAllVersions: boolean;
-    page: number;
-    itemsPerPage: number;
-}
-
-interface SearchStampsProps {
-    stamps: Set<string>;
-    onStampRemove: (stamp: string) => void;
-    clearAll: () => void;
-}
-
-export const SearchStamps: React.FunctionComponent<SearchStampsProps> = ({stamps, onStampRemove, clearAll}) => {
-    return <Box pb="5px">
-        {[...stamps].map(l => (
-            <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="red" onClick={() => clearAll()} text="Clear all" />) : null}
-    </Box>;
-};
-
-
-function readQuery(queryParams: string): SearchQuery {
-    const tags: string[] = [];
-    const tagsQuery = getQueryParamOrElse(queryParams, "tags", "");
-    tagsQuery.split(",").forEach(it => {
-        if (it !== "") {
-            tags.push(it);
-        }
-    });
-    const showAllVersions = getQueryParamOrElse(queryParams, "showAllVersions", "false") === "true";
-    const query = getQueryParamOrElse(queryParams, "query", "");
-    let itemsPerPage = parseInt(getQueryParamOrElse(queryParams, "itemsPerPage", "25"), 10);
-    let page = parseInt(getQueryParamOrElse(queryParams, "page", "0"), 10);
-    if (isNaN(itemsPerPage) || itemsPerPage <= 0) itemsPerPage = 25;
-    if (isNaN(page) || page < 0) page = 0;
-
-    return {query, tags, showAllVersions, itemsPerPage, page};
-}
-
-export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = ({entriesPerPage}) => {
+export function useAppSearch(): (query: string) => void {
     const navigate = useNavigate();
+    return useCallback(query => {
+        navigate(AppRoutes.apps.search(query));
+    }, [navigate]);
+}
+
+function readQuery(queryParams: string): string {
+    return getQueryParamOrElse(queryParams, "q", "");
+}
+
+const OverviewStyle = injectStyle("search-results", k => `
+    ${k} {
+        margin: 0 auto;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 1100px;
+        min-width: 600px;
+        min-height: 100vh;
+    }
+`);
+
+const SearchResults: React.FunctionComponent = () => {
     const location = useLocation();
-    const [, invokeCommand] = useCloudCommand();
-    const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
-        {noop: true},
+    const dispatch = useDispatch();
+    const query = readQuery(location.search);
+    const [results, fetchResults] = useCloudAPI(
+        AppStore.search({query, itemsPerPage: 250}),
         emptyPage
     );
 
-    const queryParams = location.search;
-    const parsedQuery = readQuery(queryParams);
+    const refresh = useCallback(() => {
+        fetchResults(AppStore.search({query, itemsPerPage: 250})).then(doNothing);
+    }, [query]);
 
     useEffect(() => {
-        fetchResults(
-            UCloud.compute.apps.searchApps({
-                query: new URLSearchParams(queryParams).get("q") ?? "",
-                itemsPerPage: 100,
-                page: parsedQuery.page, 
-            })
-        );
-    }, [queryParams, /* This isn't needed for this one, is it? */entriesPerPage]);
+        refresh();
+    }, [refresh]);
 
-    const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
-        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
-        fetchResults(
-            UCloud.compute.apps.searchApps({
-                query: new URLSearchParams(queryParams).get("q") ?? "",
-                itemsPerPage: 100,
-                page: 0
-            })
-        );
-    }, [fetch]);
+    usePage("Search results", SidebarTabId.APPLICATIONS);
+    useSetRefreshFunction(refresh);
 
-    return <>
-        <FilesSearchTabs active={"APPLICATIONS"} />
-        <SmallScreenSearchField />
-        <Pagination.List
-            loading={results.loading}
-            page={results.data}
-            pageRenderer={page => (
-                <GridCardGroup>
-                    {page.items.map(app => (
-                        <ApplicationCard
-                            key={`${app.metadata.name}${app.metadata.version}`}
-                            app={app}
-                            onFavorite={toggleFavorite}
-                            isFavorite={app.favorite}
-                            tags={app.tags}
-                        />))
-                    }
-                </GridCardGroup>
-            )}
-            onPageChanged={newPage => {
-                navigate(buildQueryString("/applications/search", {
-                    q: new URLSearchParams(queryParams).get("q") ?? "",
-                    tags: joinToString(parsedQuery.tags),
-                    showAllVersions: parsedQuery.showAllVersions.toString(),
-                    page: newPage.toString(),
-                    itemsPerPage: parsedQuery.itemsPerPage.toString(),
-                }));
-            }}
-        />
-    </>;
+    const favoriteStatus = useSelector<ReduxObject, ApplicationSummaryWithFavorite[]>(it => it.sidebar.favorites);
+
+    const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
+        const favoriteApp = favoriteStatus.find(it => it.metadata.name === app.metadata.name);
+        const isFavorite = favoriteApp !== undefined ? true : app.favorite;
+
+        dispatch(toggleAppFavorite(app, !isFavorite));
+
+        try {
+            await callAPI(AppStore.toggleStar({
+                name: app.metadata.name
+            }));
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+            dispatch(toggleAppFavorite(app, !isFavorite));
+        }
+    }, [favoriteStatus]);
+
+    const appSearch = useAppSearch();
+
+    return <div>
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <div className={OverviewStyle}>
+                    <Flex alignItems={"center"}>
+                        <h3>Search results</h3>
+                        <Box ml="auto"/>
+                        <UtilityBar onSearch={appSearch} initialSearchQuery={query}/>
+                    </Flex>
+
+                    <Grid gridTemplateColumns={"repeat(auto-fit, minmax(430px, 1fr))"} gap={"16px"}>
+                        {results.data.items.map(app => (
+                            <AppCard
+                                key={app.metadata.name}
+                                title={app.metadata.title}
+                                description={app.metadata.description}
+                                logo={app.metadata.name}
+                                type={AppCardType.APPLICATION}
+                                link={Pages.run(app.metadata.name)}
+                                onFavorite={onFavorite}
+                                isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                                application={app}
+                            />
+                        ))}
+                    </Grid>
+                </div>
+            </div>
+        </div>
+    </div>
 };
+
+
+export default SearchResults;

@@ -1,53 +1,97 @@
 import * as React from "react";
-import {SyntheticEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
-import {MainContainer} from "@/MainContainer/MainContainer";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useLocation, useParams} from "react-router";
+import {MainContainer} from "@/ui-components/MainContainer";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePage} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
-import styled, {keyframes} from "styled-components";
-import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import {IconName} from "@/ui-components/Icon";
+import {SafeLogo} from "@/Applications/AppToolLogo";
+import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/xterm";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import {margin, MarginProps} from "styled-system";
+import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {pageV2Of} from "@/UtilityFunctions";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {
     api as JobsApi,
     Job,
     JobUpdate,
     JobStatus,
     ComputeSupport,
-    JobSpecification,
     DockerSupport,
     NativeSupport,
     VirtualMachineSupport
 } from "@/UCloud/JobsApi";
-import {compute} from "@/UCloud";
+import {PageV2, compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {costOfDuration, priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
-import {FilesBrowse} from "@/Files/Files";
-import {BrowseType} from "@/Resource/BrowseType";
-import {prettyFilePath} from "@/Files/FilePath";
-import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
+import {ButtonClass} from "@/ui-components/Button";
+import FileBrowse from "@/Files/FileBrowse";
+import {LogOutput} from "@/UtilityComponents";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import CodeSnippet from "@/ui-components/CodeSnippet";
+import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import {appendToXterm, useXTerm} from "./XTermLib";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {JobsOpenInteractiveSessionResponse, WebSession} from "./Web";
 
-const enterAnimation = keyframes`
+export const jobCache = new class extends ExternalStoreBase {
+    private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
+    private isDirty: boolean = false;
+
+    public updateCache(page: PageV2<Job>, doClear = false) {
+        this.isDirty = true;
+        if (doClear) {
+            this.cache = {items: [], itemsPerPage: 100};
+        }
+
+        const runningJobs = page.items.filter(it => it.status.state === "RUNNING");
+        for (const job of runningJobs) {
+            const duplicate = this.cache.items.find(it => it.id === job.id);
+            if (duplicate) {
+                duplicate.status === job.status;
+            } else {
+                this.cache.items.unshift(job);
+            }
+        }
+
+        const endedJobs = page.items.filter(it => isJobStateTerminal(it.status.state));
+        for (const endedJob of endedJobs) {
+            const job = this.cache.items.find(it => it.id === endedJob.id);
+            if (job) {
+                this.cache.items = this.cache.items.filter(it => it.id !== job.id);
+            }
+        }
+
+        this.emitChange();
+    }
+
+    public getSnapshot(): Readonly<PageV2<Job>> {
+        if (this.isDirty) {
+            this.isDirty = false;
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+        }
+        return this.cache;
+    }
+}();
+
+const enterAnimation = makeKeyframe("enter-animation", `
   from {
     transform: scale3d(1, 1, 1);
   }
@@ -57,18 +101,18 @@ const enterAnimation = keyframes`
   to {
     transform: scale3d(1, 1, 1);
   }
-`;
+`);
 
-const busyAnim = keyframes`
+const busyAnim = makeKeyframe("busy-anim", `
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
   }
-`;
+`);
 
-const zoomInAnim = keyframes`
+const zoomInAnim = makeKeyframe("zoom-in-anim", `
   from {
     opacity: 0;
     transform: scale3d(0.3, 0.3, 0.3);
@@ -76,45 +120,63 @@ const zoomInAnim = keyframes`
   50% {
     opacity: 1;
   }
-`;
+`);
 
-const Container = styled.div`
-  --logoScale: 1;
-  --logoBaseSize: 200px;
-  --logoSize: calc(var(--logoBaseSize) * var(--logoScale));
+const logoWrapper = makeClassName("logo-wrapper");
+const logoScale = makeClassName("logo-scale");
+const fakeLogo = makeClassName("fake-logo");
+const active = makeClassName("active");
+const data = makeClassName("data");
+const dataEnterDone = makeClassName("data-enter-done");
+const dataEnterActive = makeClassName("data-enter-active");
+const header = makeClassName("headers");
+const headerText = makeClassName("header-text");
+const dataExitActive = makeClassName("data-exit-active");
+const dataExit = makeClassName("data-exit");
+const logo = makeClassName("logo");
+const running = makeClassName("running");
+const topButtons = makeClassName("top-buttons");
 
-  margin: 50px; /* when header is not wrapped this should be equal to logoPX and logoPY */
-  max-width: 2200px;
+const Container = injectStyle("job-container", k => `
+    ${k} {
+        --logoScale: 1;
+        --logoSize: 128px;
+        margin: 32px;
+        max-width: 2200px;
+    }
 
-  ${device("xs")} {
-    margin-left: 0;
-    margin-right: 0;
-  }
 
-  & {
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
+    ${device("xs")} {
+        ${k} {
+            margin-left: 0;
+            margin-right: 0;
+        }
+    }
 
-  .logo-wrapper {
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+  ${k} > ${logoWrapper.dot} {
     position: absolute;
     left: 0;
     top: 0;
     animation: 800ms ${zoomInAnim};
   }
 
-  .logo-wrapper.active {
+  ${k} > ${logoWrapper.dot}${active.dot} {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  .logo-wrapper.active .logo-scale {
+  ${k} > ${logoWrapper.dot}${active.dot} > ${logoScale.dot} {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
   }
 
-  .fake-logo {
+  ${k} ${fakeLogo.dot} {
     /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
     this basically fixes our document flow */
     display: block;
@@ -123,76 +185,88 @@ const Container = styled.div`
     content: '';
   }
 
-  .data.data-enter-done {
+  ${k} ${data.dot}${dataEnterDone.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 
-  .data.data-enter-active {
+  ${k} ${data.dot}${dataEnterActive.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  .data.data-exit {
+  ${k} ${data.dot}${dataExit.dot} {
     opacity: 1;
   }
 
-  .data-exit-active {
+  ${k} ${data.dot}${dataExitActive.dot} {
     display: none;
   }
 
-  .data {
+  ${k} ${data.dot} {
     width: 100%; /* fix info card width */
     opacity: 0;
     transform: translate3d(0, 50vh, 0);
   }
 
-  .header-text {
+  ${k} ${headerText.dot} {
     margin-left: 32px;
-    margin-top: calc(var(--logoScale) * 16px);
-    width: calc(100% - var(--logoBaseSize) * var(--logoScale) - 32px);
+    width: calc(100% - var(--logoSize) - 32px);
+    height: var(--logoSize);
+    display: flex;
+    flex-direction: column;
   }
 
   ${deviceBreakpoint({maxWidth: "1000px"})} {
-    .fake-logo {
+    ${k} ${fakeLogo.dot} {
       width: 100%; /* force the header to wrap */
     }
 
-    .logo-wrapper {
+    ${k} ${logoWrapper.dot} {
       left: calc(50% - var(--logoSize) / 2);
     }
 
-    .header {
+    ${k} ${header.dot} {
       text-align: center;
     }
 
-    .header-text {
+    ${k} ${headerText.dot} {
       margin-left: 0;
       margin-top: 0;
       width: 100%;
     }
   }
 
-  &.IN_QUEUE .logo {
+  ${k}.IN_QUEUE ${logo.dot} {
     animation: 2s ${enterAnimation} infinite;
   }
+  
+  ${k}.RUNNING {
+    --logoSize: 96px;
+  }
 
-  &.RUNNING {
+  ${k}${running.dot} {
     --logoScale: 0.5;
   }
 
-  .top-buttons {
+  ${k} ${topButtons.dot} {
     display: flex;
     gap: 8px;
   }
-`;
+`);
 
 // NOTE(Dan): WS calls don't currently have their types generated
 interface JobsFollowResponse {
     updates: compute.JobUpdate[];
-    log: { rank: number; stdout?: string; stderr?: string }[];
+    log: LogMessage[];
     newStatus?: JobStatus;
+}
+
+interface LogMessage {
+    rank: number;
+    stdout?: string;
+    stderr?: string;
 }
 
 function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowResponse) => void): void {
@@ -201,18 +275,18 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
 
         const conn = WSFactory.open(
             "/jobs", {
-                init: async conn => {
-                    await conn.subscribe({
-                        call: "jobs.follow",
-                        payload: {id: job.id},
-                        handler: message => {
-                            const streamEntry = message.payload as JobsFollowResponse;
-                            callback(streamEntry);
-                        }
-                    });
-                    conn.close();
-                },
-            });
+            init: async conn => {
+                await conn.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: job.id},
+                    handler: message => {
+                        const streamEntry = message.payload as JobsFollowResponse;
+                        callback(streamEntry);
+                    }
+                });
+                conn.close();
+            },
+        });
 
         return () => {
             conn.close();
@@ -220,36 +294,31 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
     }, [job, callback]);
 }
 
-interface JobUpdateListener {
-    handler: (e: JobsFollowResponse) => void;
+interface JobUpdates {
+    updateQueue: compute.JobUpdate[];
+    logQueue: LogMessage[];
+    statusQueue: JobStatus[];
+
+    subscriptions: (() => void)[];
 }
 
 function getBackend(job?: Job): string {
     return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
 }
 
-export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
-    const id = props.id ?? useParams<{ id: string }>().id!;
+export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
+    const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
     const location = useLocation();
-    const navigate = useNavigate();
     const appNameHint = getQueryParamOrElse(location.search, "app", "");
-    const action = getQueryParamOrElse(location.search, "action", "view");
-    const delayInitialAnim = action === "start";
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
     const job = jobFetcher.data;
-
-    // const [balanceFetcher, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-    //     retrieveBalance({includeChildren: true}),
-    //     {wallets: []}
-    // );
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
     if (!props.embedded) {
-        useSidebarPage(SidebarPages.Runs);
-        useTitle(`Job ${shortUUID(id)}`);
+        usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
     }
 
     useEffect(() => {
@@ -262,8 +331,8 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
     }, [id]);
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
-    const [logoAnimationAllowed, setLogoAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
+    const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
 
     useEffect(() => {
         if (useFakeState) {
@@ -279,6 +348,14 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                         jobParametersJson: {}
                     });
                 }
+
+                for (let i = 0; i < (job?.specification?.replicas ?? 1); i++) {
+                    jobUpdateState.current.logQueue.push({
+                        rank: i,
+                        stdout: `[Node ${i + 1}] Test message: ${timestampUnixMs()}\n`
+                    });
+                }
+                jobUpdateState.current.subscriptions.forEach(it => it());
             }, 100);
 
             return () => {
@@ -292,37 +369,22 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
     }, [status]);
 
     useEffect(() => {
-
         let t1: number | undefined;
-        let t2: number | undefined;
         if (job) {
             t1 = window.setTimeout(() => {
                 setDataAnimationAllowed(true);
-
-                // NOTE(Dan): Remove action to avoid getting delay if the user refreshes their browser
-                if (!props.embedded) {
-                    navigate(buildQueryString(location.pathname, {app: appNameHint}), {replace: true});
-                }
-            }, delayInitialAnim ? 3000 : 400);
-
-            if (!props.embedded) {
-                t2 = window.setTimeout(() => {
-                    setLogoAnimationAllowed(true);
-                }, delayInitialAnim ? 2200 : 0);
-            }
+            }, 400);
         }
 
         return () => {
             if (t1 != undefined) clearTimeout(t1);
-            if (t2 != undefined) clearTimeout(t2);
         };
     }, [job, props.embedded]);
 
-    /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
     useEffect(() => {
+        /* NOTE(jonas): Attempt to fix not transitioning to the initial state */
         if (job?.status != null) setStatus(s => s ?? job.status);
     }, [job]);
-    /* NOTE-END */
 
     useEffect(() => {
         // Used to fetch creditsCharged when job finishes.
@@ -335,46 +397,67 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
         }
     }, [status?.state])
 
-    const jobUpdateCallbackHandlers = useRef<JobUpdateListener[]>([]);
     useEffect(() => {
-        jobUpdateCallbackHandlers.current = [{
-            handler: (e) => {
+        jobUpdateState.current.subscriptions.push(() => {
+            const s = jobUpdateState.current;
+            while (true) {
+                const e = s.statusQueue.pop();
+                if (e === undefined) break;
+
                 if (!useFakeState) {
-                    if (e.newStatus != null) {
-                        setStatus(e.newStatus);
-                    }
+                    setStatus(e);
                 } else {
-                    if (e.newStatus != null) {
-                        console.log("Wanted to switch status, but didn't. " +
-                            "Remove localStorage useFakeState if you wish to use real status.");
-                    }
+                    console.log("Wanted to switch status, but didn't. " +
+                        "Remove localStorage useFakeState if you wish to use real status.");
                 }
             }
-        }];
+        });
     }, [id]);
+
     const jobUpdateListener = useCallback((e: JobsFollowResponse) => {
         if (!e) return;
-        if (e.updates) {
-            for (const update of e.updates) job?.updates?.push(update);
+        const s = jobUpdateState.current;
+
+        if (e.log) {
+            for (const msg of e.log) {
+                s.logQueue.push(msg);
+            }
         }
-        jobUpdateCallbackHandlers.current.forEach(({handler}) => {
-            handler(e);
-        });
+
+        if (e.updates) {
+            for (const update of e.updates) {
+                s.updateQueue.push(update);
+                job?.updates?.push(update);
+
+                if (job && update.state && (update.state === "RUNNING" || isJobStateTerminal(update.state))) {
+                    const j = {...job};
+                    j.status.state = update.state;
+                    jobCache.updateCache(pageV2Of(j));
+                }
+            }
+        }
+
+        if (e.newStatus) {
+            s.statusQueue.push(e.newStatus);
+        }
+
+        s.subscriptions.forEach(it => it());
     }, [job]);
+
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
-        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>}/>;
+        return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
     const main = (
-        <Container className={status?.state ?? "state-loading"}>
-            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                <div className="logo-scale">
+        <div className={classConcat(Container, status?.state ?? "state-loading")}>
+            <div className={`${logoWrapper.class} ${active.class}`}>
+                <div className={logoScale.class}>
                     <div className="logo">
-                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                                     type={"APPLICATION"}
-                                     size={"200px"}/>
+                        <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
+                            type={"APPLICATION"}
+                            size={"var(--logoSize)"} />
                     </div>
                 </div>
             </div>
@@ -385,27 +468,24 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                         enter: 1000,
                         exit: 0,
                     }}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
+                    <div className={data.class}>
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
-                            <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!}/> : null}
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
+                                <InQueueText job={job} state={status.state ?? "IN_QUEUE"} />
                             </div>
                         </Flex>
 
-                        <Content>
-                            <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                <HighlightedCard color={"purple"}>
-                                    <Box py={"16px"}>
-                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
-                                    </Box>
-                                </HighlightedCard>
+                        <div className={Content}>
+                            <Box width={"100%"} maxWidth={"1572px"} margin={"0 auto"}>
+                                <TitledCard>
+                                    <ProviderUpdates key={job.id} job={job} state={jobUpdateState} addOverflow={true} />
+                                </TitledCard>
                             </Box>
-                            <InfoCards job={job} status={status}/>
-                        </Content>
+                        </div>
                     </div>
                 </CSSTransition>
             )}
@@ -414,20 +494,20 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 <CSSTransition
                     in={status?.state === "RUNNING" && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
-                            <div className={"header-text"}>
-                                <RunningText job={job}/>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
+                                <RunningText job={job} />
                             </div>
                         </Flex>
 
                         <RunningContent
                             job={job}
-                            updateListeners={jobUpdateCallbackHandlers}
+                            state={jobUpdateState}
                             status={status}
                         />
                     </div>
@@ -439,93 +519,95 @@ export function View(props: { id?: string; embedded?: boolean; }): JSX.Element {
                 <CSSTransition
                     in={isJobStateTerminal(status.state) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
+                    classNames={data.class}
                     unmountOnExit
                 >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"}/>
-                            <div className={"header-text"}>
-                                <CompletedText job={job} state={status.state}/>
+                    <div className={data.class}>
+                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
+                            <div className={fakeLogo.class} />
+                            <div className={headerText.class}>
+                                <CompletedText job={job} state={status.state} />
                             </div>
                         </Flex>
 
-                        <CompletedContent job={job} jobUpdateCallbackHandlers={jobUpdateCallbackHandlers}/>
+                        <CompletedContent job={job} state={jobUpdateState} />
                     </div>
                 </CSSTransition>
             )}
-        </Container>
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job} /> : null}
+        </div>
     );
 
-    if (props.embedded) {
-        return main;
-    }
-    return <MainContainer
-        main={main}
-    />;
+    if (props.embedded) return main;
+    return <MainContainer main={main} />;
 }
 
 const CompletedContent: React.FunctionComponent<{
     job: Job;
-    jobUpdateCallbackHandlers: React.RefObject<JobUpdateListener[]>;
-}> = ({job, jobUpdateCallbackHandlers}) => {
+    state: React.RefObject<JobUpdates>;
+}> = ({job, state}) => {
     const project = useProject();
     const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job?.owner?.project ? project.fetch().specification.title :
-        "My Workspace" : "My Workspace";
+        "My workspace" : "My workspace";
 
-    const fileInfo = useJobFiles(job.specification);
-
-    return <Content>
-        <RunningInfoWrapper>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
+    return <div className={Content}>
+        <TabbedCard style={{flexBasis: "300px"}}>
+            <TabbedCardTab icon={"heroServerStack"} name={"Job info"}>
                 <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                     {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
                     <Box><b>ID:</b> {shortUUID(job.id)}</Box>
                     <Box>
                         <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider}/>
+                        <ProviderTitle providerId={job.specification.product.provider} />
                         {" "}/{" "}
                         {job.specification.product.id}{" "}
                         (x{job.specification.replicas})
                     </Box>
-                    <Box><b>Input:</b> {fileInfo}</Box>
                     <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
                 </Flex>
-            </HighlightedCard>
+            </TabbedCardTab>
+        </TabbedCard>
 
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers}/>
-            </HighlightedCard>
-        </RunningInfoWrapper>
-
-        <OutputFiles job={job}/>
-    </Content>
+        <TabbedCard style={{flexBasis: "600px"}}>
+            <StandardPanelBody>
+                <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                    <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
+                </TabbedCardTab>
+            </StandardPanelBody>
+        </TabbedCard>
+    </div>
 };
 
-const Content = styled.div`
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-`;
+const Content = injectStyle("content", k => `
+    ${k} {
+        margin-top: 32px;
+        display: flex;
+        gap: 16px;
+    }
+    
+    ${k} > * {
+        flex-grow: 1;
+        flex-shrink: 0;
+    }
+`);
 
-function PeerEntry(props: { peer: AppParameterValueNS.Peer }): JSX.Element {
-    return <Flex width={1}>
-        <Truncate width={0.5}>{props.peer.hostname}</Truncate><Truncate width={0.5}></Truncate>
-    </Flex>
-}
-
-function IngressEntry({id}: { id: string }): JSX.Element {
-    const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
-    if (ingress.data == null) return <div/>
-    const {domain} = ingress.data.specification;
+function PublicLinkEntry({id}: {id: string}): React.ReactNode {
+    const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
+    if (!id.startsWith("fake-") && publicLink.data == null) return <div />
+    let domain: string;
+    if (id.startsWith("fake")) {
+        domain = "https://fake-public-link.example.com";
+    } else if (publicLink.data == null) {
+        return <li />;
+    } else {
+        domain = publicLink.data.specification.domain;
+    }
 
     const httpDomain = domain.startsWith("https://") ? domain : "https://" + domain;
-    return <Truncate width={1}>
-        <ExternalLink title={domain} href={httpDomain}>{domain}</ExternalLink>
-    </Truncate>
+    return <li><a target={"_blank"} title={domain} href={httpDomain}>{domain}</a></li>;
 }
 
-const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
         {noop: true},
         null
@@ -543,83 +625,79 @@ const InQueueText: React.FunctionComponent<{ job: Job }> = ({job}) => {
     }, [job]);
 
     return <>
-        <Heading.h2>Your job is being prepared</Heading.h2>
-        <Heading.h3>
-            {job.specification.name ?
-                (<>
-                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                    {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
-                </>) :
-                (<>
-                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
-                    {" "}(ID: {shortUUID(job.id)})
-                </>)
+        <Heading.h2>
+            {state === "IN_QUEUE" ?
+                <>
+                    {job.specification.name ?
+                        (<>
+                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                        </>) :
+                        (<>
+                            Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {" "}(ID: {shortUUID(job.id)})
+                        </>)
+                    }
+                </> :
+                "Your job is temporarily suspended"
             }
-        </Heading.h3>
-        <Busy job={job} utilization={utilization.data}/>
+        </Heading.h2>
+        {state === "SUSPENDED" &&
+            <Heading.h3>
+                {job.specification.name ?
+                    (<>
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                        {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
+                    </>) :
+                    (<>
+                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                        {" "}(ID: {shortUUID(job.id)})
+                    </>)
+                }
+            </Heading.h3>
+        }
+        <Busy job={job} state={state} utilization={utilization.data} />
     </>;
 };
 
-const BusyWrapper = styled(Box)`
-  display: none;
+const BusyWrapper = injectStyle("busy-wrapper", k => `
+    ${k} {
+        display: none;
+        flex-direction: column;
+        flex-grow: 1;
+    }
 
-  &.active {
-    animation: 1s ${busyAnim};
-    display: block;
-  }
-`;
+    ${k}${active.dot} {
+        animation: 1s ${busyAnim};
+        display: flex;
+    }
+`);
 
 const Busy: React.FunctionComponent<{
     job: Job;
+    state: JobState;
     utilization: compute.JobsRetrieveUtilizationResponse | null
-}> = ({job, utilization}) => {
-    const ref = useRef<HTMLDivElement>(null);
-    const clusterUtilization = utilization ?
-        Math.floor((utilization.usedCapacity.cpu / utilization.capacity.cpu) * 100) : 0;
-
+}> = ({job, state}) => {
+    const [isActive, setActive] = useState(false);
     useEffect(() => {
         const t = setTimeout(() => {
-            ref.current?.classList.add("active");
+            setActive(true);
         }, 6000);
+
         return () => {
             clearTimeout(t);
         };
     }, []);
 
-    return <BusyWrapper ref={ref}>
-        <Box mt={"16px"}>
-            <Box mb={"16px"}>
-                {clusterUtilization > 80 ? (
-                    <>
-                        Due to high resource utilization, it might take longer than normal to prepare the machine you
-                        requested.<br/>
-                        {utilization ? (
-                            <>
-                                Cluster utilization is currently at {clusterUtilization}%
-                                with {utilization.queueStatus.running} jobs
-                                running and {utilization.queueStatus.pending} in the queue.
-                            </>
-                        ) : null}
-                    </>
-                ) : (
-                    <>We are currently preparing your job. This step might take a few
-                        minutes.</>
-                )}
-            </Box>
+    return <Box className={classConcat(BusyWrapper, isActive ? active.class : undefined)}>
+        {state === "IN_QUEUE" &&
+            <Box>We are currently preparing your job. This step might take a few minutes.</Box>
+        }
 
-            <CancelButton job={job} state={"IN_QUEUE"}/>
-        </Box>
-    </BusyWrapper>;
+        <Box flexGrow={1} />
+        <Box><CancelButton job={job} state={"IN_QUEUE"} /></Box>
+    </Box>;
 };
-
-const InfoCardsContainer = styled.div`
-  margin-top: 32px;
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 380px));
-  grid-gap: 16px;
-  justify-content: center;
-`;
 
 function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
     switch (jobBackend) {
@@ -636,225 +714,48 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const InfoCards: React.FunctionComponent<{ job: Job, status: JobStatus }> = ({job, status}) => {
-    const fileInfo = useJobFiles(job.specification);
-    let time = job.specification.timeAllocation;
-    if (status.expiresAt && status.startedAt) {
-        const msTime = status.expiresAt - status.startedAt;
-        time = {
-            hours: Math.floor(msTime / (1000 * 3600)),
-            minutes: Math.floor((msTime % (1000 * 3600)) / (1000 * 60)),
-            seconds: Math.floor((msTime % (1000 * 60)) / (1000))
-        };
-    }
-
-    let prettyTime = "No job deadline";
-    if (time) {
-        prettyTime = "";
-        if (time.hours > 0) {
-            prettyTime += time.hours;
-            if (time.hours > 1) prettyTime += " hours";
-            else prettyTime += " hour";
-        }
-        if (time.minutes > 0) {
-            if (prettyTime !== "") prettyTime += " ";
-            prettyTime += time.minutes;
-            if (time.minutes > 1) prettyTime += " minutes";
-            else prettyTime += " minute";
-        }
-
-        if (prettyTime === "") {
-            prettyTime = "< 1 minute";
-        }
-    }
-
-    const project = useProject();
-    const workspaceTitle = Client.hasActiveProject ? project.fetch().id === job.owner.project ? project.fetch().specification.title :
-        "My Workspace" : "My Workspace";
-
-    const machine = job.status.resolvedProduct! as unknown as ProductCompute;
-    const pricePerUnit = machine?.pricePerUnit ?? 0;
-    const estimatedCost = time ?
-        (time.hours * 60 * pricePerUnit + (time.minutes * pricePerUnit)) * job.specification.replicas :
-        0;
-
-    return <InfoCardsContainer>
-        <InfoCard
-            stat={job.specification.replicas.toString()}
-            statTitle={job.specification.replicas === 1 ? "Node" : "Nodes"}
-            icon={"cpu"}
-        >
-            <b><ProviderTitle providerId={job.specification.product.provider}/> / {job.specification.product.id}
-            </b><br/>
-            {!machine?.cpu ? null : <>{machine?.cpu}x vCPU </>}
-
-            {machine?.cpu && (machine.memoryInGigs || machine.gpu) ? <>&mdash;</> : null}
-            {!machine?.memoryInGigs ? null : <>{machine?.memoryInGigs}GB RAM</>}
-
-            {machine?.cpu && machine.gpu ? <>&mdash;</> : null}
-            {!machine?.gpu ? null : <>{" "}{machine?.gpu}x GPU</>}
-        </InfoCard>
-        {job.status.resolvedApplication?.invocation?.tool?.tool?.description?.backend === "VIRTUAL_MACHINE" ?
-            null :
-            <InfoCard
-                stat={prettyTime}
-                statTitle={"Allocated"}
-                icon={"hourglass"}
-            >
-                {!isJobStateTerminal(status?.state) ? (<>
-                    {!time ? null : <>
-                        <b>Estimated price:</b>{" "}
-                        {usageExplainer(estimatedCost, machine.productType, machine.chargeType, machine.unitOfPrice)}
-                        <br/>
-                    </>}
-                    <b>Price per hour:</b>
-                    {job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                        job.status.resolvedProduct ?
-                            usageExplainer(
-                                costOfDuration(60, job.specification.replicas, machine),
-                                "COMPUTE",
-                                machine.chargeType,
-                                machine.unitOfPrice
-                            )
-                            : "Unknown"
-                    }
-                </>) : null}
-            </InfoCard>
-        }
-        <InfoCard
-            stat={Object.keys(jobFiles(job.specification)).length.toString()}
-            statTitle={Object.keys(jobFiles(job.specification)).length === 1 ? "Input file" : "Input files"}
-            icon={"ftFolder"}
-        >
-            {fileInfo}
-        </InfoCard>
-        <InfoCard stat={workspaceTitle} statTitle={"Project"} icon={"projects"}>
-            <b>Launched by:</b> {job.owner.createdBy}
-        </InfoCard>
-    </InfoCardsContainer>;
-};
-
-const InfoCardContainer = styled.div`
-  margin: 15px 10px;
-  text-align: center;
-
-  .stat {
-    font-size: 250%;
-    line-height: 150%;
-  }
-
-  .stat-title {
-    font-size: 150%;
-  }
-
-  .content {
-    margin-top: 30px;
-    text-align: left;
-  }
-`;
-
-const InfoCard: React.FunctionComponent<{
-    stat: string,
-    statTitle: string,
-    icon: IconName,
-    children: React.ReactNode;
-}> = props => {
-    return <HighlightedCard color={"purple"} isLoading={false}>
-        <InfoCardContainer>
-            <Icon name={props.icon} size={"60px"} color={"iconColor"} color2={"iconColor2"}/>
-            <div className={"stat"}>{props.stat}</div>
-            <div className={"stat-title"}>{props.statTitle}</div>
-            <div className={"content"}>
-                {props.children}
-            </div>
-        </InfoCardContainer>
-    </HighlightedCard>;
-};
-
-const RunningText: React.FunctionComponent<{ job: Job }> = ({job}) => {
+const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
     return <>
-        <Flex justifyContent={"space-between"}>
-            <Box>
+        <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
+            <Flex flexDirection={"column"}>
                 <Heading.h2>
-                    {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
+                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
+                    {" "}
+                    <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
                 </Heading.h2>
-                <Heading.h3>
-                    {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                    {" "}{job.specification.application.version}
-                </Heading.h3>
-            </Box>
-            {job.specification.replicas > 1 ? null : (
-                <RunningButtonGroup job={job} rank={0}/>
-            )}
+                <Box flexGrow={1} />
+                <div><CancelButton job={job} state={"RUNNING"} /></div>
+            </Flex>
+            <RunningButtonGroup job={job} rank={0} />
         </Flex>
     </>;
 };
 
-const RunningInfoWrapper = styled.div`
-  margin-top: 32px;
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
-  grid-gap: 16px;
-  justify-content: center;
-`;
-
-const AltButtonGroup = styled.div<{ minButtonWidth: string } & MarginProps>`
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(auto-fit, minmax(${props => props.minButtonWidth}, max-content));
-  grid-gap: 8px;
-  ${margin}
-`;
-
-AltButtonGroup.defaultProps = {
-    marginTop: "8px",
-    marginBottom: "8px"
-};
-
-function jobFiles(parameters: JobSpecification): Record<string, AppParameterValueNS.File> {
-    const result: Record<string, AppParameterValueNS.File> = {};
-    const userParams = parameters.parameters ?? {};
-
-    for (const paramName of Object.keys(parameters.parameters ?? {})) {
-        const value = userParams[paramName];
-        if (value.type !== "file") continue;
-        result[paramName] = value as AppParameterValueNS.File;
+const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
+    ${k} {
+        margin-top: 32px;
+        margin-bottom: 16px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
     }
-
-    let i = 0;
-    const randomString = Math.random().toString();
-    for (const resource of parameters.resources ?? []) {
-        if (resource.type !== "file") continue;
-        result[`${randomString}_resourceParam${i++}`] = resource as AppParameterValueNS.File;
+    
+    ${k} > * {
+        flex-basis: 300px;
+        flex-grow: 1;
     }
+`);
 
-    return result;
-}
-
-function useJobFiles(spec: JobSpecification): string {
-    const [fileInfo, setFileInfo] = useState("No files");
-    useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            const files = Object.values(jobFiles(spec));
-            if (files.length === 0) {
-                setFileInfo("No files");
-                return;
-            }
-
-            const result = await Promise.all(files.map(it => prettyFilePath(it.path)));
-            if (cancelled) return;
-            setFileInfo(result.join(", "));
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [spec]);
-
-    return fileInfo;
+function AltButtonGroup(props: React.PropsWithChildren<{minButtonWidth: string} & MarginProps>) {
+    return <div
+        style={{
+            ...unbox({marginTop: props.marginTop ?? "8px", marginBottom: props.marginBottom ?? "8px", ...props}),
+            display: "flex",
+            gap: "8px"
+        }}
+    >
+        {props.children}
+    </div>
 }
 
 interface ParsedSshAccess {
@@ -919,18 +820,18 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
 
 const RunningContent: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
+    state: React.RefObject<JobUpdates>;
     status: JobStatus;
-}> = ({job, updateListeners, status}) => {
-    const fileInfo = useJobFiles(job.specification);
+}> = ({job, state, status}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
-    const project = useProject().fetch();
     const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
-    const workspaceTitle = Client.hasActiveProject ? project.specification.title : "My workspace";
-    const extendJob: React.EventHandler<SyntheticEvent<HTMLElement>> = useCallback(async e => {
-        const duration = parseInt(e.currentTarget.dataset["duration"]!, 10);
+    const messagesRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    useScrollToBottom(scrollRef);
+    useScrollToBottom(messagesRef);
+    const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
             setExpiresAt(expiresAt + (3600 * 1000 * duration));
             try {
@@ -993,8 +894,19 @@ const RunningContent: React.FunctionComponent<{
     const supportsSuspend = isSupported(backendType, support, "suspension");
     const supportsPeers = isSupported(backendType, support, "peers");
 
-    const sshAccess = useMemo(() => {
-        return parseUpdatesForAccess(job.updates);
+    const sshAccess: ParsedSshAccess | null = useMemo(() => {
+        const res = parseUpdatesForAccess(job.updates);
+        if (res) return res;
+        if (localStorage.getItem("fakeSsh")) {
+            return {
+                success: true,
+                command: "ssh example@ssh.example.com -P 41231",
+                message: "SSH configured successfully",
+                aauLegacy: false,
+            }
+        } else {
+            return null;
+        }
     }, [job.updates.length]);
 
     useEffect(() => {
@@ -1003,305 +915,303 @@ const RunningContent: React.FunctionComponent<{
         }, 1000);
     });
 
-    const resolvedProduct = job.status.resolvedProduct as unknown as ProductCompute;
-
-
     const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
     const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
 
+    if (localStorage.getItem("fakeLinks")) {
+        ingresses.push({
+            id: "fake-link",
+            type: "ingress"
+        });
+    }
+
+    if (localStorage.getItem("fakePeers")) {
+        for (let i = 1; i <= 15; i++) {
+            peers.push({
+                hostname: "fake-peer-" + i,
+                jobId: `5${i}00000`,
+                type: "peer"
+            });
+        }
+    }
+
+    const sshUrl = React.useMemo(() => transformToSSHUrl(sshAccess?.command), [sshAccess?.command]);
+
     return <>
-        <RunningInfoWrapper>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    {!job.specification.name ? null : <Box><b>Name:</b> {job.specification.name}</Box>}
-                    <Box><b>ID:</b> {shortUUID(job.id)}</Box>
-                    <Box>
-                        <b>Reservation:</b>{" "}
-                        <ProviderTitle providerId={job.specification.product.provider}/>
-                        {" "}/{" "}
-                        {job.specification.product.id}{" "}
-                        (x{job.specification.replicas})
-                    </Box>
-                    <Box><b>Input:</b> {fileInfo}</Box>
-                    <Box><b>Launched by:</b> {job.owner.createdBy} in {workspaceTitle}</Box>
-                    <Box flexGrow={1}/>
-                    <Box mt={"16px"}>
-                        <CancelButton job={job} state={"RUNNING"} fullWidth/>
-                    </Box>
-                </Flex>
-            </HighlightedCard>
-            <HighlightedCard color={"purple"} isLoading={false} title={"Time allocation"} icon={"hourglass"}>
-                <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
-                    <Box>
-                        <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
-                    </Box>
-                    {!expiresAt ? null :
-                        <>
+        <div className={RunningInfoWrapper}>
+            <TabbedCard style={{flexBasis: "300px"}}>
+                <StandardPanelBody>
+                    <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
+                        <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                             <Box>
-                                <b>Job expiry: </b> {dateToString(expiresAt)}
+                                <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
                             </Box>
-                            <Box>
-                                <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
-                                :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
-                                :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                            {!expiresAt && !localStorage.getItem("useFakeState") ? null :
+                                <>
+                                    <Box>
+                                        <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
+                                    </Box>
+                                    <Box>
+                                        <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
+                                        :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
+                                        :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                                    </Box>
+                                </>
+                            }
+                            <Box flexGrow={1} />
+                            <Box mb="12px">
+                                {(!expiresAt || !supportsExtension) && !localStorage.getItem("useFakeState") ? null : <>
+                                    Extend allocation (hours):
+                                    <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
+                                        <Button onClick={() => extendJob(1)}>+1</Button>
+                                        <Button onClick={() => extendJob(8)}>+8</Button>
+                                        <Button onClick={() => extendJob(24)}>+24</Button>
+                                    </AltButtonGroup>
+                                </>}
+                                {!supportsSuspend ? null :
+                                    suspended ?
+                                        <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
+                                            onAction={unsuspendJob} /> :
+                                        <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
+                                            onAction={suspendJob} />
+
+                                }
                             </Box>
-                        </>
+                        </Flex>
+                    </TabbedCardTab>
+                </StandardPanelBody>
+            </TabbedCard>
+
+            <TabbedCard style={{flexBasis: "600px"}}>
+                <StandardPanelBody>
+                    {!sshAccess ? null :
+                        <TabbedCardTab icon={"heroKey"} name={"SSH"}>
+                            {sshAccess.success ? null : <Warning>
+                                SSH was not configured successfully!
+                            </Warning>}
+                            {!sshAccess.message ? null : <>{sshAccess.message}</>}
+                            {!sshAccess.command ? null : <>
+                                {sshUrl != null ?
+                                    <a href={sshUrl}><CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet></a> :
+                                    <CodeSnippet maxHeight={"100px"}>{sshAccess.command}</CodeSnippet>
+                                }
+                            </>}
+                        </TabbedCardTab>
                     }
-                    <Box>
-                        <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
-                        job.status.resolvedProduct ?
-                            usageExplainer(
-                                costOfDuration(60, job.specification.replicas, resolvedProduct),
-                                "COMPUTE",
-                                resolvedProduct.chargeType,
-                                resolvedProduct.unitOfPrice
-                            )
-                            : "Unknown"
+
+                    {!supportsPeers || peers.length === 0 ? null :
+                        <TabbedCardTab icon={"heroServerStack"} name={`Connected jobs (${peers.length})`}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell textAlign="left" width={"120px"}>Job ID</TableHeaderCell>
+                                        <TableHeaderCell textAlign="left">Hostname</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <tbody>
+                                    {peers.map(it =>
+                                        <TableRow key={it.jobId}>
+                                            <TableCell textAlign="left" width={"120px"}>
+                                                <Link to={`/jobs/properties/${it.jobId}?app=`} target={"_blank"}>
+                                                    {it.jobId}
+                                                    {" "}
+                                                    <Icon name={"heroArrowTopRightOnSquare"} mt={"-5px"} />
+                                                </Link>
+                                            </TableCell>
+
+                                            <TableCell textAlign="left">
+                                                <code><Truncate width={1}>{it.hostname}</Truncate></code>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </tbody>
+                            </Table>
+                        </TabbedCardTab>
                     }
-                    </Box>
-                    <Box flexGrow={1}/>
-                    <Box>
-                        {!expiresAt || !supportsExtension ? null : <>
-                            Extend allocation (hours):
-                            <AltButtonGroup minButtonWidth={"50px"} marginBottom={0}>
-                                <Button data-duration={"1"} onClick={extendJob}>+1</Button>
-                                <Button data-duration={"6"} onClick={extendJob}>+6</Button>
-                                <Button data-duration={"12"} onClick={extendJob}>+12</Button>
-                                <Button data-duration={"24"} onClick={extendJob}>+24</Button>
-                                <Button data-duration={"48"} onClick={extendJob}>+48</Button>
-                            </AltButtonGroup>
-                        </>}
-                        {!supportsSuspend ? null :
-                            suspended ?
-                                <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                                    onAction={unsuspendJob}/> :
-                                <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                                    onAction={suspendJob}/>
 
-                        }
-                    </Box>
-                </Flex>
-            </HighlightedCard>
-            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
-                <ProviderUpdates job={job} updateListeners={updateListeners}/>
-            </HighlightedCard>
+                    {ingresses.length === 0 ? null :
+                        <TabbedCardTab icon={"heroGlobeEuropeAfrica"} name={`Links (${ingresses.length})`}>
+                            This job is publicly available through:
+                            <ul style={{paddingLeft: "2em"}}>
+                                {ingresses.map(ingress => <PublicLinkEntry key={ingress.id} id={ingress.id} />)}
+                            </ul>
+                        </TabbedCardTab>
+                    }
+                </StandardPanelBody>
+            </TabbedCard>
 
-            {ingresses.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        {ingresses.map(ingress => <IngressEntry id={ingress.id}/>)}
-                    </Text>
-                </HighlightedCard>
-            }
-
-            {!supportsPeers || peers.length === 0 ? null :
-                <HighlightedCard color="purple" isLoading={false} title="Connected jobs">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHeaderCell textAlign="left">
-                                        Hostname
-                                    </TableHeaderCell>
-                                    <TableHeaderCell textAlign="left">
-                                        Job ID
-                                    </TableHeaderCell>
-                                </TableRow>
-                            </TableHeader>
-                            <tbody>
-                            {peers.map(it =>
-                                <TableRow key={it.jobId}>
-                                    <TableCell textAlign="left">
-                                        <Truncate width={1}>{it.hostname}</Truncate>
-                                    </TableCell>
-                                    <TableCell textAlign="left">
-                                        <Link to={`/jobs/properties/${it.jobId}?app=`}>
-                                            <Truncate width={1}>{it.jobId}</Truncate>
-                                        </Link>
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                            </tbody>
-                        </Table>
-                    </Text>
-                </HighlightedCard>
-            }
-
-            {!sshAccess ? null :
-                <HighlightedCard color="purple" isLoading={false} title="SSH access" icon="key">
-                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                        {sshAccess.success ? null : <Warning>
-                            SSH was not configured successfully!
-                        </Warning>}
-                        {!sshAccess.command ? null : <>
-                            Access the SSH server associated with this job using:
-                            <pre><code>{sshAccess.command}</code></pre>
-                        </>}
-                        {!sshAccess.message ? null : <>{sshAccess.message}</>}
-                        {sshAccess.aauLegacy ? null : <p>
-                            This requires an SSH key to be uploaded. You can upload one{" "}
-                            <Link to={"/ssh-keys"} target="_blank">here</Link>.
-                        </p>}
-                    </Text>
-                </HighlightedCard>
-            }
-        </RunningInfoWrapper>
+            <TabbedCard style={{flexBasis: "600px"}}>
+                <StandardPanelBody divRef={messagesRef}>
+                    <TabbedCardTab icon={"heroChatBubbleBottomCenter"} name={"Messages"}>
+                        <ProviderUpdates key={job.id} job={job} state={state} addOverflow={false} />
+                    </TabbedCardTab>
+                </StandardPanelBody>
+            </TabbedCard>
+        </div>
 
         {!supportsLogs ? null :
-            <RunningJobsWrapper>
-                {Array(job.specification.replicas).fill(0).map((_, i) => {
-                    return <RunningJobRank key={i} job={job} rank={i} updateListeners={updateListeners}/>;
-                })}
-            </RunningJobsWrapper>
+            <TabbedCard>
+                <Box height={"calc(100vh - 785px)"} minHeight={"300px"} overflowY={"scroll"} divRef={scrollRef}>
+                    {Array(job.specification.replicas).fill(0).map((_, i) =>
+                        <RunningJobRank key={i} job={job} rank={i} state={state} />
+                    )}
+                </Box>
+            </TabbedCard>
         }
     </>;
 };
 
-const RunningJobsWrapper = styled.div`
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  margin-top: 32px;
 
-  margin-bottom: 32px;
-  grid-gap: 32px;
-`;
+/* 
+ *  tests:
+    console.log(transformToSSHUrl("foobar baz -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh baz -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh -p bar"), "invalid");
+    console.log(transformToSSHUrl("ssh baz 200"), "invalid");
+    console.log(transformToSSHUrl("ssh baz bar"), "invalid");
+    console.log(transformToSSHUrl("ssh ssh.example.com -P 41231"), "valid");
+    console.log(transformToSSHUrl("ssh example@ssh.example.com -P 41231"), "valid")
+*/
+function transformToSSHUrl(command?: string | null): `ssh://${string}:${number}` | null {
 
-const RunningJobRankWrapper = styled.div`
-  margin-top: 16px;
-  margin-bottom: 16px;
+    if (!command) return null;
+    const parser = new SillyParser(command);
 
-  display: grid;
-  grid-template-columns: 80px 1fr 200px;
-  grid-template-rows: 1fr auto;
-  grid-gap: 16px;
+    // EXAMPLE:
+    // ssh ucloud@ssh.cloud.sdu.dk -p 1234
 
-  .rank {
-    text-align: center;
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .term {
-    height: 100%;
-  }
-
-  .term .terminal {
-    /* NOTE(Dan): This fixes a feedback loop in the xtermjs fit function. Without this, the fit function is
-       unable to correctly determine the size of the terminal */
-    position: absolute;
-  }
-
-  .buttons {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .buttons ${Button} {
-    margin-top: 8px;
-    width: 100%;
-  }
-
-  ${deviceBreakpoint({minWidth: "1001px"})} {
-    &.expanded {
-      height: 80vh;
+    if (parser.consumeWord().toLocaleLowerCase() !== "ssh") {
+        return null;
     }
 
-    &.expanded .term {
-      grid-row: 1;
-      grid-column: 2 / 4;
+    const hostname = parser.consumeWord();
+
+    if (!hostname || hostname.toLocaleLowerCase() === "-p") return null;
+
+    let portNumber = 22; // Note(Jonas): Fallback value if none present.
+
+    const portFlag = parser.consumeWord();
+
+    if (portFlag.toLocaleLowerCase() === "-p") {
+        const portNumberString = parser.consumeWord();
+        const parsed = parseInt(portNumberString, 10);
+        if (isNaN(parsed)) return null;
+        portNumber = parsed;
+    } else {
+        if (portFlag !== hostname) return null; // Note(Jonas): Is the last parsed word already read, so this is repeated?
     }
 
-    &.expanded .buttons {
-      grid-row: 2;
-      grid-column: 2 / 4;
-    }
-  }
+    // Fallback port 22
+    return `ssh://${hostname}:${portNumber}`;
+}
 
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    grid-template-columns: 1fr !important;
+const StandardPanelBody: React.FunctionComponent<{
+    children: React.ReactNode;
+    divRef?: React.RefObject<HTMLDivElement>;
+}> = ({divRef, children}) => {
+    return <div style={{height: "150px", overflowY: "auto"}} ref={divRef}>{children}</div>;
+};
 
-    .term {
-      height: 400px;
+const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
+    ${k} {
+        margin-top: 16px;
+        margin-bottom: 16px;
     }
 
-    .expand-btn {
-      display: none;
+    ${k} .rank {
+        text-align: center;
+        width: 100%;
+        flex-direction: column;
     }
-  }
-`;
+
+    ${k} .term {
+        overflow-y: scroll;
+        height: 100%;
+        width: 100%;
+    }
+
+    ${k} .buttons {
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .buttons .${ButtonClass} {
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    ${deviceBreakpoint({minWidth: "1001px"})} {
+        ${k}.expanded {
+            height: 80vh;
+        }
+
+        ${k}.expanded .term {
+            grid-row: 1;
+            grid-column: 2 / 4;
+        }
+
+        ${k}.expanded .buttons {
+            grid-row: 2;
+            grid-column: 2 / 4;
+        }
+    }
+
+    ${deviceBreakpoint({maxWidth: "1000px"})} {
+        ${k}{
+            grid-template-columns: 1fr !important;
+        }
+
+        ${k} .term {
+            height: 400px;
+        }
+
+        ${k} .expand-btn {
+            display: none;
+        }
+    }
+`);
+
 
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
-    updateListeners: React.RefObject<JobUpdateListener[]>,
-}> = ({job, rank, updateListeners}) => {
-    const {termRef, terminal, fitAddon} = useXTerm({autofit: true});
-    const [expanded, setExpanded] = useState(false);
-    const toggleExpand = useCallback((autoScroll = true) => {
-        setExpanded(!expanded);
-        const targetView = termRef.current?.parentElement;
-        if (targetView != null) {
-            setTimeout(() => {
-                // FIXME(Dan): Work around a weird resizing bug in xterm.js
-                fitAddon.fit();
-                fitAddon.fit();
-                fitAddon.fit();
-                if (autoScroll) {
-                    window.scrollTo({
-                        top: targetView.getBoundingClientRect().top - 100 + window.pageYOffset,
-                    });
-                }
-            }, 0);
-        }
-    }, [expanded, termRef]);
+    state: React.RefObject<JobUpdates>,
+}> = ({job, rank, state}) => {
+    const {termRef, terminal} = useXTerm({autofit: true});
 
     useEffect(() => {
-        updateListeners.current?.push({
-            handler: e => {
-                for (const logEvent of e.log) {
-                    if (logEvent.rank === rank && logEvent.stderr != null) {
-                        appendToXterm(terminal, logEvent.stderr);
-                    }
+        const listener = () => {
+            const s = state.current;
+            if (!s) return;
 
-                    if (logEvent.rank === rank && logEvent.stdout != null) {
-                        appendToXterm(terminal, logEvent.stdout);
-                    }
+            const newLogQueue: LogMessage[] = [];
+            for (const l of s.logQueue) {
+                if (l.rank === rank) {
+                    if (l.stderr != null) appendToXterm(terminal, l.stderr);
+                    if (l.stdout != null) appendToXterm(terminal, l.stdout);
+                } else {
+                    newLogQueue.push(l);
                 }
             }
-        });
-        // NOTE(Dan): Clean up is performed by the parent object
 
-        if (job.specification.replicas === 1) {
-            toggleExpand(false)
-        }
+            s.logQueue = newLogQueue;
+        };
+        state.current?.subscriptions?.push(listener);
+        listener();
     }, [job.id, rank]);
 
-    return <>
-        <HighlightedCard color={"purple"} isLoading={false}>
-            <RunningJobRankWrapper className={expanded ? "expanded" : undefined}>
-                <div className="rank">
-                    <Heading.h2>{rank + 1}</Heading.h2>
-                    <Heading.h3>Node</Heading.h3>
-                </div>
+    return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
+        <div className={RunningJobRankWrapper}>
+            <div ref={termRef} className="term" />
 
-                <div className={"term"} ref={termRef}/>
-
-                {job.specification.replicas === 1 ? null : (
-                    <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-                                        toggleExpand={toggleExpand}/>
-                )}
-            </RunningJobRankWrapper>
-        </HighlightedCard>
-    </>;
+            {job.specification.replicas === 1 ? null : (
+                <Flex flexDirection="column" mt="auto" ml="auto" mb="-16px" width="450px">
+                    <RunningButtonGroup job={job} rank={rank} />
+                </Flex>
+            )}
+        </div>
+    </TabbedCardTab>
 };
-
-const CompletedTextWrapper = styled.div`
-  ${deviceBreakpoint({maxWidth: "1000px"})} {
-    ${AltButtonGroup} {
-      justify-content: center;
-    }
-  }
-`;
 
 function jobStateToText(state: JobState) {
     switch (state) {
@@ -1318,9 +1228,12 @@ function jobStateToText(state: JobState) {
     }
 }
 
-const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({job, state}) => {
+const UNKNOWN_APP_NAME = "unknown";
+
+const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({job, state}) => {
     const app = job.specification.application;
-    return <CompletedTextWrapper>
+    const isUnknownApp = app.name === UNKNOWN_APP_NAME;
+    return <Flex flexDirection={"column"} flexGrow={1}>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         {state === "FAILURE" ?
             <Heading.h3>
@@ -1331,50 +1244,71 @@ const CompletedText: React.FunctionComponent<{ job: Job, state: JobState }> = ({
             null
         }
         <Heading.h3>
-            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-            {" "}{job.specification.application.version}{" "}
-            {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
+            {isUnknownApp ? null : <>
+                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {" "}{job.specification.application.version}{" "}
+                {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
+            </>}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
-        {app.name === "unknown" ? null :
-            <AltButtonGroup minButtonWidth={"200px"}>
-                <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
-                    <Button>Run application again</Button>
-                </Link>
-            </AltButtonGroup>
+        <Box flexGrow={1} />
+        {isUnknownApp ? null :
+            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
+                <Button>Run application again</Button>
+            </Link>
         }
-    </CompletedTextWrapper>;
+    </Flex>;
 };
 
-const OutputFilesWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-
-  h1, h2, h3, h4 {
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
-`;
-
-const OutputFiles: React.FunctionComponent<{ job: Job }> = ({job}) => {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
-    return <OutputFilesWrapper>
-        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true}
-                     allowMoveCopyOverride/>
-    </OutputFilesWrapper>;
-};
+    if (!pathRef.current) {
+        console.warn("No output folder found. Showing nothing.");
+        return null;
+    }
+    return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
+        <FileBrowse
+            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
+        />
+    </Card>;
+}
+
+const fadeInAnimation = makeKeyframe("fade-in-animation", `
+  from {
+    opacity: 0%;
+  }
+  75% {
+    opacity: 0%;
+  }
+  80% {
+    opacity: 0%;
+  }
+  to {
+    opacity: 100%;
+  }
+`);
+
+const FadeInDiv = injectStyle("fade-in-div", k => `
+    ${k} {
+        width: 100%;
+        animation: 1.6s ${fadeInAnimation};
+    }
+`);
 
 function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;
 }
 
 const RunningButtonGroup: React.FunctionComponent<{
-    job: Job,
-    rank: number,
-    expanded?: boolean | false,
-    toggleExpand?: () => void | undefined
-}> = ({job, rank, expanded, toggleExpand}) => {
+    job: Job;
+    rank: number;
+}> = ({job, rank}) => {
+    const hasMultipleNodes = job.specification.replicas > 1;
+    const [sessionResp, fetchSession] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
+        {noop: true},
+        null
+    );
+
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
@@ -1384,46 +1318,69 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    React.useEffect(() => {
+        if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+            fetchSession(JobsApi.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: job.id, rank})));
+        }
+    }, [job.status.state, appType, supportsInterface]);
 
-    return <div className={job.specification.replicas > 1 ? "buttons" : "top-buttons"}>
+    const redirectToWeb = React.useMemo(() => {
+        if (sessionResp.data == null) return "";
+        for (const res of sessionResp.data.responses) {
+            if ((res.session as WebSession).redirectClientTo) {
+                return (res.session as WebSession).redirectClientTo
+            }
+        }
+        return "";
+    }, [sessionResp]);
+
+    return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
                 e.preventDefault();
 
+                const link = findDomAttributeFromAncestors(e.target, "href");
+                if (!link) return;
+
                 window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    link,
                     undefined,
                     "width=800,height=600,status=no"
                 );
             }}>
                 <Button type={"button"}>
-                    Open terminal
+                    <Icon name={"heroCommandLine"} />
+                    <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
             </Link>
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
-            <Link to={`/applications/web/${job.id}/${rank}?hide-frame`} target={"_blank"}>
-                <Button>Open interface</Button>
+            <Link to={redirectToWeb} aria-disabled={!redirectToWeb} target={"_blank"}>
+                <Button disabled={!redirectToWeb}>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
+                </Button>
             </Link>
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 
+                const link = findDomAttributeFromAncestors(e.target, "href");
+                if (!link) return;
+
                 window.open(
-                    ((e.target as HTMLDivElement).parentElement as HTMLAnchorElement).href,
+                    link,
                     `vnc-${job.id}-${rank}`,
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button>Open interface</Button>
+                <Button>
+                    <Icon name={"heroArrowTopRightOnSquare"} />
+                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
+                </Button>
             </Link>
         )}
-        {job.specification.replicas === 1 ? null :
-            <Button className={"expand-btn"} onClick={toggleExpand}>
-                {expanded ? "Shrink" : "Expand"} output
-            </Button>
-        }
     </div>
 };
 
@@ -1431,8 +1388,7 @@ const RunningButtonGroup: React.FunctionComponent<{
 const CancelButton: React.FunctionComponent<{
     job: Job,
     state: JobState,
-    fullWidth?: boolean
-}> = ({job, state, fullWidth}) => {
+}> = ({job, state}) => {
     const [loading, invokeCommand] = useCloudCommand();
     const onCancel = useCallback(async () => {
         if (!loading) {
@@ -1441,30 +1397,37 @@ const CancelButton: React.FunctionComponent<{
     }, [loading]);
 
     return <ConfirmationButton
-        color={"red"} icon={"trash"} onAction={onCancel} fullWidth={fullWidth}
+        color={"errorMain"} icon={"trash"} align="left" width={"250px"} onAction={onCancel} fullWidth={false}
         actionText={state !== "IN_QUEUE" ? "Stop application" : "Cancel reservation"}
     />;
 };
 
 const ProviderUpdates: React.FunctionComponent<{
     job: Job;
-    updateListeners: React.RefObject<JobUpdateListener[]>;
-}> = ({job, updateListeners}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
+    state: React.RefObject<JobUpdates>;
+    addOverflow: boolean;
+}> = ({job, state, addOverflow}) => {
+    const [updates, setUpdates] = useState<string[]>([])
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
 
         if (!update.status && !update.state) {
-            appendToXterm(
-                terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] Job is preparing\n`
-            );
+            setUpdates(u => {
+                let text = `[${dateToTimeOfDayString(update.timestamp)}] `;
+                text += job.owner.createdBy;
+                text += " has requested ";
+                text += job.specification.replicas;
+                text += "x ";
+                text += job.specification.product.id;
+                text += " from ";
+                text += getProviderTitle(job.specification.product.provider);
+                text += "\n";
+
+                return [...u, text];
+            });
         } else if (update.status) {
-            appendToXterm(
-                terminal,
-                `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`
-            );
+            setUpdates(u => [...u, `[${dateToTimeOfDayString(update.timestamp)}] ${update.status}\n`]);
         } else if (update.state) {
             let message = "Your job is now: " + stateToTitle(update.state);
             switch (update.state) {
@@ -1487,12 +1450,12 @@ const ProviderUpdates: React.FunctionComponent<{
                     message = "Your job is now running";
                     break;
             }
-            appendToXterm(
-                terminal,
+            setUpdates(u => [
+                ...u,
                 `[${dateToTimeOfDayString(update.timestamp)}] ${message}\n`
-            );
+            ]);
         }
-    }, [terminal]);
+    }, []);
 
     useLayoutEffect(() => {
         for (const update of job.updates) {
@@ -1502,20 +1465,31 @@ const ProviderUpdates: React.FunctionComponent<{
 
     useLayoutEffect(() => {
         let mounted = true;
-        const listener: JobUpdateListener = {
-            handler: e => {
-                if (!mounted) return;
-                for (const update of e.updates) {
-                    appendUpdate(update);
-                }
+        const listener = () => {
+            if (!mounted) return;
+            const s = state.current;
+            if (!s) return;
+
+            while (true) {
+                const update = s.updateQueue.pop();
+                if (!update) break;
+                appendUpdate(update);
             }
-        }
-        updateListeners.current?.push(listener);
+        };
+        listener();
+        state.current?.subscriptions?.push(listener);
         return () => {
             mounted = false;
         };
-    }, [updateListeners]);
-    return <Box height={"200px"} ref={termRef}/>
+    }, [state]);
+
+    if (addOverflow) {
+        return <Box height={"200px"} overflowY="scroll">
+            <LogOutput updates={updates} maxHeight="200px" />
+        </Box>
+    } else {
+        return <LogOutput updates={updates} />;
+    }
 };
 
 export default View;

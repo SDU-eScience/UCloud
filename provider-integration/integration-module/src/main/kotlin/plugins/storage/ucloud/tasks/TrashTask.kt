@@ -67,7 +67,8 @@ class TrashTask(
                     nativeFs.move(
                         internalFile,
                         targetFile,
-                        WriteConflictPolicy.RENAME
+                        WriteConflictPolicy.RENAME,
+                        updateTimestamps = true,
                     )
 
                 } catch (ex: FSException) {

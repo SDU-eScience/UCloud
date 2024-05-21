@@ -6,6 +6,7 @@ interface ProviderInfo {
     id: string;
     title: string;
     logo: string | null;
+    shortTitle: string;
 }
 
 export const ProviderTitle: React.FunctionComponent<{providerId: string}> = ({providerId}) => {
@@ -16,4 +17,9 @@ export function getProviderTitle(providerId: string): string {
     const providers: ProviderInfo[] = ProviderInfo.providers;
     const myInfo = providers.find(p => p.id === providerId);
     return myInfo?.title ?? capitalized(providerId.replace("_", " ").replace("-", " "));
+}
+export function getShortProviderTitle(providerId: string): string {
+    const providers: ProviderInfo[] = ProviderInfo.providers;
+    const myInfo = providers.find(p => p.id === providerId);
+    return myInfo?.shortTitle ?? capitalized(providerId.replace("_", " ").replace("-", " "));
 }

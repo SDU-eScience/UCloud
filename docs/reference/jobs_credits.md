@@ -26,7 +26,9 @@
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
+        filterEmptyAllocations = null, 
         filterType = null, 
+        includeMaxUsableBalance = null, 
         itemsPerPage = null, 
         itemsToSkip = null, 
         next = null, 
@@ -47,6 +49,7 @@ PageV2(
             id = "1254151", 
             initialBalance = 500000000, 
             localBalance = 500, 
+            maxUsableBalance = null, 
             startDate = 1633329776235, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
@@ -256,6 +259,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "startDate": 1633329776235,
 #                     "endDate": null,
 #                     "grantedIn": 2,
+#                     "maxUsableBalance": null,
 #                     "canAllocate": false,
 #                     "allowSubAllocationsToAllocate": true
 #                 }

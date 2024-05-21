@@ -21,6 +21,11 @@ data class ListNotificationRequest(
 data class CreateNotification(val user: String, val notification: Notification)
 
 @Serializable
+data class CreateNotificationResponse(
+    val id: FindByNotificationId? = null
+)
+
+@Serializable
 data class FindByNotificationIdBulk(val ids: String)
 
 val FindByNotificationIdBulk.normalizedIds: List<Long>
@@ -44,6 +49,22 @@ typealias SubscriptionResponse = Notification
 @Serializable
 data class InternalNotificationRequest(val user: String, val notification: Notification)
 typealias InternalNotificationResponse = Unit
+
+@Serializable
+data class NotificationSettings(
+    val jobStarted: Boolean = true,
+    val jobStopped: Boolean = true,
+)
+
+@Serializable
+data class RetrieveSettingsRequest(
+    val username: String? = null
+)
+
+@Serializable
+data class RetrieveSettingsResponse(
+    val settings: NotificationSettings
+)
 
 @TSTopLevel
 object NotificationDescriptions : CallDescriptionContainer("notifications") {
@@ -77,7 +98,7 @@ automatically delivered to any connected frontend via websockets.
                         )
                     )
                 ),
-                FindByNotificationId(56123),
+                CreateNotificationResponse(FindByNotificationId(56123)),
                 ucloud
             )
         }
@@ -203,7 +224,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val create = call("create", CreateNotification.serializer(), FindByNotificationId.serializer(), CommonErrorMessage.serializer()) {
+    val create = call("create", CreateNotification.serializer(), CreateNotificationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -222,7 +243,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val createBulk = call("createBulk", BulkRequest.serializer(CreateNotification.serializer()), BulkResponse.serializer(FindByNotificationId.serializer()), CommonErrorMessage.serializer()) {
+    val createBulk = call("createBulk", BulkRequest.serializer(CreateNotification.serializer()), BulkResponse.serializer(CreateNotificationResponse.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "bulk", roles = Roles.PRIVILEGED)
     }
 
@@ -256,15 +277,37 @@ automatically delivered to any connected frontend via websockets.
     }
 
     val internalNotification = call("internalNotification", InternalNotificationRequest.serializer(), InternalNotificationResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = Roles.PRIVILEGED
-                access = AccessRight.READ
-            }
-
-            documentation {
-                summary = "Notifies an instance of this service that it should notify an end-user"
-            }
-
-            websocket(baseContext)
+        auth {
+            roles = Roles.PRIVILEGED
+            access = AccessRight.READ
         }
+
+        documentation {
+            summary = "Notifies an instance of this service that it should notify an end-user"
+        }
+
+        websocket(baseContext)
+    }
+
+    val updateSettings = call("updateSettings", NotificationSettings.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(
+            baseContext,
+            "settings"
+        )
+
+        documentation {
+            summary = "Update notification settings/preferences for end-user"
+        }
+    }
+
+    val retrieveSettings = call("retrieveSettings", RetrieveSettingsRequest.serializer(), RetrieveSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(
+            baseContext,
+            "settings"
+        )
+
+        documentation {
+            summary = "Retrieve notification settings/preferences for end-user"
+        }
+    }
 }

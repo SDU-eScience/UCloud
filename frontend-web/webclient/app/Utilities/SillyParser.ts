@@ -1,8 +1,8 @@
 // NOTE(Dan): A very silly lookahead parser. It is not really meant to be anything special, but we also don't have any
 // needs for something fancy.
 export class SillyParser {
-    private input: string;
-    private consumeWhitespaceBeforeTokens: boolean;
+    private readonly input: string;
+    private readonly consumeWhitespaceBeforeTokens: boolean;
     private cursor: number = 0;
 
     constructor(input: string, consumeWhitespace: boolean = true) {
@@ -65,6 +65,9 @@ export class SillyParser {
                 isWhitespace = true;
                 break;
         }
+
+        // return [" ", "\t", "\n", "\r"].includes(char);
+
         return isWhitespace;
     }
 }

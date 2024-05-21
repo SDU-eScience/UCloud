@@ -293,13 +293,13 @@ data class JobStatus(
 data class JobUpdate(
     val state: JobState? = null,
     val outputFolder: String? = null,
-    override val status: String? = null,
+    override var status: String? = null,
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,
     val newTimeAllocation: Long? = null,
     val allowRestart: Boolean? = null,
     val newMounts: List<String>? = null,
-    override val timestamp: Long = 0L
+    override var timestamp: Long = 0L
 ) : ResourceUpdate {
     init {
         if (allowRestart == true) {
@@ -329,7 +329,7 @@ data class JobSpecification(
     val application: NameAndVersion,
 
     @UCloudApiDoc("A reference to the product that this job will be executed on")
-    override val product: ComputeProductReference,
+    override var product: ComputeProductReference,
 
     @UCloudApiDoc(
         "A name for this job assigned by the user.\n\n" +
@@ -350,6 +350,7 @@ data class JobSpecification(
             "By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. " +
             "This field must be set to `true` to allow you to create two jobs with identical configuration."
     )
+    @UCloudApiInternal(InternalLevel.BETA)
     val allowDuplicateJob: Boolean = false,
 
     @UCloudApiDoc(
@@ -379,7 +380,7 @@ data class JobSpecification(
             "will be terminated, regardless of result, after the duration has expired. Some providers support " +
             "extended this duration via the `extend` operation."
     )
-    val timeAllocation: SimpleDuration? = null,
+    var timeAllocation: SimpleDuration? = null,
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     @UCloudApiDoc(
@@ -426,7 +427,7 @@ data class JobSpecification(
     init {
         if (name != null && !name.matches(nameRegex)) {
             throw RPCException(
-                "Provided job name is invalid. It cannot contain any special characters",
+                "Provided job name is invalid. It cannot contain any special characters ($name).",
                 HttpStatusCode.BadRequest
             )
         }
@@ -502,8 +503,8 @@ typealias JobsFollowRequest = FindByStringId
 @Serializable
 @UCloudApiStable
 data class JobsFollowResponse(
-    val updates: List<JobUpdate>,
-    val log: List<JobsLog>,
+    val updates: List<JobUpdate> = emptyList(),
+    val log: List<JobsLog> = emptyList(),
     val newStatus: JobStatus? = null,
 )
 
@@ -541,17 +542,23 @@ val Job.peers: List<AppParameterValue.Peer>
             (specification.parameters?.values?.filterIsInstance<AppParameterValue.Peer>() ?: emptyList())
     }
 
-val Job.ingressPoints: List<AppParameterValue.Ingress>
+val JobSpecification.ingressPoints: List<AppParameterValue.Ingress>
     get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+        return (resources?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList()) +
+                (parameters?.values?.filterIsInstance<AppParameterValue.Ingress>() ?: emptyList())
+    }
+
+val Job.ingressPoints: List<AppParameterValue.Ingress>
+    get() = specification.ingressPoints
+
+val JobSpecification.networks: List<AppParameterValue.Network>
+    get() {
+        return (resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
+            (parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
     }
 
 val Job.networks: List<AppParameterValue.Network>
-    get() {
-        return (specification.resources?.filterIsInstance<AppParameterValue.Network>() ?: emptyList()) +
-            (specification.parameters?.values?.filterIsInstance<AppParameterValue.Network>() ?: emptyList())
-    }
+    get() = specification.networks
 
 val Job.blockStorage: List<AppParameterValue.BlockStorage>
     get() {
@@ -737,31 +744,13 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 )
                 val tags = listOf("very-scientific")
                 val favorite = false
-                success(
-                    AppStore.listAll,
-                    PaginationRequest(50, 0),
-                    Page(
-                        1,
-                        50,
-                        0,
-                        listOf(
-                            ApplicationSummaryWithFavorite(
-                                metadata,
-                                favorite,
-                                tags
-                            ),
-                        )
-                    ),
-                    user,
-                    "applications"
-                )
 
                 comment("The user selects the first application ('batch' in version '1.0.0')")
                 comment("The user requests additional information about the application")
 
                 success(
                     AppStore.findByNameAndVersion,
-                    FindApplicationAndOptionalDependencies("a-batch-application", "1.0.0"),
+                    FindByNameAndVersionRequest("a-batch-application", "1.0.0"),
                     ApplicationWithFavoriteAndTags(
                         metadata,
                         ApplicationInvocationDescription(
@@ -1320,28 +1309,44 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 val start = 1633329776235L
                 comment("When the user creates the Job, they have enough credits")
                 success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
+                    AccountingV2.browseWallets,
+                    AccountingV2.BrowseWallets.Request(),
                     PageV2(50, listOf(
-                        Wallet(
+                        WalletV2(
                             WalletOwner.User("user"),
-                            ProductCategoryId("example-compute", "example"),
+                            ProductCategory(
+                                "example-compute",
+                                "example",
+                                ProductType.COMPUTE,
+                                AccountingUnit("DKK", "DKK", true, false),
+                                AccountingFrequency.PERIODIC_MINUTE,
+                            ),
                             listOf(
-                                WalletAllocation(
-                                    "1254151",
-                                    listOf("1254151"),
-                                    500,
-                                    1_000_000 * 500L,
-                                    500,
-                                    start,
-                                    null,
-                                    2
+                                AllocationGroupWithParent(
+                                    ParentOrChildWallet(null, "Root"),
+                                    AllocationGroup(
+                                        1,
+                                        listOf(
+                                            AllocationGroup.Alloc(
+                                                12541154,
+                                                start,
+                                                start + (1000L*60*60*24*365),
+                                                1_000_000 * 500,
+                                                null,
+                                                null,
+                                            )
+                                        ),
+                                        1_000_000 * 499L,
+                                    ),
                                 )
                             ),
-                            AllocationSelectorPolicy.EXPIRE_FIRST,
-                            ProductType.COMPUTE,
-                            ChargeType.ABSOLUTE,
-                            ProductPriceUnit.CREDITS_PER_MINUTE
+                            null,
+                            1_000_000 * 499L,
+                            1_000_000 * 499L,
+                            1_000_00L * 1,
+                            1_000_000 * 500,
+                            0L,
+                            0L,
                         )
                     ), null),
                     user

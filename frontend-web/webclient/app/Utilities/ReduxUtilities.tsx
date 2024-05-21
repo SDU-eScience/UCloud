@@ -1,49 +1,48 @@
-import dashboard from "@/Dashboard/Redux/DashboardReducer";
+import {useEffect} from "react";
+import {Action, AnyAction, combineReducers} from "redux";
+
+import {dashboardReducer} from "@/Dashboard/Redux";
 import {initObject} from "@/DefaultObjects";
-import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
-import status from "@/Navigation/Redux/StatusReducer";
-import * as ProjectRedux from "@/Project/Redux";
-import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
-import {composeWithDevTools} from "redux-devtools-extension";
-import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
-import {responsiveBP} from "@/ui-components/theme";
-import avatar from "@/UserSettings/Redux/AvataaarReducer";
+import {statusReducer} from "@/Navigation/Redux";
+import * as ProjectRedux from "@/Project/ReduxState";
+import {avatarReducer} from "@/UserSettings/Redux";
 import {terminalReducer} from "@/Terminal/State";
 import hookStore from "@/Utilities/ReduxHooks";
+import {popInReducer} from "@/ui-components/PopIn";
+import sidebar from "@/Applications/Redux/Reducer";
+import {EnhancedStore, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
+import {noopCall} from "@/Authentication/DataHook";
 
-export function configureStore(
+export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
+export const USER_LOGIN = "USER_LOGIN";
+export const USER_LOGOUT = "USER_LOGOUT";
+
+
+export function confStore(
     initialObject: ReduxObject,
-    reducers,
-    enhancers?
-): Store<ReduxObject, AnyAction> {
-    const combinedReducers = combineReducers<ReduxObject, AnyAction>(reducers);
+    reducers: ReducersMapObject<ReduxObject, AnyAction>,
+): EnhancedStore<ReduxObject> {
+    const combinedReducers = combineReducers(reducers);
     const rootReducer = (state: ReduxObject, action: Action): ReduxObject => {
         if ([USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH].some(it => it === action.type)) {
             state = initObject();
         }
         return combinedReducers(state, action);
     };
-    return createStore<ReduxObject, AnyAction, {}, {}>(rootReducer, initialObject, composeWithDevTools(enhancers));
+    return configureStore<ReduxObject>({reducer: rootReducer, preloadedState: initialObject});
 }
 
-export const responsive = createResponsiveStateReducer(
-    responsiveBP,
-    {infinity: "xxl"}
-);
-
-export const store = configureStore(initObject(), {
-    dashboard,
-    header,
-    status,
+export const store = confStore(initObject(), {
+    dashboard: dashboardReducer,
+    status: statusReducer,
     hookStore,
-    avatar,
+    sidebar,
+    avatar: avatarReducer,
     terminal: terminalReducer,
     loading,
     project: ProjectRedux.reducer,
-    responsive: createResponsiveStateReducer(
-        responsiveBP,
-        {infinity: "xxl"}),
-}, responsiveStoreEnhancer);
+    popinChild: popInReducer,
+});
 
 function loading(state = false, action: {type: string}): boolean {
     switch (action.type) {
@@ -53,5 +52,62 @@ function loading(state = false, action: {type: string}): boolean {
             return false;
         default:
             return state;
+    }
+}
+
+export const refreshFunctionCache = new class {
+    private refresh: () => void = () => void 0;
+    private subscribers: (() => void)[] = [];
+
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public getSnapshot(): () => void {
+        return this.refresh;
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
+    }
+
+    public setRefreshFunction(refreshFn: () => void): void {
+        this.refresh = refreshFn;
+        this.emitChange();
+    }
+}
+
+export function useSetRefreshFunction(refreshFn: () => void): void {
+    useEffect(() => {
+        refreshFunctionCache.setRefreshFunction(refreshFn);
+        return () => {
+            refreshFunctionCache.setRefreshFunction(noopCall);
+        };
+    }, [refreshFn]);
+}
+
+export function useRefresh(): () => void {
+    return refreshFunctionCache.getSnapshot();
+}
+
+export class ExternalStoreBase {
+    private subscribers: (() => void)[] = [];
+    
+    public subscribe(subscription: () => void) {
+        this.subscribers = [...this.subscribers, subscription];
+        return () => {
+            this.subscribers = this.subscribers.filter(s => s !== subscription);
+        }
+    }
+
+    public emitChange(): void {
+        for (const sub of this.subscribers) {
+            sub();
+        }
     }
 }

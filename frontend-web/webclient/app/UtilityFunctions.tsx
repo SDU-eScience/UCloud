@@ -1,9 +1,18 @@
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {JWT} from "@/Authentication/lib";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
+import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
+
+// HACK(Dan): Breaks a circular dependency between the snackstore and utility functions
+let successCallback: (message: string) => void = doNothing;
+let failureCallback: (message: string) => void = doNothing;
+export function hackySetFailureCallback(callback: (message: string) => void) {
+    failureCallback = callback;
+}
+
+export function hackySetSuccessCallback(callback: (message: string) => void) {
+    successCallback = callback;
+}
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -24,11 +33,11 @@ export function toggleCssColors(light: boolean): void {
  * Sets theme based in input. Either "light" or "dark".
  * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
  */
-export const setSiteTheme = (isLightTheme: boolean): void => {
+export function setSiteTheme(isLightTheme: boolean): void {
     const lightTheme = isLightTheme ? "light" : "dark";
     toggleCssColors(lightTheme === "light");
     window.localStorage.setItem("theme", lightTheme);
-};
+}
 
 /**
  * Returns whether the value "light" or "dark" is stored.
@@ -49,10 +58,10 @@ export function isLightThemeStored(): boolean {
 export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
-export const extensionFromPath = (path: string): string => {
+export function extensionFromPath(path: string): string {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];
-};
+}
 
 export type ExtensionType =
     | null
@@ -67,13 +76,69 @@ export type ExtensionType =
     | "markdown"
     | "application";
 
-export const extensionType = (ext: string): ExtensionType => {
+export const commonFileExtensions = [
+    "app", "application", "md", "markdown", "markdown", "zig", "swift", "kt", "kts", "js", "jsx", "ts", "tsx",
+    "java", "py", "python", "tex", "r", "c", "h", "cc", "hh", "c++", "h++", "hpp", "cpp", "cxx", "jai", "hxx",
+    "html", "htm", "lhs", "hs", "sql", "sh", "iol", "ol", "col", "bib", "toc", "jar", "exe", "xml", "json",
+    "yml", "ini", "sbatch", "code", "png", "gif", "tiff", "eps", "ppm", "svg", "jpg", "jpeg", "image", "txt",
+    "doc", "docx", "log", "csv", "tsv", "plist", "out", "err", "text", "pdf", "pdf", "wav", "mp3", "ogg", "aac",
+    "pcm", "audio", "mpg", "mp4", "avi", "mov", "wmv", "video", "gz", "zip", "tar", "tgz", "tbz", "bz2", "archive",
+    "dat", "binary", "rs",
+];
+
+const languages = {
+    "md": "markdown",
+    "kt": "kotlin",
+    "kts": "kotlin",
+    "js": "javascript",
+    "jsx": "javascript",
+    "ts": "typescript",
+    "tsx": "typescript",
+    "py": "python",
+    "h": "c",
+    "cc": "c++",
+    "hh": "c++",
+    "h++": "c++",
+    "hpp": "c++",
+    "cpp": "c++",
+    "cxx": "c++",
+    "hxx": "c++",
+    "htm": "html",
+    "lhs": "haskell",
+    "hs": "haskell",
+    "sh": "shell",
+    "bib": "tex",
+    "yml": "yaml",
+    "sbatch": "shell",
+    "rs": "rust",
+};
+
+export function languageFromExtension(ext: string): string {
+    return languages[ext.toLowerCase()] ?? ext.toLowerCase();
+}
+
+export function typeFromMime(mimeType: string): ExtensionType {
+    const mime = mimeType.toLowerCase();
+
+    if (mime.startsWith("video")) {
+        return "video";
+    } else if (mime.startsWith("audio")) {
+        return "audio";
+    } else if (mime.startsWith("image")) {
+        return "image";
+    } else {
+        return null;
+    }
+}
+
+export function extensionType(ext: string): ExtensionType {
     switch (ext.toLowerCase()) {
         case "app":
             return "application";
         case "md":
         case "markdown":
             return "markdown";
+        case "rs":
         case "zig":
         case "swift":
         case "kt":
@@ -163,10 +228,6 @@ export const extensionType = (ext: string): ExtensionType => {
         default:
             return null;
     }
-};
-
-export function isExtPreviewSupported(ext: string): boolean {
-    return extensionType(ext) !== null;
 }
 
 /**
@@ -177,10 +238,10 @@ export const inRange = ({status, min, max}: {status: number; min: number; max: n
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-export const addTrailingSlash = (path: string): string => {
+export function addTrailingSlash(path: string): string {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
-};
+}
 
 export const looksLikeUUID = (uuid: string): boolean =>
     /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/.test(uuid);
@@ -253,34 +314,25 @@ export function defaultErrorHandler(
 
     if (request) {
         const why = extractErrorMessage(error)
-        snackbarStore.addFailure(why, false);
+        failureCallback(why);
         return request.status;
     }
     return 500;
 }
 
-/**
- * Requests full screen on an HTML element. Handles both Safari fullscreen, and Chrome/Firefox.
- * @param el The element to be fullscreened.
- * @param onFailure Method called if fullscreen can't be done.
- */
-export function requestFullScreen(el: Element, onFailure: () => void): void {
-    // @ts-expect-error - Handles the fullscreen request for Safari.
-    if (el.webkitRequestFullScreen) el.webkitRequestFullScreen();
-    else if (el.requestFullscreen) el.requestFullscreen();
-    else onFailure();
-}
-
 export function timestampUnixMs(): number {
-    return window.performance &&
+    return Math.floor(
+        window.performance &&
         window.performance["now"] &&
         window.performance.timing &&
         window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
-        Date.now();
+        Date.now()
+    );
 }
 
 /**
+ * UNUSED
  * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
  * @param value numerical value to be formatted.
  * @param sectionDelim used for deliminate every thousand. Default: ,
@@ -310,9 +362,9 @@ interface CopyToClipboard {
  * Copies a string to the users clipboard.
  * @param param contains the value to be copied and the message to show the user on success.
  */
-export function copyToClipboard({value, message}: CopyToClipboard): void {
-    navigator.clipboard.writeText(value ?? "");
-    if (message) snackbarStore.addSuccess(message, false);
+export async function copyToClipboard({value, message}: CopyToClipboard): Promise<void> {
+    await navigator.clipboard.writeText(value ?? "");
+    if (message) successCallback(message);
 }
 
 export function errorMessageOrDefault(
@@ -346,7 +398,8 @@ export function delay(ms: number): Promise<void> {
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
 export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
-    || window.location.hostname === "127.0.0.1";
+    || window.location.hostname === "127.0.0.1" || window.location.hostname === "ucloud.localhost.direct"
+    || window.location.hostname === "sandbox.dev.cloud.sdu.dk";
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
@@ -390,30 +443,22 @@ export function stopPropagationAndPreventDefault(e: {preventDefault(): void; sto
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string): void {
-    snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
+    failureCallback(errorMessageOrDefault(e, fallback));
 }
 
 /**
  * Used to know to hide the header and sidebar in some cases.
  */
 export function useFrameHidden(): boolean {
-    const [frameHidden] = useGlobal("frameHidden", false);
-    const legacyHide =
-        ["/app/login", "/app/login/wayf"].includes(window.location.pathname) ||
-        window.location.search === "?dav=true" ||
-        window.location.search.indexOf("?hide-frame") === 0;
-    return legacyHide || frameHidden;
-}
-
-export function useNoFrame(): void {
-    const [frameHidden, setFrameHidden] = useGlobal("frameHidden", false);
-    useEffect(() => {
-        const wasFrameHidden = frameHidden;
-        setFrameHidden(true);
-        return () => {
-            setFrameHidden(wasFrameHidden);
-        };
-    }, []);
+    return [
+        "/app/login",
+        "/app/login/wayf",
+        "/app/applications/shell/",
+        "/app/applications/web/",
+        "/app/applications/vnc/",
+    ].includes(window.location.pathname) ||
+    window.location.search === "?dav=true" ||
+    window.location.search.indexOf("?hide-frame") === 0;
 }
 
 /**
@@ -426,37 +471,17 @@ export function getUserThemePreference(): "light" | "dark" {
     return "light";
 }
 
-function b64DecodeUnicode(str) {
+export function b64DecodeUnicode(str: string) {
     // Going backwards: from bytestream, to percent-encoding, to original string.
     return decodeURIComponent(atob(str).split('').map(function (c) {
         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
 }
 
-
-/**
- * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
- * a an object.
- * @param encodedJWT The JWT sent from the backend, in the form of a string.
- */
-export function parseJWT(encodedJWT: string): JWT | null {
-    const [, right] = encodedJWT.split(".");
-    if (right == null) return null;
-
-    const decoded = b64DecodeUnicode(right);
-    const parsed = JSON.parse(decoded);
-    const isValid = "sub" in parsed &&
-        "aud" in parsed &&
-        "role" in parsed &&
-        "iss" in parsed &&
-        "exp" in parsed &&
-        "extendedByChain" in parsed &&
-        "iat" in parsed &&
-        "principalType" in parsed;
-    if (!isValid) return null;
-
-    return parsed;
+export function merge<T>(a: T, b: T): T {
+    return {...a, ...b};
 }
+
 
 export type EmptyObject = {
     [K in any]: never
@@ -498,13 +523,6 @@ export function isAbsoluteUrl(url: string): boolean {
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
 
-export function capitalize(text: string): string {
-    if (text.length === 0) return text;
-    return text[0].toUpperCase() + text.substr(1);
-}
-
-
-// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
 export function removeExpiredFileUploads(): void {
     const now = new Date().getTime();
     Object.keys(localStorage).forEach(key => {
@@ -516,9 +534,6 @@ export function removeExpiredFileUploads(): void {
         }
     });
 }
-
-/* As user agent is being deprecated, this might be the better approach. Not tested for handhelds. */
-export const isLikelySafari: boolean = navigator.vendor === "Apple Computer, Inc.";
 
 // NOTE(Dan): Generates a random unique identifier. This identifier is suitable for creating something which is
 // extremely likely to be unique. The backend should never trust these for security purposes. This function is also
@@ -539,7 +554,104 @@ export function randomUUID(): string {
     }
 }
 
-export function grantsLink(client: {hasActiveProject: boolean}): string {
-    if (client.hasActiveProject) return "/project/grants/existing";
-    return "/project/grants/personal";
+export function grantsLink(): string {
+    return "/grants";
+}
+
+export function clamp(val: number, lower: number, upper: number): number {
+    if (val < lower) return lower;
+    if (val > upper) return upper;
+    return val;
+}
+
+// Note(Jonas): Intended to be some HTML friendly replacement to React where needed.
+// Not really tested, so attempt at own risk.
+interface HTMLElementContent {
+    tagType: keyof HTMLElementTagNameMap;
+    style?: Partial<CSSStyleDeclaration>;
+    innerText?: string;
+    dataTags?: [string, string][];
+    handlers?: {onClick?: ((this: GlobalEventHandlers, ev: MouseEvent) => any); onChange?: ((this: GlobalEventHandlers, ev: Event) => any) | null;}
+    className?: string;
+    children?: HTMLElementContent[];
+}
+
+export function createHTMLElements<T extends HTMLElement>({children = [], ...rootEntry}: HTMLElementContent): T {
+    const root = document.createElement(rootEntry.tagType);
+    if (rootEntry.className) root.className = rootEntry.className;
+    if (rootEntry.innerText) root.innerText = rootEntry.innerText;
+    if (rootEntry.handlers?.onChange) root.onchange = rootEntry.handlers?.onChange;
+    if (rootEntry.handlers?.onClick) root.onclick = rootEntry.handlers?.onClick;
+    if (rootEntry.dataTags) for (const tag of rootEntry.dataTags) {
+        root.setAttribute(tag[0], tag[1]);
+    }
+
+    addStyle(root, rootEntry.style);
+    for (const child of children) {
+        const childElement = createHTMLElements(child);
+        root.appendChild(childElement);
+    }
+
+    return root as T;
+
+    function addStyle(el: HTMLElement, style?: Partial<CSSStyleDeclaration>) {
+        if (!style) return;
+        for (const rule of Object.keys(style)) {
+            el.style[rule] = style[rule];
+        }
+    }
+}
+export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
+    return {"type": "bulk", items};
+}
+export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
+    return {responses: items};
+}
+export function pageV2Of<T>(...items: T[]): PageV2<T> {
+    return {items, itemsPerPage: items.length, next: undefined};
+}
+
+export function stringReverse(text: string): string {
+    let builder = "";
+    const textLength = text.length;
+    let i = textLength - 1;
+    while (i >= 0) {
+        builder += text[i];
+        i--;
+    }
+    return builder;
+}
+
+export function chunkedString(text: string, chunkSize: number, leftToRight: boolean): string[] {
+    const result: string[] = [];
+    if (leftToRight) {
+        let cur = "";
+        let i = 0;
+        let textLength = text.length;
+        while (i < textLength) {
+            cur += text[i];
+            i++;
+            if (i % chunkSize === 0) {
+                result.push(cur);
+                cur = "";
+            }
+        }
+        if (cur != "") result.push(cur);
+        return result;
+    } else {
+        let cur = "";
+        let textLength = text.length;
+        let i = textLength - 1;
+        while (i >= 0) {
+            cur += text[i];
+            i--;
+            if (((textLength - 1) - i) % chunkSize === 0) {
+                result.push(stringReverse(cur));
+                cur = "";
+            }
+        }
+        if (cur != "") result.push(stringReverse(cur));
+        result.reverse();
+        return result;
+    }
 }

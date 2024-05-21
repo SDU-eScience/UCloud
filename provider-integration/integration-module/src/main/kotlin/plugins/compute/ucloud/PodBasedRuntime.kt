@@ -417,12 +417,22 @@ abstract class PodBasedBuilder : ContainerBuilder {
             addResource("nvidia.com/gpu", "$value")
         }
 
-    private fun addResource(key: String, value: String) {
+    override fun removeRealReservationFromPod() {
+        addResource("cpu", null)
+        addResource("memory", null)
+    }
+
+    private fun addResource(key: String, value: String?) {
         val limits = container.resources?.limits?.toMutableMap() ?: HashMap()
         val requests = container.resources?.requests?.toMap()?.toMutableMap() ?: HashMap()
 
-        limits[key] = JsonPrimitive(value)
-        requests[key] = JsonPrimitive(value)
+        if (value == null) {
+            limits.remove(key)
+            requests.remove(key)
+        } else {
+            limits[key] = JsonPrimitive(value)
+            requests[key] = JsonPrimitive(value)
+        }
 
         container.resources = Pod.Container.ResourceRequirements(JsonObject(limits), JsonObject(requests))
     }

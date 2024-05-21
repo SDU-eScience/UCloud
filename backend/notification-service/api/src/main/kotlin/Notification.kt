@@ -7,7 +7,6 @@ import kotlinx.serialization.json.JsonObject
 
 typealias NotificationId = Long
 typealias FindByNotificationId = FindByLongId
-
 @Serializable
 data class Notification(
     val type: String,
@@ -18,14 +17,3 @@ data class Notification(
     val ts: Long = Time.now(),
     val read: Boolean = false
 )
-
-@Serializable
- enum class NotificationType{
-     APP_COMPLETE,
-     PROJECT_ROLE_CHANGE,
-     PROJECT_INVITE,
-     PROJECT_USER_LEFT,
-     PROJECT_USER_REMOVED,
-     SHARE_REQUEST,
-     REVIEW_PROJECT,
- }

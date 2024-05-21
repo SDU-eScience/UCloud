@@ -1,13 +1,16 @@
 import * as React from "react";
-import styled from "styled-components";
 import Box from "@/ui-components/Box";
 import Card from "@/ui-components/Card";
 import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
-import Text from "@/ui-components/Text";
 
-interface ErrorProps {clearError?: () => void; error?: React.ReactNode; width?: string | number}
-function Error(props: ErrorProps): JSX.Element | null {
+interface ErrorProps {
+    clearError?: () => void;
+    error?: React.ReactNode;
+    width?: string | number
+}
+
+function Error(props: ErrorProps): React.ReactNode {
     if (!props.error) return null;
 
     function onClearError(e: React.MouseEvent<HTMLElement, MouseEvent>): void {
@@ -17,17 +20,15 @@ function Error(props: ErrorProps): JSX.Element | null {
 
     return (
         <ErrorWrapper
-            bg="lightRed"
-            borderColor="red"
+            borderColor="errorMain"
         >
             <Flex alignItems="center">
-                <div><WhiteSpacedText fontSize={1} color="red">{props.error}</WhiteSpacedText></div>
+                <div style={{whiteSpace: "pre", color: "var(--primaryContrast)"}}>{props.error}</div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon
                             size="1em"
                             name="close"
-                            color="black"
                             onClick={onClearError}
                         />
                     </Box>
@@ -39,7 +40,6 @@ function Error(props: ErrorProps): JSX.Element | null {
 
 interface ErrorWrapperProps {
     width?: string | number;
-    bg: string;
     borderColor: string;
 }
 
@@ -48,17 +48,13 @@ export const ErrorWrapper: React.FunctionComponent<React.PropsWithChildren<Error
         borderRadius="6px"
         height="auto"
         p="1em 1em 1em 1em"
-        color="black"
-        bg={props.bg}
-        borderColor={props.borderColor}
+        my={"1em"}
+        color="textPrimary"
         width={props.width}
+        style={{background: `var(--${props.borderColor})`}}
     >
         {props.children}
     </Card>
 );
-
-const WhiteSpacedText = styled(Text)`
-    white-space: pre;
-`;
 
 export default Error;

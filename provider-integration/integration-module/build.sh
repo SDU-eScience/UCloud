@@ -17,6 +17,7 @@ cd ../../
 mv build/service/bin/ucloud-integration-module build/service/bin/service 
 
 docker build \
+    --platform linux/amd64 \
     -t "${name}:${version}" \
     -f Dockerfile.alt \
     .

@@ -1,15 +1,15 @@
 import * as React from "react";
-import MainContainer from "@/MainContainer/MainContainer";
-import { Box, Button, Flex, Input } from "@/ui-components";
-import { useCallback } from "react";
-import { apiUpdate, callAPI } from "@/Authentication/DataHook";
-import { bulkRequestOf } from "@/DefaultObjects";
-import { Client } from "@/Authentication/HttpClientInstance";
+import MainContainer from "@/ui-components/MainContainer";
+import {Box, Button, Flex, Input} from "@/ui-components";
+import {useCallback} from "react";
+import {apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 interface TestScript {
     name: string;
     description: string;
-    args: { name: string; placeholder: string; type?: string; }[];
+    args: {name: string; placeholder: string; type?: string;}[];
     onInvocation: (args: string[]) => void;
 }
 
@@ -18,12 +18,12 @@ const scripts: TestScript[] = [
         name: "Accounting Charge",
         description: "Performs a single charge transaction",
         args: [
-            { name: "owner", placeholder: "Username of the owner" },
-            { name: "product", placeholder: "Product name" },
-            { name: "category", placeholder: "Product category" },
-            { name: "provider", placeholder: "Provider" },
-            { name: "units", placeholder: "Units" },
-            { name: "periods", placeholder: "Periods" },
+            {name: "owner", placeholder: "Username of the owner"},
+            {name: "product", placeholder: "Product name"},
+            {name: "category", placeholder: "Product category"},
+            {name: "provider", placeholder: "Provider"},
+            {name: "units", placeholder: "Units"},
+            {name: "periods", placeholder: "Periods"},
         ],
         onInvocation: ([owner, product, category, provider, units, periods]) => {
             callAPI(apiUpdate(bulkRequestOf({
@@ -33,7 +33,7 @@ const scripts: TestScript[] = [
                 },
                 units: parseInt(units),
                 periods: parseInt(periods),
-                product: { id: product, category, provider },
+                product: {id: product, category, provider},
                 performedBy: Client.username,
                 description: "A test charge",
 

@@ -1,13 +1,12 @@
 import {WSFactory} from "@/Authentication/HttpClientInstance";
-import {formatDistance} from "date-fns/esm";
+import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled, {ThemeProvider} from "styled-components";
-import {Link, Button, Absolute, Badge, Flex, Icon, Relative} from "@/ui-components";
+import {Absolute, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import * as UF from "@/UtilityFunctions";
 import {NotificationProps as NormalizedNotification} from "./Card";
 import * as Snooze from "./Snooze";
@@ -18,11 +17,12 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {Location, NavigateFunction, useLocation, useNavigate} from "react-router";
-import {useDispatch, useSelector} from "react-redux";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import * as Heading from "@/ui-components/Heading";
+import {useDispatch} from "react-redux";
 import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
+import {classConcatArray, injectStyle} from "@/Unstyled";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -36,21 +36,21 @@ function resolveNotification(event: Notification): {
     color?: ThemeColor;
     color2?: ThemeColor;
     modifiedTitle?: string;
-    modifiedMessage?: JSX.Element | string;
+    modifiedMessage?: React.ReactNode;
 } {
     switch (event.type) {
         case "REVIEW_PROJECT":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "SHARE_REQUEST":
-            return {icon: "share", color: "black", color2: "black"};
+            return {icon: "share", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_INVITE":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_ROLE_CHANGE":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_USER_LEFT":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "PROJECT_USER_REMOVED":
-            return {icon: "projects", color: "black", color2: "midGray"};
+            return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "NEW_GRANT_APPLICATION":
             const icon = "mail";
             const oldPrefix = "New grant application to ";
@@ -60,35 +60,144 @@ function resolveNotification(event: Notification): {
                 return {icon, modifiedMessage, modifiedTitle};
             }
             return {icon};
-        case "APP_COMPLETE":
+        case "NEW_GRANT_COMMENT": {
+            return {icon: "heroPaperAirplane"};
+        }
+        case "JOB_COMPLETED":
+            var jobsCompletedTitle: string;
+            
+            if (event.meta.jobIds.length > 1) {
+                jobsCompletedTitle = `${event.meta.jobIds.length} jobs completed`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsCompletedTitle = `${event.meta.jobNames[0]} completed`;
+                } else {
+                    jobsCompletedTitle = `${event.meta.appTitles[0]} completed`;
+                }
+            }
+
+            const jobsCompletedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs completed successfully.`
+                :
+                `Your ${event.meta.appTitles[0]} job completed successfully.`
+                ;
+
+            return {
+                icon: "heroServer",
+                color: "iconColor",
+                color2: "iconColor2",
+                modifiedTitle: jobsCompletedTitle,
+                modifiedMessage: jobsCompletedMessage
+            };
+        case "JOB_STARTED":
+            var jobsStartedTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsStartedTitle = `${event.meta.jobIds.length} jobs started`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsStartedTitle = `${event.meta.jobNames[0]} started`;
+                } else {
+                    jobsStartedTitle = `${event.meta.appTitles[0]} started`;
+                }
+            }
+
+            const jobsStartedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs are now running.` :
+                `Your ${event.meta.appTitles[0]} job is now running`;
+
+            return {
+                icon: "heroServer",
+                color: "iconColor",
+                color2: "iconColor2",
+                modifiedTitle: jobsStartedTitle,
+                modifiedMessage: jobsStartedMessage
+            };
+        case "JOB_EXPIRED":
+            var jobsExpiredTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsExpiredTitle = `${event.meta.jobIds.length} jobs expired`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsExpiredTitle = `${event.meta.jobNames[0]} expired`;
+                } else {
+                    jobsExpiredTitle = `${event.meta.appTitles[0]} expired`;
+                }
+            }
+
+            const jobsExpiredMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs has reached their time limit and is no longer running.`
+                :
+                `Your ${event.meta.appTitles[0]} job has reached its time limit and is no longer running.`
+                ;
+
+            return {
+                icon: "heroServer",
+                color: "iconColor",
+                color2: "iconColor2",
+                modifiedTitle: jobsExpiredTitle,
+                modifiedMessage: jobsExpiredMessage
+            };
+        case "JOB_FAILED":
+            var jobsFailedTitle: string;
+
+            if (event.meta.jobIds.length > 1) {
+                jobsFailedTitle = `${event.meta.jobIds.length} jobs failed`;
+            } else {
+                if (event.meta.jobNames[0]) {
+                    jobsFailedTitle = `${event.meta.jobNames[0]} failed`;
+                } else {
+                    jobsFailedTitle = `${event.meta.appTitles[0]} failed`;
+                }
+            }
+
+            const jobsFailedMessage = event.meta.jobIds.length > 1 ?
+                `${event.meta.jobIds.length} jobs terminated with a failure.` :
+                `Your ${event.meta.appTitles[0]} job terminated with a failure.`;
+
+            return {
+                icon: "heroServer",
+                color: "iconColor",
+                color2: "iconColor2",
+                modifiedTitle: jobsFailedTitle,
+                modifiedMessage: jobsFailedMessage
+            };
         default:
-            return {icon: "info", color: "white", color2: "black"};
+            return {icon: "heroInformationCircle", color: "iconColor", color2: "iconColor2"};
     }
 }
 
-function onNotificationAction(notification: Notification, navigate: NavigateFunction, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, navigate: NavigateFunction) {
     switch (notification.type) {
-        case "APP_COMPLETE":
-            navigate(`/applications/results/${notification.meta.jobId}`);
+        case "JOB_COMPLETED":
+        case "JOB_STARTED":
+        case "JOB_FAILED":
+        case "JOB_EXPIRED":
+            if (notification.meta.jobIds.length > 1) {
+                navigate(AppRoutes.jobs.list());
+            } else {
+                navigate(`/jobs/properties/${notification.meta.jobIds[0]}`);
+            }
             break;
         case "SHARE_REQUEST":
             navigate("/shares");
             break;
         case "REVIEW_PROJECT":
         case "PROJECT_INVITE":
-            navigate("/projects/");
+            navigate(AppRoutes.dashboard.dashboardA());
             break;
         case "NEW_GRANT_APPLICATION":
+        case "NEW_GRANT_COMMENT":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
+        case "UPDATED_GRANT_APPLICATION":
         case "GRANT_APPLICATION_UPDATED": {
             const {meta} = notification;
-            navigate(`/project/grants/view/${meta.appId}`);
+            navigate(`/grants?id=${meta.appId}`);
             break;
         }
         case "PROJECT_ROLE_CHANGE": {
-            const {projectId} = notification.meta;
-            navigate(AppRoutes.project.members(projectId));
             break;
         }
         default:
@@ -173,7 +282,7 @@ export function sendNotification(notification: NormalizedNotification) {
 // When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
 // relevant components.
 let wsConnection: WebSocketConnection | undefined = undefined;
-let snackbarSubscription: (snack?: Snack) => void = () => { };
+let snackbarSubscription: (snack?: Snack) => void = () => {};
 let snoozeLoop: any;
 function initializeStore() {
     // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
@@ -288,22 +397,30 @@ export const Notifications: React.FunctionComponent = () => {
     const rerender = useForcedRender();
     const [notificationsVisible, setNotificationsVisible] = React.useState(false);
 
-    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+    const globalRefresh = useRefresh();
     const globalRefreshRef = React.useRef<(() => void) | undefined>(undefined);
     React.useEffect(() => {
         globalRefreshRef.current = globalRefresh;
     }, [globalRefresh]);
 
-    const toggleNotifications = React.useCallback((ev?: React.SyntheticEvent) => {
-        ev?.stopPropagation();
+    const toggleNotifications = React.useCallback((ev: React.SyntheticEvent) => {
+        ev.stopPropagation();
         setNotificationsVisible(prev => !prev);
     }, []);
 
     React.useEffect(() => {
         const evHandler = () => {setNotificationsVisible(false)};
         document.addEventListener("click", evHandler);
+
+        function closeOnEscape(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                evHandler();
+            }
+        }
+        window.addEventListener("keydown", closeOnEscape);
         return () => {
             document.removeEventListener("click", evHandler);
+            window.removeEventListener("keydown", closeOnEscape);
         };
     }, []);
 
@@ -319,7 +436,7 @@ export const Notifications: React.FunctionComponent = () => {
         };
     }, []);
 
-    const pinnedEntries: JSX.Element | null = (() => {
+    const pinnedEntries: React.ReactNode = (() => {
         const pinnedItems = notificationStore.filter(it => normalizeNotification(it).isPinned);
         if (pinnedItems.length === 0) return null;
         return <div className="container">
@@ -330,7 +447,7 @@ export const Notifications: React.FunctionComponent = () => {
         </div>;
     })();
 
-    const entries: JSX.Element = (() => {
+    const entries: React.ReactNode = (() => {
         if (notificationStore.length === 0) return <NoNotifications />;
         return <>
             {notificationStore.map((notification, index) => {
@@ -343,33 +460,58 @@ export const Notifications: React.FunctionComponent = () => {
 
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const closeOnOutsideClick = React.useCallback(e => {
+        if (
+            divRef.current && !divRef.current.contains(e.target) &&
+            findDomAttributeFromAncestors(e.target, "data-key") !== "notifications-icon"
+        ) {
+            setNotificationsVisible(false);
+        }
+    }, []);
+
+    React.useEffect(() => {
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    }, []);
+
     return <>
         <NotificationPopups />
-        <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
-            <Relative top="0" left="0">
+        <Flex onClick={toggleNotifications} data-component="notifications" data-key="notifications-icon" cursor="pointer">
+            <Relative top={0} left={0}>
                 <Flex justifyContent="center" width="48px">
                     <Icon
                         cursor="pointer"
-                        name="notification"
-                        color="headerIconColor"
-                        color2="headerIconColor2"
+                        size={"24px"}
+                        name="heroBell"
+                        color="fixedWhite"
                     />
                 </Flex>
                 {unreadLength > 0 ? (
-                    <ThemeProvider theme={theme}>
-                        <Absolute top="-12px" left="28px">
-                            <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
-                        </Absolute>
-                    </ThemeProvider>
+                    <Absolute top={-12} left={28}>
+                        <div
+                            style={{
+                                borderRadius: "999999px",
+                                background: "var(--errorMain)",
+                                color: "white",
+                                letterSpacing: "0.025em",
+                                fontSize: "10pt",
+                                padding: "1px 5px"
+                            }}
+                            data-component={"notifications-unread"}
+                        >
+                            {unreadLength}
+                        </div>
+                    </Absolute>
                 ) : null}
             </Relative>
         </Flex>
 
         {!notificationsVisible ? null :
-            <ContentWrapper onClick={UF.stopPropagation}>
+            <div ref={divRef} className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
-                    <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
+                    <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"
                         onClick={markAllAsRead} />
                 </div>
 
@@ -378,62 +520,69 @@ export const Notifications: React.FunctionComponent = () => {
                 <div className="container-wrapper">
                     <div className="container">{entries}</div>
                 </div>
-            </ContentWrapper>
+            </div>
         }
     </>;
 }
 
-const ContentWrapper = styled.div`
-    position: fixed;
-    top: 60px;
-    right: 16px;
-    width: 450px;
-    height: 600px;
-    z-index: 10000;
-    background: var(--white);
-    color: var(--black);
-    padding: 16px;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 20%);
+const ContentWrapper = injectStyle("content-wrapper", k => `
+    ${k} {
+        position: fixed;
+        bottom: 12px;
+        left: calc(8px + var(--sidebarWidth));
+        width: 450px;
+        height: 600px;
+        max-height: 100vh;
+        z-index: 10000;
+        background: var(--backgroundDefault);
+        color: var(--textPrimary);
+        padding: 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 0, 0, 20%);
 
-    display: flex;
-    flex-direction: column;
+        display: flex;
+        flex-direction: column;
 
-    box-shadow: ${theme.shadows.sm};
+        box-shadow: var(--defaultShadow);
+    }
 
-    .container-wrapper {
+    ${k} > .container-wrapper {
         flex-grow: 1;
         overflow-y: auto;
     }
 
-    .container {
+    ${k} > .container {
         display: flex;
         gap: 8px;
         margin-bottom: 16px;
         flex-direction: column;
     }
 
-    .header {
+    ${k} > .container-wrapper > .container > div {
+        margin-bottom: 8px;
+    }
+
+    ${k} > .header {
         display: flex;
         align-items: center;
         margin-bottom: 20px;
-
-        h3 {
-            flex-grow: 1;
-            margin: 0;
-            font-size: 22px;
-            font-weight: normal;
-        }
-
-        .read-all {
-            cursor: pointer;
-        }
     }
-`;
 
-const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
+    ${k} > .header > h3 {
+        flex-grow: 1;
+        margin: 0;
+        font-size: 22px;
+        font-weight: normal;
+    }
 
-export interface Notification {
+    ${k} > .header > .read-all {
+        cursor: pointer;
+    }
+`);
+
+const NoNotifications = (): React.ReactNode => <TextSpan>No notifications</TextSpan>;
+
+interface Notification {
     type: string;
     id: number;
     message: string;
@@ -445,7 +594,7 @@ export interface Notification {
 function normalizeNotification(
     notification: Notification | NormalizedNotification,
 ): NormalizedNotification & {onSnooze?: () => void} {
-    const {location, dispatch, refresh, navigate} = normalizationDependencies!;
+    const {location, refresh, navigate} = normalizationDependencies!;
 
     if ("isPinned" in notification) {
         const result = {
@@ -482,7 +631,7 @@ function normalizeNotification(
         const before = location.pathname;
 
         markAsRead([result]);
-        onNotificationAction(notification, navigate, dispatch);
+        onNotificationAction(notification, navigate);
 
         const after = location.pathname;
         if (before === after && refresh.current) refresh.current();
@@ -495,7 +644,7 @@ interface NotificationEntryProps {
     notification: NormalizedNotification;
 }
 
-function NotificationEntry(props: NotificationEntryProps): JSX.Element {
+function NotificationEntry(props: NotificationEntryProps): React.ReactNode {
     const {notification} = props;
 
     const classes: string[] = [];
@@ -512,7 +661,7 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     }, [props.notification]);
 
     return (
-        <NotificationWrapper onClick={onAction} className={classes.join(" ")}>
+        <div className={classConcatArray(NotificationWrapper, classes)} onClick={onAction}>
             <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"}
                 color2={notification.iconColor2 ?? "iconColor2"} />
             <div className="notification-content">
@@ -525,42 +674,36 @@ function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
                 <div className="notification-body">{notification.body}</div>
             </div>
-        </NotificationWrapper>
+        </div>
     );
 }
 
-const NotificationWrapper = styled.div`
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    background: var(--white);
-    border-radius: 6px;
-    padding: 10px;
-    width: 100%;
-    user-select: none;
-    cursor: pointer;
-
-    &.pinned {
-        background: rgba(255, 100, 0, 20%);
+const NotificationWrapper = injectStyle("notification-wrapper", k => `
+    ${k} {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        border-radius: 6px;
+        padding: 10px;
+        width: 100%;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: pointer;
     }
 
-    &.unread.unpinned {
-        background: rgba(204, 221, 255, 20%);
+    ${k}.pinned,
+    ${k}.unread.unpinned {
+        background: var(--rowActive);
     }
 
-    &:hover {
-        background: rgba(240, 246, 255, 50%);
+
+    ${k}.pinned:hover,
+    ${k}.unread.unpinned:hover,
+    ${k}:hover {
+        background: var(--rowHover);
     }
 
-    &.unread.unpinned:hover {
-        background: rgba(204, 221, 255, 50%);
-    }
-
-    &.pinned:hover {
-        background: rgba(255, 100, 0, 30%);
-    }
-
-    b {
+    ${k} > b {
         margin: 0;
         font-size: 14px;
         flex-grow: 1;
@@ -570,11 +713,11 @@ const NotificationWrapper = styled.div`
         overflow: hidden;
     }
 
-    .notification-content {
+    ${k} > .notification-content {
         width: calc(100% - 34px);
     }
 
-    .notification-body {
+    ${k} > .notification-body {
         font-size: 12px;
         margin-bottom: 5px;
         text-overflow: ellipsis;
@@ -583,64 +726,11 @@ const NotificationWrapper = styled.div`
         margin-top: -3px;
     }
 
-    .time {
+    ${k} .time {
         font-size: 12px;
-        flex-shrink: 0;
+        margin-left: auto;
     }
-
-    a {
-        color: var(--blue);
-        cursor: pointer;
-    }
-
-    .time {
-        color: var(--midGray);
-    }
-`;
-
-export const NotificationDashboardCard: React.FunctionComponent = () => {
-    const rerender = useForcedRender();
-
-    React.useEffect(() => {
-        notificationCallbacks.add(rerender);
-        return () => {
-            notificationCallbacks.delete(rerender);
-        }
-    }, []);
-
-    return <HighlightedCard
-        color="darkGreen"
-        icon="notification"
-        title="Recent notifications"
-        subtitle={
-            <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"
-                onClick={markAllAsRead} />
-        }
-    >
-        {notificationStore.length !== 0 ? null :
-            <Flex
-                alignItems="center"
-                justifyContent="center"
-                height="calc(100% - 60px)"
-                minHeight="250px"
-                mt="-30px"
-                width="100%"
-                flexDirection="column"
-            >
-                <Heading.h4>No notifications</Heading.h4>
-                As you use UCloud notifications will appear here.
-
-                <Link to="/applications/overview" mt={8}>
-                    <Button fullWidth mt={8}>Explore UCloud</Button>
-                </Link>
-            </Flex>
-        }
-
-        <div style={{display: "flex", gap: "10px", flexDirection: "column", margin: "10px 0"}}>
-            {notificationStore.slice(0, 7).map(it => <NotificationEntry key={it.uniqueId} notification={it} />)}
-        </div>
-    </HighlightedCard>;
-};
+`);
 
 export default Notifications;
 

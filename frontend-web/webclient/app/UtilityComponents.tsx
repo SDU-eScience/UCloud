@@ -1,26 +1,29 @@
-import {KeyCode} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled, {keyframes, css} from "styled-components";
 import {
     Box, Button, Divider, Flex, ButtonGroup, Link, Text
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Input from "@/ui-components/Input";
-import {height, HeightProps, padding, PaddingProps, width, WidthProps} from "styled-system";
 import {useEffect, useRef} from "react";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
+import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
+import AppRoutes from "./Routes";
+
+enum KeyCode {
+    ENTER = 13,
+    ESC = 27
+}
+
 
 interface StandardDialog {
     title?: string;
-    message: string | JSX.Element;
+    message: React.ReactNode;
     onConfirm: () => void | Promise<void>;
     onCancel?: () => void;
     cancelText?: string;
@@ -40,8 +43,8 @@ export function addStandardDialog({
     cancelText = "Cancel",
     confirmText = "Confirm",
     addToFront = false,
-    cancelButtonColor = "red",
-    confirmButtonColor = "green"
+    cancelButtonColor = "errorMain",
+    confirmButtonColor = "successMain"
 }: StandardDialog): void {
     const validate = (): void => {
         if (validator()) onConfirm();
@@ -53,7 +56,7 @@ export function addStandardDialog({
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                <StandardDialogFlex>{message}</StandardDialogFlex>
+                <div className={StandardDialogFlexClass}>{message}</div>
             </div>
             <Flex mt="20px" style={{justifyContent: "end", gap: "8px"}}>
                 <Button
@@ -62,18 +65,18 @@ export function addStandardDialog({
                 >
                     {confirmText}
                 </Button>
-                <Button onClick={dialogStore.failure} color={cancelButtonColor}>{cancelText}</Button>
+                <Button onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor}>{cancelText}</Button>
             </Flex>
         </div>
     ), onCancel, addToFront);
 }
 
-const StandardDialogFlex = styled.div`
+const StandardDialogFlexClass = injectStyleSimple("standard-dialog-flex", `
     display: flex;
     flex-direction: column;
     min-height: 200px;
     overflow-y: auto;
-`;
+`);
 
 interface InputDialog {
     title: string;
@@ -85,7 +88,7 @@ interface InputDialog {
     addToFront?: boolean;
     type?: "input" | "textarea";
     resize?: "none";
-    help?: JSX.Element;
+    help?: React.ReactNode;
     width?: string;
     rows?: number;
     confirmButtonColor?: ThemeColor;
@@ -106,8 +109,8 @@ export async function addStandardInputDialog({
     resize = "none",
     type = "input",
     width = "100%",
-    confirmButtonColor = "green",
-    cancelButtonColor = "red",
+    confirmButtonColor = "successMain",
+    cancelButtonColor = "errorMain",
     style,
 }: InputDialog): Promise<{result: string}> {
     if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
@@ -137,7 +140,7 @@ export async function addStandardInputDialog({
                 />
             </div>
             <Flex mt="20px">
-                <Button type={"button"} onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+                <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor} mr="5px">{cancelText}</Button>
                 <Button type={"submit"} color={confirmButtonColor}>
                     {confirmText}
                 </Button>
@@ -165,11 +168,11 @@ export const ConfirmCancelButtons = ({
     height,
     showCancelButton,
     disabled
-}: ConfirmCancelButtonsProps): JSX.Element => (
+}: ConfirmCancelButtonsProps): React.ReactNode => (
     <ButtonGroup width="175px" height={height}>
-        <Button disabled={disabled} onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button disabled={disabled} onClick={onConfirm} type="button" color="successMain">{confirmText}</Button>
         {showCancelButton === false ? null :
-            <Button disabled={disabled} onClick={onCancel} type="button" color="red">{cancelText}</Button>}
+            <Button disabled={disabled} onClick={onCancel} type="button" color="errorMain">{cancelText}</Button>}
     </ButtonGroup>
 );
 
@@ -210,7 +213,7 @@ export const NamingField: React.FunctionComponent<{
                         onCancel={props.onCancel}
                     />
                 </div>
-                {props.prefix ? <Text pl="10px" mt="4px" color={"gray"}>{props.prefix}</Text> : null}
+                {props.prefix ? <Text pl="10px" mt="4px" color={"textSecondary"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -226,9 +229,9 @@ export const NamingField: React.FunctionComponent<{
                     type="text"
                     width="100%"
                     autoFocus
-                    ref={props.inputRef}
+                    inputRef={props.inputRef}
                 />
-                {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
+                {props.suffix ? <Text mt="4px" color={"textSecondary"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );
@@ -286,15 +289,6 @@ export const Lorem: React.FunctionComponent<{maxLength?: number}> = ({maxLength 
     return <>{builder}</>;
 };
 
-export const ImagePlaceholder = styled.div<WidthProps & HeightProps & PaddingProps>`
-  ${width} ${height} ${padding}
-  background-color: var(--purple, #f00);
-`;
-
-export const Center = styled(Box)`
-  text-align: center;
-`;
-
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function useTraceUpdate(props: any, msg?: string): void {
     const prev = useRef(props);
@@ -314,7 +308,7 @@ export function useTraceUpdate(props: any, msg?: string): void {
     });
 }
 
-const shakeKeyframes = keyframes`
+const shakeKeyframes = makeKeyframe("shake", `
   10%, 90% {
     transform: translate3d(-1px, 0, 0);
   }
@@ -330,36 +324,25 @@ const shakeKeyframes = keyframes`
   40%, 60% {
     transform: translate3d(4px, 0, 0);
   }
-`;
+`);
 
-export const shakeAnimation = css<{shaking?: boolean}>`
-  &.shaking {
-    transform: translate3d(0, 0, 0);
-    animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
-  }
-
-  ${p => p.shaking ? css`& {
-    transform: translate3d(0, 0, 0);
-    animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
-  }` : null}
-`;
-
-export const shakingClassName = "shaking";
-
-export const ShakingBox = styled(Box) <{shaking?: boolean}>`
-  ${shakeAnimation}
-`;
+export const ShakingBox = injectStyle("shaking-box", k => `
+    ${k}.shaking {
+        transform: translate3d(0, 0, 0);
+        animation: ${shakeKeyframes} 0.82s cubic-bezier(.36, .07, .19, .97) both;
+    }
+`);
 
 const MISSING_COMPUTE_CREDITS = "NOT_ENOUGH_COMPUTE_CREDITS";
 const MISSING_STORAGE_CREDITS = "NOT_ENOUGH_STORAGE_CREDITS";
 const EXCEEDED_STORAGE_QUOTA = "NOT_ENOUGH_STORAGE_QUOTA";
 const NOT_ENOUGH_LICENSE_CREDITS = "NOT_ENOUGH_LICENSE_CREDITS";
 
-export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
+export function WalletWarning(props: {errorCode?: string}): React.ReactNode | null {
     if (!props.errorCode) return null;
     return (
-        <ErrorWrapper bg="lightRed"
-            borderColor="red"
+        <ErrorWrapper
+            borderColor="errorMain"
             width={1}
         >
             <WarningToOptions errorCode={props.errorCode} />
@@ -367,8 +350,8 @@ export function WalletWarning(props: {errorCode?: string}): JSX.Element | null {
     );
 }
 
-function WarningToOptions(props: {errorCode: string}): JSX.Element {
-    const applyPath = Client.hasActiveProject ? "/project/grants/existing" : "/projects/browser/personal";
+function WarningToOptions(props: {errorCode: string}): React.ReactNode {
+    const applyPath = "/grants";
 
     switch (props.errorCode) {
         case MISSING_COMPUTE_CREDITS:
@@ -376,9 +359,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
             const computeOrStorage = props.errorCode === MISSING_COMPUTE_CREDITS ? "compute" : "storage";
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough {computeOrStorage} credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough {computeOrStorage} credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">Apply for more {computeOrStorage} resources.</Text>}
+                        left={<Text>Apply for more {computeOrStorage} resources.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
                 </Box>
@@ -387,9 +370,9 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case NOT_ENOUGH_LICENSE_CREDITS: {
             return (
                 <Box mb="8px">
-                    <Heading.h4 mb="20px" color="#000">You do not have enough license credits.</Heading.h4>
+                    <Heading.h4 mb="20px">You do not have enough license credits.</Heading.h4>
                     <Spacer
-                        left={<Text color="#000">You do not have enough credits to use this license. Even free licenses
+                        left={<Text>You do not have enough credits to use this license. Even free licenses
                             requires a non-zero positive balance.</Text>}
                         right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                     />
@@ -399,26 +382,19 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
         case EXCEEDED_STORAGE_QUOTA:
             return (
                 <>
-                    <Heading.h4 mb="20px" color="#000">You do not have enough storage credit. To get more storage, you
+                    <Heading.h4 mb="20px">You do not have enough storage credit. To get more storage, you
                         could do one of the following:</Heading.h4>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Delete files. Your personal workspace files, including job results
-                                and trash also count towards your storage quota.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">Workspace
+                            left={<Text>Delete files. Your personal workspace files, including job results
+                                and trash also count towards your storage quota, and so does the contents of your trash folder.</Text>}
+                            right={<Link to={AppRoutes.files.drives()}><Button width="150px" height="30px">Workspace
                                 files</Button></Link>}
                         />
                     </Box>
                     <Box mb="8px">
                         <Spacer
-                            left={<Text color="#000">Empty your trash folder.</Text>}
-                            right={<Link to={"/files/"}><Button width="150px" height="30px">To trash
-                                folder</Button></Link>}
-                        />
-                    </Box>
-                    <Box mb="8px">
-                        <Spacer
-                            left={<Text color="#000">Apply for more storage resources.</Text>}
+                            left={<Text>Apply for more storage resources.</Text>}
                             right={<Link to={applyPath}><Button width="150px" height="30px">Apply</Button></Link>}
                         />
                     </Box>
@@ -429,32 +405,31 @@ function WarningToOptions(props: {errorCode: string}): JSX.Element {
     }
 }
 
-export function Sensitivity({sensitivity}: {sensitivity: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE"}): JSX.Element {
-    switch (sensitivity) {
-        case "CONFIDENTIAL":
-            return <SensitivityBadge bg={getCssVar("purple")}>
-                C
-            </SensitivityBadge>
-        case "SENSITIVE":
-            return <SensitivityBadge bg={"#ff0004"}>
-                S
-            </SensitivityBadge>
-        case "PRIVATE":
-        default:
-            return <SensitivityBadge bg={getCssVar("midGray")}>
-                P
-            </SensitivityBadge>;
+const LogOutputClass = injectStyle("log-output", k => `
+    ${k} {
+        margin-top: 0;
+        margin-bottom: 0;
+        overflow-y: scroll;
+        font-family: var(--monospace);
+        text-wrap: wrap;
     }
+`);
+
+export function LogOutput({updates, maxHeight}: {updates: string[], maxHeight?: string}): React.ReactNode {
+    return <pre className={LogOutputClass} style={{maxHeight}}>{updates}</pre>;
 }
 
-const SensitivityBadge = styled.div<{bg: string}>`
-    content: '';
-    height: 2em;
-    width: 2em;
-    display: flex;
-    margin-right: 5px;
-    align-items: center;
-    justify-content: center;
-    border: 0.2em solid ${({bg}) => bg};
-    border-radius: 100%;
-`;
+export const NoResultsCardBody: React.FunctionComponent<{title: string; children: React.ReactNode}> = props => (
+    <Flex
+        alignItems="center"
+        justifyContent="center"
+        height="calc(100% - 60px)"
+        minHeight="250px"
+        mt="-30px"
+        width="100%"
+        flexDirection="column"
+    >
+        <Heading.h4>{props.title}</Heading.h4>
+        {props.children}
+    </Flex>
+);

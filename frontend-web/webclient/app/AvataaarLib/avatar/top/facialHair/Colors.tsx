@@ -36,7 +36,8 @@ const BrownDark = makeColor("BrownDark", "#4A312C");
 const Platinum = makeColor("Platinum", "#ECDCBF");
 const Red = makeColor("Red", "#C93305");
 
-export default function Colors(props: Props): JSX.Element {
+// UNUSED
+function Colors(props: Props): React.ReactNode {
   switch (props.color) {
     case FacialHairColor.Auburn:
       return <Auburn maskID={props.maskID} />;

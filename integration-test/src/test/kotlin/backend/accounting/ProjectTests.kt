@@ -12,7 +12,7 @@ class ProjectTests : IntegrationTest() {
     //  - If role is null, a client for a user which isn't a member of the project is returned,
     //  - if role is PI, a client for the pi of the project is returned,
     //  - otherwise a client for a new user with the specified project role is returned.
-    suspend fun clientWithProjectRole(project: NormalProjectInitialization, role: ProjectRole?): AuthenticatedClient {
+    private suspend fun clientWithProjectRole(project: NormalProjectInitialization, role: ProjectRole?): AuthenticatedClient {
         return when (role) {
             null -> {
                 createUser().client
@@ -62,8 +62,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link create and browse") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
                     val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
@@ -125,8 +125,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update role assignment") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
                     val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
@@ -189,8 +189,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link update group assignment") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
                     val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
@@ -254,8 +254,8 @@ class ProjectTests : IntegrationTest() {
 
             test<In, Out>("Project invite link accept") {
                 execute {
-                    createSampleProducts()
-                    val root = initializeRootProject(setOf(UCLOUD_PROVIDER))
+                    val provider = createSampleProducts()
+                    val root = initializeRootProject(provider.projectId)
                     val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)

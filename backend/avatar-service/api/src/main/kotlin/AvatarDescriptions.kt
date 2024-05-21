@@ -7,34 +7,11 @@ import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
-/**
- * A serialized avatar. Should be used whenever going over the wire.
- */
-@Serializable
-@UCloudApiInternal(InternalLevel.STABLE)
-data class SerializedAvatar(
-    val top: String,
-    val topAccessory: String,
-    val hairColor: String,
-    val facialHair: String,
-    val facialHairColor: String,
-    val clothes: String,
-    val colorFabric: String,
-    val eyes: String,
-    val eyebrows: String,
-    val mouthTypes: String,
-    val skinColors: String,
-    val clothesGraphic: String,
-    val hatColor: String
-)
 
-typealias UpdateRequest = SerializedAvatar
-
+typealias UpdateRequest = Avatar
 typealias UpdateResponse = Unit
-
 typealias FindRequest = Unit
-
-typealias FindResponse = SerializedAvatar
+typealias FindResponse = Avatar
 
 @Serializable
 @UCloudApiInternal(InternalLevel.STABLE)
@@ -45,7 +22,7 @@ data class FindBulkRequest(
 @Serializable
 @UCloudApiInternal(InternalLevel.STABLE)
 data class FindBulkResponse(
-    val avatars: Map<String, SerializedAvatar>
+    val avatars: Map<String, Avatar>
 )
 
 typealias Avatars = AvatarDescriptions
@@ -107,9 +84,9 @@ working in projects.
             }
         }
 
-       documentation {
-           summary = "Request the avatar of the current user."
-       }
+        documentation {
+            summary = "Request the avatar of the current user."
+        }
     }
 
     val findBulk = call("findBulk", FindBulkRequest.serializer(), FindBulkResponse.serializer(), CommonErrorMessage.serializer()) {

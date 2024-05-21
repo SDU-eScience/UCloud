@@ -41,8 +41,8 @@ fun checkSingleLine(
 ) {
     if (value.contains("\n")) throw RPCException("${propertyName} cannot contain new-lines", HttpStatusCode.BadRequest)
     if (!allowBlanks && value.isBlank()) throw RPCException("${propertyName} cannot be blank", HttpStatusCode.BadRequest)
-    if (value.length < minimumSize) throw RPCException("${propertyName} is too short", HttpStatusCode.BadRequest)
-    if (value.length > maximumSize) throw RPCException("${propertyName} is too long", HttpStatusCode.BadRequest)
+    if (value.length < minimumSize) throw RPCException("${propertyName} is too short (${value.length} < ${minimumSize})", HttpStatusCode.BadRequest)
+    if (value.length > maximumSize) throw RPCException("${propertyName} is too long (${value.length} > ${maximumSize})", HttpStatusCode.BadRequest)
     if (!allowSpecial) checkNoSpecialCharacters(propertyName, value)
 }
 

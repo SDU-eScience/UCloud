@@ -7,8 +7,10 @@ import {useCallback, useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {blankOrUndefined} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {classConcat} from "@/Unstyled";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
@@ -77,18 +79,18 @@ export const FirewallEditor: React.FunctionComponent<{
         setDidChange(true);
     }, [inspecting, reload]);
 
-    return <>
-        <HighlightedCard color={"purple"} isLoading={false} title={"Firewall"} icon={"verified"}>
+    return <TabbedCard>
+        <TabbedCardTab name={"Firewall"} icon={"verified"}>
             {!didChange ?
                 <>
-                    <Box height={120}>
+                    <Box height={80}>
                         <b>Example:</b> to configure the firewall to accept SSH connections you would typically put in:
                         <pre><code>Port (First) = 22, Port (Last) = 22, Protocol = TCP</code></pre>
                     </Box>
                 </> :
-                <ShakingBox shaking height={120}>
+                <Box className={classConcat(ShakingBox, "shaking")} height={80}>
                     <b>Note:</b> Your application must be <i>restarted</i> for the firewall to take effect.
-                </ShakingBox>
+                </Box>
             }
 
             <form onSubmit={onAddRow}>
@@ -101,36 +103,37 @@ export const FirewallEditor: React.FunctionComponent<{
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                    {(inspecting.specification.firewall?.openPorts ?? []).map((row, idx) => {
-                        return <TableRow key={idx}>
-                            <TableCell>{row.start}</TableCell>
-                            <TableCell>{row.end}</TableCell>
-                            <TableCell>{row.protocol}</TableCell>
-                            <TableCell>
-                                <ConfirmationButton
-                                    color={"red"}
-                                    fullWidth
-                                    icon={"close"}
-                                    actionText={"Remove"}
-                                    onAction={() => onRemoveRow(idx)}
-                                />
+                        {(inspecting.specification.firewall?.openPorts ?? []).map((row, idx) => {
+                            return <TableRow key={idx}>
+                                <TableCell>{row.start}</TableCell>
+                                <TableCell>{row.end}</TableCell>
+                                <TableCell>{row.protocol}</TableCell>
+                                <TableCell>
+                                    <ConfirmationButton
+                                        type={"button"}
+                                        color={"errorMain"}
+                                        fullWidth
+                                        icon={"close"}
+                                        actionText={"Remove"}
+                                        onAction={() => onRemoveRow(idx)}
+                                    />
+                                </TableCell>
+                            </TableRow>
+                        })}
+                        <TableRow>
+                            <TableCell pr={"16px"}><Input inputRef={portFirstRef} /></TableCell>
+                            <TableCell pr={"16px"}><Input inputRef={portLastRef} /></TableCell>
+                            <TableCell pr={"16px"}>
+                                <Select selectRef={protocolRef}>
+                                    <option>TCP</option>
+                                    <option>UDP</option>
+                                </Select>
                             </TableCell>
+                            <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
                         </TableRow>
-                    })}
-                    <TableRow>
-                        <TableCell><Input ref={portFirstRef}/></TableCell>
-                        <TableCell><Input ref={portLastRef}/></TableCell>
-                        <TableCell>
-                            <Select selectRef={protocolRef}>
-                                <option>TCP</option>
-                                <option>UDP</option>
-                            </Select>
-                        </TableCell>
-                        <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
-                    </TableRow>
                     </tbody>
                 </Table>
             </form>
-        </HighlightedCard>
-    </>
+        </TabbedCardTab>
+    </TabbedCard>
 };

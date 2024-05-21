@@ -3,12 +3,12 @@ import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 interface EnumProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.Enumeration;
+    parameter: ApplicationParameterNS.Enumeration;
 }
 
 export const EnumParameter: React.FunctionComponent<EnumProps> = props => {

@@ -4,6 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
@@ -15,7 +16,7 @@ import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
     var pluginName: String
     var productAllocation: List<ProductReferenceWithoutProvider>
-    var productAllocationResolved: List<Product>
+    var productAllocationResolved: List<ProductV2>
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init
@@ -28,15 +29,10 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      *
      * Each allocation notification contains the total balance for the product across allocations.
      *
-     * This method is only invoked for the initial allocation not for re-synchronization.
+     * This method is only invoked due to synchronization. There is no guarantee that anything has changed in the
+     * wallet.
      */
-    suspend fun PluginContext.onAllocationCompleteInServerModeTotal(notification: AllocationNotificationTotal) {}
-
-    /**
-     * Same as `onAllocationCompleteInServerModeTotal` but where each allocation notification refers to an individual
-     * allocation. That is, allocation notifications does not contain the summed balance across allocations.
-     */
-    suspend fun PluginContext.onAllocationCompleteInServerModeSingle(notification: AllocationNotificationSingle) {}
+    suspend fun PluginContext.onWalletSynchronized(notification: AllocationPlugin.Message) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts

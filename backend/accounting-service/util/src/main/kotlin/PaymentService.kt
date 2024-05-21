@@ -4,10 +4,11 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
-import java.util.*
 
 data class Payment(
     val chargeId: String,
@@ -34,70 +35,87 @@ class PaymentService(
     }
 
     suspend fun charge(payments: List<Payment>): List<ChargeResult> {
-        return Accounting.charge.call(
-            BulkRequest(payments.map {
-                ChargeWalletRequestItem(
-                    it.owner,
-                    it.units,
-                    it.periods,
-                    it.product,
-                    it.performedBy,
-                    it.description ?: "Payment",
-                    "${it.product.provider}-${it.chargeId}"
+        val items = ArrayList<UsageReportItem>()
+        for (payment in payments) {
+            val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+            items.add(
+                UsageReportItem(
+                    isDeltaCharge = false,
+                    payment.owner,
+                    ProductCategoryIdV2(payment.product.category, payment.product.provider),
+                    balanceUsed,
+                    ChargeDescription(payment.chargeId)
                 )
-            }),
+            )
+        }
+
+        val results = AccountingV2.reportUsage.call(
+            BulkRequest(items),
             serviceClient
-        ).orThrow().responses.map { success ->
-            if (success) ChargeResult.Charged
+        ).orNull()?.responses ?: Array(payments.size) { false }.toList()
+
+        return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+    }
+
+    suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
+        return AccountingV2.checkProviderUsable.call(
+            BulkRequest(
+                payments.map { payment ->
+                    AccountingV2.CheckProviderUsable.RequestItem(
+                        payment.owner,
+                        ProductCategoryIdV2(payment.product.category, payment.product.provider)
+                    )
+                }
+            ),
+            serviceClient,
+        ).orThrow().responses.mapIndexed { index, response ->
+            val payment = payments[index]
+            val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+
+            if (response.maxUsable >= balanceUsed) ChargeResult.Charged
             else ChargeResult.InsufficientFunds
         }
     }
 
-    suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
-        return Accounting.check.call(
-            BulkRequest(payments.map {
-                ChargeWalletRequestItem(
-                    it.owner,
-                    it.units,
-                    it.periods,
-                    it.product,
-                    it.performedBy,
-                    it.description ?: "Payment",
-                    "${it.product.provider}-${it.chargeId}"
-                )
-            }),
-            serviceClient
-        ).orThrow().responses.map { success ->
-            if (success) ChargeResult.Charged
-            else ChargeResult.InsufficientFunds
+    private val productCache = ProductCache(db)
+
+    private data class ErrorMessage(val error: String?)
+
+    private val creditCheckCache = AsyncCache<Pair<WalletOwner, ProductCategoryIdV2>, ErrorMessage>(
+        BackgroundScope.get(),
+        timeToLiveMilliseconds = 60_000,
+        timeoutException = {
+            throw RPCException("Unable to check allocations for $it", HttpStatusCode.GatewayTimeout)
+        },
+        retrieve = { (owner, category) ->
+            if (productCache.productCategory(category)?.freeToUse == true) {
+                return@AsyncCache ErrorMessage(null)
+            }
+
+            val allWallets = AccountingV2.browseWalletsInternal.call(
+                AccountingV2.BrowseWalletsInternal.Request(owner),
+                serviceClient
+            ).orThrow().wallets
+
+            val isMissingWallet = allWallets.none { it.paysFor.toId() == category }
+            if (isMissingWallet) {
+                ErrorMessage("You are missing allocations for: ${category.name} / ${category.provider}")
+            } else {
+                ErrorMessage(null)
+            }
         }
-    }
+    )
 
     suspend fun creditCheck(
         owner: WalletOwner,
         products: List<ProductReference>
     ) {
-        val success = Accounting.check.call(
-            BulkRequest(
-                products.map { product ->
-                    ChargeWalletRequestItem(
-                        owner,
-                        1L, 1L,
-                        product,
-                        "_ucloud",
-                        "Credit check",
-                        "${product.provider}-${UUID.randomUUID()}"
-                    )
-                }
-            ),
-            serviceClient
-        ).orThrow().responses.all { it }
-
-        if (!success) {
-            throw RPCException(
-                "Insufficient funds",
-                HttpStatusCode.PaymentRequired
-            )
+        val categories = products.map { ProductCategoryIdV2(it.category, it.provider) }.toSet()
+        for (category in categories) {
+            val (errorMessage) = creditCheckCache.retrieve(Pair(owner, category))
+            if (errorMessage != null) {
+                throw RPCException(errorMessage, HttpStatusCode.PaymentRequired)
+            }
         }
     }
 

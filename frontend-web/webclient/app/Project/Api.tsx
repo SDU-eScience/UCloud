@@ -1,77 +1,11 @@
-import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand, useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {BulkRequest, FindByStringId, PageV2, PaginationRequestV2} from "@/UCloud";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, useCloudAPI} from "@/Authentication/DataHook";
 import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
-import {Navigate, useLocation, useNavigate, useParams} from "react-router";
+import {useLocation, useParams} from "react-router";
 import {useCallback, useEffect, useState} from "react";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {emptyProject} from "./cache";
-
-export enum OldProjectRole {
-    PI = "PI",
-    ADMIN = "ADMIN",
-    USER = "USER",
-}
-
-export function isAdminOrPI(role?: ProjectRole | null): boolean {
-    if (!role) return false;
-    return [OldProjectRole.PI, OldProjectRole.ADMIN].includes(role);
-}
-
-export type ProjectRole = OldProjectRole;
-
-export interface ProjectMember {
-    username: string;
-    role: ProjectRole;
-}
-
-export interface Project {
-    id: string;
-    createdAt: number;
-    specification: ProjectSpecification;
-    status: ProjectStatus;
-}
-
-export interface ProjectStatus {
-    archived: boolean;
-    isFavorite?: boolean | null;
-    members?: ProjectMember[] | null;
-    groups?: ProjectGroup[] | null;
-    settings?: ProjectSettings | null;
-    myRole?: ProjectRole | null;
-    path?: string | null;
-    needsVerification: boolean;
-}
-
-export interface ProjectSpecification {
-    parent?: string | null;
-    title: string;
-    canConsumeResources?: boolean;
-}
-
-export interface ProjectSettings {
-    subprojects?: ProjectSettingsSubProjects | null;
-}
-
-export interface ProjectSettingsSubProjects {
-    allowRenaming: boolean;
-}
-
-export interface ProjectGroup {
-    id: string;
-    createdAt: number;
-    specification: ProjectGroupSpecification;
-    status: ProjectGroupStatus;
-}
-
-export interface ProjectGroupSpecification {
-    project: string;
-    title: string;
-}
-
-export interface ProjectGroupStatus {
-    members?: string[] | null;
-}
+import {OldProjectRole, Project, ProjectGroupSpecification, ProjectRole, ProjectSettings, ProjectSpecification} from ".";
 
 export interface ProjectInvite {
     createdAt: number;
@@ -102,7 +36,7 @@ interface DeleteInviteLinkRequest {
     token: string;
 }
 
-interface UpdateInviteLinkRequest {
+export interface UpdateInviteLinkRequest {
     token: string;
     role: string;
     groups: string[];
@@ -121,9 +55,7 @@ interface RenameProjectRequest {
     newTitle: string;
 }
 
-interface VerifyProjectRequest {
-
-}
+export type ProjectBrowseParams = ProjectFlags & ProjectsSortByFlags & PaginationRequestV2;
 
 class ProjectApi {
     baseContext = "/api/projects/v2";
@@ -132,7 +64,7 @@ class ProjectApi {
         return apiRetrieve(request, this.baseContext);
     }
 
-    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters {
+    public browse(request: ProjectBrowseParams): APICallParameters<unknown, PageV2<Project>> {
         return apiBrowse(request, this.baseContext);
     }
 
@@ -152,14 +84,8 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "toggleFavorite");
     }
 
-    // TODO(Jonas): Test
     public renameProject(request: BulkRequest<RenameProjectRequest>): APICallParameters {
         return apiUpdate(request, this.baseContext, "renameProject");
-    }
-
-    // TODO(Jonas): Handle in general.
-    public verifyProject(request: BulkRequest<VerifyProjectRequest>): APICallParameters {
-        return apiUpdate(request, this.baseContext, "verifyProject");
     }
 
     public updateSettings(request: ProjectSettings): APICallParameters {
@@ -186,7 +112,7 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "deleteInvite");
     }
 
-    public createInviteLink(): APICallParameters {
+    public createInviteLink(): APICallParameters<unknown, ProjectInviteLink> {
         return apiCreate(undefined, this.baseContext, "link");
     }
 
@@ -283,33 +209,11 @@ export function useProjectId(): string | undefined {
     return useSelector<ReduxObject, string | undefined>(it => it.project.project);
 }
 
-export function projectRoleToString(role: ProjectRole): string {
-    switch (role) {
-        case OldProjectRole.PI: return "PI";
-        case OldProjectRole.ADMIN: return "Admin";
-        case OldProjectRole.USER: return "User";
-    }
-}
-
-export function projectStringToRole(role: string): ProjectRole {
-    switch (role) {
-        case "PI": return OldProjectRole.PI;
-        case "ADMIN": return OldProjectRole.ADMIN;
-        case "USER": return OldProjectRole.USER;
-        default: {
-            console.log("Unhandled role in projectStringToRole")
-            console.log(role);
-            return OldProjectRole.USER;
-        }
-    }
-
-}
-
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
-        case OldProjectRole.PI: return "userPi";
-        case OldProjectRole.ADMIN: return "userAdmin";
-        case OldProjectRole.USER: return "user";
+        case OldProjectRole.PI: return "heroTrophy";
+        case OldProjectRole.ADMIN: return "heroBriefcase";
+        case OldProjectRole.USER: return "heroUser";
         default: {
             console.log(role);
             return "bug";
@@ -317,79 +221,20 @@ export function projectRoleToStringIcon(role: ProjectRole): IconName {
     }
 }
 
-export function useSubprojectFromURL(request: ProjectFlags): {project: Project; reload: () => void; projectId: string} {
-    const location = useLocation();
-    const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
-
-    const [project, fetchProject] = useCloudAPI<Project>(
-        {noop: true},
-        emptyProject()
-    );
-
-    useEffect(() => {
-        if (subprojectFromQuery) {
-            fetchProject(api.retrieve({
-                id: subprojectFromQuery,
-                ...request
-            }));
+export function emptyProject(): Project {
+    return {
+        id: "",
+        createdAt: new Date().getTime(),
+        specification: {
+            title: "",
+            canConsumeResources: true
+        },
+        status: {
+            archived: false,
+            needsVerification: false,
         }
-    }, [subprojectFromQuery])
-
-    const reload = useCallback(() => {
-        fetchProject(api.retrieve({
-            id: subprojectFromQuery,
-            ...request
-        }));
-    }, [request])
-
-    return {project: project.data, projectId: subprojectFromQuery, reload};
+    }
 }
-
-interface UseProjectFromParams {
-    project: Project | null;
-    reload: () => void;
-    projectId: string;
-    loading: boolean;
-    isPersonalWorkspace: boolean;
-    breadcrumbs: {title: string, link?: string}[];
-}
-
-export function useProjectIdFromParams(): string {
-    const params = useParams<{project: string}>();
-    return params.project ?? "";
-}
-
-export function useProjectFromParams(pageTitle: string): UseProjectFromParams {
-    const projectId = useProjectIdFromParams();
-
-    const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
-    const isPersonalWorkspace = projectId === "My Workspace"
-
-    const reload = useCallback(() => {
-        if (!isPersonalWorkspace && projectId) {
-            fetchProject(api.retrieve({
-                id: projectId,
-                includePath: true,
-                includeMembers: true,
-                includeArchived: true,
-                includeGroups: true,
-                includeSettings: true,
-            }));
-        }
-    }, [projectId]);
-
-    useEffect(() => {
-        reload();
-    }, [projectId]);
-
-    const breadcrumbs = [
-        {title: isPersonalWorkspace ? projectId : projectFromApi.data?.specification.title ?? "", link: `/projects/${projectId}`},
-        {title: pageTitle}
-    ];
-
-    return {project: projectFromApi.data, projectId, reload, loading: projectFromApi.loading, isPersonalWorkspace, breadcrumbs};
-}
-
 
 const api = new ProjectApi();
 export {api};

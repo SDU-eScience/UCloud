@@ -1,41 +1,42 @@
-import styled from "styled-components";
-import Box from "./Box";
 import * as React from "react";
-import {IconName} from "@/ui-components/Icon";
-import {Icon} from "@/ui-components/index";
+import {IconName, default as Icon} from "./Icon";
 import {ThemeColor} from "./theme";
-import {Cursor} from "@/ui-components/Types";
+import {BoxProps, Cursor} from "./Types";
 import {EventHandler, MouseEvent, useCallback} from "react";
-import {deviceBreakpoint} from "@/ui-components/Hide";
+import {deviceBreakpoint} from "./Hide";
+import {classConcat, extractSize, injectStyle, unbox} from "@/Unstyled";
 
-type StringOrNumber = string | number;
+export const CSSVarCurrentSidebarWidth = "--currentSidebarWidth";
+export const CSSVarCurrentSidebarStickyWidth = "--currentSidebarStickyWidth";
 
-interface UseChildPaddingProps {
-    childPadding?: StringOrNumber;
-}
-
-function useChildPadding(
-    props: UseChildPaddingProps
-): null | {marginBottom: StringOrNumber; marginTop: StringOrNumber} {
-    return props.childPadding ? {marginBottom: props.childPadding, marginTop: props.childPadding} : null;
-}
-
-const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
-    font-size: ${props => props.fontSize};
-
-    & > *, .list-item {
-        ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
-        ${useChildPadding};
+export const ListClass = injectStyle("list", k => `
+    ${k} {
+        --listChildPadding: 0;
     }
 
-    & > *:last-child {
-        ${props => props.bordered ? "border-bottom: 0px;" : null}
+    ${k} > * {
+        margin-top: var(--listChildPadding);
+        margin-bottom: var(--listChildPadding);
     }
-`;
+    
+    ${k}[data-bordered="true"] > * {
+        border-top: 0.5px solid var(--borderColor);
+    }
+`);
 
-List.defaultProps = {
-    fontSize: "large",
-    bordered: true
+const List: React.FunctionComponent<BoxProps & {
+    childPadding?: number | string;
+    bordered?: boolean;
+    children?: React.ReactNode;
+}> = ({bordered = true,...props}) => {
+    const style = unbox(props);
+    if (props.childPadding) style["--listChildPadding"] = extractSize(props.childPadding);
+    return <div
+        className={ListClass}
+        data-bordered={bordered !== false}
+        children={props.children}
+        style={style}
+    />;
 };
 
 List.displayName = "List";
@@ -51,9 +52,11 @@ interface ListRowProps {
     right: React.ReactNode;
     fontSize?: string;
     highlight?: boolean;
+    highlightOnHover?: boolean;
     stopPropagation?: boolean;
     onContextMenu?: EventHandler<MouseEvent<never>>;
     disableSelection?: boolean;
+    className?: string;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -68,28 +71,30 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
         if (stopPropagation) e.stopPropagation();
     }, [props.select, stopPropagation]);
 
-    return <ListStyle
+    return <div
+        className={classConcat(ListRowClass, props.className)}
         data-component={"list-row"}
         data-highlighted={props.highlight === true}
+        data-hoh={props.highlightOnHover != false}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
         onClick={doSelect}
-        fontSize={props.fontSize}
+        style={{fontSize: props.fontSize ?? "14px"}}
         onContextMenu={props.onContextMenu}
     >
         {props.icon ? <div className="row-icon">{props.icon}</div> : null}
         <div className="row-left">
             <div className="row-left-wrapper">
                 <div className="row-left-content" onClick={doNavigate}>{props.left}</div>
-                <div className="row-left-padding" />
+                <div className="row-left-padding"/>
             </div>
             <div className="row-left-sub">{props.leftSub}</div>
         </div>
         <div className="row-right">{props.right}</div>
-    </ListStyle>;
+    </div>;
 }
 
-export const ListStatContainer: React.FunctionComponent<{children: React.ReactNode}> = props => <>{props.children}</>;
+export const ListStatContainer: React.FunctionComponent<{ children: React.ReactNode }> = props => <>{props.children}</>;
 
 export const ListRowStat: React.FunctionComponent<{
     icon?: IconName;
@@ -100,10 +105,10 @@ export const ListRowStat: React.FunctionComponent<{
     cursor?: Cursor;
     children: React.ReactNode;
 }> = props => {
-    const color: ThemeColor = props.color ?? "gray";
-    const color2: ThemeColor = props.color2 ?? "white";
+    const color: ThemeColor = props.color ?? "iconColor";
+    const color2: ThemeColor = props.color2 ?? "iconColor2";
     const body = <>
-        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon} />}
+        {!props.icon ? null : <Icon size={"10"} color={color} color2={color2} name={props.icon}/>}
         {props.children}
     </>;
 
@@ -114,98 +119,102 @@ export const ListRowStat: React.FunctionComponent<{
     }
 };
 
-const ListStyle = styled.div<{fontSize?: string;}>`
-    transition: background-color 0.3s;
-    padding: 5px 0;
-    width: 100%;
-    height: 56px;
-    align-items: center;
-    display: flex;
-
-    &[data-highlighted="true"] {
-        background-color: var(--projectHighlight);
+const ListRowClass = injectStyle("list-item", k => `
+    ${k} {
+        padding: 5px 0;
+        width: 100%;
+        align-items: center;
+        display: flex;
+        min-height: 48px;
     }
 
-    &[data-selected="true"] {
-        background-color: var(--lightBlue);
+    ${k}:first-of-type {
+        border-top: 0px;
     }
 
-    &:hover {
-        background-color: var(--lightBlue);
+    ${k}[data-highlighted="true"] {
+        background-color: var(--rowHover);
     }
 
-    .row-icon {
-        margin-right: 12px;
+    ${k}[data-selected="true"] {
+        background-color: var(--rowActive);
+    }
+
+    ${k}[data-hoh="true"]:hover {
+        background-color: var(--rowHover);
+    }
+
+    ${k} .row-icon {
+        margin-right: 8px;
         margin-left: 8px;
         flex-shrink: 0;
     }
 
-    .row-left {
+    ${k} .row-left {
         flex-grow: 1;
         overflow: hidden;
-        max-width: calc(100vw - 555px);
+        max-width: calc(100vw - var(--sidebarWidth));
     }
 
-    &[data-navigate="true"] .row-left-content {
+    ${k}[data-navigate="true"] .row-left-content {
         cursor: pointer;
     }
 
-    .row-left-content {
+    ${k} .row-left-content {
         margin-bottom: -4px;
-        font-size: ${p => p.fontSize ?? "20px"};
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
     }
 
-    .row-left-content:has(> form) {
+    ${k} .row-left-content:has(> form) {
         width: 100%;
     }
   
     ${deviceBreakpoint({minWidth: "767px", maxWidth: "1279px"})} {
-      .row-left{
-        max-width: calc(100vw - 435px);
+      ${k} .row-left{
+        max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
       }
     }
 
     ${deviceBreakpoint({maxWidth: "767px"})} {
-        .row-left {
-            max-width: calc(100vw - 210px);
+        ${k} .row-left {
+            max-width: calc(100vw - var(${CSSVarCurrentSidebarWidth}));
         }
     }
 
-    .row-left-wrapper {
+    ${k} .row-left-wrapper {
         display: flex;
     }
 
-    .row-left-padding {
+    ${k} .row-left-padding {
         width: auto;
         cursor: auto;
     }
 
-    .row-left-sub {
+    ${k} .row-left-sub {
         display: flex;
         margin-top: 4px;
     }
     
-    .row-left-sub > * {
+    ${k} .row-left-sub > * {
         margin-right: 16px;
-        color: var(--gray);
+        color: var(--textSecondary);
         text-decoration: none;
         font-size: 10px;
     }
     
-    .row-left-sub > * > svg {
+    ${k} .row-left-sub > * > svg {
         margin-top: -2px;
         margin-right: 4px;
     }
 
-    .row-right {
+    ${k} .row-right {
         text-align: right;
         display: flex;
         margin-right: 8px;
         flex-shrink: 0;
     }
-`;
+`);
 
 export default List;

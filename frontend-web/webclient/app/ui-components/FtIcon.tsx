@@ -1,38 +1,35 @@
 import * as React from "react";
-import styled from "styled-components";
-import {color, ColorProps, space, SpaceProps} from "styled-system";
 import {extensionType} from "@/UtilityFunctions";
 import Icon from "./Icon";
-import theme from "./theme";
-import {Cursor} from "./Types";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import {FileIconHint} from "@/Files";
+import {injectStyle} from "@/Unstyled";
 
 const ftColor = (fType: string): string => {
     switch (fType) {
         case "code":
-            return theme.appColors[0][2];
+            return "#C46927";
         case "image":
-            return theme.appColors[1][2];
+            return "#AA2457";
         case "text":
-            return theme.appColors[2][2];
+            return "#5B698C";
         case "audio":
-            return theme.appColors[3][2];
+            return "#2951BE";
         case "video":
-            return theme.appColors[4][2];
+            return "#2951BE";
         case "archive":
-            return theme.appColors[5][2];
+            return "#68449E";
         case "pdf":
-            return theme.appColors[6][2];
+            return "#B33B6D";
         case "binary":
-            return theme.appColors[7][2];
+            return "#BC4F33";
         default:
             return "red";
     }
 };
 
 // Label for file type icons
-const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: string}) => {
+const SvgFtLabel = ({hasExt, ext, type}: { hasExt: boolean, ext: string, type: string }) => {
     if (!hasExt) {
         return null;
     }
@@ -45,7 +42,7 @@ const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: st
             <path
                 d="M41.537 56H1.463A1.463 1.463 0 0 1 0 54.537V39h43v15.537c0 .808-.655 1.463-1.463 1.463z"
                 fill={color3}
-            // fillRule="nonzero"
+                // fillRule="nonzero"
             />
             <text
                 textAnchor="middle"
@@ -66,13 +63,13 @@ const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: st
 };
 
 // Decoration for file type icons
-const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
+const SvgFtType = ({type}: { type: string }): React.ReactNode => {
     switch (type) {
         case "image":
             return (
                 <>
                     {/* Sun */}
-                    <circle cx={639} cy={571} r={6} transform="translate(-629 -561)" fill="#ffd900" />
+                    <circle cx={639} cy={571} r={6} transform="translate(-629 -561)" fill="#ffd900"/>
                     {/* Cloud */}
                     <ellipse
                         cx={646.5}
@@ -107,7 +104,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
                         fill="#87c7ff"
                     />
                     {/* Mountain green #009908 */}
-                    <path d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z" fill="#3d4d65" />
+                    <path d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z" fill="#3d4d65"/>
                 </>
             );
         case "text":
@@ -158,7 +155,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
         case "markdown":
             return (
                 <>
-                    <text textAnchor="middle" x="21.5" y="27" style={{fontSize: "24px"}} fill="#3d4d65" >{"{ }"}</text>
+                    <text textAnchor="middle" x="21.5" y="27" style={{fontSize: "24px"}} fill="#3d4d65">{"{ }"}</text>
                 </>
             );
         case "pdf":
@@ -175,8 +172,8 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
         case "binary":
             return (
                 <>
-                    <text textAnchor="middle" x="21.5" y="17" style={{fontSize: "14px"}} fill="#3d4d65" >{"0101"}</text>
-                    <text textAnchor="middle" x="21.5" y="31" style={{fontSize: "14px"}} fill="#3d4d65" >{"1110"}</text>
+                    <text textAnchor="middle" x="21.5" y="17" style={{fontSize: "14px"}} fill="#3d4d65">{"0101"}</text>
+                    <text textAnchor="middle" x="21.5" y="31" style={{fontSize: "14px"}} fill="#3d4d65">{"1110"}</text>
                 </>
             );
     }
@@ -185,7 +182,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
 };
 
 // File type icon component
-export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element => (
+export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): React.ReactNode => (
     <svg
         viewBox="0 0 43 56"
         fillRule="evenodd"
@@ -196,15 +193,15 @@ export const SvgFt = ({color, color2, hasExt, ext, type, ...props}): JSX.Element
         <path
             d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
             fill={color}
-        // fillRule="nonzero"
+            // fillRule="nonzero"
         />
-        <SvgFtType type={type} />
+        <SvgFtType type={type}/>
         {/* Paper corner */}
         <path
             d="M29 0l14 10-12 2-2-12z"
             fill={color2}
         />
-        <SvgFtLabel hasExt={hasExt} ext={ext} type={type} />
+        <SvgFtLabel hasExt={hasExt} ext={ext} type={type}/>
 
     </svg>
 );
@@ -219,36 +216,38 @@ interface FtIconBaseProps {
     fileIcon: FileIconProps;
     size?: string | number;
     iconHint?: FileIconHint;
+    className?: string;
 }
-const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, ...props}) => {
-    const hasExt = fileIcon.ext ? true : false;
-    const ext4 = fileIcon?.ext?.substring(0, 4);
+
+const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size = 24, iconHint, ...props}) => {
+    const hasExt = !!fileIcon.ext;
+    const ext4 = fileIcon.ext?.substring(0, 4);
     const type = fileIcon.ext ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
-    switch (props.iconHint) {
+    switch (iconHint) {
         case "DIRECTORY_JOBS":
-            return (<Icon name="ftResultsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftResultsFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY_SHARES":
-            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>);
         case "DIRECTORY_STAR":
-            return (<Icon name="ftFavFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftFavFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY_TRASH":
-            return (<Icon name="trash" size={size} color={"red"} color2={"lightRed"} />);
+            return (<Icon name="trash" size={size} color={"errorMain"} color2={"errorLight"}/>);
     }
 
     switch (fileIcon.type) {
         case "SHARESFOLDER":
-            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftSharesFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"}/>);
         case "FAVFOLDER":
-            return (<Icon name="ftFavFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftFavFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "TRASHFOLDER":
-            return (<Icon name="trash" size={size} color={"red"} color2={"lightRed"} />);
+            return (<Icon name="trash" size={size} color={"errorMain"} color2={"errorLight"}/>);
         case "RESULTFOLDER":
-            return (<Icon name="ftResultsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftResultsFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "FSFOLDER":
-            return (<Icon name="ftFsFolder" size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />);
+            return (<Icon name="ftFsFolder" size={size} color={"iconColor"} color2={"iconColor2"}/>);
         case "DIRECTORY":
-            return (<Icon name="ftFolder" size={size} color={"FtFolderColor"} color2={("FtFolderColor2")} />);
+            return (<Icon name="ftFolder" size={size} color={"FtFolderColor"} color2={("FtFolderColor2")}/>);
     }
 
     /* fileIcon.type should be "FILE" at this point */
@@ -256,8 +255,8 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, .
         <SvgFt
             width={size}
             height={size}
-            color={getCssVar("FtIconColor")}
-            color2={getCssVar("FtIconColor2")}
+            color={getCssPropertyValue("FtIconColor")}
+            color2={getCssPropertyValue("FtIconColor2")}
             hasExt={hasExt}
             ext={ext4}
             type={type}
@@ -266,22 +265,17 @@ const FtIconBase: React.FunctionComponent<FtIconBaseProps> = ({fileIcon, size, .
     );
 };
 
-export interface FtIconProps extends SpaceProps, ColorProps {
-    cursor?: Cursor;
+const FtIconClass = injectStyle("ft-icon", k => `
+    ${k} {
+        flex: none;
+        vertical-align: middle;
+    }
+`);
+
+const FtIcon: React.FunctionComponent<FtIconBaseProps> = props => {
+    return <FtIconBase {...props} className={FtIconClass}/>;
 }
 
-const FtIcon = styled(FtIconBase) <FtIconProps>`
-  flex: none;
-  vertical-align: middle;
-  cursor: ${props => props.cursor};
-  ${space} ${color};
-`;
-
 FtIcon.displayName = "FtIcon";
-
-FtIcon.defaultProps = {
-    cursor: "inherit",
-    size: 24
-};
 
 export default FtIcon;

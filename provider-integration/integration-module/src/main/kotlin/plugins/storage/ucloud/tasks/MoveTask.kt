@@ -32,14 +32,21 @@ class MoveTask : TaskHandler {
         request: JsonObject,
         maxTime: Long?,
     ): TaskRequirements {
+        val allPaths = ArrayList<UCloudFile>()
         val realRequest = defaultMapper.decodeFromJsonElement(BulkRequest.serializer(FilesMoveRequestItem.serializer()), request)
         for (reqItem in realRequest.items) {
-            val oldId = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.oldId)).path
-            val newId = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.newId)).path
+            val source = UCloudFile.create(reqItem.oldId).also { allPaths.add(it) }
+            val destination = UCloudFile.create(reqItem.newId).also { allPaths.add(it) }
+            val oldId = pathConverter.ucloudToInternal(source).path
+            val newId = pathConverter.ucloudToInternal(destination).path
 
             if (newId.startsWith("$oldId/")) {
                 throw RPCException("Refusing to move a file to a sub-directory of itself.", HttpStatusCode.BadRequest)
             }
+        }
+
+        if (!pathConverter.shouldAllowUsageOfFilesTogether(allPaths)) {
+            throw RPCException("This project does not allow copying files to other projects", HttpStatusCode.Forbidden)
         }
 
         return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))

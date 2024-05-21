@@ -1,194 +1,273 @@
 import * as React from "react";
-import {UFile} from "@/UCloud/FilesApi";
-import {apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {BulkResponse, compute, FindByStringId, PaginationRequestV2} from "@/UCloud";
-import ApplicationWithExtension = compute.ApplicationWithExtension;
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {Operation} from "@/ui-components/Operation";
-import {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {BulkResponse, compute, FindByStringId} from "@/UCloud";
+import {useState} from "react";
+import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
-import {Product, ProductCompute} from "@/Accounting";
+import {ProductV2, ProductV2Compute} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
-import {joinToString} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/Widgets/Machines";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {
+    ResourceBrowser,
+    ResourceBrowserOpts,
+    addContextSwitcherInPortal,
+    checkCanConsumeResources,
+    EmptyReasonTag
+} from "@/ui-components/ResourceBrowser";
+import {projectTitleFromCache} from "@/Project/ContextSwitcher";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {UFile} from "@/UCloud/UFile";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {ApplicationWithExtension} from "@/Applications/AppStoreApi";
 
-function findApplicationsByExtension(
-    request: {files: string[]} & PaginationRequestV2
-): APICallParameters<{files: string[]} & PaginationRequestV2> {
-    return apiUpdate(request, "/api/hpc/apps", "bySupportedFileExtension");
-}
-
-const appRenderer: ItemRenderer<ApplicationWithExtension> = {
-    Icon: props =>
-        <AppToolLogo name={props.resource?.metadata.name ?? "app"} type={"APPLICATION"} size={props.size} />,
-    MainTitle: props => !props.resource ? null : <>{props.resource.metadata.title}</>,
-};
-
-const operations: Operation<ApplicationWithExtension, StandardCallbacks<ApplicationWithExtension> & ExtraCallbacks>[] = [
-    {
-        text: "Launch",
-        icon: "play",
-        primary: true,
-        enabled: selected => selected.length === 1,
-        onClick: (selected, cb) => {
-            cb.setSelectedApplication(selected[0]);
-        }
-    }
-];
-
-interface ExtraCallbacks {
-    setSelectedApplication: (app: ApplicationWithExtension) => void;
-}
-
-interface OpenWithProps {
-    file: UFile;
-    collection: FileCollection;
-}
-
-export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collection}) => {
-    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-    const [selectedApplication, setSelectedApplication] = useState<ApplicationWithExtension | null>(null);
-    const [commandLoading, invokeCommand] = useCloudCommand();
-    const [wallets, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
-    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
-        {noop: true},
-        {productsByProvider: {}}
-    );
-    const [resolvedApplication, fetchResolvedApplication] = useCloudAPI<UCloud.compute.Application | null>({noop: true}, null);
-
+export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
+    const [selectedProduct, setSelectedProduct] = useState<ProductV2 | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<ApplicationWithExtension> | null>(null);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
+    const supportRef = React.useRef<ResolvedSupport[]>([]);
+    const productsRef = React.useRef<ProductV2Compute[]>([]);
+    const walletsRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2)
+    const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
 
-    useEffect(() => {
-        fetchWallet(UCloud.accounting.products.browse({
+    const activeProject = React.useRef(Client.projectId);
+
+    function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+        return baseCallAPI({
+            ...parameters,
+            projectOverride: activeProject.current ?? ""
+        });
+    }
+
+    const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
+
+    const [selectedApp, setSelectedApp] = React.useState<ApplicationWithExtension | undefined>(undefined);
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser(mount, "Launch with", opts).init(browserRef, {
+                breadcrumbsSeparatedBySlashes: false,
+                contextSwitcher: true,
+            }, "", browser => {
+                fetchInfo();
+
+                browser.setEmptyIcon("heroServer");
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource) return;
+                    callAPI(AppStore.browseOpenWithRecommendations({
+                        files: [normalizedFileId],
+                        itemsPerPage: 50
+                    })).then(apps => {
+                        browser.registerPage(apps, newPath, true);
+                        browser.renderRows();
+                    });
+                });
+
+                browser.setEmptyIcon("play");
+
+                browser.on("renderRow", (entry, row, dimensions) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    icon.style.minWidth = "20px"
+                    icon.style.minHeight = "20px"
+                    row.title.append(icon);
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, dimensions, row));
+
+                    setIcon(AppStore.retrieveAppLogo({
+                        name: entry.metadata.name,
+                        darkMode: !isLightThemeStored(),
+                        includeText: false,
+                        placeTextUnderLogo: false,
+                    }));
+
+                    const button = browser.defaultButtonRenderer({
+                        onClick: async () => {
+                            try {
+                                const resolvedApplication = await callAPI(
+                                    AppStore.findByNameAndVersion({
+                                        appName: entry.metadata.name,
+                                        appVersion: entry.metadata.version
+                                    })
+                                );
+
+                                productsRef.current = !resolvedApplication ? [] :
+                                    findRelevantMachinesForApplication(resolvedApplication, machineSupportRef.current!, walletsRef.current);
+
+                                setSelectedApp(entry)
+                            } catch (error) {
+                                displayErrorMessageOrDefault(error, "Failed to fetch application info.")
+                            }
+                        },
+                        show: () => true,
+                        text: "Launch"
+                    }, entry);
+                    if (button) {
+                        row.stat3.replaceChildren(button);
+                    }
+                });
+
+                browser.on("renderEmptyPage", reason => {
+                    const e = browser.emptyPageElement;
+                    switch (reason.tag) {
+                        case EmptyReasonTag.LOADING: {
+                            e.reason.append(`We are fetching applications...`);
+                            break;
+                        }
+
+                        case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS:
+                        case EmptyReasonTag.EMPTY: {
+                            e.reason.append("Couldn't find any suitable applications for this file.")
+                            break;
+                        }
+
+                        case EmptyReasonTag.UNABLE_TO_FULFILL: {
+                            e.reason.append(`We are currently unable to show any applications. Try again later.`);
+                            e.providerReason.append(reason.information ?? "");
+                            break;
+                        }
+                    }
+                });
+                browser.on("unhandledShortcut", () => void 0);
+                browser.on("generateBreadcrumbs", path => browser.defaultBreadcrumbs());
+                browser.on("fetchOperationsCallback", () => ({}));
+                browser.on("fetchOperations", () => []);
+
+                browser.on("wantToFetchNextPage", async path => {
+                    const result = await callAPI(AppStore.browseOpenWithRecommendations({
+                        files: [normalizedFileId],
+                        itemsPerPage: 50
+                    }));
+
+                    if (path !== browser.currentPath) return;
+
+                    browser.registerPage(result, path, false);
+                });
+            });
+        }
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, {setLocalProject});
+    }, []);
+
+    const setLocalProject = (projectId?: string) => {
+        const b = browserRef.current;
+        if (b) {
+            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: JobsApi});
+        }
+        activeProject.current = projectId;
+        fetchInfo();
+    };
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useSetRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
+
+    return <div>
+        <div ref={mountRef} style={selectedApp ? {display: "none"} : undefined} />
+        {switcher}
+        {selectedApp ? <>
+            <Machines
+                machines={productsRef.current}
+                support={supportRef.current}
+                onMachineChange={setSelectedProduct}
+                loading={false}
+            />
+            <Button mt={"8px"} fullWidth onClick={async () => {
+                if (!selectedApp || !selectedProduct) return;
+                try {
+                    const response = await callAPI<BulkResponse<FindByStringId | null>>(
+                        JobsApi.create(bulkRequestOf({
+                            application: {
+                                name: selectedApp.metadata.name,
+                                version: selectedApp.metadata.version,
+                            },
+                            product: {
+                                id: selectedProduct.name,
+                                provider: selectedProduct.category.provider,
+                                category: selectedProduct.category.name
+                            },
+                            parameters: {},
+                            replicas: 1,
+                            allowDuplicateJob: true,
+                            timeAllocation: {
+                                hours: 3,
+                                minutes: 0,
+                                seconds: 0
+                            },
+                            resources: [{
+                                type: "file",
+                                path: file.status.type === "DIRECTORY" ? file.id : getParentPath(file.id),
+                                readOnly: false
+                            }],
+                            openedFile: file.id
+                        }))
+                    );
+
+                    dialogStore.success();
+
+                    const ids = response?.responses;
+                    if (!ids || ids.length === 0) {
+                        snackbarStore.addFailure("UCloud failed to submit the job", false);
+                        return;
+                    }
+
+                    navigate(`/jobs/properties/${ids[0]?.id}?app=${selectedApp.metadata.name}`);
+                } catch (e) {
+                    snackbarStore.addFailure("UCloud failed to submit the job", false);
+                }
+            }} disabled={!selectedProduct}>Launch {isActiveProject(activeProject.current)}</Button>
+        </> : null}
+    </div>;
+
+    function fetchInfo() {
+        walletsRef.current = emptyPageV2;
+        machineSupportRef.current = {productsByProvider: {}};
+        supportRef.current = [];
+
+        callAPI(UCloud.accounting.products.browse({
             filterUsable: true,
-            filterArea: "COMPUTE",
+            filterProductType: "COMPUTE",
             itemsPerPage: 250,
             includeBalance: true,
             includeMaxBalance: true
-        }));
-    }, []);
+        })).then((products) => {
+            walletsRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
 
-    useEffect(() => {
-        const s = new Set<string>();
-        wallets.data.items.forEach(it => s.add(it.category.provider));
+            const providers = new Set(products.items.map(it => it.category.provider));
 
-        if (s.size > 0) {
-            fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
-                providers: joinToString(Array.from(s), ",")
-            }));
-        }
-    }, [wallets]);
-
-    useEffect(() => {
-        if (selectedApplication != null) {
-            fetchResolvedApplication(
-                UCloud.compute.apps.findByNameAndVersion({
-                    appName: selectedApplication.metadata.name,
-                    appVersion: selectedApplication.metadata.version
-                })
-            );
-        }
-    }, [selectedApplication]);
-
-    const allProducts: ProductCompute[] = !resolvedApplication.data ? [] :
-        findRelevantMachinesForApplication(resolvedApplication.data, machineSupport.data, wallets.data);
-
-    const support = useMemo(() => {
-        const items: ResolvedSupport[] = [];
-        let productsByProvider = machineSupport.data.productsByProvider;
-        for (const provider of Object.keys(productsByProvider)) {
-            const providerProducts = productsByProvider[provider];
-            // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
-            for (const item of providerProducts) items.push((item as unknown) as ResolvedSupport);
-        }
-        return items;
-    }, [machineSupport.data]);
-
-    const generateCall = useCallback(next => {
-        const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
-
-        return findApplicationsByExtension({
-            files: [normalizedFileId],
-            itemsPerPage: 50,
-            next: next
-        });
-    }, [file.id]);
-
-    const callbacks: ExtraCallbacks = useMemo(() => ({
-        setSelectedApplication
-    }), [setSelectedApplication]);
-
-    const onProductSelected = useCallback((product) => {
-        setSelectedProduct(product);
-    }, []);
-
-    const launch = useCallback(async () => {
-        if (!selectedProduct || !selectedApplication) return;
-        try {
-            const response = await invokeCommand<BulkResponse<FindByStringId | null>>(
-                JobsApi.create(bulkRequestOf({
-                    application: {
-                        name: selectedApplication.metadata.name,
-                        version: selectedApplication.metadata.version,
-                    },
-                    product: {
-                        id: selectedProduct.name,
-                        provider: selectedProduct.category.provider,
-                        category: selectedProduct.category.name
-                    },
-                    parameters: {},
-                    replicas: 1,
-                    allowDuplicateJob: true,
-                    timeAllocation: {
-                        hours: 3,
-                        minutes: 0,
-                        seconds: 0
-                    },
-                    name: undefined,
-                    resources: [{
-                        type: "file",
-                        path: file.status.type === "DIRECTORY" ? file.id : getParentPath(file.id),
-                        readOnly: false
-                    }],
-                    openedFile: file.id
-                })),
-                {defaultErrorHandler: false}
-            );
-
-            dialogStore.success();
-
-            const ids = response?.responses;
-            if (!ids || ids.length === 0) {
-                snackbarStore.addFailure("UCloud failed to submit the job", false);
-                return;
+            if (providers.size > 0) {
+                callAPI(UCloud.compute.jobs.retrieveProducts({
+                    providers: joinToString(Array.from(providers), ",")
+                })).then(support => {
+                    machineSupportRef.current = support;
+                    const items: ResolvedSupport[] = [];
+                    let productsByProvider = support.productsByProvider;
+                    for (const provider of Object.keys(productsByProvider)) {
+                        const providerProducts = productsByProvider[provider];
+                        // TODO(Dan): We need to fix some of these types soon. We are still using a lot of the old generated stuff.
+                        for (const item of providerProducts) items.push(item as unknown as ResolvedSupport);
+                    }
+                    supportRef.current = items;
+                }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch support."));
             }
+        }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch products."));
+    }
+}
 
-            navigate(`/jobs/properties/${ids[0]?.id}?app=${selectedApplication.metadata.name}`);
-        } catch (e) {
-            snackbarStore.addFailure("UCloud failed to submit the job", false);
-        }
-    }, [selectedProduct, selectedApplication, file]);
-
-    return <>
-        <StandardList generateCall={generateCall} renderer={appRenderer} operations={operations}
-            title={"Application"} embedded={"dialog"} extraCallbacks={callbacks}
-            hide={selectedApplication != null}
-            emptyPage={<>Found no suitable applications for this file type. You can explore more applications
-                by clicking on Apps in the sidebar.</>}
-        />
-
-        {!selectedApplication ? null : <>
-            <Machines machines={allProducts} loading={machineSupport.loading} support={support} onMachineChange={onProductSelected} />
-            <Button mt={"8px"} fullWidth onClick={launch} disabled={commandLoading}>Launch</Button>
-        </>}
-    </>;
-};
+function isActiveProject(projectId: string | undefined) {
+    if (projectId === undefined || projectId === Client.projectId) return "";
+    return "with " + projectTitleFromCache(projectId);
+}

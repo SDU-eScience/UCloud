@@ -3,7 +3,65 @@
         {
             "id": "aau",
             "title": "DeiC Interactive HPC (AAU)",
-            "logo": "ucloud.png",
+            "shortTitle": "AAU/VM",
+            "logo": "aau_openstack.png",
+            "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "url": "https://docs.cloud.sdu.dk/",
+            "texts": [
+                {
+                    "description": "# Interactive HPC\nThe interactive HPC cluster consists of 90 nodes, with a total of 2896 cores and 37 TB of memory.\nThere are also a few Nvidia V100 and A100 graphical processing units for accelerating certain workloads.\n The theoretical peak performance is around 118 teraflops.",
+                    "image": "/Images/ucloud-1.png"
+                },
+                {
+                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- 64-core virtual machine 256 GBs of RAM\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
+                    "image": "/Images/ucloud-9.svg"
+                }
+            ]
+        },
+        {
+            "id": "aau-k8",
+            "title": "DeiC Interactive HPC (AAU/K8)",
+            "logo": "aau_k8.png",
+            "shortTitle": "AAU/K8",
+            "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "url": "https://docs.cloud.sdu.dk/",
+            "texts": [
+                {
+                    "description": "# Interactive HPC\nThe interactive HPC cluster consists of 90 nodes, with a total of 2896 cores and 37 TB of memory.\nThere are also a few Nvidia V100 and A100 graphical processing units for accelerating certain workloads.\n The theoretical peak performance is around 118 teraflops.",
+                    "image": "/Images/ucloud-1.png"
+                },
+                {
+                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- 64-core virtual machine 256 GBs of RAM\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
+                    "image": "/Images/ucloud-9.svg"
+                }
+            ]
+        },
+        {
+            "id": "k8",
+            "title": "DeiC Interactive HPC (SDU)",
+            "logo": "sdu.png",
+            "shortTitle": "SDU/K8",
+            "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "url": "https://docs.cloud.sdu.dk/",
+            "texts": [
+                {
+                    "description": "# Interactive HPC\nThe interactive HPC cluster consists of 90 nodes, with a total of 2896 cores and 37 TB of memory.\nThere are also a few Nvidia V100 and A100 graphical processing units for accelerating certain workloads.\n The theoretical peak performance is around 118 teraflops.",
+                    "image": "/Images/ucloud-1.png"
+                },
+                {
+                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- 64-core virtual machine 256 GBs of RAM\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
+                    "image": "/Images/ucloud-9.svg"
+                }
+            ]
+        },
+        {
+            "id": "K8",
+            "title": "DeiC Interactive HPC (SDU)",
+            "logo": "sdu.png",
+            "shortTitle": "SDU/K8",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "url": "https://docs.cloud.sdu.dk/",
@@ -21,7 +79,8 @@
         {
             "id": "ucloud",
             "title": "DeiC Interactive HPC (SDU)",
-            "logo": "ucloud.png",
+            "logo": "sdu.png",
+            "shortTitle": "SDU/K8",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
             "url": "https://docs.cloud.sdu.dk/",
@@ -31,7 +90,7 @@
                     "image": "/Images/ucloud-1.png"
                 },
                 {
-                    "description": "### Nodes\n- Dell PowerEdge C6420, 384/768 GB DDR 4-2666, 2x Intel Xeon Gold 6130 16-Core @ 2.10GHz\n- 64-core virtual machine 256 GBs of RAM\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA T4 GPUs\n- 40-core virtual machine with 160 GBs of RAM and 4 NVIDIA A10 GPUs",
+                    "description": "### Compute nodes\n\n**81 Standard Nodes (`u1-standard`):**\n\n- Dell PowerEdge C6420\n- 2x Intel Xeon Gold 6130 @ 2.10 Ghz (total of 64 vCPU)\n- 384 GB DDR4-2400\n\n**6 Fat Nodes (`u1-fat`):**\n\n- Dell PowerEdge C6420\n- 2x Intel Xeon Gold 6130 @ 2.10 Ghz (total of 64 vCPU)\n- 768 GB DDR4-2400\n\n**2 GPU Nodes (`u1-gpu`):**\n\n- Dell PowerEdge C4140\n- 2x Intel Xeon Gold 6230 @ 2.10 Ghz (total of 80 vCPU)\n- 192 GB DDR4-2933\n- 4x NVIDIA Tesla V100-SXM2, 32 GB\n\n**1 GPU Node (`u2-gpu`):**\n\n- HPE ProLiant XL675d Gen10+\n- 2x AMD EPYC 7F72 @ 3.20 Ghz (total of 96 vCPU)\n- 2048 GB DDR4-2933\n- 8x NVIDIA Ampere A100-PCIe, 40 GB\n\n**4 GPU Nodes (`u3-gpu`):**\n\n- Lenovo ThinkSystem SR675 V3\n- 2x AMD EPYC 9454 @ 2.75 Ghz (total of 192 vCPU)\n- 768 GB DDR5-4800\n- 4x NVIDIA Hopper H100-SXM5, 80 GB\n",
                     "image": "/Images/ucloud-9.svg"
                 }
             ]
@@ -40,6 +99,26 @@
             "id": "hippo",
             "title": "DeiC Large Memory HPC (SDU)",
             "logo": "hippo.png",
+            "shortTitle": "Hippo",
+            "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
+            "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
+            "url": "https://docs.hpc-type3.sdu.dk/",
+            "texts": [
+                {
+                    "description": "# Large Memory HPC\nThe large memory HPC system is a specialised system where each node is equipped with a large amount of memory (up to 4 TB).\nThe system is used for workloads that cannot easily be parallelised and distributed across multiple nodes.",
+                    "image": "/Images/ucloud-1.png"
+                },
+                {
+                    "description": "### Compute nodes\n\n__Updated at: 08/05/2024. For an up-to-date version see [https://docs.hpc-type3.sdu.dk/intro/hardware.html](https://docs.hpc-type3.sdu.dk/intro/hardware.html).__\n\n**4x Lenovo ThinkSystem SR645 (called `hm1` in Slurm)**\n\n- 4096 GB DDR4-2400 LRDIMM\n- 2x AMD EPYC 7742 64-Core @ 2.25Ghz\n- 480 GB SSD\n- 7.68 TB NVMe (only two nodes)\n\n**10x Dell PowerEdge R6525 (called `hm2` in Slurm)**\n\n- 1024 GB DDR4-2933\n- 2x AMD EPYC 7713 64-Core @ 2.0Ghz\n- 480 GB SSD\n\n**20x Lenovo ThinkSystem SR645 V3 (called `hm3` in Slurm)**\n\n- 1536 GB DDR5-4800\n- 2x AMD EPYC 9534 64-Core @ 2.45Ghz\n- 480 GB SSD",
+                    "image": "/Images/ucloud-9.svg"
+                }
+            ]
+        },
+        {
+            "id": "slurm",
+            "title": "DeiC Large Memory HPC (SDU)",
+            "logo": "hippo.png",
+            "shortTitle": "Hippo",
             "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
             "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
             "url": "https://docs.hpc-type3.sdu.dk/",
@@ -58,6 +137,7 @@
             "id": "sophia",
             "title": "DeiC Throughput HPC (DTU)",
             "logo": "sophia.png",
+            "shortTitle": "Sophia",
             "shortDescription": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",
             "description": "The Sophia cluster is a collaboration between DTU, DTU Wind Energy and DTU Mechanics.",
             "url": "https://dtu-sophia.github.io/docs/",
@@ -80,6 +160,7 @@
             "id": "lumi-sdu",
             "title": "LUMI (SDU)",
             "logo": "lumi.png",
+            "shortTitle": "LUMI (SDU)",
             "shortDescription": "LUMI is one of the three European pre-exascale supercomputers.",
             "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.",
             "url": "https://www.lumi-supercomputer.eu/",

@@ -1,17 +1,17 @@
 import {IconName} from "@/ui-components/Icon";
-import {Box, Button, Divider, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
+import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components/index";
+import {PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
-import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
 import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import theme, {ThemeColor} from "@/ui-components/theme";
+import {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
+import {injectStyle} from "@/Unstyled";
 
-type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
+type OperationComponentType = typeof Box | typeof Button | typeof Flex |
     typeof ConfirmationButton;
 
 export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
@@ -26,10 +26,43 @@ export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
  */
 export type OperationEnabled = boolean | string;
 
+// Note(Jonas): The closes I could get to typesafe keys, as `KeyboardEvent["code"]` is just a string
+export enum ShortcutKey {
+    A = "KeyA",
+    B = "KeyB",
+    C = "KeyC",
+    D = "KeyD",
+    E = "KeyE",
+    F = "KeyF",
+    G = "KeyG",
+    H = "KeyH",
+    I = "KeyI",
+    J = "KeyJ",
+    K = "KeyK",
+    L = "KeyL",
+    M = "KeyM",
+    N = "KeyN",
+    O = "KeyO",
+    P = "KeyP",
+    Q = "KeyQ",
+    R = "KeyR",
+    S = "KeyS",
+    T = "KeyT",
+    U = "KeyU",
+    V = "KeyV",
+    W = "KeyW",
+    X = "KeyX",
+    Y = "KeyY",
+    Z = "KeyZ",
+    Backspace = "Backspace",
+    Enter = "Enter"
+}
+
 export interface Operation<T, R = undefined> {
     text: string | ((selected: T[], extra: R) => string);
     onClick: (selected: T[], extra: R, all?: T[]) => void;
     enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
+    shortcut: ShortcutKey;
     icon?: IconName;
     iconRotation?: number;
     color?: ThemeColor;
@@ -37,7 +70,6 @@ export interface Operation<T, R = undefined> {
     outline?: boolean;
     operationType?: (location: OperationLocation, allOperations: Operation<T, R>[]) => OperationComponentType;
     primary?: boolean;
-    canAppearInLocation?: (location: OperationLocation) => boolean;
     confirm?: boolean;
     tag?: string;
 }
@@ -52,7 +84,7 @@ export function defaultOperationType(
     } else if (op.primary) {
         return Button;
     } else if (allOperations.length === 1) {
-        return OutlineButton;
+        return Button;
     } else if (location === "IN_ROW" || location === "TOPBAR") {
         return Flex;
     } else {
@@ -71,6 +103,7 @@ const OperationComponent: React.FunctionComponent<{
     location: OperationLocation;
     onAction: () => void;
     text: string;
+    idx: number;
 }> = ({As, op, selected, all, extra, reasonDisabled, location, onAction, text}) => {
     const onClick = useCallback((e?: React.SyntheticEvent) => {
         if (op.primary === true) e?.stopPropagation();
@@ -101,7 +134,7 @@ const OperationComponent: React.FunctionComponent<{
 
     const component = <As
         cursor="pointer"
-        color={reasonDisabled === undefined ? op.color : "gray"}
+        color={reasonDisabled === undefined ? op.color : "textSecondary"}
         alignItems="center"
         onClick={onClick}
         data-tag={`${text.replace(/\./g, "").replace(/ /g, "_")}-action`}
@@ -142,8 +175,7 @@ interface OperationProps<EntityType, Extras = undefined> {
     forceEvaluationOnOpen?: boolean;
 }
 
-type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
-    JSX.Element | null;
+type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) => React.ReactNode;
 
 export const Operations: OperationsType = props => {
     const closeDropdownRef = useRef<() => void>(doNothing);
@@ -162,7 +194,7 @@ export const Operations: OperationsType = props => {
 
     if (props.location === "IN_ROW") {
         // Don't render anything if we are in row and we have selected something
-        const WIDTH = "51px";
+        const WIDTH = "47px";
         if (!props.row) return <Box width={WIDTH} />;
         if (props.selected.length > 0 && !props.selected.includes(props.row)) return <Box width={WIDTH} />;
     }
@@ -171,9 +203,9 @@ export const Operations: OperationsType = props => {
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
-    const operations: {elem: JSX.Element, priority: number, primary: boolean}[] = props.operations
-        .filter(op => op.enabled(selected, props.extra, props.all) !== false && op.canAppearInLocation?.(props.location) !== false)
-        .map(op => {
+    const operations: {elem: React.ReactNode, priority: number, primary: boolean}[] = props.operations
+        .filter(op => op.enabled(selected, props.extra, props.all) !== false)
+        .map((op, idx) => {
             const enabled = op.enabled(selected, props.extra, props.all);
             let reasonDisabled: string | undefined = undefined;
             if (typeof enabled === "string") {
@@ -184,11 +216,11 @@ export const Operations: OperationsType = props => {
             const text = typeof op.text === "string" ? op.text : op.text(selected, props.extra);
             const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
+            const As = opTypeFn(props.location, props.operations) as React.ComponentType<any>;
             const elem = <OperationComponent key={text} As={As} op={op} extra={props.extra} selected={selected}
-                reasonDisabled={reasonDisabled} location={props.location} all={props.all}
+                reasonDisabled={reasonDisabled} location={props.location} all={props.all} idx={idx}
                 onAction={closeDropdown} text={text} />;
-            const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
+            const priority = As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
         })
         .filter(op => op !== null)
@@ -237,7 +269,7 @@ export const Operations: OperationsType = props => {
                         size={"1em"}
                         rotation={90}
                         data-tag={props.dropdownTag}
-                    /> : <Box ml={"33px"} />
+                    /> : <Box ml="29px" />
         )
     };
 
@@ -249,7 +281,7 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    <InRowPrimaryButtons onClick={stopPropagation}>{primaryContent}</InRowPrimaryButtons>
+                    <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>{primaryContent}</div>
                     <Box mr={"10px"} />
                     {content.length === 0 ? <Box ml={"33px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
@@ -280,14 +312,14 @@ export const Operations: OperationsType = props => {
                                         m={8}
                                         ml={0}
                                         size="20"
-                                        color={theme.colors.darkGray}
+                                        color={"iconColor2"}
                                     /> :
                                     null
                                 }
                                 {entityNamePlural}
                                 {" "}
                                 {props.selected.length === 0 ? null :
-                                    <TextSpan color={"gray"}
+                                    <TextSpan color={"textSecondary"}
                                         fontSize={"80%"}>{props.selected.length} selected</TextSpan>
                                 }
                             </Heading.h3>
@@ -308,21 +340,13 @@ export const Operations: OperationsType = props => {
     }
 };
 
-const InRowPrimaryButtons = styled.div`
-    & > button {
+const InRowPrimaryButtonsClass = injectStyle("in-row-primary-buttons", k => `
+    ${k} {
+        margin-top: 4px;
+        margin-left: 8px;
+    }
+    
+    ${k} > button {
         max-width: 150px;
     }
-
-    margin-top: 4px;
-    margin-left: 8px;
-`;
-
-export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
-    const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = useCallback<EventHandler<MouseEvent<never>>>((e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        openOperationsRef.current(e.clientX, e.clientY);
-    }, []);
-    return [openOperationsRef, onContextMenu];
-}
+`);

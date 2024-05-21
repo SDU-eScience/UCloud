@@ -1,17 +1,11 @@
 package dk.sdu.cloud.grant.rpc
 
-import dk.sdu.cloud.accounting.api.grants.GrantComments
-import dk.sdu.cloud.accounting.api.grants.GrantTemplates
-import dk.sdu.cloud.accounting.api.projects.*
-import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
-import dk.sdu.cloud.accounting.services.grants.GrantCommentService
-import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
-import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.service.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -22,118 +16,79 @@ import io.ktor.utils.io.*
 import java.io.ByteArrayInputStream
 
 class GrantController(
-    private val applications: GrantApplicationService,
-    private val comments: GrantCommentService,
-    private val settings: GrantSettingsService,
-    private val templates: GrantTemplateService,
+    private val grants: GrantsV2Service,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        //GRANTS
-        implement(Grants.updateApplicationState) {
-            applications.updateStatus(actorAndProject, request)
-            ok(Unit)
+        implement(GrantsV2.browse) {
+            ok(grants.browse(actorAndProject, request))
         }
 
-        implement(Grants.closeApplication) {
-            val updates = bulkRequestOf(request.items.map {
-                UpdateApplicationState(
-                    it.applicationId.toLong(),
-                    GrantApplication.State.CLOSED,
-                    false
-                )
-            })
-            applications.closeApplication(actorAndProject, updates)
-            ok(Unit)
+        implement(GrantsV2.retrieve) {
+            ok(grants.retrieve(actorAndProject, request.id))
         }
 
-        implement(Grants.submitApplication) {
-            ok(applications.submit(actorAndProject, request))
+        implement(GrantsV2.submitRevision) {
+            ok(grants.submitRevision(actorAndProject, request))
         }
 
-        implement(Grants.editApplication) {
-            applications.editApplication(actorAndProject, request)
-            ok(Unit)
+        implement(GrantsV2.updateState) {
+            ok(grants.updateState(actorAndProject, request))
         }
 
-        implement(Grants.browseApplications) {
-            ok(applications.browseApplications(actorAndProject, request, request, request.filter))
+        implement(GrantsV2.transfer) {
+            ok(grants.transfer(actorAndProject, request))
         }
 
-        implement(Grants.browseProducts) {
-            ok(GrantsBrowseProductsResponse(applications.retrieveProducts(actorAndProject, request)))
-        }
+        implement(GrantsV2.retrieveGrantGivers) {
+            var existingProject: String? = null
+            var existingApplicationId: String? = null
 
-        implement(Grants.browseProjects) {
+            when (val r = request) {
+                is GrantsV2.RetrieveGrantGivers.Request.ExistingApplication -> {
+                    existingApplicationId = r.id
+                }
+
+                is GrantsV2.RetrieveGrantGivers.Request.ExistingProject -> {
+                    existingProject = r.id
+                }
+
+                is GrantsV2.RetrieveGrantGivers.Request.NewProject -> {
+                    existingProject = null
+                }
+
+                is GrantsV2.RetrieveGrantGivers.Request.PersonalWorkspace -> {
+                    existingProject = null
+                }
+            }
+
             ok(
-                settings.browse(
-                    actorAndProject,
-                    GrantsBrowseAffiliationsRequest(
-                        request.itemsPerPage,
-                        request.next,
-                        request.consistency,
-                        request.itemsToSkip,
-                        null,
-                        null
+                GrantsV2.RetrieveGrantGivers.Response(
+                    grants.retrieveGrantGivers(
+                        ActorAndProject(actorAndProject.actor, existingProject),
+                        existingApplicationId = existingApplicationId,
                     )
                 )
             )
         }
 
-        implement(Grants.browseAffiliations) {
-            ok(
-                settings.browse(
-                    actorAndProject,
-                    request
-                )
-            )
+        implement(GrantsV2.postComment) {
+            ok(grants.postComment(actorAndProject, request))
         }
 
-        implement(Grants.browseAffiliationsByResource) {
-            ok(settings.browseAffiliationByResource(actorAndProject, request))
+        implement(GrantsV2.deleteComment) {
+            ok(grants.deleteComment(actorAndProject, request))
         }
 
-        implement(Grants.transferApplication) {
-            applications.transferApplication(actorAndProject, request)
-            ok(Unit)
+        implement(GrantsV2.updateRequestSettings) {
+            ok(grants.updateRequestSettings(actorAndProject, request))
         }
 
-        implement(Grants.retrieveApplication) {
-            ok(applications.retrieveGrantApplication(request.id, actorAndProject))
+        implement(GrantsV2.retrieveRequestSettings) {
+            ok(grants.retrieveRequestSettings(actorAndProject))
         }
 
-        //COMMENTS
-        implement(GrantComments.createComment) {
-            ok(comments.postComment(actorAndProject, request))
-        }
-
-        implement(GrantComments.deleteComment) {
-            comments.deleteComment(actorAndProject, request)
-            ok(Unit)
-        }
-
-        //PROJECT GRANT SETTINGS
-        implement(GrantSettings.uploadRequestSettings) {
-            settings.uploadRequestSettings(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(GrantSettings.retrieveRequestSettings) {
-            ok(settings.fetchSettings(actorAndProject, request.projectId))
-        }
-
-        //PROJECT ENABLED STATUS
-        implement(GrantsEnabled.setEnabledStatus) {
-            settings.setEnabledStatus(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(GrantsEnabled.isEnabled) {
-            ok(IsEnabledResponse(settings.isEnabled(request.projectId)))
-        }
-
-        //PROJECT LOGO
-        implement(ProjectLogo.retrieveLogo) {
-            val logo = settings.fetchLogo(request.projectId)
+        implement(GrantsV2.retrieveLogo) {
+            val logo = grants.retrieveLogo(request.projectId)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             (ctx as HttpCall).call.respond(
@@ -147,36 +102,14 @@ class GrantController(
             okContentAlreadyDelivered()
         }
 
-        implement(ProjectLogo.uploadLogo) {
+        implement(GrantsV2.uploadLogo) {
             ok(
-                settings.uploadLogo(
+                grants.uploadLogo(
                     actorAndProject,
-                    request.projectId,
                     (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),
                     (ctx as HttpCall).call.request.receiveChannel()
                 )
             )
         }
-
-        //PROJECT DESCRIPTIONS
-        implement(GrantDescription.uploadDescription) {
-            settings.uploadDescription(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(GrantDescription.retrieveDescription) {
-            ok(RetrieveDescriptionResponse(settings.fetchDescription(request.projectId)))
-        }
-
-        //GRANT TEMPLATES
-        implement(GrantTemplates.uploadTemplates) {
-            templates.uploadTemplates(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(GrantTemplates.retrieveTemplates) {
-            ok(templates.fetchTemplates(actorAndProject, request.projectId))
-        }
-
     }
 }

@@ -67,6 +67,13 @@ enum class FilesSortBy {
     MODIFIED_AT
 }
 
+@Serializable
+@UCloudApiStable
+enum class UploadType {
+    FILE,
+    FOLDER
+}
+
 typealias FilesMoveRequest = BulkRequest<FilesMoveRequestItem>
 
 @Serializable
@@ -124,6 +131,7 @@ typealias FilesEmptyTrashResponse = BulkResponse<LongRunningTask?>
 @UCloudApiStable
 data class FilesCreateUploadRequestItem(
     override val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 ) : WithPath
@@ -141,7 +149,8 @@ data class FilesCreateUploadResponseItem(
 
 @UCloudApiStable
 enum class UploadProtocol {
-    CHUNKED
+    CHUNKED,
+    WEBSOCKET
 }
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>
@@ -323,6 +332,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesCreateUploadRequestItem(
                             "/123/folder",
+                            UploadType.FOLDER,
                             listOf(UploadProtocol.CHUNKED),
                             WriteConflictPolicy.REJECT
                         )

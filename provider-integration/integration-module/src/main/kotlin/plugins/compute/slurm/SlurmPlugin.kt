@@ -15,7 +15,6 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
@@ -26,7 +25,6 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.compute.udocker.UDocker
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionIpc
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
-import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPool
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
@@ -35,7 +33,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
-import io.ktor.utils.io.pool.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -45,6 +42,7 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -53,14 +51,13 @@ import java.io.File
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.ArrayList
-import kotlin.math.max
 import dk.sdu.cloud.config.ConfigSchema.Plugins.Jobs.Slurm as SlurmConfig
 
 class SlurmPlugin : ComputePlugin {
     override val pluginTitle: String = "Slurm"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     lateinit var pluginConfig: SlurmConfig
         private set
     private lateinit var jobCache: JobCache
@@ -170,7 +167,7 @@ class SlurmPlugin : ComputePlugin {
     private fun PluginContext.initializeAccountIpc() {
         SlurmAccountIpc.retrieve.suspendingHandler { user, request ->
             SlurmAccountIpc.RetrieveResponse(
-                accountMapper.lookupByUCloud(request.owner, request.productCategory, request.partition)?.account
+                accountMapper.lookupByUCloud(request.owner.toWalletOwner(), request.productCategory, request.partition)?.account
             )
         }.register(ipcServer)
     }
@@ -581,26 +578,22 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 30_000
         }
     }
 
     // NOTE(Dan): This cannot be inlined in the loop due to a limitation in GraalVM (AOT native images only)
     private suspend fun PluginContext.loop(accountingScan: Boolean) {
-        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm monitoring") {
-            try {
-                monitorStates()
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
-            }
+        try {
+            monitorStates()
+        } catch (ex: Throwable) {
+            log.info("Slurm monitoring error: ${ex.toReadableStacktrace()}")
         }
 
-        debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "Slurm accounting") {
-            try {
-                monitorAccounting(accountingScan)
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
-            }
+        try {
+            monitorAccounting(accountingScan)
+        } catch (ex: Throwable) {
+            log.info("Slurm monitoring error: ${ex.toReadableStacktrace()}")
         }
 
         delay(5000)
@@ -608,23 +601,17 @@ class SlurmPlugin : ComputePlugin {
 
     private var lastScan: Long = 0L
     private suspend fun PluginContext.monitorAccounting(emitAccountingInfo: Boolean) {
-        // The job of this function is to monitor everything related to accounting. We run through two phases, each 
+        // The job of this function is to monitor everything related to accounting. We run through two phases, each
         // running at different frequencies:
         //
         // 1. Retrieve and process Slurm accounting
         //    - Invokes sacct to determine which jobs are in the system
         //    - Importantly, this job will efficiently determine which jobs are _not_ currently known by UCloud and
         //      register them into UCloud.
-        //    - It is important that we run this step frequently to ensure that jobs submitted outside of UCloud are
+        //    - It is important that we run this step frequently to ensure that jobs submitted outside UCloud are
         //      discovered quickly. This allows the end-user to track the job via the UCloud interface.
         //
         // 2. Send accounting information to UCloud
-        //    - Combines the output of phase 1 with locally stored information to create charge requests
-        //    - Register these charges with the accounting system of UCloud
-
-        var registeredJobs = 0
-        var chargedJobs = 0
-
 
         // Retrieve and process Slurm accounting
         // ------------------------------------------------------------------------------------------------------------
@@ -634,6 +621,7 @@ class SlurmPlugin : ComputePlugin {
         // 2. Compare with list of known UCloud jobs
         // 3. Register any unknown jobs (if possible, jobs are not required to be for a UCloud project)
         // 4. Establish a mapping between Slurm jobs and UCloud jobs
+
         val accountingRows = cli.retrieveAccountingData(lastScan, pluginConfig.partition)
         lastScan = Time.now()
 
@@ -667,14 +655,15 @@ class SlurmPlugin : ComputePlugin {
 
                         timeAllocation = SimpleDuration.fromMillis(job.timeAllocationMillis),
                     ),
-                    "s-${job.jobId}", // TODO(Dan): Slurm job id wrap-around makes these not unique
-                    account.owner.createdBy,
-                    account.owner.project,
+                    // NOTE(Dan): Slurm job id can wrap-around. As a result, we combine it with the time of submission.
+                    "s!${job.jobId}!${job.submittedAt}",
+                    (account.owner as? WalletOwner.User)?.username,
+                    (account.owner as? WalletOwner.Project)?.projectId,
+                    projectAllRead = true,
+                    projectAllWrite = true,
                 )
             )
         }
-
-        registeredJobs = jobsToRegister.size
 
         for (batch in jobsToRegister.chunked(100)) {
             if (batch.isEmpty()) continue
@@ -687,7 +676,7 @@ class SlurmPlugin : ComputePlugin {
                 for (i in batch.indices) {
                     val jobSpecification = batch[i]
                     val ucloudId = ids[i].id
-                    val slurmId = jobSpecification.providerGeneratedId?.removePrefix("s-") ?: continue
+                    val slurmId = jobSpecification.providerGeneratedId?.split("!")?.getOrNull(1) ?: continue
 
                     SlurmDatabase.registerJob(
                         SlurmJob(
@@ -701,95 +690,62 @@ class SlurmPlugin : ComputePlugin {
             }
         }
 
-        debugSystem.normal("Registered $registeredJobs slurm jobs")
-
         // Send accounting information to UCloud
         // ------------------------------------------------------------------------------------------------------------
-        // In this section we will be performing the following steps:
-        //
-        // 1. Combine the two lists from the first phase to create batches of charge requests
-        // 2. For each batch, optionally process this through an extension which can modify the list
-        // 3. Send the batch to UCloud
         if (!emitAccountingInfo) return
 
-        val activeJobs = SlurmDatabase.browse(SlurmBrowseFlags(filterIsActive = true))
-        val charges = ArrayList<ResourceChargeCredits>()
-        val accountingCharges = ArrayList<SlurmCommandLine.SlurmAccountingRow>()
-        for (job in activeJobs) {
-            val ucloudJob = jobCache.findJob(job.ucloudId) ?: continue
-            val row = accountingRows.find { it.jobId.toString() == job.slurmId } ?: continue
-            val timeSinceLastUpdate = row.timeElappsedMs - job.elapsed
-            if (timeSinceLastUpdate <= 0) continue
+        val fetchUsageExtensionPath = pluginConfig.extensions.fetchComputeUsage ?: return
+        val projectPlugin = config.plugins.projects ?: return
+        val categories = config.products.compute
 
-            val product = ucloudJob.status.resolvedProduct!!
-            val periods = when (product.unitOfPrice) {
-                ProductPriceUnit.CREDITS_PER_UNIT,
-                ProductPriceUnit.PER_UNIT,
-                ProductPriceUnit.CREDITS_PER_MINUTE,
-                ProductPriceUnit.UNITS_PER_MINUTE -> {
-                    timeSinceLastUpdate / (1000L * 60)
-                }
-
-                ProductPriceUnit.CREDITS_PER_HOUR,
-                ProductPriceUnit.UNITS_PER_HOUR -> {
-                    timeSinceLastUpdate / (1000L * 60 * 60)
-                }
-
-                ProductPriceUnit.CREDITS_PER_DAY,
-                ProductPriceUnit.UNITS_PER_DAY -> {
-                    timeSinceLastUpdate / (1000L * 60 * 60 * 24)
+        val projectMappings = with(projectPlugin) {
+            browseProjects().items.flatMap { project ->
+                categories.map { category ->
+                    Pair(
+                        project.project.id,
+                        project.localId,
+                    )
                 }
             }
-
-            val units = ((product.cpu ?: 1) * ucloudJob.specification.replicas).toLong()
-
-            charges.add(
-                ResourceChargeCredits(
-                    job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed / 1000,
-                    units,
-                    max(1, periods),
-                )
-            )
-            accountingCharges.add(row)
         }
 
-        chargedJobs = charges.size
+        val userMappings = UserMapping.browseMappings(PaginationRequestV2(3000))
 
-        val batchSize = 100
-        for ((index, batch) in charges.chunked(batchSize).withIndex()) {
-            val offset = batchSize * index
-            val success = JobsControl.chargeCredits.call(
-                BulkRequest(batch),
-                rpcClient
-            ) is IngoingCallResponse.Ok<*, *>
+        for (category in categories) {
+            val workspaces = userMappings.items.map {
+                UidOrGid(it.uid)
+            } + projectMappings.map {
+                UidOrGid(null, it.second)
+            }
 
-            if (!success) continue
+            if (workspaces.isEmpty()) continue
 
-            dbConnection.withSession { session ->
-                SlurmDatabase.updateElapsedByUCloudId(
-                    batch.map { it.id },
-                    List(batch.size) { idx ->
-                        accountingCharges[offset + idx].timeElappsedMs
-                    },
-                    session
-                )
+            val usageRequest = FetchComputeUsageRequest(
+                category.name,
+                workspaces
+            )
 
-                val inactiveJobs = ArrayList<String>()
-                for (idx in batch.indices) {
-                    val row = accountingCharges[offset + idx]
-                    if (row.state.isFinal) inactiveJobs.add(row.jobId.toString())
+            val usageResponse = fetchComputeUsageExtension.invoke(this, fetchUsageExtensionPath, usageRequest)
+
+            usageResponse.usage.forEach { workspaceUsage ->
+                val ucloudId = if (workspaceUsage.gid != null) {
+                    projectMappings.find { it.second == workspaceUsage.gid }?.first
+                } else {
+                    userMappings.items.find { it.uid == workspaceUsage.uid }?.username
                 }
 
-                if (inactiveJobs.isNotEmpty()) {
-                    SlurmDatabase.markAsInactive(inactiveJobs, session)
+                if (ucloudId != null) {
+                    val workspace = walletOwnerFromOwnerString(ucloudId)
+                    reportRawUsage(
+                        workspace,
+                        ProductCategoryIdV2(category.name, providerId),
+                        workspaceUsage.usage
+                    )
                 }
             }
         }
 
         lastAccountingCharge = Time.now()
-
-        debugSystem.normal("Charged $chargedJobs slurm jobs")
     }
 
     private val uidToUsernameCache = SimpleCache<Int, String>(
@@ -923,5 +879,43 @@ class SlurmPlugin : ComputePlugin {
 
         const val ALLOCATED_PORT_FILE = "allocated-port.txt"
         private const val sshId = "id_ucloud_im"
+
+        val fetchComputeUsageExtension = extension(FetchComputeUsageRequest.serializer(), FetchComputeUsageResponse.Slurm.serializer())
     }
+}
+
+@Serializable
+data class UidOrGid(
+    val uid: Int? = null,
+    val gid: Int? = null
+)
+
+@Serializable
+data class FetchComputeUsageRequest(
+    val productCategory: String,
+    val workspaces: List<UidOrGid>
+)
+
+@Serializable
+data class FetchComputeUsageItem(
+    val uid: Int? = null,
+    val gid: Int? = null,
+    val usage: Long
+)
+
+@Serializable
+sealed class FetchComputeUsageResponse {
+    @Serializable
+    @SerialName("Slurm")
+    data class Slurm(
+        val usage: List<FetchComputeUsageItem>,
+    ) : FetchComputeUsageResponse()
+
+    @Serializable
+    @SerialName("UCloud")
+    data class UCloud(
+        val workspace: String,
+        val category: String,
+        val usage: Long,
+    ) : FetchComputeUsageResponse()
 }

@@ -1,12 +1,12 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {SetStatusLoading} from "@/Navigation/Redux/StatusActions";
+import {SetStatusLoading} from "@/Navigation/Redux";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Divider, ExternalLink, Flex, Input} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import * as Heading from "@/ui-components/Heading";
 import {TwoFactorSetupState} from ".";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
 import googlePlay from "@/Assets/Images/google-play-badge.png";
 import appStore from "@/Assets/Images/app-store-badge.png";
@@ -28,7 +28,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             <>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
                 {this.props.mustActivate2fa ? (
-                    <Heading.h3 color={getCssVar("red")}>
+                    <Heading.h3 color={getCssPropertyValue("errorMain")}>
                         You must activate 2FA for your account before you can continue
                     </Heading.h3>
                 ) : null}
@@ -97,7 +97,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
                         <p>Once you are ready click the button below to get started:</p>
 
                         <Button
-                            color="green"
+                            color="successMain"
                             disabled={this.props.loading}
                             onClick={() => this.onSetupStart()}
                         >
@@ -159,7 +159,6 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
 
                     <Button
                         mt={8}
-                        color="blue"
                         type="submit"
                         disabled={this.props.loading}
                     >

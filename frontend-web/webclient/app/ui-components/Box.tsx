@@ -1,62 +1,26 @@
-import styled from "styled-components";
-import {
-    AlignItemsProps, color, ColorProps, height, HeightProps, maxHeight, MaxHeightProps, maxWidth, MaxWidthProps,
-    minHeight, MinHeightProps, minWidth, MinWidthProps, overflow, OverflowProps, space, SpaceProps, textAlign,
-    TextAlignProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink,
-    JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps, overflowY, overflowX
-} from "styled-system";
-import {cursor} from "@/Utilities/StyledComponentsUtilities";
-import {Cursor} from "./Types";
+import * as React from "react";
 
-export type BoxProps =
-    SpaceProps &
-    WidthProps &
-    MinWidthProps &
-    ColorProps &
-    BackgroundProps &
-    AlignItemsProps &
-    JustifyContentProps &
-    HeightProps &
-    MinHeightProps &
-    MaxHeightProps &
-    MaxWidthProps &
-    FlexGrowProps &
-    FlexShrinkProps &
-    ZIndexProps &
-    TextAlignProps &
-    OverflowProps &
-    BorderRadiusProps &
-    {cursor?: Cursor};
+import {classConcat, extractEventHandlers, injectStyleSimple, unbox, unboxDataTags} from "@/Unstyled";
+import {BoxProps} from "./Types";
 
-interface FlexGrowProps {
-    flexGrow?: number;
+export const BoxClass = injectStyleSimple("box", ``);
+const Box: React.FunctionComponent<BoxProps & {
+    children?: React.ReactNode;
+    divRef?: React.RefObject<HTMLDivElement>;
+    title?: string;
+    style?: React.CSSProperties;
+    className?: string;
+}> = props => {
+    return <div
+        className={classConcat(BoxClass, props.className)}
+        style={{...unbox(props), ...(props.style ?? {})}}
+        {...unboxDataTags(props as Record<string, string>)}
+        title={props.title}
+        ref={props.divRef}
+        children={props.children}
+        {...extractEventHandlers(props)}
+    />;
 }
-
-interface FlexShrinkProps {
-    flexShrink?: number;
-}
-
-const Box = styled.div<BoxProps>`
-  ${borderRadius}
-  ${justifyContent}
-  ${cursor}
-  ${zIndex}
-  ${flexGrow}
-  ${flexShrink}
-  ${space}
-  ${width}
-  ${minWidth}
-  ${maxWidth}
-  ${height}
-  ${minHeight}
-  ${maxHeight}
-  ${color}
-  ${textAlign}
-  ${overflow}
-  ${overflowY}
-  ${overflowX}
-  ${background}
-`;
 
 Box.displayName = "Box";
 

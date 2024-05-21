@@ -4,12 +4,13 @@
 
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Products define the services exposed by a Provider._
 
 ```kotlin
 sealed class Product {
+    abstract val allowAllocationRequestsFrom: AllocationRequestsGroup
     abstract val balance: Long?
     abstract val category: ProductCategoryId
     abstract val chargeType: ChargeType
@@ -17,6 +18,7 @@ sealed class Product {
     abstract val freeToUse: Boolean
     abstract val hiddenInGrantApplications: Boolean
     abstract val id: String
+    abstract val maxUsableBalance: Long?
     abstract val name: String
     abstract val pricePerUnit: Long
     abstract val priority: Int
@@ -37,6 +39,24 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a></code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+category).
+
+Possible options are:
+ - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
+ - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
+ - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
+
+
+</details>
 
 <details>
 <summary>
@@ -121,6 +141,18 @@ system's UI.
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
 
 
 

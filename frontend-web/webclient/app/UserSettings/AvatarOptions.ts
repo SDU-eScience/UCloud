@@ -203,10 +203,11 @@ export enum SkinColors {
     Black = "Black"
 }
 
+import {ReactNode} from "react"
 export interface HairProps {
     hairColor: HairColor;
     facialHair: FacialHair;
     facialHairColor: FacialHairColor;
     hatColor: HatColor;
-    children: React.ReactNode;
+    children: ReactNode;
 }

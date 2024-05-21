@@ -8,12 +8,14 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.grant.api.BrowseProjectsRequest
-import dk.sdu.cloud.grant.api.Grants
+import dk.sdu.cloud.grant.api.GrantApplication
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.adminUsername
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.Time
 import kotlin.random.Random
 
 data class GroupInitialization(
@@ -51,46 +53,76 @@ data class NormalProjectInitialization(
     val projectId: String
 )
 
+typealias RootProjectInitialization = NormalProjectInitialization
+
 suspend fun initializeRootProject(
-    providers: Set<String>,
+    providerProjectId: String,
     admin: AuthenticatedClient? = null
-): String {
+): RootProjectInitialization {
     val adminClient = admin ?: adminClient
     val rootProject = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
-                parent = null,
-                title = generateId("root")
+                parent = providerProjectId,
+                title = generateId("root"),
+                false
             )
         ),
         adminClient
     ).orThrow().responses.single().id
 
-    val products = findProductCategories(providers)
+    createRootAllocations(providerProjectId, rootProject)
 
-    Accounting.rootDeposit.call(
-        BulkRequest(
-            products.map { category ->
-                RootDepositRequestItem(
-                    category,
-                    WalletOwner.Project(rootProject),
-                    10_000_000_000L,
-                    "Root deposit"
+    return RootProjectInitialization(
+        adminClient,
+        adminUsername,
+        rootProject
+    )
+}
+
+suspend fun createRootAllocations(
+    providerProjectId: String,
+    rootProjectId: String,
+    categories: List<ProductCategory> = emptyList(),
+    quota: Long = 10_000_000_000L,
+    start: Long? = null,
+    end: Long? = null
+) {
+    val productsCategories = categories.ifEmpty { findProductCategories() }
+    val resourceReq = productsCategories.map {
+        GrantApplication.AllocationRequest(
+                it.name,
+                it.provider,
+                providerProjectId,
+                quota,
+                GrantApplication.Period(
+                    start,
+                    end
                 )
-            }
+        )
+    }
+    GrantsV2.submitRevision.call(
+        GrantsV2.SubmitRevision.Request(
+            revision = GrantApplication.Document(
+                GrantApplication.Recipient.ExistingProject(rootProjectId),
+                resourceReq,
+                GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
+                parentProjectId = providerProjectId,
+                revisionComment = "Gifted automatically"
+            ),
+            comment = "Gift"
         ),
-        adminClient
-    ).orThrow()
-
-    return rootProject
+        adminClient.withProject(providerProjectId)
+    )
 }
 
 suspend fun initializeNormalProject(
-    rootProject: String,
+    rootProject: NormalProjectInitialization,
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000_000,
     userRole: Role = Role.USER,
-    admin: CreatedUser? = null
+    admin: CreatedUser? = null,
+    product: ProductV2 = sampleCompute
 ): NormalProjectInitialization {
     val adminClient = admin?.client ?: adminClient
     val adminUsername = admin?.username ?: adminUsername
@@ -99,7 +131,7 @@ suspend fun initializeNormalProject(
     val projectId = Projects.create.call(
         bulkRequestOf(
             Project.Specification(
-                parent = rootProject,
+                parent = rootProject.projectId,
                 title = generateId("normal")
             )
         ),
@@ -129,23 +161,44 @@ suspend fun initializeNormalProject(
     ).orThrow()
 
     if (initializeWallet) {
-        Accounting.deposit.call(
-            BulkRequest(
-                findAllocationsInternal(WalletOwner.Project(rootProject)).map { alloc ->
-                    DepositToWalletRequestItem(
-                        WalletOwner.Project(projectId),
-                        alloc.id,
-                        amount,
-                        "wallet init",
-                        grantedIn = null
-                    )
-                }
+        GrantsV2.submitRevision.call(
+            GrantsV2.SubmitRevision.Request(
+                revision = GrantApplication.Document(
+                    GrantApplication.Recipient.ExistingProject(projectId),
+                    listOf(
+                        GrantApplication.AllocationRequest(
+                            product.category.name,
+                            UCLOUD_PROVIDER,
+                            rootProject.projectId,
+                            amount,
+                            GrantApplication.Period(
+                                Time.now(),
+                                Time.now() + 10000000
+                            )
+                        )
+                    ),
+                    GrantApplication.Form.PlainText("test"),
+                    parentProjectId = rootProject.projectId,
+                    revisionComment = "test"
+                ),
+                comment = "test"
             ),
-            adminClient
+            piClient.withProject(projectId)
         ).orThrow()
-    }
 
-    return NormalProjectInitialization(piClient, piUsername, projectId)
+        val grants = GrantsV2.browse.call(
+            GrantsV2.Browse.Request(includeIngoingApplications = true, includeOutgoingApplications = false),
+            adminClient.withProject(rootProject.projectId)
+        ).orThrow().items
+
+        grants.forEach { grant ->
+            GrantsV2.updateState.call(
+                GrantsV2.UpdateState.Request(grant.id, GrantApplication.State.APPROVED),
+                rootProject.piClient.withProject(rootProject.projectId)
+            )
+        }
+    }
+    return NormalProjectInitialization(piClient.withProject(projectId), piUsername, projectId)
 }
 
 suspend fun addMemberToProject(
@@ -174,39 +227,5 @@ suspend fun addMemberToProject(
             ),
             adminClient.withProject(projectId)
         ).orThrow()
-    }
-}
-
-suspend fun projectExistsForUser(
-    client: AuthenticatedClient,
-    projectId: String,
-    next: String? = null,
-    firstPage: Boolean = true
-): Boolean {
-    if (firstPage) {
-        val page = Grants.browseProjects.call(
-            BrowseProjectsRequest(),
-            client
-        ).orThrow()
-        return if (page.items.find { it.projectId == projectId } != null) {
-            true
-        } else {
-            projectExistsForUser(client, projectId, page.next, false)
-        }
-    } else {
-        if (next == null) {
-            return false
-        }
-        val page = Grants.browseProjects.call(
-            BrowseProjectsRequest(
-                next = next
-            ),
-            client
-        ).orThrow()
-        return if (page.items.find { it.projectId == projectId } != null) {
-            true
-        } else {
-            projectExistsForUser(client, projectId, page.next, false)
-        }
     }
 }

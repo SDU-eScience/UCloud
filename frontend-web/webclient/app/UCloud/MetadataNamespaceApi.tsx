@@ -1,5 +1,4 @@
 import {
-    CREATE_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -8,25 +7,24 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
-import {SidebarPages} from "@/ui-components/Sidebar";
 import {Grid, Icon} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {SvgFt} from "@/ui-components/FtIcon";
-import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {useCallback, useMemo, useState} from "react";
 import {Section} from "@/ui-components/Section";
 import * as Heading from "@/ui-components/Heading";
-import {JsonSchemaForm} from "@/Files/Metadata/JsonSchemaForm";
 import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -79,7 +77,6 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     FileMetadataTemplateNamespaceStatus> {
     routingNamespace = "metadata";
     title = "Metadata Template";
-    page = SidebarPages.Files;
     productType = undefined;
     isCoreResource = true;
 
@@ -98,8 +95,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     templateRenderer: ItemRenderer<FileMetadataTemplate, TemplateCallbacks> = {
         Icon({resource, size}) {
             return <SvgFt width={size} height={size} type={"text"} ext={""}
-                color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-                hasExt={false} />
+                          color={getCssPropertyValue("FtIconColor")} color2={getCssPropertyValue("FtIconColor2")}
+                          hasExt={false} />
         },
         MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},
         Stats({resource}) {
@@ -118,7 +115,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => cb.previewing != null,
             onClick: (selected, cb) => {
                 cb.setPreviewing(null);
-            }
+            },
+            shortcut: ShortcutKey.Backspace
         },
         {
             icon: "upload",
@@ -127,7 +125,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => selected.length === 0 && cb.previewing == null,
             onClick: (selected, cb) => {
                 cb.navigate(buildQueryString("/" + this.routingNamespace + "/create", {namespace: cb.namespace.id}));
-            }
+            },
+            shortcut: ShortcutKey.U
         },
         {
             icon: "properties",
@@ -135,7 +134,8 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             enabled: (selected, cb) => selected.length === 1 && cb.previewing == null,
             onClick: (selected, cb) => {
                 cb.setPreviewing(selected[0]);
-            }
+            },
+            shortcut: ShortcutKey.P
         }
     ];
 
@@ -152,13 +152,14 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         const generateCall = useCallback((next?: string): APICallParameters => {
             return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
         }, []);
-        return <HighlightedCard color={"purple"}>
+        return <TitledCard>
             <StandardList
                 generateCall={generateCall}
                 renderer={this.templateRenderer}
                 operations={this.templateOps}
                 title={"Version"}
                 embedded={"inline"}
+                page={SidebarTabId.FILES}
                 onSelect={props.onSelect}
                 extraCallbacks={extraCallbacks}
                 navigate={it => setPreviewing(it)}
@@ -193,16 +194,9 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                             </li>
                         </ul>
                     </Section>
-                    <Section>
-                        <Heading.h3>Form preview</Heading.h3>
-                        <JsonSchemaForm
-                            schema={previewing.schema}
-                            uiSchema={previewing.uiSchema}
-                        />
-                    </Section>
                 </Grid>
             </> : null}
-        </HighlightedCard>
+        </TitledCard>
     };
 
     Properties = (props) => {
@@ -226,13 +220,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     }
 
     retrieveOperations(): Operation<FileMetadataTemplateNamespace, ResourceBrowseCallbacks<FileMetadataTemplateNamespace>>[] {
-        const baseOps = super.retrieveOperations();
-        const createOp = baseOps.find(it => it.tag === CREATE_TAG)!;
-        createOp.text = "Create template";
-        createOp.onClick = (selected, cb) => {
-            cb.navigate(`/${this.routingNamespace}/create`);
-        };
-        return baseOps;
+        return super.retrieveOperations();
     }
 
     createTemplate(request: BulkRequest<FileMetadataTemplate>): APICallParameters<BulkRequest<FileMetadataTemplate>> {

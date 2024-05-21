@@ -1,11 +1,10 @@
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
-import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
-import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Feature, hasFeature} from "@/Features";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -96,7 +95,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                     <Label>
                         First names
                         <Input
-                            ref={userFirstNames}
+                            inputRef={userFirstNames}
                             type="text"
                             placeholder={state.placeHolderFirstNames}
                         />
@@ -107,7 +106,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                     <Label>
                         Last name
                         <Input
-                            ref={userLastName}
+                            inputRef={userLastName}
                             type="text"
                             placeholder={state.placeHolderLastName}
                         />
@@ -117,7 +116,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                     <Label>
                         Email
                         <Input
-                            ref={userEmail}
+                            inputRef={userEmail}
                             type="email"
                             placeholder={state.placeHolderEmail}
                         />
@@ -126,7 +125,7 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                 <Button
                     mt="1em"
                     type="submit"
-                    color="green"
+                    color="successMain"
                     disabled={commandLoading || !!message}
                 >
                     {message ?? "Update Information"}
@@ -185,7 +184,7 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
         return <Box mt="0.5em" pt="0.5em">
             <Label>
                 {title}
-                <Input ref={ref} type="text" placeholder={"Example: " + placeholder}/>
+                <Input inputRef={ref} type="text" placeholder={"Example: " + placeholder}/>
             </Label>
         </Box>
     };
@@ -199,7 +198,7 @@ export const ChangeOptionalUserDetails: React.FunctionComponent = () => {
                 {field("Position", "Professor", positionRef)}
                 {field("Research field(s)", "Experimental examples", researchFieldRef)}
 
-                <Button mt="1em" type="submit" color="green">Update Information</Button>
+                <Button mt="1em" type="submit" color="successMain">Update Information</Button>
             </form>
         </Box>
     );

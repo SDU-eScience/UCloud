@@ -1,8 +1,7 @@
 import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
-import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {Box, Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
 import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
@@ -13,6 +12,7 @@ import {IconName} from "@/ui-components/Icon";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {classConcat} from "@/Unstyled";
 
 
 interface ResourcePermissionEditorProps<T extends ResourceDoc> {
@@ -53,7 +53,7 @@ function ResourcePermissionEditor<T extends ResourceDoc>(
 
         setAcl(newAcl);
 
-        await invokeCommand(updateAclEndpoint(bulkRequestOf({acl: newAcl, id: entity.id})))
+        await invokeCommand(updateAclEndpoint({ type: "bulk", items: [{acl: newAcl, id: entity.id}]}))
         reload();
     }, [acl, projectId, commandLoading]);
 
@@ -70,22 +70,22 @@ function ResourcePermissionEditor<T extends ResourceDoc>(
 
             <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
                 flexDirection={"column"}>
-                <ShakingBox shaking mb={"10px"}>
+                <Box className={classConcat(ShakingBox, "shaking")} mb={"10px"}>
                     No groups exist for this project.{" "}
                     <TextSpan bold>As a result, this {entityName.toLowerCase()} can only be used by project admins!</TextSpan>
-                </ShakingBox>
+                </Box>
 
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
             </Flex>}
         <>
             {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
-                <ShakingBox shaking mb={16}>
+                <Box className={classConcat(ShakingBox, "shaking")} mb={16}>
                     <Text bold>This {entityName.toLowerCase()} can only be used by project admins</Text>
                     <Text>
                         You must assign permissions to one or more group, if your collaborators need to use this
                         {" "}{entityName.toLowerCase()}.
                     </Text>
-                </ShakingBox>
+                </Box>
             }
             {groups.map(group => {
                 const g = group.id;

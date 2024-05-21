@@ -1,82 +1,87 @@
 import * as React from "react";
-import styled from "styled-components";
-import {HiddenInputField} from "./Input";
-import Label from "./Label";
-import {CSSVarThemeColor} from "./theme";
-
-// https://www.w3schools.com/howto/howto_css_switch.asp
-const ToggleLabel = styled(Label) <{scale: number}>`
-    position: relative;
-    display: inline-block;
-    width: ${props => 30 * props.scale}px;
-    height: ${props => 17 * props.scale}px;
-`;
-
-ToggleLabel.displayName = "ToggleLabel";
-
-const RoundSlider = styled.span<{scale: number; disabledColor: CSSVarThemeColor}>`
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(${props => props.disabledColor ?? "--gray"});
-    -webkit-transition: .4s;
-    transition: .4s;
-    border-radius: 34px;
-
-    &:before {
-        position: absolute;
-        content: "";
-        height: ${props => props.scale * 13}px;
-        width: ${props => props.scale * 13}px;
-        left: ${props => 2 * props.scale}px;
-        bottom: ${props => 2 * props.scale}px;
-        background-color: white;
-        -webkit-transition: .4s;
-        transition: .4s;
-        border-radius: 50%;
-    }
-`;
-
-RoundSlider.displayName = "RoundSlider";
-
-const ToggleInput = styled(HiddenInputField) <{scale: number; activeColor: CSSVarThemeColor;}>`
-    &:checked + ${RoundSlider} {
-        background-color: var(${props => props.activeColor});
-    }
-
-    &:focus + ${RoundSlider} {
-        box-shadow: 0 0 1px var(${props => props.activeColor});
-    }
-
-    &:checked + ${RoundSlider}:before {
-        -webkit-transform: translateX(${props => props.scale * 13}px);
-        -ms-transform: translateX(${props => props.scale * 13}px);
-        transform: translateX(${props => props.scale * 13}px);
-    }
-`;
-
-ToggleInput.displayName = "ToggleInput";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {useCallback, useEffect, useRef} from "react";
+import {ThemeColor} from "./theme";
 
 interface ToggleProps {
-    checked?: boolean;
-    onChange: () => void;
-    scale?: number;
-    activeColor?: CSSVarThemeColor;
-    disabledColor?: CSSVarThemeColor;
+    checked: boolean;
+    onChange: (prevValue: boolean) => void;
+    activeColor?: ThemeColor;
+    inactiveColor?: ThemeColor;
+    circleColor?: ThemeColor;
+    colorAnimationDisabled?: boolean;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
     checked,
     onChange,
-    scale = 1,
-    activeColor = "--blue",
-    disabledColor = "--gray"
-}) => (
-    <ToggleLabel scale={scale}>
-        <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} activeColor={activeColor} />
-        <RoundSlider disabledColor={disabledColor} scale={scale} />
-    </ToggleLabel>
-);
+    activeColor = "successMain",
+    inactiveColor = "textSecondary",
+    circleColor = "fixedWhite",
+    colorAnimationDisabled = false
+}) => {
+    const checkedRef = useRef(checked);
+    useEffect(() => {
+        checkedRef.current = checked;
+    }, [checked]);
+
+    const handler = useCallback((e: React.SyntheticEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onChange(checkedRef.current);
+    }, [onChange]);
+
+    const style: React.CSSProperties = {};
+    style["--inactiveColor"] = `var(--${inactiveColor})`;
+    style["--activeColor"] = `var(--${activeColor})`;
+    style["--circleColor"] = `var(--${circleColor})`
+
+    return <div
+        onClick={handler}
+        style={style}
+        data-active={checked}
+        className={classConcat(ToggleWrapperClass, colorAnimationDisabled ? "color-anim-disabled" : undefined)}
+    >
+        <div />
+    </div>
+}
+
+const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
+    ${k} {
+        --inactiveColor: #ff0;
+        --activeColor: #f0f;
+        --circleColor: #0ff
+    }
+
+    ${k} {
+        border-radius: 12px;
+        height: 26px;
+        width: 45px;
+        background-color: var(--inactiveColor);
+        transition: 0.2s all;
+        padding-top: 2px;
+        padding-left: 2px;
+        cursor: pointer;
+    }
+
+    ${k}[data-active="true"] {
+        background-color: var(--activeColor);
+        padding-left: 21px;
+    }
+
+    ${k} > div {
+        border-radius: 50%;
+        width: 22px;
+        background-color: var(--circleColor);
+        animation: background-color 0.2;
+        height: 22px;
+    }
+    
+    ${k}.color-anim-disabled {
+        transition: 0.2s padding;
+    }
+    
+    ${k}.color-anim-disabled > div {
+        animation: unset;
+    }
+`);

@@ -141,10 +141,18 @@ check if the end of results has been reached is by checking i `next == null`."""
 ) : DocVisualizable {
     override fun visualize(): DocVisualization =
         DocVisualization.Card("PageV2", emptyList(), items.map { visualizeValue(it) })
+
+    companion object {
+        fun <T> of(collection: Collection<T>): PageV2<T> {
+            return PageV2(collection.size, collection.toList(), null)
+        }
+    }
 }
 
+fun <T> emptyPageV2(): PageV2<T> = PageV2<T>(100, emptyList(), null)
+
 fun <T> singlePageOf(vararg items: T): PageV2<T> {
-    return PageV2(50, listOf(*items), null)
+    return PageV2(100, listOf(*items), null)
 }
 
 @Serializable
@@ -217,7 +225,7 @@ interface WithPaginationRequestV2 {
 
         return NormalizedPaginationRequestV2(
             when (val itemsPerPage = itemsPerPage) {
-                10, 25, 50, 100, 250 -> itemsPerPage
+                10, 25, 50, 100, 250, 1000 -> itemsPerPage
                 else -> 50
             },
             next,

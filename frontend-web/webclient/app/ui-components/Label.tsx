@@ -1,49 +1,23 @@
-import styled from "styled-components";
-import {
-    color, ColorProps, fontSize, FontSizeProps,
-    FontStyleProps, fontWeight, FontWeightProps,
-    space, SpaceProps, width, WidthProps
-} from "styled-system";
+import * as React from "react";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {CSSProperties} from "react";
+import {BoxProps} from "./Types";
 
-const nowrap = (props: {nowrap?: boolean}): {whiteSpace: "nowrap"} | null =>
-    props.nowrap ? {
-        whiteSpace: "nowrap"
-    } : null;
+export const LabelClass = injectStyle("label", k => `
+    ${k} {
+        width: 100%;
+        color: var(--textPrimary);
+    }
+`);
 
-type accessiblyHide = {
-    position: "absolute";
-    width: "1px";
-    height: "1px";
-    clip: "rect(1px, 1px, 1px, 1px)";
-} | null;
-const accessiblyHide = (props: {hidden?: boolean}): accessiblyHide =>
-    props.hidden ? {
-        position: "absolute",
-        width: "1px",
-        height: "1px",
-        clip: "rect(1px, 1px, 1px, 1px)"
-    } : null;
-
-export type LabelProps =
-    SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps & WidthProps
-    & {nowrap?: boolean; hidden?: boolean};
-
-const Label = styled.label <LabelProps>`
-  font-size: 10px;
-  letter-spacing: 0.2px;
-  display: block;
-  margin: 0;
-
-  ${space} ${fontSize} ${color} ${fontWeight};
-  ${nowrap} ${width}
-  ${accessiblyHide}
-`;
-
-Label.defaultProps = {
-    width: "100%",
-    fontSize: 1,
-    fontWeight: "bold",
-    color: "black"
+function Label(props: BoxProps & {className?: string; children?: React.ReactNode; style?: CSSProperties & Record<`--${string}`, string>; htmlFor?: string}) {
+    return <label
+        className={classConcat(LabelClass, props.className)}
+        htmlFor={props.htmlFor}
+        style={{...unbox(props), ...(props.style ?? {})}}
+        children={props.children}
+        {...extractEventHandlers(props)}
+    />
 };
 
 Label.displayName = "Label";

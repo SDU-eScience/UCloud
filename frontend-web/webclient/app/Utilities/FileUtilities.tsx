@@ -1,5 +1,3 @@
-import * as UF from "@/UtilityFunctions";
-
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
  * @param path The current input path, which can include relative paths
@@ -46,14 +44,14 @@ const goUpDirectory = (
     path: string
 ): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-export const fileName = (path: string): string => {
+export function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
     if (lastSlash !== -1 && path.length > lastSlash + 1) {
         return path.substring(lastSlash + 1);
     } else {
         return path;
     }
-};
+}
 
 function isInt(value: number): boolean {
     if (isNaN(value)) {
@@ -62,7 +60,7 @@ function isInt(value: number): boolean {
     return (value | 0) === value;
 }
 
-export const sizeToString = (bytes: number | null): string => {
+export function sizeToString(bytes: number | null): string {
     if (bytes === null) return "";
     if (bytes < 0) return "Invalid size";
     const {size, unit} = sizeToHumanReadableWithUnit(bytes);
@@ -72,7 +70,7 @@ export const sizeToString = (bytes: number | null): string => {
     } else {
         return `${size.toFixed(2)} ${unit}`;
     }
-};
+}
 
 export function sizeToHumanReadableWithUnit(bytes: number): {size: number; unit: string} {
     if (bytes < 1000) {

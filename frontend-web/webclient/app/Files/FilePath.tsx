@@ -58,7 +58,7 @@ export function usePrettyFilePath(rawPath: string): string {
     return path;
 }
 
-export const PrettyFilePath: React.FunctionComponent<{ path: string }> = ({path}) => {
+export const PrettyFilePath: React.FunctionComponent<{path: string}> = ({path}) => {
     const pretty = usePrettyFilePath(path);
     return <>{pretty}</>;
 };

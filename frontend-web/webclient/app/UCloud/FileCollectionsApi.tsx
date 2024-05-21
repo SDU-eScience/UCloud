@@ -1,30 +1,27 @@
 import {
     CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
-    ProductSupport, ResolvedSupport, Resource,
+    ProductSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate, SortFlags
+    ResourceUpdate
 } from "./ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, Divider, Flex, Icon, Input} from "@/ui-components";
+import {Box, Button, Divider, Icon, Input} from "@/ui-components";
 import * as React from "react";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
-import {accounting, BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
+import {ProductStorage, productTypeToIcon} from "@/Accounting";
+import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
-import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {CheckboxFilter, ConditionalFilter, SortFlags} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {doNothing} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {NavigateFunction} from "react-router";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -33,7 +30,7 @@ export type FileCollectionStatus = ResourceStatus;
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
 }
-export type FileCollectionFlags = ResourceIncludeFlags;
+export type FileCollectionFlags = ResourceIncludeFlags & {filterMemberFiles?: string};
 export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;
@@ -74,14 +71,14 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
     FileCollectionUpdate, FileCollectionFlags, FileCollectionStatus, FileCollectionSupport> {
     routingNamespace = "drives";
     title = "Drive";
-    page = SidebarPages.Files;
     productType = "STORAGE" as const;
 
     renderer: ItemRenderer<FileCollection> = {
         MainTitle({resource}) {return <>{resource?.specification?.title ?? ""}</>},
         Icon({resource, size}) {
             if (resource && resource.specification.product.id === "share") {
-                return <Icon name={"ftSharesFolder"} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
+
+                return <Icon name={productTypeToIcon("STORAGE")} size={size} color={"FtFolderColor"} color2={"FtFolderColor2"} />
             }
             return <Icon name={"ftFileSystem"} size={size} />
         }
@@ -139,6 +136,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         if (createOperation) {
             const enabled = createOperation.enabled;
             createOperation.enabled = (selected, cb, all) => {
+                if (cb.creationDisabled) return "You cannot create drives while viewing member files.";
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
 
@@ -162,7 +160,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 if (!anySupported) return false;
 
                 if (!cb.isWorkspaceAdmin) {
-                    return "Only workspace administrators can create a new drive!";
+                    return "Only project administrators can create a new drive!";
                 }
                 return true;
             };
@@ -171,11 +169,11 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG);
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;
+            deleteOperation.confirm = false;
             deleteOperation.enabled = (selected, cb, all) => {
                 if (selected.find(it => it.specification.product.id === "share")) return false;
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
-                if (selected.length > 1) return false;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
                 if (!support) return false;
                 if (support.collection.usersCanDelete !== true) {
@@ -185,33 +183,48 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             };
             const defaultOnClick = deleteOperation.onClick;
             deleteOperation.onClick = (selected, cb, all) => {
+                const singleDrive = selected.length === 1;
+                const requiredText = singleDrive ? selected[0].specification.title : `I know what I'm doing. Delete the ${selected.length} drives`;
+                const plural = singleDrive ? "" : "s";
                 dialogStore.addDialog((
-                    <div>
+                    <div onKeyDown={e => e.stopPropagation()}>
                         <div>
                             <Heading.h3>Are you absolutely sure?</Heading.h3>
                             <Divider />
                             <Warning>This is a dangerous operation, please read this!</Warning>
                             <Box mb={"8px"} mt={"16px"}>
                                 This will <i>PERMANENTLY</i> delete your data in the{" "}
-                                <b>{selected[0].specification.title}</b> drive! This action <i>CANNOT BE UNDONE</i>.
-                                We cannot recover your data if you delete your drive.
+                                <b>{singleDrive ? selected[0].specification.title : selected.length}</b> drive{plural}! This action <i>CANNOT BE UNDONE</i>.
+                                We cannot recover your data if you delete your drive{plural}.
+                            </Box>
+                            {singleDrive ? null : <Box mb="12px">
+                                <h3>The following drives will be deleted:</h3>
+                                <Box mx="16px" maxHeight="116px" overflowY={"scroll"}>
+                                    {selected.map(it => <div>{it.specification.title}</div>)}
+                                </Box>
+                            </Box>}
+                            <Box mb={"16px"}>
+                                Please type '<b>{requiredText}</b>' to confirm.
                             </Box>
                             <Box mb={"16px"}>
-                                Please type <b>{selected[0].specification.title}</b> to confirm.
-                            </Box>
-                            <Box mb={"16px"}>
-                                <form onSubmit={(ev) => {
+                                <form onSubmit={ev => {
                                     ev.preventDefault();
-                                    const writtenName = (document.querySelector("#collectionName") as HTMLInputElement).value;
-                                    if (writtenName !== selected[0].specification.title) {
-                                        snackbarStore.addFailure(`Please type '${selected[0].specification.title}' to confirm.`, false);
+                                    ev.stopPropagation();
+                                    const written = (document.querySelector("#collectionName") as HTMLInputElement).value;
+                                    if (written !== requiredText) {
+                                        snackbarStore.addFailure(`Please type '${requiredText}' to confirm.`, false);
                                     } else {
+                                        if (singleDrive && selected.length !== 1) {
+                                            console.log("Something went wrong. Cancelling deletion to ensure correctness.")
+                                            dialogStore.failure();
+                                            return;
+                                        }
                                         defaultOnClick(selected, cb, all);
                                         dialogStore.success();
                                     }
                                 }}>
                                     <Input id={"collectionName"} mb={"8px"} />
-                                    <Button color={"red"} type={"submit"} fullWidth>
+                                    <Button color={"errorMain"} type={"submit"} fullWidth>
                                         I understand what I am doing, delete my data permanently
                                     </Button>
                                 </form>
@@ -234,14 +247,11 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming!(selected[0], selected[0].specification.title);
-                }
+                },
+                shortcut: ShortcutKey.F
             },
             ...baseOperations
         ]
-    }
-
-    navigateToChildren(navigate: NavigateFunction, resource: FileCollection) {
-        navigate(buildQueryString("/files", {path: `/${resource.id}`}))
     }
 
     rename(request: BulkRequest<{id: string; newTitle: string;}>): APICallParameters {
@@ -251,3 +261,4 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
 
 const api = new FileCollectionsApi();
 export {api};
+export default api;

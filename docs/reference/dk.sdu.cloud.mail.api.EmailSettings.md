@@ -10,7 +10,6 @@
 ```kotlin
 data class EmailSettings(
     val newGrantApplication: Boolean?,
-    val grantAutoApprove: Boolean?,
     val grantApplicationUpdated: Boolean?,
     val grantApplicationApproved: Boolean?,
     val grantApplicationRejected: Boolean?,
@@ -35,17 +34,6 @@ data class EmailSettings(
 <details>
 <summary>
 <code>newGrantApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>grantAutoApprove</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

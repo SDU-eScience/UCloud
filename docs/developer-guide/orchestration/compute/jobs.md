@@ -325,6 +325,8 @@ applications = Page(
         metadata = ApplicationMetadata(
             authors = listOf("UCloud"), 
             description = "This is a batch application", 
+            flavorName = null, 
+            group = null, 
             isPublic = true, 
             name = "a-batch-application", 
             public = true, 
@@ -378,6 +380,7 @@ application = ApplicationWithFavoriteAndTags(
             variableNames = listOf("var"), 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = listOf(ApplicationParameter.Text(
             defaultValue = null, 
@@ -425,6 +428,8 @@ application = ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "This is a batch application", 
+        flavorName = null, 
+        group = null, 
         isPublic = true, 
         name = "a-batch-application", 
         public = true, 
@@ -447,6 +452,7 @@ val machineTypes = Products.browse.call(
         filterProvider = null, 
         filterVersion = null, 
         includeBalance = null, 
+        includeMaxBalance = null, 
         itemsPerPage = 50, 
         itemsToSkip = null, 
         next = null, 
@@ -458,6 +464,7 @@ val machineTypes = Products.browse.call(
 /*
 machineTypes = PageV2(
     items = listOf(Product.Compute(
+        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
         category = ProductCategoryId(
             id = "example-compute", 
             name = "example-compute", 
@@ -481,6 +488,7 @@ machineTypes = PageV2(
         version = 1, 
         balance = null, 
         id = "example-compute", 
+        maxUsableBalance = null, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -559,7 +567,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerP
 #                 "title": "A Batch Application",
 #                 "description": "This is a batch application",
 #                 "website": null,
-#                 "public": true
+#                 "public": true,
+#                 "flavorName": null,
+#                 "group": null
 #             },
 #             "favorite": false,
 #             "tags": [
@@ -586,7 +596,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "A Batch Application",
 #         "description": "This is a batch application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": null
 #     },
 #     "invocation": {
 #         "tool": {
@@ -667,7 +679,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [
@@ -686,6 +699,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #         {
 #             "type": "compute",
 #             "balance": null,
+#             "maxUsableBalance": null,
 #             "name": "example-compute",
 #             "pricePerUnit": 1000000,
 #             "category": {
@@ -702,6 +716,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?it
 #             "gpuModel": null,
 #             "version": 1,
 #             "freeToUse": false,
+#             "allowAllocationRequestsFrom": "ALL",
 #             "unitOfPrice": "CREDITS_PER_MINUTE",
 #             "chargeType": "ABSOLUTE",
 #             "hiddenInGrantApplications": false,
@@ -952,6 +967,7 @@ Jobs.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Compute(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "compute-example", 
                 name = "compute-example", 
@@ -975,6 +991,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "compute-example", 
+            maxUsableBalance = null, 
         ), 
         support = ComputeSupport(
             docker = ComputeSupport.Docker(
@@ -1113,6 +1130,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #             {
 #                 "product": {
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "compute-example",
 #                     "pricePerUnit": 1000000,
 #                     "category": {
@@ -1129,6 +1147,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "CREDITS_PER_MINUTE",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,
@@ -2622,7 +2641,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 Wallets.browse.call(
     WalletBrowseRequest(
         consistency = null, 
+        filterEmptyAllocations = null, 
         filterType = null, 
+        includeMaxUsableBalance = null, 
         itemsPerPage = null, 
         itemsToSkip = null, 
         next = null, 
@@ -2643,6 +2664,7 @@ PageV2(
             id = "1254151", 
             initialBalance = 500000000, 
             localBalance = 500, 
+            maxUsableBalance = null, 
             startDate = 1633329776235, 
         )), 
         chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
@@ -2852,6 +2874,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #                     "startDate": 1633329776235,
 #                     "endDate": null,
 #                     "grantedIn": 2,
+#                     "maxUsableBalance": null,
 #                     "canAllocate": false,
 #                     "allowSubAllocationsToAllocate": true
 #                 }
@@ -4240,6 +4263,7 @@ The `resources` supplied will be mounted in every replica. Some `resources` migh
 <code>allowDuplicateJob</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Allows the job to be started even when a job is running in an identical configuration
 </summary>
 
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
@@ -6614,8 +6638,8 @@ data class JobsRetrieveUtilizationRequest(
 
 ```kotlin
 data class JobsFollowResponse(
-    val updates: List<JobUpdate>,
-    val log: List<JobsLog>,
+    val updates: List<JobUpdate>?,
+    val log: List<JobsLog>?,
     val newStatus: JobStatus?,
 )
 ```
@@ -6627,7 +6651,7 @@ data class JobsFollowResponse(
 
 <details>
 <summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;</code></code>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobupdate'>JobUpdate</a>&gt;?</code></code>
 </summary>
 
 
@@ -6638,7 +6662,7 @@ data class JobsFollowResponse(
 
 <details>
 <summary>
-<code>log</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobslog'>JobsLog</a>&gt;</code></code>
+<code>log</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#jobslog'>JobsLog</a>&gt;?</code></code>
 </summary>
 
 

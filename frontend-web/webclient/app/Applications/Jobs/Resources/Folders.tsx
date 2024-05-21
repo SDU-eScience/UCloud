@@ -1,17 +1,16 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud"
-import {Box, Button, Flex} from "@/ui-components";
+import {Box, Button, Card, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
-import {compute} from "@/UCloud";
-import ApplicationParameter = compute.ApplicationParameter;
-import {GrayBox} from "../Create";
 import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import AppRoutes from "@/Routes";
 
-export function folderResourceAllowed(app: UCloud.compute.Application): boolean {
+export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
 
     // noinspection RedundantIfStatementJS
@@ -23,7 +22,7 @@ export function folderResourceAllowed(app: UCloud.compute.Application): boolean 
 }
 
 export const FolderResource: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+    application: Application;
     params: ApplicationParameter[];
     errors: Record<string, string>;
     setErrors: (errors: Record<string, string>) => void;
@@ -33,7 +32,7 @@ export const FolderResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove, warning, setWarning, setErrors}) => {
     return !folderResourceAllowed(application) ? null : (
-        <GrayBox>
+        <Card>
             <Box>
                 <Flex alignItems="center">
                     <Box flexGrow={1}>
@@ -55,7 +54,7 @@ export const FolderResource: React.FunctionComponent<{
                         <>
                             If you need to use your {" "}
                             <Link
-                                to={"/files/"}
+                                to={AppRoutes.files.drives()}
                                 target="_blank"
                             >
                                 files
@@ -95,6 +94,6 @@ export const FolderResource: React.FunctionComponent<{
                     </Box>
                 ))}
             </Box>
-        </GrayBox>
+        </Card>
     );
 };

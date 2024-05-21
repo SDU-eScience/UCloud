@@ -1,5 +1,7 @@
 package dk.sdu.cloud.plugins.puhuri
 
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -8,15 +10,11 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
-import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.normal
-import dk.sdu.cloud.debugSystem
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
-import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
@@ -29,6 +27,8 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.sendTerminalMessage
+import dk.sdu.cloud.utils.toReference
+import dk.sdu.cloud.utils.toSimpleString
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
@@ -39,6 +39,8 @@ import io.ktor.util.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
@@ -87,6 +89,10 @@ class PuhuriPlugin : ProjectPlugin {
 
     // NOTE(Dan): Since this requires "service user mode" mode, these just go away.
     override suspend fun PluginContext.lookupLocalId(ucloudId: String): Int? = null
+    override suspend fun PluginContext.browseProjects(): PageV2<ProjectWithLocalId> {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int) {
         // Do nothing
     }
@@ -363,8 +369,7 @@ class PuhuriPlugin : ProjectPlugin {
                         request.ucloudUsername,
                         request.puhuriCuid,
                         email = request.puhuriCuid
-                    )
-                )
+                    ) )
             })
         }
     }
@@ -415,68 +420,76 @@ class PuhuriPlugin : ProjectPlugin {
         }
     }
 
-    suspend fun onAllocations(allocations: List<AllocationNotificationSingle>) {
+    private val mutex = Mutex()
+
+    suspend fun onAllocations(allocations: List<AccountingV2.BrowseProviderAllocations.ResponseItem>) {
         // NOTE(Dan): This function is invoked both when new allocations arrive and when we are synchronizing
         // allocations. This function starts by throwing away a lot of information which are not used. That is because
         // we currently support Puhuri in a very limited fashion. We assume we can only allocate one type of CPU, one
         // type of GPU and one type of storage. All other information is discarded.
-
-        val alreadySynchronized = HashMap<String, Boolean>()
-        dbConnection.withSession { session ->
-            for (alloc in allocations) {
-                session.prepareStatement(
-                    //language=postgresql
-                    """
+        mutex.withLock {
+            val alreadySynchronized = HashMap<String, Boolean>()
+            dbConnection.withSession { session ->
+                for (alloc in allocations) {
+                    session.prepareStatement(
+                        //language=postgresql
+                        """
                         insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
                         values (:id, :balance, :product_type, false)
                         on conflict (allocation_id) do update set
                             allocation_id = :id
                         returning allocation_id, synchronized_to_puhuri
                     """
-                ).useAndInvoke(
-                    prepare = {
-                        bindString("id", alloc.allocationId)
-                        bindLong("balance", alloc.balance)
-                        bindString("product_type", alloc.productType.name)
-                    },
-                    readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
-                )
-            }
-        }
-
-        for ((owner, allocs) in allocations.groupBy { it.owner }) {
-            val projectId = (owner as? ResourceOwnerWithId.Project)?.projectId ?: continue
-            val relevantAllocations = allocs.filter { alreadySynchronized[it.allocationId] != true }
-            if (relevantAllocations.isEmpty()) continue
-
-            val cpuAllocation = relevantAllocations
-                .find {
-                    it.productType == ProductType.COMPUTE && !it.productCategory.contains("gpu", ignoreCase = true)
-                }
-
-            val gpuAllocation = relevantAllocations
-                .find {
-                    it.productType == ProductType.COMPUTE && it.productCategory.contains("gpu", ignoreCase = true)
-                }
-
-            val storageAllocation = relevantAllocations
-                .find { it.productType == ProductType.STORAGE }
-
-            try {
-                val puhuriProjectId = puhuri.lookupProject(projectId)?.uuid ?: continue
-                puhuri.createOrder(
-                    puhuriProjectId,
-                    PuhuriAllocation(
-                        cpuKHours = ceil((cpuAllocation?.balance ?: 0) / 1000.0).toInt(),
-                        gpuHours = ceil(((gpuAllocation?.balance ?: 0).toDouble())).toInt(),
-                        gbKHours = ceil((storageAllocation?.balance ?: 0) / 1000.0).toInt(),
+                    ).useAndInvoke(
+                        prepare = {
+                            bindString("id", alloc.id)
+                            bindLong("balance", alloc.quota)
+                            bindString("product_type", alloc.categoryId.productType.name)
+                        },
+                        readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
                     )
-                )
+                }
+            }
 
-                dbConnection.withSession { session ->
-                    session.prepareStatement(
-                        //language=postgresql
-                        """
+            for ((owner, allocs) in allocations.groupBy { it.owner }) {
+                val projectId = (owner as? ResourceOwnerWithId.Project)?.projectId ?: continue
+                val relevantAllocations = allocs.filter { alreadySynchronized[it.id] != true }
+                if (relevantAllocations.isEmpty()) continue
+
+                val cpuAllocation = relevantAllocations
+                    .find {
+                        it.categoryId.productType == ProductType.COMPUTE && !it.categoryId.name.contains(
+                            "gpu",
+                            ignoreCase = true
+                        )
+                    }
+
+                val gpuAllocation = relevantAllocations
+                    .find {
+                        it.categoryId.productType == ProductType.COMPUTE && it.categoryId.name.contains(
+                            "gpu",
+                            ignoreCase = true
+                        )
+                    }
+
+                val storageAllocation = relevantAllocations
+                    .find { it.categoryId.productType == ProductType.STORAGE }
+
+                try {
+                    val puhuriProjectId = puhuri.lookupProject(projectId)?.uuid ?: continue
+                    puhuri.createOrder(
+                        puhuriProjectId,
+                        PuhuriAllocation(
+                            cpuKHours = ceil((cpuAllocation?.quota ?: 0) / 1000.0).toInt(),
+                            gpuHours = ceil(((gpuAllocation?.quota ?: 0).toDouble())).toInt(),
+                            gbKHours = ceil((storageAllocation?.quota ?: 0) / 1000.0).toInt(),
+                        )
+                    )
+
+                    dbConnection.withSession { session ->
+                        session.prepareStatement(
+                            //language=postgresql
+                            """
                             update puhuri_allocations
                             set synchronized_to_puhuri = true
                             where
@@ -484,16 +497,17 @@ class PuhuriPlugin : ProjectPlugin {
                                 or allocation_id = :gpu_allocation::text
                                 or allocation_id = :storage_allocation::text
                         """
-                    ).useAndInvokeAndDiscard(
-                        prepare = {
-                            bindStringNullable("cpu_allocation", cpuAllocation?.allocationId)
-                            bindStringNullable("gpu_allocation", gpuAllocation?.allocationId)
-                            bindStringNullable("storage_allocation", storageAllocation?.allocationId)
-                        }
-                    )
+                        ).useAndInvokeAndDiscard(
+                            prepare = {
+                                bindStringNullable("cpu_allocation", cpuAllocation?.id)
+                                bindStringNullable("gpu_allocation", gpuAllocation?.id)
+                                bindStringNullable("storage_allocation", storageAllocation?.id)
+                            }
+                        )
+                    }
+                } catch (ex: Throwable) {
+                    debugSystem.logThrowable("Failed to synchronize allocation: $allocs $projectId", ex)
                 }
-            } catch (ex: Throwable) {
-                debugSystem.logThrowable("Failed to synchronize allocation: $allocs $projectId", ex)
             }
         }
     }
@@ -510,19 +524,30 @@ class PuhuriAllocationPlugin : AllocationPlugin {
         puhuriPlugin = config.plugins.projects as? PuhuriPlugin ?: run {
             throw IllegalStateException(
                 "The Puhuri allocation plugin cannot be used without the corresponding " +
-                        "project plugin"
+                    "project plugin"
             )
         }
     }
 
-    override suspend fun PluginContext.onResourceAllocationSingle(
-        notifications: List<AllocationNotificationSingle>
-    ) {
-        puhuriPlugin.onAllocations(notifications)
-    }
+    override suspend fun PluginContext.onWalletUpdated(notifications: List<AllocationPlugin.Message>) {
+        for (notification in notifications) {
+            var next: String? = null
+            while (true) {
+                val nextPage = AccountingV2.browseProviderAllocations.call(
+                    AccountingV2.BrowseProviderAllocations.Request(
+                        itemsPerPage = 250,
+                        next = next,
+                        filterOwnerId = notification.owner.toResourceOwner().toReference(),
+                        filterOwnerIsProject = notification.owner is ResourceOwnerWithId.Project,
+                        filterCategory = notification.category.name,
+                    ),
+                    rpcClient,
+                ).orThrow()
 
-    override suspend fun PluginContext.onResourceSynchronizationSingle(notifications: List<AllocationNotificationSingle>) {
-        puhuriPlugin.onAllocations(notifications)
+                puhuriPlugin.onAllocations(nextPage.items)
+                next = nextPage.next ?: break
+            }
+        }
     }
 }
 
@@ -542,6 +567,13 @@ class PuhuriComputePlugin : EmptyComputePlugin() {
     override val pluginTitle = "Puhuri"
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
+
+    override fun configure(config: ConfigSchema.Plugins.Jobs) {
+        val poorlyConfiguredProduct = productAllocationResolved.find { it.category.allowSubAllocations }
+        if (poorlyConfiguredProduct != null) {
+            error("Products in '${poorlyConfiguredProduct.category.name}' must have allowSubAllocations: false")
+        }
+    }
 }
 
 class PuhuriClient(
@@ -561,6 +593,7 @@ class PuhuriClient(
     }
 
     suspend fun lookupProject(ucloudProjectId: String): PuhuriProject? {
+        log.debug("Looking up project with backend id $ucloudProjectId")
         return debugSystem.useContext(DebugContextType.BACKGROUND_TASK, "lookupProject $ucloudProjectId") {
             val resp = httpClient.get(
                 apiPath("projects") + "?backend_id=$ucloudProjectId",
@@ -591,6 +624,8 @@ class PuhuriClient(
     }
 
     suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
+        log.debug("Creating order for project $projectId")
+
         if (allocation.cpuKHours == 0 && allocation.gbKHours == 0 && allocation.gpuHours == 0) {
             throw RPCException("Unable to create empty allocation", HttpStatusCode.BadRequest)
         }
@@ -601,57 +636,59 @@ class PuhuriClient(
                 PuhuriCreateOrderRequest.serializer(),
                 PuhuriCreateOrderRequest(
                     "${rootEndpoint}projects/$projectId/",
-                    listOf(
-                        PuhuriOrderItem(
-                            offering,
-                            PuhuriOrderItemAttributes("UCloud allocation"),
-                            plan,
-                            allocation
-                        )
-                    )
+                    offering,
+                    PuhuriOrderAttributes("UCloud allocation"),
+                    plan,
+                    allocation
                 )
             )
         ).orThrow()
     }
 
     suspend fun addUserToProject(userId: String, projectId: String, role: ProjectRole) {
+        log.debug("Adding user $userId to project $projectId")
+
         val puhuriRole = PuhuriProjectRole.values().find { it.ucloudRole == role } ?: PuhuriProjectRole.USER
-        val projectUrl = "${rootEndpoint}projects/$projectId/"
-        val userUrl = "${rootEndpoint}users/$userId/"
 
         // NOTE(Brian): Requires deletion of old entry if it exists
         removeUserFromProject(userId, projectId)
 
         httpClient.post(
-            apiPath("project-permissions"),
+            apiPath("projects/${projectId}/add_user"),
             apiRequestWithBody(
                 PuhuriSetProjectPermissionRequest.serializer(),
                 PuhuriSetProjectPermissionRequest(
-                    userUrl,
-                    projectUrl,
+                    userId,
                     puhuriRole
                 )
             )
         ).orThrow()
     }
 
-    suspend fun listProjectMembers(projectId: String): List<PuhuriProjectPermissionEntry> {
+    private suspend fun listProjectMembers(projectId: String): List<PuhuriProjectPermissionEntry> {
         if (projectId.isEmpty()) return emptyList()
 
-        val resp = httpClient.get(apiPath("project-permissions") + "?project=$projectId", apiRequest()).orThrow()
+        val resp = httpClient.get(apiPath("projects/${projectId}/list_users"), apiRequest()).orThrow()
         return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.bodyAsText())
     }
 
     suspend fun removeUserFromProject(userId: String, projectId: String) {
         val lookup = listProjectMembers(projectId).firstOrNull { it.userId == userId } ?: return
-        removeUserFromProjectByPk(lookup.pk)
-    }
 
-    private suspend fun removeUserFromProjectByPk(pk: Int) {
-        httpClient.delete(apiPath("project-permissions/${pk}"), apiRequest()).orThrow()
+        httpClient.post(
+            apiPath("projects/${projectId}/delete_user"),
+            apiRequestWithBody(
+                PuhuriRemoveUserFromProjectRequest.serializer(),
+                PuhuriRemoveUserFromProjectRequest(
+                    userId,
+                    lookup.role
+                )
+            )
+        ).orThrow()
     }
 
     suspend fun createProject(id: String, name: String, description: String): PuhuriProject {
+        log.debug("Creating project $name")
         val resp = httpClient.post(
             apiPath("projects"),
             apiRequestWithBody(
@@ -784,19 +821,14 @@ data class PuhuriBillingPriceEstimate(
 @Serializable
 data class PuhuriCreateOrderRequest(
     val project: String,
-    val items: List<PuhuriOrderItem>
-)
-
-@Serializable
-data class PuhuriOrderItem(
     val offering: String,
-    val attributes: PuhuriOrderItemAttributes,
+    val attributes: PuhuriOrderAttributes,
     val plan: String,
-    val limits: PuhuriAllocation,
+    val limits: PuhuriAllocation
 )
 
 @Serializable
-data class PuhuriOrderItemAttributes(
+data class PuhuriOrderAttributes(
     val name: String
 )
 
@@ -808,6 +840,12 @@ data class PuhuriAllocation(
     val gpuHours: Int,
     @SerialName("cpu_k_hours")
     val cpuKHours: Int
+)
+
+@Serializable
+data class PuhuriRemoveUserFromProjectRequest(
+    val user: String,
+    val role: PuhuriProjectRole
 )
 
 @Serializable
@@ -823,45 +861,28 @@ data class PuhuriGetUserIdResponse(
 @Serializable
 data class PuhuriSetProjectPermissionRequest(
     val user: String,
-    val project: String,
     val role: PuhuriProjectRole
 )
 
 @Serializable
 data class PuhuriProjectPermissionEntry(
-    val url: String,
-    val pk: Int,
-
-    val role: PuhuriProjectRole,
-
+    val uuid: String,
     val created: Instant,
 
     @SerialName("expiration_time")
     val expiration: Instant?,
 
-    @SerialName("created_by")
-    val createdBy: String,
+    @SerialName("role_name")
+    val role: PuhuriProjectRole,
 
-    @SerialName("project")
-    val projectUrl: String,
+    @SerialName("role_uuid")
+    val roleId: String,
 
-    @SerialName("project_uuid")
-    val projectId: String,
-
-    @SerialName("project_name")
-    val projectName: String,
-
-    @SerialName("customer_name")
-    val customerName: String,
-
-    @SerialName("user")
-    val userUrl: String,
+    @SerialName("user_email")
+    val userEmail: String,
 
     @SerialName("user_full_name")
     val userFullName: String,
-
-    @SerialName("user_native_name")
-    val userNativeName: String,
 
     @SerialName("user_username")
     val userUsername: String,
@@ -869,19 +890,25 @@ data class PuhuriProjectPermissionEntry(
     @SerialName("user_uuid")
     val userId: String,
 
-    @SerialName("user_email")
-    val userEmail: String,
+    @SerialName("user_image")
+    val userImage: String?,
+
+    @SerialName("created_by_full_name")
+    val createdByName: String,
+
+    @SerialName("created_by_uuid")
+    val createdById: String,
 )
 
 
 @Serializable
 enum class PuhuriProjectRole(val ucloudRole: ProjectRole) {
-    @SerialName("manager")
+    @SerialName("PROJECT.MANAGER")
     MANAGER(ProjectRole.PI),
 
-    @SerialName("admin")
+    @SerialName("PROJECT.ADMIN")
     ADMIN(ProjectRole.ADMIN),
 
-    @SerialName("member")
+    @SerialName("PROJECT.USER")
     USER(ProjectRole.USER);
 }

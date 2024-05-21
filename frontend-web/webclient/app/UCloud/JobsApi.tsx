@@ -9,25 +9,25 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
-import NameAndVersion = compute.NameAndVersion;
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import {SidebarPages} from "@/ui-components/Sidebar";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
 import {EnumFilter} from "@/Resource/Filter";
-import Application = compute.Application;
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {View} from "@/Applications/Jobs/View";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductCompute} from "@/Accounting";
-import {Operation} from "@/ui-components/Operation";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {BrowseType} from "@/Resource/BrowseType";
-import {formatDistanceToNow} from "date-fns/esm";
+import {formatDistanceToNow} from "date-fns";
 import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import AppRoutes from "@/Routes";
+import {ThemeColor} from "@/ui-components/theme";
+import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -72,6 +72,7 @@ export interface JobFlags extends ResourceIncludeFlags {
     filterApplication?: string;
     filterState?: JobState;
     includeApplication?: boolean;
+    includeParameters?: boolean;
 }
 
 export interface JobStatus extends ResourceStatus {
@@ -182,8 +183,8 @@ export interface SessionDataVnc {
     password?: string;
 }
 
-function jobStateToIconAndColor(state: JobState): [IconName, string] {
-    let color = "iconColor";
+export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] {
+    let color: ThemeColor = "iconColor";
     let icon: IconName;
     switch (state) {
         case "IN_QUEUE":
@@ -194,15 +195,15 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
             break;
         case "SUCCESS":
             icon = "check";
-            color = "green";
+            color = "successMain";
             break;
         case "FAILURE":
             icon = "close";
-            color = "red";
+            color = "errorMain";
             break;
         case "EXPIRED":
             icon = "chrono";
-            color = "orange";
+            color = "warningMain";
             break;
         case "SUSPENDED":
             icon = "pauseSolid";
@@ -215,10 +216,9 @@ function jobStateToIconAndColor(state: JobState): [IconName, string] {
 }
 
 class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdate, JobFlags,
-    JobStatus, ComputeSupport>  {
+    JobStatus, ComputeSupport> {
     routingNamespace = "jobs";
     title = "Run";
-    page = SidebarPages.Runs;
     productType = "COMPUTE" as const;
     defaultSortDirection = "descending" as const;
 
@@ -230,7 +230,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 const [icon, color] = jobStateToIconAndColor(job.status.state);
                 return <Icon name={icon} color={color} mr={"8px"} />;
             }
-            return <AppToolLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
+            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
         },
         Stats({resource, browseType}) {
             if (resource == null || browseType !== BrowseType.Card) return null;
@@ -248,7 +248,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             }
 
             if (browseType === BrowseType.Card) {
-                return <Text mr="-40px" fontSize="14px" color="gray">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
+                return <Text mr="-40px" fontSize="14px" color="textSecondary">{formatDistanceToNow(resource?.createdAt ?? 0)}</Text>
             }
 
             const job = resource as Job;
@@ -279,7 +279,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         ));
     }
 
-    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job>>[] {
+    retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] {
         const baseOperations = super.retrieveOperations();
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
         deleteOperation.text = "Stop";
@@ -297,7 +297,18 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             }
             return true;
         };
-        return baseOperations;
+
+        const ourOps: Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] = [{
+            // Re-run app
+            enabled: (selected, cb) => !cb.isModal && selected.length === 1,
+            onClick: ([{specification, id}], cb) =>
+                cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
+            icon: "play",
+            text: "Run application again",
+            shortcut: ShortcutKey.P
+        }];
+
+        return ourOps.concat(baseOperations);
     }
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
@@ -322,15 +333,13 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     /* Untested */
     unsuspend(request: BulkRequest<ResumeRequest>): APICallParameters {
-        console.log("USUSPEND");
+        console.log("UNSUSPEND");
         return apiUpdate(request, this.baseContext, "unsuspend")
     }
 
-    /* Untested */
     openInteractiveSession(
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
-        console.log("OPEN_INTERACTIVE_SESSION");
         return apiUpdate(request, this.baseContext, "interactiveSession");
     }
 }

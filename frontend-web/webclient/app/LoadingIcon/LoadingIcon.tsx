@@ -1,57 +1,57 @@
+import {injectStyle} from "@/Unstyled";
 import * as React from "react";
-import styled, {css, keyframes} from "styled-components";
-import {height, HeightProps, width, WidthProps} from "styled-system";
-
 
 interface HexSpinProps {
     size?: number;
+    margin?: string;
 }
-
-type SpinnerProps = WidthProps & HeightProps;
 
 const hexColors = ["#0057B8", "#82A", "#266D7F", "#F8A527", "#F11E4A"];
 const nColors = hexColors.length;
 const delay = 0.04;
 const pathN = 18;
 
-function createKF() {
+function createKF(): string {
     let kf = ``;
     for (let i = 0; i < nColors; i += 1) {
         kf += `${i * 100 / nColors}% { fill: ${hexColors[i]}; }`;
     }
     kf += `100% { fill: ${hexColors[0]}; }`;
-    return css`${kf}`;
+    return kf;
 }
 
-const spinColor = keyframes`
-    ${createKF()}
-`;
-
-export const HexSpinWrapper = styled.div<SpinnerProps>`
-    ${width} ${height}
-    margin: 20px auto;
-    & > svg {
-        ${createCSS()};
+const SPINNER_ANIMATION_NAME = "spinner";
+export const HexSpinWrapper = injectStyle("hex-spinner", k => `
+    @keyframes ${SPINNER_ANIMATION_NAME} {
+        ${createKF()}
     }
-    animation-name: ${spinColor};
-`;
 
+    ${k} {
+        margin: 20px auto;
+        animation-name: ${SPINNER_ANIMATION_NAME}; 
+    }
 
-function createCSS() {
+    ${createCSS(`${k} > svg `)};
+
+`);
+
+function createCSS(parentPath: string) {
     let style = ``;
     for (let i = 1; i <= pathN; i += 1) {
         style += `
-            path:nth-child(${i}) {
-                animation: ${spinColor.getName()} ${delay * pathN}s linear infinite;
+            ${parentPath} path:nth-child(${i}) {
+                animation: ${SPINNER_ANIMATION_NAME} ${delay * pathN}s linear infinite;
                 animation-delay: -${i * delay}s;
             }
         `;
     }
-    return css`${style}`;
+    return style;
 }
 
-const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
-    <HexSpinWrapper data-tag="loading-spinner" width={size} height={size} >
+// NOTE(Dan): Before changing the component below, please be aware that the createSpinner() function of
+// ResourceBrowser has a hardcoded assumption about the DOM that this component renders.
+const HexSpin = ({size = 32, margin}: HexSpinProps): React.ReactNode => (
+    <div className={HexSpinWrapper} data-tag="loading-spinner" style={{width: size, height: size, margin}}>
         <svg
             xmlns="http://www.w3.org/2000/svg"
             xmlnsXlink="http://www.w3.org/1999/xlink"
@@ -80,10 +80,10 @@ const HexSpin = ({size = 32}: HexSpinProps): JSX.Element => (
             <path d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z" />
             <path d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z" />
         </svg>
-    </HexSpinWrapper>
+    </div>
 );
 
-export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): JSX.Element | null {
+export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): React.ReactNode {
     if (loading) return <HexSpin size={size} />
     return null;
 }

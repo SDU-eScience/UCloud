@@ -1,4 +1,4 @@
-import { useForcedRender } from "@/Utilities/ReactUtilities";
+import {useForcedRender} from "@/Utilities/ReactUtilities";
 import * as React from "react";
 
 export abstract class UState<Self extends UState<Self>> {
@@ -50,19 +50,19 @@ export function useUState<State extends UState<State>>(state: State): State {
         };
 
         state.subscribe(listener);
-        return () => { state.unsubscribe(listener); };
+        return () => {state.unsubscribe(listener);};
     }, []);
     return state;
 }
 
 class QueuedAsyncDispatcher {
-    private maxQueueSize: number;
-    private rejectOnQueueFull: boolean;
+    private readonly maxQueueSize: number;
+    private readonly rejectOnQueueFull: boolean;
     private headOfQueue: Promise<unknown> | null = null;
     private queue: (() => Promise<unknown>)[] = [];
 
     constructor(maxQueueSize: number = 5, rejectOnQueueFull: boolean = false) {
-        if (maxQueueSize <= 0) throw `maxQueueSize must be at least one but was ${maxQueueSize}`;
+        if (maxQueueSize <= 0) throw Error(`maxQueueSize must be at least one but was ${maxQueueSize}`);
         this.maxQueueSize = maxQueueSize;
         this.rejectOnQueueFull = rejectOnQueueFull;
     }

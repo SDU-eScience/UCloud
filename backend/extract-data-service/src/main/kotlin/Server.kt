@@ -7,6 +7,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -84,82 +85,93 @@ class Server(override val micro: Micro) : CommonServer {
                 }
             }
         }
-        if (args.contains("--data-collection")) {
-            try {
-                when {
-                    args.contains("--center") -> {
-                        getDates(args)
-                        deicReportService.reportCenter(start, end, false)
-                        exitProcess(0)
-                    }
-                    args.contains("--centerAAU") -> {
-                        getDates(args)
-                        deicReportService.reportCenter(start, end, true)
-                        exitProcess(0)
-                    }
-                    args.contains("--center-daily") -> {
-                        getDates(args)
-                        deicReportService.reportCenterDaily(start, end)
-                        exitProcess(0)
-                    }
-                    args.contains("--center-daily-deic") -> {
-                        getDates(args)
-                        deicReportService.reportCenterDailyDeic(start, end)
-                        exitProcess(0)
-                    }
-                    args.contains("--person") -> {
-                        deicReportService.reportPerson()
-                        exitProcess(0)
-                    }
-                    args.contains("--sameTimeUser") -> {
-                        getDates(args)
-                        userActivityReport.maxSimultaneousUsers(start, end)
-                        exitProcess(0)
-                    }
-                    args.contains("--activityPeriod") -> {
-                        userActivityReport.activityPeriod()
-                        exitProcess(0)
-                    }
-                    args.contains("--usersActive") -> {
-                        val currentMonth = LocalDate.now().withDayOfMonth(1)
-                        var startDate = LocalDate.parse("2022-07-01")
-                        var endDate = startDate.plusMonths(4)
-                        while (startDate != currentMonth) {
-                            val start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-                            val end = endDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-                            println(
-                                "${startDate}->${endDate}: Users Active = ${
-                                    userActivityReport.elasticDataService.activeUsers(
-                                        start,
-                                        end
-                                    )
-                                }"
-                            )
-
-                            startDate = endDate
-                            endDate = startDate.plusMonths(1)
+        runBlocking {
+            if (args.contains("--data-collection")) {
+                try {
+                    when {
+                        args.contains("--center") -> {
+                            getDates(args)
+                            deicReportService.reportCenter(start, end, false)
+                            exitProcess(0)
                         }
 
-                        exitProcess(1)
+                        args.contains("--centerAAU") -> {
+                            getDates(args)
+                            deicReportService.reportCenter(start, end, true)
+                            exitProcess(0)
+                        }
+
+                        args.contains("--center-daily") -> {
+                            getDates(args)
+                            deicReportService.reportCenterDaily(start, end)
+                            exitProcess(0)
+                        }
+
+                        args.contains("--center-daily-deic") -> {
+                            getDates(args)
+                            deicReportService.reportCenterDailyDeic(start, end)
+                            exitProcess(0)
+                        }
+
+                        args.contains("--person") -> {
+                            deicReportService.reportPerson()
+                            exitProcess(0)
+                        }
+
+                        args.contains("--sameTimeUser") -> {
+                            getDates(args)
+                            userActivityReport.maxSimultaneousUsers(start, end)
+                            exitProcess(0)
+                        }
+
+                        args.contains("--activityPeriod") -> {
+                            userActivityReport.activityPeriod()
+                            exitProcess(0)
+                        }
+
+                        args.contains("--usersActive") -> {
+                            val currentMonth = LocalDate.now().withDayOfMonth(1)
+                            var startDate = LocalDate.parse("2023-01-01")
+                            var endDate = startDate.plusMonths(4)
+                            while (startDate != currentMonth) {
+                                val start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+                                val end = endDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+                                println(
+                                    "${startDate}->${endDate}: Users Active = ${
+                                        userActivityReport.elasticDataService.activeUsers(
+                                            start,
+                                            end
+                                        )
+                                    }"
+                                )
+
+                                startDate = endDate
+                                endDate = startDate.plusMonths(1)
+                            }
+
+                            exitProcess(1)
+                        }
+
+                        args.contains("--downloads") -> {
+                            val projectList = emptyList<String>() //ADD projectIds for relevnat projects.
+                            elasticDataService.downloadsForProject(projectList)
+                            exitProcess(1)
+                        }
+
+                        else -> {
+                            println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
+                            exitProcess(1)
+                        }
                     }
-                    args.contains("--downloads") -> {
-                        val projectList = emptyList<String>() //ADD projectIds for relevnat projects.
-                        elasticDataService.downloadsForProject(projectList)
-                        exitProcess(1)
-                    }
-                    else -> {
-                        println("Missing argument (--center, --center-daily, --center-daily-deic or --person")
-                        exitProcess(1)
-                    }
+                } catch (ex: Exception) {
+                    println(ex.stackTraceToString())
+                    print("UNKNOWN ERROR")
+                    exitProcess(1)
                 }
-            } catch (ex: Exception) {
-                println(ex.stackTraceToString())
-                print("UNKNOWN ERROR")
+            }
+            else {
                 exitProcess(1)
             }
-        }
-        else {
-            exitProcess(1)
         }
     }
 }

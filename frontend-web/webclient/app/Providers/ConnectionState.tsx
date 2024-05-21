@@ -1,15 +1,15 @@
-import { callAPI } from "@/Authentication/DataHook";
-import { UState } from "@/Utilities/UState";
-import { timestampUnixMs } from "@/UtilityFunctions";
+import {callAPI} from "@/Authentication/DataHook";
+import {UState} from "@/Utilities/UState";
+import {timestampUnixMs} from "@/UtilityFunctions";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
-import { hasUploadedSigningKeyToProvider, retrieveOrInitializePublicSigningKey, markSigningKeyAsUploadedToProvider } from "@/Authentication/MessageSigning";
-import { LocalStorageCache } from "@/Utilities/LocalStorageCache";
-import { snackbarStore } from "@/Snackbar/SnackbarStore";
-import { sendNotification } from "@/Notifications";
+import {hasUploadedSigningKeyToProvider, retrieveOrInitializePublicSigningKey, markSigningKeyAsUploadedToProvider} from "@/Authentication/MessageSigning";
+import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {sendNotification} from "@/Notifications";
 import React from "react";
 import BaseLink from "@/ui-components/BaseLink";
-import { ProviderTitle } from "./ProviderTitle";
+import {ProviderTitle} from "./ProviderTitle";
 
 class ConnectionState extends UState<ConnectionState> {
     private lastConnectionAt = new LocalStorageCache<number>("last-connection-at");
@@ -24,31 +24,40 @@ class ConnectionState extends UState<ConnectionState> {
             const now = timestampUnixMs();
             if (now - this.lastFetch < maxAgeMs) return;
 
-            const page = await callAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
-                IntegrationApi.browse({ itemsPerPage: 250 })
-            );
+            try {
+                this.lastFetch = timestampUnixMs() - maxAgeMs + 500; 
 
-            this.lastFetch = timestampUnixMs();
+                const page = await callAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
+                    IntegrationApi.browse({itemsPerPage: 250})
+                );
 
-            page.items.forEach(p => {
-                this.connectionInfo[p.providerTitle] = p;
+                this.lastFetch = timestampUnixMs();
 
-                if (this.canConnectToProvider(p.providerTitle)) {
-                    sendNotification({
-                        icon: "key",
-                        title: `Connection required`,
-                        body: <>
-                            You must <BaseLink href="#">re-connect</BaseLink> with
-                            '<ProviderTitle providerId={p.providerTitle}/>' to continue using it.
-                        </>,
-                        isPinned: true,
-                        uniqueId: `${p.providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
-                        onAction: () => {
-                            document.location.href = "/app/providers/connect"; // TODO
-                        }
-                    });
-                }
-            });
+                page.items.forEach(p => {
+                    this.connectionInfo[p.providerTitle] = p;
+
+                    if (this.canConnectToProvider(p.providerTitle)) {
+                        sendNotification({
+                            icon: "key",
+                            title: `Connection required`,
+                            body: <>
+                                You must <BaseLink href="#">re-connect</BaseLink> with
+                                '<ProviderTitle providerId={p.providerTitle} />' to continue using it.
+                            </>,
+                            isPinned: true,
+                            uniqueId: `${p.providerTitle}-${this.lastConnectionAt.retrieve() ?? 0}`,
+                            onAction: () => {
+                                // Hacky way to navigate to the connection page. We are missing the navigate hook here.
+                                document.location.href = "/app/providers/connect";
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                window.setTimeout(() => {
+                    this.fetch(maxAgeMs);
+                }, 1000);
+            }
         });
     }
 

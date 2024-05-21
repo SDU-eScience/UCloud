@@ -1,16 +1,15 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {TextArea, Input} from "@/ui-components";
 import {compute} from "@/UCloud";
-import styled from "styled-components";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 type GenericTextType =
-    UCloud.compute.ApplicationParameterNS.Text |
-    UCloud.compute.ApplicationParameterNS.TextArea |
-    UCloud.compute.ApplicationParameterNS.Integer |
-    UCloud.compute.ApplicationParameterNS.FloatingPoint;
+    ApplicationParameterNS.Text |
+    ApplicationParameterNS.TextArea |
+    ApplicationParameterNS.Integer |
+    ApplicationParameterNS.FloatingPoint;
 
 interface GenericTextProps extends WidgetProps {
     parameter: GenericTextType;
@@ -28,7 +27,7 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     // If changed, the correct value should be sent as a parameter, and otherwise the backend will
     // handle the defaultValue.
     let defaultValue: AppParameterValueNS.FloatingPoint | AppParameterValueNS.Text | AppParameterValueNS.Integer | undefined = undefined;
-    
+
     if (props.parameter.defaultValue != undefined) {
         if (props.parameter.type === "integer") {
             defaultValue = props.parameter.defaultValue as unknown as AppParameterValueNS.Integer;
@@ -79,18 +78,15 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     return elem;
 };
 
-const TextAreaApp = styled(TextArea)`
-    width: 100%;
-    height: 300px;
-    resize: vertical;
-`;
-
 export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextProps> = props => {
     let placeholder = "File content";
     const error = props.errors[props.parameter.name] != null;
-    return <TextAreaApp
+    return <TextArea
         id={widgetId(props.parameter)}
         placeholder={placeholder}
+        resize="vertical"
+        width="100%"
+        height="300px"
         error={error}
     />;
 };

@@ -20,6 +20,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.toReadableStacktrace
 import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.userHasResourcesAvailable
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -67,10 +68,11 @@ class JobManagement(
     val pluginName: String,
     val k8: K8Dependencies,
     val runtime: ContainerRuntime,
-    private val jobCache: VerifiedJobCache,
+    val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
     val pluginConfig: ConfigSchema.Plugins.Jobs.UCloud,
+    val sensitiveProjects: Set<String>,
 ) {
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
@@ -133,6 +135,14 @@ class JobManagement(
     }
 
     suspend fun create(verifiedJob: Job, queueExpiration: Long? = null) {
+        verifiedJob.specification.resources
+        val isRunningSyncthing = verifiedJob.specification.product.category == SyncthingService.productCategory
+        if (!userHasResourcesAvailable(job = verifiedJob) && !isRunningSyncthing) {
+            throw RPCException(
+                "Not enough resources available",
+                HttpStatusCode.PaymentRequired, "NOT_ENOUGH_COMPUTE_CREDITS"
+            )
+        }
         try {
             if (maintenance.isPaused()) {
                 throw RPCException(
@@ -203,7 +213,7 @@ class JobManagement(
         cancel(verifiedJob.id)
     }
 
-    private suspend fun cancel(jobId: String) {
+    suspend fun cancel(jobId: String) {
         markJobAsComplete(jobId)
         cleanup(jobId)
         k8.changeState(
@@ -376,7 +386,7 @@ class JobManagement(
                                                 event.jobId,
                                                 JobState.SUCCESS,
                                                 "Job has terminated",
-                                                allowRestart = false,
+                                                allowRestart = true,
                                                 expectedDifferentState = true,
                                             )
 

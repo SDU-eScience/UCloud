@@ -2,6 +2,9 @@ import * as UCloud from "@/UCloud";
 import {PropType, shortUUID} from "@/UtilityFunctions";
 import {compute} from "@/UCloud";
 import Job = compute.Job;
+import * as StatModel from "./StatisticsApiModel";
+import {apiRetrieve} from "@/Authentication/DataHook";
+import {JobStatistics} from "./StatisticsApiModel";
 
 export type JobState = NonNullable<PropType<UCloud.compute.JobUpdate, "state">>;
 export type JobSortBy = NonNullable<PropType<UCloud.compute.JobsBrowseRequest, "sortBy">>;
@@ -42,3 +45,21 @@ export function jobAppTitle(job: Job): string {
 export function jobAppVersion(job: Job): string {
     return job.specification.application.version;
 }
+
+const statisticsContext = "/api/jobs/statistics";
+export function retrieveStatistics(request: {
+    start: number;
+    end: number;
+}): APICallParametersBinary<StatModel.JobStatistics> {
+    return {
+        ...apiRetrieve(request, statisticsContext),
+        responseConstructor: JobStatistics,
+    };
+}
+
+export {
+    JobStatistics, JobStatisticsCompanion,
+    JobUsageByUser, JobUsageByUserDataPoint,
+    MostUsedApplications, MostUsedApplicationsDataPoint,
+    JobSubmissionStatistics, JobSubmissionStatisticsDataPoint,
+} from "./StatisticsApiModel";

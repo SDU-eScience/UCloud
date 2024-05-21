@@ -122,3 +122,12 @@ fun V2__UCloudCompute() = MigrationScript("V2__UCloudCompute") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V3__UCloudCompute() = MigrationScript("V3__UCloudCompute") { session ->
+    session.prepareStatement(
+        //language=postgresql
+        """
+            alter table ucloud_compute_ingresses add column owner text default null
+        """
+    ).useAndInvokeAndDiscard()
+}

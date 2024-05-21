@@ -1,43 +1,41 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {format} from "date-fns/esm";
-import {emptyPage} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {format} from "date-fns";
+import {MainContainer} from "@/ui-components/MainContainer";
+import {usePage} from "@/Navigation/Redux";
 import * as Pagination from "@/Pagination";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import styled from "styled-components";
 import {
-    Box, Button, Flex, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
+    Box, Button, Flex, Input, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label, SelectableTextWrapper
 } from "@/ui-components";
 import {DatePicker} from "@/ui-components/DatePicker";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {Spacer} from "@/ui-components/Spacer";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "@/UtilityFunctions";
-import {NewsPost} from "@/Dashboard/Dashboard";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import Fuse from "fuse.js";
 import {addStandardDialog} from "@/UtilityComponents";
 import AppRoutes from "@/Routes";
+import {NewsPost} from "@/NewsPost";
+import {emptyPage} from "@/Utilities/PageUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
-function NewsManagement(): JSX.Element | null {
+function NewsManagement(): React.ReactNode {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [loading, setLoading] = React.useState(false);
     const [news, setNews] = React.useState<Page<NewsPost>>(emptyPage);
     const titleRef = React.useRef<HTMLInputElement>(null);
     const subtitleRef = React.useRef<HTMLInputElement>(null);
-    const bodyRef = React.useRef<HTMLTextAreaElement>(null);
+    const bodyRef = React.useRef<HTMLInputElement>(null);
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
 
-    useSidebarPage(SidebarPages.Admin);
-    useTitle("News Management");
+    usePage("News Management", SidebarTabId.NONE);
 
     React.useEffect(() => {
         fetchNewsPost(0, 25);
@@ -77,16 +75,15 @@ function NewsManagement(): JSX.Element | null {
 
     return (
         <MainContainer
-            header={<Heading.h2>News</Heading.h2>}
+            header={<h3 className="title">News</h3>}
             main={(
                 <Flex justifyContent="center">
                     <Box maxWidth="800px" width={1}>
                         <form onSubmit={submit}>
                             <Flex justifyContent="center" mx="6px">
-                                <InputGroup>
+                                <Flex alignItems={"center"}>
                                     <DatePicker
                                         placeholderText="Show from"
-                                        fontSize="18px"
                                         selected={start}
                                         onChange={d => setStart(d as Date)}
                                         dateFormat={DATE_FORMAT}
@@ -98,7 +95,6 @@ function NewsManagement(): JSX.Element | null {
                                     />
                                     <DatePicker
                                         placeholderText="Show until (Optional)"
-                                        fontSize="18px"
                                         selected={end}
                                         onChange={d => setEnd(d as Date)}
                                         dateFormat={DATE_FORMAT}
@@ -107,11 +103,11 @@ function NewsManagement(): JSX.Element | null {
                                         selectsEnd
                                         isClearable
                                     />
-                                </InputGroup>
+                                </Flex>
                             </Flex>
-                            <Input width={1} my="3px" required placeholder="Post title..." ref={titleRef} />
-                            <Input width={1} my="3px" required placeholder="Short summation..." ref={subtitleRef} />
-                            <Flex mb="3px">
+                            <Input width={1} my="3px" required placeholder="Post title..." inputRef={titleRef} />
+                            <Input width={1} my="3px" required placeholder="Short summation..." inputRef={subtitleRef} />
+                            <SelectableTextWrapper mb="3px">
                                 <SelectableText
                                     cursor="pointer"
                                     mr="5px"
@@ -123,17 +119,18 @@ function NewsManagement(): JSX.Element | null {
                                     selected={showPreview}
                                     onClick={() => setPreview(true)}
                                 >Preview</SelectableText>
-                            </Flex>
-                            <TextAreaWithResize
+                            </SelectableTextWrapper>
+                            <TextArea
                                 width={1}
+                                resize="vertical"
                                 placeholder="Post body... (supports markdown)"
-                                ref={bodyRef}
+                                inputRef={bodyRef}
                                 rows={5}
                                 required
                                 hidden={showPreview}
                             />
                             {showPreview ?
-                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
+                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="auto">
                                     <Markdown unwrapDisallowed>
                                         {bodyRef.current?.value ?? ""}
                                     </Markdown>
@@ -146,7 +143,7 @@ function NewsManagement(): JSX.Element | null {
                                 my="3px"
                                 placeholder="Category"
                                 required
-                                ref={categoryRef}
+                                inputRef={categoryRef}
                             />
                             <Categories categories={results} onSelect={category => {
                                 categoryRef.current!.value = category;
@@ -176,7 +173,7 @@ function NewsManagement(): JSX.Element | null {
         />
     );
 
-    function pageRenderer(page: Page<NewsPost>): JSX.Element {
+    function pageRenderer(page: Page<NewsPost>): React.ReactNode {
         return (
             <Box width={1} mt="10px">
                 <NewsList news={page.items} title="Posts" toggleHidden={toggleHidden} />
@@ -256,17 +253,13 @@ function NewsManagement(): JSX.Element | null {
     }
 }
 
-const TextAreaWithResize = styled(TextArea)`
-    resize: vertical;
-`;
-
 interface NewsListProps {
     news: NewsPost[];
     title: string;
     toggleHidden?: (id: number) => void;
 }
 
-export function NewsList(props: NewsListProps): JSX.Element | null {
+export function NewsList(props: NewsListProps): React.ReactNode {
     if (props.news.length === 0) return null;
     return (
         <>
@@ -278,7 +271,7 @@ export function NewsList(props: NewsListProps): JSX.Element | null {
     );
 }
 
-function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => void}): JSX.Element {
+function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => void}): React.ReactNode {
     return (
         <Link to={AppRoutes.news.detailed(props.post.id)}>
             <Heading.h4>{props.post.title}</Heading.h4>
@@ -306,11 +299,11 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
     }
 }
 
-export const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): JSX.Element | null => {
+export const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): React.ReactNode => {
     if (props.categories.length === 0) return null;
     return (
         <Card p="10px" borderRadius="6px" my="3px">
-            <Text fontSize={1}>Existing categories:</Text>
+            <Heading.h3>Existing categories:</Heading.h3>
             {props.categories.map(it => (
                 <Text
                     pl="4px"

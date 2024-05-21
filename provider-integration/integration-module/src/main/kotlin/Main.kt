@@ -2,9 +2,7 @@ package dk.sdu.cloud
 
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.joran.JoranConfigurator
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
@@ -47,6 +45,7 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.encodeToString
 import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
@@ -155,6 +154,7 @@ fun main(args: Array<String>) {
 
                 verifyConfiguration(serverMode, configSchema)
             }
+            _loadedConfig = config
 
             val logDir = config.core.logs.directory
 
@@ -363,6 +363,7 @@ fun main(args: Array<String>) {
                     allowHeader("refreshToken")
                     allowHeader("chunked-upload-offset")
                     allowHeader("chunked-upload-token")
+                    allowHeader("chunked-upload-total-size")
                     allowHeader("ucloud-username")
                     allowHeader("upload-name")
                 }
@@ -371,6 +372,7 @@ fun main(args: Array<String>) {
                 rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
             }
 
+            var authenticator: RefreshingJWTAuthenticator? = null
             val rpcClient: AuthenticatedClient? = when (serverMode) {
                 ServerMode.Server -> {
                     val client = RpcClient().also { client ->
@@ -385,11 +387,13 @@ fun main(args: Array<String>) {
                                     )
                                 )
                             )
+
+                        client.attachRequestInterceptor(OutgoingWSRequestInterceptor())
                     }
 
                     client.attachFilter(OutgoingProject())
 
-                    val authenticator = RefreshingJWTAuthenticator(
+                    authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
                     )
@@ -489,19 +493,20 @@ fun main(args: Array<String>) {
             // NOTE(Dan): This will only work for server and user mode. User mode will use a proxy to the server mode
             // to resolve the products.
             if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
-                val unknownProducts = HashSet<Product>()
+                val unknownProducts = HashSet<ProductV2>()
+                val unknownReasons = HashMap<ProductReferenceV2, String>()
 
                 for (plugin in allResourcePlugins) {
-                    val allConfiguredProducts: List<Product> = config.products.allProducts
+                    val allConfiguredProducts: List<ProductV2> = config.products.allProducts
 
-                    val resolvedProducts = ArrayList<Product>()
+                    val resolvedProducts = ArrayList<ProductV2>()
                     for (product in plugin.productAllocation) {
                         val configuredProduct = allConfiguredProducts
                             .find { it.name == product.id && it.category.name == product.category }
                             ?: error("Internal error $product was not in $allConfiguredProducts")
 
-                        val resolvedProduct = Products.retrieve.call(
-                            ProductsRetrieveRequest(
+                        val resolvedProduct = ProductsV2.retrieve.call(
+                            ProductsV2RetrieveRequest(
                                 filterName = product.id,
                                 filterCategory = product.category,
                                 filterProvider = config.core.providerId
@@ -511,28 +516,62 @@ fun main(args: Array<String>) {
 
                         if (resolvedProduct == null) {
                             unknownProducts.add(configuredProduct)
+                            unknownReasons[configuredProduct.toReference()] = "Product does not exist in UCloud"
                         } else {
+                            var reason: String? = null
                             val areEqual: Boolean = run {
                                 val a = configuredProduct
                                 val b = resolvedProduct
 
-                                val areInternalEqual = when (a) {
-                                    is Product.Compute -> {
-                                        b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
-                                                && a.memoryInGigs == b.memoryInGigs
-                                                && a.cpuModel == b.cpuModel
-                                                && a.gpuModel == b.gpuModel
-                                                && a.memoryModel == b.memoryModel
-                                    }
-
-                                    is Product.Ingress -> b is Product.Ingress
-                                    is Product.License -> b is Product.License
-                                    is Product.NetworkIP -> b is Product.NetworkIP
-                                    is Product.Storage -> b is Product.Storage
+                                if (a.productType != b.productType) {
+                                    reason = "types are different ${a.productType} != ${b.productType}"
+                                    return@run false
                                 }
 
-                                a.pricePerUnit == b.pricePerUnit && areInternalEqual && a.description == b.description
-                                    && a.allowAllocationRequestsFrom == b.allowAllocationRequestsFrom
+                                if (a is ProductV2.Compute) {
+                                    b as ProductV2.Compute
+                                    if (a.cpu != b.cpu) {
+                                        reason = "CPU counts differ ${a.cpu} != ${b.cpu}"
+                                        return@run false
+                                    }
+                                    if (a.gpu != b.gpu) {
+                                        reason = "GPU counts differ ${a.gpu} != ${b.gpu}"
+                                        return@run false
+                                    }
+                                    if (a.memoryInGigs != b.memoryInGigs) {
+                                        reason = "Memory is different ${a.memoryInGigs} != ${b.memoryInGigs}"
+                                        return@run false
+                                    }
+                                    if (a.cpuModel != b.cpuModel) {
+                                        reason = "CPU model is different ${a.cpuModel} != ${b.cpuModel}"
+                                        return@run false
+                                    }
+                                    if (a.memoryModel != b.memoryModel) {
+                                        reason = "Memory model is different ${a.memoryModel} != ${b.memoryModel}"
+                                        return@run false
+                                    }
+                                    if (a.gpuModel != b.gpuModel) {
+                                        reason = "GPU model is different ${a.gpuModel} != ${b.gpuModel}"
+                                        return@run false
+                                    }
+                                }
+
+                                if (a.category != b.category) {
+                                    reason = "categories differ ${defaultMapper.encodeToString(ProductCategory.serializer(), a.category)} ${defaultMapper.encodeToString(ProductCategory.serializer(), b.category)}"
+                                    return@run false
+                                }
+
+                                if (a.price != b.price) {
+                                    reason = "prices are different (${a.price} != ${b.price})"
+                                    return@run false
+                                }
+
+                                if (a.description != b.description) {
+                                    reason = "descriptions are different"
+                                    return@run false
+                                }
+
+                                return@run true
                             }
 
                             if (areEqual) {
@@ -542,6 +581,7 @@ fun main(args: Array<String>) {
                                 // if it isn't the latest version we have in the configuration.
                                 resolvedProducts.add(resolvedProduct)
                                 unknownProducts.add(configuredProduct)
+                                unknownReasons[configuredProduct.toReference()] = reason ?: "unknown"
                             }
                         }
                     }
@@ -567,7 +607,7 @@ fun main(args: Array<String>) {
                         unknownProducts
                             .sortedBy { "${it.productType} / ${it.category.name} / ${it.name}" }
                             .forEach {
-                                line(" - ${it.name} / ${it.category.name} (${it.productType})")
+                                line(" - ${it.name} / ${it.category.name} (${it.productType}) [Reason: ${unknownReasons[it.toReference()]}]")
                             }
                     }
                 }
@@ -606,6 +646,10 @@ fun main(args: Array<String>) {
                 debugSystem.start(ProcessingScope)
             }
 
+            // Other service commonly used by plugins
+            // -------------------------------------------------------------------------------------------------------
+            ActivitySystem.init()
+
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
             if (config.core.developmentMode) {
@@ -621,22 +665,31 @@ fun main(args: Array<String>) {
                 debugSystem.detail(
                     "Compute products loaded",
                     defaultMapper.encodeToJsonElement(
-                        ListSerializer(Product.serializer()),
-                        config.products.compute?.values?.flatten() ?: emptyList()
+                        ListSerializer(ProductV2.serializer()),
+                        config.products.compute.flatMap { it.coreProducts } ?: emptyList()
                     )
                 )
                 debugSystem.detail(
                     "Storage products loaded",
                     defaultMapper.encodeToJsonElement(
-                        ListSerializer(Product.serializer()),
-                        config.products.storage?.values?.flatten() ?: emptyList()
+                        ListSerializer(ProductV2.serializer()),
+                        config.products.storage.flatMap { it.coreProducts } ?: emptyList()
                     )
                 )
             }
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
-            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, debugSystem)
+            val pluginContext = SimplePluginContext(
+                rpcClient,
+                config,
+                ipcClient,
+                ipcServer,
+                cli,
+                debugSystem,
+                authenticator,
+            )
+            serviceContext = pluginContext
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
 
             if (config.pluginsOrNull != null) {
@@ -646,7 +699,7 @@ fun main(args: Array<String>) {
 
                     plugins.connection?.apply { initialize() }
                     plugins.projects?.apply { initialize() }
-                    for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
+                    plugins.allocations?.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.shares) plugin.apply { initialize() }
@@ -738,7 +791,7 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 rpcServer.configureControllers(
                     controllerContext,
-                    FileController(controllerContext, envoyConfig),
+                    FileController(controllerContext, envoyConfig, ktorEngine!!.application),
                     FileCollectionController(controllerContext),
                     ComputeController(controllerContext, envoyConfig, ktorEngine!!.application),
                     IngressController(controllerContext),
@@ -864,6 +917,10 @@ val debugSystem: DebugSystem
     get() = debugSystemAtomic.get() ?: disabledDebugSystem
 
 private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
+private var _loadedConfig: VerifiedConfig? = null
+val loadedConfig: VerifiedConfig get() = _loadedConfig!!
+lateinit var serviceContext: SimplePluginContext
+var providerId: String = ""
 
 val dbConnection: DBContext by lazy {
     val config = dbConfig.get().takeIf { it != null }

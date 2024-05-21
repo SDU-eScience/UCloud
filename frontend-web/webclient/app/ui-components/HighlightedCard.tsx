@@ -1,83 +1,99 @@
 import * as React from "react";
-import Box from "./Box";
-import Flex from "./Flex";
 import Card from "./Card";
 import * as Heading from "./Heading";
 import Error from "./Error";
 import Icon, {IconName} from "./Icon";
-import theme, {ThemeColor} from "./theme";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {classConcat, injectStyle} from "@/Unstyled";
 
-export const HighlightedCard: React.FunctionComponent<{
+const style = injectStyle("highlightedCard", k => `
+    ${k} .title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        color: var(--textPrimary);
+    }
+    
+    ${k} .title-row a {
+        color: var(--textPrimary);
+    }
+    
+    ${k} .title-row a:hover {
+        color: var(--primaryMain);
+    }
+    
+    ${k} {
+        background-color: var(--backgroundCard);
+    }
+    
+    ${k} .subtitle {
+        color: var(--textSecondary);
+        flex-grow: 1;
+        display: flex;
+        justify-content: end;
+    }
+`);
+
+export const TitledCard: React.FunctionComponent<React.PropsWithChildren<{
     title?: React.ReactNode;
     subtitle?: React.ReactNode;
     error?: string;
-    color: ThemeColor;
     isLoading?: boolean;
     icon?: IconName;
     height?: string;
     minHeight?: string;
+    maxHeight?: string;
     width?: string;
     minWidth?: string;
+    maxWidth?: string;
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
-    highlightSize?: string;
-    innerPaddingX?: string;
-    innerPaddingY?: string;
-    children?: React.ReactNode;
-}> = ({
+    overflow?: string;
+}>> = ({
     title,
     subtitle,
-    onClick,
-    color,
     error,
     isLoading = false,
     icon = undefined,
-    children,
     height = "auto",
     minHeight,
+    maxHeight,
     width = "100%",
     minWidth,
+    maxWidth,
+    onClick,
     onContextMenu,
     className,
-    highlightSize = "5px",
-    innerPaddingX = "16px",
-    innerPaddingY = "4px",
+    children,
+    overflow,
 }) => (
         <Card
             onClick={onClick}
-            overflow="hidden"
+            overflow={overflow ?? "hidden"}
             height={height}
             width={width}
             minWidth={minWidth}
-            boxShadow="sm"
-            borderWidth={0}
-            borderRadius={6}
             minHeight={minHeight}
+            maxHeight={maxHeight}
+            maxWidth={maxWidth}
             onContextMenu={onContextMenu}
-            className={className}
+            className={classConcat(style, className)}
         >
-            <Box style={{borderTop: `${highlightSize} solid var(--${color}, #f00)`}} />
-            <Box px={innerPaddingX} py={innerPaddingY} height={"calc(100% - 5px)"}>
-                <Flex alignItems="center">
+            {title || icon || subtitle ?
+                <div className="title-row">
                     {icon !== undefined ? (
-                        <Icon
-                            name={icon}
-                            m={8}
-                            ml={0}
-                            size="20"
-                            color={theme.colors.darkGray}
-                        />
+                        <Icon name={icon} size="20" color={"textPrimary"} />
                     ) : null}
                     {typeof title === "string" ? <Heading.h3>{title}</Heading.h3> : title ? title : null}
-                    <Box flexGrow={1} />
-                    {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
-                </Flex>
-                <Error error={error} />
-                {!isLoading ? children : <Spinner />}
-            </Box>
+                    {subtitle ? <div className={"subtitle"}>{subtitle}</div> : null}
+                </div> : null
+            }
+
+            <Error error={error} />
+            {!isLoading ? children : <Spinner />}
         </Card>
     );
 
-export default HighlightedCard;
+export default TitledCard;

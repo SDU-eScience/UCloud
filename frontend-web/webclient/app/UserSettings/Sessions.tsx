@@ -1,7 +1,6 @@
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {HttpClient} from "../Authentication/lib";
-import {emptyPage} from "@/DefaultObjects";
+import {HttpClient} from "@/Authentication/lib";
 import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
@@ -14,6 +13,7 @@ import {invalidateAllSessions, listUserSessions, UserSession} from "@/UserSettin
 import {dateToString} from "@/Utilities/DateUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
 import CONF from "../../site.config.json";
+import {emptyPage} from "@/Utilities/PageUtilities";
 
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
@@ -117,7 +117,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 pageRenderer={pageRenderer}
             />
 
-            <Button color={"red"} onClick={onInvalidateSessions} disabled={commandLoading}>
+            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading}>
                 Invalidate all sessions
             </Button>
         </Box>

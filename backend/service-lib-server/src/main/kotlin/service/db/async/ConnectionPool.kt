@@ -42,6 +42,8 @@ sealed class TransactionMode {
 }
 
 sealed class DBContext
+object DiscardingDBContext : DBContext()
+object FakeDBContext : DBContext()
 private const val DEBUG_ERRORS = false
 
 suspend fun <R> DBContext.withSession(
@@ -76,6 +78,11 @@ suspend fun <R> DBContext.withSession(
                 is AsyncDBConnection -> {
                     block(this)
                 }
+
+                FakeDBContext -> error("Cannot call withSession on a FakeDBContext")
+                DiscardingDBContext -> {
+                    Unit as? R ?: throw IllegalStateException("Unable to use a fake discarding DB when withSession needs to return a result")
+                }
             }
         } catch (ex: GenericDatabaseException) {
             if (remapExceptions) {
@@ -109,10 +116,21 @@ suspend fun <R> DBContext.withSession(
     }
 }
 
+typealias DBTransaction = AsyncDBConnection
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
     internal val debug: DebugSystemFeature
-) : DBContext(), SuspendingConnection by conn
+) : DBContext(), SuspendingConnection by conn {
+    fun registerNotifyListener(handler: (channel: String, payload: String) -> Unit) {
+        (conn.connection as PostgreSQLConnection).registerNotifyListener { resp ->
+            handler(resp.channel, resp.payload)
+        }
+    }
+
+    fun clearNotifyListeners() {
+        (conn.connection as PostgreSQLConnection).clearNotifyListeners()
+    }
+}
 
 /**
  * A [DBSessionFactory] for the jasync library.

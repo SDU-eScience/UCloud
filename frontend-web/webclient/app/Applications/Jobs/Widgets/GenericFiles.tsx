@@ -1,23 +1,22 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
 import {useCallback, useLayoutEffect} from "react";
-import styled from "styled-components";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
-import {BrowseType} from "@/Resource/BrowseType";
 import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
+import {injectStyleSimple} from "@/Unstyled";
+import FileBrowse from "@/Files/FileBrowse";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 type GenericFileParam =
-    UCloud.compute.ApplicationParameterNS.InputFile |
-    UCloud.compute.ApplicationParameterNS.InputDirectory;
+    ApplicationParameterNS.InputFile |
+    ApplicationParameterNS.InputDirectory;
 
 interface FilesProps extends WidgetProps {
     parameter: GenericFileParam;
@@ -50,39 +49,47 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     }, []);
 
     const onActivate = useCallback(() => {
+        // Note(Jonas): Not meaningfully in use?
         const pathRef = {current: ""};
         const provider = getProviderField();
+        const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
         dialogStore.addDialog(
-            <FilesBrowse
-                browseType={BrowseType.Embedded}
-                pathRef={pathRef}
-                onSelectRestriction={file => {
-                    const fileProvider = file.specification.product.provider;
-                    const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                    const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                    if (provider && provider !== fileProvider) {
-                        if (isCorrectlyDir) {
-                            return providerMismatchError("Folders", fileProvider);
-                        } else if (isCorrectlyFile) {
-                            return providerMismatchError("Files", fileProvider)
+            <FileBrowse
+                opts={{
+                    additionalFilters: additionalFilters,
+                    isModal: true,
+                    managesLocalProject: true,
+                    initialPath: "",
+                    selection: {
+                        text: "Use",
+                        onClick: async res => {
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                            if (props.errors[props.parameter.name]) {
+                                delete props.errors[props.parameter.name];
+                                props.setErrors({...props.errors});
+                            }
+                            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+                            WidgetSetProvider(props.parameter, res.specification.product.provider);
+                            dialogStore.success();
+                            if (anyFolderDuplicates()) {
+                                props.setWarning?.("Duplicate folders selected. This is not always supported.");
+                            }
+                        },
+                        show(file) {
+                            const fileProvider = file.specification.product.provider;
+                            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+                            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+                            if (provider && provider !== fileProvider) {
+                                if (isCorrectlyDir) {
+                                    return providerMismatchError("Folders", fileProvider);
+                                } else if (isCorrectlyFile) {
+                                    return providerMismatchError("Files", fileProvider)
+                                }
+                            }
+                            return isCorrectlyDir || isCorrectlyFile;
                         }
                     }
-                    return isCorrectlyDir || isCorrectlyFile;
-                }}
-                onSelect={async res => {
-                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                    if (props.errors[props.parameter.name]) {
-                        delete props.errors[props.parameter.name];
-                        props.setErrors({...props.errors});
-                    }
-                    FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                    WidgetSetProvider(props.parameter, res.specification.product.provider);
-                    dialogStore.success();
-                    if (anyFolderDuplicates()) {
-                        props.setWarning?.("Duplicate folders selected. This is not always supported.");
-                    }
-                }}
-            />,
+                }} />,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle
@@ -92,8 +99,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const error = props.errors[props.parameter.name] != null;
     return <>
         <input type={"hidden"} id={widgetId(props.parameter)} />
-        <FileSelectorInput
+        <Input
             id={widgetId(props.parameter) + "visual"}
+            className={FileInputClass}
             placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
             onClick={onActivate}
             error={error}
@@ -101,9 +109,9 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     </>;
 };
 
-const FileSelectorInput = styled(Input)`
+const FileInputClass = injectStyleSimple("file-input", `
     cursor: pointer;
-`;
+`);
 
 export const FilesValidator: WidgetValidator = (param) => {
     if (param.type === "input_directory" || param.type === "input_file") {

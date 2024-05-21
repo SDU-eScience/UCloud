@@ -62,7 +62,7 @@ const pinnedSlots: (PinnedNotification | null)[] = Array(2).fill(null);
 // NOTE(Dan): The size of normal slots is not loop unrolled below and can be changed freely. Do note that normalSlots
 // shares its 'slots' with pinnedSlots. That means if pinnedSlots has to active notifications then the first two slots
 // of normalSlots will always be empty.
-const normalSlots: ActiveNotification[] = Array(6).fill(emptyNotification).map(it => ({...emptyNotification}));
+const normalSlots: ActiveNotification[] = Array(6).fill(emptyNotification).map(() => ({...emptyNotification}));
 
 // NOTE(Dan): Adds a new notification to the container. This should not be invoked directly by most code, as this code
 // does not add it to the notification tray.
@@ -195,9 +195,9 @@ export const NotificationPopups: React.FunctionComponent = () => {
         }
     }, []);
 
-    const elems: JSX.Element[] = [];
+    const elems: React.ReactNode[] = [];
 
-    const baseOffset = 48 + CARD_GAP;
+    const baseOffset = 12;
 
     for (let i = 0; i < pinnedSlots.length; i++) {
         const slot = pinnedSlots[i];

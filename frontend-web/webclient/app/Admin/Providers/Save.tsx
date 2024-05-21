@@ -1,17 +1,19 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {Flex} from "@/ui-components";
 import Loading from "@/LoadingIcon/LoadingIcon";
-import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {useNavigate, useParams} from "react-router";
 import RS from "@/Products/CreateProduct";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePage} from "@/Navigation/Redux";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {placeholderProduct} from "@/UCloud/ResourceApi";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -20,9 +22,9 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
     };
 }
 
-function Save(): JSX.Element | null {
+function Save(): React.ReactNode {
     const {id} = useParams<{id: string}>();
-    const [provider, setParams, params] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
+    const [provider, setParams] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
     const navigate = useNavigate();
 
     React.useEffect(() => {
@@ -33,7 +35,7 @@ function Save(): JSX.Element | null {
 
     const title = provider.data ? "Edit Provider" : "Create Provider";
 
-    useTitle(title);
+    usePage(title, SidebarTabId.NONE);
 
     if (provider.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
 
@@ -63,7 +65,7 @@ function Save(): JSX.Element | null {
                         }));
                     }
                 }}
-                onSubmitSucceded={(res, data) => {
+                onSubmitSucceeded={(res, data) => {
                     if (res) {
                         navigate(`/providers`);
                     }

@@ -8,12 +8,11 @@ import {
     ResourceStatus,
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
-import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import {JobBinding} from "@/UCloud/JobsApi";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductLicense} from "@/Accounting";
+import {ProductLicense, productTypeToIcon} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 
 export type LicenseSpecification = ResourceSpecification;
@@ -45,41 +44,17 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
     LicenseFlags, LicenseStatus, LicenseSupport> {
     routingNamespace = "licenses";
     title = "Software License";
-    page = SidebarPages.Resources;
     productType = "LICENSE" as const;
 
     renderer: ItemRenderer<License> = {
         MainTitle({resource}) {
             return resource ? <>{resource.specification.product.id} ({(resource as License).id})</> : <></>
         },
-        Icon({resource, size}) {return <Icon name={"fileSignatureSolid"} size={size} />}
+        Icon({resource, size}) {return <Icon name={productTypeToIcon("LICENSE")} size={size} />}
     };
 
     constructor() {
         super("licenses");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {
-                    title: "Preparing",
-                    value: "PREPARING",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Ready",
-                    value: "READY",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Unavailable",
-                    value: "UNAVAILABLE",
-                    icon: "hashtag"
-                }
-            ]
-        ));
     }
 
     retrieveOperations(): Operation<License, ResourceBrowseCallbacks<License>>[] {

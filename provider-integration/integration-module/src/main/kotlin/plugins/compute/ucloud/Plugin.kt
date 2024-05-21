@@ -3,9 +3,12 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.AccountingFrequency
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
@@ -14,6 +17,7 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.cli.genericCommandLineHandler
 import dk.sdu.cloud.cli.sendCommandLineUsage
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.ProductCost
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
@@ -32,12 +36,10 @@ import dk.sdu.cloud.plugins.PublicIPPlugin
 import dk.sdu.cloud.plugins.SyncthingPlugin
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
+import dk.sdu.cloud.plugins.licenses.generic.GenericLicensePlugin
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
-import dk.sdu.cloud.utils.forEachGraal
-import dk.sdu.cloud.utils.sendTerminalMessage
-import dk.sdu.cloud.utils.sendTerminalTable
-import dk.sdu.cloud.utils.whileGraal
+import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -53,7 +55,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.Jobs.UCloud
     private lateinit var files: UCloudFilePlugin
     private var syncthingService: SyncthingService? = null
@@ -77,7 +79,11 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
     override suspend fun PluginContext.initialize() {
         registerCli()
         if (!config.shouldRunServerCode()) return
-
+        productAllocationResolved.forEach {
+            if (it.category.accountingFrequency == AccountingFrequency.ONCE && !it.category.freeToUse) {
+                error("Compute products cannot have single time use accounting frequency ")
+            }
+        }
         files = config.plugins.files[pluginName] as? UCloudFilePlugin
             ?: run {
                 error(
@@ -143,21 +149,24 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
 
         nameAllocator.runtime = runtime
 
+        val resources = ResourceCache(k8)
         jobManagement = JobManagement(
             pluginName,
             k8,
             runtime,
             jobCache,
             MaintenanceService(dbConnection, k8),
-            ResourceCache(k8),
-            pluginConfig
+            resources,
+            pluginConfig,
+            config.core.experimental.sensitiveProjects.toSet(),
         )
 
         logService = K8LogService(k8, runtime)
         utilization = UtilizationService(k8, runtime)
         shell = K8Shell(runtime)
 
-        if (config.products.compute?.keys?.contains("syncthing") == true) {
+        val syncthingRef = productAllocation.find { it.category == "syncthing" }
+        if (syncthingRef != null) {
             syncthingService = SyncthingService(
                 config.core.providerId,
                 jobManagement,
@@ -180,7 +189,7 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                         run {
                             val result = HashMap<String, NodeType>()
                             val allTypes = productAllocationResolved
-                                .filterIsInstance<Product.Compute>()
+                                .filterIsInstance<ProductV2.Compute>()
                                 .groupBy { it.category.name }
 
                             for ((category, machines) in allTypes) {
@@ -202,18 +211,56 @@ class UCloudComputePlugin : ComputePlugin, SyncthingPlugin {
                 files.memberFiles,
                 files.pathConverter,
                 files.limitChecker,
+                rpcClient,
             )
             register(fileMountPlugin)
             register(FeatureMultiNode)
             register(FeatureSharedMemory)
             register(FeatureExpiry)
             register(FeatureAccounting)
+            register(FeatureActivity)
             register(FeatureMiscellaneous)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.fs))
             register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
             syncthingService?.also { register(it) }
             register(FeatureModules) // Must run after both fileMountPlugin and FeatureParameter
+        }
+
+        val licensePlugins = config.plugins.licenses.values
+        for (license in licensePlugins) {
+            if (license !is GenericLicensePlugin) continue
+            license.onAccountingFailure { owner, category ->
+                val containers = runtime.list()
+                val resolvedJobs = containers.mapNotNull { jobCache.findJob(it.jobId) }
+
+                val jobsWithLicenses = resolvedJobs
+                    .asSequence()
+                    .filter { (it.owner.project ?: it.owner.createdBy) == owner }
+                    .filter { it.licences.isNotEmpty() }
+                    .toList()
+
+                val jobsToTerminate = ArrayList<Job>()
+
+                for (job in jobsWithLicenses) {
+                    job.licences.forEach { license ->
+                        val resolvedLicense = LicenseControl.retrieve.call(
+                            ResourceRetrieveRequest(LicenseIncludeFlags(), license.id),
+                            k8.serviceClient
+                        ).orThrow()
+
+                        val product = resolvedLicense.specification.product
+                        if (product.category == category && resolvedLicense.owner.toSimpleString() == owner) {
+                            jobsToTerminate.add(job)
+                        }
+                    }
+                }
+
+                jobsToTerminate.forEachGraal { job ->
+                    k8.addStatus(job.id, "Terminating job because of insufficient funds (license)")
+                    containers.filter { it.jobId == job.id }.forEach { it.cancel() }
+                }
+            }
         }
 
         files.driveLocator.onEnteringMaintenanceMode {
@@ -536,7 +583,7 @@ class UCloudIngressPlugin : IngressPlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     private lateinit var compute: UCloudComputePlugin
     private lateinit var pluginConfig: ConfigSchema.Plugins.Ingresses.UCloud
@@ -551,12 +598,53 @@ class UCloudIngressPlugin : IngressPlugin {
 
     override suspend fun PluginContext.initialize() {
         if (!config.shouldRunServerCode()) return
+        if (productAllocation.isEmpty()) return
+
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
-        service = FeatureIngress(pluginConfig.domainPrefix, pluginConfig.domainSuffix, dbConnection, compute.k8)
+        val allocatedProduct = productAllocation.singleOrNull()
+            ?: run {
+                val allocatedCategories = productAllocation.map { it.category }.toSet()
+                error("UCloud ingress plugin only supports running with a single product allocated " +
+                        "to it but was allocated $allocatedCategories")
+            }
+
+        val productRef = ProductReferenceV2(allocatedProduct.id, allocatedProduct.category, config.core.providerId)
+
+        val cost = config.products.findCategory(productRef.category)!!.cost
+        if (cost is ProductCost.Money && cost.interval != null) {
+            error("The UCloud ingress plugin does not currently support DKK/interval as a pricing model")
+        }
+
+        service = FeatureIngress(
+            pluginConfig.domainPrefix,
+            pluginConfig.domainSuffix,
+            dbConnection,
+            compute.k8,
+            productRef
+        )
 
         compute.jobManagement.register(service)
+
+        for (alloc in productAllocationResolved) {
+            val p = config.products.allCategories.find { it.category.toId() == alloc.category.toId() } ?: continue
+            when (val cost = p.cost) {
+                ProductCost.Free -> {
+                    // OK
+                }
+                is ProductCost.Money -> {
+                    if (cost.interval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+                is ProductCost.Resource -> {
+                    if (cost.accountingInterval != null) {
+                        error("Unable to support products in UCloud ingress with interval != null")
+                    }
+                }
+            }
+        }
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<IngressSupport> {
@@ -579,7 +667,7 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
     override val pluginTitle: String = "UCloud"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
 
     private lateinit var compute: UCloudComputePlugin
     private lateinit var pluginConfig: ConfigSchema.Plugins.PublicIPs.UCloud
@@ -596,11 +684,26 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
     override suspend fun PluginContext.initialize() {
         registerCliHandler()
         if (!config.shouldRunServerCode()) return
+        if (productAllocation.isEmpty()) return
+
+        val allocatedProduct = productAllocation.singleOrNull()
+            ?: run {
+                val allocatedCategories = productAllocation.map { it.category }.toSet()
+                error("UCloud IP plugin only supports running with a single product allocated " +
+                        "to it but was allocated $allocatedCategories")
+            }
+
+        val productRef = ProductReferenceV2(allocatedProduct.id, allocatedProduct.category, config.core.providerId)
+
+        val cost = config.products.findCategory(productRef.category)!!.cost
+        if (cost is ProductCost.Money && cost.interval != null) {
+            error("The UCloud ingress plugin does not currently support DKK/interval as a pricing model")
+        }
 
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
-        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface)
+        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface, productRef)
         firewall = compute.jobManagement.featureOrNull() ?: error("No firewall feature detected")
         pluginConfig.gatewayCidr?.let { firewall.gatewayCidr.add(it) }
 

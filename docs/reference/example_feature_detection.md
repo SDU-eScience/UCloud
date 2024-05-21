@@ -30,6 +30,7 @@ Resources.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Compute(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-compute", 
                 name = "example-compute", 
@@ -53,6 +54,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-compute", 
+            maxUsableBalance = null, 
         ), 
         support = ExampleResourceSupport(
             maintenance = null, 
@@ -121,6 +123,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                 "product": {
 #                     "type": "compute",
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-compute",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -137,6 +140,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "UNITS_PER_HOUR",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,

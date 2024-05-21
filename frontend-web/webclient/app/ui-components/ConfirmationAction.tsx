@@ -1,55 +1,62 @@
-import styled from "styled-components";
 import * as React from "react";
 import {Button} from "@/ui-components/index";
-import {useCallback, useLayoutEffect, useRef, useState} from "react";
-import {ButtonProps} from "@/ui-components/Button";
+import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
+import {ButtonClass, ButtonProps} from "@/ui-components/Button";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {shakeAnimation} from "@/UtilityComponents";
 import {doNothing} from "@/UtilityFunctions";
-import {fontSize, FontSizeProps} from "styled-system";
-import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
+import {selectContrastColor, selectHoverColor, ThemeColor} from "@/ui-components/theme";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {div} from "@/Utilities/HTMLUtilities";
 
-const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string, actionText?: string} & FontSizeProps>`
-    --progress-border: var(--background, #f00);
-    --progress-active: var(--white, #f00);
-    --progress-success: var(--color, #f00);
-    --color: var(--${p => p.textColor}, #f00);
-    --background: var(--${p => p.color}, #f00);
-    --tick-stroke: var(--progress-active);
-
-    ${fontSize};
-
-    outline: none;
-    user-select: none;
-    cursor: pointer;
-    backface-visibility: hidden;
-    -webkit-appearance: none;
-    -webkit-tap-highlight-color: transparent;
-    min-width: ${p => !p.actionText ? "50px" : p.asSquare ? "200px" : "250px" };
-    background: var(--background, #f00);
-    font-size: ${p => p.asSquare ? "16px" : "large"};
-    font-weight: ${p => p.asSquare ? "400" : "700"};
-    
-    &:hover {
-        ${p => p.asSquare ? ({
-        "--progress-border": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`,
-        "--background": `var(--${p.hoverColor ?? selectHoverColor(p.color ?? "blue")}, #f00)`
-    }) : ({})}
+const ConfirmButtonClass = injectStyle("confirm-button", k => `
+    ${k} {
+        --progress-border: var(--backgroundDefault, #f00);
+        --progress-active: var(--textPrimary, #f00);
+        --progress-success: var(--color, #f00);
+        --color: var(--errorContrast);
+        --background: var(--errorMain, #f00);
+        --tick-stroke: var(--progress-active);
+        
+        outline: none;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: pointer;
+        backface-visibility: hidden;
+        min-width: 200px;
+        background: var(--background, #f00);
+        font-size: 16px;
+        font-weight: 700;
+        transform: scale(1);
     }
-
-    & > .icons {
-        ${shakeAnimation};
+    
+    ${k}[data-square="true"]:hover {
+        --progress-border: var(--hoverColor, var(--primaryMain));
+        --background: var(--hoverColor, var(--primaryMain)) !important;
+    }
+    
+    ${k}[data-square="true"] {
+        border-radius: 0;
+        min-width: 200px;
+        font-weight: 400;
+    }
+    
+    ${k}[data-no-text="true"] {
+        min-width: 50px;
+    }
+    
+    ${k} > .icons {
         border-radius: 50%;
         top: 9px;
         left: 15px;
         position: absolute;
+        overflow-y: hidden;
         background: var(--progress-border);
         transition: transform .3s, opacity .2s;
         opacity: var(--icon-o, 0);
         transform: translateX(var(--icon-x, -4px));
     }
-
-    & > .icons:before {
+    
+    ${k} > .icons:before {
         content: '';
         width: 16px;
         height: 16px;
@@ -62,20 +69,20 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
         transform: scale(var(--background-scale, 1));
         transition: transform .32s ease;
     }
-
-    .icons > svg {
+    
+    ${k} .icons > svg {
         display: block;
         fill: none;
         width: 20px;
         height: 20px;
     }
 
-    .icons > svg.progress {
+    ${k} .icons > svg.progress {
         transform: rotate(-90deg) scale(var(--progress-scale, 1));
         transition: transform .5s ease;
     }
 
-    .icons > svg.progress circle {
+    ${k} .icons > svg.progress circle {
         stroke-dashoffset: 1;
         stroke-dasharray: var(--progress-array, 0) 52;
         stroke-width: 16;
@@ -83,8 +90,8 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
         transition: stroke-dasharray var(--duration) linear;
     }
 
-    .icons > svg.tick {
-        left: 0;
+    ${k} .icons > svg.tick {
+        left: -5px;
         top: 0;
         position: absolute;
         stroke-width: 3;
@@ -94,58 +101,62 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
         transition: stroke .3s ease .7s;
     }
 
-    .icons > svg.tick polyline {
+    ${k} .icons > svg.tick polyline {
         stroke-dasharray: 18 18 18;
         stroke-dashoffset: var(--tick-offset, 18);
         transition: stroke-dashoffset .4s ease .7s;
     }
-
-    ul {
-        ${shakeAnimation};
+    
+    ${k} ul {
         padding: 0;
         margin: 0;
-        ${p => p.align !== "left" ? ({
-        textAlign: "center",
-    }) : ({
-        textAlign: "left",
-    })}
-        ${p => p.align === "left" && p.asSquare ? ({marginLeft: "34px"}) : ({})}
         pointer-events: none;
         list-style: none;
         min-width: 80%;
         backface-visibility: hidden;
         transition: transform .3s;
         position: relative;
+        
+        /* this has custom styling based on too many properties, set them inline */
+    }
+    
+    ${k} .shaking {
+        transform: translate3d(0, 0, 0);
+        animation: button-shake 0.82s cubic-bezier(.36, .07, .19, .97) both;
+    }
+    
+    ${k}:disabled:hover {
+        background: var(--hoverColor);
     }
 
-    ul li {
+    ${k} ul li {
         backface-visibility: hidden;
         transform: translateY(var(--ul-y)) translateZ(0);
         transition: transform .3s ease .16s, opacity .2s ease .16s;
     }
 
-    ul li:not(:first-child) {
+    ${k} ul li:not(:first-child) {
         --o: 0;
         position: absolute;
         left: 0;
         right: 0;
     }
 
-    ul li:nth-child(1) {
+    ${k} ul li:nth-child(1) {
         opacity: var(--ul-o-1, 1);
     }
 
-    ul li:nth-child(2) {
+    ${k} ul li:nth-child(2) {
         top: 100%;
         opacity: var(--ul-o-2, 0);
     }
 
-    ul li:nth-child(3) {
+    ${k} ul li:nth-child(3) {
         top: 200%;
         opacity: var(--ul-o-3, 0);
     }
-
-    &.process {
+    
+    ${k}.process {
         --icon-x: 0;
         --ul-y: -100%;
         --ul-o-1: 0;
@@ -153,35 +164,26 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
         --ul-o-3: 0;
     }
 
-    &.process,
-    &.success {
+    ${k}.process,
+    ${k}.success {
         --icon-o: 1;
         --progress-array: 52;
     }
 
-    &.process > .ucloud-native-icons, &.success > .ucloud-native-icons {
+    ${k}.process > .ucloud-native-icons, ${k}.success > .ucloud-native-icons, ${k}.success .progress {
         opacity: 0;
     }
 
-    .ucloud-native-icons {
-        ${shakeAnimation};
+    ${k} .ucloud-native-icons {
         position: absolute;
         left: 15px;
     }
-
-    & {
+    
+    ${k}[data-square="true"]:hover {
         transform: scale(1);
     }
-
-    &:hover {
-        ${p => !p.asSquare ? ({
-        transform: "translateY(-2px)"
-    }) : ({
-        transform: "scale(1)"
-    })}
-    }
-
-    &.success {
+    
+    ${k}.success {
         --icon-x: 6px;
         --progress-border: none;
         --progress-scale: .11;
@@ -194,24 +196,43 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string,
         --ul-o-3: 1;
     }
 
-    &.success > .icons svg.progress {
+    ${k}.success > .icons svg.progress {
         animation: tick .3s linear forwards .4s;
     }
-
+    
     @keyframes tick {
         100% {
-        transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale));
+            transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale));
         }
     }
-`;
+    
+    @keyframes button-shake {
+        10%, 90% {
+            transform: translate3d(-1px, 0, 0);
+        }
 
-/* 
-  HACK(Jonas): 
+        20%, 80% {
+            transform: translate3d(2px, 0, 0);
+        }
+
+        30%, 50%, 70% {
+            transform: translate3d(-4px, 0, 0);
+        }
+
+        40%, 60% {
+            transform: translate3d(4px, 0, 0);
+        }
+    }
+`);
+
+/*
+  HACK(Jonas):
     This is not an ideal approach, but using a ref or variable through useState doesn't seem to work.
-    Likely due to the callbacks wrapping the ref/variable in a stale manner. 
+    Likely due to the callbacks wrapping the ref/variable in a stale manner.
     Adding them to the Dependency List doesn't work.
 */
 const startedMap = {};
+/* HACK(Jonas): End */
 
 const actionDelay = 1000;
 const holdToConfirmTime = 1000;
@@ -220,10 +241,10 @@ const tickRate = 50;
 
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
-    doneText?: string,
     icon?: IconName,
     align?: "left" | "center",
-    onAction?: () => void;
+    actionKey?: string;
+    onAction?: (actionKey?: string) => void;
     hoverColor?: ThemeColor;
     disabled?: boolean;
 }> = props => {
@@ -249,12 +270,12 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             button.classList.add("success");
             timeout.current = window.setTimeout(countUp, tickRate);
             setTimeout(() => {
-                if (props.onAction) props.onAction();
+                if (props.onAction) props.onAction(props.actionKey);
             }, actionDelay);
         } else {
             timeout.current = window.setTimeout(success, tickRate);
         }
-    }, [buttonRef.current, props.onAction]);
+    }, [buttonRef.current, props.onAction, props.actionKey]);
 
     const countUp = useCallback(() => {
         const button = buttonRef.current;
@@ -296,17 +317,15 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }
 
         if (timer.current > holdToConfirmTime - shakeDelta && !wasReset.current) {
-            // button.classList.add("shaking");
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
-            } 
+            }
             setShowHelp(true);
             setTimeout(() => {
                 setShowHelp(false);
-                // buttonRef.current?.classList?.remove("shaking");
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
-                } 
+                }
             }, holdToConfirmTime - shakeDelta);
         }
         startedMap[tempStartedKey] = false;
@@ -317,14 +336,41 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         const button = buttonRef.current;
         if (!button) return;
 
+        const colorOrDefault = props.color ?? "errorMain";
+
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
-    }, [buttonRef.current]);
+        button.style.setProperty("--hoverColor", `var(--${props.hoverColor ?? selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--color", `var(--${props.textColor ?? selectContrastColor(colorOrDefault)})`)
+        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--background", `var(--${colorOrDefault})`)
+        button.style.removeProperty("background-color");
+        button.setAttribute("data-no-text", (!props.actionText).toString());
+    }, [buttonRef.current, props.actionText, props.hoverColor, props.color, props.textColor]);
 
     const passedProps = {...props};
     delete passedProps.onAction;
 
-    return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}} onMouseUp={end} onTouchEnd={end}
-        onClick={doNothing} ref={buttonRef}>
+    const ulStyle: CSSProperties = {};
+    if (props.align === "left" && props.asSquare) ulStyle.marginLeft = "34px";
+    if (props.align !== "center") {
+        ulStyle.textAlign = "left";
+    } else {
+        ulStyle.textAlign = "center";
+    }
+
+    return <Button
+        {...passedProps}
+        onMouseDown={start}
+        onTouchStart={start}
+        onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}}
+        onMouseUp={end}
+        onTouchEnd={end}
+        onClick={doNothing}
+        btnRef={buttonRef}
+        className={ConfirmButtonClass}
+        data-tag={"confirm-button"}
+        width={props.width}
+    >
         {!props.icon ? null : <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />
         </div>}
@@ -337,11 +383,162 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             </svg>
         </div>
         {!props.actionText ? null : (
-            <ul>
+            <ul style={ulStyle}>
                 <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
                 <li>Hold to confirm</li>
-                <li>{props.doneText ?? "Done"}</li>
+                <li>Done</li>
             </ul>
         )}
-    </Wrapper>;
+    </Button>;
 };
+
+export function ConfirmationButtonPlainHTML(
+    icon: HTMLDivElement,
+    actionText: string,
+    action: () => void,
+    opts: {
+        align?: "left" | "center",
+        asSquare?: boolean,
+        color?: ThemeColor,
+        hoverColor?: ThemeColor,
+        textColor?: ThemeColor,
+        disabled?: boolean,
+    },
+): HTMLElement {
+    const button = document.createElement("button");
+
+    {
+        button.style.overflowY = "hidden";
+        button.style.maxHeight = "40px";
+        button.className = classConcat(ConfirmButtonClass, ButtonClass);
+        button.setAttribute("data-no-text", (!actionText).toString());
+        button.setAttribute("data-attached", "false");
+        button.setAttribute("data-square", (!!opts.asSquare).toString());
+        button.setAttribute("data-fullwidth", "false");
+        button.setAttribute("data-size", "standard");
+
+        const colorOrDefault = opts.color ?? "errorMain";
+
+        button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
+        button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--color", `var(--${opts.textColor ?? selectContrastColor(colorOrDefault)})`)
+        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
+        button.style.setProperty("--background", `var(--${colorOrDefault})`)
+        button.style.removeProperty("background-color");
+        if (opts.disabled) {
+            button.disabled = opts.disabled;
+            button.style.setProperty("--hoverColor", `var(--${opts.color})`);
+        } else {
+            button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(opts.color ?? "primaryMain")})`)
+        }
+    }
+
+
+    const timeout = {id: -1};
+    const timer = {time: holdToConfirmTime};
+    const wasReset = {state: false};
+    const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
+
+    function end() {
+        button.classList.remove("process");
+        if (timeout.id !== -1) {
+            window.clearTimeout(timeout.id);
+        }
+
+        if (timer.time > holdToConfirmTime - shakeDelta && !wasReset) {
+            for (let i = 0; i < button.children.length; i++) {
+                button.children.item(i)?.classList.add("shaking");
+            }
+            const firstLi = button.querySelector("li");
+            if (firstLi) firstLi.innerText = "Hold to confirm"
+            setTimeout(() => {
+                if (firstLi) firstLi.innerText = actionText ?? "";
+                for (let i = 0; i < button.children.length; i++) {
+                    button.children.item(i)?.classList.remove("shaking");
+                }
+            }, holdToConfirmTime - shakeDelta);
+        }
+        timer.time = holdToConfirmTime;
+        startedMap[TEMP_STARTED_KEY] = false;
+        wasReset.state = false;
+    }
+
+    function start() {
+        if (button.classList.contains("process")) return;
+        if (timeout.id !== -1) {
+            window.clearTimeout(timeout.id);
+            timeout.id = -1;
+        }
+
+        if (button.classList.contains("success")) {
+            wasReset.state = true;
+        }
+
+        button.classList.remove("success");
+        button.classList.add("process");
+        startedMap[TEMP_STARTED_KEY] = true;
+        timeout.id = window.setTimeout(success, tickRate);
+    }
+
+    function success() {
+        timer.time -= tickRate;
+        if (timer.time <= 0) {
+            button.classList.add("success");
+            end();
+            setTimeout(() => {
+                action();
+            }, actionDelay);
+        } else {
+            timeout.id = window.setTimeout(success, tickRate);
+        }
+    }
+
+    button.onmousedown = start;
+    button.ontouchstart = start;
+    button.onmouseleave = end;
+    button.onmouseup = end;
+    button.ontouchend = end;
+    button.onclick = e => e.stopImmediatePropagation();
+    button.type = "button";
+
+    const divEl = document.createElement("div");
+    divEl.className = "ucloud-native-icons";
+    divEl.append(icon);
+    button.append(divEl);
+
+    const icons = div(`
+        <svg class="progress" viewBox="0 0 32 32">
+            <circle r="8" cx="16" cy="16" />
+        </svg>
+        <svg class="tick" viewBox="0 0 24 24">
+            <polyline points="18,7 11,16 6,12" />
+        </svg>
+    `);
+
+    icons.classList.add("icons");
+    button.append(icons);
+
+    const ul = document.createElement("ul");
+    if (opts.align === "left" && opts.asSquare) ul.style.marginLeft = "34px";
+    if (opts.align !== "left") {
+        ul.style.textAlign = "center";
+    } else {
+        ul.style.textAlign = "left";
+    }
+
+    ul.style.maxHeight = "40px";
+    ul.style.overflowY = "hidden";
+
+    const actionTextLi = document.createElement("li");
+    actionTextLi.innerText = actionText;
+    ul.append(actionTextLi);
+    const holdToConfirmLi = document.createElement("li");
+    holdToConfirmLi.innerText = "Hold to confirm";
+    ul.append(holdToConfirmLi);
+    const doneTextLi = document.createElement("li");
+    doneTextLi.innerText = "Done";
+    ul.append(doneTextLi);
+    button.append(ul);
+
+    return button;
+}

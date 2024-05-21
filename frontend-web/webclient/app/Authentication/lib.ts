@@ -1,9 +1,33 @@
 import {Store} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
-import {setStoredProject} from "@/Project/Redux";
+import {b64DecodeUnicode, inRange, inSuccessRange, is5xxStatusCode, onDevSite} from "@/UtilityFunctions";
+import {setStoredProject} from "@/Project/ReduxState";
 import {CallParameters} from "./CallParameters";
 import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+
+/**
+ * Used to parse and validate the structure of the JWT. If the JWT is invalid, the function returns null, otherwise as
+ * a an object.
+ * @param encodedJWT The JWT sent from the backend, in the form of a string.
+ */
+export function parseJWT(encodedJWT: string): JWT | null {
+    const [, right] = encodedJWT.split(".");
+    if (right == null) return null;
+
+    const decoded = b64DecodeUnicode(right);
+    const parsed = JSON.parse(decoded);
+    const isValid = "sub" in parsed &&
+        "aud" in parsed &&
+        "role" in parsed &&
+        "iss" in parsed &&
+        "exp" in parsed &&
+        "extendedByChain" in parsed &&
+        "iat" in parsed &&
+        "principalType" in parsed;
+    if (!isValid) return null;
+
+    return parsed;
+}
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -102,6 +126,8 @@ export class HttpClient {
             projectOverride,
             accessTokenOverride,
             unauthenticated = false,
+            responseType = "text",
+            acceptType = "*/*",
         } = params;
 
         await this.waitForCloudReady();
@@ -128,16 +154,17 @@ export class HttpClient {
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
                     );
 
-                    const signedIntent = signIntentToCall(params);
+                    const signedIntent = signIntentToCall(this.username ?? "", this.projectId ?? null, params);
                     if (signedIntent !== null) {
                         req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
                     }
                 }
 
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                req.setRequestHeader("Accept", acceptType);
                 const projectId = projectOverride ?? this.projectId;
                 if (projectId) req.setRequestHeader("Project", projectId);
-                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                req.responseType = responseType; // Explicitly set, otherwise issues with empty response
                 if (withCredentials) {
                     req.withCredentials = true;
                 }
@@ -305,37 +332,6 @@ export class HttpClient {
         return this.username;
     }
 
-    /**
-     * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
-     */
-    public get homeFolder(): string {
-        return `/home/${this.username}/`;
-    }
-
-    public get currentProjectFolder(): string {
-        return `/projects/${this.projectId}`;
-    }
-
-    public get activeHomeFolder(): string {
-        if (!this.hasActiveProject) {
-            return this.homeFolder;
-        } else {
-            return this.currentProjectFolder;
-        }
-    }
-
-    public get sharesFolder(): string {
-        return `${this.homeFolder}Shares`;
-    }
-
-    public get favoritesFolder(): string {
-        return `${this.homeFolder}Favorites`;
-    }
-
-    public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder];
-    }
-
     public get isLoggedIn(): boolean {
         return this.userInfo != null;
     }
@@ -368,7 +364,7 @@ export class HttpClient {
      *
      * @return {Promise} a promise of an access token
      */
-    public async receiveAccessTokenOrRefreshIt(): Promise<any> {
+    public async receiveAccessTokenOrRefreshIt(): Promise<string> {
         await this.waitForCloudReady();
 
         let tokenPromise: Promise<any> | null = null;
@@ -376,7 +372,7 @@ export class HttpClient {
             tokenPromise = this.refresh();
             this.forceRefresh = false;
         } else {
-            tokenPromise = new Promise((resolve) => resolve(this.retrieveToken()));
+            tokenPromise = new Promise((resolve) => resolve(this.retrieveTokenNow()));
         }
         return tokenPromise;
     }
@@ -424,7 +420,7 @@ export class HttpClient {
         else return userInfo.principalType;
     }
 
-    private retrieveToken(): string {
+    retrieveTokenNow(): string {
         return HttpClient.storedAccessToken;
     }
 

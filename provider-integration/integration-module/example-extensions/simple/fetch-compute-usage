@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+import re
+import os
+import sys
+import json
+from helper import *
+
+# ==============================================================================
+# Loading request
+# ==============================================================================
+
+with open(sys.argv[1]) as fp:
+    request = json.load(fp)
+
+workspaces = request['workspaces']
+
+# ==============================================================================
+# Storage accounting
+# ==============================================================================
+
+usageFactor = 1 # can be used for testing purposes, should be 1 if you want correct results
+try:
+    with open("/etc/ucloud/slurm_usage_factor.txt", "r") as fp:
+        usageFactor = int(fp.read().rstrip())
+except:
+    pass
+
+cmd = ['sshare', '-Pho', 'account,user,grptresraw']
+data = run_command(cmd)
+lines = data.stdout.split('\n')
+data = {}
+
+for line in lines:
+    line = line.split('|')
+    account = line[0].strip()
+
+    user = line[1]
+    if user:
+        continue
+
+    usage = re.search('billing=(\d+)', line[2]).group(1)
+    data[account] = int(usage)
+
+for n, w in enumerate(workspaces):
+    if 'uid' in w and w['uid'] is not None:
+        account = get_username_by_uid(w['uid'])
+    else:
+        account = get_group_by_gid(w['gid'])
+
+    if account in data:
+        usage = data[account]
+    else:
+        usage = 0
+
+    workspaces[n]['usage'] = int(usage) * usageFactor
+
+response = {
+    'usage' : workspaces
+}
+print(json.dumps(response))

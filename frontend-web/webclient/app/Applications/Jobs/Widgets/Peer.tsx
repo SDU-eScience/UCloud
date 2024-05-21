@@ -1,23 +1,21 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidationAnswer} from "./index";
-import {compute} from "@/UCloud";
-import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
 import {useCallback, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
-import styled from "styled-components";
 import Input from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
-import AppParameterValueNS = compute.AppParameterValueNS;
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {JobBrowse} from "@/Applications/Jobs/Browse";
-import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
+import JobBrowse from "../JobsBrowse";
+import {CardClass} from "@/ui-components/Card";
+import {ApplicationParameter, ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {compute} from "@/UCloud";
+import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface PeerProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.Peer;
+    parameter: ApplicationParameterNS.Peer;
 }
 
 export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
@@ -30,6 +28,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
                     id={widgetId(props.parameter) + "name"}
                     value={props.parameter.title.length !== 0 ? props.parameter.name : undefined}
                     disabled={props.parameter.title.length !== 0}
+                    height={39}
                 />
             </Label>
         </div>
@@ -38,6 +37,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
             <Label>
                 Job
             </Label>
+
             <JobSelector
                 parameter={props.parameter}
                 suggestedApplication={props.parameter.suggestedApplication}
@@ -48,7 +48,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
     </Flex>;
 };
 
-export function PeerValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
+export function PeerValidator(param: ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "peer") {
         const nameElem = findElementName(param);
         const jobElem = findElementJob(param);
@@ -108,13 +108,18 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
-    const filters = useMemo(() => ({filterState: "RUNNING"}), []);
+    const filters = useMemo(() => {
+        const fi = ({filterState: "RUNNING"})
+        if (props.suggestedApplication) fi["filterApplication"] = props.suggestedApplication;
+        return fi;
+    }, [props.suggestedApplication]);
 
     return (<Flex>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter) + "job"}
             placeholder={"No selected run"}
             onClick={doOpen}
+            cursor="pointer"
             style={{height: "39px"}}
             readOnly
         />
@@ -125,33 +130,36 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
+            className={CardClass}
         >
             <JobBrowse
-                additionalFilters={filters}
-                onSelectRestriction={job => {
-                    const errorMessage = checkProviderMismatch(job, "Jobs");
-                    if (errorMessage) return errorMessage;
-                    return true;
-                }}
-                onSelect={job => {
-                    const el = document.getElementById(widgetId(props.parameter) + "job");
-                    if (el) {
-                        (el as HTMLInputElement).value = job.id;
+                opts={{
+                    additionalFilters: filters,
+                    isModal: true,
+                    selection: {
+                        text: "Use",
+                        show(job) {
+                            const errorMessage = checkProviderMismatch(job, "Jobs");
+                            if (errorMessage) return errorMessage;
+                            return true;
+                        },
+                        onClick(job) {
+                            const el = document.getElementById(widgetId(props.parameter) + "job");
+                            if (el) {
+                                (el as HTMLInputElement).value = job.id;
+                            }
+                            WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
+                            if (props.errors[props.parameter.name]) {
+                                delete props.errors[props.parameter.name];
+                                props.setErrors({...props.errors});
+                            }
+                            setAllowAutoConfigure(false);
+                            doClose();
+
+                        }
                     }
-                    WidgetSetProvider({name: props.parameter.name + "job"}, job.specification.product.provider);
-                    if (props.errors[props.parameter.name]) {
-                        delete props.errors[props.parameter.name];
-                        props.setErrors({...props.errors});
-                    }
-                    setAllowAutoConfigure(false);
-                    doClose();
                 }}
-                browseType={BrowseType.Embedded}
             />
         </ReactModal>
     </Flex>);
 };
-
-export const PointerInput = styled(Input)`
-    cursor: pointer;
-`;

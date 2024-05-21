@@ -261,7 +261,7 @@ this, then UCloud/Core will reject all requests counting backwards.
 </tr>
 <tr>
 <td><a href='#resourcebrowserequest'><code>ResourceBrowseRequest</code></a></td>
-<td>The base type for requesting paginated content.</td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#resourceinitializationrequest'><code>ResourceInitializationRequest</code></a></td>
@@ -273,7 +273,7 @@ this, then UCloud/Core will reject all requests counting backwards.
 </tr>
 <tr>
 <td><a href='#resourcesearchrequest'><code>ResourceSearchRequest</code></a></td>
-<td>The base type for requesting paginated content.</td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#resourcechargecreditsresponse'><code>ResourceChargeCreditsResponse</code></a></td>
@@ -332,7 +332,7 @@ Resources.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -409,7 +409,7 @@ current status through the updates. */
 # operation.
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -749,7 +749,7 @@ Resources.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -825,7 +825,7 @@ PageV2(
 #   save the client a round-trip by retrieving all relevant data in a single call.
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -943,7 +943,7 @@ Resources.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     user
 ).orThrow()
@@ -1133,7 +1133,7 @@ PageV2(
 # We start with the following dataset.
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?filterState=RUNNING&includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -1353,6 +1353,7 @@ Resources.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Compute(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-compute", 
                 name = "example-compute", 
@@ -1376,6 +1377,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-compute", 
+            maxUsableBalance = null, 
         ), 
         support = ExampleResourceSupport(
             maintenance = null, 
@@ -1444,6 +1446,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                 "product": {
 #                     "type": "compute",
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-compute",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -1460,6 +1463,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "UNITS_PER_HOUR",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,
@@ -1550,6 +1554,7 @@ Resources.retrieveProducts.call(
 SupportByProvider(
     productsByProvider = mapOf("example" to listOf(ResolvedSupport(
         product = Product.Compute(
+            allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
             category = ProductCategoryId(
                 id = "example-compute", 
                 name = "example-compute", 
@@ -1573,6 +1578,7 @@ SupportByProvider(
             version = 1, 
             balance = null, 
             id = "example-compute", 
+            maxUsableBalance = null, 
         ), 
         support = ExampleResourceSupport(
             maintenance = null, 
@@ -1637,6 +1643,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                 "product": {
 #                     "type": "compute",
 #                     "balance": null,
+#                     "maxUsableBalance": null,
 #                     "name": "example-compute",
 #                     "pricePerUnit": 1,
 #                     "category": {
@@ -1653,6 +1660,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrievePr
 #                     "gpuModel": null,
 #                     "version": 1,
 #                     "freeToUse": false,
+#                     "allowAllocationRequestsFrom": "ALL",
 #                     "unitOfPrice": "UNITS_PER_HOUR",
 #                     "chargeType": "ABSOLUTE",
 #                     "hiddenInGrantApplications": false,
@@ -3651,7 +3659,6 @@ data class UpdatedAclWithResource<Res>(
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_The base type for requesting paginated content._
 
 ```kotlin
 data class ResourceBrowseRequest<Flags>(
@@ -3664,35 +3671,6 @@ data class ResourceBrowseRequest<Flags>(
     val sortDirection: SortDirection?,
 )
 ```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
 
 <details>
 <summary>
@@ -3873,7 +3851,6 @@ data class ResourceRetrieveRequest<Flags>(
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_The base type for requesting paginated content._
 
 ```kotlin
 data class ResourceSearchRequest<Flags>(
@@ -3887,35 +3864,6 @@ data class ResourceSearchRequest<Flags>(
     val sortDirection: SortDirection?,
 )
 ```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
 
 <details>
 <summary>

@@ -1,17 +1,17 @@
 import * as React from "react";
-import Text from "./Text";
+import {TextH1, TextH2, TextH3, TextH4, TextH5, TextH6} from "./Text";
 
-export const h1 = ({children, ...props}): JSX.Element =>
-    (<Text as="h1" bold={true} fontSize={6} m={0} {...props}>{children}</Text>);
-export const h2 = ({children, ...props}): JSX.Element =>
-    (<Text as="h2" bold={true} fontSize={5} m={0} {...props}>{children}</Text>);
-export const h3 = ({children, ...props}): JSX.Element =>
-    (<Text as="h3" regular={true} fontSize={4} m={0} {...props}>{children}</Text>);
-export const h4 = ({children, ...props}): JSX.Element =>
-    (<Text as="h4" regular={true} fontSize={3} m={0} {...props}>{children}</Text>);
-export const h5 = ({children, ...props}): JSX.Element =>
-    (<Text as="h5" bold={props.bold ?? true} fontSize={2} m={0} {...props}>{children}</Text>);
-export const h6 = ({children, ...props}): JSX.Element =>
-    (<Text as="h6" bold={true} caps={true} fontSize={0} m={0} {...props}>{children}</Text>);
+export const h1 = ({children, ...props}): React.ReactNode =>
+    (<TextH1 bold={true} fontSize={"32px"} m={0} {...props}>{children}</TextH1>);
+export const h2 = ({children, ...props}): React.ReactNode =>
+    (<TextH2 bold={true} fontSize={"25px"} m={0} {...props}>{children}</TextH2>);
+export const h3 = ({children, ...props}): React.ReactNode =>
+    (<TextH3 regular={true} fontSize={"20px"} m={0} {...props}>{children}</TextH3>);
+export const h4 = ({children, ...props}): React.ReactNode =>
+    (<TextH4 regular={true} fontSize={"16px"} m={0} {...props}>{children}</TextH4>);
+export const h5 = ({children, ...props}): React.ReactNode =>
+    (<TextH5 bold={props.bold ?? true} fontSize={"14px"} m={0} {...props}>{children}</TextH5>);
+export const h6 = ({children, ...props}): React.ReactNode =>
+    (<TextH6 bold={true} caps={true} fontSize={"12px"} m={0} {...props}>{children}</TextH6>);
 
 export default h3;

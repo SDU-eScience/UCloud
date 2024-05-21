@@ -1,31 +1,33 @@
 import {
-    listByProductArea, priceExplainer,
-    Product,
-    ProductArea,
-    ProductCompute,
+    priceToString,
+    ProductType,
+    ProductV2,
+    ProductV2Compute,
     UCLOUD_PROVIDER
 } from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {emptyPage} from "@/DefaultObjects";
-import {MainContainer} from "@/MainContainer/MainContainer";
-import {List, ListV2} from "@/Pagination";
+import {MainContainer} from "@/ui-components/MainContainer";
+import {ListV2} from "@/Pagination";
 import {Card, Box, Flex, Icon, Text, ContainerForText} from "@/ui-components";
 import * as React from "react";
 import {capitalized} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import styled from "styled-components";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePage} from "@/Navigation/Redux";
+import {NonAuthenticatedHeader} from "@/Navigation/Header";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {CardClass} from "@/ui-components/Card";
+import {emptyPage} from "@/Utilities/PageUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function Products(): JSX.Element {
-    useTitle("SKUs");
+function Products(): React.ReactNode {
+    usePage("SKUs", SidebarTabId.NONE);
 
     const main = (
         <ContainerForText>
@@ -33,17 +35,17 @@ function Products(): JSX.Element {
             <Description />
 
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "STORAGE"} area={"STORAGE"} />
+            <MachineView provider={"aau"} key={"aau" + "STORAGE"} productType={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} productType={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} productType={"INGRESS"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"aau" + "INGRESS"} area={"INGRESS"} />
+            <MachineView provider={"aau"} key={"aau" + "INGRESS"} productType={"INGRESS"} />
         </ContainerForText>
     );
 
@@ -58,94 +60,83 @@ function Products(): JSX.Element {
     return (<MainContainer main={main} />);
 }
 
-const DetailedView = styled(Table)`
-    th {
+const DetailedView = injectStyle("detailed-view", k => `
+    ${k} > th {
         text-align: left;
-        border-top: 1px solid rgba(34, 36, 38, .1);
+        border-top: 1px solid var(--borderColor);
     }
 
-    th, ${TableCell} {
+    ${k} th, ${k} td {
         padding: 16px 0;
     }
-`;
+`);
 
-export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string; color?: string}> = ({area, provider, color = "var(--blue, #f00)"}) => {
-    const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
-        {...UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
+export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string;}> = ({productType, provider}) => {
+    const [machines, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
+        {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
     );
 
-    const [activeMachine, setActiveMachine] = React.useState<Product | undefined>(undefined);
-    const isCompute = "COMPUTE" === area;
+    const [activeMachine, setActiveMachine] = React.useState<ProductV2 | undefined>(undefined);
+    const isCompute = "COMPUTE" === productType;
 
     const machineCount = machines.data.items.length;
     const [hasPrice, setHasPrice] = React.useState(false);
     React.useEffect(() => {
-        setHasPrice(price => price || machines.data.items.some(it =>
-            ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(it.unitOfPrice)
-        ));
+        setHasPrice(machines.data.items.some(it => it.price));
     }, [machines.data]);
     if (machineCount === 0) return null;
 
     return (<>
-        <Card
-            my="8px"
-            width={1}
-            overflow="hidden"
-            boxShadow="sm"
-            borderWidth={0}
-            borderRadius={6}
-        >
-            <Box style={{borderTop: `5px solid ${color}`}} />
-            <Box px={3} py={3} height={"100%"}>
-                <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
+        <Card>
+            <Heading.h3 mb={"16px"}>{capitalized(productType === "INGRESS" ? "public links" : productType)}</Heading.h3>
 
-                <Flex alignItems="center">
-                    <ListV2
-                        page={machines.data}
-                        loading={machines.loading}
-                        onLoadMore={() => refetch({...UCloud.accounting.products.browse({
-                            filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
-                        }), unauthenticated: !Client.isLoggedIn})}
-                        pageRenderer={items => (
-                            <MachineTypesWrapper>
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
-                                            {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
-                                            {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
-                                            {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
-                                            {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
-                                            <TableHeaderCell>Description</TableHeaderCell>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <tbody>
-                                        {items.map(machine => {
-                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") {
-                                                // Note(Jonas): Why in the world would this ever happen?
-                                                if (machine === null) return null;
-                                            }
-                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE", "UNITS_PER_MINUTE"].includes(machine.unitOfPrice);
-                                            const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
-                                            return <TableRow key={machine.name + machine.unitOfPrice} onClick={() => setActiveMachine(machine)}>
-                                                <TableCell>{machine.name}</TableCell>
-                                                {!computeProduct ? null :
-                                                    <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
-                                                {!computeProduct ? null :
-                                                    <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
-                                                {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{showPrice ? priceExplainer(machine) : ""}</TableCell>}
-                                                <TruncatedTableCell>{machine.description}</TruncatedTableCell>
-                                            </TableRow>;
-                                        })}
-                                    </tbody>
-                                </Table>
-                            </MachineTypesWrapper>
-                        )}
-                    />
-                </Flex>
-            </Box>
+            <Flex alignItems="center">
+                <ListV2
+                    page={machines.data}
+                    loading={machines.loading}
+                    onLoadMore={() => refetch({
+                        ...UCloud.accounting.products.browse({
+                            filterProductType: productType, filterProvider: provider, filterUsable: true, next: machines.data.next
+                        }), unauthenticated: !Client.isLoggedIn
+                    })}
+                    pageRenderer={items => (
+                        <div className={MachineTypesWrapper}>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell>Name</TableHeaderCell>
+                                        {!isCompute ? null : <TableHeaderCell>vCPU</TableHeaderCell>}
+                                        {!isCompute ? null : <TableHeaderCell>RAM (GB)</TableHeaderCell>}
+                                        {!isCompute ? null : <TableHeaderCell>GPU</TableHeaderCell>}
+                                        {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
+                                        <TableHeaderCell>Description</TableHeaderCell>
+                                    </TableRow>
+                                </TableHeader>
+                                <tbody>
+                                    {items.map(machine => {
+                                        if (provider === UCLOUD_PROVIDER && productType === "COMPUTE") {
+                                            // Note(Jonas): Why in the world would this ever happen?
+                                            if (machine === null) return null;
+                                        }
+                                        const computeProduct = productType === "COMPUTE" ? machine as ProductV2Compute : null;
+                                        return <TableRow cursor="pointer" key={machine.name} onClick={() => setActiveMachine(machine)}>
+                                            <TableCell>{machine.name}</TableCell>
+                                            {!computeProduct ? null :
+                                                <TableCell>{computeProduct.cpu ?? "Unspecified"}</TableCell>}
+                                            {!computeProduct ? null :
+                                                <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
+                                            {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
+                                            {!hasPrice ? null : <TableCell>{priceToString(machine, 1)}</TableCell>}
+                                            <td className={TruncatedTableCell}>{machine.description}</td>
+                                        </TableRow>;
+                                    })}
+                                </tbody>
+                            </Table>
+                        </div>
+                    )}
+                />
+            </Flex>
         </Card>
         <ReactModal
             ariaHideApp={false}
@@ -154,6 +145,7 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
             onRequestClose={() => setActiveMachine(undefined)}
             isOpen={activeMachine !== undefined}
             style={defaultModalStyle}
+            className={CardClass}
         >
             <Spacer
                 left={null}
@@ -161,79 +153,79 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
             />
             <Box maxWidth="650px">
                 {activeMachine === undefined ? null :
-                    <DetailedView>
+                    <table className={DetailedView}>
                         <tbody>
                             <TableRow>
-                                <TableHeaderCell>Name</TableHeaderCell>
+                                <TableHeaderCell width="130px" textAlign="left">Name</TableHeaderCell>
                                 <TableCell>{activeMachine.name}</TableCell>
                             </TableRow>
-                            {area !== "COMPUTE" || !("cpu" in activeMachine) ? null :
+                            {productType !== "COMPUTE" || !("cpu" in activeMachine) ? null :
                                 <>
                                     <TableRow>
-                                        <th>vCPU</th>
+                                        <TableHeaderCell textAlign="left" width="130px">vCPU</TableHeaderCell>
                                         <TableCell>{activeMachine.cpu}</TableCell>
                                     </TableRow>
 
                                     <TableRow>
-                                        <th>RAM (GB)</th>
+                                        <TableHeaderCell textAlign="left" width="130px">RAM (GB)</TableHeaderCell>
                                         <TableCell>{activeMachine.memoryInGigs ?? "Unspecified"}</TableCell>
                                     </TableRow>
 
                                     {!activeMachine.gpu ? null :
                                         <TableRow>
-                                            <th>GPU</th>
+                                            <TableHeaderCell textAlign="left" width="130px">GPU</TableHeaderCell>
                                             <TableCell>{activeMachine.gpu}</TableCell>
                                         </TableRow>
                                     }
                                 </>
                             }
                             <TableRow>
-                                <th>Price</th>
+                                <TableHeaderCell textAlign="left" width="130px">Price</TableHeaderCell>
                                 <TableCell>
-                                    {priceExplainer(activeMachine)}
+                                    {priceToString(activeMachine, 1)}
                                 </TableCell>
                             </TableRow>
                             <TableRow>
-                                <th>Description</th>
+                                <TableHeaderCell textAlign="left" width="130px">Description</TableHeaderCell>
                                 <TableCell><Text>{activeMachine.description}</Text></TableCell>
                             </TableRow>
                         </tbody>
-                    </DetailedView>
+                    </table>
                 }
             </Box>
         </ReactModal>
     </>);
 }
 
-function Description(): JSX.Element {
+function Description(): React.ReactNode {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
-        They are divided into different product areas, i.e. storage SKUs, compute SKUs, public link SKUs and license
+        They are divided into different product types, i.e. storage SKUs, compute SKUs, public link SKUs and license
         SKUs.
         The prices for compute will be visible when starting a job.
     </>);
 }
 
-const TruncatedTableCell = styled(TableCell)`
+const TruncatedTableCell = injectStyleSimple("truncated-table-cell", `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
+`);
 
-const MachineTypesWrapper = styled.div`
-  ${TableHeaderCell} {
-    text-align: left;
-  }
+const MachineTypesWrapper = injectStyle("machine-types-wrapper", k => `
+    ${k} th {
+        text-align: left;
+    }
 
-  ${TableRow} {
-    padding: 8px;
-  }
+    ${k} tr {
+        padding: 8px;
+    }
 
-  tbody > ${TableRow}:hover {
-    cursor: pointer;
-    background-color: var(--lightGray, #f00);
-    color: var(--black, #f00);
-  }
-`;
+    ${k} > tbody > tr:hover {
+        cursor: pointer;
+        background-color: var(--primaryLight, #f00);
+        color: var(--textPrimary, #f00);
+    }
+`);
 
 export default Products;

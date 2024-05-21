@@ -17,3 +17,11 @@ export function removePrefixFrom(prefix: string, text: string): string {
     }
     return text;
 }
+
+export function visualizeWhitespaces(value: string): string {
+    if (value === " ") return "␣";
+    let result = value;
+    result = result.replace(/\n/g, "↵").replace(/\r/g, "↵").replace(/\t/g, "→→→→");
+    if (result.indexOf("  ") !== -1) result = result.replace(/ /g, "␣");
+    return result;
+}

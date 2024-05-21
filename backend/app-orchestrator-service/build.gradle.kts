@@ -1,7 +1,7 @@
 version = rootProject.file("./version.txt").readText().trim()
 
 application {
-    mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
+    mainClass.set("dk.sdu.cloud.app.orchestrator.MainKt")
 }
 
 kotlin.sourceSets {
@@ -12,9 +12,15 @@ kotlin.sourceSets {
             implementation(project(":accounting-service:api"))
             implementation(project(":accounting-service:util"))
             implementation(project(":mail-service:api"))
+            implementation(project(":notification-service:api"))
             implementation(project(":file-orchestrator-service:api"))
             implementation(project(":file-orchestrator-service:util"))
-            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
+            implementation(project(":cliff-utils"))
+        }
+    }
+    val test by getting {
+        dependencies {
+            api("org.jetbrains.kotlinx:kotlinx-coroutines-debug:1.7.1")
         }
     }
 }

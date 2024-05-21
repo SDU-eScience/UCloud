@@ -2,13 +2,14 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router";
-import styled from "styled-components";
-import api, {AcceptInviteLinkResponse, Project, RetrieveInviteLinkInfoResponse} from "./Api";
+import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./Api";
 import * as Heading from "@/ui-components/Heading";
-import {dispatchSetProjectAction} from "./Redux";
-import {Box, Button} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
+import {dispatchSetProjectAction} from "./ReduxState";
+import {Button, Flex} from "@/ui-components";
+import MainContainer from "@/ui-components/MainContainer";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {injectStyleSimple} from "@/Unstyled";
+import AppRoutes from "@/Routes";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
@@ -17,8 +18,8 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse|null>({noop: true}, null);
-    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveInviteLinkInfoResponse|null>({noop: true}, null);
+    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse | null>({noop: true}, null);
+    const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveInviteLinkInfoResponse | null>({noop: true}, null);
 
     useEffect(() => {
         if (token) {
@@ -30,49 +31,47 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
         if (linkInfo.data) {
             if (linkInfo.data.isMember) {
                 dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
-                navigate("/projects");
+                navigate(AppRoutes.project.members());
             }
         }
     }, [linkInfo]);
-    
+
     useEffect(() => {
         if (acceptedInvite.data) {
             dispatchSetProjectAction(dispatch, acceptedInvite.data?.project);
-            navigate("/projects");
+            navigate(AppRoutes.project.members());
         }
     }, [acceptedInvite]);
 
     return <MainContainer
         main={
             linkInfo.loading ? <Spinner /> :
-            linkInfo.error ? <AcceptProjectLinkContainer>
-                <Heading.h3>Invitation link has expired</Heading.h3>
-                Contact the relevant PI or admin of the project to get a new link.
-            </AcceptProjectLinkContainer>
-            :
-            <AcceptProjectLinkContainer>
-                <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
-                <Box mt="15px">
-                    <Button
-                        color="green"
-                        mr="10px"
-                        onClick={() => {
-                            if (token) {
-                                acceptInvite(api.acceptInviteLink({token}))
-                            }
-                        }}
-                    >Join project</Button>
-                    <Button color="red" onClick={() => navigate("/")}>Ignore</Button>
-                </Box>
-            </AcceptProjectLinkContainer>
+                linkInfo.error ? <div className={AcceptProjectLinkContainer}>
+                    <Heading.h3>Invitation link has expired</Heading.h3>
+                    Contact the relevant PI or admin of the project to get a new link.
+                </div> : <div className={AcceptProjectLinkContainer}>
+                    <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
+                    <Flex mt="15px" width="300px" mx="auto">
+                        <Button
+                            color="successMain"
+                            mr="10px"
+                            onClick={() => {
+                                if (token) {
+                                    acceptInvite(api.acceptInviteLink({token}))
+                                }
+                            }}
+                        >Join project</Button>
+                        <Button color="errorMain" onClick={() => navigate(AppRoutes.dashboard.dashboardA())}>Ignore</Button>
+                    </Flex>
+                </div>
         }
     />;
 }
 
-const AcceptProjectLinkContainer = styled.div`
+const AcceptProjectLinkContainer = injectStyleSimple("accept-project-link", `
     text-align: center;
     margin-top: 50px;
-`;
+`);
 
 
 export default AcceptInviteLink;

@@ -3,30 +3,32 @@ package dk.sdu.cloud.plugins.storage.ucloud
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.utils.copyTo
 import io.ktor.utils.io.*
 
 class ChunkedUploadService(
-    private val pathConverter: PathConverter,
-    private val nativeFS: NativeFS,
+    private val openFileDescriptors: UploadDescriptors
 ) {
     suspend fun receiveChunk(
-        path: UCloudFile,
+        target: UCloudFile,
         offset: Long,
         payload: ByteReadChannel,
-    ) {
-        val internalFile = pathConverter.ucloudToInternal(path)
+        conflictPolicy: WriteConflictPolicy,
+        shouldClose: Boolean = false,
+        modifiedAt: Long? = null
+    ): Boolean {
+        val descriptor = openFileDescriptors.get(target.path, offset, modifiedAt = modifiedAt)
+        val stream = LinuxOutputStream(descriptor.handle)
 
-        val (_, outs) = nativeFS.openForWriting(
-            internalFile,
-            WriteConflictPolicy.REPLACE,
-            truncate = false,
-            offset = offset
-        )
+        payload.copyTo(stream)
 
-        outs.use {
-            payload.copyTo(outs)
+        if (shouldClose) {
+            openFileDescriptors.close(descriptor, conflictPolicy, modifiedAt = modifiedAt)
         }
+        descriptor.release()
+
+        return shouldClose
     }
 
     companion object : Loggable {

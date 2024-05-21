@@ -1,184 +1,356 @@
-import {emptyPage} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
-import {connect} from "react-redux";
-import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {useDispatch} from "react-redux";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import {Dispatch} from "redux";
-import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
-import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
+import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
+import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import styled from "styled-components";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {NavigateFunction, useNavigate} from "react-router";
 import {initializeResources} from "@/Services/ResourceInit";
 import {useProject} from "./cache";
-import ProjectAPI, {Project, useProjectId} from "@/Project/Api";
+import ProjectAPI, {ProjectBrowseParams, useProjectId} from "@/Project/Api";
+import {injectStyle} from "@/Unstyled";
+import Api from "@/Project/Api";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {PageV2} from "@/UCloud";
+import AppRoutes from "@/Routes";
+import {useRefresh} from "@/Utilities/ReduxUtilities";
+import {fuzzySearch} from "@/Utilities/CollectionUtilities";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {Project} from ".";
 
-// eslint-disable-next-line no-underscore-dangle
-function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
-    const project = useProject();
-    const projectId = useProjectId();
-    const [response, setFetchParams, params] = useCloudAPI<Page<Project>>(
-        ProjectAPI.browse({
-            itemsPerPage: 250,
-            includeFavorite: true,
-        }),
-        emptyPage
-    );
+const PROJECT_ITEMS_PER_PAGE = 250;
 
-    let activeContext = "My Workspace";
-    if (props.activeProject) {
-        const title = projectId === project.fetch().id ? project.fetch().specification.title : response.data.items.find(it => it.id === projectId)?.specification.title ?? "";
-        if (title) {
-            activeContext = title;
-        } else {
-            activeContext = shortUUID(props.activeProject);
+const CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS: ProjectBrowseParams = {
+    itemsPerPage: PROJECT_ITEMS_PER_PAGE,
+    includeFavorite: true,
+
+    includeMembers: true,
+    sortBy: "favorite",
+    sortDirection: "descending",
+    includeArchived: true
+};
+
+export const projectCache = new AsyncCache<PageV2<Project>>({globalTtl: 0});
+
+async function fetchProjects(next?: string): Promise<PageV2<Project>> {
+    const result = await callAPI<PageV2<Project>>(ProjectAPI.browse({...CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS, next}));
+    if (result.next) {
+        const child = await fetchProjects(result.next);
+        return {
+            items: result.items.concat(child.items),
+            itemsPerPage: result.itemsPerPage + child.itemsPerPage,
         }
     }
 
-    const sortedProjects = React.useMemo(() => {
-        return response.data.items.sort((a, b) => {
-            if (a.status.isFavorite === true && b.status.isFavorite !== true) {
-                return -1;
-            } else if (b.status.isFavorite === true && a.status.isFavorite !== true) {
-                return 1;
-            } else {
-                return a.specification.title.localeCompare(b.specification.title);
-            }
-        }).slice(0, 25);
-    }, [response.data.items]);
+    return result;
+}
+
+export function projectTitleFromCache(projectId?: string) {
+    if (!projectId) return "My workspace";
+    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    return project?.specification.title ?? ""
+}
+
+const triggerClass = injectStyle("context-switcher-trigger", k => `
+    ${k} {
+        background: var(--primaryMain);
+        color: var(--primaryContrast);
+        border-radius: 6px;
+        padding: 6px 12px;
+        display: flex;
+        user-select: none;
+    }
+`);
+
+export function ContextSwitcher({managed}: {
+    managed?: {setLocalProject: (project?: string) => void}
+}): React.ReactNode {
+    const refresh = useRefresh();
+
+    const project = useProject();
+    const projectId = useProjectId();
+    // Note(Jonas): Only for use if the context switcher data is managed elsewhere.
+    const [controlledProject, setControlledProject] = React.useState(projectId);
+    const [error, setError] = React.useState("");
+
+    const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
+
+    React.useEffect(() => {
+        projectCache.retrieve("", () =>
+            fetchProjects()
+        ).then(res => {
+            setProjectList(res);
+            emitProjects(projectId ?? null);
+        }).catch(err => {
+            setError(errorMessageOrDefault(err, "Failed to fetch your projects."));
+        });
+    }, []);
+
+    const dispatch = useDispatch();
+
+    const setProject = React.useCallback((id?: string) => {
+        dispatchSetProjectAction(dispatch, id);
+    }, [dispatch]);
+
+    let activeContext = "My workspace";
+    const activeProject = managed ? controlledProject : projectId;
+    if (activeProject) {
+        const title = activeProject === project.fetch().id ?
+            project.fetch().specification.title :
+            projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
+        if (title) {
+            activeContext = title;
+        } else {
+            activeContext = shortUUID(activeProject);
+        }
+    }
 
     useEffect(() => {
         const storedProject = getStoredProject();
-        props.setProject(storedProject ?? undefined);
+        setProject(storedProject ?? undefined);
     }, []);
+
+    const reload = React.useCallback(() => {
+        projectCache.retrieveWithInvalidCache("", () => callAPI(ProjectAPI.browse(CONTEXT_SWITCHER_DEFAULT_FETCH_ARGS)))[1].then(it => {
+            setProjectList(it);
+        })
+    }, []);
+
+    const arrowKeyIndex = React.useRef(-1);
 
     const navigate = useNavigate();
 
+    const [filter, setTitleFilter] = React.useState("");
+
+    const filteredProjects: Project[] = React.useMemo(() => {
+        if (filter === "") return projectList.items;
+
+        const searchResults = fuzzySearch(projectList.items.map(it => it.specification), ["title"], filter, {sort: true});
+        return searchResults
+            .map(it => projectList.items.find(p => it.title === p.specification.title))
+            .filter(it => it !== undefined) as Project[];
+    }, [projectList, filter]);
+
+    const divRef = React.useRef<HTMLDivElement>(null);
+
+    const setActiveProject = React.useCallback((id?: string) => {
+        if (managed?.setLocalProject) {
+            managed.setLocalProject(id);
+            setControlledProject(id);
+        } else {
+            onProjectUpdated(navigate, () => setProject(id), refresh, id ?? "")
+        }
+    }, [refresh]);
+
+    const closeFn = React.useRef(() => void 0);
+    const switcherRef = React.useRef<HTMLDivElement>(null);
+
+    React.useLayoutEffect(() => {
+        const wrapper = switcherRef.current!;
+        const scrollingParentFn = (elem: HTMLElement): HTMLElement => {
+            let parent = elem.parentElement;
+            while (parent) {
+                const {overflow} = window.getComputedStyle(parent);
+                if (overflow.split(" ").every(it => it === "auto" || it === "scroll")) {
+                    return parent;
+                } else {
+                    parent = parent.parentElement;
+                }
+            }
+            return document.documentElement;
+        };
+        const scrollingParent = scrollingParentFn(wrapper);
+
+        const noScroll = () => {
+            closeFn.current();
+        };
+
+        document.body.addEventListener("click", closeFn.current);
+        scrollingParent.addEventListener("scroll", noScroll);
+
+        return () => {
+            document.body.removeEventListener("click", closeFn.current);
+            scrollingParent.removeEventListener("scroll", noScroll);
+        };
+    }, []);
+
+    const showMyWorkspace =
+        activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+
     return (
-        <Flex pr="12px" alignItems={"center"} data-component={"project-switcher"}>
+        <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
-                    <HoverBox>
-                        <HoverIcon
-                            onClick={e => {
-                                stopPropagationAndPreventDefault(e);
-                                navigate(`/projects/${projectId ?? "My Workspace"}`);
-                            }}
-                            name="projects"
-                            color2="midGray"
-                            mr=".5em"
-                        />
-                        <Truncate width={"150px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
-                    </HoverBox>
+                    <div className={triggerClass} ref={switcherRef}>
+                        <Truncate title={activeContext} fontSize={14} width="180px"><b>{activeContext}</b></Truncate>
+                        <Icon name="chevronDownLight" size="14px" ml="4px" mt="4px" />
+                    </div>
                 }
-                colorOnHover={false}
+                rightAligned
+                closeFnRef={closeFn}
                 paddingControlledByContent
-                onTriggerClick={() => (setFetchParams({...params}), project.reload())}
-                left="0px"
-                width="250px"
+                arrowkeyNavigationKey="data-active"
+                hoverColor={"rowHover"}
+                onSelect={el => {
+                    const id = el?.getAttribute("data-project") ?? undefined;
+                    setActiveProject(id)
+                }}
+                onClose={() => {
+                    arrowKeyIndex.current = -1;
+                    setTitleFilter("");
+                }}
+                colorOnHover={false}
+                onTriggerClick={reload}
+                width="500px"
             >
-                <BoxForPadding>
-                    {props.activeProject ?
-                        (
-                            <Text onClick={() => onProjectUpdated(navigate, () => props.setProject(), props.refresh, "My Workspace")}>
-                                My Workspace
-                            </Text>
-                        ) : null
-                    }
-                    {sortedProjects.filter(it => !(it.id === props.activeProject)).map(project =>
-                        <Text
-                            key={project.id}
-                            onClick={() => onProjectUpdated(navigate, () => props.setProject(project.id), props.refresh, project.id)}
-                        >
-                            <Truncate width="215px">{project.specification.title}</Truncate>
-                        </Text>
-                    )}
-                    {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                    <Text onClick={() => navigate("/projects")}>Manage projects</Text>
-                    <Text onClick={() => navigate(`/projects/${projectId ?? "My Workspace"}`)}>
-                        {projectId ? "Manage active project" : "Manage my workspace"}
-                    </Text>
-                </BoxForPadding>
+                <div style={{maxHeight: "385px"}}>
+                    <Flex>
+                        <Input
+                            autoFocus
+                            className={filterInputClass}
+                            placeholder="Search for a project..."
+                            defaultValue={filter}
+                            onClick={stopPropagationAndPreventDefault}
+                            enterKeyHint="enter"
+                            onKeyDown={e => {
+                                // Note(Jonas): Not reached for some reason?
+                                if (["Escape"].includes(e.code) && e.target["value"]) {
+                                    setTitleFilter("");
+                                    e.target["value"] = "";
+                                }
+                                // Note(Jonas): Stop keypropagation like `Delete`.
+                                e.stopPropagation();
+                            }}
+                            onKeyUp={e => {
+                                e.stopPropagation();
+                                setTitleFilter("value" in e.target ? e.target.value as string : "");
+                            }}
+                            type="text"
+                        />
+
+                        <Relative right="24px" top="5px" width="0px" height="0px">
+                            <Icon name="search" />
+                        </Relative>
+                    </Flex>
+
+                    <div ref={divRef} style={{overflowY: "auto", maxHeight: "285px", lineHeight: "2em"}}>
+                        <Error error={error} />
+
+                        {showMyWorkspace ? (
+                            <div
+                                key={"My workspace"}
+                                style={{width: "100%"}}
+                                data-active={activeProject == null}
+                                className={BottomBorderedRow}
+                                onClick={() => {setActiveProject();}}
+                            >
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="favoriteColor" name={"starFilled"} />
+                                <Text fontSize="var(--breadText)">My workspace</Text>
+                            </div>
+                        ) : null}
+                        {filteredProjects.map(it =>
+                            <div
+                                key={it.id + it.status.isFavorite}
+                                style={{width: "100%"}}
+                                data-active={it.id === activeProject}
+                                data-project={it.id}
+                                className={BottomBorderedRow}
+                                onClick={() => setActiveProject(it.id)}
+                            >
+                                <Favorite project={it} />
+                                <Text fontSize="var(--breadText)">{it.specification.title}</Text>
+                            </div>
+                        )}
+
+                        {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
+                            <Box my="32px" textAlign="center">No projects found</Box>
+                        )}
+                    </div>
+                </div>
             </ClickableDropdown>
         </Flex>
     );
 }
 
-const BoxForPadding = styled.div`
-    & > div:hover {
-        background-color: var(--lightBlue);
-    }
+function Favorite({project}: {project: Project}): React.ReactNode {
+    const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
-    & > ${Divider} {
-        width: 80%;
-        margin-left: 26px;
-    }
+    const [commandLoading, invokeCommand] = useCloudCommand();
+    const onFavorite = React.useCallback((e: React.SyntheticEvent, p: Project) => {
+        e.stopPropagation();
+        if (commandLoading) return;
+        setIsFavorite(f => !f);
+        try {
+            invokeCommand(Api.toggleFavorite(
+                bulkRequestOf({id: p.id})
+            ), {defaultErrorHandler: false});
+        } catch (e) {
+            setIsFavorite(f => !f);
+            displayErrorMessageOrDefault(e, "Failed to toggle favorite");
+        }
+    }, [commandLoading]);
 
-    & > ${Text} {
-        padding-left: 10px;
-    }
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
+}
 
-    margin-top: 12px;
-    margin-bottom: 12px;
-`;
-
-const HoverIcon = styled(Icon)`
-    &:hover {
-        transform: scale(1.1);
-    }
-`;
-
-function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId: string): void {
+function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
     const {pathname} = window.location;
     runThisFunction();
-    const splitPath = pathname.split("/").filter(it => it);
-    if (pathname === "/app/files") {
+    let doRefresh = true;
+
+    if (["/app/files/", "/app/files"].includes(pathname)) {
         navigate("/drives")
-    } else if (splitPath.length === 3) {
-        if (splitPath[0] === "app" && splitPath[1] === "projects") {
-            navigate(`/projects/${projectId}`);
-        }
-    } else if (splitPath.length === 5) {
-        if (splitPath[0] === "app" && splitPath[2] === "grants" && splitPath[3] == "view") {
-            navigate(`/project/grants/ingoing/${projectId}`);
+        doRefresh = false;
+    }
+
+    if (!projectId) {
+        if (["/app/projects/members", "/app/projects/members/"].includes(pathname)
+            || ["/app/subprojects/", "/app/subprojects"].includes(pathname)) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            doRefresh = false;
         }
     }
+
     initializeResources();
-    refresh?.();
+    if (doRefresh) refresh?.();
 }
 
-const HoverBox = styled.div`
-    display: inline-flex;
-    flex-wrap: nowrap;
-    color: white;
-    padding: 6px 8px;
-    cursor: pointer;
-    user-select: none;
-    align-items: center;
-    border-radius: 5px;
-    &:hover {
-        background-color: rgba(236, 239, 244, 0.25);
-        color: white;
-        transition: background-color 0.2s;
+const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
+    ${k}:hover {
+        background-color: var(--rowHover);
     }
-`;
+    
+    ${k}[data-active="true"] {
+        background-color: var(--rowActive);
+    }
 
-interface ContextSwitcherReduxProps {
-    activeProject?: string;
-    refresh?: () => void;
-}
+    ${k} {
+        transition: 0.1s background-color;
+        display: flex;
+        border-bottom: 0.5px solid var(--borderColor);
+    }
+`);
 
-interface DispatchProps {
-    setProject: (id?: string) => void;
-}
 
-const mapStateToProps = (state: ReduxObject): ContextSwitcherReduxProps =>
-    ({activeProject: state.project.project, refresh: state.header.refresh});
-
-const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
-    setProject: id => dispatchSetProjectAction(dispatch, id)
-});
-
-export const ContextSwitcher = connect(mapStateToProps, mapDispatchToProps)(_ContextSwitcher);
+const filterInputClass = injectStyle("filter-input", k => `
+    ${k}:focus {
+        border: 0;
+        border-bottom: 1px solid var(--borderColor);
+        box-shadow: unset;
+    }
+    
+    ${k} {
+        box-shadow: none;
+        border: 0;
+        border-radius: 0;
+        width: calc(100%);
+        flex-shrink: 0;
+        border-bottom: 1px solid var(--borderColor);
+        background: transparent;
+        color: var(--textPrimary);
+        outline: none;
+    }
+`)

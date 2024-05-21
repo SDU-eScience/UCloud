@@ -53,13 +53,13 @@ class AuthInterceptor(
                             val allowedInDevMode =
                                 // Allow privileged roles to act as a provider in dev mode
                                 (auth.roles == Roles.PROVIDER &&
-                                    context.securityPrincipal.role in Roles.PRIVILEGED)
+                                        context.securityPrincipal.role in Roles.PRIVILEGED)
 
                             if (!developmentModeEnabled || !allowedInDevMode) {
                                 log.debug("Security principal is not authorized for this call: $call")
                                 log.debug("Principal is: ${context.securityPrincipal}")
                                 log.debug("Principal should be in ${auth.roles} but has role" +
-                                    " ${context.securityPrincipal.role}")
+                                        " ${context.securityPrincipal.role}")
                                 throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                             }
                         }

@@ -1,8 +1,8 @@
 import {defineConfig, UserConfigExport} from "vite";
-import reactRefresh from "@vitejs/plugin-react-refresh";
+import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
-import {DEV_SITE} from "./site.config.json";
+import {DEV_SITE, SANDBOX_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
 
@@ -16,6 +16,8 @@ function targetFromConfig(mode: Mode): string {
     switch (mode) {
         case "development":
             return `https://${DEV_SITE}`;
+        case "sandbox":
+            return `https://${SANDBOX_SITE}`;
         case "compose":
             return "http://backend:8080";
         case "local-dev":
@@ -39,6 +41,9 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
 
     return defineConfig({
         clearScreen: false,
+        build: {
+            assetsInlineLimit: 0 
+        },
         define: {
             /*
                 Note(Jonas): Added because of React-Markdown using the `assert` function,
@@ -48,7 +53,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             DEVELOPMENT_ENV: mode !== "production",
         },
         mode: mode === "production" ? "production" : "development",
-        plugins: [reactRefresh()],
+        plugins: [react()],
         resolve: {
             alias: {
                 //@ts-ignore
@@ -89,6 +94,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
                 alwaysStat: true,
                 depth: 99,
             }
-        }
+        },
+        worker: {}
     });
 };

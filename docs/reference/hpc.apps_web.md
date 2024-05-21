@@ -46,6 +46,7 @@ ApplicationWithFavoriteAndTags(
             word = "web-server", 
         )), 
         licenseServers = emptyList(), 
+        modules = null, 
         outputFileGlobs = listOf("*"), 
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
@@ -89,6 +90,14 @@ ApplicationWithFavoriteAndTags(
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
         description = "An example application", 
+        flavorName = null, 
+        group = ApplicationGroup(
+            defaultApplication = null, 
+            description = null, 
+            id = 0, 
+            tags = emptyList(), 
+            title = "Test Group", 
+        ), 
         isPublic = true, 
         name = "acme-web", 
         public = true, 
@@ -131,7 +140,16 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "title": "Acme web",
 #         "description": "An example application",
 #         "website": null,
-#         "public": true
+#         "public": true,
+#         "flavorName": null,
+#         "group": {
+#             "id": 0,
+#             "title": "Test Group",
+#             "description": null,
+#             "defaultApplication": null,
+#             "tags": [
+#             ]
+#         }
 #     },
 #     "invocation": {
 #         "tool": {
@@ -194,7 +212,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
-#         ]
+#         ],
+#         "modules": null
 #     },
 #     "favorite": false,
 #     "tags": [

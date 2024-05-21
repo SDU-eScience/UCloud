@@ -17,6 +17,7 @@ const val driveProjectHomeName = "project-home"
 const val driveShareName = "share"
 
 class PathConverter(
+    private val sensitiveProjects: Set<String>,
     private val serviceClient: AuthenticatedClient,
     val locator: DriveLocator,
 ) {
@@ -70,9 +71,33 @@ class PathConverter(
             serviceClient
         ).orThrow()
     }
+
     suspend fun findProjectOwner(driveId: String): String? {
         return (collectionCache.get(driveId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound))
             .owner.project
+    }
+
+    suspend fun driveIsSensitive(driveId: String): Boolean {
+        return findProjectOwner(driveId) in sensitiveProjects
+    }
+
+    suspend fun shouldAllowUsageOfFilesTogether(paths: List<UCloudFile>): Boolean {
+        val projectOwners = paths
+            .mapNotNull { it.components().firstOrNull() }
+            .map { findProjectOwner(it) }
+            .toSet()
+
+        if (projectOwners.any { it in sensitiveProjects }) {
+            return projectOwners.size == 1
+        }
+
+        return true
+    }
+
+    suspend fun pathIsSensitive(path: UCloudFile): Boolean {
+        val components = path.components()
+        val collectionId = components[0]
+        return findProjectOwner(collectionId) in sensitiveProjects
     }
 
     companion object {

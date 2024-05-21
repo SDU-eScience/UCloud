@@ -2,48 +2,57 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label, Truncate} from "@/ui-components";
-import {HiddenInputField} from "@/ui-components/Input";
+import {Box, Button, Flex, Icon} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
 import {useCallback, useState} from "react";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
-import {compute, PageV2} from "@/UCloud";
+import {compute} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
-import styled from "styled-components";
 import {TextP} from "@/ui-components/Text";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {default as JobsApi, Job} from "@/UCloud/JobsApi";
-import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
-import {BrowseType} from "@/Resource/BrowseType";
+import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {default as JobsApi} from "@/UCloud/JobsApi";
+import {bulkRequestOf} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, normalizeDownloadEndpoint} from "@/UCloud/FilesApi";
-import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
-import {JobBrowse} from "../Browse";
-import {format, isToday} from "date-fns/esm";
+import {getQueryParam} from "@/Utilities/URIUtilities";
+import JobBrowse from "../JobsBrowse";
+import FileBrowse from "@/Files/FileBrowse";
+import {CardClass} from "@/ui-components/Card";
+import {ShortcutKey} from "@/ui-components/Operation";
+import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
+import {Application} from "@/Applications/AppStoreApi";
 
-export const ImportParameters: React.FunctionComponent<{
-    application: UCloud.compute.Application;
+export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
+    application: Application;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
     setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
-}> = ({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}) => {
+}>): React.ReactNode {
+    const didLoadParameters = React.useRef(false);
 
-    const [previousRuns] = useCloudAPI<PageV2<Job>>(
-        JobsApi.browse({
-            itemsPerPage: 50,
-            filterApplication: application.metadata.name,
-        }),
-        emptyPageV2
-    );
+    const jobId = getQueryParam(location.search, "import");
+
+    React.useEffect(() => {
+        if (jobId) {
+            callAPI(JobsApi.retrieve({id: jobId})).then(it => {
+                if (!didLoadParameters.current) {
+                    readParsedJSON(it.status.jobParametersJson);
+                    snackbarStore.addSuccess("Imported job parameters", false, 5000);
+                }
+            }).catch(it => {
+                console.warn("Failed to auto-import parameters from query params.", it);
+            });
+        }
+    }, [jobId]);
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
     const readParsedJSON = useCallback(async (parsedJson: any) => {
         if (typeof parsedJson === "object") {
+            didLoadParameters.current = true;
             const version = parsedJson["siteVersion"];
 
             let result: ImportResult;
@@ -60,11 +69,11 @@ export const ImportParameters: React.FunctionComponent<{
             result = await cleanupImportResult(application, result)
             setMessages(result.messages);
 
-            /* Is this correct? Is the typeof an undefined value not a string? */
             if (typeof result.output === "undefined") {
                 // Do nothing
             } else {
                 onImport(result.output!);
+                onImportDialogClose();
             }
         }
     }, [])
@@ -109,54 +118,24 @@ export const ImportParameters: React.FunctionComponent<{
         }
     }, []);
 
-    const previousRunsValid: Job[] = [];
-    for (const run of previousRuns.data.items) {
-        if (previousRunsValid.length >= 10) break;
-        if (run.status.jobParametersJson != null && run.status.jobParametersJson["siteVersion"] != null) {
-            previousRunsValid.push(run);
-        }
-    }
-
     return <Box>
-        <Label>Load parameters from a previous run:</Label>
-        <Flex flexDirection="row" flexWrap="wrap">
-            {previousRunsValid.length === 0 ? null :
-                <>
-                    <div>
-                        <div style={{textAlign: "center", border: "1px solid var(--gray)", borderBottom: "0px"}}>
-                            <b>Date</b>
-                        </div>
-                        <div style={{textAlign: "center", border: "1px solid var(--gray)", width: "100px"}}>
-                            <b>Job ID</b>
-                        </div>
-                    </div>
-                    {previousRunsValid.slice(0, 5).map((run, idx) => (
-                        <div key={idx}>
-                            <Box title={format(run.createdAt, "HH:mm dd/MM/yy")} width="85px" textAlign={"center"} style={{border: "1px solid var(--gray)", borderBottom: "0px"}}>
-                                {format(run.createdAt, isToday(run.createdAt) ? "HH:mm" : "dd/MM/yy")}
-                            </Box>
-                            <Box title={run.specification.name ?? run.id} px="3px" cursor="pointer" width="85px" onClick={() => readParsedJSON(run.status.jobParametersJson)} textAlign={"center"} style={{border: "1px solid var(--gray)"}}>
-                                <Truncate width={1}>{run.specification.name ?? run.id}</Truncate>
-                            </Box>
-                        </div>
-                    ))}
-                </>}
-            <Button ml="12px" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import parameters</Button>
+        <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
+            <Button color="secondaryMain" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
             <Box>
                 <TextP bold>We have attempted to your import your previous job</TextP>
-                <MessageBox>
+                <ul>
                     {messages.map((it, i) =>
                         <li key={i}>
-                            {it.type === "error" ? <Icon name={"warning"} color={"red"} /> : null}
-                            {it.type === "warning" ? <Icon name={"warning"} color={"yellow"} /> : null}
+                            {it.type === "error" ? <Icon name={"warning"} color={"errorMain"} /> : null}
+                            {it.type === "warning" ? <Icon name={"warning"} color={"warningMain"} /> : null}
                             {it.type === "info" ? <Icon name={"info"} /> : null}
                             {it.message}
                         </li>
                     )}
-                </MessageBox>
+                </ul>
             </Box>
         )}
 
@@ -166,72 +145,75 @@ export const ImportParameters: React.FunctionComponent<{
             onRequestClose={onImportDialogClose}
             style={defaultModalStyle}
             ariaHideApp={false}
+            className={CardClass}
         >
-            <div>
-                <div>
-                    <Button fullWidth as="label">
-                        Upload file
-                        <HiddenInputField
-                            type="file"
-                            accept="application/json"
-                            onChange={e => {
-                                onImportDialogClose();
-                                if (e.target.files) {
-                                    const file = e.target.files[0];
-                                    if (file.size > 10_000_000) {
-                                        snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
-                                    } else {
-                                        importParameters(file);
+            <JobBrowse opts={{
+                isModal: true,
+                operations: [{
+                    enabled: (selected) => selected.length === 0,
+                    onClick: () => {
+                        const input = document.createElement("input");
+                        input.type = "file";
+                        input.accept = "application/json";
+                        input.onchange = e => {
+                            if (!e) return;
+                            const files = (e.target! as any).files as File[];
+                            onImportDialogClose();
+                            if (files) {
+                                const file = files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
+                                } else {
+                                    importParameters(file);
+                                }
+                            }
+                        }
+                        document.body.appendChild(input);
+                        input.click();
+                        document.body.removeChild(input);
+                    },
+                    text: "Upload JobParameters.json",
+                    shortcut: ShortcutKey.U,
+                    icon: "upload"
+                }, {
+                    enabled: (selected) => selected.length === 0,
+                    onClick: () => {
+                        onImportDialogClose();
+                        dialogStore.addDialog(
+                            <FileBrowse
+                                opts={{
+                                    isModal: true,
+                                    initialPath: "",
+                                    managesLocalProject: true,
+                                    selection: {
+                                        text: "Use",
+                                        onClick: res => {
+                                            fetchAndImportParameters(res);
+                                            dialogStore.success();
+                                        },
+                                        show: res => res.status.type === "FILE" && res.id.endsWith(".json")
                                     }
-                                }
-                            }}
-                        />
-                    </Button>
-                    <Button mt="6px" fullWidth onClick={() => {
-                        onImportDialogClose();
-                        dialogStore.addDialog(
-                            <FilesBrowse
-                                browseType={BrowseType.Embedded}
-                                onSelect={res => {
-                                    fetchAndImportParameters(res);
-                                    dialogStore.success();
                                 }}
-                                pathRef={{current: ""}}
-                                onSelectRestriction={res => res.status.type === "FILE" && res.id.endsWith(".json")}
                             />,
                             () => undefined,
                             true,
                             largeModalStyle
                         );
-                    }}>
-                        Select file from {CONF.PRODUCT_NAME}
-                    </Button>
-                    <Button mt="6px" fullWidth onClick={() => {
-                        onImportDialogClose();
-                        dialogStore.addDialog(
-                            <JobBrowse
-                                browseType={BrowseType.Embedded}
-                                onSelect={res => {
-                                    readParsedJSON(res.status.jobParametersJson);
-                                    dialogStore.success();
-                                }}
-                                additionalFilters={{filterApplication: application.metadata.name}}
-                                onSelectRestriction={res =>
-                                    res.specification.application.name === application.metadata.name
-                                }
-                            />,
-                            () => undefined,
-                            true,
-                            largeModalStyle
-                        );
-                    }}>
-                        Select parameters from jobs
-                    </Button>
-                </div>
-                <Flex mt="20px">
-                    <Button onClick={onImportDialogClose} color="red" mr="5px">Close</Button>
-                </Flex>
-            </div>
+                    },
+                    text: `Select file from ${CONF.PRODUCT_NAME}`,
+                    shortcut: ShortcutKey.S,
+                    icon: "documentation"
+                }],
+                selection: {
+                    text: "Import",
+                    show: () => true, // Note(Jonas): Only valid apps should be shown here
+                    onClick(res) {
+                        readParsedJSON(res.status.jobParametersJson);
+                        dialogStore.success();
+                    }
+                },
+                additionalFilters: {filterApplication: application.metadata.name, includeParameters: "true"},
+            }} />
         </ReactModal>
     </Box>;
 };
@@ -247,7 +229,7 @@ interface ImportResult {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function importVersion1(application: UCloud.compute.Application, json: any): Promise<ImportResult> {
+async function importVersion1(application: Application, json: any): Promise<ImportResult> {
     if (typeof json !== "object") return {messages: [{type: "error", message: "Invalid job parameters file"}]};
 
     const output: Partial<JobSpecification> = {};
@@ -352,14 +334,14 @@ async function importVersion1(application: UCloud.compute.Application, json: any
     return {output, messages};
 }
 
-async function importVersion2(application: UCloud.compute.Application, json: any): Promise<ImportResult> {
+async function importVersion2(application: Application, json: any): Promise<ImportResult> {
     const output = "request" in json ? json["request"] : {};
     return {output, messages: []};
 }
 
 // noinspection SuspiciousTypeOfGuard
 async function cleanupImportResult(
-    application: UCloud.compute.Application,
+    application: Application,
     result: ImportResult
 ): Promise<ImportResult> {
     const output = result.output;
@@ -424,13 +406,6 @@ async function cleanupImportResult(
 
         if (type === "input_file" || type === "input_directory") {
             if (!param["path"]) delete parameters[paramName];
-            /*
-            TODO
-            else if (!await checkIfFileExists(param["path"] as string, Client)) {
-                result.messages.push({type: "warning", message: "File no longer exists: " + param["path"]});
-                delete parameters[paramName];
-            }
-             */
         }
     }
 
@@ -444,14 +419,6 @@ async function cleanupImportResult(
                 resources.splice(i, 1);
                 continue;
             }
-
-            /*
-            TODO
-            if (!await checkIfFileExists(param.path, Client)) {
-                result.messages.push({type: "warning", message: "File no longer exists: " + param.path});
-                resources.splice(i, 1);
-            }
-             */
         }
     }
 
@@ -521,11 +488,3 @@ async function cleanupImportResult(
 
     return result;
 }
-
-const MessageBox = styled.ul`
-    list-style-type: none;
-    padding-left: 0;
-    ${Icon} {
-        margin-right: 10px;
-    }
-`;

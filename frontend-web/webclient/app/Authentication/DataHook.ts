@@ -1,11 +1,13 @@
-import {Client} from "@/Authentication/HttpClientInstance";
-import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {capitalize, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
-import {useGlobal, ValueOrSetter} from "@/Utilities/ReduxHooks";
-import {HookStore} from "@/DefaultObjects";
-import {usePromiseKeeper} from "@/PromiseKeeper";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as React from "react";
+import {useCallback, useEffect, useReducer, useRef, useState} from "react";
+
+import {defaultErrorHandler, removeTrailingSlash} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import * as Messages from "@/UCloud/Messages";
+import {BufferAndOffset, loadMessage} from "@/UCloud/Messages";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+
+const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1);
 
 function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
     switch (action.type) {
@@ -49,6 +51,10 @@ declare global {
         accessTokenOverride?: string;
         unauthenticated?: boolean;
     }
+
+    export interface APICallParametersBinary<Response> extends APICallParameters {
+        responseConstructor: {new(b: BufferAndOffset): Response};
+    }
 }
 
 export function apiCreate<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
@@ -66,7 +72,7 @@ export function apiBrowse<R extends Record<string, any>>(request: R, baseContext
         context: "",
         method: "GET",
         path: buildQueryString(
-            removeTrailingSlash(baseContext) + "/browse" + (subResource ? capitalize(subResource) : ""),
+            removeTrailingSlash(baseContext) + "/browse" + (subResource ? capitalized(subResource) : ""),
             request
         ),
         parameters: request
@@ -77,7 +83,7 @@ export function apiRetrieve<R extends Record<string, any>>(request: R, baseConte
         context: "",
         method: "GET",
         path: buildQueryString(
-            removeTrailingSlash(baseContext) + "/retrieve" + (subResource ? capitalize(subResource) : ""),
+            removeTrailingSlash(baseContext) + "/retrieve" + (subResource ? capitalized(subResource) : ""),
             request
         ),
         parameters: request
@@ -87,7 +93,7 @@ export function apiSearch<R>(request: R, baseContext: string, subResource?: stri
     return {
         context: "",
         method: "POST",
-        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalize(subResource) : ""),
+        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalized(subResource) : ""),
         parameters: request,
         payload: request
     };
@@ -127,17 +133,33 @@ export interface APICallStateWithParams<T, Params = any> {
     parameters: APICallParameters<Params>;
 }
 
-export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2): APICallState<T2> {
+// Unused
+export function mapCallState<InputType, OutputType>(
+    state: APICallState<InputType>, mapper: (t: InputType) => OutputType
+): APICallState<OutputType> {
     return {
         ...state,
         data: mapper(state.data)
     };
 }
 
-export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+export async function callAPI<T>(
+    parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
+): Promise<T> {
+    if (window["forceApiFailure"] !== undefined) {
+        return Promise.reject(window["forceApiFailure"]);
+    }
+
     const method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw Error("Missing path");
-    return (await Client.call({
+    let responseType: XMLHttpRequestResponseType = "text";
+    let acceptType = "*/*";
+    if ("responseConstructor" in parameters) {
+        responseType = "arraybuffer";
+        acceptType = Messages.contentType;
+    }
+
+    const res = (await Client.call({
         method,
         path: parameters.path,
         body: parameters.payload,
@@ -146,11 +168,18 @@ export async function callAPI<T>(parameters: APICallParameters<unknown, T>): Pro
         projectOverride: parameters.projectOverride,
         accessTokenOverride: parameters.accessTokenOverride,
         unauthenticated: parameters.unauthenticated,
+        responseType,
+        acceptType,
     })).response;
+
+    if ("responseConstructor" in parameters) {
+        return loadMessage(parameters.responseConstructor, new DataView(res));
+    }
+    return res;
 }
 
 export async function callAPIWithErrorHandler<T>(
-    parameters: APICallParameters
+    parameters: APICallParameters<unknown, T>
 ): Promise<T | null> {
     try {
         return await callAPI<T>(parameters);
@@ -158,59 +187,6 @@ export async function callAPIWithErrorHandler<T>(
         defaultErrorHandler(e);
         return null;
     }
-}
-
-export function useGlobalCloudAPI<T, Parameters = any>(
-    property: string,
-    callParametersInitial: APICallParameters<Parameters>,
-    dataInitial: T
-): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
-    const defaultState: APICallStateWithParams<T, Parameters> = {
-        call: {
-            loading: false,
-            error: undefined,
-            data: dataInitial
-        }, parameters: callParametersInitial
-    };
-
-    const promises = usePromiseKeeper();
-
-    const [globalState, setGlobalState] =
-        useGlobal(property as keyof HookStore, defaultState as unknown as NonNullable<HookStore[keyof HookStore]>);
-    const state = globalState as unknown as APICallStateWithParams<T, Parameters>;
-    const setState = setGlobalState as unknown as (value: ValueOrSetter<APICallStateWithParams<T, Parameters>>) => void;
-
-    const doFetch = useCallback(async (parameters: APICallParameters) => {
-        if (promises.canceledKeeper) return;
-        setState(old => ({...old, parameters}));
-        if (parameters.noop !== true) {
-            if (parameters.path !== undefined) {
-                if (promises.canceledKeeper) return;
-                setState(old => ({...old, call: {...old.call, loading: true}}));
-
-                try {
-                    const result: T = await callAPI(parameters);
-
-                    if (promises.canceledKeeper) return;
-                    setState(old => ({...old, call: {...old.call, loading: false, data: result}}));
-                } catch (e) {
-                    const statusCode = e.request.status;
-                    const why = e.response?.why ?? "An error occurred. Please reload the page.";
-                    if (promises.canceledKeeper) return;
-                    setState(old => ({...old, call: {...old.call, loading: false, error: {why, statusCode}}}));
-                }
-            }
-        }
-    }, [promises, setState]);
-
-    return [state.call, doFetch, state.parameters];
-}
-
-/**
- * @deprecated
- */
-export function useAsyncCommand(): [boolean, InvokeCommand, React.RefObject<boolean>] {
-    return useCloudCommand();
 }
 
 export type InvokeCommand = <T = any>(
@@ -270,6 +246,7 @@ export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<bool
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
 
+// unused
 export function useAsyncWork(): AsyncWorker {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | undefined>(undefined);
@@ -311,76 +288,15 @@ export interface CloudCacheHook {
     removePrefix(pathPrefix: string): void;
 }
 
-export function useCloudCache(): CloudCacheHook {
-    const [cache, setCache, mergeCache] = useGlobal("cloudApiCache", {});
-
-    const cleanup = useCallback(() => {
-        setCache((oldCache) => {
-            if (oldCache === undefined) return {};
-            const now = timestampUnixMs();
-
-            const newCache = {...oldCache};
-            for (const key of Object.keys(oldCache)) {
-                if (now > oldCache[key].expiresAt) {
-                    delete newCache[key];
-                }
-            }
-
-            return newCache;
-        });
-    }, []);
-
-    const removePrefix = useCallback((prefix: string) => {
-        setCache((oldCache) => {
-            if (oldCache === undefined) return {};
-            const now = timestampUnixMs();
-
-            const newCache = {...oldCache};
-            for (const key of Object.keys(oldCache)) {
-                if (now > oldCache[key].expiresAt) {
-                    delete newCache[key];
-                } else {
-                    const parsedKey = JSON.parse(key) as APICallParameters;
-                    if (parsedKey.path?.indexOf(prefix) === 0) {
-                        delete newCache[key];
-                    }
-                }
-            }
-
-            return newCache;
-        });
-    }, []);
-
-    return {cleanup, removePrefix};
-}
-
 export type APIFetch<Parameters> = (params: APICallParameters<Parameters>, disableCache?: boolean) => Promise<void>;
 
 export function useCloudAPI<T, Parameters = any>(
     callParametersInitial: APICallParameters<Parameters, T>,
     dataInitial: T,
-    cachingPolicy?: {cacheTtlMs: number, cacheKey: string}
 ): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
     const parameters = useRef(callParametersInitial);
     const initialCall = useRef(true);
     const lastKey = useRef("");
-    const [cache, , mergeCache] = useGlobal("cloudApiCache", {}, (oldCache, newCache) => {
-        let cacheKey = cachingPolicy?.cacheKey;
-        if (cacheKey === undefined) return true; // Don't give us the update
-        cacheKey += "/";
-
-        if (oldCache === newCache) return true;
-
-        for (const key of Object.keys(newCache)) {
-            if (key.indexOf(cacheKey) === 0) {
-                if (newCache[key] !== oldCache[key] && key != lastKey.current) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    });
 
     const [state, dispatch] = useReducer(dataFetchReducer, {
         loading: false,
@@ -390,23 +306,6 @@ export function useCloudAPI<T, Parameters = any>(
 
     const refetch = useCallback(async (params: APICallParameters<Parameters, T>) => {
         let didCancel = false;
-
-        let key: string | null = null;
-        if (cachingPolicy !== undefined) {
-            const keyObj = {...params};
-            delete keyObj.reloadId;
-            key = cachingPolicy.cacheKey + "/" + JSON.stringify(keyObj);
-            lastKey.current = key;
-        }
-
-        const now = timestampUnixMs();
-        const cachedEntry = key ? cache[key] : null;
-
-        // NOTE: We only cache successful attempts
-        if (cachedEntry && now < cachedEntry.expiresAt && !params.disableCache) {
-            dispatch({type: "FETCH_SUCCESS", payload: cachedEntry});
-            return;
-        }
 
         if (params.noop !== true) {
             // eslint-disable-next-line no-inner-declarations
@@ -418,11 +317,6 @@ export function useCloudAPI<T, Parameters = any>(
                         const result: T = await callAPI(params);
                         if (!didCancel) {
                             dispatch({type: "FETCH_SUCCESS", payload: result});
-                            if (cachingPolicy !== undefined && cachingPolicy.cacheTtlMs > 0 && params.method === "GET") {
-                                const newEntry = {};
-                                newEntry[key!] = {expiresAt: now + cachingPolicy.cacheTtlMs, ...result};
-                                mergeCache(newEntry);
-                            }
                         }
                     } catch (e) {
                         if (!didCancel) {
@@ -439,7 +333,7 @@ export function useCloudAPI<T, Parameters = any>(
         return () => {
             didCancel = true;
         };
-    }, [cache]);
+    }, []);
 
     const doFetch = useCallback(async (params: APICallParameters, disableCache = false): Promise<void> => {
         parameters.current = params;

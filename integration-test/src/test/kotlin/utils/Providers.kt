@@ -1,9 +1,6 @@
 package dk.sdu.cloud.integration.utils
 
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
@@ -18,36 +15,57 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
 import dk.sdu.cloud.integration.adminClient
-import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsBrowseRequest
 import dk.sdu.cloud.provider.api.Provider
 import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.Providers
 
-suspend fun findProducts(providers: Set<String>): Set<Product> {
-    val products = HashSet<Product>()
-    for (provider in providers) {
-        var next: String? = null
-        while (true) {
-            val page = Products.browse.call(
-                ProductsBrowseRequest(
-                    itemsPerPage = 250,
-                    filterProvider = provider,
-                    next = next
-                ),
-                adminClient
-            ).orThrow()
+suspend fun findProducts(): Set<ProductV2> {
+    val products = HashSet<ProductV2>()
+    var next: String? = null
+    while (true) {
+        val page = ProductsV2.browse.call(
+            ProductsV2BrowseRequest(
+                itemsPerPage = 250,
+                next = next
+            ),
+            adminClient
+        ).orThrow()
 
-            page.items.forEach { products.add(it) }
-            next = page.next ?: break
-        }
+        page.items.forEach { products.add(it) }
+        next = page.next ?: break
     }
     return products
 }
 
-suspend fun findProductCategories(providers: Set<String>): Set<ProductCategoryId> {
-    return findProducts(providers).map { it.category }.toSet()
+suspend fun findProductCategories(): Set<ProductCategory> {
+    return findProducts().map { it.category }.toSet()
+}
+
+suspend fun retrieveProviderProjectId(): String {
+    var next: String? = null
+
+    val adminProjects = HashSet<String>()
+    while (true) {
+        val page = Projects.browse.call(
+            ProjectsBrowseRequest(
+                itemsPerPage = 250,
+                next = next
+            ),
+            adminClient
+        ).orThrow()
+
+        val filtered = page.items.filter { it.specification.title == UCLOUD_PROVIDER}
+        filtered.forEach { adminProjects.add(it.id) }
+        next = page.next ?: break
+    }
+
+    if (adminProjects.isEmpty()) {
+        throw IllegalStateException()
+    }
+
+    return adminProjects.first()
 }
 
 suspend fun findProviders(): Set<Provider> {
@@ -75,7 +93,9 @@ suspend fun findProviders(): Set<Provider> {
         while (true) {
             val page = Providers.browse.call(
                 ResourceBrowseRequest(
-                    ProviderIncludeFlags(),
+                    ProviderIncludeFlags(
+                        filterProvider = UCLOUD_PROVIDER
+                    ),
                     itemsPerPage = 250,
                     next = next
                 ),

@@ -1,35 +1,49 @@
-import styled from "styled-components";
+import {classConcat, injectStyle} from "@/Unstyled";
+import {isLightThemeStored} from "@/UtilityFunctions";
+import * as React from "react";
 
-export const TermAndShellWrapper = styled.div<{addPadding: boolean}>`
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  flex-direction: column;
-  ${p => p.addPadding ? "padding: 16px;" : null}
+export function TermAndShellWrapper(props: React.PropsWithChildren<{addPadding: boolean}>) {
+    return <div className={classConcat(TermAndShellWrapperClass, isLightThemeStored() ? "light" : "dark")} data-add-padding={props.addPadding}>
+        {props.children}
+    </div>
+}
 
-  &.light {
-    background: #ffffff;
-  }
 
-  &.dark {
-    background: #282a36;
-  }
+const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
+    ${k} {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        flex-direction: column;
+    }
 
-  .contents {
-    width: 100%;
-    height: 100%;
-  }
+    ${k}.light {
+        background: #ffffff;
+    }
 
-  .warn {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    z-index: 1000000;
-    width: 100vw;
-    display: flex;
-    padding: 16px;
-    align-items: center;
-    background: black;
-    color: white;
-  }
-`;
+    ${k}.dark {
+        background: #282a36;
+    }
+
+    ${k} > .contents {
+        width: 100%;
+        height: 100%;
+    }
+
+    ${k} > .warn {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        z-index: 1000000;
+        width: 100vw;
+        display: flex;
+        padding: 16px;
+        align-items: center;
+        background: black;
+        color: white;
+    }
+
+    ${k}[data-add-padding="true"] {
+        padding: 16px;
+    }
+`);

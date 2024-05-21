@@ -28,11 +28,12 @@ Notification(
     id = 56123, 
     message = "Something has happened", 
     meta = JsonObject(mapOf("myParameter" to JsonLiteral(
+        coerceToInlineType = null, 
         content = "42", 
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1676450985199, 
+    ts = 1704180845774, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */

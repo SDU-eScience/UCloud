@@ -4,6 +4,9 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.messages.AllocatorPool
+import dk.sdu.cloud.messages.BinaryTypeSerializer
+import dk.sdu.cloud.messages.useAllocator
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.microWhichIsConfiguringCalls
@@ -357,6 +360,14 @@ class RpcServer {
         requestCounter.labels(call.fullName).inc()
         requestsInFlight.labels(call.fullName).inc()
 
+        if (call.requestType is BinaryTypeSerializer<*>) {
+            ctx.requestAllocatorOrNull = AllocatorPool.borrow()
+        }
+
+        if (call.successType is BinaryTypeSerializer<*> || call.errorType is BinaryTypeSerializer<*>) {
+            ctx.responseAllocatorOrNull = AllocatorPool.borrow()
+        }
+
         @Suppress("TooGenericExceptionCaught")
         try {
             val handler = handlers[call] ?: run {
@@ -364,9 +375,11 @@ class RpcServer {
                 throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.InternalServerError)
             }
 
+            val beforeStart = System.nanoTime()
             log.trace("Running BeforeParsing filters")
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
             beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
+            val beforeEnd = System.nanoTime()
 
             log.trace("Parsing call: $call")
             @Suppress("TooGenericExceptionCaught")
@@ -384,16 +397,20 @@ class RpcServer {
                     }
                 }
             }
+            val parseEnd = System.nanoTime()
 
             log.trace("Running AfterParsing filters")
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
+            val afterEnd = System.nanoTime()
 
             val jobIdForDebug = ctx.jobIdOrNull?.take(4) ?: Random.nextInt(10_000).toString()
 
             log.info("Incoming call [$jobIdForDebug]: ${call.fullName}")
 
+            val handlerStart = System.nanoTime()
             val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
+            val handlerEnd = System.nanoTime()
 
             val responseResult = callHandler.result
             response = responseResult
@@ -407,6 +424,7 @@ class RpcServer {
             beforeResponse
                 .filter { it.canUseContext(ctx) }
                 .forEach { it.run(ctx, call, capturedRequest, responseResult) }
+            val beforeResponseEnd = System.nanoTime()
 
             log.debug("   Responding [$jobIdForDebug]: ${call.fullName}")
 
@@ -454,6 +472,7 @@ class RpcServer {
 
             response = callResult
         }
+        val afterResponseStart = System.nanoTime()
 
         val responseOrDefault = response ?: OutgoingCallResponse.Error<S, E>(
             null,
@@ -476,6 +495,14 @@ class RpcServer {
                 }
             }
 
+        run {
+            val requestAllocator = ctx.requestAllocatorOrNull
+            val responseAllocator = ctx.responseAllocatorOrNull
+
+            if (requestAllocator != null) AllocatorPool.recycle(requestAllocator)
+            if (responseAllocator != null) AllocatorPool.recycle(responseAllocator)
+        }
+
         if (responseOrDefault.statusCode.isSuccess()) {
             requestsSuccessCounter.labels(call.fullName).inc()
         } else {
@@ -483,6 +510,7 @@ class RpcServer {
         }
 
         requestsInFlight.labels(call.fullName).dec()
+        val end = System.nanoTime()
     }
 
     companion object : Loggable {

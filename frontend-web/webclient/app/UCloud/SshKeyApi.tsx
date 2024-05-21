@@ -4,9 +4,9 @@ import {ListRowStat} from "@/ui-components/List";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud/index";
 import {apiBrowse, apiCreate, apiDelete, apiRetrieve} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {Icon} from "@/ui-components";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf} from "@/UtilityFunctions";
 
 export interface SSHKey {
     id: string;
@@ -112,17 +112,18 @@ class SshKeyApi {
         return [
             {
                 icon: "upload",
-                text: "Create SSH key",
+                text: "Add SSH key",
                 primary: true,
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {
                     cb.navigate("/ssh-keys/create");
-                }
+                },
+                shortcut: ShortcutKey.N,
             },
             {
                 icon: "trash",
                 text: "Delete",
-                color: "red",
+                color: "errorMain",
                 enabled: (selected) => selected.length > 0,
                 confirm: true,
                 onClick: async (selected, cb) => {
@@ -133,7 +134,8 @@ class SshKeyApi {
                     );
 
                     cb.reload();
-                }
+                },
+                shortcut: ShortcutKey.R
             }
         ];
     }

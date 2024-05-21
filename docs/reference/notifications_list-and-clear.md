@@ -33,11 +33,12 @@ Page(
         id = 56123, 
         message = "Something has happened", 
         meta = JsonObject(mapOf("myParameter" to JsonLiteral(
+            coerceToInlineType = null, 
             content = "42", 
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1676450985201, 
+        ts = 1704180845776, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -84,7 +85,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1676450985201,
+#             "ts": 1704180845776,
 #             "read": false
 #         }
 #     ]

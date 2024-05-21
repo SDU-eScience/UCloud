@@ -1,321 +1,242 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
-import dk.sdu.cloud.Prometheus
+import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.plugins.UCloudFile
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.bindStringNullable
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withSession
-import java.time.*
-import java.time.format.*
-import java.util.concurrent.atomic.AtomicBoolean
+import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlin.coroutines.CoroutineContext
 
 class UsageScan(
     private val pluginName: String,
     private val pathConverter: PathConverter,
     private val fastDirectoryStats: FastDirectoryStats,
-    private val serviceClient: AuthenticatedClient,
-    private val db: DBContext,
 ) {
-    private val isRunning = AtomicBoolean(false)
-    private val globalErrorCounter = AtomicInteger(0)
-    private val globalRequestCounter = AtomicInteger(0)
+    private data class ScanTask(val driveInfo: DriveAndSystem)
+    private val scanQueue = Channel<ScanTask>(Channel.BUFFERED)
 
-    private val dataPoints = HashMap<UsageDataPoint.Key, UsageDataPoint>()
-
-    data class UsageDataPoint(
-        val key: Key,
-        val initialResourceId: String,
-        val internalCollections: ArrayList<FileCollection>,
-        var usageInBytes: Long,
-    ) {
-        data class Key(
-            val owner: WalletOwner,
-            // NOTE(Dan): The product ID comes from the first collection we encounter. It is critical that we perform
-            // the charge against the category and not one for each product. This is due to how `DIFFERENTIAL_QUOTA`
-            // works.
-            val category: ProductCategoryId
-        )
-    }
-
-    suspend fun startScanIfNeeded() {
-        var lastRun = 0L
-        db.withSession { session ->
-            session.prepareStatement(
-                """
-                    select last_run
-                    from ucloud_storage_timestamps
-                    where name = :name
-                """
-            ).useAndInvoke(
-                prepare = {
-                    bindString("name", pluginName)
-                },
-                readRow = { row ->
-                    lastRun = row.getLong(0)!!
+    fun init() {
+        ProcessingScope.launch {
+            val taskName = "storage-scan-ucloud"
+            whileGraal({ isActive }) {
+                val start = Time.now()
+                Prometheus.countBackgroundTask(taskName)
+                try {
+                    scanAll(ignoreTimeSinceLastScan = false)
+                } finally {
+                    val duration = Time.now() - start
+                    Prometheus.measureBackgroundDuration(taskName, duration)
+                    delay(60_000 - duration)
                 }
-            )
+            }
         }
 
-        val oneDay = 1000L * 60 * 60 * 24
-        val now = Time.now()
-        if (now - lastRun < oneDay) return
-        if (!isRunning.compareAndSet(false, true)) return
-
-        val taskName = "file_usage_scan"
-        Prometheus.countBackgroundTask(taskName)
-        try {
-            dataPoints.clear()
-            globalErrorCounter.set(0)
-            globalRequestCounter.set(0)
-
-            val scanId = Time.now().toString()
-
-            val chunkSize = 50
-
-            var next: String? = null
-            while (true) {
-                val page = pathConverter.locator.enumerateDrives(next = next)
-
-                page.items.asSequence().filter { !it.inMaintenanceMode }.chunked(chunkSize).forEach { chunk ->
-                    val resolvedCollections = retrieveCollections(false, chunk.map { it.drive.ucloudId.toString() })
-                        ?: return@forEach
-
-                    val paths = chunk.map {
-                        pathConverter.ucloudToInternal(
-                            UCloudFile.createFromPreNormalizedString("/${it.drive.ucloudId}")
-                        )
-                    }
-
-                    // NOTE(Dan): We assume that if the recursive size comes back as null then this means that the
-                    // collection has been deleted and thus shouldn't count.
-                    val sizes = paths.map { thisCollection ->
-                        fastDirectoryStats.getRecursiveSize(thisCollection, allowSlowPath = true) ?: 0L
-                    }
-
-                    processChunk(chunk.map { it.drive.ucloudId }, sizes, resolvedCollections, chunk.map { it.toString() })
-                }
-
-                next = page.next ?: break
-            }
-
-            db.withSession { session ->
-                for (chunk in dataPoints.values.chunked(100)) {
-                    val allRequests = chunk.mapNotNull { dataPoint ->
-                        val chargeId = when (val owner = dataPoint.key.owner) {
-                            is WalletOwner.Project -> owner.projectId
-                            is WalletOwner.User -> owner.username
+        repeat(Runtime.getRuntime().availableProcessors()) { taskId ->
+            ScanningScope.launch {
+                var loopActive = true
+                whileGraal({ isActive && loopActive }) {
+                    try {
+                        val task = scanQueue.receiveCatching().getOrNull() ?: run {
+                            loopActive = false
+                            return@whileGraal
                         }
+                        val driveInfo = task.driveInfo
+                        val driveRoot = driveInfo.driveRoot ?: return@whileGraal
+                        if (driveInfo.inMaintenanceMode) return@whileGraal
+                        // TODO This blocks the thread while we are collecting the size.
+                        val size = fastDirectoryStats.getRecursiveSize(driveRoot, allowSlowPath = true) ?: return@whileGraal
 
-                        // NOTE(Dan): we need to floor this, because otherwise we won't actually give people the full quota
-                        // they deserve (this becomes very apparent when granting small quotas).
-                        val units = kotlin.math.floor(dataPoint.usageInBytes / 1.GB.toDouble()).toLong()
-                        if (units < 0) return@mapNotNull null
+                        pathConverter.locator.updateDriveSize(driveInfo.drive.ucloudId, size)
 
-                        ResourceChargeCredits(
-                            dataPoint.initialResourceId,
-                            "$chargeId-$scanId",
-                            units,
-                            description = "Daily storage charge"
+                        val ucloudMetadata = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId)
+                            ?: return@whileGraal
+
+                        reportUsage(
+                            ucloudMetadata.workspace,
+                            ucloudMetadata.product,
+                            size,
+                            minutesUsed = null,
+                            scope = task.driveInfo.drive.ucloudId.toString(),
                         )
+                    } catch (ex: Throwable) {
+                        log.warn("Caught exception while scanning ($taskId): ${ex.toReadableStacktrace()}")
                     }
+                }
+            }
+        }
 
-                    charge(scanId, session, chunk, allRequests)
+        serviceContext.ipcServerOptional?.addHandler(StorageScanIpc.requestScan.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            requestScan(request.id)
+        })
+
+        serviceContext.ipcServerOptional?.addHandler(StorageScanIpc.reportUsage.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            reportUsage(
+                walletOwnerFromOwnerString(request.workspace),
+                ProductReferenceV2(request.productName, request.productCategory, ""),
+                request.usageInBytes,
+                minutesUsed = null,
+                scope = request.driveId.toString(),
+            )
+        })
+    }
+
+    private suspend fun usageScanFetchDriveIdsForScanGraal(
+        driveIds: List<Long>,
+        lastScans: HashMap<Long, Long>,
+        now: Long
+    ) {
+        if (driveIds.isNotEmpty()) {
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select drive_id, last_scan
+                        from ucloud_storage_scans
+                        where drive_id = some(:drive_ids)
+                    """
+                ).useAndInvokeGraal(
+                    prepare = {
+                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
+                    },
+                    readRow = { row ->
+                        lastScans[row.getLong(0)!!] = row.getLong(1)!!
+                    }
+                )
+
+                session.prepareStatement(
+                    """
+                        with data as (
+                            select unnest(:drive_ids) drive_id, :now now
+                        )
+                        insert into ucloud_storage_scans(drive_id, last_scan)
+                        select drive_id, now
+                        from data
+                        on conflict (drive_id) do update set
+                            last_scan = excluded.last_scan
+                    """
+                ).useAndInvokeAndDiscardGraal(
+                    prepare = {
+                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
+                        bindLong("now", now)
+                    }
+                )
+            }
+        }
+    }
+
+    private suspend fun scanAll(ignoreTimeSinceLastScan: Boolean) {
+        try {
+            var next: String? = null
+            var innerActive = true
+            whileGraal({ innerActive }) {
+                val page = pathConverter.locator.enumerateDrives(next = next)
+                val driveIds = page.items.map { it.drive.ucloudId }
+                val lastScans = HashMap<Long, Long>()
+                val now = Time.now()
+                usageScanFetchDriveIdsForScanGraal(driveIds, lastScans, now)
+
+                page.items.forEachGraal { item ->
+                    val timeSinceLastScan = now - (lastScans[item.drive.ucloudId] ?: 0L)
+                    if (ignoreTimeSinceLastScan || timeSinceLastScan >= 1000L * 60 * 60 * 12) {
+                        scanQueue.send(ScanTask(item))
+                    }
                 }
 
+                val nextToken = page.next
+                if (nextToken == null) {
+                    innerActive = false
+                } else {
+                    next = nextToken
+                }
+            }
+        } catch (ex: Throwable) {
+            log.warn("Caught exception while scanning usage for $pluginName: ${ex.toReadableStacktrace()}")
+        }
+    }
+
+    suspend fun requestScan(driveId: Long) {
+        if (driveId <= 0L) {
+            scanAll(ignoreTimeSinceLastScan = true)
+        } else {
+            val drive = pathConverter.locator.resolveDrive(driveId, allowMaintenanceMode = true) ?: return
+            scanQueue.send(ScanTask(drive))
+        }
+    }
+
+    suspend fun notifyAccounting(notification: AllocationPlugin.Message) {
+        val walletOwner = notification.owner.toResourceOwner().toWalletOwner()
+        dbConnection.withSession { session ->
+            if (notification.locked) {
+                session.prepareStatement(
+                    """
+                        insert into ucloud_storage_quota_locked (scan_id, category, username, project_id)
+                        values ('unused', :category, :username, :project)
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("category", notification.category.name)
+                        bindStringNullable("username", (walletOwner as? WalletOwner.User)?.username)
+                        bindStringNullable("project", (walletOwner as? WalletOwner.Project)?.projectId)
+                    }
+                )
+            } else {
                 session.prepareStatement(
                     """
                         delete from ucloud_storage_quota_locked
-                        where scan_id != :scan_id
-                    """,
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("scan_id", scanId)
-                    }
-                )
-
-                session.prepareStatement(
-                    """
-                        insert into ucloud_storage_timestamps (name, last_run)
-                        values (:plugin_name, :now) on conflict (name) do update set last_run = excluded.last_run
+                        where
+                            username is not distinct from :username
+                            and project_id is not distinct from :project
+                            and category is not distinct from :category
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
-                        bindString("plugin_name", pluginName)
-                        bindLong("now", Time.now())
+                        bindString("category", notification.category.name)
+                        bindStringNullable("username", (walletOwner as? WalletOwner.User)?.username)
+                        bindStringNullable("project", (walletOwner as? WalletOwner.Project)?.projectId)
                     }
                 )
             }
-        } finally {
-            isRunning.set(false)
-            Prometheus.measureBackgroundDuration(taskName, Time.now() - now)
         }
-    }
-
-    private fun processChunk(
-        chunk: List<Long?>,
-        sizes: List<Long>,
-        resolvedCollections: List<FileCollection>,
-        debug: List<String>,
-    ) {
-        for (idx in chunk.indices) {
-            val size = sizes[idx]
-            val collectionId = chunk[idx] ?: continue
-            val resolvedCollection = resolvedCollections.find { it.id == collectionId.toString() } ?: continue
-            val (username, project) = resolvedCollection.owner
-            val key = UsageDataPoint.Key(
-                if (project != null) {
-                    WalletOwner.Project(project)
-                } else {
-                    WalletOwner.User(username)
-                },
-                ProductCategoryId(
-                    resolvedCollection.specification.product.category,
-                    resolvedCollection.specification.product.provider,
-                )
-            )
-
-            val entry = dataPoints[key] ?: UsageDataPoint(key, resolvedCollection.id, ArrayList(), 0L)
-            entry.usageInBytes += size
-            entry.internalCollections.add(resolvedCollection)
-            dataPoints[key] = entry
-        }
-    }
-
-    private suspend fun retrieveCollections(
-        providerGenerated: Boolean,
-        collections: List<String>
-    ): List<FileCollection>? {
-        val includeFlags = if (providerGenerated) {
-            FileCollectionIncludeFlags(filterProviderIds = collections.joinToString(","))
-        } else {
-            FileCollectionIncludeFlags(filterIds = collections.joinToString(","))
-        }
-
-        try {
-            return retrySection {
-                FileCollectionsControl.browse.call(
-                    ResourceBrowseRequest(includeFlags, itemsPerPage = 250),
-                    serviceClient
-                ).orThrow().items
-            }
-        } catch (ex: Throwable) {
-            log.warn("Failed to retrieve information about collections: $collections\n${ex.stackTraceToString()}")
-            globalRequestCounter.getAndAdd(collections.size)
-            globalErrorCounter.getAndAdd(collections.size)
-            checkIfWeShouldTerminate()
-            return null
-        }
-    }
-
-    // NOTE(Dan): We use the following procedure for charging. The procedure is intended to be more roboust against
-    // various error scenarios we have encountered in production.
-    //
-    //  1. Attempt to bulk charge the entire chunk (retry up to 5 times with a fixed delay)
-    //  2. If this fails, attempt to charge the individual requests. All requests are retried using the same algorithm.
-    //  3. If a request still fails, we skip the entry and log a warning message that we failed.
-    //     a. We keep a global failure counter, we use this counter to determine if the entire script should fail.
-    //     b. If more than 10% requests have failed AND at least 100 requests have been attempted, then the entire
-    //        script will fail.
-    //     c. This should trigger an automatic warning in the system.
-    //
-    // NOTE(Dan): Step 2 is intended to handle situations where a specific folder is triggering an edge-case in the
-    // accounting system. This mitigates the risk that a single folder can cause accounting of all folders to fail
-    // (See SDU-eScience/UCloud#2712)
-    private suspend fun charge(
-        scanId: String,
-        session: DBContext.Connection,
-        chunk: List<UsageDataPoint>,
-        requests: List<ResourceChargeCredits>
-    ) {
-        if (requests.isEmpty()) return
-
-        try {
-            retrySection { sendCharge(scanId, session, chunk, requests) }
-            return
-        } catch (ex: Throwable) {
-            log.warn("Unable to charge requests (bulk): $requests")
-        }
-
-        for (request in requests) {
-            try {
-                retrySection { sendCharge(scanId, session, chunk, listOf(request)) }
-            } catch (ex: Throwable) {
-                log.warn("Unable to charge request (single): $request")
-                globalRequestCounter.getAndAdd(1)
-                globalErrorCounter.getAndAdd(1)
-                checkIfWeShouldTerminate()
-            }
-        }
-    }
-
-    private fun checkIfWeShouldTerminate() {
-        val errorCounter = globalErrorCounter.get()
-        val requestCounter = globalRequestCounter.get()
-        if (requestCounter > 100 && errorCounter / requestCounter.toDouble() >= 0.10) {
-            throw IllegalStateException("Error threshold has been exceeded")
-        }
-    }
-
-    private suspend fun sendCharge(
-        scanId: String,
-        session: DBContext.Connection,
-        chunk: List<UsageDataPoint>,
-        request: List<ResourceChargeCredits>
-    ) {
-        val result = FileCollectionsControl.chargeCredits.call(BulkRequest(request), serviceClient).orThrow()
-        globalRequestCounter.getAndAdd(request.size)
-
-        val lockedIdxs = result.insufficientFunds.mapNotNull { (resourceId) ->
-            val requestIdx = request.indexOfFirst { it.id == resourceId }
-            if (requestIdx == -1)  {
-                log.warn("Could not lock resource: ${resourceId}. Something is wrong!")
-                null
-            } else {
-                requestIdx
-            }
-        }
-
-        for (i in lockedIdxs) {
-            session.prepareStatement(
-                """
-                    insert into ucloud_storage_quota_locked (scan_id, category, username, project_id) 
-                    values (:scan_id, :category::text, :username::text, :project_id)
-                """,
-            ).useAndInvokeAndDiscard(
-                prepare = {
-                    bindString("scan_id", scanId)
-                    bindString("category", chunk[i].key.category.name)
-                    bindStringNullable("username", (chunk[i].key.owner as? WalletOwner.User)?.username)
-                    bindStringNullable("project_id", (chunk[i].key.owner as? WalletOwner.Project)?.projectId)
-                }
-            )
-        }
-    }
-
-    private inline fun <T> retrySection(attempts: Int = 5, delay: Long = 500, block: () -> T): T {
-        for (i in 1..attempts) {
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                return block()
-            } catch (ex: Throwable) {
-                println(ex.stackTraceToString())
-                if (i == attempts) throw ex
-                Thread.sleep(delay)
-            }
-        }
-        throw IllegalStateException("retrySection impossible situation reached. This should not happen.")
     }
 
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+object StorageScanIpc : IpcContainer("storage_scan_plugin") {
+    val requestScan = updateHandler("requestScan", FindByLongId.serializer(), Unit.serializer())
+    val reportUsage = updateHandler("reportUsage", StorageScanReportUsage.serializer(), Unit.serializer())
+}
+
+@Serializable
+data class StorageScanReportUsage(
+    val workspace: String,
+    val productName: String,
+    val productCategory: String,
+    val driveId: Long,
+    val usageInBytes: Long,
+)
+
+private object ScanningScope : CoroutineScope {
+    private val job = SupervisorJob()
+    @OptIn(DelicateCoroutinesApi::class)
+    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(
+        Runtime.getRuntime().availableProcessors(),
+        "StorageScan"
+    )
 }

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.calls.server.*
@@ -8,15 +9,18 @@ import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.server.request.*
 
 class ProjectsControllerV2(
     private val projects: ProjectService,
-    private val notifications: ProviderNotificationService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.retrieve) {
-            ok(projects.retrieve(actorAndProject, request))
+            val actorRole = (actorAndProject.actor as? Actor.User)?.principal?.role
+            val ap = if (actorRole == Role.SERVICE) ActorAndProject.System else actorAndProject
+            ok(projects.retrieve(ap, request))
         }
 
         implement(Projects.browse) {
@@ -128,16 +132,13 @@ class ProjectsControllerV2(
             ok(projects.deleteGroupMember(actorAndProject, request))
         }
 
-        implement(ProjectNotifications.retrieve) {
-            ok(notifications.pullNotifications(actorAndProject))
-        }
-
-        implement(ProjectNotifications.markAsRead) {
-            ok(notifications.markAsRead(actorAndProject, request))
-        }
-
         implement(Projects.retrieveProviderProject) {
             ok(projects.retrieveProviderProject(actorAndProject))
+        }
+
+        implement(Projects.retrieveProviderProjectInternal) {
+            ok(FindByStringId(projects.retrieveProviderProjectInternal(request.id)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)))
         }
 
         implement(Projects.retrieveAllUsersGroup) {

@@ -4,9 +4,6 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.builtins.serializer
 
-typealias UploadToolLogoRequest = UploadApplicationLogoRequest
-typealias UploadToolLogoResponse = Unit
-
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object ToolStore : CallDescriptionContainer("hpc.tools") {
     const val baseContext = "/api/hpc/tools"
@@ -132,7 +129,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findByName = call("findByName", FindByNameAndPagination.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
+    val findByName = call("findByName", FindByNameRequest.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -145,40 +142,14 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             params {
-                +boundTo(FindByNameAndPagination::appName)
-                +boundTo(FindByNameAndPagination::itemsPerPage)
-                +boundTo(FindByNameAndPagination::page)
+                +boundTo(FindByNameRequest::appName)
+                +boundTo(FindByNameRequest::itemsPerPage)
+                +boundTo(FindByNameRequest::page)
             }
         }
 
         documentation {
             summary = "Finds a Page of Tools which share the same name"
-        }
-    }
-
-    val listAll = call("listAll", PaginationRequest.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
-        auth {
-            roles = Roles.AUTHENTICATED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(PaginationRequest::itemsPerPage)
-                +boundTo(PaginationRequest::page)
-            }
-        }
-
-        documentation {
-            summary = "Queries the entire catalog of Tools"
-            description = """
-                This endpoint is not recommended for use and will likely disappear in a future release. The results are
-                returned in no specific order.
-            """.trimIndent()
         }
     }
 
@@ -200,83 +171,6 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Creates a new Tool and adds it to the internal catalog"
-        }
-    }
-
-    val uploadLogo = call("uploadLogo", UploadToolLogoRequest.serializer(), UploadToolLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"uploadLogo"
-                }
-
-                headers {
-                    +boundTo("Upload-Name", UploadToolLogoRequest::name)
-                }
-
-                /*
-                body {
-                    bindToSubProperty(UploadToolLogoRequest::data)
-                }
-                 */
-            }
-
-            documentation {
-                summary = "Uploads a logo and associates it with a Tool"
-            }
-        }
-
-    val clearLogo = call("clearLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-            auth {
-                roles = Roles.PRIVILEGED
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Delete
-
-                path {
-                    using(baseContext)
-                    +"clearLogo"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
-
-            documentation {
-                summary = "Deletes an existing logo from a Tool"
-            }
-        }
-
-    val fetchLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PUBLIC
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"logo"
-            }
-
-            params {
-                +boundTo(FetchLogoRequest::name)
-            }
-        }
-
-        documentation {
-            summary = "Retrieves a logo associated with a Tool"
-            description = "This endpoint might return ${HttpStatusCode.NotFound} if the Tool has no logo"
         }
     }
 }

@@ -2,13 +2,9 @@ import * as React from "react";
 import {BoolParameter, BoolSetter, BoolValidator} from "@/Applications/Jobs/Widgets/Bool";
 import * as UCloud from "@/UCloud";
 import * as Heading from "@/ui-components/Heading";
-import {compute} from "@/UCloud";
-import AppParameterValue = compute.AppParameterValue;
-import ApplicationParameter = compute.ApplicationParameter;
-import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Markdown, Relative, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
-import styled from "styled-components";
-import {EllipsedText, TextP, TextSpan} from "@/ui-components/Text";
+import {EllipsedText, TextClass, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
 import {GenericTextParameter, GenericTextAreaAppParameter, GenericTextSetter, GenericTextValidator} from "@/Applications/Jobs/Widgets/GenericText";
@@ -17,6 +13,13 @@ import {PeerParameter, PeerSetter, PeerValidator} from "@/Applications/Jobs/Widg
 import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/Jobs/Widgets/License";
 import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
 import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
+import {ButtonClass} from "@/ui-components/Button";
+import {JobCreateInput} from "./Reservation";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {FlexCProps} from "@/ui-components/Flex";
+import {ApplicationParameter} from "@/Applications/AppStoreApi";
+import {compute} from "@/UCloud";
+import AppParameterValue = compute.AppParameterValue;
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -84,37 +87,62 @@ interface RootWidgetProps {
     onActivate?: () => void;
 }
 
-const InactiveWidget = styled(Flex)`
-    align-items: center;
-    cursor: pointer;
+function InactiveWidget(props: React.PropsWithChildren<FlexCProps>) {
+    return <Flex className={InactiveWidgetClass} {...props} />
+}
 
-    strong, & > ${EllipsedText} {
+const InactiveWidgetClass = injectStyle("inactive-widget", k => `
+    ${k} {
+        align-items: center;
+        cursor: pointer;
+    }
+
+    ${k} > strong, ${k} > .${TextClass} {
+        -webkit-user-select: none;
         user-select: none;
     }
 
-    strong {
+    ${k} strong {
         margin-right: 16px;
         font-weight: bold;
         flex-shrink: 0;
     }
 
-    & > ${EllipsedText} {
-        color: var(--gray, #f00);
+    ${k} > .${TextClass} {
+        color: var(--textSecondary);
         flex-grow: 1;
     }
 
-    & > ${EllipsedText} > p {
+    ${k} > .${TextClass} > p {
         margin: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    & > ${Button} {
+    ${k} > .${ButtonClass} {
         margin-left: 16px;
         flex-shrink: 0;
     }
-`;
+`);
+
+const MarkdownWrapper = injectStyle("md-wrapper", k => `
+    ${k} {
+        margin-top: 8px;
+        color: var(--textSecondary);
+        font-style: italic;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+    
+    ${k} p:first-child {
+        margin-top: 0;
+    }
+    
+    ${k} p:last-child {
+        margin-bottom: 0;
+    }
+`);
 
 export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = props => {
     const error = props.errors[props.parameter.name];
@@ -124,9 +152,15 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
         setOpen(o => !o);
     }, []);
 
+    let body = <WidgetBody {...props} />;
+    const moveUp = parameter.type === "peer" && (parameter.optional || props.onRemove);
+    if (moveUp) {
+        body = <Relative top={"-25px"}>{body}</Relative>;
+    }
+
     if (props.active !== false) {
-        return <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
-            <Label fontSize={1} htmlFor={parameter.name}>
+        return <Box data-param-type={props.parameter.type} data-component={`app-parameter`}>
+            <Label htmlFor={`app-param-${parameter.name}`} style={{display: "block"}}>
                 <Flex>
                     <Flex data-component={"param-title"}>
                         {parameter.title}
@@ -135,20 +169,20 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     {!parameter.optional || !props.onRemove ? null : (
                         <>
                             <Box ml="auto" />
-                            <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
-                                data-component={"param-remove"}>
+                            <Text color="errorMain" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                                data-component={"param-remove"} zIndex={1000}>
                                 Remove
-                                <Icon ml="6px" size={16} name="close" />
+                                <Icon ml="6px" size={16} name="heroXMark" />
                             </Text>
                         </>
                     )}
                 </Flex>
             </Label>
-            <WidgetBody {...props} />
-            {error ? <TextP color={"red"}>{error}</TextP> : null}
-            <Markdown>
-                {parameter.description}
-            </Markdown>
+            {body}
+            {error ? <TextP color={"errorMain"}>{error}</TextP> : null}
+            <div className={MarkdownWrapper}>
+                <Markdown>{parameter.description}</Markdown>
+            </div>
         </Box>;
     } else {
         return <Box data-param-type={props.parameter.type} data-component={"app-parameter"}>
@@ -173,12 +207,12 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     Use
                 </Button>
             </InactiveWidget>
-            {open ? <Markdown>{parameter.description}</Markdown> : null}
+            {open ? <div className={MarkdownWrapper}><Markdown>{parameter.description}</Markdown></div> : null}
         </Box>;
     }
 };
 
-const OptionalWidgetSearchWrapper = styled(Box)`
+const OptionalWidgetSearchWrapper = injectStyleSimple("optional-widget-search", `
     display: grid;
     grid-template-columns: 1fr;
     grid-gap: 10px;
@@ -187,7 +221,7 @@ const OptionalWidgetSearchWrapper = styled(Box)`
     padding-right: 8px;
     padding-bottom: 8px;
     overflow-y: auto;
-`;
+`);
 
 export function findElement<HTMLElement = HTMLInputElement>(param: {name: string}): HTMLElement | null {
     return document.getElementById(widgetId(param)) as HTMLElement | null;
@@ -205,8 +239,8 @@ export function WidgetSetProvider(param: {name: string}, provider: string): void
 }
 
 export const OptionalWidgetSearch: React.FunctionComponent<{
-    pool: UCloud.compute.ApplicationParameter[];
-    mapper: (p: UCloud.compute.ApplicationParameter) => React.ReactNode;
+    pool: ApplicationParameter[];
+    mapper: (p: ApplicationParameter) => React.ReactNode;
 }> = ({pool, mapper}) => {
     const currentTimeout = useRef<number>(-1);
     const [results, setResults] = useState(pool);
@@ -252,15 +286,16 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
             </Box>
             <Box flexShrink={0}>
                 <Input
-                    ref={searchRef}
+                    inputRef={searchRef}
+                    className={JobCreateInput}
                     placeholder={"Search"}
                     onChange={(e) => search(e.target.value)}
                 />
             </Box>
         </Flex>
-        <OptionalWidgetSearchWrapper>
+        <div className={OptionalWidgetSearchWrapper}>
             {results.map(it => mapper(it))}
-        </OptionalWidgetSearchWrapper>
+        </div>
     </Box>;
 };
 
@@ -309,4 +344,4 @@ export function widgetId(param: {name: string}): string {
     return `app-param-${param.name}`;
 }
 
-export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="red">*</TextSpan>;
+export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;

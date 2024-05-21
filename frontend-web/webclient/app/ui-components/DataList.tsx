@@ -1,6 +1,6 @@
-import Fuse from "fuse.js";
+import Fuse, {IFuseOptions} from "fuse.js";
 import * as React from "react";
-import {Box, FormField, Icon, Input} from "@/ui-components";
+import {Box, Icon, Input} from "@/ui-components";
 import ClickableDropdown from "./ClickableDropdown";
 
 interface ContentValuePair {content: string; value: string}
@@ -29,7 +29,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         };
     }
 
-    static get options(): Fuse.IFuseOptions<ContentValuePair> {
+    static get options(): IFuseOptions<ContentValuePair> {
         return {
             shouldSort: true,
             threshold: 0.2,
@@ -42,7 +42,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         };
     }
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const results = this.state.text ?
             this.state.fuse.search(this.state.text).map(it => it.item) : this.props.options.slice(0, this.totalShown);
         return (
@@ -50,7 +50,7 @@ export class DataList extends React.PureComponent<DataListProps, {
                 colorOnHover={results.length !== 0}
                 fullWidth
                 trigger={(
-                    <FormField>
+                    <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
                         <Input
                             leftLabel={this.props.leftLabel}
                             rightLabel={this.props.rightLabel}
@@ -61,23 +61,24 @@ export class DataList extends React.PureComponent<DataListProps, {
                             onChange={({target}) => {
                                 this.setState(() => ({text: target.value}));
                             }}
-                            onKeyUp={() => {
+                            onKeyUp={ev => {
+                                ev.stopPropagation();
                                 if (this.props.onChange) {
                                     this.props.onChange(this.state.text);
                                 }
                             }}
                         />
-                        <Icon name="chevronDown" mb="9px" size={14} />
-                    </FormField>
+                        <Icon name="chevronDownLight" ml="-32px" size={14} />
+                    </div>
                 )}
             >
                 {results.map(({content, value}) => (
-                    <Box key={content} onClick={() => this.onSelect(content, value)} mb="0.5em">
+                    <Box key={content} onClick={() => this.onSelect(content, value)}>
                         {content}
                     </Box>
                 ))}
-                {results.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
-                {results.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
+                {results.length > this.totalShown ? <Box>...</Box> : null}
+                {results.length === 0 ? <Box>No results</Box> : null}
             </ClickableDropdown>
         );
     }

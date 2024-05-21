@@ -1,24 +1,9 @@
 import * as React from "react";
-import {
-    AlignItemsProps,
-    FlexDirectionProps,
-    FlexWrapProps,
-    HeightProps,
-    JustifyContentProps,
-    SpaceProps,
-    WidthProps
-} from "styled-system";
 import Box from "./Box";
 import Flex from "./Flex";
+import {BoxProps} from "./Types";
 
-interface SpacerProps extends
-    SpaceProps,
-    WidthProps,
-    AlignItemsProps,
-    JustifyContentProps,
-    FlexWrapProps,
-    FlexDirectionProps,
-    HeightProps {
+interface SpacerProps extends BoxProps {
     left: React.ReactNode;
     right: React.ReactNode;
 }

@@ -4,6 +4,8 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
@@ -13,15 +15,21 @@ import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPoolForFileIo
+import dk.sdu.cloud.plugins.storage.ucloud.FSException
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -29,7 +37,10 @@ import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.coroutines.coroutineContext
+import kotlin.math.min
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -46,7 +57,16 @@ object FilesDownloadIpc : IpcContainer("files.download") {
 object FilesUploadIpc : IpcContainer("files.upload") {
     val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
     val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
+    val delete = deleteHandler(FindByStringId.serializer(), Unit.serializer())
 }
+
+data class FileListingEntry(
+    val id: UInt,
+    val path: String,
+    val size: Long,
+    val modifiedAt: Long,
+    var offset: Long
+)
 
 @Serializable
 data class TaskSpecification(val title: String)
@@ -63,6 +83,7 @@ data class IMFileDownloadRequest(val token: String)
 class FileController(
     controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
+    private val ktor: Application,
 ) : BaseResourceController<Product.Storage, FSSupport, UFile, FilePlugin, FilesProvider>(controllerContext) {
     override fun retrievePlugins() = controllerContext.configuration.plugins.files.values
     override fun retrieveApi(providerId: String): FilesProvider = FilesProvider(providerId)
@@ -222,6 +243,22 @@ class FileController(
 
             result ?: throw RPCException("Invalid token supplied", HttpStatusCode.NotFound)
         })
+
+        server.addHandler(FilesUploadIpc.delete.handler { _, request ->
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                    delete from file_upload_sessions
+                    where
+                        session = :token
+                """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("token", request.id)
+                    }
+                )
+            }
+        })
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -259,7 +296,7 @@ class FileController(
 
                 http {
                     method = HttpMethod.Post
-                    path { using(uploadPath(null, providerId)) }
+                    path { using(uploadPath(null, providerId, UploadProtocol.CHUNKED)) }
                 }
             }
         }
@@ -396,7 +433,7 @@ class FileController(
 
                 sctx.ktor.call.respondRedirect(
                     downloadPath(config, controllerContext.configuration.core.providerId, request.token) +
-                            "&attempt=${attempt + 1}"
+                        "&attempt=${attempt + 1}"
                 )
 
                 okContentAlreadyDelivered()
@@ -423,22 +460,53 @@ class FileController(
 
             request.items.forEach { uploadRequest ->
                 val plugin = lookupPlugin(uploadRequest.resolvedCollection.specification.product)
-                val name = plugin.pluginName
 
                 with(requestContext(controllerContext)) {
                     with(plugin) {
+                        val protocol = supportedUploadProtocols.find { uploadRequest.supportedProtocols.contains(it) }
+                            ?: throw RPCException("Upload protocol not supported", HttpStatusCode.BadRequest)
+
+                        val isFolder = uploadRequest.type == UploadType.FOLDER
+
+                        if (protocol != UploadProtocol.WEBSOCKET && isFolder) {
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
+
+                        if (isFolder) {
+                            try {
+                                createFolder(
+                                    bulkRequestOf(
+                                        FilesProviderCreateFolderRequestItem(
+                                            uploadRequest.resolvedCollection,
+                                            uploadRequest.id,
+                                            WriteConflictPolicy.REPLACE
+                                        )
+                                    )
+                                )
+                            } catch (e: FSException.AlreadyExists) {
+                                // Ignore
+                            }
+                        }
+
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
                                 FilesCreateUploadResponseItem(
-                                    uploadPath(config, providerId),
-                                    UploadProtocol.CHUNKED,
+                                    uploadPath(
+                                        config,
+                                        providerId,
+                                        protocol,
+                                        if (protocol == UploadProtocol.WEBSOCKET) { it.session } else { null },
+                                        false,
+                                        isFolder
+                                    ),
+                                    protocol,
                                     it.session
                                 )
                             )
 
                             ipcClient.sendRequest(
                                 FilesUploadIpc.register,
-                                FileSessionWithPlugin(name, it.session, it.pluginData)
+                                FileSessionWithPlugin(plugin.pluginName, it.session, it.pluginData)
                             )
                         }
                     }
@@ -456,17 +524,22 @@ class FileController(
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
                 ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
 
+            val totalSize = sctx.ktor.call.request.header("Chunked-Upload-Total-Size")?.toLongOrNull()
+                ?: throw RPCException("Missing total size", HttpStatusCode.BadRequest)
+
             with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
-                    ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
+                    ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
 
+                val lastChunk = offset + (sctx.ktor.call.request.headers[HttpHeaders.ContentLength]?.toLong() ?: 0) >= totalSize
                 with(plugin) {
                     handleUpload(
                         token,
                         handler.pluginData,
                         offset,
-                        sctx.ktor.call.request.receiveChannel()
+                        sctx.ktor.call.request.receiveChannel(),
+                        lastChunk
                     )
                 }
             }
@@ -492,7 +565,7 @@ class FileController(
                 listOf(plugin)
             } else {
                 retrievePlugins().filter { plugin ->
-                    plugin.productAllocationResolved.any { it.category == request.category }
+                    plugin.productAllocationResolved.any { it.category.name == request.category.name }
                 }
             }
 
@@ -550,6 +623,60 @@ class FileController(
         }
     }
 
+    override fun onServerReady(rpcServer: RpcServer) {
+        ktor.routing {
+
+            // Single-file upload over WebSockets
+            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true)) {
+                val context = SimpleRequestContext(controllerContext.pluginContext, "")
+                val token = call.parameters["token"]
+                    ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
+
+
+                with(context) {
+                    val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
+                    val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
+                        ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
+
+                    with(plugin) {
+                        handleUploadWs(handler.session, handler.pluginData, collectionCache, this@webSocket)
+                    }
+                }
+                this.close()
+            }
+
+            // Folder upload over WebSockets
+            webSocket(uploadPath(null, providerId, UploadProtocol.WEBSOCKET, tokenPlaceholder = true, isFolder = true)) {
+                val context = SimpleRequestContext(controllerContext.pluginContext, "")
+                val token = call.parameters["token"]
+                    ?: throw RPCException("Missing or invalid token", HttpStatusCode.BadRequest)
+
+                with(context) {
+                    val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
+                    val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
+                        ?: throw RPCException("Upload session is no longer valid", HttpStatusCode.NotFound)
+
+                    try {
+                        with(plugin) {
+                            handleFolderUploadWs(
+                                handler.session,
+                                handler.pluginData,
+                                collectionCache,
+                                this@webSocket
+                            )
+                        }
+                    } catch (ex: Throwable) {
+                        log.warn("Exception in upload: ${ex.toReadableStacktrace()}")
+                    }
+
+                    ipcClient.sendRequest(FilesUploadIpc.delete, FindByStringId(token))
+                }
+
+                this.close()
+            }
+        }
+    }
+
     private val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,
         lookup = { collectionId ->
@@ -567,9 +694,28 @@ class FileController(
             if (token != null) append("?token=$token")
         }
 
-        fun uploadPath(config: VerifiedConfig?, providerId: String): String = buildString {
+        fun uploadPath(
+            config: VerifiedConfig?,
+            providerId: String,
+            protocol: UploadProtocol,
+            withToken: String? = null,
+            tokenPlaceholder: Boolean = false,
+            isFolder: Boolean = false
+        ): String = buildString {
             if (config != null) append(config.core.hosts.self?.toStringOmitDefaultPort() ?: "")
-            append("/ucloud/${providerId}/chunked/upload")
+            val token = if (tokenPlaceholder) {
+                "/{token}"
+            } else {
+                if (withToken != null) {
+                   "/${withToken}"
+                } else {
+                    ""
+                }
+            }
+
+            val folder = if (isFolder) { "/folder" } else { "" }
+
+            append("/ucloud/${providerId}/${protocol.name.lowercase(Locale.getDefault())}/upload${folder}${token}")
         }
     }
 }

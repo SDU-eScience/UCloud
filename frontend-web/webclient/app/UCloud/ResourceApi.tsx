@@ -2,20 +2,29 @@ import * as UCloud from ".";
 import * as React from "react";
 import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from ".";
 import ProductReference = accounting.ProductReference;
-import {SidebarPages} from "@/ui-components/Sidebar";
-import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
-import {Operation} from "@/ui-components/Operation";
+import {
+    apiBrowse,
+    apiCreate,
+    apiDelete,
+    apiRetrieve,
+    apiSearch,
+    apiUpdate,
+    callAPI,
+    InvokeCommand
+} from "@/Authentication/DataHook";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
-import {bulkRequestOf} from "@/DefaultObjects";
-import {DateRangeFilter, FilterWidgetProps, PillProps, TextFilter} from "@/Resource/Filter";
-import {IconName} from "@/ui-components/Icon";
+import {bulkRequestOf} from "@/UtilityFunctions";
+import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {Product, ProductType} from "@/Accounting";
+import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import * as Accounting from "@/Accounting";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -98,6 +107,38 @@ export interface FindById {
     id: string;
 }
 
+// NOTE(Dan): Due to time limitations we are sort of hacking this in via the frontend
+export interface SupportByProviderV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport> extends SupportByProvider<Product, S> {
+    newProducts: P[];
+}
+
+export function supportV2ProductMatch<P extends ProductV2 = ProductV2>(product: Product, support: SupportByProviderV2<P>): P {
+    // NOTE(Dan): This should never fail. In this case I think it is worth simplifying calling code by assuming that
+    // this either fails badly or not at all.
+    return support.newProducts.find(it =>
+        it.name === product.name &&
+        it.category.name === product.category.name &&
+        it.category.provider === product.category.provider
+    )!;
+}
+
+export async function retrieveSupportV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport>(
+    api: ResourceApi<any, any, any, any, any, any, S>
+): Promise<SupportByProviderV2<P, S>> {
+    const allProductsPromise = fetchAll(next =>
+        callAPI(Accounting.browseProductsV2({itemsPerPage: 250, filterProductType: api.productType, next}))
+    )
+    const supportPromise = callAPI(api.retrieveProducts());
+
+    const support = await supportPromise;
+    const allProducts = await allProductsPromise;
+
+    return {
+        ...support,
+        newProducts: allProducts as P[]
+    };
+}
+
 export interface SupportByProvider<P extends Product = Product, S extends ProductSupport = ProductSupport> {
     productsByProvider: Record<string, ResolvedSupport<P, S>[]>;
 }
@@ -127,20 +168,9 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
-    supportByProvider: SupportByProvider;
+    supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
     isWorkspaceAdmin: boolean;
-}
-
-export interface SortFlags {
-    sortBy?: string;
-    sortDirection?: "ascending" | "descending";
-}
-
-export interface SortEntry {
-    icon: IconName;
-    title: string;
-    column: string;
-    helpText?: string;
+    creationDisabled?: boolean;
 }
 
 export abstract class ResourceApi<Res extends Resource,
@@ -156,7 +186,6 @@ export abstract class ResourceApi<Res extends Resource,
     public abstract productType?: ProductType;
     public abstract routingNamespace;
     public abstract title: string;
-    public abstract page: SidebarPages;
     public isCoreResource: boolean = false;
     public defaultSortDirection: "ascending" | "descending" = "ascending";
 
@@ -189,13 +218,6 @@ export abstract class ResourceApi<Res extends Resource,
     }
 
     public abstract renderer: ItemRenderer<Res>;
-    /*
-    public InlineTitleRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public IconRenderer?: React.FunctionComponent<{ resource: Res | null; size: string; }>
-    public StatsRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public TitleRenderer?: React.FunctionComponent<{ resource: Res }>;
-    public ImportantStatsRenderer?: React.FunctionComponent<{ resource: Res }>;
-     */
     public Properties: React.FunctionComponent<{
         resource?: Res;
         reload?: () => void;
@@ -210,7 +232,6 @@ export abstract class ResourceApi<Res extends Resource,
 
         this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
         this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
-        // TODO We need to add a pill for provider and product
     }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {
@@ -222,40 +243,41 @@ export abstract class ResourceApi<Res extends Resource,
                 enabled: (selected, cb) => cb.closeProperties != null,
                 onClick: (selected, cb) => {
                     cb.closeProperties!();
-                }
+                },
+                shortcut: ShortcutKey.Backspace
             },
             {
                 text: "Use",
                 primary: true,
-                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) ?? true),
-                canAppearInLocation: loc => loc === "IN_ROW",
+                icon: "check",
+                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) === true),
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);
-                }
+                },
+                shortcut: ShortcutKey.Enter
             },
             {
                 text: "Create " + this.title.toLowerCase(),
                 icon: "upload",
-                color: "blue",
                 primary: true,
-                canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
-                    if (selected.length !== 0 || cb.startCreation == null || cb.isCreating) return false;
-                    return true;
+                    return !(selected.length !== 0 || cb.startCreation == null || cb.isCreating);
+
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
-                tag: CREATE_TAG
+                tag: CREATE_TAG,
+                shortcut: ShortcutKey.Q
             },
             {
                 text: "Cancel",
                 icon: "close",
-                color: "red",
-                canAppearInLocation: loc => loc === "SIDEBAR" || loc === "TOPBAR",
+                color: "errorMain",
                 primary: true,
                 enabled: (selected, cb) => {
                     return cb.isCreating
                 },
                 onClick: (selected, cb) => cb.cancelCreation!(),
+                shortcut: ShortcutKey.Y
             },
             {
                 text: "Permissions",
@@ -277,12 +299,13 @@ export abstract class ResourceApi<Res extends Resource,
                         cb.viewProperties!(selected[0]);
                     }
                 },
-                tag: PERMISSIONS_TAG
+                tag: PERMISSIONS_TAG,
+                shortcut: ShortcutKey.W
             },
             {
                 text: "Delete",
                 icon: "trash",
-                color: "red",
+                color: "errorMain",
                 confirm: true,
                 enabled: (selected) => selected.length >= 1,
                 onClick: async (selected, cb) => {
@@ -294,7 +317,8 @@ export abstract class ResourceApi<Res extends Resource,
                         cb.navigate(`/${cb.api.routingNamespace}`)
                     }
                 },
-                tag: DELETE_TAG
+                tag: DELETE_TAG,
+                shortcut: ShortcutKey.R
             },
             {
                 text: "Properties",
@@ -303,7 +327,8 @@ export abstract class ResourceApi<Res extends Resource,
                 onClick: (selected, cb) => {
                     cb.viewProperties!(selected[0]);
                 },
-                tag: PROPERTIES_TAG
+                tag: PROPERTIES_TAG,
+                shortcut: ShortcutKey.E,
             }
         ];
     }
@@ -353,3 +378,8 @@ export const DELETE_TAG = "delete";
 export const PROPERTIES_TAG = "properties";
 export const CREATE_TAG = "create";
 export const UCLOUD_CORE = "ucloud_core";
+
+export function placeholderProduct(): {id: "", category: "", provider: string} {
+    return {"id": "", "category": "", "provider": UCLOUD_CORE};
+}
+

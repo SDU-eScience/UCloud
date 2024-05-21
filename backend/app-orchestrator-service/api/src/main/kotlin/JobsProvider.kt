@@ -47,11 +47,8 @@ data class JobsProviderSuspendRequestItem(
 typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestItem>
 typealias JobsProviderSuspendResponse = BulkResponse<Unit?>
 
-@Serializable
 @UCloudApiStable
-data class JobsProviderUnsuspendRequestItem(
-    val job: Job,
-)
+typealias JobsProviderUnsuspendRequestItem = JobsProviderSuspendRequestItem
 typealias JobsProviderUnsuspendRequest = BulkRequest<JobsProviderUnsuspendRequestItem>
 typealias JobsProviderUnsuspendResponse = BulkResponse<Unit?>
 
@@ -178,6 +175,20 @@ data class QueueStatus(
     val pending: Int,
 )
 
+interface FeatureBlock {
+    var enabled: Boolean?
+}
+
+fun <Block : FeatureBlock> Block.checkEnabled() {
+    if (enabled != true) error("Missing feature")
+}
+
+fun <Block : FeatureBlock> Block.checkFeature(flag: Boolean?) {
+    if (enabled != true || flag != true) {
+        error("Missing feature")
+    }
+}
+
 @Serializable
 @UCloudApiStable
 data class ComputeSupport(
@@ -194,8 +205,8 @@ data class ComputeSupport(
 
     override var maintenance: Maintenance? = null,
 ) : ProductSupport {
-    interface UniversalBackendSupport {
-        var enabled: Boolean?
+    interface UniversalBackendSupport : FeatureBlock {
+        override var enabled: Boolean?
         var vnc: Boolean?
         var logs: Boolean?
         var terminal: Boolean?

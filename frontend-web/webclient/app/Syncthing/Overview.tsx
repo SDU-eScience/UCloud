@@ -1,37 +1,33 @@
 import * as React from "react";
 import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
-import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {SafeLogo} from "@/Applications/AppToolLogo";
+import {usePage} from "@/Navigation/Redux";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
-import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
-import MainContainer from "@/MainContainer/MainContainer";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import styled from "styled-components";
+import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
+import MainContainer from "@/ui-components/MainContainer";
+import TitledCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
 import {Job} from "@/UCloud/JobsApi";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
-import {usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {fileName} from "@/Utilities/FileUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
@@ -39,7 +35,17 @@ import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import Products from "@/Products/Products";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import FileBrowse from "@/Files/FileBrowse";
+import {CardClass} from "@/ui-components/Card";
+import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import AppRoutes from "@/Routes";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {div} from "@/Utilities/HTMLUtilities";
+import {arrayToPage} from "@/Types";
+import {AsyncCache} from "@/Utilities/AsyncCache";
 
 // UI state management
 // ================================================================================
@@ -250,15 +256,17 @@ export const Overview: React.FunctionComponent = () => {
 
     const provider = getQueryParam(location.search, "provider");
 
-    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved|null>(null);
+    const [selectedProduct, setSelectedProduct] = useState<UCloud.compute.ComputeProductSupportResolved | null>(null);
 
-    if (!provider) {
-        navigate("/drives");
-        return null;
-    }
+    React.useEffect(() => {
+        if (!provider) {
+            navigate("/drives");
+        }
+    }, []);
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
+        if (!provider) return;
         Sync.fetchConfig(provider).then(config => {
             if (didUnmount.current) return;
             pureDispatch({type: "ReloadConfig", config});
@@ -324,7 +332,7 @@ export const Overview: React.FunctionComponent = () => {
         pureDispatch,
         requestReload: reload,
         requestJobReloader,
-        provider,
+        provider: provider ?? "",
         productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, pureDispatch, reload]);
 
@@ -338,7 +346,7 @@ export const Overview: React.FunctionComponent = () => {
         dispatch,
         requestReload: reload,
         permissionProblems,
-        provider,
+        provider: provider ?? "",
         productId: selectedProduct?.product.name ?? "syncthing"
     }), [navigate, dispatch, reload, permissionProblems]);
 
@@ -357,24 +365,32 @@ export const Overview: React.FunctionComponent = () => {
     const openFileSelector = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
-            <FilesBrowse
-                browseType={BrowseType.Embedded}
-                pathRef={pathRef}
-                onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
-                onSelect={async (res) => {
-                    if (res.specification.product.provider != provider) {
-                         snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
-                        return;
-                    }
+            <FileBrowse
+                opts={{
+                    isModal: true,
+                    initialPath: "",
+                    managesLocalProject: true,
+                    selection: {
+                        text: "Sync",
+                        show(file) {
+                            return file.status.type === "DIRECTORY" && file.specification.product.id !== "share";
+                        },
+                        async onClick(res) {
+                            if (res.specification.product.provider != provider) {
+                                snackbarStore.addFailure("Only folders hosted at the same provider as the Syncthing server can be added", false);
+                                return;
+                            }
 
-                    const sensitivity = await findSensitivity(res);
-                    if (sensitivity == "SENSITIVE") {
-                        snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
-                        return;
+                            const sensitivity = await findSensitivity(res);
+                            if (sensitivity == "SENSITIVE") {
+                                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
+                                return;
+                            }
+                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                            dispatch({type: "AddFolder", folderPath: target});
+                            dialogStore.success();
+                        },
                     }
-                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                    dispatch({type: "AddFolder", folderPath: target});
-                    dialogStore.success();
                 }}
             />,
             doNothing,
@@ -388,38 +404,38 @@ export const Overview: React.FunctionComponent = () => {
 
     useEffect(() => {
         folderToggleSet.uncheckAll();
-    }, [folders]);
+    }, [uiState.folders]);
 
     useEffect(() => {
         serverToggleSet.uncheckAll();
-    }, [servers]);
+    }, [uiState.servers]);
 
     useEffect(() => {
         deviceToggleSet.uncheckAll();
-    }, [devices]);
+    }, [uiState.devices]);
 
     useEffectSkipMount(() => {
-        // TODO(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
+        // NOTE(Dan): Adding this constraint here because the frontend has started resetting everybody's configuration
         //  in production. We will need to investigate this later. For now, don't attempt to update if we don't have
         //  all the details yet.
         if (folders.length === 0 && devices.length === 0) return;
+        if (!provider) return;
 
         callAPI(Sync.api.updateConfiguration({
-            provider: provider,
+            provider,
             productId: selectedProduct?.product.name ?? "syncthing",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length, selectedProduct]);
 
-    useTitle("File Synchronization");
-    useRefreshFunction(reload);
-    useSidebarPage(SidebarPages.Files);
+    usePage("File synchronization", SidebarTabId.FILES);
+    useSetRefreshFunction(reload);
 
-    let main: JSX.Element;
+    let main: React.ReactNode;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
         main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
-        main = <OverviewStyle>
+        main = <div className={OverviewStyle}>
             {uiState.showDeviceWizard !== true ? null :
                 <ReactModal
                     isOpen={true}
@@ -427,16 +443,16 @@ export const Overview: React.FunctionComponent = () => {
                     shouldCloseOnEsc
                     ariaHideApp={false}
                     onRequestClose={closeWizard}
+                    className={CardClass}
                 >
                     <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
                 </ReactModal>
             }
 
-            <TwoPanelLayout>
-                <HighlightedCard
+            <div className={TwoPanelLayout}>
+                <TitledCard
                     icon="hdd"
                     title="My devices"
-                    color="blue"
                     className="devices"
                     subtitle={<Flex>
                         <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
@@ -445,7 +461,7 @@ export const Overview: React.FunctionComponent = () => {
                         <Button onClick={openWizard}>Add device</Button>
                     </Flex>}
                 >
-                    <Text color="darkGray" fontSize={1}>
+                    <Text color="textSecondary">
                         UCloud can synchronize files to any of your devices which run Syncthing.
                         Download and install Syncthing to add one of your devices here.
                     </Text>
@@ -464,16 +480,15 @@ export const Overview: React.FunctionComponent = () => {
                             />
                         )}
                     </List>
-                </HighlightedCard>
+                </TitledCard>
 
                 {uiState.folders !== undefined && folders.length === 0 ? null :
-                    <HighlightedCard
+                    <TitledCard
                         className="servers"
                         icon="globeEuropeSolid"
                         title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
-                        color="blue"
                     >
-                        <Text color="darkGray" fontSize={1}>
+                        <Text color="textSecondary">
                             We synchronize your files from this server. Monitor the health of your servers here.
                         </Text>
 
@@ -498,45 +513,27 @@ export const Overview: React.FunctionComponent = () => {
                                 )}
                             </List>
                         </>}
-                    </HighlightedCard>
+                    </TitledCard>
                 }
-            </TwoPanelLayout>
+            </div>
 
-            <HighlightedCard
+            <TitledCard
                 className="folders"
                 icon="ftFolder"
                 title="Synchronized folders"
-                color="blue"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
-                <Text color="darkGray" fontSize={1}>
+                <Text mb="12px" color="textSecondary">
                     These are the files which will be synchronized to your devices.
                     Add a new folder to start synchronizing data.
                 </Text>
 
-                {uiState.folders !== undefined && folders.length === 0 ?
+                {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <>
-                        {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector} /> : null}
-                        <List mt="16px">
-                            {folders.map(it =>
-                                <ItemRow
-                                    item={it}
-                                    key={it.ucloudPath}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={FolderRenderer}
-                                    toggleSet={folderToggleSet}
-                                    operations={folderOperations}
-                                    callbacks={operationCb}
-                                    itemTitle={"Folder"}
-                                    disableSelection
-                                />
-                            )}
-                        </List>
-                    </>
+                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: true}} />
                 }
-            </HighlightedCard>
-        </OverviewStyle>;
+            </TitledCard>
+        </div>;
     }
 
     return <MainContainer main={main} />;
@@ -562,7 +559,7 @@ const DeviceRenderer: ItemRenderer<SyncthingDevice> = {
             copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
         }, [resource.deviceId]);
 
-        const trigger = <DeviceBox onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></DeviceBox>;
+        const trigger = <div className={DeviceBox} onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></div>;
         return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
     }
 };
@@ -575,11 +572,12 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
         onClick: ([device]) => {
             copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
         },
+        shortcut: ShortcutKey.C
     },
     {
         text: "Remove",
         icon: "trash",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: selected => selected.length > 0,
         onClick: (selected, cb) => {
@@ -587,66 +585,30 @@ const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
                 cb.dispatch({type: "RemoveDevice", deviceId: device.deviceId});
             }
         },
+        shortcut: ShortcutKey.R
     }
 ];
-
-const FolderRenderer: ItemRenderer<SyncthingFolder> = {
-    Icon: ({size}) => {
-        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size} />;
-    },
-
-    MainTitle: ({resource, callbacks}) => {
-        if (!resource) return null;
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <Text cursor="pointer" onClick={() => {
-            const path = resource.ucloudPath;
-            callbacks.navigate(buildQueryString("/files", {path}));
-        }}>{fileName(prettyPath)}</Text>;
-    },
-
-    Stats: ({resource}) => {
-        // TODO Caching is currently triggering way too many requests. We should fix this in usePrettyFilePath!
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        if (!resource) return null;
-        return <>
-            <ListRowStat>{prettyPath}</ListRowStat>
-        </>
-    },
-
-    ImportantStats: ({resource, callbacks}) => {
-        if (resource == null) return null;
-        if (!callbacks.permissionProblems.includes(resource.id)) return null;
-
-        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <>
-            <Tooltip tooltipContentWidth="200px" trigger={
-                <Icon name="warning" color="red" />
-            }>
-                Some files in {prettyPath} might not be synchronized due to lack of permissions.
-            </Tooltip>
-        </>
-    }
-};
 
 const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
         text: "Remove from sync",
         icon: "trash",
-        color: "red",
+        color: "errorMain",
         confirm: true,
         enabled: selected => selected.length >= 1,
         onClick: (selected, cb) => {
             for (const file of selected) {
                 cb.dispatch({type: "RemoveFolder", folderPath: file.ucloudPath});
             }
-        }
+        },
+        shortcut: ShortcutKey.R
     }
 ];
 
 const ServerRenderer: ItemRenderer<Job> = {
     Icon: ({resource, size}) => {
         if (!resource) return null;
-        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
+        return <SafeLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
     },
 
     MainTitle: ({resource}) => {
@@ -672,7 +634,7 @@ const ServerRenderer: ItemRenderer<Job> = {
 
             case "RUNNING": {
                 return <Flex alignItems="center">
-                    <Icon name="check" color="green" />
+                    <Icon name="check" color="successMain" />
                     <Box ml="8px">Running</Box>
                 </Flex>
             }
@@ -680,7 +642,7 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUCCESS":
             case "FAILURE": {
                 return <Flex alignItems="center">
-                    <Icon name="pauseSolid" color="purple" />
+                    <Icon name="pauseSolid" color="infoMain" />
                     <Box ml="8px">Paused</Box>
                 </Flex>;
             }
@@ -690,20 +652,6 @@ const ServerRenderer: ItemRenderer<Job> = {
 
 const serverOperations: Operation<Job, OperationCallbacks>[] = [
     {
-        text: "Open interface",
-        icon: "open",
-        enabled: selected => selected.length === 1,
-        onClick: ([job]) => {
-            const element = document.createElement("a");
-            element.setAttribute("href", `/app/applications/web/${job.id}/0?hide-frame`);
-            element.setAttribute("target", "_blank");
-            element.style.display = "none";
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-        }
-    },
-    {
         text: "Show device ID",
         icon: "id",
         enabled: selected => selected.length === 1,
@@ -712,7 +660,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
             if (path && typeof path === "string") {
                 cb.navigate(`/files/properties/${encodeURIComponent(`${path}/ucloud_device_id.txt`)}`);
             }
-        }
+        },
+        shortcut: ShortcutKey.S
     },
     {
         text: "View logs",
@@ -720,7 +669,8 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: ([job], cb) => {
             cb.navigate(`/jobs/properties/${job.id}`);
-        }
+        },
+        shortcut: ShortcutKey.V
     },
     {
         text: "Restart",
@@ -729,13 +679,14 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
             callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
-        }
+        },
+        shortcut: ShortcutKey.Q
     },
     {
         text: "Factory reset",
         icon: "trash",
         confirm: true,
-        color: "red",
+        color: "errorMain",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             dialogStore.addDialog(
@@ -753,12 +704,13 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
                         A new device ID will be generated if you decide to set up Synchronization again.
                     </p>
                     <Button mr="5px" onClick={() => dialogStore.success()}>Cancel</Button>
-                    <Button color="red" onClick={() => {
+                    <Button color="errorMain" onClick={() => {
                         cb.dispatch({type: "ResetAll"});
                         dialogStore.success();
                     }}>Confirm</Button>
                 </Box>, () => undefined, true);
-        }
+        },
+        shortcut: ShortcutKey.F
     },
 ];
 
@@ -798,7 +750,8 @@ const EmptyFolders: React.FunctionComponent<{
                         <p><b>Open Syncthing</b></p>
                         <p>
                             A pop-up will appear, saying that UCloud wants to connect.
-                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears.
+                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears. <br />
+                            <b>Note: it can take a few minutes before the pop-up appears.</b>
                         </p>
                     </Box>
                     <Box pl={40}>
@@ -914,13 +867,13 @@ const AddDeviceWizard: React.FunctionComponent<{
         setTutorialStep(prev => prev - 1);
     }, []);
 
-    let tutorialContent: JSX.Element = <></>;
+    let tutorialContent: React.ReactNode = <></>;
     switch (tutorialStep) {
         case STEP_INTRO: {
             tutorialContent = (
                 <>
                     <Heading.h3>Installing Syncthing</Heading.h3>
-                    <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
+                    <Box borderRadius="6px" backgroundColor="warningMain" color="white" p={16} mt={16}>
                         The synchronization feature is experimental. Please report any errors through the Support Form.
                     </Box>
                     <p>
@@ -987,24 +940,24 @@ const AddDeviceWizard: React.FunctionComponent<{
                     <form onSubmit={tutorialNext}>
                         <Label>
                             Device Name
-                            <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
+                            <Input inputRef={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
                             {!deviceNameError ?
-                                <Text color="gray">
+                                <Text color="textSecondary">
                                     A name to help you remember which device this is. For example: "Work phone".
                                 </Text> :
-                                <Text color="red">{deviceNameError}</Text>
+                                <Text color="errorMain">{deviceNameError}</Text>
                             }
                         </Label>
 
                         <Label mt="8px">
                             My Device ID
                             <Input
-                                ref={deviceIdRef}
+                                inputRef={deviceIdRef}
                                 placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
                                 error={deviceIdError !== null}
                             />
                             {!deviceIdError ? null :
-                                <Text color="red">{deviceIdError}</Text>
+                                <Text color="errorMain">{deviceIdError}</Text>
                             }
                         </Label>
 
@@ -1021,71 +974,212 @@ const AddDeviceWizard: React.FunctionComponent<{
     }
 
     return <Flex flexDirection="column" height="100%">
-        <Box flexGrow={1}>{tutorialContent}</Box>
-        <Flex mt={30}>
-            <Box marginLeft={"auto"}>
-                {tutorialStep < 1 ? null : (
-                    <Button onClick={tutorialPrevious}>Previous step</Button>
-                )}
-                <Button marginLeft={10} onClick={tutorialNext}>
-                    {tutorialStep === 2 ? "Done" : "Next step"}
-                </Button>
-            </Box>
+        <Box flexGrow={1} overflowY="scroll">{tutorialContent}</Box>
+        <Flex ml="auto" mt={30}>
+            {tutorialStep < 1 ? null : (
+                <Button onClick={tutorialPrevious}>Previous step</Button>
+            )}
+            <Button marginLeft={10} onClick={tutorialNext}>
+                {tutorialStep === 2 ? "Done" : "Next step"}
+            </Button>
         </Flex>
     </Flex>;
 };
 
 // Styling
 // ================================================================================
-const OverviewStyle = styled.div`
-    .row-left {
+const OverviewStyle = injectStyle("overview-style", k => `
+    ${k} > .row-left {
         max-width: unset;
     }
-`;
+`);
 
-const TwoPanelLayout = styled.div`
-  display: flex;
-  flex-flow: row wrap;
+const TwoPanelLayout = injectStyle("two-panel-layout", k => `
+    ${k} {
+        display: flex;
+        flex-flow: row wrap;
 
-  margin-bottom: 16px;
-  gap: 16px;
-
-  & > * {
-    flex-basis: 100%;
-  }
-
-  @media all and (min-width: 1000px) {
-    & > * {
-      flex-basis: 400px;
+        margin-top: 16px;
+        margin-bottom: 16px;
+        gap: 16px;
     }
 
-    .devices {
-      order: 1;
-      flex-grow: 2;
+    ${k} > * {
+        flex-basis: 100%;
     }
 
-    .servers {
-      order: 2;
-      flex-grow: 1;
+    @media all and (min-width: 1000px) {
+        ${k} > * {
+            flex-basis: 400px;
+        }
+
+        .devices {
+            order: 1;
+            flex-grow: 2;
+        }
+
+        .servers {
+            order: 2;
+            flex-grow: 1;
+        }
     }
-  }
-`;
+`);
 
-const TutorialList = styled.ol`
-  padding-top: 0.5em;
+function TutorialList(props: React.PropsWithChildren): React.ReactNode {
+    return <ol className={TutorialListClass} {...props} />
+}
 
-  & > li {
-    padding: 0 0 1.5em 0.5em;
-  }
-`;
+const TutorialListClass = injectStyle("tutorial-list", k => `
+    ${k} {
+        padding-top: 0.5em;
+    }
 
-const Screenshot = styled(Image)`
-    border: 3px solid var(--gray);
+    ${k} > li {
+        padding: 0 0 1.5em 0.5em;
+    }
+`);
+
+function Screenshot(props: {src: string}): React.ReactNode {
+    return <Image className={ScreenshotClass} src={props.src} />
+}
+
+const ScreenshotClass = injectStyleSimple("screenshot", `
+    border: 3px solid var(--borderGray);
     max-height: 250px;
-`;
+`);
 
-const DeviceBox = styled(NoSelect)`
+const DeviceBox = injectStyleSimple("device-box", `
     cursor: pointer;
-`;
+    user-select: none;
+    -webkit-user-select: none;
+`);
+
+let permissionProblems: Record<string, boolean> = {};
+
+function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): void; folders?: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.ReactNode {
+
+    React.useEffect(() => {
+        return () => {permissionProblems = {};}
+    }, []);
+
+    React.useEffect(() => {
+        const validFolders = folders?.filter(it => it.ucloudPath != null);
+        if (!validFolders || validFolders.length === 0) return;
+        Promise.allSettled(validFolders.map(f =>
+            callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
+        )).then(promises => {
+            promises.forEach((p, index) => {
+                if (p.status === "fulfilled") {
+                    if (p.value.items.some(f => f.status.unixOwner !== 11042)) {
+                        permissionProblems[validFolders[index].id] = true;
+                    }
+                }
+            });
+            browserRef.current?.rerender();
+        });
+    }, [folders]);
+
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<SyncthingFolder>>(null);
+    const navigate = useNavigate();
+
+    const features: ResourceBrowseFeatures = {
+        dragToSelect: true,
+        showColumnTitles: true,
+    };
+
+    React.useEffect(() => {
+        const browser = browserRef.current;
+        if (browser && folders) {
+            browser.registerPage(arrayToPage(folders), "/", true);
+            browser.rerender();
+        }
+    }, [folders]);
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<SyncthingFolder>(mount, "SyncFolders", opts).init(browserRef, features, "/", browser => {
+                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 50}]);
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource) {
+                        navigate(AppRoutes.files.path(resource.ucloudPath));
+                        return;
+                    }
+                });
+
+                browser.on("unhandledShortcut", () => {});
+
+                browser.on("wantToFetchNextPage", async path => {});
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("Syncthing folders", e, {}))
+
+                browser.on("renderRow", (folder, row, dims) => {
+                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(icon);
+                    ResourceBrowser.icons.renderIcon({
+                        color: "FtFolderColor",
+                        color2: "FtFolderColor2",
+                        name: "ftFolder",
+                        height: 64,
+                        width: 64
+                    }).then(setIcon);
+
+                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row);
+                    row.title.append(title);
+                    prettyFilePath(folder.ucloudPath).then(it => {
+                        title.innerText = it;
+                    });
+
+                    if (permissionProblems[folder.id]) {
+                        const [permissionIcon, setPermissionIcon] = ResourceBrowser.defaultIconRenderer();
+                        ResourceBrowser.icons.renderIcon({
+                            name: "warning",
+                            color: "errorMain",
+                            color2: "primaryMain",
+                            height: 64,
+                            width: 64,
+                        }).then(setPermissionIcon);
+
+                        prettyFilePath(folder.ucloudPath).then(prettyPath =>
+                            row.stat2.append(HTMLTooltip(permissionIcon, div(`Some files in '${fileName(prettyPath)}' might not be synchronized due to lack of permissions.`), {tooltipContentWidth: 250}))
+                        );
+                    }
+                });
+
+                browser.setEmptyIcon("ftFolder");
+
+                browser.on("generateBreadcrumbs", () => {
+                    return [];
+                });
+
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch
+                }));
+
+                browser.on("fetchOperations", () => {
+                    const selected = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", c => c);
+                    return folderOperations.filter(op => op.enabled(selected, callbacks as OperationCallbacks, selected));
+                });
+
+                browser.on("pathToEntry", syncFolder => syncFolder.id);
+            });
+        }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
+    }, []);
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useSetRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
+
+    return <div ref={mountRef} />;
+}
 
 export default Overview;

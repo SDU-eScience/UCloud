@@ -1,21 +1,28 @@
 import * as React from "react";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
-import {useNavigate} from "react-router";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
-import MainContainer from "@/MainContainer/MainContainer";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {Operations} from "@/ui-components/Operation";
+import MainContainer from "@/ui-components/MainContainer";
+import {usePage} from "@/Navigation/Redux";
+import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "./ConnectionState";
 import {useUState} from "@/Utilities/UState";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {injectStyle} from "@/Unstyled";
+
+const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
+    ${k} {
+        height: 55px;
+    }
+`)
 
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
@@ -34,8 +41,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
 
     const body = <>
         {!shouldConnect ? null :
-            <Text color={"gray"} mb={8}>
-                <Icon name={"warning"} color={"orange"} mr={"8px"} />
+            <Text color={"textSecondary"} mb={8}>
+                <Icon name={"warning"} color={"warningMain"} mr={"8px"} />
                 Connect with the services below to use their resources
             </Text>
         }
@@ -54,17 +61,19 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                     <ListRow
                         onContextMenu={onContextMenu}
                         key={it.provider}
-                        icon={<ProviderLogo providerId={it.providerTitle} size={32} />}
-                        left={<ProviderTitle providerId={it.providerTitle} />}
+                        className={FixedHeightProvider}
+                        highlightOnHover={false}
+                        icon={<ProviderLogo providerId={it.providerTitle} size={30} />}
+                        left={<Text fontSize={"16px"} ml={3}><ProviderTitle providerId={it.providerTitle} /></Text>}
                         right={!canConnect ?
                             <>
-                                <Icon name={"check"} color={"green"} />
+                                <Icon name={"check"} color={"successMain"} />
                                 <Operations
                                     location={"IN_ROW"}
                                     operations={[
                                         {
                                             confirm: true,
-                                            color: "red",
+                                            color: "errorMain",
                                             text: "Unlink",
                                             icon: "close",
                                             enabled: () => {
@@ -81,7 +90,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                                                 );
 
                                                 reload();
-                                            }
+                                            },
+                                            shortcut: ShortcutKey.U
                                         }
                                     ]}
                                     selected={[]}
@@ -112,20 +122,24 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     </>;
 
     if (props.embedded) {
-        return <HighlightedCard
-            color={"darkOrange"}
-            icon={"key"}
-            title={<Link to={"/providers/connect"}><Heading.h3>Providers</Heading.h3></Link>}
-            subtitle={<Link to="/providers/overview">Show all</Link>}
+        return <TitledCard
+            icon={"heroCloud"}
+            title={<Link to={"/providers/connect"}><Heading.h3>Providers<Icon ml="6px" mt="-4px" name="heroArrowTopRightOnSquare" /></Heading.h3></Link>}
+            subtitle={<Link to="/providers/overview">View details</Link>}
         >
             {body}
-        </HighlightedCard>;
+        </TitledCard>;
     } else {
         // NOTE(Dan): You are not meant to swap the embedded property on a mounted component. We should be fine even
         // though we are breaking rules of hooks.
         // NOTE(Jonas): Woohooo, breaking the rules of hooks!
-        useTitle("Connect to Providers");
-        return <MainContainer main={body} />;
+        usePage("Connect to Providers", SidebarTabId.NONE);
+        return <MainContainer
+            header={
+                <Heading.h3 style={{marginLeft: "8px"}}>Provider connections</Heading.h3>
+            }
+            main={body}
+        />;
     }
 };
 

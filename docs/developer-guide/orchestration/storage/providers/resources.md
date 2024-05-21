@@ -464,7 +464,7 @@ ResourceControl.browse.call(
         itemsToSkip = null, 
         next = null, 
         sortBy = null, 
-        sortDirection = SortDirection.ascending, 
+        sortDirection = null, 
     ),
     provider
 ).orThrow()
@@ -510,7 +510,7 @@ PageV2(
         )), 
         providerGeneratedId = "1234", 
     )), 
-    itemsPerPage = 50, 
+    itemsPerPage = 100, 
     next = null, 
 )
 */
@@ -590,10 +590,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # }
 
 # Authenticated as provider
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/control/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterProviderIds=mhxas1&sortDirection=ascending" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/control/browse?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&filterProviderIds=mhxas1" 
 
 # {
-#     "itemsPerPage": 50,
+#     "itemsPerPage": 100,
 #     "items": [
 #         {
 #             "id": "1234",

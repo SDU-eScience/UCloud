@@ -2,9 +2,9 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.util.ProviderComms
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.invokeCall
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.jobs
+import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -18,11 +18,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class SshKeyService(
-    private val db: DBContext,
-    private val jobs: JobOrchestrator,
-    private val providers: Providers<*>,
-) {
+class SshKeyService {
     suspend fun create(
         actorAndProject: ActorAndProject,
         keys: List<SSHKey.Spec>,
@@ -63,24 +59,14 @@ class SshKeyService(
         ctx: DBContext,
     ) {
         ctx.withSession { session ->
-            val relevantProviders = jobs.findRelevantProviders(
-                actorAndProject,
-                useProject = false,
-                ctx = session
-            )
-
-            if (relevantProviders.isEmpty()) return@withSession
-
             val allKeys = browse(actorAndProject, null, session)
-
-            for (provider in relevantProviders) {
+            providers.forEachRelevantProvider(actorAndProject.copy(project = null)) { providerId ->
                 runCatching {
-                    providers.invokeCall(
-                        provider,
+                    providers.call(
+                        providerId,
                         actorAndProject,
-                        { SSHKeysProvider(provider).onKeyUploaded },
+                        { SSHKeysProvider(it).onKeyUploaded },
                         SSHKeysProviderKeyUploaded(actorAndProject.actor.safeUsername(), allKeys.items),
-                        signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
                         isUserRequest = true
                     )
                 }
@@ -173,6 +159,7 @@ class SshKeyService(
         pagination: NormalizedPaginationRequestV2,
         ctx: DBContext? = null,
     ): PageV2<SSHKey> {
+        val normalizedId = jobId.toLongOrNull() ?: return emptyPageV2()
         val (actor) = actorAndProject
         return (ctx ?: db).withSession { session ->
             if (actor is Actor.SystemOnBehalfOfUser) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
@@ -180,13 +167,11 @@ class SshKeyService(
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
 
-            val job = jobs.retrieve(
+            val job = jobs.retrieveBulk(
                 actorAndProject,
-                jobId,
-                JobIncludeFlags(includeOthers = true),
-                ctx = session,
-                asProvider = true
-            )
+                longArrayOf(normalizedId),
+                Permission.PROVIDER,
+            ).singleOrNull() ?: return@withSession emptyPageV2()
 
             val relevantUsers = HashSet<String>()
             relevantUsers.add(job.owner.createdBy)
@@ -267,11 +252,7 @@ class SshKeyService(
 
         return (ctx ?: db).withSession { session ->
             val filteredUsers = usernames.filter { username ->
-                val providers = jobs.findRelevantProviders(
-                    ActorAndProject(Actor.SystemOnBehalfOfUser(username), null),
-                    useProject = false
-                )
-
+                val providers = providers.findRelevantProviders(actorAndProject)
                 providerId in providers
             }
 

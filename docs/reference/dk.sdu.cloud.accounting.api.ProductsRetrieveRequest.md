@@ -15,6 +15,7 @@ data class ProductsRetrieveRequest(
     val filterArea: ProductType?,
     val filterVersion: Int?,
     val includeBalance: Boolean?,
+    val includeMaxBalance: Boolean?,
 )
 ```
 
@@ -81,6 +82,17 @@ data class ProductsRetrieveRequest(
 <details>
 <summary>
 <code>includeBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeMaxBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

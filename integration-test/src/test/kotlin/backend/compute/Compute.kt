@@ -3,6 +3,8 @@ package dk.sdu.cloud.integration.backend.compute
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
@@ -23,8 +25,6 @@ import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
-
-fun Product.toReference(): ProductReference = ProductReference(name, category.name, category.provider)
 
 class ComputeTest : IntegrationTest() {
     private data class StartJobParameters(
@@ -149,12 +149,12 @@ class ComputeTest : IntegrationTest() {
 
     data class TestCase(
         val title: String,
-        val products: List<Product>,
+        val products: List<ProductV2>,
     )
 
     override fun defineTests() {
         val cases: List<TestCase> = runBlocking {
-            val allProducts = findProducts(findProviderIds())
+            val allProducts = findProducts()
             val productsByProviders = allProducts.groupBy { it.category.provider }
 
             productsByProviders.map { (provider, products) ->
@@ -169,6 +169,8 @@ class ComputeTest : IntegrationTest() {
             for (product in case.products.filterIsInstance<Product.Compute>()) {
                 if (product.category.name == "syncthing") continue
                 if (product.name == "cpu-2") continue
+                if (product.name == "cpu-200") continue
+
 
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {

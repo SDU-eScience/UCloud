@@ -16,6 +16,7 @@ import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.utils.copyTo
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
+import libc.LibC
 import libc.NativeStat
 import libc.S_ISREG
 import libc.clib
@@ -278,14 +279,14 @@ class NativeFS(
         if (permissions != null) clib.fchmod(handle.fd, permissions)
     }
 
-    suspend fun openForWriting(
+    suspend fun openForWritingWithHandle(
         file: InternalFile,
         conflictPolicy: WriteConflictPolicy,
         owner: Int? = LINUX_FS_USER_UID,
         permissions: Int? = DEFAULT_FILE_MODE,
         truncate: Boolean = true,
         offset: Long? = null,
-    ): Pair<String, LinuxOutputStream> {
+    ): Pair<String, LinuxFileHandle> {
         val parentFd = openFile(file.parent())
         try {
             val (targetName, targetFd) = createAccordingToPolicy(
@@ -310,10 +311,22 @@ class NativeFS(
             }
 
             setMetadataForNewFile(targetFd, owner, permissions)
-            return Pair(targetName, LinuxOutputStream(targetFd))
+            return Pair(targetName, targetFd)
         } finally {
             parentFd.close()
         }
+    }
+
+    suspend fun openForWriting(
+        file: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+        owner: Int? = LINUX_FS_USER_UID,
+        permissions: Int? = DEFAULT_FILE_MODE,
+        truncate: Boolean = true,
+        offset: Long? = null,
+    ): Pair<String, LinuxOutputStream> {
+        val withHandle = openForWritingWithHandle(file, conflictPolicy, owner, permissions, truncate, offset)
+        return Pair(withHandle.first, LinuxOutputStream(withHandle.second))
     }
 
     fun openForReading(file: InternalFile): LinuxInputStream {
@@ -475,7 +488,12 @@ class NativeFS(
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
 
-    suspend fun move(source: InternalFile, destination: InternalFile, conflictPolicy: WriteConflictPolicy): MoveShouldContinue {
+    suspend fun move(
+        source: InternalFile,
+        destination: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+        updateTimestamps: Boolean = false,
+    ): MoveShouldContinue {
         val sourceParent = openFile(source.parent())
         val destinationParent = openFile(destination.parent())
 
@@ -483,7 +501,9 @@ class NativeFS(
             val sourceFd = LinuxFileHandle.createOrThrow(
                 clib.openat(sourceParent.fd, source.fileName(), 0, DEFAULT_FILE_MODE)
             ) { throw FSException.NotFound() }
-            val sourceStat = nativeStat(sourceFd, autoClose = true)
+            val sourceStat = nativeStat(sourceFd, autoClose = false)
+            if (updateTimestamps) clib.touchFile(sourceFd.fd)
+            sourceFd.close()
             var shouldContinue = false
 
             val desiredFileName = destination.fileName()

@@ -1,115 +1,183 @@
-import styled, {css} from "styled-components";
 import {
-    BorderProps, borderRadius, BorderRadiusProps,
-    fontSize, FontSizeProps, space, SpaceProps,
-    width, WidthProps
+    BackgroundColorProps,
+    BorderProps,
+    BorderRadiusProps,
+    FontSizeProps,
+    MarginProps,
+    SpaceProps, TextAlignProps,
+    WidthProps
 } from "styled-system";
-import Text from "./Text";
-import theme from "./theme";
+import {ThemeColor} from "./theme";
+import {classConcat, extractEventHandlers, injectStyle, unbox, unboxDataTags} from "@/Unstyled";
+import * as React from "react";
+import {Cursor} from "./Types";
 
-export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
-    if (noBorder) return {"border-width": "0px"};
-    const borderColor = color ? theme.colors[color] : theme.colors.borderGray;
-    const focusColor = color ? borderColor : theme.colors.blue;
-    return {
-        "border-width": theme.borderWidth,
-        "border-color": borderColor,
-        "border-style": "solid",
-        ":focus": {
-            "outline": 0,
-            "border-color": focusColor,
-        }
-    };
-};
-
-export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, FontSizeProps, WidthProps {
+export interface InputProps extends BorderProps, BackgroundColorProps, SpaceProps, FontSizeProps, BorderRadiusProps, React.InputHTMLAttributes<HTMLInputElement> {
     leftLabel?: boolean;
     rightLabel?: boolean;
     id?: string;
-    color?: string;
     noBorder?: boolean;
     error?: boolean;
-    autoComplete?: "on" | "off";
+    overrideDisabledColor?: ThemeColor;
+    rows?: number;
+    inputRef?: React.RefObject<HTMLInputElement>;
+    resize?: "vertical" | "horizontal";
 }
 
-const left = ({leftLabel}: {leftLabel?: boolean}): string =>
-    leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({rightLabel}: {rightLabel?: boolean}): string =>
-    rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
-
-const Input = styled.input<InputProps & {overrideDisabledColor?: string}>`
-    display: block;
-    font-family: inherit;
-    ${fontSize}
-    color: var(--black, #f00);
-    background-color: transparent;
-
-    margin: 0;
-
-    ${borders} 
-    &:invalid:not(:placeholder-shown) {
-        border-color: var(--red, #f00);
+export const InputClass = injectStyle("input", k => `
+    ${k} {
+        display: block;
+        font-family: inherit;
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
+        margin: 0;
+        border-width: 0px;
+        
+        width: 100%;
+        border-radius: 5px;
+        padding: 7px 12px;
+        height: 35px;
+        border: 1px solid var(--borderColor);
+    }
+    
+    ${k}:disabled:hover {
+        border: 1px solid var(--borderColor);
+    }
+    
+    ${k}:hover {
+        border: 1px solid var(--borderColorHover);
     }
 
-    ${p => p.error ? "border-color: var(--red, #f00);" : null}
-
-    ::placeholder {
-        color: var(--gray, #f00);
+    ${k}:focus {
+        outline: 0;
+        border-color: var(--primaryMain);
     }
 
-    &:focus {
-        outline: none;
-        background-color: transparent;
+    ${k}::placeholder {
+        color: var(--textSecondary);
     }
-
-    &:disabled {
-        background-color: ${p => p.overrideDisabledColor ?? "var(--lightGray, #f00)"};
+    
+    ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
+        border-color: var(--errorMain, #f00);
     }
+    
+    ${k}::placeholder {
+        color: var(--textPrimary, #f00);
+    }
+    
+    ${k}:disabled {
+        background: var(--backgroundDisabled);
+        color: var(--textDisabled);
+    }
+    
+    ${k}[data-hidden="true"] {
+        display: none;
+    }
+    
+    ${k}[data-right-label="true"] {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+    
+    ${k}[data-left-label="true"] {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+    
+    ${k}[data-no-border="true"] {
+        border-width: 0;
+    }
+`);
 
-    ${space} ${borderRadius}
-    ${left} ${width} ${right}
-`;
+const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cursor?: Cursor}> = props => {
+    let style = unbox(props);
+    if (props.style) style = {...style, ...props.style};
+    if (props.overrideDisabledColor) style["--inputDisabledColor"] = `var(--${props.overrideDisabledColor})`;
+    const evHandlers = extractEventHandlers(props);
+
+    const inputProps = {...evHandlers};
+    inputProps["id"] = props.id;
+    inputProps["type"] = props.type;
+    inputProps["accept"] = props.accept;
+    inputProps["disabled"] = props.disabled;
+    inputProps["autoComplete"] = props.autoComplete;
+    inputProps["autoFocus"] = props.autoFocus;
+    inputProps["required"] = props.required;
+    inputProps["readOnly"] = props.readOnly;
+    inputProps["pattern"] = props.pattern;
+    inputProps["name"] = props.name;
+    inputProps["placeholder"] = props.placeholder;
+    inputProps["defaultValue"] = props.defaultValue;
+    inputProps["value"] = props.value;
+    inputProps["step"] = props.step;
+    inputProps["min"] = props.min;
+    inputProps["max"] = props.max;
+
+    inputProps["data-error"] = props.error === true;
+    inputProps["data-left-label"] = props.leftLabel === true;
+    inputProps["data-right-label"] = props.rightLabel === true;
+    inputProps["data-no-border"] = props.noBorder === true;
+    inputProps["data-hidden"] = props.hidden === true;
+
+    inputProps["ref"] = props.inputRef;
+
+    inputProps["className"] = classConcat(InputClass, props.className);
+    inputProps["style"] = style;
+
+    inputProps["rows"] = props.rows;
+
+    if (props.as !== "textarea") {
+        return <input {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
+    } else {
+        style.height = "unset";
+        style.resize = props.resize;
+        return <textarea {...inputProps} {...unboxDataTags(props as Record<string, string>)} />;
+    }
+}
 
 Input.displayName = "Input";
 
-Input.defaultProps = {
-    id: "default",
-    width: "100%",
-    noBorder: false,
-    borderRadius: "5px",
-    pt: "7px",
-    pb: "7px",
-    pl: "12px",
-    pr: "12px",
+export const HiddenInputField: React.FunctionComponent<InputProps> = props => {
+    return <Input {...props} hidden={true} />;
 };
-
-export const HiddenInputField = styled(Input)`
-  display: none;
-`;
 
 export default Input;
 
-const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ?
-    css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
-const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ?
-    css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
-const independent = ({independent}: {independent?: boolean}) => independent ?
-    css`border-radius: 5px; height: 42px;` : null;
-
-
-export interface InputLabelProps extends WidthProps {
+export interface InputLabelProps extends WidthProps, TextAlignProps, MarginProps {
     leftLabel?: boolean;
     rightLabel?: boolean;
     independent?: boolean;
 }
 
-export const InputLabel = styled(Text) <InputLabelProps>`
-  border: ${({theme}) => theme.colors.borderGray} solid ${theme.borderWidth};
-  ${independent}
-  ${leftLabel}
-  ${rightLabel}
-  ${width}
-  padding-left: 1em;
-  padding-right: 1em;
-  padding-top: 6px;
-`;
+const InputLabelClass = injectStyle("input-label", k => `
+    ${k} {
+        height: 35px;
+        border-radius: 5px;
+        padding: 7px 12px;
+        font-size: 14px;
+        background-color: var(--backgroundDefault);
+        border: 1px solid var(--borderColor);
+    }
+    
+    ${k}[data-left-label="true"] {
+        border-top-left-radius: 5px;
+        border-bottom-left-radius: 5px;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-right: 0;
+        margin-right: 0;
+    }
+    
+    ${k}[data-right-label="true"] {
+        border-top-right-radius: 5px;
+        border-bottom-right-radius: 5px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-left: 0;
+        margin-left: 0;
+    }
+`);
+
+export const InputLabel: React.FunctionComponent<InputLabelProps & {children?: React.ReactNode}> = props => {
+    return <div style={unbox(props)} data-right-label={props.rightLabel} data-left-label={props.leftLabel} className={InputLabelClass}>{props.children}</div>;
+}

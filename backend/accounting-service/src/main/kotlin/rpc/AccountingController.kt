@@ -1,34 +1,43 @@
 package dk.sdu.cloud.accounting.rpc
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.wallets.AccountingService
-import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
+import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
+import dk.sdu.cloud.accounting.services.accounting.DataVisualization
+import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
+import dk.sdu.cloud.accounting.util.IdCard
+import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.bulkResponseOf
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.actorAndProject
-
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.feature
+import dk.sdu.cloud.service.*
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
 
 class AccountingController(
-    private val accounting: AccountingService,
-    private val notifications: DepositNotificationService,
+    private val micro: Micro,
+    private val accounting: AccountingSystem,
+    private val dataVisualization: DataVisualization,
+    private val idCards: IdCardService,
     private val client: AuthenticatedClient,
+    private val apmNotifications: ApmNotificationService,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
         handler: suspend CallHandler<R, S, E>.() -> Unit,
     ) {
         implement(call) {
-            val activeProcessor = accounting.retrieveActiveProcessorAddress()
+            val activeProcessor = accounting.retrieveActiveProcessor()
             if (activeProcessor == null) {
                 handler()
             } else {
@@ -41,123 +50,198 @@ class AccountingController(
             }
         }
     }
+
+    @OptIn(kotlinx.coroutines.DelicateCoroutinesApi::class)
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implementOrDispatch(Accounting.findRelevantProviders) {
-            val responses = request.items.map {
-                val providers = accounting.findRelevantProviders(
-                    actorAndProject,
-                    it.username,
-                    it.project,
-                    it.useProject
-                )
-                FindRelevantProvidersResponse(providers)
+        implementOrDispatch(AccountingV2.findRelevantProviders) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            val responses = request.items.map { req ->
+                accounting.sendRequest(
+                    AccountingRequest.FindRelevantProviders(
+                        idCard,
+                        req.username,
+                        req.project,
+                        req.useProject,
+                        req.filterProductType,
+                    )
+                ).let { AccountingV2.FindRelevantProviders.Response(it.toList()) }
             }
             ok(BulkResponse(responses))
         }
 
-        implementOrDispatch(Accounting.charge) {
-            ok(accounting.charge(actorAndProject, request))
-        }
-
-        implementOrDispatch(Accounting.deposit) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: Time.now()
+        implementOrDispatch(AccountingV2.reportUsage) {
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)
+            val shouldContinue = ArrayList<Boolean>()
+            for (req in request.items) {
+                shouldContinue.add(
+                    accounting.sendRequestNoUnwrap(
+                        AccountingRequest.Charge(
+                            idCard,
+                            req.owner.reference(),
+                            req.categoryIdV2,
+                            req.usage,
+                            req.isDeltaCharge,
+                            req.description.scope,
+                            req.description.description,
+                        )
+                    ) == null
+                )
             }
-            ok(accounting.deposit(actorAndProject, request))
+
+            ok(BulkResponse(shouldContinue))
         }
 
-        implementOrDispatch(Accounting.check) {
-            ok(accounting.check(actorAndProject, request))
-        }
-
-        implementOrDispatch(Accounting.updateAllocation) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
+        implementOrDispatch(AccountingV2.checkProviderUsable) {
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)
+            val response = ArrayList<AccountingV2.CheckProviderUsable.ResponseItem>()
+            for (req in request.items) {
+                response.add(
+                    AccountingV2.CheckProviderUsable.ResponseItem(
+                        accounting.sendRequest(
+                            AccountingRequest.ProviderCheckUsable(
+                                idCard,
+                                req.category,
+                                req.owner.reference(),
+                            )
+                        )
+                    )
+                )
             }
-            ok(accounting.updateAllocation(actorAndProject, request))
+            ok(BulkResponse(response))
         }
 
-        implementOrDispatch(Accounting.rootDeposit) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: Time.now()
+        implementOrDispatch(AccountingV2.updateAllocation) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            for (req in request.items) {
+                accounting.sendRequest(
+                    AccountingRequest.UpdateAllocation(
+                        idCard = idCard,
+                        allocationId = req.allocationId.toInt(),
+                        newQuota = req.newQuota,
+                        newStart = req.newStart,
+                        newEnd = req.newEnd,
+                    )
+                )
             }
-            ok(accounting.rootDeposit(actorAndProject, request))
+
+            ok(Unit)
         }
 
-        implement(Wallets.browse) {
-            ok(accounting.browseWallets(actorAndProject, request))
+        implementOrDispatch(AccountingV2.rootAllocate) {
+            val idCard = idCards.fetchIdCard(actorAndProject, allowCached = false)
+
+            val allocationIds = ArrayList<FindByStringId>()
+            for (req in request.items) {
+                allocationIds.add(
+                    accounting.sendRequest(
+                        AccountingRequest.RootAllocate(
+                            idCard,
+                            req.category,
+                            req.quota,
+                            req.start,
+                            req.end
+                        )
+                    ).let { FindByStringId(it.toString()) }
+                )
+            }
+
+            ok(BulkResponse(allocationIds))
         }
 
-        implementOrDispatch(Wallets.retrieveWalletsInternal) {
-            val walletOwner = request.owner
-
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(ActorAndProject(Actor.System, null), walletOwner)))
-        }
-
-        implementOrDispatch(Wallets.retrieveAllocationsInternal) {
-            val walletOwner = request.owner
+        implementOrDispatch(AccountingV2.browseWallets) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
             ok(
-                WalletAllocationsInternalRetrieveResponse(
-                    accounting.retrieveAllocationsInternal(
-                        ActorAndProject(Actor.System, null),
-                        walletOwner,
-                        request.categoryId
+                PageV2.of(
+                    accounting.sendRequest(
+                        AccountingRequest.BrowseWallets(
+                            idCard,
+                            request.includeChildren,
+                            request.childrenQuery,
+                            request.filterType,
+                        )
                     )
                 )
             )
         }
 
-        implementOrDispatch(Wallets.resetState) {
-            ok(accounting.resetState())
+        implementOrDispatch(AccountingV2.browseWalletsInternal) {
+            val idCard = when (val owner = request.owner) {
+                is WalletOwner.User -> {
+                    idCards.fetchIdCard(ActorAndProject(Actor.SystemOnBehalfOfUser(owner.username), null))
+                }
+
+                is WalletOwner.Project -> {
+                    val pid = idCards.lookupPidFromProjectId(owner.projectId)
+                        ?: throw RPCException("Unknown project: ${owner.projectId}", HttpStatusCode.NotFound)
+                    IdCard.User(0, IntArray(0), IntArray(pid), pid)
+                }
+            }
+
+            ok(
+                AccountingV2.BrowseWalletsInternal.Response(
+                    accounting.sendRequest(
+                        AccountingRequest.BrowseWallets(
+                            idCard,
+                        )
+                    )
+                )
+            )
         }
 
-        implement(Wallets.searchSubAllocations) {
-            ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
+        implementOrDispatch(AccountingV2.browseProviderAllocations) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            ok(
+                accounting.sendRequest(
+                    AccountingRequest.RetrieveProviderAllocations(
+                        idCard,
+                        request.itemsPerPage,
+                        request.next,
+                        request.consistency,
+                        request.itemsToSkip,
+                        request.filterOwnerId,
+                        request.filterOwnerIsProject,
+                        request.filterCategory,
+                    )
+                )
+            )
         }
 
-        implement(Wallets.browseSubAllocations) {
-            ok(accounting.browseSubAllocations(actorAndProject, request))
+        implement(VisualizationV2.retrieveCharts) {
+            ok(dataVisualization.retrieveChartsV2(idCards.fetchIdCard(actorAndProject), request))
         }
 
-        implement(Wallets.retrieveRecipient) {
-            ok(accounting.retrieveRecipient(actorAndProject, request))
-        }
-
-        implement(Wallets.register) {
-            ok(accounting.register(actorAndProject, request))
-        }
-
-        implementOrDispatch(Wallets.retrieveProviderSummary) {
-            ok(accounting.retrieveProviderSummary(actorAndProject, request))
-        }
-
-        implement(Visualization.retrieveUsage) {
-            ok(accounting.retrieveUsage(actorAndProject, request))
-        }
-
-        implement(Visualization.retrieveBreakdown) {
-            ok(accounting.retrieveBreakdown(actorAndProject, request))
-        }
-
-        implement(Transactions.browse) {
-            ok(accounting.browseTransactions(actorAndProject, request))
-        }
-
-        implement(DepositNotifications.retrieve) {
-            ok(notifications.retrieveNotifications(actorAndProject))
-        }
-
-        implement(DepositNotifications.markAsRead) {
-            notifications.markAsRead(actorAndProject, request)
-            ok(Unit)
+        implement(AccountingV2.retrieveDescendants) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            ok(
+                AccountingV2.RetrieveDescendants.Response(
+                    accounting.sendRequest(
+                        AccountingRequest.RetrieveDescendants(
+                            idCard,
+                            request.project
+                        )
+                    )
+                )
+            )
         }
 
         return@with
+    }
+
+    fun onKtorReady() {
+        val ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application ?: return
+        runCatching {
+            ktor.install(WebSockets) {
+                pingPeriod = null
+            }
+        }
+
+        ktor.routing {
+            webSocket(ApmNotifications.PATH) {
+                apmNotifications.handleClient(this)
+            }
+        }
     }
 
     companion object : Loggable {

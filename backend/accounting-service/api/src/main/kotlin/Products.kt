@@ -55,6 +55,7 @@ enum class AllocationRequestsGroup {
 @Serializable
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Calculated from AccountingUnit and AccountingFrequency")
 enum class ChargeType {
     ABSOLUTE,
     DIFFERENTIAL_QUOTA
@@ -62,6 +63,7 @@ enum class ChargeType {
 
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Use AccountingFrequency instead")
 enum class ProductPriceUnit {
     CREDITS_PER_UNIT,
     PER_UNIT,
@@ -78,6 +80,7 @@ enum class ProductPriceUnit {
 @Serializable
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiStable
+@Deprecated("Use ProductCategoryIdV2")
 data class ProductCategoryId(
     val name: String,
     val provider: String
@@ -95,6 +98,7 @@ data class ProductCategoryId(
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc("Contains a unique reference to a Product")
 @UCloudApiStable
+@Deprecated("Use ProductReferenceV2")
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
     val id: String,
@@ -104,6 +108,7 @@ data class ProductReference(
     val provider: String,
 ) : DocVisualizable {
     override fun visualize(): DocVisualization = DocVisualization.Inline("$id / $category / $provider")
+    override fun toString() = "$id / $category / $provider"
 }
 
 @Serializable
@@ -116,6 +121,7 @@ data class ProductReference(
     """
 )
 @UCloudApiStable
+@Deprecated("Use ProductV2 instead")
 sealed class Product : DocVisualizable {
     @UCloudApiDoc("The category groups similar products together, it also defines which provider owns the product")
     abstract val category: ProductCategoryId
@@ -174,7 +180,7 @@ sealed class Product : DocVisualizable {
 
     @UCloudApiDoc(
         "The category of payment model. Used in combination with unitOfPrice to create a complete payment " +
-            "model."
+                "model."
     )
     abstract val chargeType: ChargeType
 
@@ -214,32 +220,6 @@ sealed class Product : DocVisualizable {
         checkMinimumValue(::pricePerUnit, pricePerUnit, 0)
         checkSingleLine(::name, name)
         checkSingleLine(::description, description)
-
-        when (unitOfPrice) {
-            ProductPriceUnit.UNITS_PER_MINUTE,
-            ProductPriceUnit.UNITS_PER_HOUR,
-            ProductPriceUnit.UNITS_PER_DAY -> {
-                if (chargeType != ChargeType.ABSOLUTE) {
-                    throw RPCException("UNITS_PER_X cannot be used with DIFFERENTIAL_QUOTA", HttpStatusCode.BadRequest)
-                }
-            }
-
-            ProductPriceUnit.CREDITS_PER_UNIT,
-            ProductPriceUnit.CREDITS_PER_MINUTE,
-            ProductPriceUnit.CREDITS_PER_HOUR,
-            ProductPriceUnit.CREDITS_PER_DAY -> {
-                if (chargeType != ChargeType.ABSOLUTE) {
-                    throw RPCException(
-                        "CREDITS_PER_X cannot be used with DIFFERENTIAL_QUOTA",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            }
-
-            ProductPriceUnit.PER_UNIT -> {
-                // OK
-            }
-        }
     }
 
     @Serializable
@@ -452,9 +432,11 @@ sealed class Product : DocVisualizable {
                     chargeType == ChargeType.DIFFERENTIAL_QUOTA -> {
                         add(DocStatLine.of("Payment model" to DocVisualization.Inline("Differential (Quota)")))
                     }
+
                     unitOfPrice == ProductPriceUnit.PER_UNIT -> {
                         add(DocStatLine.of("Payment model" to DocVisualization.Inline("One-time payment (units)")))
                     }
+
                     unitOfPrice == ProductPriceUnit.CREDITS_PER_UNIT -> {
                         val explanation = if (pricePerUnit == null) {
                             "(DKK)"
@@ -470,26 +452,28 @@ sealed class Product : DocVisualizable {
                             )
                         )
                     }
+
                     unitOfPrice == ProductPriceUnit.UNITS_PER_MINUTE ||
-                        unitOfPrice == ProductPriceUnit.UNITS_PER_HOUR ||
-                        unitOfPrice == ProductPriceUnit.UNITS_PER_DAY -> {
+                            unitOfPrice == ProductPriceUnit.UNITS_PER_HOUR ||
+                            unitOfPrice == ProductPriceUnit.UNITS_PER_DAY -> {
                         add(
                             DocStatLine.of(
                                 "Payment model" to DocVisualization.Inline(
                                     "Periodic (per " +
-                                        "${unitOfPrice.name.substringAfterLast('_').lowercase()})"
+                                            "${unitOfPrice.name.substringAfterLast('_').lowercase()})"
                                 )
                             )
                         )
                     }
+
                     unitOfPrice == ProductPriceUnit.CREDITS_PER_MINUTE ||
-                        unitOfPrice == ProductPriceUnit.CREDITS_PER_HOUR ||
-                        unitOfPrice == ProductPriceUnit.CREDITS_PER_DAY -> {
+                            unitOfPrice == ProductPriceUnit.CREDITS_PER_HOUR ||
+                            unitOfPrice == ProductPriceUnit.CREDITS_PER_DAY -> {
                         val explanation = if (pricePerUnit == null) {
                             "(DKK)"
                         } else {
                             "(${pricePerUnit / 1_000_000.0}DKK/" +
-                                unitOfPrice.name.substringAfterLast('_').lowercase() + ")"
+                                    unitOfPrice.name.substringAfterLast('_').lowercase() + ")"
                         }
                         add(
                             DocStatLine.of(
@@ -502,6 +486,8 @@ sealed class Product : DocVisualizable {
             }
         }
     }
+
+    fun toReference(): ProductReference = ProductReference(name, category.name, category.provider)
 
     override fun toString(): String {
         return "${name}/${category.name}@${category.provider}"
@@ -554,6 +540,7 @@ data class ProductsRetrieveRequest(
 ) : ProductFlags
 
 @UCloudApiStable
+@Deprecated("Use ProductV2")
 object Products : CallDescriptionContainer("products") {
     const val baseContext = "/api/products"
 
@@ -797,7 +784,12 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         )
     }
 
-    val create = call("create", BulkRequest.serializer(Product.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val create = call(
+        "create",
+        BulkRequest.serializer(Product.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
 
         documentation {
@@ -822,14 +814,15 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         }
     }
 
-    val retrieve = call("retrieve", ProductsRetrieveRequest.serializer(), Product.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
+    val retrieve =
+        call("retrieve", ProductsRetrieveRequest.serializer(), Product.serializer(), CommonErrorMessage.serializer()) {
+            httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
-        documentation {
-            summary = "Retrieve a single product"
-            useCaseReference(retrieveUseCase, "Retrieving a single product by ID")
+            documentation {
+                summary = "Retrieve a single product"
+                useCaseReference(retrieveUseCase, "Retrieving a single product by ID")
+            }
         }
-    }
 
     val browse = call(
         "browse",
@@ -839,7 +832,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
             documentation {
                 summary = "Browse a set of products"
                 description = "This endpoint uses the normal pagination and filter mechanisms to return a list " +
-                    "of $TYPE_REF Product ."
+                        "of $TYPE_REF Product ."
                 useCaseReference(browseUseCase, "Browse in the full product catalog")
                 useCaseReference(browseByTypeUseCase, "Browse for a specific type of product (e.g. compute)")
             }

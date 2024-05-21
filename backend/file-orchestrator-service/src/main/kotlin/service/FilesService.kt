@@ -153,6 +153,22 @@ class FilesService(
         }
     }
 
+    private suspend fun providerFromPath(
+        actorAndProject: ActorAndProject,
+        path: String?,
+        permission: Permission
+    ): String {
+        if (path == null) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val collection = extractPathMetadata(path).collection
+        return fileCollections.retrieveBulk(
+            actorAndProject,
+            listOf(collection),
+            listOf(permission),
+            simpleFlags = SimpleResourceIncludeFlags(includeSupport = false)
+        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException("File not found", HttpStatusCode.NotFound)
+    }
+
+
     private suspend fun collectionFromPath(
         actorAndProject: ActorAndProject,
         path: String?,
@@ -602,24 +618,19 @@ class FilesService(
     }
 
     private suspend fun retrieveRelevantProviders(actorAndProject: ActorAndProject): List<String> {
-        val walletOwner = if (actorAndProject.project != null ) {
-            WalletOwner.Project(actorAndProject.project!!)
-        } else {
-            WalletOwner.User(actorAndProject.actor.safeUsername())
-        }
-        return Wallets.retrieveWalletsInternal.call(
-            WalletsInternalRetrieveRequest(
-                walletOwner
+        return AccountingV2.findRelevantProviders.call(
+            bulkRequestOf(
+                AccountingV2.FindRelevantProviders.RequestItem(
+                    actorAndProject.actor.safeUsername(),
+                    actorAndProject.project,
+                    true,
+                    ProductType.STORAGE
+                )
             ),
             serviceClient
         ).orThrow()
-            .wallets
-            .filter {
-                it.productType?.name == "STORAGE"
-            }
-            .map {
-                it.paysFor.provider
-            }
+            .responses
+            .flatMap { it.providers }
             .toSet()
             .toList()
     }
@@ -977,6 +988,7 @@ class FilesService(
                 FilesProviderCreateUploadRequestItem(
                     coll,
                     req.id,
+                    req.type,
                     req.supportedProtocols,
                     req.conflictPolicy
                 )

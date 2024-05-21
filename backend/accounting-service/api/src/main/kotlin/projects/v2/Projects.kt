@@ -23,6 +23,7 @@ data class Project(
     val id: String,
     val createdAt: Long,
     val specification: Specification,
+    val modifiedAt: Long,
     val status: Status,
 ) {
     @Serializable
@@ -88,7 +89,7 @@ data class Project(
         val canConsumeResources: Boolean = true,
     ) {
         init {
-            checkSingleLine(::title, title, maximumSize = 128)
+            checkSingleLine(::title, title, maximumSize = 150)
         }
     }
 
@@ -260,7 +261,7 @@ implement(Descriptions.call) {
 
     // Project management
     val retrieve = call("retrieve", ProjectsRetrieveRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
+        httpRetrieve(baseContext, roles = Roles.END_USER + Roles.PROVIDER + Roles.SERVICE)
     }
 
     val browse = call("browse", ProjectsBrowseRequest.serializer(), PageV2.serializer(Project.serializer()), CommonErrorMessage.serializer()) {
@@ -385,6 +386,10 @@ implement(Descriptions.call) {
     // Provider specific endpoints
     val retrieveProviderProject = call("retrieveProviderProject", Unit.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "providerProject", roles = Roles.PROVIDER)
+    }
+
+    val retrieveProviderProjectInternal = call("retrieveProviderProjectInternal", FindByStringId.serializer(), FindByStringId.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "providerProjectInternal", roles = Roles.PRIVILEGED)
     }
 }
 

@@ -17,6 +17,11 @@ object FeatureFirewall : JobFeature {
             builder.allowNetworkTo(peer.jobId)
         }
 
+        val projectOwner = job.owner.project
+        if (projectOwner != null && projectOwner in sensitiveProjects) {
+            builder.upsertLabel(SENSITIVE_LABEL, "true")
+        }
+
         if (job.networks.isNotEmpty()) {
             val internalIps = dbConnection.withSession { session ->
                 val rows = ArrayList<String>()
@@ -71,4 +76,5 @@ object FeatureFirewall : JobFeature {
     }
 
     private const val INVALID_SUBNET = "192.0.2.100/32"
+    private const val SENSITIVE_LABEL = "ucloud.dk/firewallSensitive"
 }

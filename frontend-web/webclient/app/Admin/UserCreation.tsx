@@ -1,16 +1,14 @@
 import {Client} from "@/Authentication/HttpClientInstance";
-import {MainContainer} from "@/MainContainer/MainContainer";
-import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, usePage} from "@/Navigation/Redux";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Input, Label} from "@/ui-components";
+import {Box, Button, Input, Label, MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
+import {useDispatch} from "react-redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const initialState: UserCreationState = {
     username: "",
@@ -55,13 +53,13 @@ const reducer = (state: UserCreationState, action: UserCreationActionType): User
     }
 };
 
-function UserCreation(props: SetStatusLoading): JSX.Element | null {
+function UserCreation(): React.ReactNode {
     const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
+    const reduxDispatch = useDispatch();
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
-    useTitle("User Creation");
-    useSidebarPage(SidebarPages.Admin);
+    usePage("User Creation", SidebarTabId.ADMIN);
 
     if (!Client.userIsAdmin) return null;
 
@@ -81,82 +79,80 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
 
     return (
         <MainContainer
-            header={<Heading.h1>User Creation</Heading.h1>}
-            headerSize={64}
-            main={(
-                <>
-                    <p>Admins can create new users on this page.</p>
-                    <form autoComplete="off" onSubmit={e => submit(e)}>
-                        <Label mb="1em">
-                            Username
-                            <Input
-                                autoComplete="off"
-                                value={username}
-                                error={usernameError}
-                                onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
-                                placeholder="Username..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            Password
-                            <Input
-                                value={password}
-                                type="password"
-                                error={passwordError}
-                                onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
-                                placeholder="Password..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            Repeat password
-                            <Input
-                                value={repeatedPassword}
-                                type="password"
-                                error={passwordError}
-                                onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
-                                placeholder="Repeat password..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            Email
-                            <Input
-                                value={email}
-                                type="email"
-                                error={emailError}
-                                onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
-                                placeholder="Email..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            First Names
-                            <Input
-                                value={firstnames}
-                                type="firstnames"
-                                error={firstnamesError}
-                                onChange={e => dispatch({type: "UpdateFirstnames", payload: {firstnames: e.target.value}})}
-                                placeholder="First names..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            Last Name
-                            <Input
-                                value={lastname}
-                                type="lastname"
-                                error={lastnameError}
-                                onChange={e => dispatch({type: "UpdateLastname", payload: {lastname: e.target.value}})}
-                                placeholder="Last name..."
-                            />
-                        </Label>
-                        <Button
-                            type="submit"
-                            color="green"
-                            disabled={submitted}
-                        >
-                            Create user
-                        </Button>
-                    </form>
-                </>
-            )}
+            main={<>
+                <h3 className="title">User Creation</h3>
+                <p>Admins can create new users on this page.</p>
+                <form autoComplete="off" onSubmit={e => submit(e)}>
+                    <Label mb="1em">
+                        Username
+                        <Input
+                            autoComplete="off"
+                            value={username}
+                            error={usernameError}
+                            onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
+                            placeholder="Username..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Password
+                        <Input
+                            value={password}
+                            type="password"
+                            error={passwordError}
+                            onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
+                            placeholder="Password..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Repeat password
+                        <Input
+                            value={repeatedPassword}
+                            type="password"
+                            error={passwordError}
+                            onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
+                            placeholder="Repeat password..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Email
+                        <Input
+                            value={email}
+                            type="email"
+                            error={emailError}
+                            onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
+                            placeholder="Email..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        First Names
+                        <Input
+                            value={firstnames}
+                            type="firstnames"
+                            error={firstnamesError}
+                            onChange={e => dispatch({type: "UpdateFirstnames", payload: {firstnames: e.target.value}})}
+                            placeholder="First names..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Last Name
+                        <Input
+                            value={lastname}
+                            type="lastname"
+                            error={lastnameError}
+                            onChange={e => dispatch({type: "UpdateLastname", payload: {lastname: e.target.value}})}
+                            placeholder="Last name..."
+                        />
+                    </Label>
+                    <Button
+                        mt="8px"
+                        type="submit"
+                        color="successMain"
+                        disabled={submitted}
+                    >
+                        Create user
+                    </Button>
+                </form>
+            </>}
         />
     );
 
@@ -199,7 +195,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
 
         if (!hasUsernameError && !hasPasswordError && !hasEmailError && !hasFirstnamesError && !hasLastnameError) {
             try {
-                props.setLoading(true);
+                reduxDispatch(setLoading(true));
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
                     Client.post("/auth/users/register", [{username, password, email, firstnames, lastname}], "")
@@ -213,15 +209,12 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                     payload: {usernameError: true, passwordError: false, emailError: false, firstnamesError: false, lastnameError: false}
                 });
             } finally {
-                props.setLoading(false);
+                reduxDispatch(setLoading(false));
                 setSubmitted(false);
             }
         }
     }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): SetStatusLoading => ({
-    setLoading: loading => dispatch(setLoading(loading))
-});
 
-export default connect(null, mapDispatchToProps)(UserCreation);
+export default UserCreation;

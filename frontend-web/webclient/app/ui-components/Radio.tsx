@@ -1,17 +1,17 @@
 import * as React from "react";
-import styled from "styled-components";
 import Icon from "./Icon";
+import {injectStyle} from "@/Unstyled";
 
-const Radio = (props: RadioWrapProps & {onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}): JSX.Element => {
-    const {checked, disabled} = props;
+const Radio = (props: RadioWrapProps & {onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}): React.ReactNode => {
+    const {checked} = props;
 
     const radioIconName = checked ? "radioChecked" : "radioEmpty";
 
     return (
-        <RadioWrap checked={checked} disabled={disabled}>
-            <RadioInput type="radio" {...props} />
-            <RadioIcon name={radioIconName} size={24} mr={".5em"} />
-        </RadioWrap>
+        <div className={RadioClass} data-checked={checked}>
+            <input type="radio" {...props} />
+            <Icon name={radioIconName} size={24} mr={".5em"} />
+        </div>
     );
 };
 
@@ -20,32 +20,38 @@ interface RadioWrapProps {
     disabled?: boolean;
 }
 
-const RadioWrap = styled.div<RadioWrapProps>`
-    display: inline-block;
-    color: var(--borderGray, #f00);
-    &:hover {
-      ${props => props.checked || props.disabled ? null : `color: var(--blue, #f00);`};
+const RadioClass = injectStyle("radio", k => `
+    ${k} {
+        display: inline-block;
+        color: var(--borderColor);
     }
-`;
-
-const RadioInput = styled.input`
-    appearance: none;
-    opacity: 0;
-    position: absolute;
-    z-index: 0;
-    &:focus {
-      box-shadow: none;
+    
+    ${k}[data-checked="true"]:hover {
+        color: var(--primaryMain);
     }
-    &:checked ~ svg {
-      color: var(--blue, #f00);
+    
+    ${k} input {
+        appearance: none;
+        opacity: 0;
+        position: absolute;
+        z-index: 0;
     }
-    &:disabled ~ svg {
-      color: var(--borderGray, #f00);
+    
+    ${k} input:focus {
+        box-shadow: none;
     }
-`;
-
-const RadioIcon = styled(Icon)`
-    vertical-align: middle;
-`;
+    
+    ${k} input:checked ~ svg {
+        color: var(--primaryMain);
+    }
+    
+    ${k} input:disabled ~ svg {
+        color: var(--textDisabled);
+    }
+    
+    ${k} svg {
+        vertical-align: middle;
+    }
+`);
 
 export default Radio;

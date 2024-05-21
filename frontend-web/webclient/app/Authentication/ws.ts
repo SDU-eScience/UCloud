@@ -1,6 +1,6 @@
 import {HttpClient} from "./lib";
 import {inDevEnvironment} from "@/UtilityFunctions";
-import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
+import {signIntentToCall} from "@/Authentication/MessageSigning";
 
 export interface WebSocketOpenSettings {
     /**
@@ -47,7 +47,7 @@ export interface WebsocketResponse<T = any> {
 interface WebsocketRequest<T = any> {
     call: string;
     streamId: string;
-    bearer: string;
+    bearer?: string | null;
     payload: T | null;
     project?: string;
     signedIntent?: string;
@@ -95,7 +95,9 @@ export class WebSocketConnection {
         const streamId = (this.nextStreamId++).toString();
         const bearer = this.settings.includeAuthentication !== false ?
             await this.client.receiveAccessTokenOrRefreshIt() : undefined;
-        const signedIntent = signIntentToCall(call) ?? undefined;
+        const username = this.client.activeUsername ?? "";
+        const projectId = this.client.projectId ?? null;
+        const signedIntent = signIntentToCall(username, projectId, call) ?? undefined;
 
         return new Promise((resolve) => {
             this.handlers.set(streamId, message => {

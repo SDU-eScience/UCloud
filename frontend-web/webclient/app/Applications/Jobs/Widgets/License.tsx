@@ -1,21 +1,20 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {compute} from "@/UCloud";
 import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useState} from "react";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
-import {BrowseType} from "@/Resource/BrowseType";
-import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {checkProviderMismatch, getProviderField} from "../Create";
+import {checkProviderMismatch} from "../Create";
+import {Input} from "@/ui-components";
+import {LicenseBrowse} from "@/Applications/LicenseBrowse";
+import {CardClass} from "@/ui-components/Card";
+import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
 
 interface LicenseProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
+    parameter: ApplicationParameterNS.LicenseServer;
 }
 
 export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => {
@@ -46,23 +45,30 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
             style={largeModalStyle}
             onRequestClose={doClose}
             ariaHideApp={false}
+            className={CardClass}
             shouldCloseOnEsc
         >
             <LicenseBrowse
-                tagged={props.parameter.tagged}
-                additionalFilters={filters}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Licenses");
-                    if (errorMessage) return errorMessage;
-                    return true;
+                opts={{
+                    isModal: true,
+                    additionalFilters: filters,
+                    selection: {
+                        text: "Use",
+                        onClick: onUse,
+                        show(res) {
+                            const errorMessage = checkProviderMismatch(res, "Licenses");
+                            if (errorMessage) return errorMessage;
+                            return true;
+                        },
+                    }
                 }}
-                browseType={BrowseType.Embedded}
-                onSelect={onUse}
             />
         </ReactModal>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter)}
             error={error}
+            placeholder="Select license server..."
+            cursor="pointer"
             onClick={doOpen}
         />
     </Flex>;

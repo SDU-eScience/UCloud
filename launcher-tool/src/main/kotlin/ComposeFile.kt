@@ -5,6 +5,9 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-36"
+const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-39"
+
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
 
@@ -104,6 +107,7 @@ sealed class ComposeService {
     sealed class Provider : ComposeService() {
         abstract val name: String
         abstract val title: String
+        open val canRegisterProducts: Boolean = true
         abstract fun install(credentials: ProviderCredentials)
     }
 
@@ -115,6 +119,7 @@ sealed class ComposeService {
         fun allProviders(): List<Provider> = listOf(
             Kubernetes,
             Slurm,
+            GoSlurm,
         )
     }
 
@@ -124,7 +129,6 @@ sealed class ComposeService {
             val homeDir = environment.dataDirectory.child("backend-home").also { it.mkdirs() }
             val configDir = environment.dataDirectory.child("backend-config").also { it.mkdirs() }
             val gradleDir = environment.dataDirectory.child("backend-gradle").also { it.mkdirs() }
-            val debuggerGradle = environment.dataDirectory.child("debugger-gradle").also { it.mkdirs() }
 
             service(
                 "backend",
@@ -133,69 +137,22 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud/ucloud-dev:2023.1.0",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "restart": "always",
                         "hostname": "backend",
                         "ports": [
-                          "${portAllocator.allocate(8080)}:8080"
+                          "${portAllocator.allocate(8080)}:8080",
+                          "${portAllocator.allocate(11412)}:11412",
+                          "${portAllocator.allocate(51231)}:51231"
                         ],
                         "volumes": [
                           "${environment.repoRoot}/backend:/opt/ucloud",
-                          "${environment.repoRoot}/debugger:/opt/debugger",
                           "${environment.repoRoot}/frontend-web/webclient:/opt/frontend",
                           "${logs.absolutePath}:/var/log/ucloud",
                           "${configDir.absolutePath}:/etc/ucloud",
                           "${homeDir.absolutePath}:/home",
                           "${gradleDir.absolutePath}:/root/.gradle"
-                        ]
-                      }
-                    """.trimIndent(),
-                ),
-                serviceConvention = true
-            )
-
-            service(
-                "debugger-fe",
-                "UCloud/Core: Debugger Frontend",
-                Json(
-                    //language=json
-                    //"command": ["sh", "-c", "cd /opt/ucloud/ ; npm install ; npm start"],
-
-                    """
-                      {
-                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
-                        "command": ["sh", "-c", "npm install ; npm start"],
-                        "restart": "always",
-                        "hostname": "debugger-fe",
-                        "working_dir": "/opt/ucloud",
-                        "ports": [],
-                        "volumes": [
-                          "${environment.repoRoot}/debugger/frontend:/opt/ucloud",
-                          "${logs.absolutePath}:/var/log/ucloud"
-                        ]
-                      }
-                    """.trimIndent(),
-                ),
-                serviceConvention = false
-            )
-
-            service(
-                "debugger-be",
-                "UCloud/Core: Debugger Backend",
-                Json(
-                    //language=json
-                    """
-                      {
-                        "image": "dreg.cloud.sdu.dk/ucloud/debugger:2023.1.0",
-                        "command": ["sleep", "inf"],
-                        "restart": "always",
-                        "hostname": "debugger-be",
-                        "working_dir": "/opt/ucloud",
-                        "ports": [],
-                        "volumes": [
-                          "${environment.repoRoot}/debugger/backend:/opt/ucloud",
-                          "${logs.absolutePath}:/var/log/ucloud"
                         ]
                       }
                     """.trimIndent(),
@@ -406,9 +363,10 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "k8",
+                        "ports": ["${portAllocator.allocate(51232)}:51232"],
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",
@@ -498,62 +456,56 @@ sealed class ComposeService {
                 """
                     compute:
                       syncthing:
-                        - name: syncthing
+                        cost: { type: Free }
+                        syncthing:
                           description: A product for use in syncthing
                           cpu: 1
-                          memoryInGigs: 1
+                          memory: 1
                           gpu: 0
-                          cost:
-                            currency: FREE
                       cpu:
-                        - name: cpu-1
+                        cost: { type: Money }
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
                           description: An example CPU machine with 1 vCPU.
-                          cpu: 1
-                          memoryInGigs: 1
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.001666
-                            
-                        - name: cpu-2
-                          description: An example CPU machine with 2 vCPU.
-                          cpu: 2
-                          memoryInGigs: 2
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.003332
-                            
+                          pricePerHour: 0.5
+                      cpu-h:
+                        cost: 
+                          type: Resource 
+                          interval: Minutely
+                        template: 
+                          cpu: [1, 2]
+                          memory: 1
+                          description: An example CPU machine with 1 vCPU.
                     storage: 
                       storage:
-                        - name: storage
-                          description: An example storage system
                           cost:
-                            quota: true
-                        - name: share
-                          description: This drive type is used for shares only.
-                          cost:
-                            quota: true
-                        - name: project-home
-                          description: This drive type is used for member files of a project only.
-                          cost:
-                            quota: true
-                            
-                    ingress:
+                            type: Resource
+                            unit: GB
+                          storage:
+                            description: An example storage system
+                          share:
+                            description: This drive type is used for shares only.
+                          project-home:
+                            description: This drive type is used for member files of a project only.
+                    publicLinks:
                       public-link:
-                        - name: public-link 
+                        cost: { type: Free }
+                        public-link:
                           description: An example public link
-                          cost:
-                            currency: FREE
-                            
                     publicIps:
                       public-ip:
-                        - name: public-ip
+                        cost:
+                          type: Resource
+                          unit: IP
+                        public-ip:
                           description: A _fake_ public IP product
-                          cost:
-                            quota: true
+                    licenses:
+                      license:
+                        cost: { type: Resource }
+                        license:
+                          description: A _fake_ license
+                          tags: ["fake", "license"]
                 """.trimIndent()
             )
 
@@ -758,21 +710,14 @@ sealed class ComposeService {
             if (!passwdFile.exists()) {
                 passwdFile.writeText(
                     """
-                        ucloud:x:998:998::/home/ucloud:/bin/sh
-                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
                     """.trimIndent()
                 )
                 groupFile.writeText(
                     """
-                        ucloud:x:998:
-                        ucloudalt:x:11042:
                     """.trimIndent()
                 )
-
                 shadowFile.writeText(
                     """
-                        ucloud:!:19110::::::
-                        ucloudalt:!:19110::::::
                     """.trimIndent()
                 )
             }
@@ -784,7 +729,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.68",
+                        "image": "$imDevImage",
                         "command": ["sleep", "inf"],
                         "hostname": "slurm",
                         "volumes": [
@@ -794,6 +739,8 @@ sealed class ComposeService {
                           "${imHome.absolutePath}:/home",
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
+                          "$etcSlurm:/etc/slurm-llnl",
                           "${passwdDir.absolutePath}:/mnt/passwd"
                         ],
                         "volumes_from": ["slurmdbd:ro"]
@@ -810,8 +757,11 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "mysql:5.7",
+                        "image": "mysql:8.3.0",
                         "hostname": "mysql",
+                        "ports": [
+                          "${portAllocator.allocate(3306)}:3306"
+                        ],
                         "environment": {
                           "MYSQL_RANDOM_ROOT_PASSWORD": "yes",
                           "MYSQL_DATABASE": "slurm_acct_db",
@@ -835,7 +785,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "$slurmImage",
                         "command": ["slurmdbd", "sshd", "user-sync"],
                         "hostname": "slurmdbd",
                         "volumes": [
@@ -862,7 +812,7 @@ sealed class ComposeService {
                     //language=json
                     """
                       {
-                        "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                        "image": "$slurmImage",
                         "command": ["slurmctld", "sshd", "user-sync"],
                         "hostname": "slurmctld",
                         "volumes": [
@@ -890,7 +840,7 @@ sealed class ComposeService {
                         //language=json
                         """
                           {
-                            "image": "dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0",
+                            "image": "$slurmImage",
                             "command": ["slurmd", "sshd", "user-sync"],
                             "hostname": "c$id",
                             "volumes": [
@@ -985,33 +935,268 @@ sealed class ComposeService {
                 """
                     compute:
                       cpu:
-                        - name: cpu-1
+                        allowSubAllocations: false
+                        cost:
+                          type: Resource
+                          interval: Minutely
+                          unit: Cpu
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
                           description: An example CPU machine with 1 vCPU.
-                          cpu: 1
-                          memoryInGigs: 1
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.001666
-                            
-                        - name: cpu-2
-                          description: An example CPU machine with 2 vCPU.
-                          cpu: 2
-                          memoryInGigs: 2
-                          gpu: 0
-                          cost:
-                            currency: DKK
-                            frequency: MINUTE
-                            price: 0.003332
-                            
                     storage: 
                       storage:
-                        - name: storage
+                        allowSubAllocations: false
+                        cost:
+                          type: Resource
+                          unit: GB
+                        storage:
                           description: An example storage system
-                          cost:
-                            quota: true
+                """.trimIndent()
+            )
 
+            imData.child("plugins.yaml").writeText(
+                //language=yaml
+                """
+                  connection:
+                    type: UCloud
+                    redirectTo: https://ucloud.localhost.direct
+                    insecureMessageSigningForDevelopmentPurposesOnly: true
+                    extensions:
+                      onConnectionComplete: /etc/ucloud/extensions/ucloud-connection
+
+                  allocations:
+                    type: Extension
+                    extensions:
+                      onWalletUpdated: /etc/ucloud/extensions/on-wallet-updated
+
+                  jobs:
+                    default:
+                      type: Slurm
+                      matches: "*"
+                      partition: normal
+                      useFakeMemoryAllocations: true
+                      accountMapper:
+                        type: Extension
+                        extension: /etc/ucloud/extensions/slurm-account-extension
+                      terminal:
+                        type: SSH
+                        generateSshKeys: true
+                      web:
+                        type: Simple
+                        domainPrefix: slurm-
+                        domainSuffix: .localhost.direct
+                      extensions:
+                        fetchComputeUsage: /etc/ucloud/extensions/fetch-compute-usage
+
+                  fileCollections:
+                    default:
+                      type: Posix
+                      matches: "*"
+                      accounting: /etc/ucloud/extensions/storage-du-accounting
+                      extensions:
+                        driveLocator: /etc/ucloud/extensions/drive-locator
+
+                  files:
+                    default:
+                      type: Posix
+                      matches: "*"
+
+                  projects:
+                    type: Simple
+                    unixGroupNamespace: 42000
+                    extensions:
+                      all: /etc/ucloud/extensions/project-extension
+
+                """.trimIndent()
+            )
+
+            for (attempt in 0 until 30) {
+                val success = compose.exec(
+                    currentEnvironment,
+                    "slurmctld",
+                    listOf(
+                        "/usr/bin/sacctmgr",
+                        "--immediate",
+                        "add",
+                        "cluster",
+                        "name=linux"
+                    ),
+                    tty = false,
+                ).allowFailure().streamOutput().executeToText().first != null
+
+                if (success) break
+                Thread.sleep(2_000)
+            }
+
+            // These are mounted into the container, but permissions are wrong
+            compose.exec(
+                currentEnvironment,
+                "slurm",
+                listOf(
+                    "sh",
+                    "-c",
+                    "chmod 0755 -R /etc/ucloud/extensions",
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            // This is to avoid rebuilding the image when the Slurm configuration changes
+            compose.exec(
+                currentEnvironment,
+                "slurmctld",
+                listOf(
+                    "cp",
+                    "-v",
+                    "/opt/ucloud/docker/slurm/slurm.conf",
+                    "/etc/slurm"
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            // Restart slurmctld in case configuration file has changed
+            compose.stop(currentEnvironment, "slurmctld").streamOutput().executeToText()
+            compose.start(currentEnvironment, "slurmctld").streamOutput().executeToText()
+
+            installMarker.writeText("done")
+        }
+    }
+
+    object GoSlurm : Provider() {
+        override val name = "go-slurm"
+        override val title = "Slurm (Go test)"
+        override val canRegisterProducts: Boolean = false
+
+        override fun ComposeBuilder.build() {
+            val provider = environment.dataDirectory.child("go-slurm").also { it.mkdirs() }
+
+            val imDir = provider.child("im").also { it.mkdirs() }
+            val imGradle = imDir.child("gradle").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+            val imHome = imDir.child("home").also { it.mkdirs() }
+            val imWork = imDir.child("work").also { it.mkdirs() }
+            val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
+
+            val passwdDir = imDir.child("passwd").also { it.mkdirs() }
+            val passwdFile = passwdDir.child("passwd")
+            val groupFile = passwdDir.child("group")
+            val shadowFile = passwdDir.child("shadow")
+            if (!passwdFile.exists()) {
+                passwdFile.writeText(
+                    """
+                        ucloud:x:998:998::/home/ucloud:/bin/sh
+                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
+                    """.trimIndent()
+                )
+                groupFile.writeText(
+                    """
+                        ucloud:x:998:
+                        ucloudalt:x:11042:
+                    """.trimIndent()
+                )
+
+                shadowFile.writeText(
+                    """
+                        ucloud:!:19110::::::
+                        ucloudalt:!:19110::::::
+                    """.trimIndent()
+                )
+            }
+
+            service(
+                "go-slurm",
+                "Slurm (Go test)",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "$imDevImage",
+                        "command": ["sleep", "inf"],
+                        "hostname": "go-slurm",
+                        "init": true,
+                        "volumes": [
+                          "${imGradle.absolutePath}:/root/.gradle",
+                          "${imData.absolutePath}:/etc/ucloud",
+                          "${imLogs.absolutePath}:/var/log/ucloud",
+                          "${imHome.absolutePath}:/home",
+                          "${imWork.absolutePath}:/work",
+                          "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${passwdDir.absolutePath}:/mnt/passwd"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = true
+            )
+        }
+
+        override fun install(credentials: ProviderCredentials) {
+            val slurmProvider = currentEnvironment.child("go-slurm").also { it.mkdirs() }
+            val imDir = slurmProvider.child("im").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+
+            val installMarker = imData.child(".install-marker")
+            if (installMarker.exists()) return
+
+            imData.child("core.yaml").writeText(
+                //language=yaml
+                """
+                    providerId: slurm
+                    launchRealUserInstances: true
+                    allowRootMode: false
+                    developmentMode: true
+                    disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
+                    hosts:
+                      ucloud:
+                        host: backend
+                        scheme: http
+                        port: 8080
+                      self:
+                        host: slurm.localhost.direct
+                        scheme: https
+                        port: 443
+                    cors:
+                      allowHosts: ["ucloud.localhost.direct"]
+                """.trimIndent()
+            )
+
+            imData.child("server.yaml").writeText(
+                //language=yaml
+                """
+                    refreshToken: ${credentials.refreshToken}
+                    envoy:
+                      executable: /usr/bin/envoy
+                      funceWrapper: false
+                      directory: /var/run/ucloud/envoy
+                    database:
+                      type: Embedded
+                      host: 0.0.0.0
+                      directory: /etc/ucloud/pgsql
+                      password: postgrespassword
+                """.trimIndent()
+            )
+
+            imData.child("ucloud_crt.pem").writeText(credentials.publicKey)
+
+            imData.child("products.yaml").writeText(
+                //language=yaml
+                """
+                    compute:
+                      cpu:
+                        cost:
+                          type: Resource
+                          unit: Cpu
+                        template: 
+                          cpu: [1, 2, 200]
+                          memory: 1
+                          description: An example CPU machine with 1 vCPU.
+                    storage: 
+                      storage:
+                          cost:
+                            type: Resource
+                            unit: GB
+                          storage:
+                            description: An example storage system
                 """.trimIndent()
             )
 
@@ -1060,270 +1245,6 @@ sealed class ComposeService {
                 """.trimIndent()
             )
 
-            val imExtensions = imData.child("extensions").also { it.mkdirs() }
-
-            imExtensions.child("connection-complete").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import json
-                    import sys
-                    import subprocess
-                    import os
-
-                    if os.getuid() != 0:
-                        res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
-                        if res.returncode != 0:
-                            print("ucloud-extension failed. Is sudo misconfigured?")
-                            exit(1)
-                        exit(0)
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    username: str = request['username']
-
-                    local_username = username.replace('-', '').replace('#', '').replace('@', '')
-
-                    response = {}
-
-                    def lookup_user() -> int:
-                        id_result = subprocess.run(['/usr/bin/id', '-u', local_username], stdout=subprocess.PIPE)
-                        if id_result.returncode != 0:
-                            return None
-                        else:
-                            return int(id_result.stdout)
-
-                    uid = lookup_user()
-                    if uid != None:
-                        # User already exists. In that case we want to simply return the appropiate ID.
-                        response['uid'] = uid
-                        response['gid'] = uid # TODO(Dan): This is overly simplified
-                    else:
-                        # We need to create a user.
-                        useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], stdout=subprocess.PIPE,
-                                                        stderr=subprocess.PIPE)
-                        if useradd_result.returncode != 0:
-                            print("Failed to create a user!")
-                            print(useradd_result.stdout)
-                            print(useradd_result.stderr)
-                            exit(1)
-                        
-                        uid = lookup_user()
-                        if uid == None:
-                            print("Failed to create a user! Could not look it up after calling useradd.")
-                            exit(1)
-
-                        response['uid'] = uid
-                        response['gid'] = uid
-
-                    print(json.dumps(response))
-                """.trimIndent()
-            )
-
-            imExtensions.child("posix-drive-locator").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import sys
-                    import subprocess
-                    import json
-
-                    # =====================================================================================================================
-                    # Utilities
-                    # =====================================================================================================================
-
-                    def get_group_by_gid(gid):
-                        result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    def get_username_by_uid(uid):
-                        result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    # =====================================================================================================================
-                    # Loading request
-                    # =====================================================================================================================
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    owner = request
-                    owner_type = owner['type']
-
-                    # =====================================================================================================================
-                    # Mapping
-                    # =====================================================================================================================
-
-                    if owner_type == 'user':
-                        username = get_username_by_uid(owner['uid'])
-                        response = {
-                            'title' : 'Home',
-                            'path' : f'/home/{username}'
-                        }
-                        print(json.dumps([response]))
-
-                    elif owner_type == 'project':
-                        group_name = get_group_by_gid(owner['gid'])
-                        response = {
-                            'title' : 'Work',
-                            'path' : f'/work/{group_name}'
-                        }
-                        print(json.dumps([response]))
-
-                    else:
-                        print(f'Unknown owner type {owner_type}')
-                        exit(1)
-     
-                """.trimIndent()
-            )
-
-            imExtensions.child("project-extension").writeText(
-                """
-                    #!/usr/bin/env python3
-                    import json
-                    import sys
-                    import subprocess
-                    import os
-                    import re
-
-                    # NOTE(Dan): This script requires root privileges. However, the integration module will launch it with the privileges
-                    # of the ucloud service user. As a result, we immediately attempt to elevate our own privileges via `sudo`.
-                    if os.getuid() != 0:
-                        res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
-                        if res.returncode != 0:
-                            print("project-extension failed. Is sudo misconfigured?")
-                            exit(1)
-                        exit(0)
-
-                    ########################################################################################################################
-
-                    request = json.loads(open(sys.argv[1]).read())
-                    request_type = request['type']
-
-                    ########################################################################################################################
-
-                    def generate_name(ucloud_title, allocated_gid):
-                        return re.sub(r'[^a-z0-9]', '_', ucloud_title.lower()) + '_' + str(allocated_gid)
-
-                    def create_group(gid, name):
-                        result = subprocess.run(['/usr/sbin/groupadd', '-g', str(gid), name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        success = result.returncode == 0
-                        if success:
-                            subprocess.run(['mkdir', '-p', f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            subprocess.run(['chgrp', name, f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                            subprocess.run(['chmod', '770', f'/work/{name}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return success
-
-                    def rename_group(gid, name):
-                        result = subprocess.run(['/usr/sbin/groupmod', '-n', name, get_group_by_gid(gid)], stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def delete_group(gid):
-                        group_name = get_group_by_gid(gid)
-                        if group_name is None:
-                            return False
-                        result = subprocess.run(['/usr/sbin/groupdel', get_group_by_gid(gid)], stdout=subprocess.PIPE,
-                                                stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def add_user_to_group(uid, gid):
-                        if get_group_by_gid(gid) is None:
-                            print("{} error: Non-existing group with id {}".format(request_type,gid))
-                            exit(1)
-
-                        if get_username_by_uid(uid) is None:
-                            print("{} error: Non-existing user with id {}".format(request_type,uid))
-                            exit(1)
-
-                        result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)],
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def remove_user_from_group(uid, gid):
-                        result = subprocess.run(['/usr/bin/gpasswd', '-d', get_username_by_uid(uid), get_group_by_gid(gid)],
-                                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        return result.returncode == 0
-
-                    def get_gid_by_group(group_name):
-                        result = subprocess.run(['/usr/bin/getent', 'group', group_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return int(result.stdout.decode('UTF-8').split(':')[2])
-
-                    def get_group_by_gid(gid):
-                        result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    def get_username_by_uid(uid):
-                        result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        if result.returncode != 0:
-                            return None
-                        return result.stdout.decode('UTF-8').split(':')[0]
-
-                    ########################################################################################################################
-
-                    if request_type == 'project_renamed':
-                        gid = request['newProject']['localId']
-                        if request['oldProject'] is None:
-                            create_group(gid, generate_name(request['newTitle'], gid))
-                        else:
-                            rename_group(gid, generate_name(request['newTitle'], gid))
-
-                    elif request_type == 'members_added_to_project':
-                        gid = request['newProject']['localId']
-                        create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
-                        for member in request['newMembers']:
-                            uid = member['uid']
-                            if uid is None: continue
-                            add_user_to_group(uid, gid)
-
-                    elif request_type == 'members_removed_from_project':
-                        gid = request['newProject']['localId']
-                        create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
-                        for member in request['removedMembers']:
-                            uid = member['uid']
-                            if uid is None: continue
-                            remove_user_from_group(uid, gid)
-
-                    print('{}')
-                                        
-                """.trimIndent()
-            )
-
-            for (attempt in 0 until 30) {
-                val success = compose.exec(
-                    currentEnvironment,
-                    "slurmctld",
-                    listOf(
-                        "/usr/bin/sacctmgr",
-                        "--immediate",
-                        "add",
-                        "cluster",
-                        "name=linux"
-                    ),
-                    tty = false,
-                ).allowFailure().streamOutput().executeToText().first != null
-
-                if (success) break
-                Thread.sleep(2_000)
-            }
-
-            compose.stop(currentEnvironment, "slurmctld")
-            compose.start(currentEnvironment, "slurmctld")
-
-            compose.exec(
-                currentEnvironment,
-                "slurm",
-                listOf(
-                    "sh",
-                    "-c",
-                    "chmod 755 /etc/ucloud/extensions /etc/ucloud/extensions/*"
-                ),
-                tty = false
-            )
-
             installMarker.writeText("done")
         }
     }
@@ -1353,7 +1274,12 @@ sealed class ComposeService {
             val gatewayConfig = gatewayDir.child("Caddyfile")
             gatewayConfig.writeText(
                 """
+                    {
+                        order grpc_web before reverse_proxy
+                    }
+
                     https://ucloud.localhost.direct {
+                        grpc_web
                         reverse_proxy /api/auth-callback-csrf frontend:9000
                         reverse_proxy /api/auth-callback frontend:9000
                         reverse_proxy /api/sync-callback frontend:9000
@@ -1370,20 +1296,13 @@ sealed class ComposeService {
                         reverse_proxy /api/* backend:8080
                         reverse_proxy /auth/* backend:8080
                         reverse_proxy / frontend:9000
+                        reverse_proxy /avatar.AvatarService/* h2c://backend:11412
                     }
                     
                     https://postgres.localhost.direct {
                         reverse_proxy pgweb:8081
                     }
                    
-                    https://debugger.localhost.direct {
-                        reverse_proxy debugger-fe:3000
-                    }
-                    
-                    https://debugger-api.localhost.direct {
-                        reverse_proxy debugger-be:5511
-                    }
-                    
                     https://k8.localhost.direct {
                         reverse_proxy k8:8889
                     }
@@ -1420,10 +1339,12 @@ sealed class ComposeService {
                 "gateway",
                 "Gateway",
                 Json(
+                    // NOTE: The gateway is from this repo with no changes:
+                    // https://github.com/mholt/caddy-grpc-web
                     // language=json
                     """
                       {
-                        "image": "caddy",
+                        "image": "dreg.cloud.sdu.dk/ucloud/caddy-gateway:1",
                         "restart": "always",
                         "volumes": [
                           "${gatewayData.absolutePath}:/data",

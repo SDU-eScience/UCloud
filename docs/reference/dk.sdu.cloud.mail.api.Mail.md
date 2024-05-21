@@ -11,7 +11,6 @@
 sealed class Mail {
     abstract val subject: String
 
-    class GrantAppAutoApproveToAdminsMail : Mail()
     class GrantApplicationApproveMail : Mail()
     class GrantApplicationApproveMailToAdmins : Mail()
     class GrantApplicationRejectedMail : Mail()
@@ -31,6 +30,7 @@ sealed class Mail {
     class UserRemovedMailToUser : Mail()
     class UserRoleChangeMail : Mail()
     class VerificationReminderMail : Mail()
+    class VerifyEmailAddress : Mail()
 }
 ```
 

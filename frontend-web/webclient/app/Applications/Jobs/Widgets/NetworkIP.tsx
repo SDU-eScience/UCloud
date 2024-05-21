@@ -1,22 +1,21 @@
 import * as React from "react";
 import {default as ReactModal} from "react-modal";
-import {Flex} from "@/ui-components";
+import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
-import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
-import * as UCloud from "@/UCloud";
+import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
-import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {BrowseType} from "@/Resource/BrowseType";
 import {checkProviderMismatch} from "../Create";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
+import {CardClass} from "@/ui-components/Card";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 
 interface NetworkIPProps extends WidgetProps {
-    parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
+    parameter: ApplicationParameterNS.NetworkIP;
 }
 
 export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props => {
@@ -39,12 +38,8 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         setOpen(false);
     }, [props.parameter, setOpen, props.errors]);
 
-    const valueInput = () => {
-        return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
-    }
-    const visualInput = () => {
-        return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
-    };
+    const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
+    const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
 
     useLayoutEffect(() => {
         const listener = async () => {
@@ -66,14 +61,19 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         }
     }, []);
 
-    const filters: NetworkIPFlags = React.useMemo(() => ({
-        filterState: "READY"
-    }), []);
+    const filters = React.useMemo(() => {
+        const f = {
+            filterState: "READY"
+        };
+        if (props.provider) f["filterProvider"] = props.provider
+        return f;
+    }, [props.provider]);
 
     return (<Flex>
-        <PointerInput
+        <Input
             id={widgetId(props.parameter) + "visual"}
             placeholder={"No public IP selected"}
+            cursor="pointer"
             error={error}
             onClick={doOpen}
         />
@@ -85,17 +85,23 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnEsc
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
+            className={CardClass}
         >
             <NetworkIPBrowse
-                provider={props.provider}
-                additionalFilters={filters}
-                onSelect={onUse}
-                browseType={BrowseType.Embedded}
-                onSelectRestriction={res => {
-                    const errorMessage = checkProviderMismatch(res, "Public IPs");
-                    if (errorMessage) return errorMessage;
-                    return res.status.boundTo.length === 0;
+                opts={{
+                    additionalFilters: filters,
+                    isModal: true,
+                    selection: {
+                        text: "Use",
+                        onClick: onUse,
+                        show(res) {
+                            const errorMessage = checkProviderMismatch(res, "Public IPs");
+                            if (errorMessage) return errorMessage;
+                            return res.status.boundTo.length === 0;
+                        },
+                    }
                 }}
+
             />
         </ReactModal>
     </Flex>);

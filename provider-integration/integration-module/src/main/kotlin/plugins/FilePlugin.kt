@@ -4,16 +4,19 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.ProductV2
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.FileListingEntry
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.service.SimpleCache
 import io.ktor.utils.io.*
-import kotlinx.coroutines.channels.Channel
+import io.ktor.websocket.*
 import kotlinx.coroutines.channels.ReceiveChannel
 
 interface PathLike<T> {
@@ -47,13 +50,18 @@ data class FileDownloadSession(val session: String, val pluginData: String)
 data class FileUploadSession(val session: String, val pluginData: String)
 
 interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigSchema.Plugins.Files> {
+    var supportedUploadProtocols: List<UploadProtocol>
+
     suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile>
     suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
     suspend fun RequestContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession>
     suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String)
     suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
-    suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel)
+    suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean)
+    suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, fileEntry: FileListingEntry, chunk: ByteReadChannel, lastChunk: Boolean)
+    suspend fun RequestContext.handleUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession)
+    suspend fun RequestContext.handleFolderUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession)
     suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
     suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
@@ -72,7 +80,8 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
 abstract class EmptyFilePlugin : FilePlugin {
     override var pluginName = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    override var productAllocationResolved: List<Product> = emptyList()
+    override var productAllocationResolved: List<ProductV2> = emptyList()
+    override var supportedUploadProtocols: List<UploadProtocol> = emptyList()
 
     override suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile = throw RPCException("Not supported", HttpStatusCode.BadRequest)
@@ -80,7 +89,10 @@ abstract class EmptyFilePlugin : FilePlugin {
     override suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel, lastChunk: Boolean) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleFolderUpload(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, fileEntry: FileListingEntry, chunk: ByteReadChannel, lastChunk: Boolean) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleUploadWs(session: String, pluginData: String, fileCollections: SimpleCache<String, FileCollection>, websocket: WebSocketSession) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleFolderUploadWs(session: String, pluginData: String, collection: SimpleCache<String, FileCollection>, websocket: WebSocketSession) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)

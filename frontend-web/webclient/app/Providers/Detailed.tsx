@@ -1,4 +1,4 @@
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePage} from "@/Navigation/Redux";
 import {Feature, hasFeature} from "@/Features";
 import * as React from "react";
 import Providers from "@/Assets/provider_info.json";
@@ -6,12 +6,13 @@ import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
 import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import MainContainer from "@/MainContainer/MainContainer";
+import MainContainer from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
-import HighlightedCard from "@/ui-components/HighlightedCard";
+import TitledCard from "@/ui-components/HighlightedCard";
 import {MachineView} from "@/Products/Products";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export default function DetailedProvider() {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
@@ -19,7 +20,7 @@ export default function DetailedProvider() {
     const params = useParams<{id: string}>();
     const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
 
-    useTitle(entry?.title ?? params.id!);
+    usePage(entry?.title ?? params.id!, SidebarTabId.NONE);
 
     if (!entry) return null;
 
@@ -40,11 +41,11 @@ export default function DetailedProvider() {
         <Box height="48px" />
         {entry.texts.map((text, index) =>
             <Box key={index} my="32px">
-                <HighlightedCard color="purple">
+                <TitledCard>
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
+                            <img alt={`Logo for the provider`}  style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>
@@ -53,12 +54,12 @@ export default function DetailedProvider() {
                             </Markdown>
                         </div>
                     </Flex>
-                </HighlightedCard>
+                </TitledCard>
             </Box>
         )}
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />
+        <MachineView provider={entry.id} key={entry.id + "STORAGE"} productType="STORAGE" />
         <Box my="32px" />
-        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "COMPUTE"} area="COMPUTE" />
+        <MachineView provider={entry.id} key={entry.id + "COMPUTE"} productType="COMPUTE" />
     </Box>;
 
     if (!Client.isLoggedIn) return (<>

@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -20,7 +22,7 @@ class IngressService(
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>,
     serviceClient: AuthenticatedClient,
-    orchestrator: JobOrchestrator,
+    orchestrator: JobResourceService,
 ) : JobBoundResource<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
         Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
@@ -38,7 +40,7 @@ class IngressService(
     override fun boundUpdate(binding: JobBinding): IngressUpdate = IngressUpdate(binding = binding)
 
     override fun isReady(res: Ingress): Boolean = res.status.state == IngressState.READY
-    override fun resourcesFromJob(job: Job): List<AppParameterValue.Ingress> = job.ingressPoints
+    override fun resourcesFromJob(job: JobSpecification): List<AppParameterValue.Ingress> = job.ingressPoints
 
     override fun userApi() = Ingresses
     override fun controlApi() = IngressControl
@@ -51,6 +53,12 @@ class IngressService(
         allowDuplicates: Boolean
     ) {
         for ((id, spec) in idWithSpec) {
+            val prefix = support.retrieveProductSupport(spec.product).support.domainPrefix
+            val suffix = support.retrieveProductSupport(spec.product).support.domainSuffix
+            val userSpecificToken = spec.domain.substringAfter(prefix).substringBefore(suffix)
+            if (userSpecificToken.contains(".") || userSpecificToken.contains(" ")) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Link cannot contain '.' or whitespaces")
+            }
             session
                 .sendPreparedStatement(
                     {

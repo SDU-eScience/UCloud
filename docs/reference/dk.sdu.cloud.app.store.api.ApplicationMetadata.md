@@ -17,6 +17,8 @@ data class ApplicationMetadata(
     val description: String,
     val website: String?,
     val public: Boolean,
+    val flavorName: String?,
+    val group: ApplicationGroup?,
     val isPublic: Boolean,
 )
 ```
@@ -97,6 +99,28 @@ The metadata describes information mostly useful for presentation purposes. The 
 <details>
 <summary>
 <code>public</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> A flag which describes if this Application is publicly accessible
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>flavorName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Name of the Application within the ApplicationGroup. If not defined, the title will be used.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a>?</code></code> The ApplicationGroup of the Application
 </summary>
 
 

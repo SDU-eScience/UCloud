@@ -2,21 +2,21 @@ import * as React from "react";
 import {
     ProductSupport,
     Resource,
-    ResourceApi, ResourceIncludeFlags,
+    ResourceApi, ResourceBrowseCallbacks, ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, compute} from "@/UCloud/index";
-import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
 import {EnumFilter} from "@/Resource/Filter";
 import PortRangeAndProto = compute.PortRangeAndProto;
 import {ResourceProperties} from "@/Resource/Properties";
 import {FirewallEditor} from "@/Applications/NetworkIP/FirewallEditor";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {ProductNetworkIP} from "@/Accounting";
+import {ProductNetworkIP, productTypeToIcon} from "@/Accounting";
 import {apiUpdate} from "@/Authentication/DataHook";
+import {Operation} from "@/ui-components/Operation";
 
 export interface NetworkIPSpecification extends ResourceSpecification {
     firewall?: Firewall;
@@ -59,7 +59,6 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
     NetworkIPFlags, NetworkIPStatus, NetworkIPSupport> {
     routingNamespace = "public-ips";
     title = "Public IP";
-    page = SidebarPages.Resources;
     productType = "NETWORK_IP" as const;
 
     renderer: ItemRenderer<NetworkIP> = {
@@ -67,7 +66,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
             return !resource ? <>Public IP</> :
                 <>{resource.status.ipAddress ?? resource.id.toString()}</>
         },
-        Icon({size}) {return <Icon name={"networkWiredSolid"} size={size} />}
+        Icon({size}) {return <Icon name={productTypeToIcon("NETWORK_IP")} size={size} />}
     };
 
     Properties = (props) => {
@@ -79,7 +78,7 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
                     ?.support as NetworkIPSupport | undefined;
 
                 if (support?.firewall?.enabled !== true) return null;
-                return <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload}/>;
+                return <FirewallEditor inspecting={p.resource as NetworkIP} reload={p.reload} />;
             }}
         />;
     };
@@ -109,6 +108,15 @@ class NetworkIPApi extends ResourceApi<NetworkIP, ProductNetworkIP, NetworkIPSpe
                 }
             ]
         ));
+    }
+
+    public retrieveOperations(): Operation<NetworkIP, ResourceBrowseCallbacks<NetworkIP>>[] {
+        const ops = super.retrieveOperations();
+        const create = ops.find(it => it.tag === "create");
+        if (create) {
+            create.text = "Create public IP"
+        }
+        return ops;
     }
 
     /* Untested */

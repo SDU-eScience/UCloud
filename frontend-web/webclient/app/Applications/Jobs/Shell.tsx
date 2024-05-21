@@ -1,17 +1,18 @@
 import * as React from "react";
-import {useXTerm} from "@/Applications/Jobs/xterm";
+import {useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
 import {Box, Button} from "@/ui-components";
-import {isLightThemeStored, shortUUID, useNoFrame} from "@/UtilityFunctions";
-import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {shortUUID} from "@/UtilityFunctions";
+import {usePage} from "@/Navigation/Redux";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
+import {bulkResponseOf, bulkRequestOf} from "@/UtilityFunctions";
 import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {BulkResponse} from "@/UCloud/index";
+import {BulkResponse} from "@/UCloud";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
@@ -25,8 +26,7 @@ export const Shell: React.FunctionComponent = () => {
 
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnect, setReconnect] = useState<number>(0);
-    useNoFrame();
-    useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
+    usePage(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
     useEffect(() => {
         openSession(JobsApi.openInteractiveSession(
@@ -108,15 +108,15 @@ export const Shell: React.FunctionComponent = () => {
         };
     }, [termRef.current, sessionIdentifier, reconnect]);
 
-    return <TermAndShellWrapper className={isLightThemeStored() ? "light" : "dark"} addPadding={true}>
+    return <TermAndShellWrapper addPadding>
         {!closed ? null : (
             // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
-            <Box className={`warn`}>
+            <div className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>
                 <Button ml={"16px"} onClick={() => {
                     setReconnect(reconnect + 1);
                 }}>Reconnect</Button>
-            </Box>
+            </div>
         )}
 
         <div className={"contents"} ref={termRef} />

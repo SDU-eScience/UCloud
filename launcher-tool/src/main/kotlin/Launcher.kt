@@ -10,6 +10,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.fusesource.jansi.Ansi.ansi
 import org.fusesource.jansi.AnsiConsole
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.Files
 import kotlin.system.exitProcess
 
 val prompt = ConsolePrompt()
@@ -484,18 +486,6 @@ fun main(args: Array<String>) {
                                 """.trimIndent()
                             )
                             println()
-                            println(
-                                """
-                                    You can access the debugger from the web-interface here:
-                                    https://debugger.localhost.direct
-                                    
-                                    You can view the logs from the debugger with: "./launcher svc debugger logs"
-                                    
-                                    Logs from all services should appear here.
-                                    
-                                    NOTE(17/11/22): Not fully implemented yet.
-                                """.trimIndent()
-                            )
                         }
 
                         topics.providers -> {
@@ -630,12 +620,21 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
     callService(
         "backend",
         "POST",
-        "http://localhost:8080/api/grant/setEnabled",
+        "http://localhost:8080/api/grants/v2/updateRequestSettings",
         accessToken,
         //language=json
         """
           {
-            "items": [{ "projectId":  "$projectId", "enabledStatus": true }]
+            "enabled": true,
+            "description": "An example grant allocator allocating for $providerId",
+            "allowRequestsFrom": [{ "type":"anyone" }],
+            "excludeRequestsFrom": [],
+            "templates": {
+              "type": "plain_text",
+              "personalProject": "Please describe why you are applying for resources",
+              "newProject": "Please describe why you are applying for resources",
+              "existingProject": "Please describe why you are applying for resources"
+            }
           }
         """.trimIndent(),
 
@@ -643,31 +642,6 @@ fun registerProvider(providerId: String, domain: String, port: Int): ProviderCre
             "-H", "Project: $projectId"
         )
     ) ?: error("Failed to mark project as grant giver")
-
-    callService(
-        "backend",
-        "POST",
-        "http://localhost:8080/api/grant/settings/upload",
-        accessToken,
-        //language=json
-        """
-          {
-            "type":"bulk",
-            "items":[
-              {
-                "projectId":"$projectId",
-                "automaticApproval": { "from":[], "maxResources":[] },
-                "allowRequestsFrom":[{ "type":"anyone" }],
-                "excludeRequestsFrom":[]
-              }
-            ]
-          }
-        """.trimIndent(),
-
-        opts = listOf(
-            "-H", "Project: $projectId"
-        )
-    ) ?: error("Failed to mark project as grant giver (2)")
 
     callService(
         "backend",
@@ -736,14 +710,6 @@ fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
 
     LoadingIndicator("Starting UCloud...").use {
         startService(serviceByName("backend")).executeToText()
-    }
-
-    LoadingIndicator("Starting UCloud Debugger (API)...").use {
-        startService(serviceByName("debugger-be")).executeToText()
-    }
-
-    LoadingIndicator("Starting UCloud Debugger (UI)...").use {
-        startService(serviceByName("debugger-fe")).executeToText()
     }
 
     LoadingIndicator("Waiting for UCloud to be ready...").use {

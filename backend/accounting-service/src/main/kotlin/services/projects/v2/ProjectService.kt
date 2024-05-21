@@ -19,7 +19,6 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
@@ -27,14 +26,13 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.launch
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
-private typealias OnProjectUpdatedHandler = suspend (projects: Collection<String>) -> Unit
+private typealias OnProjectUpdatedHandler = suspend (projects: Collection<Project>) -> Unit
 
 class ProjectService(
     private val db: DBContext,
@@ -47,6 +45,53 @@ class ProjectService(
 
     fun addUpdateHandler(handler: OnProjectUpdatedHandler) {
         updateHandlers.add(handler)
+    }
+
+    suspend fun notifyChanges(session: AsyncDBConnection, ids: List<String>) {
+        val mapped = ids.map { id ->
+            retrieve(
+                ActorAndProject.System,
+                ProjectsRetrieveRequest(
+                    id,
+                    includeMembers = true,
+                    includeGroups = true,
+                    includeSettings = true,
+                    includePath = true
+                ),
+                ctx = session,
+            )
+        }
+
+        updateHandlers.forEach { it(mapped) }
+    }
+
+    suspend fun findProjectsUpdatedSince(
+        since: Long,
+        ctx: DBContext = db,
+    ): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("since", since) },
+                """
+                    select id
+                    from project.projects
+                    where modified_at > to_timestamp(:since / 1000.0)
+                """
+            ).rows.map { it.getString(0)!! }
+        }
+    }
+
+    suspend fun findAllProjectsWithUser(username: String, ctx: DBContext = db): List<String> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("username", username) },
+                """
+                    select project_id
+                    from project.project_members
+                    where username = :username
+                """
+            ).rows.map { it.getString(0)!! }
+        }
     }
 
     suspend fun locateOrCreateAllUsersGroup(
@@ -237,9 +282,8 @@ class ProjectService(
                             from
                                 accounting.wallet_owner wo join
                                 the_project p on wo.project_id = (p.project).id join
-                                accounting.wallets w on wo.id = w.owned_by join
-                                accounting.product_categories pc on w.category = pc.id join
-                                accounting.wallet_allocations wa on w.id = wa.associated_wallet
+                                accounting.wallets_v2 w on wo.id = w.wallet_owner join
+                                accounting.product_categories pc on w.product_category = pc.id
                             where
                                 pc.provider = :provider_id and
                                 (:include_archived or (p.project).archived = false)
@@ -741,6 +785,15 @@ class ProjectService(
         }
     }
 
+    suspend fun retrieveProviderProjectInternal(
+        providerId: String,
+        ctx: DBContext = db
+    ): String? {
+        return ctx.withSession { session ->
+            retrieveProviderProject(session, providerId)
+        }
+    }
+
     private suspend fun retrieveProviderProject(
         session: AsyncDBConnection,
         providerId: String
@@ -766,19 +819,20 @@ class ProjectService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = db,
     ) {
+        val projects = request.items.map { it.id }
         ctx.withSession { session ->
-            val projects = request.items.map { it.id }
             requireAdmin(actorAndProject.actor, projects, session)
             session.sendPreparedStatement(
                 { setParameter("ids", projects) },
                 """
                     update project.projects
-                    set archived = true
+                    set
+                        archived = true,
+                        modified_at = now()
                     where id = some(:ids::text[])
                 """
             )
-
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
         }
     }
 
@@ -812,19 +866,21 @@ class ProjectService(
         request: BulkRequest<FindByStringId>,
         ctx: DBContext = db,
     ) {
+        val projects = request.items.map { it.id }
         ctx.withSession { session ->
-            val projects = request.items.map { it.id }
             requireAdmin(actorAndProject.actor, projects, session)
             session.sendPreparedStatement(
                 { setParameter("ids", projects) },
                 """
                     update project.projects
-                    set archived = false
+                    set
+                        archived = false,
+                        modified_at = now()
                     where id = some(:ids::text[])
                 """
             )
 
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
         }
     }
 
@@ -889,12 +945,14 @@ class ProjectService(
                 },
                 """
                     update project.projects
-                    set subprojects_renameable = :allow_renaming
+                    set
+                        subprojects_renameable = :allow_renaming,
+                        modified_at = now()
                     where id = :project
                 """
             )
 
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
         }
     }
 
@@ -926,6 +984,13 @@ class ProjectService(
     ): PageV2<ProjectInvite> {
         val pagination = request.normalize()
         return ctx.withSession { session ->
+            val isAdmin =
+                try {
+                    requireAdmin(actorAndProject.actor, listOf(actorAndProject.project ?: "").toSet(), session)
+                    true
+                } catch (ex: Throwable) {
+                    false
+                }
             val items = session.sendPreparedStatement(
                 {
                     setParameter("next", pagination.next?.toLongOrNull()?.let { it / 1000 })
@@ -973,7 +1038,9 @@ class ProjectService(
                             }
 
                             ProjectInviteType.OUTGOING -> {
-                                appendLine("and i.invited_by = :username")
+                                if (!isAdmin) {
+                                  appendLine("and i.invited_by = :username")
+                                }
                                 appendLine("and i.project_id = :project_filter")
                             }
 
@@ -1071,7 +1138,7 @@ class ProjectService(
                             CreateNotification(
                                 user,
                                 Notification(
-                                    NotificationType.PROJECT_INVITE.name,
+                                    "PROJECT_INVITE",
                                     "${actor.safeUsername()} has invited you to collaborate"
                                 )
                             )
@@ -1164,6 +1231,11 @@ class ProjectService(
     ) {
         val projects = request.items.map { it.project }
         ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("projects", projects) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val userInProjects = session
                 .sendPreparedStatement(
                     {
@@ -1206,10 +1278,9 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(projects) }
+            notifyChanges(session, projects)
+            projectCache.invalidate(actorAndProject.actor.safeUsername())
         }
-
-        projectCache.invalidate(actorAndProject.actor.safeUsername())
     }
 
     suspend fun deleteInvite(
@@ -1540,26 +1611,26 @@ class ProjectService(
         request: BulkRequest<ProjectsDeleteMemberRequestItem>,
         ctx: DBContext = db,
     ) {
-        ctx.withSession { session ->
-            // Verify that the request is valid and makes sense
-            val (actor) = actorAndProject
-            val isLeaving = request.items.size == 1 && request.items.single().username == actor.safeUsername()
+        // Verify that the request is valid and makes sense
+        val (actor) = actorAndProject
+        val isLeaving = request.items.size == 1 && request.items.single().username == actor.safeUsername()
 
-            // Personal workspaces are not actual projects. Make sure we didn't get this request without a project.
-            val project = actorAndProject.requireProject()
+        // Personal workspaces are not actual projects. Make sure we didn't get this request without a project.
+        val project = actorAndProject.requireProject()
 
-            // Make sure that we are not trying to kick ourselves along with other users. Not allowing this simplifies
-            // our code quite a bit.
-            if (!isLeaving) {
-                val containsSelf = request.items.any { it.username == actor.safeUsername() }
-                if (containsSelf) {
-                    throw RPCException(
-                        "Cannot remove members from a project while also leaving",
-                        HttpStatusCode.BadRequest
-                    )
-                }
+        // Make sure that we are not trying to kick ourselves along with other users. Not allowing this simplifies
+        // our code quite a bit.
+        if (!isLeaving) {
+            val containsSelf = request.items.any { it.username == actor.safeUsername() }
+            if (containsSelf) {
+                throw RPCException(
+                    "Cannot remove members from a project while also leaving",
+                    HttpStatusCode.BadRequest
+                )
             }
+        }
 
+        ctx.withSession { session ->
             // Enforce admin permissions if we are not leaving the project
             if (!isLeaving) {
                 requireAdmin(actor, listOf(project), session)
@@ -1596,6 +1667,11 @@ class ProjectService(
                 """
             ).rowsAffected > 0
 
+            session.sendPreparedStatement(
+                { setParameter("projects", listOf(project)) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             if (!success) {
                 // Find an appropriate error message if we did not succeed.
                 if (isLeaving) {
@@ -1623,7 +1699,7 @@ class ProjectService(
                 }
             }
 
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
         }
 
         for (reqItem in request.items) {
@@ -1683,6 +1759,11 @@ class ProjectService(
                 // If we are not trying to make someone the PI, then we only need to be an admin.
                 requireAdmin(actor, setOf(project), session)
             }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", listOf(project)) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
 
             // NOTE(Dan): Performing the update itself is straightforward. Just change the role in the table. We return
             // the username of the successful changes, such that we can send the correct notifications.
@@ -1757,7 +1838,7 @@ class ProjectService(
                             CreateNotification(
                                 admin,
                                 Notification(
-                                    NotificationType.PROJECT_ROLE_CHANGE.name,
+                                    "PROJECT_ROLE_CHANGE",
                                     notificationMessage,
                                     meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
                                 )
@@ -1788,8 +1869,7 @@ class ProjectService(
                     serviceClient
                 )
             }
-
-            updateHandlers.forEach { it(listOf(project)) }
+            notifyChanges(session, listOf(project))
             for (reqItem in requestItems) {
                 projectCache.invalidate(reqItem.username)
             }
@@ -1804,8 +1884,13 @@ class ProjectService(
     ): BulkResponse<FindByStringId> {
         val (actor) = actorAndProject
         val projects = request.items.map { it.project }.toSet()
-        return ctx.withSession { session ->
+        val result = ctx.withSession { session ->
             requireAdmin(actor, projects, session)
+
+            session.sendPreparedStatement(
+                { setParameter("projects", projects.toList()) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
 
             val ids = request.items.map { UUID.randomUUID().toString() }
             val createdGroups = session.sendPreparedStatement(
@@ -1834,9 +1919,11 @@ class ProjectService(
                 )
             }
 
-            if (dispatchUpdate) updateHandlers.forEach { it(projects) }
+            if (dispatchUpdate) notifyChanges(session, projects.toList())
             BulkResponse(ids.map { FindByStringId(it) })
         }
+
+        return result
     }
 
     private suspend fun requireAdminOfGroups(
@@ -1922,6 +2009,12 @@ class ProjectService(
                         project.groups g on c.group_id = g.id
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
+
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndOldTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val success = affectedProjectsAndOldTitles.isNotEmpty()
 
             if (!success) {
@@ -1939,7 +2032,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndOldTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndOldTitles.map { it.first })
+            affectedProjectsAndOldTitles
         }
     }
 
@@ -1975,6 +2069,11 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             val success = affectedProjectsAndTitles.isNotEmpty()
             if (!success) {
                 throw RPCException(
@@ -1991,7 +2090,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndTitles.map { it.first })
+            affectedProjectsAndTitles
         }
     }
 
@@ -2054,7 +2154,13 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
-            if (dispatchUpdate) updateHandlers.forEach { it(affectedProjects) }
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjects) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
+            if (dispatchUpdate) notifyChanges(session, affectedProjects)
+            affectedProjects
         }
     }
 
@@ -2106,6 +2212,11 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! to it.getString(1)!! }
 
+            session.sendPreparedStatement(
+                { setParameter("projects", affectedProjectsAndGroupTitles.map { it.first }) },
+                "update project.projects set modified_at = now() where id = some(:projects::text[])"
+            )
+
             if (affectedProjectsAndGroupTitles.any { it.second == ALL_USERS_GROUP_TITLE }) {
                 throw RPCException(
                     "The group '$ALL_USERS_GROUP_TITLE' is special. You cannot remove a member from this group.",
@@ -2113,7 +2224,8 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(affectedProjectsAndGroupTitles.map { it.first }) }
+            notifyChanges(session, affectedProjectsAndGroupTitles.map { it.first })
+            affectedProjectsAndGroupTitles
         }
     }
 
