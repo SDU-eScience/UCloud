@@ -554,6 +554,16 @@ class VolcanoContainerBuilder(
 
         job.metadata!!.annotations = JsonObject(annotationEntries)
     }
+
+    override fun upsertLabel(key: String, value: String) {
+        val entries = (job.metadata?.labels?.entries ?: emptySet())
+            .associate { it.key to it.value }
+            .toMutableMap()
+
+        entries[key] = JsonPrimitive(value)
+
+        job.metadata!!.labels = JsonObject(entries)
+    }
 }
 
 private const val VOLCANO_NETWORK_POLICY_PREFIX = "policy-"

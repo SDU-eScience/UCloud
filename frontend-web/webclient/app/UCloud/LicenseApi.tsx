@@ -55,29 +55,6 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
 
     constructor() {
         super("licenses");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {
-                    title: "Preparing",
-                    value: "PREPARING",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Ready",
-                    value: "READY",
-                    icon: "hashtag"
-                },
-                {
-                    title: "Unavailable",
-                    value: "UNAVAILABLE",
-                    icon: "hashtag"
-                }
-            ]
-        ));
     }
 
     retrieveOperations(): Operation<License, ResourceBrowseCallbacks<License>>[] {

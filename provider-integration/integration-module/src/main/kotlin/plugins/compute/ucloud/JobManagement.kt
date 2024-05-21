@@ -72,6 +72,7 @@ class JobManagement(
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
     val pluginConfig: ConfigSchema.Plugins.Jobs.UCloud,
+    val sensitiveProjects: Set<String>,
 ) {
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
@@ -135,7 +136,8 @@ class JobManagement(
 
     suspend fun create(verifiedJob: Job, queueExpiration: Long? = null) {
         verifiedJob.specification.resources
-        if (!userHasResourcesAvailable(job = verifiedJob) ) {
+        val isRunningSyncthing = verifiedJob.specification.product.category == SyncthingService.productCategory
+        if (!userHasResourcesAvailable(job = verifiedJob) && !isRunningSyncthing) {
             throw RPCException(
                 "Not enough resources available",
                 HttpStatusCode.PaymentRequired, "NOT_ENOUGH_COMPUTE_CREDITS"

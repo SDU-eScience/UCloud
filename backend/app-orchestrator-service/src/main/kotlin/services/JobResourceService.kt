@@ -594,6 +594,9 @@ class JobResourceService(
 
         if (!jobNotifications.containsKey(user)) {
             jobNotifications[user] = mutableListOf()
+        }
+
+        if (!jobMailNotifications.containsKey(user)) {
             jobMailNotifications[user] = mutableListOf()
         }
 
@@ -629,13 +632,14 @@ class JobResourceService(
 
                 val jobIds = sameType.map { JsonPrimitive(it.jobId) }
                 val appTitles = sameType.map { JsonPrimitive(it.appTitle) }
+                val jobNames = sameType.map { JsonPrimitive(it.jobName) }
 
                 val type = when (notification.type) {
                     JobState.SUCCESS -> "JOB_COMPLETED"
                     JobState.RUNNING -> "JOB_STARTED"
                     JobState.FAILURE -> "JOB_FAILED"
                     JobState.EXPIRED -> "JOB_EXPIRED"
-                    else -> return;
+                    else -> return@mapNotNull null
                 }
 
                 Notification(
@@ -644,23 +648,29 @@ class JobResourceService(
                     meta = JsonObject(
                         mapOf(
                             "jobIds" to JsonArray(jobIds),
-                            "appTitles" to JsonArray(appTitles),
+                            "jobNames" to JsonArray(jobNames),
+                            "appTitles" to JsonArray(appTitles)
                         )
                     )
                 )
             }
 
             summarizedNotifications.forEach { notification ->
-                NotificationDescriptions.create.call(
-                    CreateNotification(
-                        user,
-                        notification
-                    ),
-                    serviceClient
-                )
+                try {
+                    NotificationDescriptions.create.call(
+                        CreateNotification(
+                            user,
+                            notification
+                        ),
+                        serviceClient
+                    )
+                } catch (ex: Throwable) {
+                    log.info("FAILED TO CREATE NOTIFICATION ${ex.toReadableStacktrace()}")
+                }
             }
         }
 
+        log.info("clearing ${jobNotifications.size} jobNotifications")
         jobNotifications.clear()
     }
 
@@ -693,7 +703,7 @@ class JobResourceService(
                 } else if (notifications.all { it.type == JobState.EXPIRED }) {
                     "${notifications.size} of your jobs on UCloud have expired"
                 } else {
-                    "The state of ${notifications.size} of your jobs on UCloud has changed"
+                    "The state of ${notifications.map { it.jobId }.toSet().size} of your jobs on UCloud has changed"
                 }
             } else {
                 when (notifications.first().type) {
@@ -705,21 +715,25 @@ class JobResourceService(
                 }
             }
 
-            MailDescriptions.sendToUser.call(
-                bulkRequestOf(
-                    SendRequestItem(
-                        user,
-                        Mail.JobEvents(
-                            jobIds,
-                            jobNames,
-                            appTitles,
-                            types,
-                            subject = subject
+            try {
+                MailDescriptions.sendToUser.call(
+                    bulkRequestOf(
+                        SendRequestItem(
+                            user,
+                            Mail.JobEvents(
+                                jobIds,
+                                jobNames,
+                                appTitles,
+                                types,
+                                subject = subject
+                            )
                         )
-                    )
-                ),
-                serviceClient
-            )
+                    ),
+                    serviceClient
+                )
+            } catch (ex: Throwable) {
+                log.info("FAILED TO SEND MAIL TO USER ${ex.toReadableStacktrace()}")
+            }
         }
 
         jobMailNotifications.clear()

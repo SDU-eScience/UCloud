@@ -28,12 +28,12 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
 }
 
-export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): JSX.Element {
+export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grants.Application> & {both?: boolean}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Grants.Application>>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Grant Applications", SidebarTabId.PROJECT);

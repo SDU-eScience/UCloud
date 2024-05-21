@@ -21,7 +21,7 @@ import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./ReduxState";
 import {addStandardDialog} from "@/UtilityComponents";
 
-export function ProjectPageTitle(props: React.PropsWithChildren): JSX.Element {
+export function ProjectPageTitle(props: React.PropsWithChildren): React.ReactNode {
     return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
 }
 
@@ -406,7 +406,6 @@ export const ProjectMembers2: React.FunctionComponent = () => {
     const {project, invites} = uiState;
     const [sortUpdate, setSortUpdate] = useState("");
     const reduxDispatch = useDispatch();
-
 
     const [memberQuery, setMemberQuery] = useState<string>("");
 

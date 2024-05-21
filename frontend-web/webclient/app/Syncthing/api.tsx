@@ -36,6 +36,7 @@ export async function fetchServers(): Promise<Job[]> {
             ...JobsApi.browse({
                 filterApplication: "syncthing",
                 filterProductId: "syncthing",
+                includeParameters: true,
                 sortBy: "createdAt",
                 sortDirection: "descending",
                 itemsPerPage: 250

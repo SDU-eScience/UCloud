@@ -1798,6 +1798,7 @@ export class ResourceBrowser<T> {
                             (elementBounding.top + elementBounding.height),
                         );
                     } else if (isOperation(op) && enabled === true) {
+                        if (this.contextMenuHandlers.length) this.closeContextMenu();
                         op.onClick(selected, callbacks, page);
                     }
                 };
@@ -3240,6 +3241,11 @@ export class ResourceBrowser<T> {
                 color: var(--textPrimary);
             }
 
+            ${browserClass.dot} header:not([has-location-bar]) > div.header-first-row {
+                font-weight: bold;
+                cursor: default;
+            }
+
             ${browserClass.dot} header input.search-field {
                 width: 100%;
                 height: 35px;
@@ -3375,8 +3381,6 @@ export class ResourceBrowser<T> {
                 ${browserClass.dot} .stat-wrapper {
                     width: calc(var(--stat1Width));
                 }
-
-                /* TODO(Jonas): Handle if Use button is present */
             }
 
             ${browserClass.dot} .row .stat2,
@@ -3906,7 +3910,7 @@ export function clearFilterStorageValue(namespace: string, key: string) {
 }
 
 export function addContextSwitcherInPortal<T>(
-    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.JSX.Element) => void,
+    browserRef: React.RefObject<ResourceBrowser<T>>, setPortal: (el: React.ReactNode) => void,
     managed?: {
         setLocalProject: (project: string | undefined) => void
     }

@@ -85,9 +85,9 @@ import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
 
-const NotFound = (): React.JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
-const Core = (): React.JSX.Element => (
+const Core = (): React.ReactNode => (
     <>
         <Dialog />
         <Snackbars />
@@ -273,7 +273,7 @@ const RouteWrapperClass = injectStyleSimple("route-wrapper", `
     overflow-y: auto;
 `);
 
-function LoginSuccess(): React.JSX.Element {
+function LoginSuccess(): React.ReactNode {
     const dispatch = useDispatch();
     React.useEffect(() => {
         dispatchUserAction(dispatch, USER_LOGIN);
@@ -303,7 +303,7 @@ Client.initializeStore(store);
 removeExpiredFileUploads();
 findCustomThemeColorOnLaunch();
 
-function MainApp({children}: {children?: React.ReactNode}): React.JSX.Element {
+function MainApp({children}: React.PropsWithChildren): React.ReactNode {
     return (
         <BrowserRouter basename="app">
             <Flex>

@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.storage.ucloud
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -14,6 +15,7 @@ import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlin.coroutines.CoroutineContext
 
@@ -78,6 +80,18 @@ class UsageScan(
         serviceContext.ipcServerOptional?.addHandler(StorageScanIpc.requestScan.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             requestScan(request.id)
+        })
+
+        serviceContext.ipcServerOptional?.addHandler(StorageScanIpc.reportUsage.handler { user, request ->
+            if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            reportUsage(
+                walletOwnerFromOwnerString(request.workspace),
+                ProductReferenceV2(request.productName, request.productCategory, ""),
+                request.usageInBytes,
+                minutesUsed = null,
+                scope = request.driveId.toString(),
+            )
         })
     }
 
@@ -206,7 +220,17 @@ class UsageScan(
 
 object StorageScanIpc : IpcContainer("storage_scan_plugin") {
     val requestScan = updateHandler("requestScan", FindByLongId.serializer(), Unit.serializer())
+    val reportUsage = updateHandler("reportUsage", StorageScanReportUsage.serializer(), Unit.serializer())
 }
+
+@Serializable
+data class StorageScanReportUsage(
+    val workspace: String,
+    val productName: String,
+    val productCategory: String,
+    val driveId: Long,
+    val usageInBytes: Long,
+)
 
 private object ScanningScope : CoroutineScope {
     private val job = SupervisorJob()

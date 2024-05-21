@@ -54,741 +54,212 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             UniversityID.fromOrgId(orgId)
         }
     }
-
-    fun calculateProductUsageForUserInProjectForDate(
+    suspend fun getCPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
-        productType: ProductType,
-        username: String,
-        projectId: String,
         aau: Boolean
-    ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
-            return 0
-        }
-        if (productType == ProductType.STORAGE) {
-            val storageInGB = if (aau) 1000L else {
-                //Uses the day with highest storage usage
-                runBlocking {
-                    db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("type", productType.catagoryId)
-                                    setParameter("username", username)
-                                    setParameter("id", projectId)
-                                },
-                                """
-                                select sum(usage)
-                                from (
-                                    select (initial_balance - local_balance) as usage
-                                    from accounting.wallets wa
-                                        join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
-                                        join accounting.wallet_owner wo on wa.owned_by = wo.id
-                                        join accounting.product_categories pc on wa.category = pc.id
-                                    where pc.category like '%ceph%' and (username = :username and project_id = :id)
-                                    ) as storage
-                            """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                }
-            }
-            return storageInGB * 1000
-        } else if (productType == ProductType.GPU) {
-            if (aau) {
-                return runBlocking {
-                    val amount = db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                    setParameter("username", username)
-                                    setParameter("id", projectId)
-                                },
-                                """
-                                with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                                from (
-                                    SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  ids tr
-                                        join accounting.products p on p.id = tr.product_id
-                                        join accounting.product_categories pc on pc.id = p.category
-                                        join accounting.wallets w on pc.id = w.category
-                                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                                    WHERE
-                                        created_at >= :startDate::timestamp
-                                        AND created_at < :endDate::timestamp
-                                        AND tr.action_performed_by = :username
-                                        and wo.project_id = :id
-                                        AND tr.type = 'charge'
-                                        and pc.category like 'uc-t4%'
-                                ) as used
-                            """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                    amount
-                }
-            } else {
-                return runBlocking {
-                    val amount = db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                    setParameter("username", username)
-                                    setParameter("id", projectId)
-                                },
-                                """
-                                with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                                from (
-                                    SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  ids tr
-                                        join accounting.products p on p.id = tr.product_id
-                                        join accounting.product_categories pc on pc.id = p.category
-                                        join accounting.wallets w on pc.id = w.category
-                                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                                    WHERE
-                                        created_at >= :startDate::timestamp
-                                        AND created_at < :endDate::timestamp
-                                        AND tr.action_performed_by = :username
-                                        and wo.project_id = :id
-                                        AND tr.type = 'charge'
-                                        and pc.category like '%gpu%'
-                                ) as used
-                            """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                    amount
-                }
-            }
-        }
-        else {
-            return runBlocking {
-                if (aau) {
-                    val amount = db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                    setParameter("username", username)
-                                    setParameter("id", projectId)
-                                },
-                                """
-                                with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                                from (
-                                    SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  ids tr
-                                        join accounting.products p on p.id = tr.product_id
-                                        join accounting.product_categories pc on pc.id = p.category
-                                        join accounting.wallets w on pc.id = w.category
-                                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                                    WHERE
-                                        created_at >= :startDate::timestamp
-                                        AND created_at < :endDate::timestamp
-                                        AND tr.action_performed_by = :username
-                                        and wo.project_id = :id
-                                        AND tr.type = 'charge'
-                                        and pc.category like 'uc-gen%'
-                                ) as used
-                            """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                    amount
+    ):Map<String, Long> {
+        val usageForWallet = mutableMapOf<String, Long>()
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("start", startDate.toLocalDate().toString())
+                    setParameter("end", endDate.toLocalDate().toString())
+                    setParameter("product", if (aau) "uc_gene%" else "u1_standard%")
+                },
+                """
+                    with jobs as (
+                        select
+                            r.id job_id,
+                            coalesce(job.started_at, r.created_at) job_start,
+                            case when current_state = 'RUNNING' then now() else job.last_update end job_ended,
+                            job.current_state,
+                            p.cpu,
+                            job.replicas,
+                            r.created_by,
+                            r.project
+                        from app_orchestrator.jobs job join
+                            provider.resource r on job.resource = r.id join
+                            accounting.products p on r.product = p.id
+                        where
+                            p.name like :product and
+                            (job.started_at < :end) and
+                            (job.last_update > :start)
+                    ),
+                    clamedJobs as (select job_id,
+                                          case when job_start < :start then :start else job_start end jobstart,
+                                          case when job_ended > :end then :end else job_ended end jobend,
+                                          cpu,
+                                          replicas,
+                                          created_by,
+                                          project
+                                   from jobs),
+                    minutes as (
+                        select *, ((extract (epoch from jobend) - extract (epoch from jobstart))/ 60)minSpend
+                        from clamedJobs
+                        )
+                    select 
+                        ((minSpend * cpu * replicas)/ 60)::bigint resourcesUsed, 
+                        created_by, 
+                        project
+                    from minutes
+                """.trimIndent()
+            ).rows.forEach {
+                val usage = it.getLong(0)!!
+                val username = it.getString(1)
+                val project = it.getString(2)
+                if (project != null ) {
+                    usageForWallet[project] = (usageForWallet[project] ?: 0) + usage
                 } else {
-                    val amount = db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                    setParameter("username", username)
-                                    setParameter("id", projectId)
-                                },
-                                """
-                                with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                                from (
-                                    SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  ids tr
-                                        join accounting.products p on p.id = tr.product_id
-                                        join accounting.product_categories pc on pc.id = p.category
-                                        join accounting.wallets w on pc.id = w.category
-                                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                                    WHERE
-                                        created_at >= :startDate::timestamp
-                                        AND created_at < :endDate::timestamp
-                                        AND tr.action_performed_by = :username
-                                        and wo.project_id = :id
-                                        and pc.product_type = 'COMPUTE'
-                                        AND tr.type = 'charge'
-                                        and p.name not like 'uc%' and p.name not like '%gpu%'
-                                ) as used
+                    usageForWallet[username!!] = (usageForWallet[username] ?: 0) + usage
+                }
+            }
+        }
+    return usageForWallet
+    }
+
+    suspend fun getSDUCeph(): Map<String, Long> {
+        val usageForWallet = mutableMapOf<String, Long>()
+        db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    """
+                                select (initial_balance - local_balance) as usage, wo.username, wo.project_id
+                                from accounting.wallets wa
+                                    join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
+                                    join accounting.wallet_owner wo on wa.owned_by = wo.id
+                                    join accounting.product_categories pc on wa.category = pc.id
+                                    left join project.projects pr on wo.project_id = pr.id
+                                where pc.category like '%ceph%'
                             """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
+                ).rows
+                .forEach {
+                    val username = it.getString(1)
+                    val projectId = it.getString(2)
+                    val usage = it.getLong(0) ?: 0
+                    if (username == null) {
+                        usageForWallet[projectId!!] = usage
+                    } else {
+                        usageForWallet[username] = usage
                     }
-                    amount
                 }
-            }
         }
+        return usageForWallet
     }
 
-    fun calculateProductUsageForUserInProject(
-        startDate: LocalDateTime,
-        productType: ProductType,
-        username: String,
-        projectId: String
-    ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
-            return 0
-        }
-        if (productType == ProductType.STORAGE) {
-            val storageInGB = runBlocking {
-                db.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("startDate", startDate.toLocalDate().toString())
-                                setParameter("type", productType.catagoryId)
-                                setParameter("id", projectId)
-                            },
-                            """
-                                select sum(usage)
-                                from (
-                                    select (initial_balance - local_balance) as usage
-                                    from accounting.wallets wa
-                                        join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
-                                        join accounting.wallet_owner wo on wa.owned_by = wo.id
-                                        join accounting.product_categories pc on wa.category = pc.id
-                                    where pc.category like '%ceph%' and wo.project_id = :id
-                                    ) as storage
-                            """
-                        ).rows
-                        .firstOrNull()
-                        ?.getLong(0) ?: 0L
-                }
-            }
-            return storageInGB * 1000
-        } else {
-            return runBlocking {
-                val amount = db.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("startDate", startDate.toString().substringBefore("T"))
-                                setParameter("type", productType.catagoryId)
-                                setParameter("username", username)
-                                setParameter("projectid", projectId)
-                            },
-                            """
-                            with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                                from (
-                                    SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                    FROM  ids tr
-                                        join accounting.products p on p.id = tr.product_id
-                                        join accounting.product_categories pc on pc.id = p.category
-                                        join accounting.wallets w on pc.id = w.category
-                                        join accounting.wallet_owner wo on w.owned_by = wo.id
-                                    WHERE
-                                        created_at >= :startDate::timestamp
-                                        AND pc.product_type = :type
-                                        AND tr.action_performed_by = :username
-                                    AND tr.type = 'charge' and wo.project_id = :id
-                                ) as used
-                            """
-                        ).rows
-                        .firstOrNull()
-                        ?.getLong(0) ?: 0L
-                }
-                amount
-            }
-        }
-    }
-
-    fun calculateProductUsage(
+    suspend fun getGPUUsage(
         startDate: LocalDateTime,
         endDate: LocalDateTime,
-        productType: ProductType,
         aau: Boolean
-    ): Long {
-        if (productType == ProductType.GPU && startDate.isBefore(LocalDateTime.parse("2021-03-01T00:00:00"))) {
-            return 0
-        }
-        if (productType == ProductType.STORAGE) {
-            val storageInGB = runBlocking {
-                db.withSession { session ->
-                    session
-                        .sendPreparedStatement(
-                            {
-                                setParameter("startDate", startDate.toLocalDate().toString())
-                                setParameter("endDate", endDate.toLocalDate().toString())
-                            },
-                            """
-                                select sum(usage)::bigint
-                                from (
-                                    select (initial_balance - local_balance) as usage
-                                    from accounting.wallets wa
-                                        join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
-                                        join accounting.wallet_owner wo on wa.owned_by = wo.id
-                                        join accounting.product_categories pc on wa.category = pc.id
-                                    where pc.category like '%ceph%' 
-                                    ) as storage
-                            """
-                        ).rows
-                        .firstOrNull()
-                        ?.getLong(0) ?: 0L
-                }
-            }
-            return storageInGB * 1000
-        } else if (productType == ProductType.GPU){
-            val amount = if (aau) {
-                runBlocking {
-                    db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                },
-                                """
-                            with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                            from (
-                                SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                FROM  ids tr
-                                    join accounting.products p on p.id = tr.product_id
-                                    join accounting.product_categories pc on pc.id = p.category
-                                WHERE
-                                    created_at >= :startDate::timestamp
-                                    AND created_at < :endDate::timestamp
-                                    AND pc.product_type = 'COMPUTE'
-                                    AND tr.type = 'charge'
-                                    and p.name like 'uc-t4%'
-                            ) as used;
-                        """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                }
-            } else { //SDU
-                0L
-            }
-            //Get Corehours by dividing amount with pricing and then with 60 to get in hours
-            return amount
-        } else {
-            //amount = amount payed for jobs in period SDU (Does not include personal workspaces)
-            if (aau) {
-                val amount = runBlocking {
-                    db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                },
-                                """
-                            with nomalized as (
-                                select *
-                                from accounting.transactions
-                                where
-                                    created_at > '2023-01-01' and
-                                    length(split_part(transaction_id, '-', 6)) > 0
-                            ),
-                            ids as (
-                                select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                from nomalized
-                                order by created_at desc
-                            )
-                            SELECT -sum(usage)::bigint / 60
-                            from (
-                                SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                FROM  "accounting"."transactions" tr
-                                    join accounting.products p on p.id = tr.product_id
-                                    join accounting.product_categories pc on pc.id = p.category
-                                WHERE
-                                    initial_transaction_id = transaction_id
-                                    AND created_at >= :startDate::timestamp
-                                    AND created_at < :endDate::timestamp
-                                    AND pc.product_type = 'COMPUTE'
-                                    AND tr.type = 'charge'
-                                    and p.name like 'uc-gene%'
-                            ) as used;
-                        """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                }
-                //Get Corehours by dividing amount with pricing and then with 60 to get in hours
-                return amount
-            } else {
-                val amount = runBlocking {
-                    db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                },
-                                """
-                                    with nomalized as (
-                                        select *
-                                        from accounting.transactions
-                                        where
-                                            created_at > '2023-01-01' and
-                                            length(split_part(transaction_id, '-', 6)) > 0
-                                    ),
-                                    ids as (
-                                        select transaction_id, periods, units, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                        from nomalized
-                                        order by created_at desc
-                                    )
-                                    SELECT -sum(usage)::bigint / 60
-                                    from (
-                                        SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                        FROM ids as tr
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on pc.id = p.category
-                                        WHERE
-                                            created_at >= :startDate::timestamp
-                                            AND created_at < :endDate::timestamp
-                                            AND tr.type = 'charge'
-                                            AND pc.product_type = 'COMPUTE'
-                                            and p.name not like 'uc%' and p.name not like '%gpu%'
-                                    ) as used;
-                                """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                }
-                //Get Corehours by dividing amount with pricing and then with 60 to get in hours
-                return amount
-            }
-        }
-    }
-
-    data class Usage(
-        val coreHours: Long,
-        val performedBy: String,
-        val username: String?,
-        val projectID: String?,
-        val allocationAffected: Long,
-        val productCategory: String
-    )
-
-    fun retrieveUsageAAU(startDate: LocalDateTime, endDate: LocalDateTime, productType: ProductType): List<Usage> {
-        return runBlocking {
+    ): Map<String, Long> {
+        val usageForWallet = mutableMapOf<String, Long>()
+        if (aau) {
             db.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("startDate", startDate.toLocalDate().toString())
-                            setParameter("endDate", endDate.toLocalDate().toString())
-                        },
-                        when (productType) {
-                            ProductType.GPU -> {
-                                """
-                                    with nomalized as (
-                                        select *
-                                        from accounting.transactions
-                                        where
-                                            created_at > '2023-01-01' and
-                                            length(split_part(transaction_id, '-', 6)) > 0
-                                    ),
-                                    ids as (
-                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                        from nomalized
-                                        order by created_at desc
-                                    )
-                                    select (((usage)/60)/10)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
-                                    from (
-                                        select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
-                                        from accounting.wallets w
-                                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                                            join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join ids tr on wall.id = tr.affected_allocation_id
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on p.category = pc.id
-                                        where
-                                            tr.created_at >= :startDate
-                                            and tr.created_at < :endDate
-                                            and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
-                                            and pc.category like 'uc-t%'
-                                            and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
-                                        order by tr.affected_allocation_id
-                                    ) as used
-                                    ;
-                                """.trimIndent()
-                            }
-                            ProductType.CPU -> {
-                                """
-                                    with nomalized as (
-                                        select *
-                                        from accounting.transactions
-                                        where
-                                            created_at > '2023-01-01' and
-                                            length(split_part(transaction_id, '-', 6)) > 0
-                                    ),
-                                    ids as (
-                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                        from nomalized
-                                        order by created_at desc
-                                    )
-                                    select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
-                                    from (
-                                        select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
-                                        from accounting.wallets w
-                                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                                            join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join ids tr on wall.id = tr.affected_allocation_id
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on p.category = pc.id
-                                        where
-                                            tr.created_at >= :startDate
-                                            and tr.created_at < :endDate
-                                            and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
-                                            and pc.category like 'uc-gene%'
-                                            and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
-                                        order by tr.affected_allocation_id
-                                    ) as used
-                                    ;
-                                """.trimIndent()
-                            }
-                            else -> {throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Wrong product types")}
-                        }
-                    ).rows
-                    .map {
-                        Usage(
-                            it.getLong(0)!!,
-                            it.getString(1)!!,
-                            it.getString(2),
-                            it.getString(3),
-                            it.getLong(4)!!,
-                            it.getString(5)!!
-                        )
-                    }
-            }
-        }
-    }
-
-    fun retrieveUsageSDU(startDate: LocalDateTime, endDate: LocalDateTime, productType: ProductType): List<Usage> {
-        return runBlocking {
-            db.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("startDate", startDate.toLocalDate().toString())
-                            setParameter("endDate", endDate.toLocalDate().toString())
-                        },
-                        when (productType) {
-                            ProductType.GPU -> {
-                                """
-                                    with nomalized as (
-                                        select *
-                                        from accounting.transactions
-                                        where
-                                            created_at > :startDate and
-                                            length(split_part(transaction_id, '-', 6)) > 0
-                                    ),
-                                    ids as (
-                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                        from nomalized
-                                        order by created_at desc
-                                    ),
-                                    gpusmall as (
-                                        select (-sum(tr.change/p.price_per_unit)/20) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
-                                        from accounting.wallets w
-                                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                                            join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join ids tr on wall.id = tr.affected_allocation_id
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on p.category = pc.id
-                                        where
-                                            tr.created_at >= :startDate
-                                            and tr.created_at < :endDate
-                                            and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
-                                            and pc.category not like 'uc%'
-                                            and pc.category like '%gpu%'
-                                            and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo.username, wo.project_id, pc.category, tr.action_performed_by
-                                        order by tr.affected_allocation_id
-                                    )
-                                    select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
-                                    from gpusmall;
-                                """.trimIndent()
-                            }
-                            ProductType.CPU -> {
-                                """
-                                    with nomalized as (
-                                        select *
-                                        from accounting.transactions
-                                        where
-                                            created_at > '2023-01-01' and
-                                            length(split_part(transaction_id, '-', 6)) > 0
-                                    ),
-                                    ids as (
-                                        select transaction_id, initial_transaction_id, affected_allocation_id, action_performed_by, change, product_id, created_at, type, split_part(transaction_id, '-',6)::bigint id, split_part(initial_transaction_id, '-', 6)::bigint initid
-                                        from nomalized
-                                        order by created_at desc
-                                    )
-                                    select ((usage)/60)::bigint hours, action_performed_by, username, project_id, affected_allocation_id, category
-                                    from (
-                                        select -sum(tr.change/p.price_per_unit) usage, tr.affected_allocation_id, tr.action_performed_by, wo.username, wo.project_id, pc.category
-                                        from accounting.wallets w
-                                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                                            join accounting.wallet_allocations wall on w.id = wall.associated_wallet
-                                            join ids tr on wall.id = tr.affected_allocation_id
-                                            join accounting.products p on p.id = tr.product_id
-                                            join accounting.product_categories pc on p.category = pc.id
-                                        where
-                                            tr.created_at >= :startDate
-                                            and tr.created_at < :endDate
-                                            and pc.product_type not in ('STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION')
-                                            and pc.category not like 'uc%'
-                                            and pc.category not like '%gpu%'
-                                            and tr.type = 'charge'
-                                        group by tr.affected_allocation_id, wo,username, wo.project_id, pc.category, tr.action_performed_by
-                                        order by tr.affected_allocation_id
-                                    ) as used;
-
-                                    ;
-                                """.trimIndent()
-                            }
-                            else -> {throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Wrong product types")}
-                        }
-                    ).rows
-                    .map {
-                        Usage(
-                            it.getLong(0)!!,
-                            it.getString(1)!!,
-                            it.getString(2),
-                            it.getString(3),
-                            it.getLong(4)!!,
-                            it.getString(5)!!
-                        )
-                    }
-            }
-        }
-    }
-
-
-    fun getSDUStorage(): Map<DeicReportService.UserInProject, Long> {
-        val mapping = mutableMapOf<DeicReportService.UserInProject, Long>()
-        runBlocking {
-            db.withTransaction { session ->
                 session.sendPreparedStatement(
                     {
+                        setParameter("start", startDate.toLocalDate().toString())
+                        setParameter("end", endDate.toLocalDate().toString())
+                        setParameter("product", "uc_t%" )
                     },
                     """
-                        select (initial_balance - local_balance) as usage, wo.username, wo.project_id, coalesce(pm.username, wo.username)
-                        from accounting.wallets wa
-                            join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
-                            join accounting.wallet_owner wo on wa.owned_by = wo.id
-                            join accounting.product_categories pc on wa.category = pc.id
-                            left join project.projects pr on wo.project_id = pr.id
-                            left join project.project_members pm on pr.id = pm.project_id
-                        where pc.category like '%ceph%'
-                    """
-                ).rows
-                    .forEach {
-                        val uip = DeicReportService.UserInProject(it.getString(3)!!, it.getString(2))
-                        val found = mapping[uip]
-                        if (found == null) {
-                            mapping[uip] = it.getLong(0)!!
-                        } else {
-                            mapping[uip] = found + it.getLong(0)!!
-                        }
+                    with jobs as (
+                        select
+                            r.id job_id,
+                            coalesce(job.started_at, r.created_at) job_start,
+                            case when current_state = 'RUNNING' then now() else job.last_update end job_ended,
+                            job.current_state,
+                            p.gpu,
+                            job.replicas,
+                            r.created_by,
+                            r.project
+                        from app_orchestrator.jobs job join
+                            provider.resource r on job.resource = r.id join
+                            accounting.products p on r.product = p.id
+                        where
+                            p.name like :product and
+                            (job.started_at < :end) and
+                            (job.last_update > :start)
+                    ),
+                    clamedJobs as (
+                        select job_id,
+                          case when job_start < :start then :start else job_start end jobstart,
+                          case when job_ended > :end then :end else job_ended end jobend,
+                          gpu,
+                          replicas,
+                          created_by,
+                          project
+                       from jobs
+                    ),
+                    minutes as (
+                        select *, ((extract (epoch from jobend) - extract (epoch from jobstart))/ 60) minSpend
+                        from clamedJobs
+                        ),
+                    used as (
+                        select ((minSpend * gpu * replicas)/ 60)::bigint  resourcesUsed, created_by, project
+                        from minutes )
+                    select * from used;
+                """.trimIndent()
+                ).rows.forEach {
+                    val usage = it.getLong(0)!!
+                    val username = it.getString(1)
+                    val project = it.getString(2)
+                    if (project != null ) {
+                        usageForWallet[project] = (usageForWallet[project]?:0) + usage
+                    } else {
+                        usageForWallet[username!!] = (usageForWallet[username] ?: 0) + usage
                     }
+                }
             }
         }
-        return mapping
+        return usageForWallet
     }
+    suspend fun calculateProductUsage(
+        startDate: LocalDateTime,
+        endDate: LocalDateTime,
+        productType: ProductType,
+        aau: Boolean
+    ): Long {
+        return when (productType) {
+            ProductType.STORAGE -> {
+                getSDUCeph().values.sum()
+            }
+            ProductType.GPU -> {
+                getGPUUsage(startDate, endDate, aau).values.sum()
+            }
+            else -> {
+                getCPUUsage(startDate, endDate, aau).values.sum()
+            }
+        }
+    }
+
+    suspend fun retrieveUsageAAU(startDate: LocalDateTime, endDate: LocalDateTime, productType: ProductType): Map<String, Long> {
+        return when (productType) {
+            ProductType.CPU -> {
+                getCPUUsage(startDate, endDate, true)
+            }
+            ProductType.GPU -> {
+                getGPUUsage(startDate, endDate, true)
+            }
+            else -> {throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Wrong product types")}
+        }
+    }
+
+    suspend fun retrieveUsageSDU(
+        startDate: LocalDateTime,
+        endDate: LocalDateTime,
+        productType: ProductType
+    ): Map<String, Long> {
+        return when (productType) {
+            ProductType.CPU -> {
+                return getCPUUsage(startDate, endDate, false)
+            }
+            ProductType.GPU -> {
+                emptyMap()
+            }
+            else -> {throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Wrong product types")}
+        }
+    }
+
     fun getWallets(projectId: String): List<WalletInfo> {
         return runBlocking {
             db.withTransaction { session ->
@@ -906,37 +377,6 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             }
         }
         return resultList.asReversed()
-    }
-
-    fun findActiveProjectsForAauUsage(
-        startDate: LocalDateTime,
-        endDate: LocalDateTime
-    ): List<String> {
-        return runBlocking {
-            db.withSession { session ->
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("startDate", startDate.toLocalDate().toString())
-                            setParameter("endDate", endDate.toLocalDate().toString())
-                        },
-                        """
-                            select wo.project_id
-                            from accounting.wallet_allocations wall
-                                join accounting.wallets w on wall.associated_wallet = w.id
-                                join accounting.wallet_owner wo on w.owned_by = wo.id
-                                join accounting.product_categories pc on w.category = pc.id
-                                join accounting.transactions tr on wall.id = tr.affected_allocation_id
-                            where pc.category like 'uc-%'
-                                and tr.created_at >= :startDate
-                                and tr.created_at < :endDate
-                        """.trimIndent()
-                    ).rows
-                    .mapNotNull {
-                        it.getString(0)
-                    }
-            }
-        }
     }
 
     fun findProjectMembers(projectId: String): List<ProjectMemberInfo> {

@@ -8,7 +8,7 @@ export type LinkProps = LProps & BaseLinkProps & {
     active?: boolean;
 }
 
-function Link({active, ...props}: LinkProps): JSX.Element {
+function Link({active, ...props}: LinkProps): React.ReactNode {
     const style: CSSProperties = unbox(props);
     delete style["color"];
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;

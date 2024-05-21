@@ -95,6 +95,11 @@ interface ContainerBuilder {
     var memoryMegabytes: Int
     var gpus: Int
 
+    /**
+     * Keeps the reservation for scheduling purposes but removes them from the pod template. Used only for Syncthing.
+     */
+    fun removeRealReservationFromPod() {}
+
     val isSidecar: Boolean
     fun supportsSidecar(): Boolean
     fun sidecar(name: String, builder: ContainerBuilder.() -> Unit)
@@ -117,4 +122,5 @@ interface ContainerBuilder {
     fun hostAlias(jobId: String, rank: Int, alias: String)
 
     fun upsertAnnotation(key: String, value: String)
+    fun upsertLabel(key: String, value: String)
 }

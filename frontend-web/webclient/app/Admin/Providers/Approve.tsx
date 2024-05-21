@@ -14,7 +14,7 @@ import {FindByStringId} from "@/UCloud";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function ApproveOrSign(): JSX.Element | null {
+function ApproveOrSign(): React.ReactNode {
     const [loading, invokeCommand] = useCloudCommand();
 
     usePage("Approve Provider", SidebarTabId.NONE);

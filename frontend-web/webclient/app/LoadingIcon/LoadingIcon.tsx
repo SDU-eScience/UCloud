@@ -50,7 +50,7 @@ function createCSS(parentPath: string) {
 
 // NOTE(Dan): Before changing the component below, please be aware that the createSpinner() function of
 // ResourceBrowser has a hardcoded assumption about the DOM that this component renders.
-const HexSpin = ({size = 32, margin}: HexSpinProps): JSX.Element => (
+const HexSpin = ({size = 32, margin}: HexSpinProps): React.ReactNode => (
     <div className={HexSpinWrapper} data-tag="loading-spinner" style={{width: size, height: size, margin}}>
         <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -83,7 +83,7 @@ const HexSpin = ({size = 32, margin}: HexSpinProps): JSX.Element => (
     </div>
 );
 
-export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): JSX.Element | null {
+export function PredicatedLoadingSpinner({loading, size}: {loading: boolean, size?: number}): React.ReactNode {
     if (loading) return <HexSpin size={size} />
     return null;
 }

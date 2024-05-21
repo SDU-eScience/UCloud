@@ -332,25 +332,6 @@ export class HttpClient {
         return this.username;
     }
 
-    /**
-     * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
-     */
-    public get homeFolder(): string {
-        return `/home/${this.username}/`;
-    }
-
-    public get currentProjectFolder(): string {
-        return `/projects/${this.projectId}`;
-    }
-
-    public get sharesFolder(): string {
-        return `${this.homeFolder}Shares`;
-    }
-
-    public get favoritesFolder(): string {
-        return `${this.homeFolder}Favorites`;
-    }
-
     public get isLoggedIn(): boolean {
         return this.userInfo != null;
     }

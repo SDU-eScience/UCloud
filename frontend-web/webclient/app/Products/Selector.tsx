@@ -271,7 +271,7 @@ export const ProductSelector: React.FunctionComponent<{
                                     in your grant application.
                                 </>}
 
-                                <Link to={grantsLink(Client)}>
+                                <Link to={grantsLink()}>
                                     <Button fullWidth mt="20px" mb={"4px"}>Apply for resources</Button>
                                 </Link>
                             </NoResultsCardBody>

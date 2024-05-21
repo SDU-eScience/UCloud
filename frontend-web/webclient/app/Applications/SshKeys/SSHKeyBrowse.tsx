@@ -6,7 +6,6 @@ import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {image} from "@/Utilities/HTMLUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
@@ -24,13 +23,13 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.Element {
+export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<SSHKey> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("SSH keys", SidebarTabId.RESOURCES);
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -38,11 +37,10 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
-                // Ensure no refecthing on `beforeOpen`.
+                // Ensure no refecthing on `skipOpen`.
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
                 browser.on("open", (oldPath, newPath, resource) => {
                     // For initial fetch.
-                    if (oldPath === newPath) return;
                     callAPI(SshKeyApi.browse({
                         ...defaultRetrieveFlags,
                         ...browser.browseFilters,
@@ -53,7 +51,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
@@ -74,9 +72,9 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     row.title.append(icon)
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.id, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, dims, row));
 
-                    ResourceBrowser.icons.renderIcon({name: "key", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setIcon);
+                    ResourceBrowser.icons.renderIcon({name: "heroKey", color: "textPrimary", color2: "textPrimary", height: 64, width: 64}).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name
@@ -110,21 +108,15 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): JSX.E
                     }
                 });
 
-                ResourceBrowser.icons.renderIcon({
-                    name: "key",
-                    color: "iconColor",
-                    color2: "iconColor",
-                    height: 256,
-                    width: 256
-                }).then(icon => {
-                    const fragment = document.createDocumentFragment();
-                    fragment.append(image(icon, {height: 60, width: 60}));
-                    browser.defaultEmptyGraphic = fragment;
-                });
-
-                browser.on("fetchOperationsCallback", () =>
-                    ({dispatch, navigate, isCreating: false, api: {isCoreResource: true}})
-                );
+                browser.setEmptyIcon("heroKey");
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch,
+                    navigate,
+                    isCreating: false,
+                    api: {isCoreResource: true},
+                    invokeCommand: callAPI,
+                    reload: () => browser.refresh()
+                }));
 
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();

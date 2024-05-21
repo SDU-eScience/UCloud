@@ -7,7 +7,7 @@ import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 
-export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
+export const Dialog: React.FunctionComponent = (): React.ReactNode => {
     const [dialogs, setDialogs] = useState<IDialog[]>([]);
     
     const [activePath, setActivePath] = useState(window.location.href);

@@ -17,11 +17,10 @@ export function MainContainer({
     additional,
     header,
     headerSize = 64
-}: MainContainerProps): JSX.Element {
+}: MainContainerProps): React.ReactNode {
     const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
-    const mainXpad = pad;
 
     useEffect(() => {
         // HACK(Dan): Under no circumstances should the body be scrolling if we are mounting this element.
@@ -49,10 +48,10 @@ export function MainContainer({
 export interface LoadingMainContainerProps extends MainContainerProps {
     loading?: boolean;
     error?: string;
-    fallbackHeader?: JSX.Element;
+    fallbackHeader?: React.ReactNode;
 }
 
-export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Element {
+export function LoadingMainContainer(props: LoadingMainContainerProps): React.ReactNode {
     let main: React.ReactNode;
     if (props.loading) {
         main = <Spinner />;

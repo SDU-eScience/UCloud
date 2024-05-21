@@ -24,7 +24,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
-function NewsManagement(): JSX.Element | null {
+function NewsManagement(): React.ReactNode {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [loading, setLoading] = React.useState(false);
@@ -75,7 +75,7 @@ function NewsManagement(): JSX.Element | null {
 
     return (
         <MainContainer
-            header={<Heading.h2>News</Heading.h2>}
+            header={<h3 className="title">News</h3>}
             main={(
                 <Flex justifyContent="center">
                     <Box maxWidth="800px" width={1}>
@@ -173,7 +173,7 @@ function NewsManagement(): JSX.Element | null {
         />
     );
 
-    function pageRenderer(page: Page<NewsPost>): JSX.Element {
+    function pageRenderer(page: Page<NewsPost>): React.ReactNode {
         return (
             <Box width={1} mt="10px">
                 <NewsList news={page.items} title="Posts" toggleHidden={toggleHidden} />
@@ -259,7 +259,7 @@ interface NewsListProps {
     toggleHidden?: (id: number) => void;
 }
 
-export function NewsList(props: NewsListProps): JSX.Element | null {
+export function NewsList(props: NewsListProps): React.ReactNode {
     if (props.news.length === 0) return null;
     return (
         <>
@@ -271,7 +271,7 @@ export function NewsList(props: NewsListProps): JSX.Element | null {
     );
 }
 
-function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => void}): JSX.Element {
+function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => void}): React.ReactNode {
     return (
         <Link to={AppRoutes.news.detailed(props.post.id)}>
             <Heading.h4>{props.post.title}</Heading.h4>
@@ -299,7 +299,7 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
     }
 }
 
-export const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): JSX.Element | null => {
+export const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): React.ReactNode => {
     if (props.categories.length === 0) return null;
     return (
         <Card p="10px" borderRadius="6px" my="3px">

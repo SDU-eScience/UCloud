@@ -15,8 +15,3 @@ export const runApplication = (application: NameAndVersion): string =>
 
 export const runApplicationWithName = (application: string): string =>
     run(application);
-
-export const results = (): string => `/applications/results`;
-
-export const browse = (itemsPerPage = 25, page = 0): string =>
-    buildQueryString(`/applications`, {itemsPerPage, page});

@@ -29,7 +29,6 @@ export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
-const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
@@ -397,7 +396,7 @@ interface LoginProps {
     passwordRef: React.RefObject<HTMLInputElement>;
 }
 
-const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
+const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): React.ReactNode => !enabled2fa ? (
     <>
         <LoginInput type="hidden" value="web-csrf" name="service" />
         <LoginInput
@@ -423,7 +422,7 @@ const LoginTextSpanClass = injectStyleSimple("login-text", `
     color: white;
 `);
 
-function DropdownLike({children}): JSX.Element {
+function DropdownLike({children}): React.ReactNode {
     return <div className={DropdownLikeClass}>
         {children}
     </div>
@@ -437,7 +436,7 @@ const DropdownLikeClass = injectStyleSimple("dropdown-like", `
     padding: 16px 16px;
 `);
 
-function LoginInput(props: InputProps): JSX.Element {
+function LoginInput(props: InputProps): React.ReactNode {
     return <Input {...props} className={LoginInputClass} />
 }
 
@@ -468,11 +467,11 @@ const LoginIconClass = injectStyle("login-icon", k => `
     }
 `);
 
-function LoginButton(props: ButtonProps): JSX.Element {
+function LoginButton(props: ButtonProps): React.ReactNode {
     return <Button {...props} textColor="fixedBlack" color="fixedWhite" />
 }
 
-function BlackLoginText(props: React.PropsWithChildren<TextProps>): JSX.Element {
+function BlackLoginText(props: React.PropsWithChildren<TextProps>): React.ReactNode {
     return <Text className={BlackLoginTextClass} {...props} />
 }
 
@@ -481,7 +480,7 @@ const BlackLoginTextClass = injectStyleSimple("black-login-text", `
     font-size: var(--interactiveElementsSize);
 `);
 
-function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JSX.Element {
+function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): React.ReactNode {
     return (<Box backgroundColor="#fff">
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>

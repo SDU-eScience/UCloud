@@ -7,7 +7,7 @@ import {classConcat, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 
-const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
+const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): React.ReactNode => {
     let Component = icons[name];
     if (!Component) {
         if (name === "bug") {
@@ -77,7 +77,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
 Icon.displayName = "Icon";
 
 // Use to see every available icon in debugging.
-export const EveryIcon = (): JSX.Element => (
+export const EveryIcon = (): React.ReactNode => (
     <>
         {Object.keys(icons).map((it: IconName, i: number) =>
             (<span title={it} key={i}><Icon name={it} key={i} color="iconColor" color2="iconColor2" /></span>)
@@ -91,7 +91,7 @@ const randomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-function Bug({size, color2, spin, ...props}: Omit<IconBaseProps, "name">): JSX.Element {
+function Bug({size, color2, spin, ...props}: Omit<IconBaseProps, "name">): React.ReactNode {
     const bugs: string[] = ["bug1", "bug2", "bug3", "bug4", "bug5", "bug6"];
     const [idx] = React.useState(randomInt(0, bugs.length - 1));
 

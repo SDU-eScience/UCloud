@@ -25,6 +25,10 @@ func SetLevel(level int) {
 	logger.SetLevel(level)
 }
 
+func Fatal(format string, args ...any) {
+	logger.Fatal(format, args...)
+}
+
 func Error(format string, args ...any) {
 	logger.Error(format, args...)
 }

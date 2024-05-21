@@ -29,7 +29,7 @@ type FileListFetcher = () => Promise<PackagedFile[]>;
 }*/
 
 class FileTraverser {
-    private root: FileSystemEntry;
+    private readonly root: FileSystemEntry;
     private stack: FileSystemDirectoryEntry[] = [];
     private didReturnRoot: boolean = false;
     private reader: FileSystemDirectoryReader | null = null;

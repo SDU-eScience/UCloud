@@ -55,10 +55,6 @@ interface RenameProjectRequest {
     newTitle: string;
 }
 
-interface VerifyProjectRequest {
-
-}
-
 export type ProjectBrowseParams = ProjectFlags & ProjectsSortByFlags & PaginationRequestV2;
 
 class ProjectApi {
@@ -88,14 +84,8 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "toggleFavorite");
     }
 
-    // TODO(Jonas): Test
     public renameProject(request: BulkRequest<RenameProjectRequest>): APICallParameters {
         return apiUpdate(request, this.baseContext, "renameProject");
-    }
-
-    // TODO(Jonas): Handle in general.
-    public verifyProject(request: BulkRequest<VerifyProjectRequest>): APICallParameters {
-        return apiUpdate(request, this.baseContext, "verifyProject");
     }
 
     public updateSettings(request: ProjectSettings): APICallParameters {
@@ -219,28 +209,6 @@ export function useProjectId(): string | undefined {
     return useSelector<ReduxObject, string | undefined>(it => it.project.project);
 }
 
-export function projectRoleToString(role: ProjectRole): string {
-    switch (role) {
-        case OldProjectRole.PI: return "PI";
-        case OldProjectRole.ADMIN: return "Admin";
-        case OldProjectRole.USER: return "User";
-    }
-}
-
-export function projectStringToRole(role: string): ProjectRole {
-    switch (role) {
-        case "PI": return OldProjectRole.PI;
-        case "ADMIN": return OldProjectRole.ADMIN;
-        case "USER": return OldProjectRole.USER;
-        default: {
-            console.log("Unhandled role in projectStringToRole")
-            console.log(role);
-            return OldProjectRole.USER;
-        }
-    }
-
-}
-
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
         case OldProjectRole.PI: return "heroTrophy";
@@ -251,34 +219,6 @@ export function projectRoleToStringIcon(role: ProjectRole): IconName {
             return "bug";
         }
     }
-}
-
-export function useSubprojectFromURL(request: ProjectFlags): {project: Project; reload: () => void; projectId: string} {
-    const location = useLocation();
-    const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
-
-    const [project, fetchProject] = useCloudAPI<Project>(
-        {noop: true},
-        emptyProject()
-    );
-
-    useEffect(() => {
-        if (subprojectFromQuery) {
-            fetchProject(api.retrieve({
-                id: subprojectFromQuery,
-                ...request
-            }));
-        }
-    }, [subprojectFromQuery])
-
-    const reload = useCallback(() => {
-        fetchProject(api.retrieve({
-            id: subprojectFromQuery,
-            ...request
-        }));
-    }, [request])
-
-    return {project: project.data, projectId: subprojectFromQuery, reload};
 }
 
 export function emptyProject(): Project {

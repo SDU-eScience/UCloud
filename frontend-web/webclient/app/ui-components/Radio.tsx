@@ -2,7 +2,7 @@ import * as React from "react";
 import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
 
-const Radio = (props: RadioWrapProps & {onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}): JSX.Element => {
+const Radio = (props: RadioWrapProps & {onChange: (e: React.ChangeEvent<HTMLInputElement>) => void}): React.ReactNode => {
     const {checked} = props;
 
     const radioIconName = checked ? "radioChecked" : "radioEmpty";

@@ -43,7 +43,7 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Ingress, P
     globalTtl: 60_000
 });
 
-export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): JSX.Element {
+export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
     const dispatch = useDispatch();
@@ -51,7 +51,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Public links", SidebarTabId.RESOURCES);
     }
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
@@ -121,6 +121,11 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                             browser.selectAndShow(it => it === ingressBeingCreated);
 
                             try {
+                                if (browser.renameValue.length < 1) {
+                                    browser.refresh();
+                                    return;
+                                }
+
                                 const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
                                     domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference

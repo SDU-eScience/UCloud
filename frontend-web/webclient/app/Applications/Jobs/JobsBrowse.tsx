@@ -4,7 +4,7 @@ import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitle, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitleList} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -36,12 +36,12 @@ const FEATURES: ResourceBrowseFeatures = {
 const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "State", columnWidth: 75}];
 const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
 
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): JSX.Element {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Jobs", SidebarTabId.RUNS);
@@ -156,7 +156,9 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             elem.innerText = "Unknown";
                             row.stat1.append(elem);
                         } else {
-                            row.stat1.innerText = job.owner.createdBy;
+                            const createdByElement = ResourceBrowser.defaultTitleRenderer(job.owner.createdBy, dims, row);
+                            createdByElement.style.maxWidth = `calc(var(--stat1Width) - 20px)`;
+                            row.stat1.append(createdByElement);
                         }
                         row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                     } else {

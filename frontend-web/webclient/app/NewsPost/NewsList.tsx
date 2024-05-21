@@ -107,13 +107,13 @@ export const NewsList: React.FC = () => {
     }
 };
 
-const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element | null => {
+const IsExpired = (props: {now: number, expiration: number | null}): React.ReactNode => {
     if (props.expiration != null && props.now > props.expiration)
         return <Text color="errorMain">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
     return null;
 };
 
-const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
+const IsHidden = (props: {hidden: boolean}): React.ReactNode => {
     if (props.hidden) return <Text ml="8px" mt="8px" color="textSecondary">Hidden</Text>;
     return null;
 };

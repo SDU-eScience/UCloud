@@ -227,6 +227,11 @@ class FeaturePublicIP(
 
         data class RetrievedIpAddress(val id: String, val internal: String, val external: String)
 
+        val projectOwner = job.owner.project
+        if (projectOwner != null && projectOwner in sensitiveProjects) {
+            throw RPCException("This project does not allow the use of public IPs!", HttpStatusCode.Forbidden)
+        }
+
         if (job.specification.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level
             throw RPCException(

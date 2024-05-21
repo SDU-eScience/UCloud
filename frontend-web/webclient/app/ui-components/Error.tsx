@@ -10,7 +10,7 @@ interface ErrorProps {
     width?: string | number
 }
 
-function Error(props: ErrorProps): JSX.Element | null {
+function Error(props: ErrorProps): React.ReactNode {
     if (!props.error) return null;
 
     function onClearError(e: React.MouseEvent<HTMLElement, MouseEvent>): void {
@@ -23,7 +23,7 @@ function Error(props: ErrorProps): JSX.Element | null {
             borderColor="errorMain"
         >
             <Flex alignItems="center">
-                <div style={{whiteSpace: "pre", color: "var(--errorMain)"}}>{props.error}</div>
+                <div style={{whiteSpace: "pre", color: "var(--primaryContrast)"}}>{props.error}</div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon

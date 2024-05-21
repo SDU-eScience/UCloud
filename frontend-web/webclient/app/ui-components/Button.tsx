@@ -1,11 +1,11 @@
 import * as React from "react";
-import {ButtonStyleProps, HeightProps, SizeProps, SpaceProps, WidthProps} from "styled-system";
+import {HeightProps, SpaceProps, WidthProps} from "styled-system";
 import {selectContrastColor, selectHoverColor, ThemeColor} from "./theme";
 import {classConcat, extractDataTags, extractEventHandlers, extractSize, injectStyle, unbox, WithEventHandlers} from "@/Unstyled";
 
 // TODO(Dan): A lot of these are left in to not break existing code, many of them are not actually supposed
 //  to do anything anymore.
-export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps, WithEventHandlers {
+export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEventHandlers {
     fullWidth?: boolean;
     textColor?: ThemeColor;
     color?: ThemeColor;
@@ -166,6 +166,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         {...extractEventHandlers(props)}
         {...extractDataTags(props)}
         ref={props.btnRef}
+        title={props.title}
     >
         {props.children}
     </button>

@@ -264,6 +264,6 @@ const TasksIconBase = injectStyle("task-icon-base", k => `
     }
 `);
 
-const TasksIcon = (): React.JSX.Element => <Icon className={TasksIconBase} name="notchedCircle" />;
+const TasksIcon = (): React.ReactNode => <Icon className={TasksIconBase} name="notchedCircle" />;
 
 export default BackgroundTasks;

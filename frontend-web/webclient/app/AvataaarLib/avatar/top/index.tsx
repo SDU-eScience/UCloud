@@ -11,11 +11,11 @@ interface TopProps {
     facialHairColor: FacialHairColor;
     facialHair: FacialHairEnum;
     hatColor: HatColorEnum;
-    children: JSX.Element;
+    children: React.ReactNode;
 }
 
 
-export default function Top(props: TopProps): JSX.Element {
+export default function Top(props: TopProps): React.ReactNode {
     const {children} = props;
     switch (props.optionValue) {
         case TopOption.NoHair:
@@ -1797,7 +1797,7 @@ class ShortHairShaggyMullet extends React.Component<HairProps> {
     private path2 = uniqueId("react-path-");
     private path3 = uniqueId("react-path-");
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const {mask1, mask2, path1, path2, path3} = this;
         return (
             <g id="Top" strokeWidth="1" fillRule="evenodd">
@@ -2844,7 +2844,7 @@ class WinterHat4 extends React.Component<HairProps> {
 
 import {TopAccessory} from "@/UserSettings/AvatarOptions";
 
-export function Accessories(props: {optionValue: TopAccessory}): JSX.Element {
+export function Accessories(props: {optionValue: TopAccessory}): React.ReactNode {
     switch (props.optionValue) {
         case TopAccessory.Blank:
             return <BlankAccessory />;
@@ -3377,7 +3377,7 @@ class Wayfarers extends React.Component {
     }
 }
 
-function FacialHair(props: {facialHairColor: FacialHairColor, facialHair: FacialHairEnum}): JSX.Element {
+function FacialHair(props: {facialHairColor: FacialHairColor, facialHair: FacialHairEnum}): React.ReactNode {
     switch (props.facialHair) {
         case FacialHairEnum.Blank:
             return <BlankFacialHair />;
@@ -3441,7 +3441,7 @@ class BeardLight extends React.Component<{facialHairColor: FacialHairColor}> {
     private mask1 = uniqueId("react-mask-");
     private path1 = uniqueId("react-path-");
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         const {mask1, path1} = this;
         return (
             <g
@@ -3602,7 +3602,7 @@ const BrownDark = makeColor("BrownDark", "#4A312C");
 const Platinum = makeColor("Platinum", "#ECDCBF");
 const Red = makeColor("Red", "#C93305");
 
-function Colors(props: Props): JSX.Element {
+function Colors(props: Props): React.ReactNode {
   switch (props.color) {
     case FacialHairColor.Auburn:
       return <Auburn maskID={props.maskID} />;

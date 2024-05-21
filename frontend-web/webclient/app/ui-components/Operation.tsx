@@ -175,8 +175,7 @@ interface OperationProps<EntityType, Extras = undefined> {
     forceEvaluationOnOpen?: boolean;
 }
 
-type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
-    JSX.Element | null;
+type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) => React.ReactNode;
 
 export const Operations: OperationsType = props => {
     const closeDropdownRef = useRef<() => void>(doNothing);
@@ -204,7 +203,7 @@ export const Operations: OperationsType = props => {
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
-    const operations: {elem: JSX.Element, priority: number, primary: boolean}[] = props.operations
+    const operations: {elem: React.ReactNode, priority: number, primary: boolean}[] = props.operations
         .filter(op => op.enabled(selected, props.extra, props.all) !== false)
         .map((op, idx) => {
             const enabled = op.enabled(selected, props.extra, props.all);

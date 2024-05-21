@@ -5,7 +5,7 @@ import Icon from "./Icon";
 import {injectStyle} from "@/Unstyled";
 import {Spacer} from "./Spacer";
 
-function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): JSX.Element {
+function PopIn({hasContent, children}: React.PropsWithChildren<{hasContent: boolean}>): React.ReactNode {
     return <div className={PopInClass} data-has-content={hasContent}>
         {hasContent ? children : null}
     </div >
@@ -33,7 +33,7 @@ const PopInClass = injectStyle("popin-class", k => `
     }
 `);
 
-export function RightPopIn(): JSX.Element {
+export function RightPopIn(): React.ReactNode {
     const dispatch = useDispatch();
 
     const content = useSelector<ReduxObject, PopInArgs | null>(it => it.popinChild);
@@ -53,7 +53,7 @@ export function RightPopIn(): JSX.Element {
 }
 
 export interface PopInArgs {
-    el: JSX.Element;
+    el: React.ReactNode;
     onFullScreen?: () => void;
 }
 

@@ -431,7 +431,7 @@ export const Overview: React.FunctionComponent = () => {
     usePage("File synchronization", SidebarTabId.FILES);
     useSetRefreshFunction(reload);
 
-    let main: JSX.Element;
+    let main: React.ReactNode;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
         main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />;
     } else {
@@ -652,21 +652,6 @@ const ServerRenderer: ItemRenderer<Job> = {
 
 const serverOperations: Operation<Job, OperationCallbacks>[] = [
     {
-        text: "Open interface",
-        icon: "open",
-        enabled: selected => selected.length === 1,
-        onClick: ([job]) => {
-            const element = document.createElement("a");
-            element.setAttribute("href", `/app/applications/web/${job.id}/0?hide-frame`);
-            element.setAttribute("target", "_blank");
-            element.style.display = "none";
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
-        },
-        shortcut: ShortcutKey.O
-    },
-    {
         text: "Show device ID",
         icon: "id",
         enabled: selected => selected.length === 1,
@@ -882,7 +867,7 @@ const AddDeviceWizard: React.FunctionComponent<{
         setTutorialStep(prev => prev - 1);
     }, []);
 
-    let tutorialContent: JSX.Element = <></>;
+    let tutorialContent: React.ReactNode = <></>;
     switch (tutorialStep) {
         case STEP_INTRO: {
             tutorialContent = (
@@ -1040,7 +1025,7 @@ const TwoPanelLayout = injectStyle("two-panel-layout", k => `
     }
 `);
 
-function TutorialList(props: React.PropsWithChildren): JSX.Element {
+function TutorialList(props: React.PropsWithChildren): React.ReactNode {
     return <ol className={TutorialListClass} {...props} />
 }
 
@@ -1054,7 +1039,7 @@ const TutorialListClass = injectStyle("tutorial-list", k => `
     }
 `);
 
-function Screenshot(props: {src: string}): JSX.Element {
+function Screenshot(props: {src: string}): React.ReactNode {
     return <Image className={ScreenshotClass} src={props.src} />
 }
 
@@ -1071,7 +1056,7 @@ const DeviceBox = injectStyleSimple("device-box", `
 
 let permissionProblems: Record<string, boolean> = {};
 
-function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): void; folders?: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.JSX.Element {
+function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): void; folders?: SyncthingFolder[], opts: ResourceBrowserOpts<SyncthingFolder>}): React.ReactNode {
 
     React.useEffect(() => {
         return () => {permissionProblems = {};}
@@ -1127,7 +1112,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                 browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {});
-                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("SyncThing folders", e, {}))
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("Syncthing folders", e, {}))
 
                 browser.on("renderRow", (folder, row, dims) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();

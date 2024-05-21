@@ -38,6 +38,7 @@ import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
+import {withinDelta} from "@/Accounting/Allocations";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -46,7 +47,7 @@ interface NewsRequestProps extends PaginationRequest {
 
 function initialCall(): void {}
 
-function Dashboard(): React.JSX.Element {
+function Dashboard(): React.ReactNode {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
@@ -180,7 +181,7 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): JSX.Element {
+function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
@@ -193,7 +194,7 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
     </DashboardCard>;
 }
 
-function ApplyLinkButton(): React.JSX.Element {
+function ApplyLinkButton(): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
     if (!canApply) return <div />
@@ -254,7 +255,7 @@ function DashboardResources({wallets}: {
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
-                                            {n.maxUsable == (n.quota - n.totalUsage) ? null :
+                                            {withinDelta(n.quota, n.maxUsable, n.totalUsage) ? null :
                                                 <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                     <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
                                                 </TooltipV2>}
@@ -303,7 +304,7 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
     </DashboardCard>;
 };
 
-function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): JSX.Element | null {
+function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.ReactNode {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard

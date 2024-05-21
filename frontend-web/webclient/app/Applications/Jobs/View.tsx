@@ -38,7 +38,7 @@ import {SillyParser} from "@/Utilities/SillyParser";
 import Warning from "@/ui-components/Warning";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
-import {chain, classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName, makeKeyframe, unbox} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import FileBrowse from "@/Files/FileBrowse";
 import {LogOutput} from "@/UtilityComponents";
@@ -166,11 +166,11 @@ const Container = injectStyle("job-container", k => `
     animation: 800ms ${zoomInAnim};
   }
 
-  ${k} > ${chain(logoWrapper, active)} {
+  ${k} > ${logoWrapper.dot}${active.dot} {
     transition: scale 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} > ${chain(logoWrapper, active)} > ${logoScale.dot} {
+  ${k} > ${logoWrapper.dot}${active.dot} > ${logoScale.dot} {
     transition: transform 300ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
     transform: scale(var(--logoScale));
     transform-origin: top left;
@@ -185,22 +185,22 @@ const Container = injectStyle("job-container", k => `
     content: '';
   }
 
-  ${k} ${chain(data, dataEnterDone)} {
+  ${k} ${data.dot}${dataEnterDone.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
   }
 
-  ${k} ${chain(data, dataEnterActive)} {
+  ${k} ${data.dot}${dataEnterActive.dot} {
     opacity: 1;
     transform: translate3d(0, 0, 0);
     transition: transform 1000ms cubic-bezier(0.57, 0.10, 0.28, 0.84);
   }
 
-  ${k} ${chain(data, dataExit)} {
+  ${k} ${data.dot}${dataExit.dot} {
     opacity: 1;
   }
 
-  ${k} ${chain(data, dataExitActive)} {
+  ${k} ${data.dot}${dataExitActive.dot} {
     display: none;
   }
 
@@ -246,7 +246,7 @@ const Container = injectStyle("job-container", k => `
     --logoSize: 96px;
   }
 
-  ${chain(k, running)} {
+  ${k}${running.dot} {
     --logoScale: 0.5;
   }
 
@@ -306,7 +306,7 @@ function getBackend(job?: Job): string {
     return job?.status.resolvedApplication?.invocation.tool.tool?.description.backend ?? "";
 }
 
-export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
+export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
     const id = props.id ?? useParams<{id: string}>().id!;
 
     // Note: This might not match the real app name
@@ -591,7 +591,7 @@ const Content = injectStyle("content", k => `
     }
 `);
 
-function PublicLinkEntry({id}: {id: string}): JSX.Element {
+function PublicLinkEntry({id}: {id: string}): React.ReactNode {
     const [publicLink] = useCloudAPI<PublicLink | null>(PublicLinkApi.retrieve({id}), null);
     if (!id.startsWith("fake-") && publicLink.data == null) return <div />
     let domain: string;
@@ -1260,13 +1260,13 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     </Flex>;
 };
 
-function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): JSX.Element | null {
+function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     if (!pathRef.current) {
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
-    return <Card key={job.id} className={FadeInDiv} p={"0px"} height={"calc(100vh - 530px)"} minHeight={"500px"} mt={"16px"}>
+    return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />

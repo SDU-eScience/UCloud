@@ -18,7 +18,7 @@ const (
 	api_version = "2.231"
 )
 
-type Params map[string]interface{}
+type Params map[string]any
 
 type Client struct {
 	httpClient http.Client

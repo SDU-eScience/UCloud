@@ -2,7 +2,10 @@ package config
 
 import (
     "crypto/rand"
+    "crypto/rsa"
+    "crypto/x509"
     "encoding/hex"
+    "encoding/pem"
     "errors"
     "fmt"
     "gopkg.in/yaml.v3"
@@ -1108,4 +1111,42 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
     }
 
     return result
+}
+
+func ReadPublicKey(configDir string) *rsa.PublicKey {
+    content, _ := os.ReadFile(configDir + "/ucloud_key.pub")
+    if content == nil {
+        return nil
+    }
+
+    var keyBuilder strings.Builder
+    keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
+    keyBuilder.WriteString(chunkString(string(content), 64))
+    keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
+
+    key := keyBuilder.String()
+
+    block, _ := pem.Decode([]byte(key))
+    if block == nil {
+        return nil
+    }
+
+    pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
+    if pubKey == nil {
+        return nil
+    }
+
+    rsaKey, _ := pubKey.(*rsa.PublicKey)
+    return rsaKey
+}
+
+func chunkString(input string, chunkSize int) string {
+    var builder strings.Builder
+    for i, c := range input {
+        if i != 0 && i%chunkSize == 0 {
+            builder.WriteString("\n")
+        }
+        builder.WriteRune(c)
+    }
+    return builder.String()
 }

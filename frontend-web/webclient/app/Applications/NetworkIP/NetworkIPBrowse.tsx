@@ -42,14 +42,14 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2NetworkIP,
     globalTtl: 60_000
 });
 
-export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>}): JSX.Element {
+export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("Public IPs", SidebarTabId.RESOURCES);
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+    const [productSelectorPortal, setProductSelectorPortal] = React.useState<React.ReactNode>(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -206,7 +206,10 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                         row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims, row));
                     }
 
-                    if (ip.status.boundTo.length === 1) {
+                    if (opts?.selection) {
+                        const useButton = browser.defaultButtonRenderer(opts.selection, ip);
+                        if (useButton) row.stat3.append(useButton);
+                    } else if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
                         row.stat3.innerText = boundTo;
                     }

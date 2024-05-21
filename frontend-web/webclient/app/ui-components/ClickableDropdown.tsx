@@ -66,7 +66,7 @@ const dropdownPortal = "dropdown-portal";
 
 function ClickableDropdown<T>({
     keepOpenOnClick, onChange, onTriggerClick, ...props
-}: PropsWithChildren<ClickableDropdownProps<T>>): JSX.Element {
+}: PropsWithChildren<ClickableDropdownProps<T>>): React.ReactNode {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(props.open ?? false);
     const [location, setLocation] = useState<[number, number]>([0, 0]);

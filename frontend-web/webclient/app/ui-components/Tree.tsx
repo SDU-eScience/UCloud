@@ -124,6 +124,7 @@ export const Tree: React.FunctionComponent<{
                     newRow.setAttribute("data-selected", "");
                     newRow.scrollIntoView({ block: "nearest" });
                 }
+                // Unused expression?
                 rowIdx = newRowIdx;
             }
         };
@@ -208,7 +209,7 @@ export const Tree: React.FunctionComponent<{
     </div>;
 };
 
-const TreeNodeChildren = injectStyle("tree-node-children", k => ``);
+const TreeNodeChildren = injectStyle("tree-node-children", () => ``);
 
 const TreeNodeClass = injectStyle("tree-node", k => `
     ${k} > [data-component=list-row]:hover {

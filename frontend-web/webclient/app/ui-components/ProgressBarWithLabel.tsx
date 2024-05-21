@@ -99,7 +99,7 @@ interface Props {
 /* https://codepen.io/valiooo/pen/ALXodB */
 export function ProgressBarWithLabel(
     props: React.PropsWithChildren<Props>
-): JSX.Element | null {
+): React.ReactNode {
     if (isNaN(props.value)) return null;
     const width = props.width ?? "200px";
     const height = props.height ?? "20px";

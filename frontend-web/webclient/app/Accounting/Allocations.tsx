@@ -787,7 +787,6 @@ const AllocationsStyle = injectStyle("allocations", k => `
     
     ${k} h1,
     ${k} h2,
-    ${k} h3,
     ${k} h4 {
         margin: 15px 0;
     }
@@ -1028,6 +1027,7 @@ const Allocations: React.FunctionComponent = () => {
     }, [dispatchEvent]);
 
     const onSearchKey = useCallback<React.KeyboardEventHandler>(ev => {
+        ev.stopPropagation();
         const input = ev.target as HTMLInputElement;
         if (ev.code === "Escape") {
             input.blur();
@@ -1301,7 +1301,7 @@ const Allocations: React.FunctionComponent = () => {
         headerSize={0}
         main={<div className={AllocationsStyle}>
             <header>
-                <h2>Resource allocations</h2>
+                <h3 className="title">Resource allocations</h3>
                 <Box flexGrow={1}/>
                 <ContextSwitcher/>
             </header>
@@ -1584,7 +1584,7 @@ const Allocations: React.FunctionComponent = () => {
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                             left={<Flex gap={"32px"}>
                                                 <Flex width={"200px"}>
-                                                    <Icon name={"heroBanknotes"} mr={4}/>
+                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
                                                     <div>
                                                         <b>Allocation ID:</b>
                                                         {" "}
@@ -1667,7 +1667,7 @@ const Allocations: React.FunctionComponent = () => {
                         <TreeNode
                             key={recipientIdx}
                             left={<Flex gap={"4px"} alignItems={"center"}>
-                                <TooltipV2 tooltip={`Workspace PI: ${recipient.owner.primaryUsername}`}>
+                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
                                             style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                             avatarStyle={"Circle"}/>
@@ -1686,7 +1686,7 @@ const Allocations: React.FunctionComponent = () => {
                                             subAllocator: false,
                                         })}
                                     >
-                                        <SmallIconButton icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
+                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
                                                          subColor1={"primaryContrast"} subColor2={"primaryContrast"}/>
                                     </Link>
                                 }
@@ -1720,7 +1720,7 @@ const Allocations: React.FunctionComponent = () => {
                                                 data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                                 left={<Flex>
                                                     <Flex width={"200px"}>
-                                                        <Icon name={"heroBanknotes"} mr={4}/>
+                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
                                                         <div>
                                                             <b>Allocation ID:</b>
                                                             {" "}
@@ -1791,11 +1791,7 @@ const Allocations: React.FunctionComponent = () => {
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
-function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
-    if ((maxUsable + usage) == quota) return true;
-    const diff = quota - maxUsable - usage;
-    return Math.abs(diff) <= 0.0001;
-}
+
 function ProgressBar({uq, type}: {
     uq: UsageAndQuota,
     type: ProductType,
@@ -1805,7 +1801,12 @@ function ProgressBar({uq, type}: {
         label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
         withWarning={!withinDelta(uq.quota, uq.maxUsable, uq.usage)}
-    />;
+    />;   
+}
+
+export function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
+    const diff = quota - maxUsable - usage;
+    return diff / quota <= 0.001;
 }
 
 const productTypesByPriority: ProductType[] = [
@@ -1898,6 +1899,7 @@ const SmallIconButton: React.FunctionComponent<{
     subColor1?: ThemeColor;
     subColor2?: ThemeColor;
     color?: ThemeColor;
+    title?: string;
     onClick?: (ev: HTMLButtonElement) => void;
     disabled?: boolean;
 }> = props => {
@@ -1912,6 +1914,7 @@ const SmallIconButton: React.FunctionComponent<{
         color={props.color}
         disabled={props.disabled}
         btnRef={ref}
+        title={props.title}
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >

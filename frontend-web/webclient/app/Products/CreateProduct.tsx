@@ -106,7 +106,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
     title: string;
     submitText?: string;
     formatError?: (errors: string[]) => string;
-    onSubmitSucceded?: (res: Response, d: DataType) => void;
+    onSubmitSucceeded?: (res: Response, d: DataType) => void;
     onSubmitError?: (err: string) => void;
     children: React.ReactNode;
 }> {
@@ -127,7 +127,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
             const request = await this.props.createRequest(this.data);
             try {
                 const res = await callAPI<Response>(request);
-                this.props.onSubmitSucceded?.(res, this.data);
+                this.props.onSubmitSucceeded?.(res, this.data);
             } catch (err) {
                 const message = errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
                 this.props.onSubmitError?.(message);
@@ -135,7 +135,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         }
     }
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         return (
             <form
                 onSubmit={e => {stopPropagationAndPreventDefault(e); this.onSubmit()}}
@@ -184,7 +184,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         return missingFields.length === 0;
     }
 
-    public static Number(props: NumberField): JSX.Element {
+    public static Number(props: NumberField): React.ReactNode {
         const ctx = useResourceFormField({id: props.id, required: props.required as boolean});
         const p = useEvaluatedProperties(ctx, props);
 
@@ -216,7 +216,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         </Label>
     }
 
-    public static Select(props: SelectField): JSX.Element {
+    public static Select(props: SelectField): React.ReactNode {
         const ctx = useResourceFormField({id: props.id, required: props.required})
         const p = useEvaluatedProperties(ctx, props);
 
@@ -238,7 +238,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         </Label>;
     }
 
-    public static Checkbox(props: CheckboxField): JSX.Element {
+    public static Checkbox(props: CheckboxField): React.ReactNode {
         const ctx = useResourceFormField({id: props.id, required: props.required, defaultChecked: props.defaultChecked});
         const p = useEvaluatedProperties(ctx, props);
 
@@ -248,7 +248,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         </Label>;
     }
 
-    public static Text(props: ResourceField): JSX.Element {
+    public static Text(props: ResourceField): React.ReactNode {
         const ctx = useResourceFormField({id: props.id, required: props.required})
         const p = useEvaluatedProperties(ctx, props);
 
@@ -279,7 +279,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
         </Label>
     }
 
-    public static TextArea(props: TextAreaField): JSX.Element {
+    public static TextArea(props: TextAreaField): React.ReactNode {
         const ctx = useResourceFormField({id: props.id, required: props.required})
         const p = useEvaluatedProperties(ctx, props);
 

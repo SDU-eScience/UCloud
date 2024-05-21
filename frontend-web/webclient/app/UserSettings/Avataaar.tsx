@@ -15,7 +15,7 @@ import {AvatarType, defaultAvatar} from "@/AvataaarLib";
 import Avatar from "@/AvataaarLib/avatar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function Modification(): React.JSX.Element {
+function Modification(): React.ReactNode {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 
@@ -180,7 +180,7 @@ function AvatarSelect<T1 extends string, T2 extends Object>({
     title,
     disabled,
     defaultValue
-}: AvatarSelect<T1, T2>): JSX.Element | null {
+}: AvatarSelect<T1, T2>): React.ReactNode {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}

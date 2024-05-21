@@ -1,6 +1,5 @@
 import * as React from "react";
 import MainContainer from "@/ui-components/MainContainer";
-import {ResourceOptions} from "@/Resource/ResourceOptions";
 import {usePage} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
@@ -218,11 +217,10 @@ const ProviderSupportRow: React.FunctionComponent<{support: {providerId: string;
 
 // NOTE(Dan): This is hardcoded pending proper support from providers and backend
 const hardcodedSshSupport: {providerId: string; support: string[]}[] = [
-    {providerId: "ucloud", support: []},
+    {providerId: "ucloud", support: ["SSH to jobs (on-demand)"]},
     {providerId: "aau", support: ["None, keys are added through the application"]},
     {providerId: "hippo", support: ["SSH to frontend"]},
-    {providerId: "sophia", support: ["SSH to frontend"]},
-    {providerId: "lumi", support: []},
+    {providerId: "lumi-sdu", support: []},
 ];
 
 export default SshKeysCreate;

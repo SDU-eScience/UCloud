@@ -170,7 +170,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 <MainContainer
                     header={
                         <Flex justifyContent="space-between">
-                            <Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Edit group</Heading.h2>
+                            <h3 className="title">Edit group</h3>
                             <Flex justifyContent="right" mr="10px">
                                 <Button type="button" onClick={async () => {
                                     if (!group.data) return;

@@ -282,7 +282,7 @@ const UIGlobalStyle = `
     --textPrimary: #212529;
     --textSecondary: #646669;
     --textDisabled: #909294;
-    --rowHover: var(--gray-10);
+    --rowHover: var(--gray-5);
     --rowActive: var(--blue-10);
     --gradientStart: var(--blue-30);
     --gradientEnd: var(--blue-20);
@@ -1096,6 +1096,11 @@ input.search-field {
 
 h1, h2, h3, h4, h5, h6 {
     margin: 0;
+}
+
+h3.title {
+  font-size: calc(16px * 1.1);
+  font-weight: bold;
 }
 
 `;

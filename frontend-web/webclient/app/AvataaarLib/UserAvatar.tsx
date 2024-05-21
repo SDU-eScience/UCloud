@@ -13,7 +13,7 @@ interface UserAvatar {
     avatarStyle?: "Circle" | "Transparent";
 }
 
-export function UserAvatar({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): JSX.Element {
+export function UserAvatar({avatar, avatarStyle = "Circle", width = "60px", height = "48px", mx = "8px"}: UserAvatar): React.ReactNode {
     return (
         <Flex overflow="hidden" mx={mx} width={width} alignItems="center" height={height}>
             <Avatar avatarStyle={avatarStyle} {...avatar} />

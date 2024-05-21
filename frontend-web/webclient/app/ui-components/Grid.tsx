@@ -42,7 +42,7 @@ export const GridCardGroup = ({
     minmax = 400,
     gridGap = 15,
     ...props
-}): JSX.Element => (
+}): React.ReactNode => (
     <Grid
         mt="2px"
         width="100%"

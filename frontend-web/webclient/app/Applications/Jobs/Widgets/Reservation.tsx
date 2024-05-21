@@ -25,7 +25,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
     application: Application;
     errors: ReservationErrors;
     onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, walletMaxUsable: number, product: ProductV2 | null) => void;
-}>): React.JSX.Element {
+}>): React.ReactNode {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);

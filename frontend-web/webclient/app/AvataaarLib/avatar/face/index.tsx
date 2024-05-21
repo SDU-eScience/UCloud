@@ -2,7 +2,7 @@ import * as React from "react";
 import {Eyebrows, Eyes as EyeOptions, MouthTypes} from "@/UserSettings/AvatarOptions";
 import {generateId as uniqueId} from "@/UtilityFunctions";
 
-export default function Face(props: {eyebrow: Eyebrows, eyes: EyeOptions, mouth: MouthTypes}): JSX.Element {
+export default function Face(props: {eyebrow: Eyebrows, eyes: EyeOptions, mouth: MouthTypes}): React.ReactNode {
     return (
         <g id="Face" transform="translate(76.000000, 82.000000)" fill="#000000" >
             <Mouth optionValue={props.mouth} />
@@ -17,7 +17,7 @@ export default function Face(props: {eyebrow: Eyebrows, eyes: EyeOptions, mouth:
 class NoseDefault extends React.Component {
     public static optionValue = "Default";
 
-    public render(): JSX.Element {
+    public render(): React.ReactNode {
         return (
             <g
                 id="Nose/Default"
@@ -32,7 +32,7 @@ class NoseDefault extends React.Component {
     }
 }
 
-function Mouth(props: {optionValue: MouthTypes}): JSX.Element {
+function Mouth(props: {optionValue: MouthTypes}): React.ReactNode {
     switch (props.optionValue) {
         case MouthTypes.Concerned:
             return <Concerned />;
@@ -67,7 +67,7 @@ class Concerned extends React.Component {
     private path1 = uniqueId('react-path-');
     private mask1 = uniqueId('react-mask-');
 
-    render(): JSX.Element {
+    render(): React.ReactNode {
         const {path1, mask1} = this;
         return (
             <g id='Mouth/Concerned' transform='translate(2.000000, 52.000000)'>
@@ -542,7 +542,7 @@ class Vomit extends React.Component {
     }
 }
 
-function Eyes(props: {optionValue: EyeOptions}): JSX.Element {
+function Eyes(props: {optionValue: EyeOptions}): React.ReactNode {
     switch (props.optionValue) {
         case EyeOptions.Close:
             return <Close />;
@@ -904,7 +904,7 @@ class WinkWacky extends React.Component {
     }
 }
 
-function Eyebrow(props: {optionValue: Eyebrows}): JSX.Element {
+function Eyebrow(props: {optionValue: Eyebrows}): React.ReactNode {
     switch (props.optionValue) {
         case Eyebrows.Angry:
             return <Angry />;

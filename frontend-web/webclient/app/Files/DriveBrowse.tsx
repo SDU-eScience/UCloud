@@ -34,6 +34,9 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {addProjectListener} from "@/Project/ReduxState";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {useProject} from "@/Project/cache";
+import {isAdminOrPI} from "@/Project";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -68,8 +71,27 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
 
-    const [switcher, setSwitcherWorkaround] = React.useState(<></>);
+
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
+
+    const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
+    const project = useProject();
+
+    React.useEffect(() => {
+        const p = project.fetch();
+        const oldPermission = isWorkspaceAdmin.current;
+        if (p.id) {
+            isWorkspaceAdmin.current = isAdminOrPI(p.status.myRole);
+        } else {
+            isWorkspaceAdmin.current = true;
+        }
+        if (isWorkspaceAdmin.current !== oldPermission) {
+            if (browserRef.current) {
+                browserRef.current.renderOperations();
+            }
+        }
+    }, [project.fetch()]);
 
     useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -85,13 +107,14 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     fetchSupport(p ?? undefined);
                     browser.reevaluateSize();
                     browser.rerender();
+
                 });
 
 
                 browser.setColumns([
                     {name: "Drive name", sortById: "title"},
-                    {name: "", columnWidth: 0},
-                    {name: "Created by", sortById: "createdBy", columnWidth: 150},
+                    {name: "Provider", columnWidth: 100},
+                    {name: "Created by", sortById: "createdBy", columnWidth: 250},
                     {name: "Created at", sortById: "createdAt", columnWidth: 160},
                 ]);
 
@@ -232,7 +255,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         supportByProvider: support,
                         dispatch,
                         embedded: false,
-                        isWorkspaceAdmin: checkIsWorkspaceAdmin(),
+                        isWorkspaceAdmin: isWorkspaceAdmin.current,
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
                         startCreation(): void {
@@ -341,8 +364,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
                     row.title.append(title);
+                    row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
-                        row.stat2.innerText = drive.owner.createdBy;
+                        const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, dims, row);
+                        createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
+                        row.stat2.append(createdByElement);
                     }
                     if (drive.id.startsWith(isCreatingPrefix)) {
                         row.stat2.append(browser.createSpinner(30));
@@ -452,7 +478,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
         }
 
         const b = browserRef.current;
-        if (b) b.renameField.style.left = "43px";
+        if (b) {
+            b.renameField.style.left = "43px";
+        }
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {

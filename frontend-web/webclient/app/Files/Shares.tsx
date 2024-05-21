@@ -329,7 +329,7 @@ interface SetShowBrowserHack {
 
 const TITLE = "Shared with me";
 
-export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): JSX.Element {
+export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> & {filterState?: ShareState} & SetShowBrowserHack}): React.ReactNode {
 
     //Projects should now show this page
     const activeProjectId = useProjectId();
@@ -505,9 +505,12 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         ResourceBrowser.icons.renderIcon({
                             ...StateIconAndColor[state],
                             color2: "iconColor2",
-                            height: 64,
-                            width: 64,
+                            height: 32,
+                            width: 32,
                         }).then(setStateIcon);
+
+                        stateIcon.style.width = "24px";
+                        stateIcon.style.height = "24px";
                     }
 
                     // Row stat2

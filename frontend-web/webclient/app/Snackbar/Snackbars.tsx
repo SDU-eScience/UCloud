@@ -36,24 +36,20 @@ export const DefaultSnack: React.FC<SnackProps<DefaultSnack>> = ({snack, onCance
     </SnackBody>
 };
 
-const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.ReactNode}> = ({
-    snack,
-    onCancel,
-    children
-}): JSX.Element => {
+function SnackBody({snack, onCancel, children}: React.PropsWithChildren<SnackProps<Exclude<Snack, "icon">>>): React.ReactNode {
     const [didCopy, setDidCopy] = useState(false);
-    return <> 
+    return <>
         <Flex alignItems={"center"} justifyContent={"center"}>
             {children}
             {snack.message}
         </Flex>
         <Text paddingTop={"4px"}
-            cursor="pointer" 
+            cursor="pointer"
             onClick={() => {
                 copyToClipboard({value: snack.message, message: ""});
                 setDidCopy(true)
-            }} 
-            fontSize="8px" 
+            }}
+            fontSize="8px"
             color="var(--textSecondary)">
             {didCopy ? "Copied!" : "Click to copy"}
         </Text>
@@ -61,7 +57,7 @@ const SnackBody: React.FC<SnackProps<Exclude<Snack, "icon">> & {children: React.
             <Icon size="12px" cursor="pointer" name="close" onClick={onCancel} />
         </Absolute>
     </>
-    }
+}
 
 export const enum SnackType {
     Success,

@@ -130,7 +130,7 @@ function prettifyEntityType(entityType: AccessEntityType): string {
     }
 }
 
-function LeftAlignedTableHeader(props: React.PropsWithChildren): JSX.Element {
+function LeftAlignedTableHeader(props: React.PropsWithChildren): React.ReactNode {
     return <thead className={LeftAlignedTableHeaderClass}>
     {props.children}
     </thead>

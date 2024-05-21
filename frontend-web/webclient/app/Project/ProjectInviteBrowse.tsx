@@ -40,10 +40,10 @@ const FEATURES: ResourceBrowseFeatures = {
 
 let avatarCache: Record<string, ReactStaticRenderer> = {}
 const rowTitles: ColumnTitleList = [{name: "Project title"}, {name: "", columnWidth: 150}, {name: "Invited", columnWidth: 150}, {name: "Invited by", columnWidth: 90}];
-function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): JSX.Element {
+function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);
-    const [switcher, setSwitcherWorkaround] = React.useState<JSX.Element>(<></>);
+    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Project invites", SidebarTabId.PROJECT);

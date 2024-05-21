@@ -8,7 +8,7 @@ export interface Props {
 
 function makeColor(name: string, color: string) {
     class ColorComponent extends React.Component<Props> {
-        public render(): JSX.Element {
+        public render(): React.ReactNode {
             return (
                 <g
                     id="Skin/👶🏽-03-Brown"
@@ -39,7 +39,7 @@ const Platinum = makeColor("Platinum", "#ECDCBF");
 const Red = makeColor("Red", "#C93305");
 const SilverGray = makeColor("SilverGray", "#E8E1E1");
 
-export default function HairColor(props: Props): JSX.Element {
+export default function HairColor(props: Props): React.ReactNode {
     switch (props.optionValue) {
         case Color.Auburn:
             return <Auburn maskID={props.maskID} />;

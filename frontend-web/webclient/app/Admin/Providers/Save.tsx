@@ -22,7 +22,7 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
     };
 }
 
-function Save(): JSX.Element | null {
+function Save(): React.ReactNode {
     const {id} = useParams<{id: string}>();
     const [provider, setParams] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
     const navigate = useNavigate();
@@ -65,7 +65,7 @@ function Save(): JSX.Element | null {
                         }));
                     }
                 }}
-                onSubmitSucceded={(res, data) => {
+                onSubmitSucceeded={(res, data) => {
                     if (res) {
                         navigate(`/providers`);
                     }

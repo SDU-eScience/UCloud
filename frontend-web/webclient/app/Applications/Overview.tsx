@@ -19,14 +19,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
 import BaseLink from "@/ui-components/BaseLink";
 
-function link(group: ApplicationGroup): string {
-    if (group.specification.defaultFlavor) {
-        return AppRoutes.jobs.create(group.specification.defaultFlavor);
-    } else {
-        return AppRoutes.apps.group(group.metadata.id.toString());
-    }
-}
-
 const OverviewStyle = injectStyle("app-overview", k => `
     ${k} {
         margin: 0 auto;
@@ -69,7 +61,7 @@ const ApplicationsOverview: React.FunctionComponent = () => {
                 <div className={GradientWithPolygons}>
                     <div className={OverviewStyle}>
                         <Flex alignItems={"center"}>
-                            <h3>{title}</h3>
+                            <h3 className="title">{title}</h3>
                             <Box ml="auto"/>
                             <UtilityBar onSearch={appSearch}/>
                         </Flex>

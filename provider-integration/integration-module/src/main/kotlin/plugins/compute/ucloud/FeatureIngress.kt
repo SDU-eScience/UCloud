@@ -178,6 +178,11 @@ class FeatureIngress(
         val ingressPoints = job.ingressPoints
         if (ingressPoints.isEmpty()) return
 
+        val projectOwner = job.owner.project
+        if (projectOwner != null && projectOwner in sensitiveProjects) {
+            throw RPCException("This project does not allow the use of public links!", HttpStatusCode.Forbidden)
+        }
+
         if (job.specification.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level
             throw RPCException(

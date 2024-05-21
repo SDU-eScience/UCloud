@@ -14,7 +14,6 @@ import Label from "./Label";
 import Radio from "./Radio";
 import Text from "./Text";
 import {Spacer} from "./Spacer";
-import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
@@ -31,7 +30,7 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
     return apiUpdate(request, "/api/support", "ticket")
 }
 
-export default function Support(): JSX.Element {
+export default function Support(): React.ReactNode {
     const textArea = useRef<HTMLInputElement>(null);
     const titleArea = useRef<HTMLInputElement>(null);
     const [type, setType] = useState(SupportType.SUGGESTION);
@@ -98,7 +97,7 @@ export default function Support(): JSX.Element {
             bottom="-60px"
         >
             <div style={{cursor: "default"}}>
-                <Box width="100%" p="16px" color="text">
+                <Box width="100%" p="16px" color="text" onKeyDown={e => e.stopPropagation()}>
                     <Spacer alignItems="center"
                         left={<Heading.h3>Support Form</Heading.h3>}
                         right={<>
@@ -119,7 +118,7 @@ export default function Support(): JSX.Element {
                     />
 
                     {["Operational\n", ""].includes(statusUCloud) ? null : (<Box my="6px">
-                        <Error error={<>One or more systems are experiencing issues. Go to <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
+                        <Error error={<>One or more systems are experiencing issues. See <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
                     <Flex mt="8px" gap={"8px"}>

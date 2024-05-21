@@ -876,7 +876,7 @@ export enum SensitivityLevelMap {
     SENSITIVE = "SENSITIVE"
 }
 
-function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): JSX.Element {
+function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): React.ReactNode {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
     const reason = React.useRef<HTMLInputElement>(null);
@@ -1179,7 +1179,7 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
     if (file.status.type !== "FILE") return null;
     if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
 
-    let node: JSX.Element | null = null;
+    let node: React.ReactNode = null;
 
     switch (type) {
         case "text":

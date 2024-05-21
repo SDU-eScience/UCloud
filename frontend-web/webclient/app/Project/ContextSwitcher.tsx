@@ -48,10 +48,6 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
-export function projectFromCache(projectId?: string): Project | undefined {
-    return projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
-}
-
 export function projectTitleFromCache(projectId?: string) {
     if (!projectId) return "My workspace";
     const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
@@ -71,7 +67,7 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 
 export function ContextSwitcher({managed}: {
     managed?: {setLocalProject: (project?: string) => void}
-}): JSX.Element {
+}): React.ReactNode {
     const refresh = useRefresh();
 
     const project = useProject();
@@ -251,7 +247,7 @@ export function ContextSwitcher({managed}: {
                                 className={BottomBorderedRow}
                                 onClick={() => {setActiveProject();}}
                             >
-                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={"starFilled"} />
+                                <Icon onClick={stopPropagationAndPreventDefault} mx="6px" mt="6px" size="16px" color="favoriteColor" name={"starFilled"} />
                                 <Text fontSize="var(--breadText)">My workspace</Text>
                             </div>
                         ) : null}
@@ -270,7 +266,7 @@ export function ContextSwitcher({managed}: {
                         )}
 
                         {filteredProjects.length !== 0 || showMyWorkspace || error ? null : (
-                            <Box my="32px" textAlign="center">No workspaces found</Box>
+                            <Box my="32px" textAlign="center">No projects found</Box>
                         )}
                     </div>
                 </div>
@@ -279,7 +275,7 @@ export function ContextSwitcher({managed}: {
     );
 }
 
-function Favorite({project}: {project: Project}): JSX.Element {
+function Favorite({project}: {project: Project}): React.ReactNode {
     const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -297,7 +293,7 @@ function Favorite({project}: {project: Project}): JSX.Element {
         }
     }, [commandLoading]);
 
-    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color="primaryMain" hoverColor="primaryMain" name={isFavorite ? "starFilled" : "starEmpty"} />
+    return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
 function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {

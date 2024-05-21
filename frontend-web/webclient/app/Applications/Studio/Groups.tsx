@@ -45,7 +45,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<Heading.h2 style={{marginTop: "4px", marginBottom: 0}}>Application groups</Heading.h2>}
+            header={<h3 className="title">Application groups</h3>}
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
@@ -119,33 +119,31 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                             </Button>
                         </Box>
 
-                        {onDevSite() &&
-                            <label className={ButtonClass} style={{flexGrow: 1}}>
-                                Import from ZIP
-                                <HiddenInputField
-                                    type="file"
-                                    onChange={async e => {
-                                        const target = e.target;
-                                        if (target.files) {
-                                            const file = target.files[0];
-                                            target.value = "";
-                                            if (file.size > 1024 * 1024 * 64) {
-                                                snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                        <label className={ButtonClass} style={{flexGrow: 1}}>
+                            Import from ZIP
+                            <HiddenInputField
+                                type="file"
+                                onChange={async e => {
+                                    const target = e.target;
+                                    if (target.files) {
+                                        const file = target.files[0];
+                                        target.value = "";
+                                        if (file.size > 1024 * 1024 * 64) {
+                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
+                                        } else {
+                                            const error = (await AppStore.doImport(file)).error;
+                                            if (error != null) {
+                                                setErrorMessage(error);
                                             } else {
-                                                const error = (await AppStore.doImport(file)).error;
-                                                if (error != null) {
-                                                    setErrorMessage(error);
-                                                } else {
-                                                    snackbarStore.addSuccess("Tool uploaded successfully", false);
-                                                    setErrorMessage(null);
-                                                }
+                                                snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                setErrorMessage(null);
                                             }
-                                            dialogStore.success();
                                         }
-                                    }}
-                                />
-                            </label>
-                        }
+                                        dialogStore.success();
+                                    }
+                                }}
+                            />
+                        </label>
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>

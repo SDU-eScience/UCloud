@@ -491,7 +491,7 @@ const Visualization: React.FunctionComponent = () => {
         )}
         >
             <header>
-                <h2>Resource usage</h2>
+                <h3 className="title" style={{marginTop:"auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
@@ -561,7 +561,7 @@ const NoDataClass = injectStyle("no-data", k => `
     }
 `);
 
-function NoData({productType}: {productType?: Accounting.ProductArea}): React.JSX.Element {
+function NoData({productType}: {productType?: Accounting.ProductArea}): React.ReactNode {
     return <Flex mx="auto" my="auto" flexDirection="column" alignItems="center" justifyContent="center" width="400px" height="400px">
         <div className={NoDataClass}>
             <Icon name={Accounting.productTypeToIcon(productType ?? "STORAGE")} color2="primaryContrast" color="primaryContrast" size={60} />

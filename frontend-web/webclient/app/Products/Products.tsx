@@ -26,7 +26,7 @@ import {CardClass} from "@/ui-components/Card";
 import {emptyPage} from "@/Utilities/PageUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-function Products(): JSX.Element {
+function Products(): React.ReactNode {
     usePage("SKUs", SidebarTabId.NONE);
 
     const main = (
@@ -71,7 +71,7 @@ const DetailedView = injectStyle("detailed-view", k => `
     }
 `);
 
-export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string; color?: string}> = ({productType, provider, color = "var(--primary)"}) => {
+export const MachineView: React.FunctionComponent<{productType: ProductType, provider: string;}> = ({productType, provider}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<ProductV2>>(
         {...UCloud.accounting.products.browse({filterProductType: productType, filterProvider: provider, filterUsable: true, itemsPerPage: 10}), unauthenticated: !Client.isLoggedIn},
         emptyPage
@@ -197,7 +197,7 @@ export const MachineView: React.FunctionComponent<{productType: ProductType, pro
     </>);
 }
 
-function Description(): JSX.Element {
+function Description(): React.ReactNode {
     return (<>
         Below is the available SKUs on the {CONF.PRODUCT_NAME} platform.
         They are divided into different product types, i.e. storage SKUs, compute SKUs, public link SKUs and license

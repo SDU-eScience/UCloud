@@ -15,7 +15,7 @@ const handleBoundaries = (page: number, maxPage: number): number =>
     Math.max(Math.min(page, maxPage - 1), 0);
 
 interface PaginationButtonsProps {totalPages: number; currentPage: number; toPage: (p: number) => void}
-export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtonsProps): JSX.Element | null {
+export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtonsProps): React.ReactNode {
     const ref = React.useRef<HTMLInputElement>(null);
     if (totalPages <= 1) return null;
     const inputField = (
@@ -109,7 +109,7 @@ const PaginationButtonBaseClass = injectStyle("pagination-button", k => `
 `);
 
 
-function PaginationButton({onClick, ...props}): JSX.Element {
+function PaginationButton({onClick, ...props}): React.ReactNode {
     return (
         props.unclickable ?
             <Button data-unclickable className={PaginationButtonBaseClass} {...props} /> :
@@ -147,7 +147,7 @@ export const EntriesPerPageSelector = ({
     entriesPerPage,
     onChange,
     content
-}: EntriesPerPageSelectorProps): JSX.Element => (
+}: EntriesPerPageSelectorProps): React.ReactNode => (
     <ClickableDropdown
         left="85px"
         minWidth="80px"

@@ -230,10 +230,6 @@ export function extensionType(ext: string): ExtensionType {
     }
 }
 
-export function isExtPreviewSupported(ext: string): boolean {
-    return extensionType(ext) !== null;
-}
-
 /**
  * Calculates if status number is in a given range.
  * @param params: { status, min, max } (both inclusive)
@@ -322,17 +318,6 @@ export function defaultErrorHandler(
         return request.status;
     }
     return 500;
-}
-
-/**
- * Requests full screen on an HTML element. Handles both Safari fullscreen, and Chrome/Firefox.
- * @param el The element to be fullscreened.
- * @param onFailure Method called if fullscreen can't be done.
- */
-export function requestFullScreen(el: Element, onFailure: () => void): void {
-    if (el["webkitRequestFullScreen"]) el["webkitRequestFullScreen"]();
-    else if (el.requestFullscreen) el.requestFullscreen();
-    else onFailure();
 }
 
 export function timestampUnixMs(): number {
@@ -538,7 +523,6 @@ export function isAbsoluteUrl(url: string): boolean {
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
 }
 
-// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
 export function removeExpiredFileUploads(): void {
     const now = new Date().getTime();
     Object.keys(localStorage).forEach(key => {
@@ -570,7 +554,7 @@ export function randomUUID(): string {
     }
 }
 
-export function grantsLink(client: {hasActiveProject: boolean}): string {
+export function grantsLink(): string {
     return "/grants";
 }
 

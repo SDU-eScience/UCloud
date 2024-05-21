@@ -1262,7 +1262,7 @@ const style = injectStyle("grant-editor", k => `
 
 // Main user-interface
 // =====================================================================================================================
-export function Editor(): React.JSX.Element {
+export function Editor(): React.ReactNode {
     const scrollToTopRef = useRef(false);
     const [state, doDispatch] = useReducer(stateReducer, defaultState);
     const {dispatchEvent} = useStateReducerMiddleware(doDispatch, scrollToTopRef);
@@ -1335,12 +1335,12 @@ export function Editor(): React.JSX.Element {
     // These event handlers translate, primarily DOM, events to higher-level EditorEvents which are sent to
     // dispatchEvent(). There is nothing complicated in these, but they do take up a bit of space. When you are writing
     // these, try to avoid having dependencies on more than just dispatchEvent itself.
-    const switchToNewWorkspace = useCallback(
+    const switchToNewProject = useCallback(
         () => dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: true}),
         [dispatchEvent]
     );
 
-    const switchToExistingWorkspace = useCallback(
+    const switchToExistingProject = useCallback(
         () => dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false}),
         [dispatchEvent]
     );
@@ -1705,7 +1705,7 @@ export function Editor(): React.JSX.Element {
             </> :
                 <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
-                        <h3>Information about your project</h3>
+                        <h3 className="title">Information about your project</h3>
 
                         <div style={{flexGrow: 1}} />
 
@@ -1789,8 +1789,8 @@ export function Editor(): React.JSX.Element {
                                 {state.stateDuringCreate && <>
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
-                                            New project (<a className={BaseLinkClass} href="#" onClick={switchToExistingWorkspace}>
-                                                select an existing workspace instead
+                                            New project (<a className={BaseLinkClass} href="#" onClick={switchToExistingProject}>
+                                                select an existing project instead
                                             </a>)
                                             <Input id={FormIds.title}
                                                 placeholder={"Please enter the title of your project"}
@@ -1799,7 +1799,7 @@ export function Editor(): React.JSX.Element {
                                                 onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
-                                            Existing workspace (<a href="#" className={BaseLinkClass} onClick={switchToNewWorkspace}>
+                                            Existing project (<a href="#" className={BaseLinkClass} onClick={switchToNewProject}>
                                                 create a new project instead
                                             </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
