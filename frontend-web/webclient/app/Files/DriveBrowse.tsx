@@ -43,8 +43,9 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, F
     globalTtl: 60_000
 });
 
-const defaultRetrieveFlags: {itemsPerPage: number} = {
+const defaultRetrieveFlags: {itemsPerPage: number, includeOthers: true} = {
     itemsPerPage: 250,
+    includeOthers: true, // Used to show permissions on load: issue #4209
 };
 
 const memberFilesKey = "filterMemberFiles";
