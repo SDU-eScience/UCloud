@@ -105,7 +105,7 @@ interface State {
                 reference: Accounting.WalletOwner;
             };
 
-            usageAndQuota: (UsageAndQuota & { type: Accounting.ProductType })[];
+            usageAndQuota: (UsageAndQuota & {type: Accounting.ProductType})[];
 
             groups: {
                 category: Accounting.ProductCategoryV2;
@@ -140,6 +140,7 @@ interface State {
     }
 
     editControlsDisabled: boolean;
+    viewOnlyProjects: boolean;
 }
 
 interface AllocationNote {
@@ -159,19 +160,20 @@ interface UsageAndQuota {
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    { type: "WalletsLoaded", wallets: Accounting.WalletV2[]; }
-    | { type: "ManagedProvidersLoaded", providerIds: string[] }
-    | { type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]> }
-    | { type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[] }
-    | { type: "UpdateSearchQuery", newQuery: string }
-    | { type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean }
-    | { type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number }
-    | { type: "UpdateSearchInflight", delta: number }
-    | { type: "UpdateGift", data: Partial<State["gifts"]> }
-    | { type: "GiftCreated", gift: Gifts.GiftWithCriteria }
-    | { type: "GiftDeleted", id: number }
-    | { type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]> }
-    | { type: "ResetRootAllocation" }
+    {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
+    | {type: "ManagedProvidersLoaded", providerIds: string[]}
+    | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
+    | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
+    | {type: "UpdateSearchQuery", newQuery: string}
+    | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
+    | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number}
+    | {type: "UpdateSearchInflight", delta: number}
+    | {type: "UpdateGift", data: Partial<State["gifts"]>}
+    | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
+    | {type: "GiftDeleted", id: number}
+    | {type: "UpdateRootAllocations", data: Partial<State["rootAllocations"]>}
+    | {type: "ResetRootAllocation"}
+    | {type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean}
     ;
 
 function stateReducer(state: State, action: UIAction): State {
@@ -378,6 +380,10 @@ function stateReducer(state: State, action: UIAction): State {
             newState.editControlsDisabled = action.isEditing;
 
             return newState;
+        }
+
+        case "ToggleViewOnlyProjects": {
+            return {...state, viewOnlyProjects: action.viewOnlyProjects};
         }
 
         case "UpdateAllocation": {
@@ -701,7 +707,7 @@ function stateReducer(state: State, action: UIAction): State {
 // =====================================================================================================================
 type UIEvent =
     UIAction
-    | { type: "Init" }
+    | {type: "Init"}
     ;
 
 function useStateReducerMiddleware(didCancel: React.RefObject<boolean>, doDispatch: (action: UIAction) => void): (event: UIEvent) => unknown {
@@ -929,21 +935,21 @@ const Allocations: React.FunctionComponent = () => {
             }}>
                 <div>
                     <Heading.h3>New sub-project</Heading.h3>
-                    <Divider/>
+                    <Divider />
                     <Label>
                         Project title
-                        <Input id={"subproject-name"} autoFocus/>
+                        <Input id={"subproject-name"} autoFocus />
                     </Label>
                     {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
-                            <Checkbox id={"subproject-suballocator"}/>
+                            <Checkbox id={"subproject-suballocator"} />
                             This sub-project is a sub-allocator
                         </Label> : null
                     }
                 </div>
                 <Flex mt="20px">
                     <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={"errorMain"}
-                            mr="5px">Cancel</Button>
+                        mr="5px">Cancel</Button>
                     <Button type={"submit"} color={"successMain"}>Create sub-project</Button>
                 </Flex>
             </form>,
@@ -1281,7 +1287,6 @@ const Allocations: React.FunctionComponent = () => {
     // Short-hands used in the user-interface
     // -----------------------------------------------------------------------------------------------------------------
     const indent = 16;
-    const baseProgress = 250;
 
     const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
         const aPriority = productTypesByPriority.indexOf(a[0] as ProductType);
@@ -1302,8 +1307,8 @@ const Allocations: React.FunctionComponent = () => {
         main={<div className={AllocationsStyle}>
             <header>
                 <h3 className="title">Resource allocations</h3>
-                <Box flexGrow={1}/>
-                <ContextSwitcher/>
+                <Box flexGrow={1} />
+                <ContextSwitcher />
             </header>
 
             {state.remoteData.managedProviders.length > 0 && <>
@@ -1342,7 +1347,7 @@ const Allocations: React.FunctionComponent = () => {
                                     {page.map(cat => <TreeNode
                                         key={cat.name + cat.provider}
                                         left={<Flex gap={"4px"}>
-                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20}/>
+                                            <Icon name={Accounting.productTypeToIcon(cat.productType)} size={20} />
                                             <code>{cat.name} / {cat.provider}</code>
                                         </Flex>}
                                         right={<Flex gap={"4px"}>
@@ -1363,7 +1368,7 @@ const Allocations: React.FunctionComponent = () => {
                         <Button my={16} onClick={onCreateRootAllocation}>Create root allocations</Button>
                     </Accordion>
 
-                    <Box mt={32}/>
+                    <Box mt={32} />
                 </>}
 
                 {state.gifts && <>
@@ -1388,58 +1393,58 @@ const Allocations: React.FunctionComponent = () => {
                                 >
                                     <table className={giftClass}>
                                         <tbody>
-                                        <tr>
-                                            <th>Description</th>
-                                            <td>{g.description}</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Criteria</th>
-                                            <td>
-                                                <ul>
-                                                    {g.criteria.map(c => {
-                                                        switch (c.type) {
-                                                            case "anyone":
-                                                                return <li key={c.type}>All UCloud users</li>
-                                                            case "wayf":
-                                                                return <li key={c.org + "wayf"}>Users
-                                                                    from <i>{c.org}</i></li>
-                                                            case "email":
-                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
-                                                        }
-                                                    })}
-                                                </ul>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Resources</th>
-                                            <td>
-                                                <ul>
-                                                    {g.resources.map((r, idx) => {
-                                                        const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
-                                                        if (!pc) return null;
-                                                        return <li
-                                                            key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
-                                                    })}
-                                                </ul>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Granted</th>
-                                            <td>
-                                                {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th>Delete</th>
-                                            <td>
-                                                <ConfirmationButton
-                                                    actionText={"Delete"}
-                                                    icon={"heroTrash"}
-                                                    onAction={onDeleteGift}
-                                                    actionKey={g.id.toString()}
-                                                />
-                                            </td>
-                                        </tr>
+                                            <tr>
+                                                <th>Description</th>
+                                                <td>{g.description}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Criteria</th>
+                                                <td>
+                                                    <ul>
+                                                        {g.criteria.map(c => {
+                                                            switch (c.type) {
+                                                                case "anyone":
+                                                                    return <li key={c.type}>All UCloud users</li>
+                                                                case "wayf":
+                                                                    return <li key={c.org + "wayf"}>Users
+                                                                        from <i>{c.org}</i></li>
+                                                                case "email":
+                                                                    return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                            }
+                                                        })}
+                                                    </ul>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Resources</th>
+                                                <td>
+                                                    <ul>
+                                                        {g.resources.map((r, idx) => {
+                                                            const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
+                                                            if (!pc) return null;
+                                                            return <li
+                                                                key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
+                                                        })}
+                                                    </ul>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Granted</th>
+                                                <td>
+                                                    {g.renewEvery == 0 ? "Once" : (g.renewEvery == 1 ? "Every month" : "Every " + g.renewEvery.toString() + " months")}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Delete</th>
+                                                <td>
+                                                    <ConfirmationButton
+                                                        actionText={"Delete"}
+                                                        icon={"heroTrash"}
+                                                        onAction={onDeleteGift}
+                                                        actionKey={g.id.toString()}
+                                                    />
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </TreeNode>
@@ -1451,7 +1456,7 @@ const Allocations: React.FunctionComponent = () => {
                         <form onSubmit={onCreateGift}>
                             <Flex gap={"8px"} flexDirection={"column"}>
                                 <Label>
-                                    Title <MandatoryField/>
+                                    Title <MandatoryField />
                                     <Input
                                         name={"gift-title"}
                                         value={state.gifts.title}
@@ -1472,7 +1477,7 @@ const Allocations: React.FunctionComponent = () => {
                                     />
                                 </Label>
                                 <Label>
-                                    Is this gift periodically renewed or a one-time grant? <MandatoryField/>
+                                    Is this gift periodically renewed or a one-time grant? <MandatoryField />
                                     <Select
                                         name={"gift-renewal"}
                                         slim
@@ -1514,7 +1519,7 @@ const Allocations: React.FunctionComponent = () => {
                                                 key={cat.name + cat.provider}
                                                 left={<Flex gap={"4px"}>
                                                     <Icon name={Accounting.productTypeToIcon(cat.productType)}
-                                                          size={20}/>
+                                                        size={20} />
                                                     <code>{cat.name} / {cat.provider}</code>
                                                 </Flex>}
                                                 right={<Flex gap={"4px"}>
@@ -1538,7 +1543,7 @@ const Allocations: React.FunctionComponent = () => {
                         </form>
                     </Accordion>
 
-                    <Box mt={32}/>
+                    <Box mt={32} />
                 </>}
             </>}
 
@@ -1554,13 +1559,13 @@ const Allocations: React.FunctionComponent = () => {
                     return <TreeNode
                         key={rawType}
                         left={<Flex gap={"4px"}>
-                            <Icon name={Accounting.productTypeToIcon(type)} size={20}/>
+                            <Icon name={Accounting.productTypeToIcon(type)} size={20} />
                             {Accounting.productAreaTitle(type)}
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                    <ProgressBar uq={uq} type={type}/>
-                                </React.Fragment>
+                                <ProgressBar uq={uq} type={type} />
+                            </React.Fragment>
                             )}
                         </Flex>}
                         indent={indent}
@@ -1569,11 +1574,11 @@ const Allocations: React.FunctionComponent = () => {
                             <TreeNode
                                 key={idx}
                                 left={<Flex gap={"4px"}>
-                                    <ProviderLogo providerId={wallet.category.provider} size={20}/>
+                                    <ProviderLogo providerId={wallet.category.provider} size={20} />
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota} type={type}/>
+                                    <ProgressBar uq={wallet.usageAndQuota} type={type} />
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1584,7 +1589,7 @@ const Allocations: React.FunctionComponent = () => {
                                             className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                             left={<Flex gap={"32px"}>
                                                 <Flex width={"200px"}>
-                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4}/>
+                                                    <Icon name={"heroBanknotes"} ml={"8px"} mr={4} />
                                                     <div>
                                                         <b>Allocation ID:</b>
                                                         {" "}
@@ -1602,16 +1607,16 @@ const Allocations: React.FunctionComponent = () => {
 
                                                 {alloc.grantedIn && <>
                                                     <Link target={"_blank"}
-                                                          to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                        to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                         View grant application{" "}
-                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                        <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                     </Link>
                                                 </>}
                                             </Flex>}
                                             right={<Flex flexDirection={"row"} gap={"8px"}>
                                                 {alloc.note && <>
                                                     <TooltipV2 tooltip={alloc.note.text}>
-                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
+                                                        <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                     </TooltipV2>
                                                 </>}
                                                 {Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}
@@ -1628,9 +1633,9 @@ const Allocations: React.FunctionComponent = () => {
             {projectId !== undefined && <>
                 <Flex mt={32} mb={10} alignItems={"center"} gap={"8px"}>
                     <h3 style={{margin: 0}}>Sub-projects</h3>
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
                     <Button height={35} onClick={onNewSubProject} disabled={projectRole == OldProjectRole.USER}>
-                        <Icon name={"heroPlus"} mr={8}/>
+                        <Icon name={"heroPlus"} mr={8} />
                         New sub-project
                     </Button>
 
@@ -1647,12 +1652,18 @@ const Allocations: React.FunctionComponent = () => {
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "-30px", right: "11px"}}>
                                 {state.subAllocations.searchInflight === 0 ?
-                                    <Icon name={"heroMagnifyingGlass"}/>
-                                    : <HexSpin size={18} margin={"0"}/>
+                                    <Icon name={"heroMagnifyingGlass"} />
+                                    : <HexSpin size={18} margin={"0"} />
                                 }
                             </div>
                         </div>
                     </Box>
+                </Flex>
+                <Flex>
+                    <Label width="160px" ml="auto">
+                        <Checkbox onChange={e => dispatchEvent({type: "ToggleViewOnlyProjects", viewOnlyProjects: e.target.checked})} defaultChecked={state.viewOnlyProjects} />
+                        <span>View only projects</span>
+                    </Label>
                 </Flex>
 
                 {state.subAllocations.recipients.length !== 0 ? null : <>
@@ -1663,14 +1674,15 @@ const Allocations: React.FunctionComponent = () => {
                 </>}
 
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
-                    {state.subAllocations.recipients.map((recipient, recipientIdx) =>
-                        <TreeNode
+                    {state.subAllocations.recipients.map((recipient, recipientIdx) => {
+                        if (state.viewOnlyProjects && recipient.owner.reference.type === "user") return null;
+                        return <TreeNode
                             key={recipientIdx}
                             left={<Flex gap={"4px"} alignItems={"center"}>
                                 <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
-                                            style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                            avatarStyle={"Circle"}/>
+                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                        avatarStyle={"Circle"} />
                                 </TooltipV2>
                                 {recipient.owner.title}
                             </Flex>}
@@ -1687,14 +1699,14 @@ const Allocations: React.FunctionComponent = () => {
                                         })}
                                     >
                                         <SmallIconButton title="View grant application" icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
-                                                         subColor1={"primaryContrast"} subColor2={"primaryContrast"}/>
+                                            subColor1={"primaryContrast"} subColor2={"primaryContrast"} />
                                     </Link>
                                 }
 
                                 {recipient.usageAndQuota.map((uq, idx) => {
-                                        if (idx > 2) return null;
-                                        return <ProgressBar key={idx} uq={uq} type={uq.type}/>;
-                                    }
+                                    if (idx > 2) return null;
+                                    return <ProgressBar key={idx} uq={uq} type={uq.type} />;
+                                }
                                 )}
                             </div>}
                         >
@@ -1702,14 +1714,14 @@ const Allocations: React.FunctionComponent = () => {
                                 <TreeNode
                                     left={<Flex gap={"4px"}>
                                         <Flex gap={"4px"} width={"200px"}>
-                                            <ProviderLogo providerId={g.category.provider} size={20}/>
+                                            <ProviderLogo providerId={g.category.provider} size={20} />
                                             <Icon name={Accounting.productTypeToIcon(g.category.productType)}
-                                                  size={20}/>
+                                                size={20} />
                                             <code>{g.category.name}</code>
                                         </Flex>
                                     </Flex>}
                                     right={
-                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType}/>
+                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} />
                                     }
                                 >
                                     {g.allocations
@@ -1720,7 +1732,7 @@ const Allocations: React.FunctionComponent = () => {
                                                 data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                                 left={<Flex>
                                                     <Flex width={"200px"}>
-                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4}/>
+                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
                                                         <div>
                                                             <b>Allocation ID:</b>
                                                             {" "}
@@ -1738,9 +1750,9 @@ const Allocations: React.FunctionComponent = () => {
 
                                                     {alloc.grantedIn && <>
                                                         <Link target={"_blank"}
-                                                              to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
                                                             View grant application{" "}
-                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6}/>
+                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
                                                         </Link>
                                                     </>}
                                                 </Flex>}
@@ -1749,11 +1761,11 @@ const Allocations: React.FunctionComponent = () => {
                                                         <SmallIconButton
                                                             icon={"heroPencil"} onClick={onEdit}
                                                             disabled={state.editControlsDisabled}
-                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}/>
+                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} />
                                                     }
                                                     {alloc.note && <>
                                                         <TooltipV2 tooltip={alloc.note.text}>
-                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor}/>
+                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                         </TooltipV2>
                                                     </>}
 
@@ -1781,7 +1793,7 @@ const Allocations: React.FunctionComponent = () => {
                                 </TreeNode>
                             </React.Fragment>)}
                         </TreeNode>
-                    )}
+                    })}
                 </Tree>
             </>}
         </div>}
@@ -1801,7 +1813,7 @@ function ProgressBar({uq, type}: {
         label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
         withWarning={!withinDelta(uq.quota, uq.maxUsable, uq.usage)}
-    />;   
+    />;
 }
 
 export function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
@@ -1918,12 +1930,12 @@ const SmallIconButton: React.FunctionComponent<{
         data-has-sub={props.subIcon !== undefined}
         {...extractDataTags(props)}
     >
-        <Icon name={props.icon} hoverColor={"primaryContrast"}/>
+        <Icon name={props.icon} hoverColor={"primaryContrast"} />
         {props.subIcon &&
             <Relative>
                 <div className={"sub"}>
                     <Icon name={props.subIcon} hoverColor={props.subColor1} color={props.subColor1}
-                          color2={props.subColor2}/>
+                        color2={props.subColor2} />
                 </div>
             </Relative>
         }
@@ -1942,6 +1954,7 @@ const initialState: State = {
     subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
     yourAllocations: {},
     editControlsDisabled: false,
+    viewOnlyProjects: true,
 };
 
 const NO_EXPIRATION_FALLBACK = 4102444800353;
