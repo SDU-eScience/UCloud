@@ -17,6 +17,7 @@ import {
     Relative,
     Select,
     TextArea,
+    Truncate,
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
@@ -1684,7 +1685,7 @@ const Allocations: React.FunctionComponent = () => {
                                         style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                         avatarStyle={"Circle"} />
                                 </TooltipV2>
-                                {recipient.owner.title}
+                                <Truncate>{recipient.owner.title}</Truncate>
                             </Flex>}
                             right={<div className={"sub-alloc"}>
                                 {recipient.owner.reference.type === "project" &&
