@@ -121,7 +121,8 @@ suspend fun initializeNormalProject(
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000_000,
     userRole: Role = Role.USER,
-    admin: CreatedUser? = null
+    admin: CreatedUser? = null,
+    product: ProductV2 = sampleCompute
 ): NormalProjectInitialization {
     val adminClient = admin?.client ?: adminClient
     val adminUsername = admin?.username ?: adminUsername
@@ -166,7 +167,7 @@ suspend fun initializeNormalProject(
                     GrantApplication.Recipient.ExistingProject(projectId),
                     listOf(
                         GrantApplication.AllocationRequest(
-                            sampleCompute.category.name,
+                            product.category.name,
                             UCLOUD_PROVIDER,
                             rootProject.projectId,
                             amount,

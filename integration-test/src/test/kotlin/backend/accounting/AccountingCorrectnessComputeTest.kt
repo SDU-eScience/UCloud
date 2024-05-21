@@ -28,7 +28,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
             class Out(
                 val initialWallets: List<WalletV2>,
                 val postWallets: List<WalletV2>,
-                val initialRootWallets: List<WalletV2>,
                 val postRootWallets: List<WalletV2>
             )
 
@@ -115,7 +114,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                     Out(
                         initialWallets = initialWallets,
                         postWallets = wallets,
-                        initialRootWallets = initialRootWallets,
                         postRootWallets = postRootWallets
                     )
                 }
@@ -130,7 +128,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                     check {
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -150,7 +147,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -171,7 +167,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -192,7 +187,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -213,7 +207,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -234,7 +227,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -255,7 +247,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -276,7 +267,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -297,7 +287,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -318,7 +307,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -342,7 +330,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -365,7 +352,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 
@@ -388,7 +374,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         check {
                             val initialState = getSumOfWallets(output.initialWallets)
                             val postChargeState = getSumOfWallets(output.postWallets)
-                            val initialRootState = getSumOfWallets(output.initialRootWallets)
                             val postChargeRootState = getSumOfWallets(output.postRootWallets)
                             val totalCharge = input.durationPerJob * input.numberOfJobs * sampleCompute.price
 

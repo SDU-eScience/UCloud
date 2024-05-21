@@ -74,7 +74,7 @@ class IngressTest : IntegrationTest() {
                 caseBuilder = {
                     for (product in case.products) {
                         for (count in 1..3) {
-                            for (userType in UserType.values()) {
+                            for (userType in UserType.entries) {
                                 if (userType != UserType.SOME_OTHER_USER) {
                                     case("Simple test: $userType (count = $count)") {
                                         input(

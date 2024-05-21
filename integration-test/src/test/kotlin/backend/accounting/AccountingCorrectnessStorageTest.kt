@@ -2,19 +2,20 @@ package dk.sdu.cloud.integration.backend.accounting
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.grant.api.GrantApplication
+import dk.sdu.cloud.grant.api.GrantsV2
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.adminClient
-import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.runBlocking
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 
-/*class AccountingCorrectnessStorageTest : IntegrationTest() {
+class AccountingCorrectnessStorageTest : IntegrationTest() {
     override fun defineTests() {
         run {
             class In(
@@ -26,31 +27,40 @@ import kotlin.test.assertEquals
             class Out(
                 val initialWallets: List<WalletV2>,
                 val postWallets: List<WalletV2>,
-                val initialRootWallets: List<WalletV2>,
                 val postRootWallets: List<WalletV2>
             )
 
             test<In, Out>("test correctness of charges storage"){
                 execute {
                     val providerInfo = createSampleProducts()
-                    val root = initializeRootProject()
-                    val createdProject = initializeNormalProject(root, amount = 1_000_000_000)
+                    val root = initializeRootProject(providerInfo.projectId)
+                    val createdProject = initializeNormalProject(root, amount = 1_000_000_000, product = sampleStorageDifferential)
                     val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
-                    val initialRootWallets = findWalletsInternal(WalletOwner.Project(root)).filter { it.paysFor == sampleStorageDifferential.category  }
+                    val initialRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
 
                     if (input.numberOfExtraDeposits != null) {
                         for (i in 1..input.numberOfExtraDeposits) {
-                            Accounting.deposit.call(
-                                bulkRequestOf(
-                                    DepositToWalletRequestItem(
-                                        createdProjectWalletOwner,
-                                        initialRootWallets.first().allocations.first().id,
-                                        1000000,
-                                        "another deposit",
-                                        grantedIn = null,
-                                        startDate = Time.now(),
-                                        endDate = Time.now() + 10000000
-                                    )
+                            GrantsV2.submitRevision.call(
+                                GrantsV2.SubmitRevision.Request(
+                                    revision = GrantApplication.Document(
+                                        GrantApplication.Recipient.ExistingProject(createdProject.projectId),
+                                        listOf(
+                                            GrantApplication.AllocationRequest(
+                                                sampleStorageDifferential.category.name,
+                                                UCLOUD_PROVIDER,
+                                                root.projectId,
+                                                1000000,
+                                                GrantApplication.Period(
+                                                    Time.now(),
+                                                    Time.now() + 10000000
+                                                )
+                                            )
+                                        ),
+                                        GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
+                                        parentProjectId = root.projectId,
+                                        revisionComment = "Gifted automatically"
+                                    ),
+                                    comment = "Gift"
                                 ),
                                 adminClient
                             )
@@ -59,49 +69,70 @@ import kotlin.test.assertEquals
 
                     val initialWallets = findWalletsInternal(createdProjectWalletOwner).filter { it.paysFor == sampleStorageDifferential.category  }
 
-                    val bulk = ArrayList<ChargeWalletRequestItem>()
+                    val bulk = ArrayList<UsageReportItem>()
                     bulk.add(
-                        ChargeWalletRequestItem(
-                            payer = WalletOwner.Project(createdProject.projectId),
-                            units = input.GBUsed,
-                            periods = 1,
-                            product = sampleStorageDifferential.toReference(),
-                            performedBy = createdProject.piUsername,
-                            description = "Charging usage of Storage"
+                        UsageReportItem(
+                            isDeltaCharge = false,
+                            createdProjectWalletOwner,
+                            ProductCategoryIdV2(
+                                sampleStorageDifferential.category.name,
+                                sampleStorageDifferential.category.provider
+                            ),
+                            input.GBUsed,
+                            ChargeDescription(
+                                null,
+                                null
+                            )
                         )
                     )
 
-                    Accounting.charge.call(
-                        BulkRequest(bulk),
-                        serviceClient
-                    ).orThrow()
+                    bulk.chunked(1000).forEach { charges ->
+                        runBlocking {
+                            AccountingV2.reportUsage.call(
+                                BulkRequest(
+                                    charges
+                                ),
+                                serviceClient
+                            ).orThrow()
+                        }
+                    }
 
                     if (input.reduceUsageTo != null) {
-                        val bulk = ArrayList<ChargeWalletRequestItem>()
-                        bulk.add(
-                            ChargeWalletRequestItem(
-                                payer = WalletOwner.Project(createdProject.projectId),
-                                units = input.reduceUsageTo,
-                                periods = 1,
-                                product = sampleStorageDifferential.toReference(),
-                                performedBy = createdProject.piUsername,
-                                description = "Charging usage of Storage"
+                        val reduceBulk = ArrayList<UsageReportItem>()
+                        reduceBulk.add(
+                            UsageReportItem(
+                                isDeltaCharge = false,
+                                createdProjectWalletOwner,
+                                ProductCategoryIdV2(
+                                    sampleStorageDifferential.category.name,
+                                    sampleStorageDifferential.category.provider
+                                ),
+                                input.reduceUsageTo,
+                                ChargeDescription(
+                                    null,
+                                    null
+                                )
                             )
                         )
 
-                        Accounting.charge.call(
-                            BulkRequest(bulk),
-                            serviceClient
-                        ).orThrow()
+                        reduceBulk.chunked(1000).forEach { charges ->
+                            runBlocking {
+                                AccountingV2.reportUsage.call(
+                                    BulkRequest(
+                                        charges
+                                    ),
+                                    serviceClient
+                                ).orThrow()
+                            }
+                        }
                     }
 
-                    val postRootWallets = findWalletsInternal(WalletOwner.Project(root)).filter { it.paysFor == sampleStorageDifferential.category  }
+                    val postRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
                     val wallets = findWalletsInternal(createdProjectWalletOwner).filter { it.paysFor == sampleStorageDifferential.category  }
 
                     Out(
                         initialWallets = initialWallets,
                         postWallets = wallets,
-                        initialRootWallets = initialRootWallets,
                         postRootWallets = postRootWallets
                     )
                 }
@@ -115,14 +146,13 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
-                        assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "Root Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "treeUsage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root Usage wrong")
                     }
                 }
 
@@ -135,14 +165,13 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
-                        assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "Root Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "treeUsage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root Usage wrong")
                     }
                 }
 
@@ -155,14 +184,13 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
-                        assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "Root Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "treeUsage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root Usage wrong")
                     }
                 }
 
@@ -176,14 +204,13 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
-                        assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "Root Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "treeUsage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root Usage wrong")
                     }
                 }
 
@@ -196,15 +223,14 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialRootState.initialBalance - initialState.initialBalance, postChargeRootState.currentBalance, "project treeusage wrong")
-                        assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "project Local usage wrong")
-                        assertEquals(initialRootState.initialBalance - postChargeState.initialBalance, postChargeRootState.currentBalance, "root treeUsage wrong")
-                        assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "localBalance wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.treeUsage, "Project tree Usage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "project Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeRootState.treeUsage, "root treeUsage wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root local wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
                     }
                 }
 
@@ -218,21 +244,14 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.reduceUsageTo!!
 
-                        println(initialState)
-                        println(postChargeState)
-                        println(initialRootState)
-                        println(postChargeRootState)
-
-
-                        assertEquals(initialState.currentBalance - totalCharge, postChargeState.currentBalance, "project treeusage wrong")
-                        assertEquals(initialState.initialBalance - totalCharge, postChargeState.localBalance, "project Local usage wrong")
-                        assertEquals(initialRootState.initialBalance - totalCharge, postChargeRootState.currentBalance, "root treeUsage wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "root localBalance wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "initialBalance wrong")
+                        assertEquals(totalCharge, postChargeState.treeUsage, "Project tree Usage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "project Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "root treeUsage wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root local wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
                     }
                 }
 
@@ -246,18 +265,16 @@ import kotlin.test.assertEquals
                     check{
                         val initialState = getSumOfWallets(output.initialWallets)
                         val postChargeState = getSumOfWallets(output.postWallets)
-                        val initialRootState = getSumOfWallets(output.initialRootWallets)
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.reduceUsageTo!!
 
-                        assertEquals(initialRootState.currentBalance - totalCharge, postChargeRootState.currentBalance, "treeUsage wrong")
-                        assertEquals(initialState.localBalance - totalCharge, postChargeState.localBalance, "Usage wrong")
-                        assertEquals(initialState.initialBalance, postChargeState.initialBalance, "quota wrong")
-                        assertEquals(initialRootState.initialBalance, postChargeRootState.localBalance, "Root Usage wrong")
+                        assertEquals(totalCharge, postChargeRootState.treeUsage, "treeUsage wrong")
+                        assertEquals(totalCharge, postChargeState.localUsage, "Usage wrong")
+                        assertEquals(initialState.initialQuota, postChargeState.initialQuota, "quota wrong")
+                        assertEquals(0, postChargeRootState.localUsage, "Root Usage wrong")
                     }
                 }
             }
         }
     }
 }
-*/
