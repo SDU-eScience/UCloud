@@ -1,8 +1,7 @@
 package im
 
 import (
-    "database/sql"
-    "net/http"
+    "fmt"
     cfg "ucloud.dk/pkg/im/config"
 )
 
@@ -13,24 +12,11 @@ func FieErEnHund() {
 
 }
 
-func ModuleMain(oldModuleData []byte, args map[string]any) {
-    _ = oldModuleData
-
-    mux := args["mux"].(*http.ServeMux)
-    mode := args["mode"].(cfg.ServerMode)
-    configDir := args["configDir"].(string)
-    userModeSecret := args["userModeSecret"].(string)
-    db := args["db"].(*sql.DB)                                                 // can be nil
-    gatewayConfigChannel := args["gatewayConfigChannel"].(chan map[string]any) // can be nil
-
-    cfg.Parse(cfg.ServerModeServer, configDir+"/config.yml") // TODO Double parsing in this case
-
-    _ = db
-    _ = mux
-    _ = mode
-    _ = gatewayConfigChannel
-    _ = configDir
-    _ = userModeSecret
+func ModuleMain(oldModuleData []byte, args *ModuleArgs) {
+    for i := 0; i < 10; i++ {
+        fmt.Printf("This is also reloading!\n")
+    }
+    cfg.Parse(cfg.ServerModeServer, args.ConfigDir+"/config.yml") // TODO Double parsing in this case
 }
 
 func ModuleExit() []byte {

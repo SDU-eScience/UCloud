@@ -23,6 +23,11 @@ func InitializeFiles() {
 }
 
 // NOTE(Dan): Let's assume that this is how the equivalent of a controller talks to us
+
+type FileService interface {
+    FileBrowse(msg ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.ProviderFile]
+}
+
 func HandleFileMessage(message *ctrl.ProviderMessage) bool {
     switch message.Op {
     case ctrl.OpCodeFilesBrowse:
