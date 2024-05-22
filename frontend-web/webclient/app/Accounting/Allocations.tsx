@@ -577,7 +577,7 @@ function stateReducer(state: State, action: UIAction): State {
         };
 
         {
-            for (const {childGroup} of filteredSubAllocations) {
+            for (const {childGroup, wallet} of filteredSubAllocations) {
                 let allocOwner: WalletOwner;
                 if (childGroup.child.projectId) {
                     allocOwner = {type: "project", projectId: childGroup.child.projectId};
@@ -600,18 +600,6 @@ function stateReducer(state: State, action: UIAction): State {
 
                     subAllocations.recipients.push(recipient);
                 }
-            }
-
-            for (const {childGroup, wallet} of filteredSubAllocations) {
-                let allocOwner: WalletOwner;
-                if (childGroup.child.projectId) {
-                    allocOwner = {type: "project", projectId: childGroup.child.projectId};
-                } else {
-                    allocOwner = {type: "user", username: childGroup.child.projectTitle};
-                }
-
-                const recipient = subAllocations.recipients
-                    .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner))!;
 
                 const combinedUsage = childGroup.group.usage;
                 const combinedQuota = childGroup.group.allocations.reduce((acc, val) => acc + val.quota, 0);
@@ -1668,7 +1656,7 @@ const Allocations: React.FunctionComponent = () => {
                 </Flex>
 
                 {state.subAllocations.recipients.length !== 0 ? null : <>
-                    You do not have any sub-allocations at the moment.
+                    You do not have any sub-allocations {state.subAllocations.searchQuery ? "with the active search" : ""} at the moment.
                     {projectRole === OldProjectRole.USER ? null : <>
                         You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
                     </>}
