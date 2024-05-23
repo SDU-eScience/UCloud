@@ -1666,10 +1666,10 @@ const Allocations: React.FunctionComponent = () => {
                     {state.subAllocations.recipients.map((recipient, recipientIdx) => {
                         if (state.viewOnlyProjects && recipient.owner.reference.type === "user") return null;
                         return <TreeNode
-                            key={recipientIdx}
+                            key={recipient.owner.primaryUsername}
                             left={<Flex gap={"4px"} alignItems={"center"}>
                                 <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
-                                    <Avatar {...avatars.avatar(recipient.owner.primaryUsername)}
+                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
                                         style={{height: "32px", width: "auto", marginTop: "-4px"}}
                                         avatarStyle={"Circle"} />
                                 </TooltipV2>
@@ -1695,11 +1695,10 @@ const Allocations: React.FunctionComponent = () => {
                                 {recipient.usageAndQuota.map((uq, idx) => {
                                     if (idx > 2) return null;
                                     return <ProgressBar key={idx} uq={uq} type={uq.type} />;
-                                }
-                                )}
+                                })}
                             </div>}
                         >
-                            {recipient.groups.map((g, gidx) => <React.Fragment key={gidx}>
+                            {recipient.groups.map((g, gidx) => <React.Fragment key={g.category.name}>
                                 <TreeNode
                                     left={<Flex gap={"4px"}>
                                         <Flex gap={"4px"} width={"200px"}>
@@ -1716,7 +1715,7 @@ const Allocations: React.FunctionComponent = () => {
                                     {g.allocations
                                         .map((alloc, idx) =>
                                             <TreeNode
-                                                key={idx}
+                                                key={alloc.allocationId}
                                                 className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
                                                 data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
                                                 left={<Flex>

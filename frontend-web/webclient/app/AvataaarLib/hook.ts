@@ -40,6 +40,10 @@ class AvatarState extends UState<AvatarState> {
         this.updateCache([username]);
         return this.cache[username] ?? defaultAvatar;
     }
+    
+    avatarFromCache(username: string): AvatarType {
+        return this.cache[username] ?? defaultAvatar;
+    }
 }
 
 export const avatarState = new AvatarState(2); // Two, otherwise we can't fetch by invites and projectmembers in the Members.tsx file. Maybe higher needed at some point?
