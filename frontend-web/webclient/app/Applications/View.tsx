@@ -90,6 +90,7 @@ export const AppHeader: React.FunctionComponent<{
                         )}
                     </ClickableDropdown>
                     {newest && newest.metadata.version !== props.application.metadata.version ?
+                        <Flex my="auto">
                         <Tooltip tooltipContentWidth={390} trigger={
                             <div className={TriggerDiv} onClick={e => {
                                 e.preventDefault();
@@ -102,7 +103,8 @@ export const AppHeader: React.FunctionComponent<{
                                 You are not using the newest version of the app.<br />
                                 Click to use the newest version.
                             </div>
-                        </Tooltip> : null}
+                        </Tooltip>
+                        </Flex> : null}
                 </Flex>
             </Flex>
         </Flex>
@@ -110,7 +112,7 @@ export const AppHeader: React.FunctionComponent<{
 };
 
 const TriggerDiv = injectStyleSimple("trigger-div", `
-    margin-left: 4px;
+    margin-left: 6px;
     padding-left: 12px;
     padding-right: 12px;
     text-align: center;
