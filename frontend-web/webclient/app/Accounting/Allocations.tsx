@@ -384,7 +384,7 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         case "ToggleViewOnlyProjects": {
-            return {...state, viewOnlyProjects: action.viewOnlyProjects};
+            return rebuildTree({...state, viewOnlyProjects: action.viewOnlyProjects});
         }
 
         case "UpdateAllocation": {
@@ -582,6 +582,7 @@ function stateReducer(state: State, action: UIAction): State {
                 if (childGroup.child.projectId) {
                     allocOwner = {type: "project", projectId: childGroup.child.projectId};
                 } else {
+                    if (state.viewOnlyProjects) continue;
                     allocOwner = {type: "user", username: childGroup.child.projectTitle};
                 }
 
@@ -1664,7 +1665,6 @@ const Allocations: React.FunctionComponent = () => {
 
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
                     {state.subAllocations.recipients.map((recipient, recipientIdx) => {
-                        if (state.viewOnlyProjects && recipient.owner.reference.type === "user") return null;
                         return <TreeNode
                             key={recipient.owner.primaryUsername}
                             left={<Flex gap={"4px"} alignItems={"center"}>
@@ -1698,8 +1698,9 @@ const Allocations: React.FunctionComponent = () => {
                                 })}
                             </div>}
                         >
-                            {recipient.groups.map((g, gidx) => <React.Fragment key={g.category.name}>
+                            {recipient.groups.map((g, gidx) =>
                                 <TreeNode
+                                    key={g.category.name}
                                     left={<Flex gap={"4px"}>
                                         <Flex gap={"4px"} width={"200px"}>
                                             <ProviderLogo providerId={g.category.provider} size={20} />
@@ -1778,8 +1779,7 @@ const Allocations: React.FunctionComponent = () => {
                                             />
                                         )
                                     }
-                                </TreeNode>
-                            </React.Fragment>)}
+                                </TreeNode>)}
                         </TreeNode>
                     })}
                 </Tree>
