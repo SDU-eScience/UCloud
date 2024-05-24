@@ -1198,6 +1198,7 @@ const style = injectStyle("grant-editor", k => `
     ${k} .comment-scrolling {
         height: 300px;
         overflow-y: auto;
+        border-radius: 6px;
         
         box-shadow: inset 0 11px 8px -10px #ccc;
         border: 1px solid #ccc;
