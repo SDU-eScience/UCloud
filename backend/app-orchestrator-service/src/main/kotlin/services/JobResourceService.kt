@@ -8,7 +8,6 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ResourceDocument
 import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
-import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.appCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.backgroundScope
@@ -44,7 +43,6 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
-import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
@@ -277,6 +275,19 @@ class JobResourceService(
 
         // First step of the function is to run various checks to ensure that the user is authorized to perform this
         // action. We also verify that the provider is capable of fulfilling the request.
+        when (card) {
+            is IdCard.User -> {
+                val projectInfo = idCards.lookupProjectInformation(card.activeProject)
+                if (projectInfo != null && !projectInfo.canConsumeResources) {
+                    throw RPCException("Project not allowed to use resources", HttpStatusCode.Forbidden)
+                }
+            }
+
+            else -> {
+                //ALL GOOD
+            }
+        }
+
         providers.runChecksForCreate(actorAndProject, Jobs, request, "start job") { support, job ->
             val (_, tool, block) = findSupportBlock(job, support)
             block.checkEnabled()
