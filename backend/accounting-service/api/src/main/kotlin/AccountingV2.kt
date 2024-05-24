@@ -429,4 +429,5 @@ data class WalletV2(
 data class ParentOrChildWallet(
     val projectId: String?,
     val projectTitle: String,
+    val pi: String
 )

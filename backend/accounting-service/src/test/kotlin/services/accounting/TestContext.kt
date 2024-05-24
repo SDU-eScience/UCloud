@@ -58,9 +58,9 @@ data class ProjectInfo(
 
 suspend fun TestContext.createProject(): ProjectInfo {
     val projectId = UUID.randomUUID().toString()
-    val project = idCards.createProject(projectId, canConsumeResources = false, parent = null)
     val projectPiUsername = "$projectId-PI"
     val projectPiUid = idCards.createUser(projectPiUsername)
+    val project = idCards.createProject(projectId, pi = projectPiUsername, canConsumeResources = false, parent = null)
     idCards.addAdminToProject(projectPiUid, project)
     val actorAndProject = ActorAndProject(Actor.SystemOnBehalfOfUser(projectPiUsername), projectId)
     val idCard = idCards.fetchIdCard(actorAndProject)
@@ -81,9 +81,9 @@ data class ProviderInfo(
 
 suspend fun TestContext.createProvider(): ProviderInfo {
     val providerId = UUID.randomUUID().toString()
-    val project = idCards.createProject(providerId, canConsumeResources = false, parent = null)
     val projectPiUsername = "$providerId-PI"
     val projectPiUid = idCards.createUser(projectPiUsername)
+    val project = idCards.createProject(providerId, pi = projectPiUsername, canConsumeResources = false, parent = null)
     idCards.addAdminToProject(projectPiUid, project)
     idCards.markProviderProject(providerId, project)
 

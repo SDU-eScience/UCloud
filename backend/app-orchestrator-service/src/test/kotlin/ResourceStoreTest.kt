@@ -223,7 +223,7 @@ class ResourceStoreTest {
         val admin = createUser("admin")
         val member = createUser("member")
         val outsider = createUser("outsider")
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, pi = admin.username)
         val group = idCards.createGroup(project, "group")
         idCards.addAdminToProject(admin.uid, project)
         idCards.addUserToGroup(member.uid, group)
@@ -430,7 +430,7 @@ class ResourceStoreTest {
         val product = products.insert("a", "b", "c")
         val ref = products.productIdToReference(product)!!
         val admin = createUser("admin")
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         idCards.addAdminToProject(admin.uid, project)
 
         val idCard = admin.idCard(projectTitle)
@@ -639,7 +639,7 @@ class ResourceStoreTest {
         val ref = products.productIdToReference(product)!!
         val admin = createUser("admin")
         val member = createUser("member")
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         val group = idCards.createGroup(project, "group")
         idCards.addAdminToProject(admin.uid, project)
         idCards.addUserToGroup(member.uid, group)
@@ -721,8 +721,8 @@ class ResourceStoreTest {
         val ref = products.productIdToReference(product)!!
         val admin = createUser("admin")
         val admin2 = createUser("admin2")
-        val project = idCards.createProject(projectTitle)
-        val project2 = idCards.createProject(projectTitle2)
+        val project = idCards.createProject(projectTitle, pi = admin.username)
+        val project2 = idCards.createProject(projectTitle2, pi = admin2.username)
         idCards.addAdminToProject(admin.uid, project)
         idCards.addAdminToProject(admin2.uid, project2)
 
@@ -778,7 +778,7 @@ class ResourceStoreTest {
         val ref = products.productIdToReference(product)!!
 
         val admin = createUser("admin")
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         idCards.addAdminToProject(admin.uid, project)
 
         val members = (0..<groupCount).map { createUser("member$it") }
@@ -834,7 +834,7 @@ class ResourceStoreTest {
         val admin = createUser("admin")
         val member = createUser("member")
         val user = createUser("user")
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         val group = idCards.createGroup(project, "group")
         idCards.addAdminToProject(admin.uid, project)
         idCards.addUserToGroup(member.uid, group)
@@ -1182,7 +1182,7 @@ class ResourceStoreTest {
         val member = createUser("member")
         val user = createUser("user")
         val providerCard = idCards.fetchProvider(ref.provider)
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         val group = idCards.createGroup(project, "group")
         idCards.addAdminToProject(admin.uid, project)
         idCards.addUserToGroup(member.uid, group)
@@ -1269,7 +1269,7 @@ class ResourceStoreTest {
         val member = createUser("member")
         val user = createUser("user")
         val providerCard = idCards.fetchProvider(ref.provider)
-        val project = idCards.createProject(projectTitle)
+        val project = idCards.createProject(projectTitle, admin.username)
         val group = idCards.createGroup(project, "group")
         idCards.addAdminToProject(admin.uid, project)
         idCards.addUserToGroup(member.uid, group)

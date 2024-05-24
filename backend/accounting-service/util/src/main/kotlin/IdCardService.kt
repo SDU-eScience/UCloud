@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -41,6 +40,7 @@ interface IIdCardService {
         val title: String,
         val canConsumeResources: Boolean,
         val parentProject: String? = null,
+        val pi: String
     )
 
     suspend fun lookupUidFromUsernameOrFail(username: String?): Int {
@@ -81,9 +81,10 @@ class IdCardService(
             session.sendPreparedStatement(
                 { setParameter("pid", pid) },
                 """
-                    select id, title, can_consume_resources, parent
-                    from project.projects p
+                    select id, title, can_consume_resources, parent, username
+                    from project.projects p join project.project_members pm on p.id = pm.project_id
                     where
+                        pm.role = 'PI' and
                         p.pid = :pid
                 """
             ).rows.singleOrNull()?.let { row ->
@@ -91,8 +92,9 @@ class IdCardService(
                 val title = row.getString(1)!!
                 val canConsumeResources = row.getBoolean(2)!!
                 val parentId = row.getString(3)
+                val pi = row.getString(4)!!
 
-                IIdCardService.ProjectInfo(id, pid, title, canConsumeResources, parentId)
+                IIdCardService.ProjectInfo(id, pid, title, canConsumeResources, parentId, pi)
             }
         }
     }
@@ -347,7 +349,7 @@ class IdCardService(
 
 class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
     private val users = ArrayList<String>().also { it.add("") }
-    private val projects = ArrayList<IIdCardService.ProjectInfo>().also { it.add(IIdCardService.ProjectInfo("", 0, "", false)) }
+    private val projects = ArrayList<IIdCardService.ProjectInfo>().also { it.add(IIdCardService.ProjectInfo("", 0, "", false, pi = "")) }
     private val groups = ArrayList<Pair<Int, String>>().also { it.add(Pair(0, "")) }
     private val groupMembers = ArrayList<ArrayList<Int>>().also { it.add(ArrayList()) }
     private val admins = ArrayList<ArrayList<Int>>().also { it.add(ArrayList()) }
@@ -367,9 +369,9 @@ class FakeIdCardService(val products: FakeProductCache) : IIdCardService {
         }
     }
 
-    suspend fun createProject(id: String, canConsumeResources: Boolean = true, parent: String? = null): Int {
+    suspend fun createProject(id: String, pi: String, canConsumeResources: Boolean = true, parent: String? = null): Int {
         return mutex.withWriter {
-            projects.add(IIdCardService.ProjectInfo(id, projects.size, "P${projects.size}", canConsumeResources, parent))
+            projects.add(IIdCardService.ProjectInfo(id, projects.size, "P${projects.size}", canConsumeResources, parent, pi = pi))
             admins.add(ArrayList())
             projects.size - 1
         }
