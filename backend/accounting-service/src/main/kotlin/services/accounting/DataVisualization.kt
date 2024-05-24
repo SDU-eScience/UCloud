@@ -201,7 +201,7 @@ class DataVisualization(
                             join accounting.product_categories pc on w.product_category = pc.id
                             join accounting.accounting_units au on pc.accounting_unit = au.id
                             join samples s on w.id = s.wallet_id
-                        order by pc.id, s.sample_time
+                        order by pc.id, s.sample_time desc 
                     """
                     ).rows
 
