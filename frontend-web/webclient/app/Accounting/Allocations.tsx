@@ -592,7 +592,7 @@ function stateReducer(state: State, action: UIAction): State {
                     recipient = {
                         owner: {
                             reference: allocOwner,
-                            primaryUsername: childGroup.child.pi, // TODO!
+                            primaryUsername: childGroup.child.pi,
                             title: childGroup.child.projectTitle,
                         },
                         groups: [],
