@@ -78,8 +78,9 @@ class ProviderCommunications(
 
     private val supportCache = AsyncCache<SupportCacheKey, List<ProductSupport>>(
         backgroundScope,
-        timeToLiveMilliseconds = 1000L * 60 * 5,
+        timeToLiveMilliseconds = 1000L * 60 * 60,
         fetchEagerly = true,
+        timeoutMilliseconds = 1500,
         timeoutException = {
             throw RPCException("Timeout while waiting for ${it.providerId}", HttpStatusCode.BadGateway)
         },

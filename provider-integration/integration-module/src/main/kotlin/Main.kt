@@ -45,7 +45,6 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.encodeToString
 import org.slf4j.LoggerFactory
 import java.sql.DriverManager
 
@@ -715,6 +714,10 @@ fun main(args: Array<String>) {
             // NOTE(Dan): None of the services we launch here are supposed to block the current thread of execution.
             // They should instead launch in a new coroutine or thread. As a result, the code ends up being fairly
             // linear when not counting the null checks.
+
+            if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
+                Metrics.initCoreMetrics()
+            }
 
             // Metrics server (only in serverMode == Server)
             if (serverMode == ServerMode.Server) {
