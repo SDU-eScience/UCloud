@@ -1943,7 +1943,7 @@ const initialState: State = {
     subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
     yourAllocations: {},
     editControlsDisabled: false,
-    viewOnlyProjects: false,
+    viewOnlyProjects: true,
 };
 
 const NO_EXPIRATION_FALLBACK = 4102444800353;
