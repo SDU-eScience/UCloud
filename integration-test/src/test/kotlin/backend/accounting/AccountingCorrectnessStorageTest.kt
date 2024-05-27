@@ -11,6 +11,7 @@ import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
@@ -127,6 +128,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                         }
                     }
 
+                    delay(250)
                     val postRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
                     val wallets = findWalletsInternal(createdProjectWalletOwner).filter { it.paysFor == sampleStorageDifferential.category  }
 
