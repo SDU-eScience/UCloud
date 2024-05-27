@@ -134,11 +134,13 @@ export function addThousandSeparators(numberOrString: string | number): string {
     const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
     const dotIndex = numberAsString.indexOf(".");
     const substring = dotIndex === -1 ? numberAsString : numberAsString.substring(0, dotIndex);
+    const isNegative = substring.startsWith("-");
 
     let result = "";
     let i = 0;
-    const len = substring.length;
-    for (const char of substring) {
+    // Note(Jonas): Skip '-' if present.
+    const len = isNegative ? substring.length - 1 : substring.length;
+    for (const char of substring.slice(isNegative ? 1 : 0)) {
         result += char;
         i += 1;
         if ((i - len) % 3 === 0 && i !== len) {
@@ -149,6 +151,10 @@ export function addThousandSeparators(numberOrString: string | number): string {
     if (dotIndex !== -1) {
         result += ",";
         result += numberAsString.substring(dotIndex + 1);
+    }
+
+    if (isNegative) {
+        result = "-" + result;
     }
 
     return result;
@@ -353,7 +359,7 @@ export function combineBalances(
         balance: number,
         category: ProductCategoryV2
     }[]
-): { productType: ProductType, normalizedBalance: number, unit: string }[] {
+): {productType: ProductType, normalizedBalance: number, unit: string}[] {
     const result: ReturnType<typeof combineBalances> = [];
 
     // This function combines many balances from (potentially) different categories and combines them into a unified
@@ -366,7 +372,7 @@ export function combineBalances(
         if (existing) {
             existing.normalizedBalance += normalizedBalance;
         } else {
-            result.push({ unit: unit.name, normalizedBalance, productType: it.category.productType });
+            result.push({unit: unit.name, normalizedBalance, productType: it.category.productType});
         }
     }
 
@@ -432,7 +438,7 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
     };
 }
 
-export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: { showSuffix: boolean }): string {
+export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: {showSuffix: boolean}): string {
     const unit = explainUnit(product.category);
     const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
     const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
@@ -463,7 +469,7 @@ const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -474,7 +480,7 @@ export function balanceToStringFromUnit(
     productType: ProductType,
     unit: string,
     normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = normalizedBalance;
@@ -657,6 +663,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
     return a.start <= b.end && b.start <= a.end;
 }
