@@ -153,6 +153,8 @@ def cleanDocker() {
         docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
 
         rm -rf ./tmp
+
+	chown -R jenkins:jenkins provider-integration//integration-module/example-extensions/simple
     """
 }
 
