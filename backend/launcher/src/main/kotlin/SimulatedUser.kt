@@ -131,8 +131,8 @@ class Simulator(
     }
 }
 
-private fun ProductCategoryId.toReference(): ProductReference {
-    return ProductReference("$name-1", name, provider)
+private fun ProductCategoryIdV2.toReference(): ProductReferenceV2 {
+    return ProductReferenceV2("$name-1", name, provider)
 }
 
 class SimulatedUser(
@@ -228,7 +228,7 @@ class SimulatedUser(
         )
 
 
-        TODO()
+        //TODO()
 
         /*
                 val allocations = Wallets.retrieveWalletsInternal.call(
@@ -339,7 +339,7 @@ class SimulatedUser(
         ).orThrow().items
     }
 
-    private suspend fun retrieveComputeProduct(): ProductReference {
+    private suspend fun retrieveComputeProduct(): ProductReferenceV2 {
         val computeProducts = Jobs.retrieveProducts.call(Unit, client).orThrow()
         val products = computeProducts.productsByProvider.values.flatten()
         return products.sortedBy { it.product.cpu }.first().support.product

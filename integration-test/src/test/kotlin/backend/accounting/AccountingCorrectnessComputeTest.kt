@@ -11,6 +11,7 @@ import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
@@ -42,8 +43,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                     }
 
                     val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
-                    val initialRootWallets =
-                        findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleCompute.category }
 
                     if (input.numberOfExtraDeposits != null) {
                         for (i in 1..input.numberOfExtraDeposits) {
@@ -106,6 +105,9 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                             ).orThrow()
                         }
                     }
+
+                    delay(500)
+
                     val postRootWallets =
                         findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleCompute.category }
                     val wallets =

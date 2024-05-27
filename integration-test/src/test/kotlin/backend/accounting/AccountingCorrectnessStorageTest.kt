@@ -37,7 +37,6 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                     val root = initializeRootProject(providerInfo.projectId)
                     val createdProject = initializeNormalProject(root, amount = 1_000_000_000, product = sampleStorageDifferential)
                     val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
-                    val initialRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
 
                     if (input.numberOfExtraDeposits != null) {
                         for (i in 1..input.numberOfExtraDeposits) {
@@ -128,7 +127,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                         }
                     }
 
-                    delay(250)
+                    delay(500)
                     val postRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
                     val wallets = findWalletsInternal(createdProjectWalletOwner).filter { it.paysFor == sampleStorageDifferential.category  }
 

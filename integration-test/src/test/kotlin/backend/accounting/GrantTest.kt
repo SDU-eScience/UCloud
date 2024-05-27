@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.Time
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.util.*
 
@@ -203,6 +204,8 @@ class GrantTest : IntegrationTest() {
                     ).orThrow().id
 
                     // Also check that the products were visible
+                    delay(500)
+
                     val allCategories = productsToChoose.orThrow().grantGivers
                         .find { it.id == root.projectId }?.categories ?: emptyList()
 

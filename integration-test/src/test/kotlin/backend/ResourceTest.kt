@@ -22,7 +22,6 @@ import dk.sdu.cloud.provider.api.*
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
-import io.ktor.network.sockets.*
 
 enum class UserType(val usuallyHasPermissions: Boolean) {
     PI(true),
