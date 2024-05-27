@@ -1,11 +1,13 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
+import dk.sdu.cloud.ComposeService.Slurm.service
 import java.util.Base64
 
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.0-dev-36"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.15"
 const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-39"
 
 sealed class PortAllocator {
@@ -681,6 +683,7 @@ sealed class ComposeService {
         }
     }
 
+
     object Slurm : Provider() {
         override val name = "slurm"
         override val title = "Slurm"
@@ -695,13 +698,7 @@ sealed class ComposeService {
             val imDir = slurmProvider.child("im").also { it.mkdirs() }
             val imGradle = imDir.child("gradle").also { it.mkdirs() }
             val imData = imDir.child("data").also { it.mkdirs() }
-            val imHome = imDir.child("home").also { it.mkdirs() }
-            val imWork = imDir.child("work").also { it.mkdirs() }
             val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
-            val imMySqlDb = "immysql".also { volumes.add(it) }
-            val etcMunge = "etc_munge".also { volumes.add(it) }
-            val etcSlurm = "etc_slurm".also { volumes.add(it) }
-            val logSlurm = "log_slurm".also { volumes.add(it) }
 
             val passwdDir = imDir.child("passwd").also { it.mkdirs() }
             val passwdFile = passwdDir.child("passwd")
@@ -721,6 +718,11 @@ sealed class ComposeService {
                     """.trimIndent()
                 )
             }
+
+            val info = slurmBuild(imDir)
+            val imHome = info.imHome
+            val imWork = info.imWork
+            val etcSlurm = info.etcSlurm
 
             service(
                 "slurm",
@@ -749,117 +751,6 @@ sealed class ComposeService {
                 ),
                 serviceConvention = true
             )
-
-            service(
-                "mysql",
-                "Slurm Provider: MySQL (SlurmDB)",
-                Json(
-                    //language=json
-                    """
-                      {
-                        "image": "mysql:8.3.0",
-                        "hostname": "mysql",
-                        "ports": [
-                          "${portAllocator.allocate(3306)}:3306"
-                        ],
-                        "environment": {
-                          "MYSQL_RANDOM_ROOT_PASSWORD": "yes",
-                          "MYSQL_DATABASE": "slurm_acct_db",
-                          "MYSQL_USER": "slurm",
-                          "MYSQL_PASSWORD": "password"
-                        },
-                        "volumes": [
-                          "${imMySqlDb}:/var/lib/mysql"
-                        ],
-                        "restart": "always"
-                      }
-                    """.trimIndent()
-                ),
-                serviceConvention = false
-            )
-
-            service(
-                "slurmdbd",
-                "Slurm Provider: slurmdbd",
-                Json(
-                    //language=json
-                    """
-                      {
-                        "image": "$slurmImage",
-                        "command": ["slurmdbd", "sshd", "user-sync"],
-                        "hostname": "slurmdbd",
-                        "volumes": [
-                          "${passwdDir.absolutePath}:/mnt/passwd",
-                          "${imHome}:/home",
-                          "${imWork}:/work",
-                          "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
-                          "$etcMunge:/etc/munge",
-                          "$etcSlurm:/etc/slurm",
-                          "$logSlurm:/var/log/slurm"
-                        ],
-                        "depends_on": ["mysql"],
-                        "restart": "always"
-                      }
-                    """.trimIndent()
-                ),
-                serviceConvention = false
-            )
-
-            service(
-                "slurmctld",
-                "Slurm Provider: slurmctld",
-                Json(
-                    //language=json
-                    """
-                      {
-                        "image": "$slurmImage",
-                        "command": ["slurmctld", "sshd", "user-sync"],
-                        "hostname": "slurmctld",
-                        "volumes": [
-                          "${passwdDir.absolutePath}:/mnt/passwd",
-                          "${imHome}:/home",
-                          "${imWork}:/work",
-                          "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
-                          "$etcMunge:/etc/munge",
-                          "$etcSlurm:/etc/slurm",
-                          "$logSlurm:/var/log/slurm"
-                        ],
-                        "depends_on": ["slurmdbd"],
-                        "restart": "always"
-                      }
-                    """.trimIndent()
-                ),
-                serviceConvention = false
-            )
-
-            for (id in 1..numberOfSlurmNodes) {
-                service(
-                    "c$id",
-                    "Slurm Provider: Compute node $id",
-                    Json(
-                        //language=json
-                        """
-                          {
-                            "image": "$slurmImage",
-                            "command": ["slurmd", "sshd", "user-sync"],
-                            "hostname": "c$id",
-                            "volumes": [
-                              "${passwdDir.absolutePath}:/mnt/passwd",
-                              "${imHome}:/home",
-                              "${imWork}:/work",
-                              "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
-                              "$etcMunge:/etc/munge",
-                              "$etcSlurm:/etc/slurm",
-                              "$logSlurm:/var/log/slurm"
-                            ],
-                            "depends_on": ["slurmctld"],
-                            "restart": "always"
-                          }
-                        """.trimIndent(),
-                    ),
-                    serviceConvention = false
-                )
-            }
 
             service(
                 "slurmpgweb",
@@ -1011,52 +902,7 @@ sealed class ComposeService {
                 """.trimIndent()
             )
 
-            for (attempt in 0 until 30) {
-                val success = compose.exec(
-                    currentEnvironment,
-                    "slurmctld",
-                    listOf(
-                        "/usr/bin/sacctmgr",
-                        "--immediate",
-                        "add",
-                        "cluster",
-                        "name=linux"
-                    ),
-                    tty = false,
-                ).allowFailure().streamOutput().executeToText().first != null
-
-                if (success) break
-                Thread.sleep(2_000)
-            }
-
-            // These are mounted into the container, but permissions are wrong
-            compose.exec(
-                currentEnvironment,
-                "slurm",
-                listOf(
-                    "sh",
-                    "-c",
-                    "chmod 0755 -R /etc/ucloud/extensions",
-                ),
-                tty = false
-            ).streamOutput().executeToText()
-
-            // This is to avoid rebuilding the image when the Slurm configuration changes
-            compose.exec(
-                currentEnvironment,
-                "slurmctld",
-                listOf(
-                    "cp",
-                    "-v",
-                    "/opt/ucloud/docker/slurm/slurm.conf",
-                    "/etc/slurm"
-                ),
-                tty = false
-            ).streamOutput().executeToText()
-
-            // Restart slurmctld in case configuration file has changed
-            compose.stop(currentEnvironment, "slurmctld").streamOutput().executeToText()
-            compose.start(currentEnvironment, "slurmctld").streamOutput().executeToText()
+            slurmInstall("slurm")
 
             installMarker.writeText("done")
         }
@@ -1073,8 +919,6 @@ sealed class ComposeService {
             val imDir = provider.child("im").also { it.mkdirs() }
             val imGradle = imDir.child("gradle").also { it.mkdirs() }
             val imData = imDir.child("data").also { it.mkdirs() }
-            val imHome = imDir.child("home").also { it.mkdirs() }
-            val imWork = imDir.child("work").also { it.mkdirs() }
             val imLogs = environment.dataDirectory.child("logs").also { it.mkdirs() }
 
             val passwdDir = imDir.child("passwd").also { it.mkdirs() }
@@ -1103,6 +947,11 @@ sealed class ComposeService {
                 )
             }
 
+            val info = slurmBuild(imDir)
+            val imHome = info.imHome
+            val imWork = info.imWork
+            val etcSlurm = info.etcSlurm
+
             service(
                 "go-slurm",
                 "Slurm (Go test)",
@@ -1121,8 +970,11 @@ sealed class ComposeService {
                           "${imHome.absolutePath}:/home",
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
+                          "$etcSlurm:/etc/slurm-llnl",
                           "${passwdDir.absolutePath}:/mnt/passwd"
-                        ]
+                        ],
+                        "volumes_from": ["slurmdbd:ro"]
                       }
                     """.trimIndent(),
                 ),
@@ -1138,112 +990,16 @@ sealed class ComposeService {
             val installMarker = imData.child(".install-marker")
             if (installMarker.exists()) return
 
-            imData.child("core.yaml").writeText(
-                //language=yaml
-                """
-                    providerId: slurm
-                    launchRealUserInstances: true
-                    allowRootMode: false
-                    developmentMode: true
-                    disableInsecureFileCheckIUnderstandThatThisIsABadIdeaButSomeDevEnvironmentsAreBuggy: true
-                    hosts:
-                      ucloud:
-                        host: backend
-                        scheme: http
-                        port: 8080
-                      self:
-                        host: slurm.localhost.direct
-                        scheme: https
-                        port: 443
-                    cors:
-                      allowHosts: ["ucloud.localhost.direct"]
-                """.trimIndent()
-            )
-
             imData.child("server.yaml").writeText(
                 //language=yaml
                 """
                     refreshToken: ${credentials.refreshToken}
-                    envoy:
-                      executable: /usr/bin/envoy
-                      funceWrapper: false
-                      directory: /var/run/ucloud/envoy
-                    database:
-                      type: Embedded
-                      host: 0.0.0.0
-                      directory: /etc/ucloud/pgsql
-                      password: postgrespassword
                 """.trimIndent()
             )
 
             imData.child("ucloud_crt.pem").writeText(credentials.publicKey)
 
-            imData.child("products.yaml").writeText(
-                //language=yaml
-                """
-                    compute:
-                      cpu:
-                        cost:
-                          type: Resource
-                          unit: Cpu
-                        template: 
-                          cpu: [1, 2, 200]
-                          memory: 1
-                          description: An example CPU machine with 1 vCPU.
-                    storage: 
-                      storage:
-                          cost:
-                            type: Resource
-                            unit: GB
-                          storage:
-                            description: An example storage system
-                """.trimIndent()
-            )
-
-            imData.child("plugins.yaml").writeText(
-                //language=yaml
-                """
-                  connection:
-                    type: UCloud
-                    redirectTo: https://ucloud.localhost.direct
-                    insecureMessageSigningForDevelopmentPurposesOnly: true
-                    extensions:
-                      onConnectionComplete: /etc/ucloud/extensions/connection-complete
-                    
-                  jobs:
-                    default:
-                      type: Slurm
-                      matches: "*"
-                      partition: normal
-                      useFakeMemoryAllocations: true
-                      terminal:
-                        type: SSH
-                        generateSshKeys: true
-                      web:
-                        type: Simple
-                        domainPrefix: slurm-
-                        domainSuffix: .localhost.direct
-                  
-                  fileCollections:
-                    default:
-                      type: Posix
-                      matches: "*"
-                      extensions:
-                        additionalCollections: /etc/ucloud/extensions/posix-drive-locator
-                      
-                  files:
-                    default:
-                      type: Posix
-                      matches: "*"
-                  
-                  projects:
-                    type: Simple
-                    unixGroupNamespace: 42000
-                    extensions:
-                      all: /etc/ucloud/extensions/project-extension
-                      
-                """.trimIndent()
-            )
+            slurmInstall("go-slurm")
 
             installMarker.writeText("done")
         }
@@ -1315,6 +1071,10 @@ sealed class ComposeService {
                         reverse_proxy slurm:8889
                     }
                     
+                    https://go-slurm.localhost.direct {
+                        reverse_proxy go-slurm:8889
+                    }
+                    
                     https://slurm-pg.localhost.direct {
                         reverse_proxy slurmpgweb:8081
                     }
@@ -1364,4 +1124,200 @@ sealed class ComposeService {
             )
         }
     }
+}
+
+data class SlurmInfo(
+    val imHome: LFile,
+    val imWork: LFile,
+    val etcSlurm: String,
+)
+
+fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
+    val imHome = imDir.child("home").also { it.mkdirs() }
+    val imWork = imDir.child("work").also { it.mkdirs() }
+    val imMySqlDb = "immysql".also { volumes.add(it) }
+    val etcMunge = "etc_munge".also { volumes.add(it) }
+    val etcSlurm = "etc_slurm".also { volumes.add(it) }
+    val logSlurm = "log_slurm".also { volumes.add(it) }
+
+    val passwdDir = imDir.child("passwd").also { it.mkdirs() }
+    val passwdFile = passwdDir.child("passwd")
+    val groupFile = passwdDir.child("group")
+    val shadowFile = passwdDir.child("shadow")
+    if (!passwdFile.exists()) {
+        passwdFile.writeText(
+            """
+            """.trimIndent()
+        )
+        groupFile.writeText(
+            """
+            """.trimIndent()
+        )
+        shadowFile.writeText(
+            """
+            """.trimIndent()
+        )
+    }
+
+    service(
+        "mysql",
+        "Slurm Provider: MySQL (SlurmDB)",
+        Json(
+            //language=json
+            """
+              {
+                "image": "mysql:8.3.0",
+                "hostname": "mysql",
+                "ports": [
+                  "${portAllocator.allocate(3306)}:3306"
+                ],
+                "environment": {
+                  "MYSQL_RANDOM_ROOT_PASSWORD": "yes",
+                  "MYSQL_DATABASE": "slurm_acct_db",
+                  "MYSQL_USER": "slurm",
+                  "MYSQL_PASSWORD": "password"
+                },
+                "volumes": [
+                  "${imMySqlDb}:/var/lib/mysql"
+                ],
+                "restart": "always"
+              }
+            """.trimIndent()
+        ),
+        serviceConvention = false
+    )
+
+    service(
+        "slurmdbd",
+        "Slurm Provider: slurmdbd",
+        Json(
+            //language=json
+            """
+              {
+                "image": "$slurmImage",
+                "command": ["slurmdbd", "sshd", "user-sync"],
+                "hostname": "slurmdbd",
+                "volumes": [
+                  "${passwdDir.absolutePath}:/mnt/passwd",
+                  "${imHome}:/home",
+                  "${imWork}:/work",
+                  "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                  "$etcMunge:/etc/munge",
+                  "$etcSlurm:/etc/slurm",
+                  "$logSlurm:/var/log/slurm"
+                ],
+                "depends_on": ["mysql"],
+                "restart": "always"
+              }
+            """.trimIndent()
+        ),
+        serviceConvention = false
+    )
+
+    service(
+        "slurmctld",
+        "Slurm Provider: slurmctld",
+        Json(
+            //language=json
+            """
+              {
+                "image": "$slurmImage",
+                "command": ["slurmctld", "sshd", "user-sync"],
+                "hostname": "slurmctld",
+                "volumes": [
+                  "${passwdDir.absolutePath}:/mnt/passwd",
+                  "${imHome}:/home",
+                  "${imWork}:/work",
+                  "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                  "$etcMunge:/etc/munge",
+                  "$etcSlurm:/etc/slurm",
+                  "$logSlurm:/var/log/slurm"
+                ],
+                "depends_on": ["slurmdbd"],
+                "restart": "always"
+              }
+            """.trimIndent()
+        ),
+        serviceConvention = false
+    )
+
+    for (id in 1..numberOfSlurmNodes) {
+        service(
+            "c$id",
+            "Slurm Provider: Compute node $id",
+            Json(
+                //language=json
+                """
+                  {
+                    "image": "$slurmImage",
+                    "command": ["slurmd", "sshd", "user-sync"],
+                    "hostname": "c$id",
+                    "volumes": [
+                      "${passwdDir.absolutePath}:/mnt/passwd",
+                      "${imHome}:/home",
+                      "${imWork}:/work",
+                      "${environment.repoRoot}/provider-integration/integration-module:/opt/ucloud",
+                      "$etcMunge:/etc/munge",
+                      "$etcSlurm:/etc/slurm",
+                      "$logSlurm:/var/log/slurm"
+                    ],
+                    "depends_on": ["slurmctld"],
+                    "restart": "always"
+                  }
+                """.trimIndent(),
+            ),
+            serviceConvention = false
+        )
+    }
+
+    return SlurmInfo(imHome, imWork, etcSlurm)
+}
+
+fun slurmInstall(providerContainer: String) {
+    for (attempt in 0 until 30) {
+        val success = compose.exec(
+            currentEnvironment,
+            "slurmctld",
+            listOf(
+                "/usr/bin/sacctmgr",
+                "--immediate",
+                "add",
+                "cluster",
+                "name=linux"
+            ),
+            tty = false,
+        ).allowFailure().streamOutput().executeToText().first != null
+
+        if (success) break
+        Thread.sleep(2_000)
+    }
+
+    // These are mounted into the container, but permissions are wrong
+    compose.exec(
+        currentEnvironment,
+        providerContainer,
+        listOf(
+            "sh",
+            "-c",
+            "chmod 0755 -R /etc/ucloud/extensions",
+        ),
+        tty = false
+    ).streamOutput().executeToText()
+
+    // This is to avoid rebuilding the image when the Slurm configuration changes
+    compose.exec(
+        currentEnvironment,
+        "slurmctld",
+        listOf(
+            "cp",
+            "-v",
+            "/opt/ucloud/docker/slurm/slurm.conf",
+            "/etc/slurm"
+        ),
+        tty = false
+    ).streamOutput().executeToText()
+
+    // Restart slurmctld in case configuration file has changed
+    compose.stop(currentEnvironment, "slurmctld").streamOutput().executeToText()
+    compose.start(currentEnvironment, "slurmctld").streamOutput().executeToText()
 }

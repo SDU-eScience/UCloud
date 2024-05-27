@@ -3,41 +3,48 @@ package slurm
 import (
     "fmt"
     lru "github.com/hashicorp/golang-lru/v2/expirable"
+    "net/http"
     "os"
+    "path/filepath"
     "slices"
     "strconv"
     "strings"
     "time"
     fnd "ucloud.dk/pkg/foundation"
-    "ucloud.dk/pkg/im/config"
     ctrl "ucloud.dk/pkg/im/controller"
+    "ucloud.dk/pkg/log"
     "ucloud.dk/pkg/orchestrators"
     "ucloud.dk/pkg/util"
 )
 
-var cfg *config.ServicesConfigurationSlurm
 var browseCache *lru.LRU[string, []cachedDirEntry]
 
-func InitializeFiles() {
+func InitializeFiles() ctrl.FileService {
     browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
+    return ctrl.FileService{
+        BrowseFiles:  browse,
+        CreateFolder: nil,
+    }
 }
 
 // NOTE(Dan): Let's assume that this is how the equivalent of a controller talks to us
 
-type FileService interface {
-    FileBrowse(msg ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.ProviderFile]
-}
-
-func HandleFileMessage(message *ctrl.ProviderMessage) bool {
-    switch message.Op {
-    case ctrl.OpCodeFilesBrowse:
-        browse(message.FilesBrowse())
-    }
-    return true
-}
-
 func mapPath(path string, drive *orchestrators.Drive) string {
-    return path
+    elements := strings.Split(filepath.Clean(path), "/")
+    log.Info("path=%v elements=%v len=%v", path, elements, len(elements))
+    if len(elements) < 3 {
+        return "/home/user"
+    }
+    return "/home/user/" + strings.Join(elements[2:], "/")
+}
+
+func inverseMap(path string, drive *orchestrators.Drive) string {
+    list := strings.Split(filepath.Clean(path), "/")
+    fmt.Printf("compile? path is %v %v\n", path, list)
+    if len(list) < 3 {
+        return ""
+    }
+    return "/" + drive.Id + "/" + strings.Join(list[3:], "/")
 }
 
 type cachedDirEntry struct {
@@ -91,7 +98,7 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
     }
 }
 
-func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.ProviderFile] {
+func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderFile], error) {
     internalPath := mapPath(request.Path, &request.Drive)
     sortBy := request.SortBy
 
@@ -108,12 +115,19 @@ func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.P
         if err != nil {
             // TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
             //   was just added to the project. See the current Kotlin implementation for more details.
-            return fnd.EmptyPage[orchestrators.ProviderFile]()
+            log.Info("Could not open directory at %v %v", internalPath, err)
+            return fnd.EmptyPage[orchestrators.ProviderFile](), &ctrl.HttpError{
+                StatusCode: http.StatusNotFound,
+                Why:        "Could not find directory",
+            }
         }
 
         fileNames, err := file.Readdirnames(-1)
         if err != nil {
-            return fnd.EmptyPage[orchestrators.ProviderFile]()
+            return fnd.EmptyPage[orchestrators.ProviderFile](), &ctrl.HttpError{
+                StatusCode: http.StatusNotFound,
+                Why:        "Could not find and read directory. Is this a directory?",
+            }
         }
 
         if len(fileNames) > 10000 {
@@ -167,7 +181,7 @@ func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.P
     }
 
     if offset >= len(fileList) || offset < 0 {
-        return fnd.EmptyPage[orchestrators.ProviderFile]()
+        return fnd.EmptyPage[orchestrators.ProviderFile](), nil
     }
 
     items := make([]orchestrators.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
@@ -193,7 +207,7 @@ func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.P
             itemIdx += 1
         }
 
-        readMetadata(entry.absPath, entry.info, item)
+        readMetadata(entry.absPath, entry.info, item, &request.Drive)
     }
 
     nextToken := ""
@@ -202,19 +216,20 @@ func browse(request *ctrl.ProviderMessageFilesBrowse) fnd.PageV2[orchestrators.P
     }
 
     return fnd.PageV2[orchestrators.ProviderFile]{
-        Items: items[:itemIdx],
-        Next:  nextToken,
-    }
+        Items:        items[:itemIdx],
+        ItemsPerPage: 250,
+        Next:         util.OptValue(nextToken),
+    }, nil
 }
 
-func readMetadata(internalPath string, stat os.FileInfo, file *orchestrators.ProviderFile) {
+func readMetadata(internalPath string, stat os.FileInfo, file *orchestrators.ProviderFile, drive *orchestrators.Drive) {
     file.Status.Type = orchestrators.FileTypeFile
     if stat.IsDir() {
         file.Status.Type = orchestrators.FileTypeDirectory
     }
 
     // TODO These two
-    file.Id = ""
+    file.Id = inverseMap(internalPath, drive)
     file.Status.Icon = orchestrators.FileIconHintNone
 
     file.CreatedAt = FileModTime(stat)

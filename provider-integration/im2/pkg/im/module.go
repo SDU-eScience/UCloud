@@ -3,20 +3,22 @@ package im
 import (
     "fmt"
     cfg "ucloud.dk/pkg/im/config"
+    ctrl "ucloud.dk/pkg/im/controller"
+    svc "ucloud.dk/pkg/im/services"
 )
 
 var IsAlive = true
-var FieErEnVariabel = false
-
-func FieErEnHund() {
-
-}
 
 func ModuleMain(oldModuleData []byte, args *ModuleArgs) {
-    for i := 0; i < 10; i++ {
-        fmt.Printf("This is also reloading!\n")
+    fmt.Printf("Running module main with mode=%v\n", args.Mode)
+    success := cfg.Parse(args.Mode, args.ConfigDir+"/config.yml") // TODO Double parsing in this case
+    if !success {
+        // Do not start any services if the configuration is invalid
+        return
     }
-    cfg.Parse(cfg.ServerModeServer, args.ConfigDir+"/config.yml") // TODO Double parsing in this case
+
+    svc.Init()
+    ctrl.Init(args.ServerMultiplexer)
 }
 
 func ModuleExit() []byte {

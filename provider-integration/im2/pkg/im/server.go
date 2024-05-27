@@ -3,26 +3,25 @@ package im
 import (
     "flag"
     "fmt"
-    "net"
     "net/http"
     "os"
+    "strconv"
     cfg "ucloud.dk/pkg/im/config"
     "ucloud.dk/pkg/im/gateway"
+    "ucloud.dk/pkg/im/ipc"
+    "ucloud.dk/pkg/log"
 )
 
 func Launch() {
     var (
-        configDir      = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
-        userModeSecret = flag.String("user-mode-secret", "", "User-mode secret which must be passed in all requests")
-        reloadable     = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
+        configDir  = flag.String("config-dir", "/etc/ucloud", "Path to the configuration directory used by the IM")
+        reloadable = flag.Bool("reloadable", false, "Whether to enable hot-reloading of the module")
     )
 
     flag.Parse()
     if !flag.Parsed() {
         os.Exit(1)
     }
-
-    cfg.Parse(cfg.ServerModeServer, *configDir+"/config.yml")
 
     /*
        database, err := sql.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
@@ -38,6 +37,8 @@ func Launch() {
     switch flag.Arg(0) {
     case "user":
         mode = cfg.ServerModeUser
+    case "":
+        mode = cfg.ServerModeServer
     case "server":
         mode = cfg.ServerModeServer
     case "proxy":
@@ -47,17 +48,18 @@ func Launch() {
         pluginName = flag.Arg(1)
     }
 
-    if mode == cfg.ServerModeUser && len(*userModeSecret) == 0 {
+    cfg.Parse(mode, *configDir+"/config.yml")
+
+    userModeSecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
+    fmt.Printf("env=%v\n", os.Environ())
+    if mode == cfg.ServerModeUser && (!userModeSecretOk || userModeSecret == "") {
         fmt.Printf("No user-Mode secret specified!\n")
         os.Exit(1)
     }
 
-    _ = mode
     _ = pluginName
 
-    var listener net.Listener = nil
-    _ = listener
-    gatewayConfigChannel := make(chan map[string]any)
+    gatewayConfigChannel := make(chan []byte)
     if mode == cfg.ServerModeServer {
         // TODO(Dan): Update the gateway to perform JWT validation. This should not (and must not) pass the JWT to the
         //   upstreams. Gateway must be configured to send the user secret to all user instances. For the server
@@ -69,10 +71,7 @@ func Launch() {
             Port:            8889,
             InitialClusters: nil,
             InitialRoutes:   nil,
-        })
-
-        // TODO
-        _ = gatewayConfigChannel
+        }, gatewayConfigChannel)
 
         gateway.Resume()
     } else if mode == cfg.ServerModeUser {
@@ -84,7 +83,7 @@ func Launch() {
         GatewayConfigChannel: gatewayConfigChannel,
         Database:             nil,
         ConfigDir:            *configDir,
-        UserModeSecret:       *userModeSecret,
+        UserModeSecret:       userModeSecret,
     }
 
     // Once all critical parts are loaded, we can trigger the reloadable part of the code's main function
@@ -99,16 +98,37 @@ func Launch() {
         reloadModule(&module, &moduleArgs)
     }
 
-    err := http.ListenAndServe(
-        fmt.Sprintf(":%v", gateway.ServerClusterPort),
-        http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-            handler, _ := _internalMux.Handler(request)
-            handler.ServeHTTP(writer, request)
-        }),
-    )
+    log.Info("UCloud is ready!")
 
-    if err != nil {
-        fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
-        os.Exit(1)
+    if mode == cfg.ServerModeServer {
+        // NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
+        // reloadable.
+
+        go func() {
+            ipc.InitIpc()
+        }()
+    }
+
+    if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
+        serverPort := gateway.ServerClusterPort
+        if mode == cfg.ServerModeUser {
+            port, _ := strconv.Atoi(flag.Arg(1))
+            serverPort = port
+        }
+
+        log.Info("Starting up on %v. 0=%v 1=%v 2=%v", serverPort, flag.Arg(0), flag.Arg(1), flag.Arg(2))
+
+        err := http.ListenAndServe(
+            fmt.Sprintf(":%v", serverPort),
+            http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+                handler, _ := _internalMux.Handler(request)
+                handler.ServeHTTP(writer, request)
+            }),
+        )
+
+        if err != nil {
+            fmt.Printf("Failed to start listener on port %v\n", gateway.ServerClusterPort)
+            os.Exit(1)
+        }
     }
 }

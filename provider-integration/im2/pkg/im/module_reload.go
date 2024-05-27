@@ -24,7 +24,7 @@ var _currentModule *ReloadableModule = nil
 
 type ModuleArgs struct {
     Mode                 cfg.ServerMode
-    GatewayConfigChannel chan map[string]any
+    GatewayConfigChannel chan []byte
     Database             *sql.DB
     ConfigDir            string
     UserModeSecret       string
@@ -39,8 +39,8 @@ func ModuleMainStub(oldData []byte, args map[string]any) {
     mode := cfg.ServerMode(args["Mode"].(int))
     configDir := args["ConfigDir"].(string)
     userModeSecret := args["UserModeSecret"].(string)
-    db := args["Database"].(*sql.DB)                                           // can be nil
-    gatewayConfigChannel := args["GatewayConfigChannel"].(chan map[string]any) // can be nil
+    db := args["Database"].(*sql.DB)                                   // can be nil
+    gatewayConfigChannel := args["GatewayConfigChannel"].(chan []byte) // can be nil
 
     newArgs := ModuleArgs{
         Mode:                 mode,
