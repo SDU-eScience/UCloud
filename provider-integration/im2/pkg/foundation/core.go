@@ -4,17 +4,19 @@ import (
     "encoding/json"
     "strconv"
     "time"
+    "ucloud.dk/pkg/util"
 )
 
 type PageV2[T any] struct {
-    Items []T    `json:"items,omitempty"`
-    Next  string `json:"next,omitempty"`
+    Items        []T                 `json:"items,omitempty"`
+    Next         util.Option[string] `json:"next,omitempty"`
+    ItemsPerPage int                 `json:"itemsPerPage"`
 }
 
 func EmptyPage[T any]() PageV2[T] {
     return PageV2[T]{
         Items: []T{},
-        Next:  "",
+        Next:  util.OptNone[string](),
     }
 }
 

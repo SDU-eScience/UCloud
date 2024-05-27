@@ -1,8 +1,9 @@
 package config
 
 import (
-    "crypto/rand"
-    "encoding/hex"
+    "crypto/rsa"
+    "crypto/x509"
+    "encoding/pem"
     "errors"
     "fmt"
     "gopkg.in/yaml.v3"
@@ -11,8 +12,8 @@ import (
     "path"
     "regexp"
     "strings"
-    "time"
     "ucloud.dk/pkg/log"
+    "ucloud.dk/pkg/util"
 )
 
 type ServerMode int
@@ -24,7 +25,17 @@ const (
     ServerModePlugin
 )
 
+var Mode ServerMode
+var Provider *ProviderConfiguration
+var Services *ServicesConfiguration
+
+var enableErrorReporting = true
+
 func reportError(path string, node *yaml.Node, format string, args ...any) {
+    if !enableErrorReporting {
+        return
+    }
+
     if node != &dummyNode {
         if node != nil {
             combinedArgs := []any{path, node.Line, node.Column}
@@ -154,6 +165,13 @@ func requireChildBool(path string, node *yaml.Node, child string, success *bool)
     return result
 }
 
+func optionalChildBool(path string, node *yaml.Node, child string) (value bool, ok bool) {
+    enableErrorReporting = false
+    value = requireChildBool(path, node, child, &ok)
+    enableErrorReporting = true
+    return
+}
+
 func requireChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) T {
     var result T
     text := requireChildText(filePath, node, child, success)
@@ -170,12 +188,6 @@ func requireChildEnum[T any](filePath string, node *yaml.Node, child string, opt
     reportError(filePath, node, "expected '%v' to be one of %v", text, options)
     *success = false
     return result
-}
-
-func randomToken() string {
-    bytes := make([]byte, 16)
-    _, _ = rand.Read(bytes)
-    return fmt.Sprintf("%v-%v", time.Now().UnixNano(), hex.EncodeToString(bytes))
 }
 
 type FileCheckFlags int
@@ -219,7 +231,7 @@ func requireChildFolder(filePath string, node *yaml.Node, child string, flags Fi
     }
 
     if flags&FileCheckWrite != 0 {
-        temporaryFile := path.Join(text, "."+randomToken())
+        temporaryFile := path.Join(text, "."+util.RandomToken(16))
         err = os.WriteFile(temporaryFile, []byte("UCloud/IM test file"), 0700)
         if err != nil {
             reportError(
@@ -311,6 +323,8 @@ func decode(filePath string, node *yaml.Node, result any, success *bool) {
 }
 
 func Parse(serverMode ServerMode, filePath string) bool {
+    Mode = serverMode
+
     success := true
     fileBytes, err := os.ReadFile(filePath)
     if err != nil {
@@ -361,6 +375,9 @@ func Parse(serverMode ServerMode, filePath string) bool {
     }
     _ = servicesConfig
 
+    Provider = &providerConfig
+    Services = &servicesConfig
+
     return true
 }
 
@@ -407,6 +424,14 @@ type ProviderConfiguration struct {
         Directory string
     }
 
+    Envoy struct {
+        StateDirectory            string
+        FunceWrapper              bool
+        Executable                string
+        InternalAddressToProvider string
+        ManagedExternally         bool
+    }
+
     Logs struct {
         Directory string
         Rotation  struct {
@@ -419,6 +444,8 @@ type ProviderConfiguration struct {
 func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfiguration) {
     cfg := ProviderConfiguration{}
     success := true
+
+    cfg.Id = requireChildText(filePath, provider, "id", &success)
 
     {
         // Hosts section
@@ -440,7 +467,12 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
     {
         // IPC section
         ipc := requireChild(filePath, provider, "ipc", &success)
-        directory := requireChildFolder(filePath, ipc, "directory", FileCheckReadWrite, &success)
+        ipcDirModeRequired := FileCheckRead
+        if Mode == ServerModeServer {
+            ipcDirModeRequired = FileCheckReadWrite
+        }
+        fmt.Printf("Mode is %v so we will require %v\n", Mode, ipcDirModeRequired)
+        directory := requireChildFolder(filePath, ipc, "directory", ipcDirModeRequired, &success)
         cfg.Ipc.Directory = directory
         if !success {
             return false, cfg
@@ -470,6 +502,33 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
                     return false, cfg
                 }
             }
+        }
+    }
+
+    if Mode == ServerModeServer {
+        // Envoy section
+        envoy := requireChild(filePath, provider, "envoy", &success)
+
+        directory := requireChildFolder(filePath, envoy, "directory", FileCheckReadWrite, &success)
+        cfg.Envoy.StateDirectory = directory
+
+        exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
+        cfg.Envoy.Executable = exe
+
+        funceWrapper, _ := optionalChildBool(filePath, envoy, "funceWrapper")
+        cfg.Envoy.FunceWrapper = funceWrapper
+
+        internalAddressToProvider := optionalChildText(filePath, envoy, "internalAddressToProvider", &success)
+        if internalAddressToProvider == "" {
+            internalAddressToProvider = "127.0.0.1"
+        }
+        cfg.Envoy.InternalAddressToProvider = internalAddressToProvider
+
+        managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
+        cfg.Envoy.ManagedExternally = managedExternally
+
+        if !success {
+            return false, cfg
         }
     }
 
@@ -1108,4 +1167,42 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
     }
 
     return result
+}
+
+func ReadPublicKey(configDir string) *rsa.PublicKey {
+    content, _ := os.ReadFile(configDir + "/ucloud_key.pub")
+    if content == nil {
+        return nil
+    }
+
+    var keyBuilder strings.Builder
+    keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
+    keyBuilder.WriteString(chunkString(string(content), 64))
+    keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
+
+    key := keyBuilder.String()
+
+    block, _ := pem.Decode([]byte(key))
+    if block == nil {
+        return nil
+    }
+
+    pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
+    if pubKey == nil {
+        return nil
+    }
+
+    rsaKey, _ := pubKey.(*rsa.PublicKey)
+    return rsaKey
+}
+
+func chunkString(input string, chunkSize int) string {
+    var builder strings.Builder
+    for i, c := range input {
+        if i != 0 && i%chunkSize == 0 {
+            builder.WriteString("\n")
+        }
+        builder.WriteRune(c)
+    }
+    return builder.String()
 }

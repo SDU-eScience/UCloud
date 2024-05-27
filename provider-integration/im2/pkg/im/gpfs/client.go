@@ -3,12 +3,14 @@ package gpfs
 import (
 	"bytes"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
+	"os"
 	"time"
+
+	"ucloud.dk/pkg/log"
 )
 
 type Params map[string]any
@@ -21,13 +23,35 @@ type Client struct {
 	timeout    int
 }
 
-func NewClient(url string) *Client {
+func NewClient(url string, verify bool, cacert string) *Client {
+	var certPool *x509.CertPool = nil
+
+	if len(cacert) > 0 {
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			log.Error("SystemCertPool() failed: %v", err)
+			return nil
+		}
+
+		caCertPEM, err := os.ReadFile(cacert)
+		if err != nil {
+			log.Error("ReadFile() failed: %v", err)
+			return nil
+		}
+
+		ok := certPool.AppendCertsFromPEM(caCertPEM)
+		if !ok {
+			log.Error("AppendCertsFromPEM() failed: %v", err)
+			return nil
+		}
+	}
+
 	return &Client{
 		httpClient: http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-                                         // TODO(Dan): Put this into configuration
-					InsecureSkipVerify: true,
+					RootCAs:            certPool,
+					InsecureSkipVerify: !verify,
 				},
 			},
 			Timeout: time.Duration(5) * time.Second,
@@ -53,13 +77,13 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 	// Prepare and send request
 	p, err := json.Marshal(params)
 	if err != nil {
-		log.Printf("json marshal failed: %v", err)
+		log.Error("json marshal failed: %v", err)
 		return false
 	}
 
 	req, err := http.NewRequest(method, c.baseurl+"/"+url, bytes.NewReader(p))
 	if err != nil {
-		log.Printf("new http request failed: %v", err)
+		log.Error("new http request failed: %v", err)
 		return false
 	}
 
@@ -72,7 +96,7 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Printf("http request failed: %v", err)
+		log.Error("http request failed: %v", err)
 		return false
 	}
 
@@ -81,23 +105,14 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 		return false
 	}
 
-	// Debug
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bodyString := string(bodyBytes)
-	fmt.Println(bodyString)
-
 	// Parse the response data
 	if rd == nil {
 		return true
 	}
 
-	// err = json.NewDecoder(resp.Body).Decode(rd)
-	json.Unmarshal(bodyBytes, rd)
+	err = json.NewDecoder(resp.Body).Decode(rd)
 	if err != nil {
-		log.Printf("json unmarshal failed: %v", err)
+		log.Error("json unmarshal failed: %v", err)
 		return false
 	}
 
@@ -132,12 +147,11 @@ func (c *Client) JobWait(jobid int) (JobResponse, bool) {
 
 func (c *Client) FilesetExists(filesystem, fileset string) bool {
 	// Check variables
-	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
-	if len(filesystem) == 0 {
+	if !gpfsValidateName(filesystem) {
 		return false
 	}
 
-	if len(fileset) == 0 {
+	if !gpfsValidateName(fileset) {
 		return false
 	}
 
@@ -151,12 +165,11 @@ func (c *Client) FilesetQuery(filesystem, fileset string) (Fileset, bool) {
 	var result Fileset
 
 	// Check variables
-	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
-	if len(filesystem) == 0 {
+	if !gpfsValidateName(filesystem) {
 		return result, false
 	}
 
-	if len(fileset) == 0 {
+	if !gpfsValidateName(fileset) {
 		return result, false
 	}
 
@@ -197,11 +210,11 @@ func (c *Client) FilesetCreate(f *Fileset) bool {
 		return false
 	}
 
-	if len(f.Filesystem) == 0 {
+	if !gpfsValidateName(f.Filesystem) {
 		return false
 	}
 
-	if len(f.Name) == 0 {
+	if !gpfsValidateName(f.Name) {
 		return false
 	}
 
@@ -249,11 +262,11 @@ func (c *Client) FilesetQuota(f *Fileset) bool {
 		return false
 	}
 
-	if len(f.Filesystem) == 0 {
+	if !gpfsValidateName(f.Filesystem) {
 		return false
 	}
 
-	if len(f.Name) == 0 {
+	if !gpfsValidateName(f.Name) {
 		return false
 	}
 
@@ -282,12 +295,11 @@ func (c *Client) FilesetQuota(f *Fileset) bool {
 
 func (c *Client) FilesetUnlink(filesystem, fileset string) bool {
 	// Check variables
-	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
-	if len(filesystem) == 0 {
+	if !gpfsValidateName(filesystem) {
 		return false
 	}
 
-	if len(fileset) == 0 {
+	if !gpfsValidateName(fileset) {
 		return false
 	}
 
@@ -306,12 +318,11 @@ func (c *Client) FilesetUnlink(filesystem, fileset string) bool {
 
 func (c *Client) FilesetDelete(filesystem, fileset string) bool {
 	// Check variables
-	// TODO(Dan): Check that filesystem and fileset does not contain '..' or '/'
-	if len(filesystem) == 0 {
+	if !gpfsValidateName(filesystem) {
 		return false
 	}
 
-	if len(fileset) == 0 {
+	if !gpfsValidateName(fileset) {
 		return false
 	}
 

@@ -52,7 +52,6 @@ class GrantTest : IntegrationTest() {
                 val projectsOfUser: List<UserProjectSummary>,
                 val walletsOfUser: List<WalletV2>,
                 val childProjectsOfGrantGiver: List<MemberInProject>,
-                val walletsOfGrantGiver: List<WalletV2>,
             )
 
             test<In, Out>("Grant applications, expected flow") {
@@ -422,12 +421,6 @@ class GrantTest : IntegrationTest() {
                             ).orThrow().wallets
                         }
                     }
-                    val grantWallets = AccountingV2.browseWallets.call(
-                        AccountingV2.BrowseWallets.Request(
-                            // WalletOwner.Project(createdProject.projectId)
-                        ),
-                        adminClient
-                    ).orThrow().items
 
                     GrantsV2.updateRequestSettings.call(
                         baseSettings,
@@ -438,8 +431,7 @@ class GrantTest : IntegrationTest() {
                         outputApplication,
                         userProjects,
                         userWallets,
-                        childProjects,
-                        grantWallets
+                        childProjects
                     )
                 }
 
@@ -522,7 +514,7 @@ class GrantTest : IntegrationTest() {
                     }
 
                     check {
-                        when (val recipient = input.grantRecipient) {
+                        when (input.grantRecipient) {
                             is GrantApplication.Recipient.NewProject, is GrantApplication.Recipient.ExistingProject -> {
                                 if (input.outcome == GrantApplication.State.APPROVED) {
                                     assertThatInstance(output.childProjectsOfGrantGiver) { it.size == 1 }
@@ -530,7 +522,7 @@ class GrantTest : IntegrationTest() {
                             }
 
                             is GrantApplication.Recipient.PersonalWorkspace -> {
-                                assertThatInstance(output.childProjectsOfGrantGiver) { it.size == 0 }
+                                assertThatInstance(output.childProjectsOfGrantGiver) { it.isEmpty() }
                             }
                         }
                     }
@@ -784,7 +776,6 @@ class GrantTest : IntegrationTest() {
                 case("excluded") {
                     val username = "user-${UUID.randomUUID()}"
                     val organization = "ucloud.dk"
-                    val otherOrganization = "sdu.dk"
                     input(
                         In(
                             GrantApplication.State.APPROVED,
@@ -818,7 +809,7 @@ class GrantTest : IntegrationTest() {
                     val info  = createSampleProducts()
 
                     val root = initializeRootProject(info.projectId)
-                    val createdProject = initializeNormalProject(root.projectId)
+                    val createdProject = initializeNormalProject(root)
                     val evilUser = createUser("evil-${UUID.randomUUID()}").let {
                         it.copy(
                             client = it.client.withProject(createdProject.projectId)

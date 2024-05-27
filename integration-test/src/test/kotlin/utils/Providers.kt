@@ -15,7 +15,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
 import dk.sdu.cloud.integration.adminClient
-import dk.sdu.cloud.integration.backend.compute.toReference
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsBrowseRequest
 import dk.sdu.cloud.provider.api.Provider

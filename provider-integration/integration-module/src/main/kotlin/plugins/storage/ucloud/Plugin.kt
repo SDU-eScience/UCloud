@@ -40,10 +40,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
-import dk.sdu.cloud.utils.secureToken
-import dk.sdu.cloud.utils.sendTerminalFrame
-import dk.sdu.cloud.utils.sendTerminalMessage
-import dk.sdu.cloud.utils.sendTerminalTable
+import dk.sdu.cloud.utils.*
 import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.pool.*
@@ -1188,9 +1185,18 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
             )
         }
         val drive = drives.singleOrNull() ?: throw RPCException("Cannot locate drive", HttpStatusCode.NotFound)
-        filePlugin.driveLocator.remove(
-            drive
+        val ucloudMetadata = filePlugin.pathConverter.locator.fetchMetadataForDrive(drive.ucloudId)
+            ?: throw RPCException("Cannot locate drive", HttpStatusCode.NotFound)
+
+        reportUsage(
+            ucloudMetadata.workspace,
+            ucloudMetadata.product,
+            0,
+            minutesUsed = null,
+            scope = drive.ucloudId.toString(),
         )
+
+        filePlugin.driveLocator.remove(drive)
     }
 }
 

@@ -546,6 +546,7 @@ export interface AllocationGroupWithChild {
 export interface ParentOrChildWallet {
     projectId?: string;
     projectTitle: string;
+    pi: string;
 }
 
 export interface AllocationGroup {

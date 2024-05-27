@@ -475,6 +475,7 @@ function stateReducer(state: State, action: UIAction): State {
             wallet: Accounting.WalletV2,
             childGroup: Accounting.AllocationGroupWithChild
         }[] = [];
+
         for (const wallet of state.remoteData.wallets) {
             if (wallet.paysFor.freeToUse) continue;
 
@@ -592,7 +593,7 @@ function stateReducer(state: State, action: UIAction): State {
                     recipient = {
                         owner: {
                             reference: allocOwner,
-                            primaryUsername: childGroup.child.projectTitle, // TODO!
+                            primaryUsername: childGroup.child.pi,
                             title: childGroup.child.projectTitle,
                         },
                         groups: [],

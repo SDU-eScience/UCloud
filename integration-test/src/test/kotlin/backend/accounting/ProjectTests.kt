@@ -12,7 +12,7 @@ class ProjectTests : IntegrationTest() {
     //  - If role is null, a client for a user which isn't a member of the project is returned,
     //  - if role is PI, a client for the pi of the project is returned,
     //  - otherwise a client for a new user with the specified project role is returned.
-    suspend fun clientWithProjectRole(project: NormalProjectInitialization, role: ProjectRole?): AuthenticatedClient {
+    private suspend fun clientWithProjectRole(project: NormalProjectInitialization, role: ProjectRole?): AuthenticatedClient {
         return when (role) {
             null -> {
                 createUser().client
@@ -64,7 +64,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -127,7 +127,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val client = clientWithProjectRole(project, input.requestFromRole)
 
@@ -191,7 +191,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)
@@ -256,7 +256,7 @@ class ProjectTests : IntegrationTest() {
                 execute {
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val project = initializeNormalProject(root.projectId)
+                    val project = initializeNormalProject(root)
 
                     val group1 = createGroup(project)
                     val group2 = createGroup(project)

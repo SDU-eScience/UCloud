@@ -1,32 +1,25 @@
 package gateway
 
 import (
-	_ "embed"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"log"
-	"math/rand"
-	"net/url"
-	"os"
-	"os/exec"
-	"sort"
-	"strings"
-	"sync/atomic"
-	"unicode"
+    "bytes"
+    _ "embed"
+    "encoding/base64"
+    "encoding/gob"
+    "encoding/json"
+    "fmt"
+    "math/rand"
+    "net/url"
+    "os"
+    "os/exec"
+    "path/filepath"
+    "sort"
+    "strings"
+    "sync/atomic"
+    "time"
+    cfg "ucloud.dk/pkg/im/config"
+    "ucloud.dk/pkg/log"
+    "unicode"
 )
-
-// TODO CONFIGURATION NEEDS TO COME FROM SOMEWHERE
-
-var ProviderId = "grpc-test-provider"
-var LaunchRealInstances = true
-var GatewayManagedExternally = false
-var ConfigurationChannel = make(chan ConfigurationMessage)
-var EnvoyExecutable = "/usr/local/bin/getenvoy"
-var FuncEWrapper = true
-var InternalAddressToProvider = "127.0.0.1"
-var EnvoyConfigurationDirectory = "/var/run/ucloud/envoy"
-var LogDirectory = "/var/log/ucloud"
 
 const fileClusters = "clusters.yaml"
 const fileRds = "rds.yaml"
@@ -37,243 +30,279 @@ const fileBadGateway = "bad-gateway.html"
 var badGatewayHtml []byte
 
 const ServerClusterName = "_UCloud"
-const ServerClusterPort = 11042
+const ServerClusterPort = 42000
 
 type ConfigurationMessage struct {
-	ClusterUp   *EnvoyCluster
-	ClusterDown *EnvoyCluster
-	RouteUp     *EnvoyRoute
-	RouteDown   *EnvoyRoute
+    ClusterUp              *EnvoyCluster
+    ClusterDown            *EnvoyCluster
+    RouteUp                *EnvoyRoute
+    RouteDown              *EnvoyRoute
+    LaunchingUserInstances *bool
 }
 
 type Config struct {
-	ListenAddress   string
-	Port            int
-	InitialClusters []*EnvoyCluster
-	InitialRoutes   []*EnvoyRoute
+    ListenAddress   string
+    Port            int
+    InitialClusters []*EnvoyCluster
+    InitialRoutes   []*EnvoyRoute
 }
 
-func Initialize(config Config) {
-	Pause()
+var configChannel chan []byte
+var isLaunchingUserInstances bool = false
 
-	var routes = make(map[*EnvoyRoute]bool)
-	var clusters = make(map[string]*EnvoyCluster)
+func Initialize(config Config, channel chan []byte) {
+    Pause()
 
-	{
-		var err error
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileBadGateway),
-				badGatewayHtml,
-				0o600,
-			)
-		}
+    var routes = make(map[*EnvoyRoute]bool)
+    var clusters = make(map[string]*EnvoyCluster)
 
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileConfig),
-				[]byte(fmt.Sprintf(
-					envoyConfigTemplate,
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
-					config.ListenAddress,
-					config.Port,
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileBadGateway),
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
-				)),
-				0o600,
-			)
-		}
+    configChannel = channel
 
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
-				[]byte("{}"),
-				0o600,
-			)
-		}
+    stateDir := cfg.Provider.Envoy.StateDirectory
+    internalAddress := cfg.Provider.Envoy.InternalAddressToProvider
+    managedExternally := cfg.Provider.Envoy.ManagedExternally
+    executable := cfg.Provider.Envoy.Executable
+    useFunceWrapper := cfg.Provider.Envoy.FunceWrapper
 
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
-				[]byte("{}"),
-				0o600,
-			)
-		}
+    {
+        var err error
+        if err == nil {
+            err = os.WriteFile(
+                fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
+                badGatewayHtml,
+                0o600,
+            )
+        }
 
-		if err != nil {
-			log.Fatalf("Failed to write required configuration files for the gateway: %v", err)
-		}
-	}
+        if err == nil {
+            err = os.WriteFile(
+                fmt.Sprintf("%v/%v", stateDir, fileConfig),
+                []byte(fmt.Sprintf(
+                    envoyConfigTemplate,
+                    fmt.Sprintf("%v/%v", stateDir, fileClusters),
+                    config.ListenAddress,
+                    config.Port,
+                    fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
+                    fmt.Sprintf("%v/%v", stateDir, fileRds),
+                )),
+                0o600,
+            )
+        }
 
-	if len(config.InitialClusters) > 0 || len(config.InitialRoutes) > 0 {
-		for _, route := range config.InitialRoutes {
-			routes[route] = true
-		}
+        if err == nil {
+            err = os.WriteFile(
+                fmt.Sprintf("%v/%v", stateDir, fileRds),
+                []byte("{}"),
+                0o600,
+            )
+        }
 
-		for _, cluster := range config.InitialClusters {
-			clusters[cluster.Name] = cluster
-		}
-	} else {
-		routes[&EnvoyRoute{
-			Type:       RouteTypeUser,
-			Cluster:    ServerClusterName,
-			Identifier: "",
-		}] = true
+        if err == nil {
+            err = os.WriteFile(
+                fmt.Sprintf("%v/%v", stateDir, fileClusters),
+                []byte("{}"),
+                0o600,
+            )
+        }
 
-		routes[&EnvoyRoute{
-			Type:    RouteTypeAuthorize,
-			Cluster: ServerClusterName,
-		}] = true
+        if err != nil {
+            log.Error("Failed to write required configuration files for the gateway: %v", err)
+            os.Exit(1)
+        }
+    }
 
-		clusters[ServerClusterName] = &EnvoyCluster{
-			Name:    ServerClusterName,
-			Address: InternalAddressToProvider,
-			Port:    ServerClusterPort,
-			UseDNS:  unicode.IsDigit([]rune(InternalAddressToProvider)[0]),
-		}
-	}
+    if len(config.InitialClusters) > 0 || len(config.InitialRoutes) > 0 {
+        for _, route := range config.InitialRoutes {
+            routes[route] = true
+        }
 
-	go func() {
-		for message := range ConfigurationChannel {
-			if message.RouteDown != nil {
-				delete(routes, message.RouteDown)
-			}
+        for _, cluster := range config.InitialClusters {
+            clusters[cluster.Name] = cluster
+        }
+    } else {
+        routes[&EnvoyRoute{
+            Type:       RouteTypeUser,
+            Cluster:    ServerClusterName,
+            Identifier: "",
+        }] = true
 
-			if message.ClusterDown != nil {
-				delete(clusters, message.ClusterDown.Name)
+        routes[&EnvoyRoute{
+            Type:    RouteTypeAuthorize,
+            Cluster: ServerClusterName,
+        }] = true
 
-				var routesToDelete []*EnvoyRoute = nil
-				for route, _ := range routes {
-					if route.Cluster == message.ClusterDown.Name {
-						routesToDelete = append(routesToDelete, route)
-					}
-				}
+        clusters[ServerClusterName] = &EnvoyCluster{
+            Name:    ServerClusterName,
+            Address: internalAddress,
+            Port:    ServerClusterPort,
+            UseDNS:  !unicode.IsDigit([]rune(internalAddress)[0]),
+        }
+    }
 
-				for _, toDelete := range routesToDelete {
-					delete(routes, toDelete)
-				}
-			}
+    go func() {
+        for binMessage := range configChannel {
+            message := ConfigurationMessage{}
+            err := gob.NewDecoder(bytes.NewBuffer(binMessage)).Decode(&message)
+            if err != nil {
+                log.Warn("Failed to decode message: %", err)
+                continue
+            }
 
-			if message.RouteUp != nil {
-				routes[message.RouteUp] = true
-			}
+            if message.LaunchingUserInstances != nil {
+                isLaunchingUserInstances = *message.LaunchingUserInstances
+            }
 
-			if message.ClusterUp != nil {
-				clusters[message.ClusterUp.Name] = message.ClusterUp
-			}
+            if message.RouteDown != nil {
+                delete(routes, message.RouteDown)
+            }
 
-			// NOTE(Dan): We configure even if no changes are made. This allows to resume the system and
-			// resynchronizing by simply sending an empty configuration message.
+            if message.ClusterDown != nil {
+                delete(clusters, message.ClusterDown.Name)
 
-			if !paused.Load() {
-				version := fmt.Sprintf("%x%x%x", rand.Int63(), rand.Int63(), rand.Int63())
-				err := os.WriteFile(
-					fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileRds),
-					[]byte(formatRoutes(version, routes)),
-					0o600,
-				)
+                var routesToDelete []*EnvoyRoute = nil
+                for route, _ := range routes {
+                    if route.Cluster == message.ClusterDown.Name {
+                        routesToDelete = append(routesToDelete, route)
+                    }
+                }
 
-				if err == nil {
-					err = os.WriteFile(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileClusters),
-						[]byte(formatClusters(version, clusters)),
-						0o600,
-					)
-				}
+                for _, toDelete := range routesToDelete {
+                    delete(routes, toDelete)
+                }
+            }
 
-				if err == nil {
-					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileRds),
-						fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
-					)
-				}
+            if message.RouteUp != nil {
+                routes[message.RouteUp] = true
+            }
 
-				if err == nil {
-					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileClusters),
-						fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
-					)
-				}
+            if message.ClusterUp != nil {
+                clusters[message.ClusterUp.Name] = message.ClusterUp
+            }
 
-				if err != nil {
-					log.Printf("Failed to write configuration files for the gateway: %v", err)
-				}
-			}
-		}
-	}()
+            // NOTE(Dan): We configure even if no changes are made. This allows to resume the system and
+            // resynchronizing by simply sending an empty configuration message.
 
-	if !GatewayManagedExternally {
-		go func() {
-			logFilePath := fmt.Sprintf("%v/%v", LogDirectory, "envoy.log")
+            if !paused.Load() {
+                version := fmt.Sprintf("%x%x%x", rand.Int63(), rand.Int63(), rand.Int63())
+                err := os.WriteFile(
+                    fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
+                    []byte(formatRoutes(version, routes)),
+                    0o600,
+                )
 
-			for {
-				func() {
-					logFile, err := os.Create(logFilePath)
-					if err != nil {
-						log.Fatalf("Failed to create log file for gateway: %v", err)
-					}
+                if err == nil {
+                    err = os.WriteFile(
+                        fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
+                        []byte(formatClusters(version, clusters)),
+                        0o600,
+                    )
+                }
 
-					//goland:noinspection GoUnhandledErrorResult
-					defer logFile.Close()
+                if err == nil {
+                    err = os.Rename(
+                        fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
+                        fmt.Sprintf("%v/%v", stateDir, fileRds),
+                    )
+                }
 
-					var args []string = nil
-					if FuncEWrapper {
-						args = append(args, "run")
-					}
-					args = append(args, "--config-path")
-					args = append(args, fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileConfig))
+                if err == nil {
+                    err = os.Rename(
+                        fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
+                        fmt.Sprintf("%v/%v", stateDir, fileClusters),
+                    )
+                }
 
-					cmd := exec.Command(EnvoyExecutable, args...)
+                if err != nil {
+                    log.Warn("Failed to write configuration files for the gateway: %v", err)
+                }
+            }
+        }
+    }()
 
-					cmd.Env = append(cmd.Env, "ENVOY_VERSION=1.23.0")
-					cmd.Stdout = logFile
-					cmd.Stderr = logFile
+    if !managedExternally {
+        go func() {
+            logFilePath := filepath.Join(cfg.Provider.Logs.Directory, "envoy.log")
 
-					err = cmd.Start()
-					if err != nil {
-						log.Printf("Failed to start gateway: %v", err)
-						return
-					}
+            for {
+                func() {
+                    logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE, 0666)
+                    if err != nil {
+                        log.Error("Failed to create log file for gateway: %v", err)
+                        os.Exit(1)
+                    }
 
-					err = cmd.Wait()
-					if err != nil {
-						log.Printf("Gateway has crashed: %v (see %v for details)", err, logFilePath)
-					} else {
-						log.Printf("Gateway has ended early, see %v for details", logFilePath)
-					}
-				}()
-			}
-		}()
-	}
+                    //goland:noinspection GoUnhandledErrorResult
+                    defer logFile.Close()
+
+                    var args []string = nil
+                    if useFunceWrapper {
+                        args = append(args, "run")
+                    }
+                    args = append(args, "--config-path")
+                    args = append(args, fmt.Sprintf("%v/%v", stateDir, fileConfig))
+
+                    cmd := exec.Command(executable, args...)
+
+                    cmd.Env = append(cmd.Env, "ENVOY_VERSION=1.23.0")
+                    cmd.Stdout = logFile
+                    cmd.Stderr = logFile
+
+                    err = cmd.Start()
+                    if err != nil {
+                        log.Warn("Failed to start gateway: %v", err)
+                        return
+                    }
+
+                    err = cmd.Wait()
+                    if err != nil {
+                        log.Warn("Gateway has crashed: %v (see %v for details)", err, logFilePath)
+                        time.Sleep(5 * time.Minute)
+                    } else {
+                        log.Warn("Gateway has ended early, see %v for details", logFilePath)
+                    }
+                }()
+            }
+        }()
+    }
 }
 
 var paused = atomic.Bool{}
 
 func Resume() {
-	paused.Store(false)
-	ConfigurationChannel <- ConfigurationMessage{}
+    paused.Store(false)
+    SendMessage(ConfigurationMessage{})
+}
+
+func SendMessage(message ConfigurationMessage) {
+    var buf bytes.Buffer
+    err := gob.NewEncoder(&buf).Encode(message)
+    if err != nil {
+        log.Warn("Failed to encode message %v: %v", message, err)
+        return
+    }
+    configChannel <- buf.Bytes()
 }
 
 func Pause() {
-	paused.Store(true)
+    paused.Store(true)
 }
 
 func jsonify(value any) string {
-	d, _ := json.Marshal(value)
-	if d == nil {
-		return ""
-	} else {
-		return string(d)
-	}
+    d, _ := json.Marshal(value)
+    if d == nil {
+        return ""
+    } else {
+        return string(d)
+    }
 }
 
 func b64(value string) string {
-	data := base64.StdEncoding.EncodeToString([]byte(value))
-	return data
+    data := base64.StdEncoding.EncodeToString([]byte(value))
+    return data
 }
 
 func urlEncode(value string) string {
-	return url.QueryEscape(value)
+    return url.QueryEscape(value)
 }
 
 // NOTE(Dan): This assumes that the configuration can be trusted, which doesn't seem like an unreasonable assumption
@@ -338,23 +367,13 @@ static_resources:
                   route_config_name: local_route
                   config_source:
                     path: %v
-          transport_socket:
-            name: envoy.transport_sockets.tls
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-              common_tls_context:
-                tls_certificates:
-                - certificate_chain: {filename: "certs/server-cert.pem"}
-                  private_key: {filename: "certs/server-key.pem"}
-                alpn_protocols: ["h2,http/1.1"]
-
 `
 
 type EnvoyCluster struct {
-	Name    string
-	Address string
-	Port    int
-	UseDNS  bool
+    Name    string
+    Address string
+    Port    int
+    UseDNS  bool
 }
 
 const envoyClusterTemplate = `
@@ -363,7 +382,6 @@ const envoyClusterTemplate = `
     "connect_timeout": "0.25s",
     "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
     "lb_policy": "ROUND_ROBIN",
-	"http2_protocol_options": {},
     "type": %v ,
     "upstream_connection_options": {
         "tcp_keepalive": {}
@@ -386,30 +404,24 @@ const envoyClusterTemplate = `
                 ]
             }
         ]
-    },
-	"transport_socket": {
-		"name": "envoy.transport_sockets.tls",
-		"typed_config": {
-			"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
-		}
-	}
+    }
 }
 `
 
 func (c *EnvoyCluster) formatCluster() string {
-	dnsType := "STATIC"
-	if c.UseDNS {
-		dnsType = "STRICT_DNS"
-	}
+    dnsType := "STATIC"
+    if c.UseDNS {
+        dnsType = "STRICT_DNS"
+    }
 
-	return fmt.Sprintf(
-		envoyClusterTemplate,
-		jsonify(c.Name),
-		jsonify(dnsType),
-		jsonify(c.Name),
-		jsonify(c.Address),
-		jsonify(c.Port),
-	)
+    return fmt.Sprintf(
+        envoyClusterTemplate,
+        jsonify(c.Name),
+        jsonify(dnsType),
+        jsonify(c.Name),
+        jsonify(c.Address),
+        jsonify(c.Port),
+    )
 }
 
 const clustersTemplate = `{
@@ -418,29 +430,29 @@ const clustersTemplate = `{
 }`
 
 func formatClusters(version string, clusters map[string]*EnvoyCluster) string {
-	var mappedClusters []string = nil
-	for _, cluster := range clusters {
-		mappedClusters = append(mappedClusters, cluster.formatCluster())
-	}
+    var mappedClusters []string = nil
+    for _, cluster := range clusters {
+        mappedClusters = append(mappedClusters, cluster.formatCluster())
+    }
 
-	return fmt.Sprintf(clustersTemplate, jsonify(version), strings.Join(mappedClusters, ","))
+    return fmt.Sprintf(clustersTemplate, jsonify(version), strings.Join(mappedClusters, ","))
 }
 
 type RouteType int
 
 const (
-	RouteTypeUser RouteType = iota
-	RouteTypeIngress
-	RouteTypeAuthorize
-	RouteTypeVnc
+    RouteTypeUser RouteType = iota
+    RouteTypeIngress
+    RouteTypeAuthorize
+    RouteTypeVnc
 )
 
 type EnvoyRoute struct {
-	Cluster      string
-	Identifier   string
-	CustomDomain string
-	AuthTokens   []string
-	Type         RouteType
+    Cluster      string
+    Identifier   string
+    CustomDomain string
+    AuthTokens   []string
+    Type         RouteType
 }
 
 const standardRouteTemplate = `{
@@ -472,7 +484,7 @@ const envoyRouteTemplateRealUserHeader = `{
 		"prefix": "/",
 		"headers": [{
 			"name": "UCloud-Username",
-			"exact_match": %v
+			"exact_match": "%v"
 		}]
 	}
 }`
@@ -483,7 +495,7 @@ const envoyRouteTemplateRealUserQueryParam = `{
 		"prefix": "/",
 		"query_parameters": [{
 			"name": "usernameHint",
-			"string_match": { "exact": %v }
+			"string_match": { "exact": "%v" }
 		}]
 	}
 }`
@@ -494,7 +506,7 @@ const envoyRouteTemplateVnc = `{
 		"path": %v,
 		"query_parameters": [{
 			"name": "token",
-			"string_match": { "exact": %v }
+			"string_match": { "exact": "%v" }
 		}]
 	}
 }`
@@ -523,118 +535,118 @@ const envoyRouteTemplateIngressCookieEntry = `, {
 }`
 
 func (c *EnvoyRoute) formatRoute() []string {
-	var result []string = nil
+    var result []string = nil
 
-	route := fmt.Sprintf(standardRouteTemplate, jsonify(c.Cluster))
+    route := fmt.Sprintf(standardRouteTemplate, jsonify(c.Cluster))
 
-	switch c.Type {
-	case RouteTypeUser:
-		if LaunchRealInstances {
-			if len(c.Identifier) == 0 {
-				// Service instance
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserService,
-						route,
-					),
-				)
-			} else {
-				// User instance
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserHeader,
-						route,
-						b64(c.Identifier),
-					),
-				)
+    switch c.Type {
+    case RouteTypeUser:
+        if isLaunchingUserInstances {
+            if len(c.Identifier) == 0 {
+                // Service instance
+                result = append(
+                    result,
+                    fmt.Sprintf(
+                        envoyRouteTemplateRealUserService,
+                        route,
+                    ),
+                )
+            } else {
+                // User instance
+                result = append(
+                    result,
+                    fmt.Sprintf(
+                        envoyRouteTemplateRealUserHeader,
+                        route,
+                        b64(c.Identifier),
+                    ),
+                )
 
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserQueryParam,
-						route,
-						b64(c.Identifier),
-					),
-				)
-			}
-		} else {
-			result = append(
-				result,
-				fmt.Sprintf(
-					envoyRouteTemplateServiceOnly,
-					route,
-				),
-			)
-		}
-	case RouteTypeVnc:
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateVnc,
-				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/vnc", ProviderId)),
-				jsonify(c.Identifier),
-			),
-		)
-	case RouteTypeAuthorize:
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateAuthorize,
-				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/authorize-app", ProviderId)),
-			),
-		)
-	case RouteTypeIngress:
-		var cookieMatcher = ""
-		if len(c.AuthTokens) > 0 {
-			var regexBuilder strings.Builder
-			for i, elem := range c.AuthTokens {
-				if i > 0 {
-					regexBuilder.WriteString("|")
-				}
+                result = append(
+                    result,
+                    fmt.Sprintf(
+                        envoyRouteTemplateRealUserQueryParam,
+                        route,
+                        b64(c.Identifier),
+                    ),
+                )
+            }
+        } else {
+            result = append(
+                result,
+                fmt.Sprintf(
+                    envoyRouteTemplateServiceOnly,
+                    route,
+                ),
+            )
+        }
+    case RouteTypeVnc:
+        result = append(
+            result,
+            fmt.Sprintf(
+                envoyRouteTemplateVnc,
+                route,
+                jsonify(fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id)),
+                jsonify(c.Identifier),
+            ),
+        )
+    case RouteTypeAuthorize:
+        result = append(
+            result,
+            fmt.Sprintf(
+                envoyRouteTemplateAuthorize,
+                route,
+                jsonify(fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id)),
+            ),
+        )
+    case RouteTypeIngress:
+        var cookieMatcher = ""
+        if len(c.AuthTokens) > 0 {
+            var regexBuilder strings.Builder
+            for i, elem := range c.AuthTokens {
+                if i > 0 {
+                    regexBuilder.WriteString("|")
+                }
 
-				regexBuilder.WriteString(urlEncode(elem))
-			}
+                regexBuilder.WriteString(urlEncode(elem))
+            }
 
-			cookieMatcher = fmt.Sprintf(
-				envoyRouteTemplateIngressCookieEntry,
-				jsonify(regexBuilder.String()),
-			)
-		}
+            cookieMatcher = fmt.Sprintf(
+                envoyRouteTemplateIngressCookieEntry,
+                jsonify(regexBuilder.String()),
+            )
+        }
 
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateIngress,
-				route,
-				c.CustomDomain,
-				cookieMatcher,
-			),
-		)
-	}
+        result = append(
+            result,
+            fmt.Sprintf(
+                envoyRouteTemplateIngress,
+                route,
+                c.CustomDomain,
+                cookieMatcher,
+            ),
+        )
+    }
 
-	return result
+    return result
 }
 
 func (r *EnvoyRoute) weight() int {
-	switch r.Type {
-	case RouteTypeUser:
-		if len(r.Identifier) == 0 {
-			return 11
-		}
-		return 10
-	case RouteTypeIngress:
-		return 6
-	case RouteTypeAuthorize:
-		return 5
-	case RouteTypeVnc:
-		return 5
-	}
+    switch r.Type {
+    case RouteTypeUser:
+        if len(r.Identifier) == 0 {
+            return 11
+        }
+        return 10
+    case RouteTypeIngress:
+        return 6
+    case RouteTypeAuthorize:
+        return 5
+    case RouteTypeVnc:
+        return 5
+    }
 
-	return 1000
+    return 1000
 }
 
 const routesTemplate = `{
@@ -661,27 +673,27 @@ const routesTemplate = `{
 }`
 
 func formatRoutes(version string, routes map[*EnvoyRoute]bool) string {
-	// NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the traffic will
-	//always go to the wrong route.
-	var sortedRoutes []*EnvoyRoute
-	for route, _ := range routes {
-		sortedRoutes = append(sortedRoutes, route)
-	}
+    // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the traffic will
+    //always go to the wrong route.
+    var sortedRoutes []*EnvoyRoute
+    for route, _ := range routes {
+        sortedRoutes = append(sortedRoutes, route)
+    }
 
-	sort.Slice(sortedRoutes, func(i, j int) bool {
-		leftWeight := sortedRoutes[i].weight()
-		rightWeight := sortedRoutes[j].weight()
+    sort.Slice(sortedRoutes, func(i, j int) bool {
+        leftWeight := sortedRoutes[i].weight()
+        rightWeight := sortedRoutes[j].weight()
 
-		return leftWeight < rightWeight
-	})
+        return leftWeight < rightWeight
+    })
 
-	var mappedRoutes []string = nil
-	for _, route := range sortedRoutes {
-		res := route.formatRoute()
-		for _, s := range res {
-			mappedRoutes = append(mappedRoutes, s)
-		}
-	}
+    var mappedRoutes []string = nil
+    for _, route := range sortedRoutes {
+        res := route.formatRoute()
+        for _, s := range res {
+            mappedRoutes = append(mappedRoutes, s)
+        }
+    }
 
-	return fmt.Sprintf(routesTemplate, jsonify(version), strings.Join(mappedRoutes, ","))
+    return fmt.Sprintf(routesTemplate, jsonify(version), strings.Join(mappedRoutes, ","))
 }

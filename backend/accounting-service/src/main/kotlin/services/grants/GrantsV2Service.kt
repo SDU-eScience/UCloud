@@ -1588,25 +1588,46 @@ class GrantsV2Service(
                                 )
                             )
 
-                            notificationsForGrantGivers.add(b)
-                            notificationForSenders.add(b)
+                            notificationsForGrantGivers.add(b.copy(
+                                email = Mail.GrantApplicationUpdatedMailToAdmins(
+                                    projectTitle = grantGiverPlaceholder,
+                                    sender = application.createdBy,
+                                    receivingProjectTitle = applicationTitle,
+                                    subject = "New comment in application '${applicationTitle}'",
+                                )
+                            ))
+                            notificationForSenders.add(b.copy(
+                                email = Mail.GrantApplicationUpdatedMail(
+                                    projectTitle = applicationTitle,
+                                    sender = action.comment.username,
+                                    subject = "New comment in application '${applicationTitle}'"
+                                )
+                            ))
                         }
 
                         is Action.NewRevision -> {
-                            val b = NotificationBundle(
-                                notification = Notification(
-                                    "UPDATED_GRANT_APPLICATION",
-                                    "New update in application '${applicationTitle}'",
-                                    meta = JsonObject(
-                                        mapOf(
-                                            "appId" to JsonPrimitive(application.id),
+                            if (actionQueue.none { it == Action.Initialize }) {
+                                val b = NotificationBundle(
+                                    notification = Notification(
+                                        "UPDATED_GRANT_APPLICATION",
+                                        "New update in application '${applicationTitle}'",
+                                        meta = JsonObject(
+                                            mapOf(
+                                                "appId" to JsonPrimitive(application.id),
+                                            )
                                         )
                                     )
                                 )
-                            )
 
-                            notificationsForGrantGivers.add(b)
-                            notificationForSenders.add(b)
+                                notificationsForGrantGivers.add(b.copy(
+                                    email = Mail.GrantApplicationUpdatedMailToAdmins(
+                                        projectTitle = grantGiverPlaceholder,
+                                        sender = application.createdBy,
+                                        receivingProjectTitle = applicationTitle,
+                                    )
+                                ))
+                                notificationForSenders.add(b)
+                            }
                         }
 
                         is Action.UpdateOverallState -> {
@@ -1706,6 +1727,7 @@ class GrantsV2Service(
                             // This is annoying...
                             val fixedEmail = when (bundle.email) {
                                 is Mail.NewGrantApplicationMail -> bundle.email.copy(projectTitle = grantGiver)
+                                is Mail.GrantApplicationUpdatedMailToAdmins -> bundle.email.copy(projectTitle = grantGiver)
                                 is Mail.GrantApplicationStatusChangedToAdmin -> bundle.email.copy(projectTitle = grantGiver)
                                 else -> bundle.email
                             }
