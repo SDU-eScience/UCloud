@@ -17,6 +17,7 @@ import dk.sdu.cloud.project.api.v2.ProjectsCreateInviteRequestItem
 import dk.sdu.cloud.project.api.v2.ProjectsDeleteInviteRequestItem
 import dk.sdu.cloud.project.api.v2.ProjectsDeleteMemberRequestItem
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
+import dk.sdu.cloud.project.api.v2.RenameProjectRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
@@ -324,19 +325,11 @@ class ProjectService(
         projectId: String,
         newTitle: String
     ) {
-        if (newTitle.trim().length != newTitle.length) {
-            throw RPCException("Project names cannot start or end with whitespace.", HttpStatusCode.BadRequest)
-        }
-        ctx.withSession(remapExceptions = true) { session ->
-            requireAdmin(session, projectId, actor)
-            session.sendPreparedStatement(
-                {
-                    setParameter("project", projectId)
-                    setParameter("newTitle", newTitle)
-                },
-                """update project.projects set title = :newTitle where id = :project """
-            )
-        }
+        p2.renameProject(
+            ActorAndProject(actor, null),
+            bulkRequestOf(RenameProjectRequest(projectId, newTitle)),
+            ctx,
+        )
     }
 
     suspend fun fetchDataManagementPlan(

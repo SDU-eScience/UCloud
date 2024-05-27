@@ -321,8 +321,12 @@ class ProviderCommunications(
         val mutex = Mutex()
 
         forEachRelevantProvider(actorAndProject) { providerId ->
-            val element = retrieveSupport(api, providerId)
-            mutex.withLock { support[providerId] = element }
+            try {
+                val element = retrieveSupport(api, providerId)
+                mutex.withLock { support[providerId] = element }
+            } catch (ex: Throwable) {
+                log.warn("Provider: $providerId ${ex.toReadableStacktrace()}")
+            }
         }
 
         mutex.lock() // Lock, just in case any of the coroutines haven't stopped yet
