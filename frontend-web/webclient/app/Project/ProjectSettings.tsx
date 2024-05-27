@@ -350,7 +350,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
     const [, invokeCommand] = useCloudCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
 
-    const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
+    const [canRename, setCanRename] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
         {noop: true},
         {allowed: false}
     );
@@ -358,7 +358,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
     const project = useProject();
 
     useEffect(() => {
-        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
+        setCanRename(getRenamingStatus( {projectId: props.projectId}))
         if (newProjectTitle.current) newProjectTitle.current.value = props.projectTitle;
         if (props.projectId === project.fetch().id) project.reload();
     }, [props.projectId, props.projectTitle]);
@@ -412,7 +412,7 @@ export function ChangeProjectTitle(props: ChangeProjectTitleProps): React.ReactN
                                         setSaveDisabled(true);
                                     }
                                 }}
-                                disabled={!allowRenaming.data.allowed}
+                                disabled={!canRename.data.allowed}
                             />
                         </label>
                     </Box>

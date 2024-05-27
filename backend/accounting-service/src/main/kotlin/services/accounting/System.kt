@@ -889,6 +889,7 @@ class AccountingSystem(
                         ParentOrChildWallet(
                             parentOwner.reference.takeIf { parentIsProject },
                             parentProjectInfo?.title ?: parentOwner.reference,
+                            parentProjectInfo?.pi ?: "Unknown"
                         )
                     } else {
                         null
@@ -915,6 +916,7 @@ class AccountingSystem(
                             ParentOrChildWallet(
                                 childOwner.reference.takeIf { childIsProject },
                                 childProjectInfo?.title ?: childOwner.reference,
+                                childProjectInfo?.pi ?: "Unknown"
                             ),
                             group.toApi()
                         )
