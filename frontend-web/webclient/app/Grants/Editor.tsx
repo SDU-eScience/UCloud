@@ -1968,6 +1968,13 @@ export function Editor(): React.ReactNode {
                                                 state.allocators.find(hay => hay.id === needle)?.checked === true
                                             );
 
+                                            const hideZeroFields = state.locked;
+
+                                            const anyNonZeroValues = checkedAllocators
+                                                .reduce((acc, allocatorId) => acc + category.totalBalanceRequested[allocatorId] ?? 0, 0);
+
+                                            if (hideZeroFields && !anyNonZeroValues) return null;
+
                                             return <FormField
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
@@ -1984,6 +1991,9 @@ export function Editor(): React.ReactNode {
 
                                                     const errorMessage = category.error?.allocator === allocatorId ?
                                                         category.error?.message : undefined;
+
+                                                    const value: number | undefined = category.totalBalanceRequested[allocatorId];
+                                                    if (hideZeroFields && (value === 0 || value == null)) return null;
 
                                                     return <React.Fragment key={allocatorId}>
                                                         <div className={"allocation-row"}>
