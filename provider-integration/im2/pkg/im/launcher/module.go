@@ -16,9 +16,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	fmt.Printf("Running module launcher with mode=%v\n", args.Mode)
 	im.Args = args
 
-	success := cfg.Parse(args.Mode, args.ConfigDir+"/config.yml") // TODO Double parsing in this case
-	if !success {
-		// Do not start any services if the configuration is invalid
+	if !cfg.Parse(args.Mode, args.ConfigDir) {
+		// TODO Double parsing in this case
 		return
 	}
 

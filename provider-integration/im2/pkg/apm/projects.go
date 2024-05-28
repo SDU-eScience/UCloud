@@ -75,9 +75,8 @@ type ProjectFlags struct {
 	IncludePath     bool
 }
 
-func RetrieveProject(client *c.Client, id string, flags ProjectFlags) (status c.HttpStatus, project Project) {
+func RetrieveProject(id string, flags ProjectFlags) (project Project, err error) {
 	return c.ApiRetrieve[Project](
-		client,
 		projectsNamespace+"retrieve",
 		projectsContext,
 		"",
@@ -91,9 +90,8 @@ type ProjectBrowseFlags struct {
 	SortDirection string
 }
 
-func BrowseProjects(client *c.Client, next string, flags ProjectBrowseFlags) (c.HttpStatus, fnd.PageV2[Project]) {
+func BrowseProjects(next string, flags ProjectBrowseFlags) (fnd.PageV2[Project], error) {
 	return c.ApiBrowse[fnd.PageV2[Project]](
-		client,
 		projectsNamespace+"browse",
 		projectsContext,
 		"",

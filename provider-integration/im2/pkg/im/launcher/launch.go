@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"ucloud.dk/pkg/client"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
@@ -49,7 +50,9 @@ func Launch() {
 		pluginName = flag.Arg(1)
 	}
 
-	cfg.Parse(mode, *configDir+"/config.yml")
+	if !cfg.Parse(mode, *configDir) {
+		return
+	}
 
 	userModeSecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
 	fmt.Printf("env=%v\n", os.Environ())
@@ -104,6 +107,30 @@ func Launch() {
 	if mode == cfg.ServerModeServer {
 		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
 		// reloadable.
+
+		ucloud := cfg.Provider.Hosts.UCloud
+		port := ucloud.Port
+		scheme := ucloud.Scheme
+		if scheme != "http" && scheme != "https" {
+			if port == 443 || port == 8443 {
+				scheme = "https"
+			} else {
+				scheme = "http"
+			}
+		}
+
+		if port == 0 {
+			if scheme == "https" {
+				port = 443
+			} else {
+				port = 80
+			}
+		}
+
+		client.DefaultClient = client.MakeClient(
+			cfg.Server.RefreshToken,
+			fmt.Sprintf("%v://%v:%v", scheme, ucloud.Address, port),
+		)
 
 		go func() {
 			ipc.InitIpc()

@@ -114,7 +114,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 			// TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
 			//   was just added to the project. See the current Kotlin implementation for more details.
 			log.Info("Could not open directory at %v %v", internalPath, err)
-			return fnd.EmptyPage[orchestrators.ProviderFile](), &ctrl.HttpError{
+			return fnd.EmptyPage[orchestrators.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find directory",
 			}
@@ -122,7 +122,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 
 		fileNames, err := file.Readdirnames(-1)
 		if err != nil {
-			return fnd.EmptyPage[orchestrators.ProviderFile](), &ctrl.HttpError{
+			return fnd.EmptyPage[orchestrators.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find and read directory. Is this a directory?",
 			}

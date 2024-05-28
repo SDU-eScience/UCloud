@@ -95,8 +95,8 @@ type WalletV2 struct {
 const accountingContext = "/api/accounting/v2"
 const accountingNamespace = "accounting.v2."
 
-func ReportUsage(client *c.Client, request fnd.BulkRequest[UsageReportItem]) (c.HttpStatus, fnd.BulkResponse[bool]) {
-	return c.ApiUpdate[fnd.BulkResponse[bool]](client, accountingNamespace+"reportUsage", accountingContext,
+func ReportUsage(request fnd.BulkRequest[UsageReportItem]) (fnd.BulkResponse[bool], error) {
+	return c.ApiUpdate[fnd.BulkResponse[bool]](accountingNamespace+"reportUsage", accountingContext,
 		"reportUsage", request)
 }
 
@@ -110,10 +110,9 @@ type CheckProviderUsableResp struct {
 }
 
 func CheckProviderUsable(
-	client *c.Client,
 	request fnd.BulkRequest[CheckProviderUsableReq],
-) (c.HttpStatus, fnd.BulkResponse[CheckProviderUsableResp]) {
-	return c.ApiUpdate[fnd.BulkResponse[CheckProviderUsableResp]](client, accountingNamespace+"checkProviderUsable",
+) (fnd.BulkResponse[CheckProviderUsableResp], error) {
+	return c.ApiUpdate[fnd.BulkResponse[CheckProviderUsableResp]](accountingNamespace+"checkProviderUsable",
 		accountingContext, "checkProviderUsable", request)
 }
 
@@ -133,10 +132,9 @@ type BrowseProviderAllocationsResp struct {
 }
 
 func BrowseProviderAllocations(
-	client *c.Client,
 	next string,
 	request BrowseProviderAllocationsReq,
-) (c.HttpStatus, fnd.BulkResponse[BrowseProviderAllocationsResp]) {
+) (fnd.BulkResponse[BrowseProviderAllocationsResp], error) {
 	var payload struct {
 		BrowseProviderAllocationsReq
 		Next         string
@@ -148,7 +146,6 @@ func BrowseProviderAllocations(
 	payload.ItemsPerPage = 250
 
 	return c.ApiUpdate[fnd.BulkResponse[BrowseProviderAllocationsResp]](
-		client,
 		accountingNamespace+"browseProviderAllocations",
 		accountingContext,
 		"browseProviderAllocations",

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"ucloud.dk/pkg/im"
-	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -30,7 +29,7 @@ type Call[Req any, Resp any] struct {
 
 func NewCall[Req any, Resp any](operation string) Call[Req, Resp] {
 	return Call[Req, Resp]{
-		RegisterServer: func(handler func(r *Request[Req]) Response) {
+		Handler: func(handler func(r *Request[Req]) Response) {
 			RegisterServerHandler[Req](im.Args.IpcMultiplexer, operation, handler)
 		},
 		Invoke: func(r Req) (resp Resp, err error) {
@@ -93,7 +92,7 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 	var value Resp
 	jsonBytes, err := json.Marshal(payload)
 	if err != nil {
-		return value, &ctrl.HttpError{
+		return value, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        fmt.Sprintf("Failed to marshal JSON request: %v", err),
 		}
@@ -101,7 +100,7 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 
 	resp, err := Client.Post("http://ignored.ignored/"+operation, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
-		return value, &ctrl.HttpError{
+		return value, &util.HttpError{
 			StatusCode: http.StatusBadGateway,
 			Why:        fmt.Sprintf("Failed to contact IPC server: %v", err),
 		}
@@ -112,7 +111,7 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		data, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return value, &ctrl.HttpError{
+			return value, &util.HttpError{
 				StatusCode: http.StatusBadGateway,
 				Why:        fmt.Sprintf("Failed to read IPC body: %v", err),
 			}
@@ -120,7 +119,7 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 
 		err = json.Unmarshal(data, &value)
 		if err != nil {
-			return value, &ctrl.HttpError{
+			return value, &util.HttpError{
 				StatusCode: http.StatusBadGateway,
 				Why:        fmt.Sprintf("Failed to read valid IPC body: %v", err),
 			}
@@ -132,13 +131,13 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		data, err := io.ReadAll(resp.Body)
 
 		if err != nil {
-			return value, &ctrl.HttpError{
+			return value, &util.HttpError{
 				StatusCode: resp.StatusCode,
 				Why:        fmt.Sprintf("Failed to read IPC body: %v", err),
 			}
 		}
 
-		return value, &ctrl.HttpError{
+		return value, &util.HttpError{
 			StatusCode: resp.StatusCode,
 			Why:        string(data),
 		}
