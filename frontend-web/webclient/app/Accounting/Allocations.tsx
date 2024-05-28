@@ -929,7 +929,11 @@ const Allocations: React.FunctionComponent = () => {
                     <Divider />
                     <Label>
                         Project title
-                        <Input id={"subproject-name"} autoFocus />
+                        <Input onKeyDown={e => {
+                            if (e.code !== "Escape") {
+                                e.stopPropagation();
+                            }
+                        }} id={"subproject-name"} autoFocus />
                     </Label>
                     {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
