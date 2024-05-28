@@ -31,7 +31,7 @@ import {
     validateReservation
 } from "@/Applications/Jobs/Widgets/Reservation";
 import {displayErrorMessageOrDefault, extractErrorCode, prettierString, useDidMount} from "@/UtilityFunctions";
-import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
+import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
@@ -41,7 +41,7 @@ import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, balanceToString, priceToString, UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
+import {ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, balanceToString, priceToString} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -61,7 +61,7 @@ import {
 } from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {UpdatePlaceholdersEmailSettings, UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmailSettings";
+import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmailSettings";
 import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
@@ -99,7 +99,7 @@ const initialState: UserDetailsState = {
 
 export const Create: React.FunctionComponent = () => {
     const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
-    const [jobEmailNotifications, setJobEmailNotifications] = useState<"never"|"start"|"ends"|"start_or_ends">("never");
+    const [jobEmailNotifications, setJobEmailNotifications] = useState<"never" | "start" | "ends" | "start_or_ends">("never");
     const navigate = useNavigate();
     const location = useLocation();
     const appName = getQueryParam(location.search, "app");
@@ -165,7 +165,7 @@ export const Create: React.FunctionComponent = () => {
     const retrieveEmailNotificationSettings = useCallback(async () => {
         const emailSettings = await invokeCommand(
             retrieveEmailSettings({}),
-            { defaultErrorHandler: false }
+            {defaultErrorHandler: false}
         );
 
         setEmailNotifications({
@@ -409,7 +409,7 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [application, folders, peers, ingress, networks]);
 
-    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36}/>}/>;
+    if (applicationResp.loading || isInitialMount) return <MainContainer main={<LoadingIcon size={36} />} />;
 
     if (application == null) {
         return (
@@ -451,29 +451,29 @@ export const Create: React.FunctionComponent = () => {
                         flavors={appGroup?.status?.applications ?? []}
                         allVersions={previousResp.data?.items ?? []}
                     />
-                    <Box flexGrow={1}/>
+                    <Box flexGrow={1} />
 
                     <Flex height={"35px"}>
                         {!application.metadata.website ? null : (
                             <Box mr={"18px"}>
                                 <ExternalLink href={application.metadata.website}>
                                     <Button>
-                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast"/>
+                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
                                         <div>Documentation</div>
                                     </Button>
                                 </ExternalLink>
                             </Box>
                         )}
-                        <UtilityBar/>
+                        <UtilityBar />
                     </Flex>
                 </Flex>
                 <ContainerForText>
                     <Grid gridTemplateColumns={"1fr"} gap={"24px"} width={"100%"} mb={"24px"} mt={"24px"}>
-                        {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode}/> : null}
+                        {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                         {isMissingConnection ?
                             <Box mt={32}>
                                 <Link to={"/providers/connect"}>
-                                    <Icon name="warning" color="warningMain" mx={8}/>
+                                    <Icon name="warning" color="warningMain" mx={8} />
                                     Connection required!
                                 </Link>
                             </Box> :
@@ -491,7 +491,7 @@ export const Create: React.FunctionComponent = () => {
                                         </Markdown>
                                     </div>
 
-                                    <Box flexGrow={1}/>
+                                    <Box flexGrow={1} />
 
                                     <Label mt={"16px"}>
                                         E-mail notification settings
@@ -507,14 +507,14 @@ export const Create: React.FunctionComponent = () => {
                                     <div>
                                         <Flex>
                                             <ImportParameters application={application} onImport={onLoadParameters}
-                                                              importDialogOpen={importDialogOpen}
-                                                              setImportDialogOpen={setImportDialogOpen}
-                                                              onImportDialogClose={() => setImportDialogOpen(false)}/>
+                                                importDialogOpen={importDialogOpen}
+                                                setImportDialogOpen={setImportDialogOpen}
+                                                onImportDialogClose={() => setImportDialogOpen(false)} />
 
                                             {anyError ?
                                                 <Tooltip trigger={
                                                     <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay"/>
+                                                        <Icon name="heroPlay" />
                                                         Submit
                                                     </Button>
                                                 }>
@@ -529,7 +529,7 @@ export const Create: React.FunctionComponent = () => {
                                                     disabled={isLoading || !sshValid || isMissingConnection}
                                                     onClick={() => submitJob(false)}
                                                 >
-                                                    <Icon name="heroPlay"/>
+                                                    <Icon name="heroPlay" />
                                                     Submit
                                                 </Button>
                                             }
@@ -538,32 +538,35 @@ export const Create: React.FunctionComponent = () => {
                                         <div className={EstimatesContainerClass}>
                                             <table>
                                                 <tbody>
-                                                <tr>
-                                                    <th>Estimated cost</th>
-                                                    <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, {showSuffix: false})}</td>
-                                                </tr>
-                                                <tr>
-                                                    <th>Current balance</th>
-                                                    <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
-                                                </tr>
-                                                {
-                                                    estimatedCost.maxUsable == estimatedCost.balance ? null : (
-                                                        <tr>
-                                                            <th>Usable balance</th>
-                                                            <td><TooltipV2
-                                                                tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
-                                                            >
-                                                                <Icon name={"heroExclamationTriangle"}
-                                                                      color={"warningMain"}/>
+                                                    <tr>
+                                                        <th>Estimated cost</th>
+                                                        <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, {showSuffix: false})}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <th>Current balance</th>
+                                                        <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
+                                                    </tr>
+                                                    {
+                                                        estimatedCost.maxUsable == estimatedCost.balance ? null : (
+                                                            <tr>
+                                                                <th>Usable balance</th>
+                                                                <td>
+                                                                    <OverallocationLink>
+                                                                        <TooltipV2
+                                                                            tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
+                                                                        >
+                                                                            <Icon name={"heroExclamationTriangle"}
+                                                                                color={"warningMain"} />
 
-                                                                {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
-                                                            </TooltipV2>
-                                                            </td>
+                                                                            {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
+                                                                        </TooltipV2>
+                                                                    </OverallocationLink>
+                                                                </td>
 
 
-                                                        </tr>
-                                                    )
-                                                }
+                                                            </tr>
+                                                        )
+                                                    }
                                                 </tbody>
                                             </table>
                                         </div>
@@ -592,8 +595,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                                setErrors={setErrors}
-                                                active/>
+                                            setErrors={setErrors}
+                                            active />
                                     ))}
                                 </Grid>
                             </Card>
@@ -623,19 +626,19 @@ export const Create: React.FunctionComponent = () => {
                             <Card>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            setErrors={setErrors}
-                                            active={false}
-                                            onActivate={() => {
-                                                setActiveOptParams([...activeOptParams, param.name]);
-                                            }}
+                                        setErrors={setErrors}
+                                        active={false}
+                                        onActivate={() => {
+                                            setActiveOptParams([...activeOptParams, param.name]);
+                                        }}
                                     />
-                                )}/>
+                                )} />
                             </Card>
                         )}
 
                         {/* SSH */}
                         <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                                   onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled}/>
+                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
 
                         {/* Resources */}
 

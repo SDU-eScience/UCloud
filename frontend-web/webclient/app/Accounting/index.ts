@@ -4,9 +4,11 @@ import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 
 export const UCLOUD_PROVIDER = "ucloud";
-export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
-    `You will not be able to use the full amount of your allocated quota due to over-allocation from your grant giver.
-    Contact your grant giver for more information.`;
+export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE = 
+`You will not be able to use the full amount of your allocated quota due to over-allocation from your grant giver.
+Contact your grant giver for more information.
+Click to read more.`;
+
 
 /* @deprecated */
 export type ProductArea = ProductType;

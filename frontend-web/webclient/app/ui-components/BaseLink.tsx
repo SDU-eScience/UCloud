@@ -1,11 +1,12 @@
 import * as React from "react";
-import {extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
+import {classConcat, extractEventHandlers, injectStyle, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {ThemeColor} from "./theme";
 import {BoxProps} from "./Types";
 
 export interface BaseLinkProps extends BoxProps {
     hoverColor?: ThemeColor;
+    className?: string;
     href?: string;
     target?: string;
     children?: React.ReactNode;
@@ -36,7 +37,7 @@ const BaseLink: React.FunctionComponent<BaseLinkProps> = props => {
     }
 
     return <a
-        className={BaseLinkClass}
+        className={classConcat(BaseLinkClass, props.className)}
         style={style}
         children={props.children}
         href={props.href}

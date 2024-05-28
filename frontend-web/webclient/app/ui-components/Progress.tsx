@@ -7,6 +7,7 @@ import {CSSProperties} from "react";
 import {TooltipV2} from "./Tooltip";
 import Icon from "./Icon";
 import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
+import {OverallocationLink} from "@/UtilityComponents";
 
 const ProgressBaseClass = injectStyle("progress-base", k => `
     ${k} {
@@ -106,25 +107,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
     }
 `)
 
-const DEBUGGING_PURPOSES = DEVELOPMENT_ENV;
 export function NewAndImprovedProgress({
     label,
     percentage,
     limitPercentage,
     withWarning
 }: {label: string; percentage: number; limitPercentage: number; withWarning?: boolean}): React.ReactNode {
-    React.useEffect(() => {
-        if (DEBUGGING_PURPOSES) {
-            if (percentage > 100) {
-                console.warn("Percentage for", label, "is above 100")
-            }
-
-            if (limitPercentage > 100) {
-                console.warn("limit for", label, "is above 100")
-            }
-        }
-    }, []);
-
     const style: CSSProperties = {};
     // for visualization purposes we offset values too small or too close to 100%
     if (percentage > 0.1 && percentage < 2) {
@@ -135,9 +123,9 @@ export function NewAndImprovedProgress({
     }
     style["--percentage"] = percentage + "%";
     style["--limit"] = limitPercentage + "%";
-    const warning = withWarning ? <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+    const warning = withWarning ? <OverallocationLink><TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
         <Icon size={"20px"} mr="8px" name={"heroExclamationTriangle"} color={"warningMain"} />
-    </TooltipV2> : null;
+    </TooltipV2></OverallocationLink> : null;
     return <Flex alignItems={"center"}>{warning}<div className={NewAndImprovedProgressStyle} data-label={label} style={style} /></Flex>
 }
 

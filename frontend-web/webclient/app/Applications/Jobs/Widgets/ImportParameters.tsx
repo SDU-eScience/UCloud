@@ -457,7 +457,6 @@ async function cleanupImportResult(
     
     // Note(Jonas): timeAllocation is listed as undefinable, but it can also be null. Ignore null values.
     if (output.timeAllocation != null) {
-        debugger;
         if (typeof output.timeAllocation !== "object") {
             result.messages.push({type: "warning", message: "Corrupt time allocation"});
             output.timeAllocation = undefined;
