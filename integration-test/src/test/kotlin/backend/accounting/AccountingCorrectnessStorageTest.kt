@@ -127,7 +127,6 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                         }
                     }
 
-                    delay(500)
                     val postRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
                     val wallets = findWalletsInternal(createdProjectWalletOwner).filter { it.paysFor == sampleStorageDifferential.category  }
 
@@ -195,7 +194,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                     }
                 }
 
-                case("1000 GB in Project") {
+                case("1000 GB in Project, with extra deposits") {
                     input(
                         In(
                             GBUsed = 1000,
@@ -227,7 +226,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialState.initialQuota, postChargeState.treeUsage, "Project tree Usage wrong")
+                        assertEquals(totalCharge, postChargeState.treeUsage, "Project tree Usage wrong")
                         assertEquals(totalCharge, postChargeState.localUsage, "project Usage wrong")
                         assertEquals(initialState.initialQuota, postChargeRootState.treeUsage, "root treeUsage wrong")
                         assertEquals(0, postChargeRootState.localUsage, "Root local wrong")

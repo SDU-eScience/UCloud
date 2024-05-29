@@ -106,8 +106,6 @@ class AccountingCorrectnessComputeTest : IntegrationTest() {
                         }
                     }
 
-                    delay(500)
-
                     val postRootWallets =
                         findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleCompute.category }
                     val wallets =

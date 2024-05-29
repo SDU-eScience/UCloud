@@ -186,7 +186,11 @@ class GrantTest : IntegrationTest() {
                             }
                         },
                         normalUser.client
-                    )
+                    ).orThrow()
+                    println(productsToChoose.grantGivers.size)
+                    for (i in productsToChoose.grantGivers) {
+                        println("products: " + i.categories)
+                    }
 
                     val applicationId = GrantsV2.submitRevision.call(
                         GrantsV2.SubmitRevision.Request(
@@ -204,9 +208,8 @@ class GrantTest : IntegrationTest() {
                     ).orThrow().id
 
                     // Also check that the products were visible
-                    delay(500)
 
-                    val allCategories = productsToChoose.orThrow().grantGivers
+                    val allCategories = productsToChoose.grantGivers
                         .find { it.id == root.projectId }?.categories ?: emptyList()
 
                     for (request in input.resourcesRequested) {
