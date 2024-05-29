@@ -108,7 +108,7 @@ function stateReducer(state: State, action: UIAction): State {
             const newSummaries: State["summaries"] = [];
             const now = BigInt(timestampUnixMs());
 
-            const sorted = data.allocGroups.sort((a,b) => categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex]));
+            const sorted = data.allocGroups.sort((a, b) => categoryComparator(data.categories[a.productCategoryIndex], data.categories[b.productCategoryIndex]));
 
             for (let i = 0; i < data.allocGroups.length; i++) {
                 const group = sorted[i];
@@ -136,7 +136,7 @@ function stateReducer(state: State, action: UIAction): State {
 
                 summary.usage += Number(group.group.usage);
                 var quota = 0
-                group.group.allocations.forEach( alloc => quota += alloc.quota)
+                group.group.allocations.forEach(alloc => quota += alloc.quota)
                 summary.quota += Number(quota);
             }
 
@@ -214,30 +214,29 @@ function stateReducer(state: State, action: UIAction): State {
 
             const group = chartData.allocGroups[i];
             group.group.allocations.forEach(alloc => {
-                    if (alloc.startDate >= now) {
-                        // Starts in the future
-                        if (earliestNextAllocation === null) {
-                            earliestNextAllocation = Number(alloc.startDate);
-                        } else if (alloc.startDate < earliestNextAllocation) {
-                            earliestNextAllocation = Number(alloc.startDate);
-                        }
-                    } else if (now >= alloc.startDate && now <= alloc.endDate) {
-                        // Active now
-                        if (earliestExpiration === null) {
-                            earliestExpiration = Number(alloc.endDate);
-                        } else if (alloc.endDate < earliestExpiration) {
-                            earliestExpiration = Number(alloc.endDate);
-                        }
+                if (alloc.startDate >= now) {
+                    // Starts in the future
+                    if (earliestNextAllocation === null) {
+                        earliestNextAllocation = Number(alloc.startDate);
+                    } else if (alloc.startDate < earliestNextAllocation) {
+                        earliestNextAllocation = Number(alloc.startDate);
+                    }
+                } else if (now >= alloc.startDate && now <= alloc.endDate) {
+                    // Active now
+                    if (earliestExpiration === null) {
+                        earliestExpiration = Number(alloc.endDate);
+                    } else if (alloc.endDate < earliestExpiration) {
+                        earliestExpiration = Number(alloc.endDate);
                     }
                 }
-            )
+            })
         }
 
         let nextQuota = 0;
         if (earliestNextAllocation !== null) {
             for (let i = 0; i < chartData.allocGroups.length; i++) {
                 const group = chartData.allocGroups[i];
-                group.group.allocations.forEach( alloc => {
+                group.group.allocations.forEach(alloc => {
                     // @ts-ignore
                     if (earliestNextAllocation < alloc.startDate || earliestNextAllocation > alloc.endDate) {
                         //nothing
@@ -483,15 +482,15 @@ const Visualization: React.FunctionComponent = () => {
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
     return <MainContainer
-    headerSize={0}
-    main={<div
-        className={classConcat(
-            VisualizationStyle,
-            hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
-        )}
+        headerSize={0}
+        main={<div
+            className={classConcat(
+                VisualizationStyle,
+                hasChart3And4 ? undefined : AccountingPanelsOnlyStyle
+            )}
         >
             <header>
-                <h3 className="title" style={{marginTop:"auto", marginBottom: "auto"}}>Resource usage</h3>
+                <h3 className="title" style={{marginTop: "auto", marginBottom: "auto"}}>Resource usage</h3>
                 <div className="duration-select">
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
@@ -1117,7 +1116,7 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
     }, [chart]);
 
     const showWarning = (() => {
-        if (chart.dataPoints.length == 0 ) {return false}
+        if (chart.dataPoints.length == 0) {return false}
         const initialUsage = chart.dataPoints[0].usage;
         const initialQuota = chart.dataPoints[0].quota;
         if (initialUsage !== 0) {
@@ -1172,10 +1171,9 @@ const UsageOverTimePanel: React.FunctionComponent<{chart: UsageChart}> = ({chart
                     </thead>
                     <tbody>
                         {difference != 0 ? chart.dataPoints.map((point, idx, items) => {
-                            if (idx == 0) return null;
-                            const change = point.usage - items[idx - 1].usage;
+                            const change = (idx + 1 !== items.length) ? point.usage - items[idx + 1].usage : 0;
                             sum += change;
-                            if (change === 0) return null;
+                            if (change === 0 && idx + 1 < items.length) return null;
                             return <tr key={idx}>
                                 <td>{dateToString(point.timestamp)}</td>
                                 <td>{Accounting.addThousandSeparators(point.usage.toFixed(2))}</td>
