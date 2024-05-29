@@ -1,37 +1,17 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.statistics
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.JobResourceService
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.actorAndProject
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import io.ktor.server.websocket.*
-import io.ktor.websocket.*
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
 
 class JobController(
     private val jobs: JobResourceService,

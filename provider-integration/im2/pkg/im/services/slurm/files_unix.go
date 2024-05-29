@@ -3,16 +3,16 @@
 package slurm
 
 import (
-    "os"
-    "syscall"
+	"os"
+	"syscall"
 )
 
 func FileUid(info os.FileInfo) int {
-    stat := info.Sys().(*syscall.Stat_t)
-    return int(stat.Uid)
+	stat := info.Sys().(*syscall.Stat_t)
+	return int(stat.Uid)
 }
 
 func FileGid(info os.FileInfo) int {
-    stat := info.Sys().(*syscall.Stat_t)
-    return int(stat.Gid)
+	stat := info.Sys().(*syscall.Stat_t)
+	return int(stat.Gid)
 }

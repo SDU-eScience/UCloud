@@ -7,8 +7,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.integration.backend.compute.toReference
-import kotlinx.coroutines.delay
 
 data class InitializedCollection(
     val collection: FileCollection,

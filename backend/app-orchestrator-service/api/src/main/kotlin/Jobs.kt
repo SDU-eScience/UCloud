@@ -1323,7 +1323,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             ),
                             listOf(
                                 AllocationGroupWithParent(
-                                    ParentOrChildWallet(null, "Root"),
+                                    ParentOrChildWallet(null, "Root", "user"),
                                     AllocationGroup(
                                         1,
                                         listOf(

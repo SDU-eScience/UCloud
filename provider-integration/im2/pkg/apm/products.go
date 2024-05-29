@@ -1,6 +1,11 @@
 package apm
 
-import "log"
+import (
+	"log"
+	c "ucloud.dk/pkg/client"
+	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
+)
 
 type ProductReference struct {
 	Id       string `json:"id"`
@@ -79,4 +84,48 @@ func (f AccountingFrequency) IsPeriodic() bool {
 		log.Printf("Invalid accounting frequency passed: '%v'\n", f)
 		return false
 	}
+}
+
+type ProductV2 struct {
+	Category                  ProductCategory `json:"category"`
+	Name                      string          `json:"name,omitempty"`
+	Description               string          `json:"description,omitempty"`
+	ProductType               ProductType     `json:"productType,omitempty"`
+	Price                     int64           `json:"price,omitempty"`
+	HiddenInGrantApplications bool            `json:"hiddenInGrantApplications,omitempty"`
+	Usage                     int64           `json:"usage,omitempty"`
+
+	// Valid only if ProductType == ProductTypeCompute. Most values are optional and can be 0.
+
+	Cpu          int    `json:"cpu,omitempty"`
+	CpuModel     string `json:"cpuModel,omitempty"`
+	MemoryInGigs int    `json:"memoryInGigs,omitempty"`
+	MemoryModel  string `json:"memoryModel,omitempty"`
+	Gpu          int    `json:"gpu,omitempty"`
+	GpuModel     string `json:"gpuModel,omitempty"`
+}
+
+// API
+// =====================================================================================================================
+
+const productContext = "/api/products/v2/"
+const productsNamespace = "products.v2."
+
+type ProductsFilter struct {
+	FilterName        util.Option[string]
+	FilterProductType util.Option[ProductType]
+	FilterProvider    util.Option[string]
+	FilterCategory    util.Option[string]
+	FilterUsable      util.Option[bool]
+	IncludeBalance    util.Option[bool]
+	IncludeMaxBalance util.Option[bool]
+}
+
+func BrowseProducts(next string, filter ProductsFilter) (fnd.PageV2[ProductV2], error) {
+	return c.ApiBrowse[fnd.PageV2[ProductV2]](
+		productsNamespace+"browse",
+		productContext,
+		"",
+		append(c.StructToParameters(filter), "next", next, "itemsPerPage", "250"),
+	)
 }

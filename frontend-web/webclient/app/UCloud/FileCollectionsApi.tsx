@@ -160,7 +160,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 if (!anySupported) return false;
 
                 if (!cb.isWorkspaceAdmin) {
-                    return "Only workspace administrators can create a new drive!";
+                    return "Only project administrators can create a new drive!";
                 }
                 return true;
             };

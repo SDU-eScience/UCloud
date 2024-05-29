@@ -1348,7 +1348,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=600,status=no"
                 );
             }}>
-                <Button type={"button"}>
+                <Button width="150px" type={"button"}>
                     <Icon name={"heroCommandLine"} />
                     <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
@@ -1356,7 +1356,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={redirectToWeb} aria-disabled={!redirectToWeb} target={"_blank"}>
-                <Button disabled={!redirectToWeb}>
+                <Button width="160px" disabled={!redirectToWeb}>
                     <Icon name={"heroArrowTopRightOnSquare"} />
                     <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
@@ -1375,7 +1375,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button>
+                <Button width="160px">
                     <Icon name={"heroArrowTopRightOnSquare"} />
                     <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>

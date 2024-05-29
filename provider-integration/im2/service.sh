@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-PS1=fakeinteractiveshell
+PATH=$PATH:/usr/local/sdkman/candidates/gradle/current/bin:/usr/local/bin
+running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
+running_slurm=$(grep "providerId: slurm" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
+running_munged=$(ps aux | grep "/usr/sbin/munged" | grep -v grep &> /dev/null ; echo $?)
 
 if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     nohup /opt/ucloud/user-sync.py push /mnt/passwd &> /tmp/sync.log &
@@ -9,16 +12,14 @@ if ! (test -f /tmp/sync.pid && (ps -p $(cat /tmp/sync.pid) > /dev/null)); then
     sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
 fi
 
-uid=998
-if [[ $running_k8 == 0 ]]; then
-    uid=11042
-fi
-
+uid=11042
 
 if [[ $running_slurm == 0 ]]; then
-    uid=998
     chown -R munge:munge /etc/munge || true
-    service munge start;
+
+    if [[ $running_munged == 1 ]]; then
+        gosu munge /usr/sbin/munged;
+    fi
 fi
 
 chmod 755 /work || true
@@ -32,6 +33,8 @@ chown -R $uid:$uid /home/ucloud
 chown -R $uid:$uid /etc/ucloud
 chown -R $uid:$uid /var/run/ucloud
 chown -R $uid:$uid /var/log/ucloud
+mkdir -p /home/ucloudalt
+chown -R 11042:11042 /home/ucloudalt
 mkdir -p /var/log/ucloud/structured
 chmod 777 /var/log/ucloud
 chmod 777 /var/log/ucloud/structured
@@ -48,12 +51,10 @@ isrunning() {
 
 startsvc() {
     if ! isrunning; then
-        rm -f /usr/bin/ucloud
-        go build -o /usr/bin/ucloud
-        nohup sudo -u "#$uid" ucloud &> /tmp/service.log &
+        CGO_ENABLED=1 go build -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
+        nohup sudo -u "#$uid" JAVA_OPTS="$JAVA_OPTS" ucloud &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
-        reset
     fi
 }
 
@@ -70,9 +71,13 @@ restartsvc() {
     startsvc;
 }
 
+reloadsvc() {
+    killall -s SIGHUP ucloud
+}
+
 installpsql() {
     if ! hash psql &> /dev/null ; then
-        apt-get update && apt-get install postgresql-client -y
+        yum install postgresql -y
     fi
 }
 
@@ -112,6 +117,10 @@ case $1 in
 
     restart)
         restartsvc;
+        ;;
+
+    reload)
+        reload;
         ;;
 
     snapshot)

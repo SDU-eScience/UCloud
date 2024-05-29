@@ -2,16 +2,18 @@ package freeipa
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"ucloud.dk/pkg/log"
 )
 
 const (
@@ -27,13 +29,36 @@ type Client struct {
 	password   string
 }
 
-func NewClient(url string) *Client {
+func NewClient(url string, verify bool, cacert string) *Client {
+	var certPool *x509.CertPool = nil
 	jar, _ := cookiejar.New(nil)
+
+	if len(cacert) > 0 {
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			log.Error("SystemCertPool() failed: %v", err)
+			return nil
+		}
+
+		caCertPEM, err := os.ReadFile(cacert)
+		if err != nil {
+			log.Error("ReadFile() failed: %v", err)
+			return nil
+		}
+
+		ok := certPool.AppendCertsFromPEM(caCertPEM)
+		if !ok {
+			log.Error("AppendCertsFromPEM() failed: %v", err)
+			return nil
+		}
+	}
+
 	return &Client{
 		httpClient: http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
+					RootCAs:            certPool,
+					InsecureSkipVerify: !verify,
 				},
 			},
 			Timeout: time.Duration(5) * time.Second,
@@ -51,7 +76,7 @@ func (c *Client) Authenticate(username, password string) bool {
 
 	req, err := http.NewRequest("POST", urlstr, strings.NewReader(data.Encode()))
 	if err != nil {
-		log.Printf("new http request failed: %v", err)
+		log.Error("new http request failed: %v", err)
 		return false
 	}
 
@@ -64,12 +89,12 @@ func (c *Client) Authenticate(username, password string) bool {
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Printf("http request failed: %v", err)
+		log.Error("http request failed: %v", err)
 		return false
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("authentication failed with status code %d", resp.StatusCode)
+		log.Error("authentication failed with status code %d", resp.StatusCode)
 		return false
 	}
 
@@ -93,7 +118,7 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 	// Prepare and send request
 	p, err := json.Marshal(params)
 	if err != nil {
-		log.Printf("json marshal failed: %v", err)
+		log.Error("json marshal failed: %v", err)
 		return false
 	}
 
@@ -102,7 +127,7 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 
 	req, err := http.NewRequest("POST", urlstr, strings.NewReader(s))
 	if err != nil {
-		log.Printf("new http request failed: %v", err)
+		log.Error("new http request failed: %v", err)
 		return false
 	}
 
@@ -115,7 +140,7 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 		defer resp.Body.Close()
 	}
 	if err != nil {
-		log.Printf("http request failed: %v", err)
+		log.Error("http request failed: %v", err)
 		return false
 	}
 
@@ -124,24 +149,15 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 		return false
 	}
 
-	// Debug
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bodyString := string(bodyBytes)
-	fmt.Println(bodyString)
-
 	// Parse the reponse wrapper
-	// err = json.NewDecoder(resp.Body).Decode(rw)
-	json.Unmarshal(bodyBytes, rw)
+	err = json.NewDecoder(resp.Body).Decode(rw)
 	if err != nil {
-		log.Printf("json unmarshal failed: %v", err)
+		log.Error("json unmarshal failed: %v", err)
 		return false
 	}
 
 	if err := ipaHandleError(rw, method); err != nil {
-		log.Printf("%v", err)
+		log.Error("%v", err)
 		return false
 	}
 
@@ -156,7 +172,7 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 
 	err = json.Unmarshal(rw.Result.RawResult, rd)
 	if err != nil {
-		log.Printf("json unmarshal failed: %v", err)
+		log.Error("json unmarshal failed: %v", err)
 		return false
 	}
 
@@ -258,7 +274,7 @@ func (c *Client) UserQuery(name string) (User, bool) {
 
 func (c *Client) UserCreate(u *User) bool {
 	// Check variables
-	if ok := ipaValidateName(u.Username); !ok {
+	if !ipaValidateName(u.Username) {
 		return false
 	}
 
@@ -285,7 +301,7 @@ func (c *Client) UserCreate(u *User) bool {
 		p["employeenumber"] = u.EmployeeNumber
 	}
 
-	if ok := ipaValidateMail(u.Mail); ok {
+	if ipaValidateMail(u.Mail) {
 		p["mail"] = u.Mail
 	}
 
@@ -337,7 +353,7 @@ func (c *Client) UserModify(u *User) bool {
 		p["employeenumber"] = u.EmployeeNumber
 	}
 
-	if ok := ipaValidateMail(u.Mail); ok {
+	if ipaValidateMail(u.Mail) {
 		p["mail"] = u.Mail
 	}
 
@@ -381,7 +397,7 @@ func (c *Client) GroupQuery(name string) (Group, bool) {
 
 func (c *Client) GroupCreate(g *Group) bool {
 	// Check variables
-	if ok := ipaValidateName(g.Name); !ok {
+	if !ipaValidateName(g.Name) {
 		return false
 	}
 

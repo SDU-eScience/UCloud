@@ -28,14 +28,14 @@ type FSSupport struct {
 		UnixPermissions              bool `json:"unixPermissions"`
 		UnixOwner                    bool `json:"unixOwner"`
 		UnixGroup                    bool `json:"unixGroup"`
-	}
+	} `json:"stats"`
 
 	Collection struct {
 		AclModifiable  bool `json:"aclModifiable"`
 		UsersCanCreate bool `json:"usersCanCreate"`
 		UsersCanDelete bool `json:"usersCanDelete"`
 		UsersCanRename bool `json:"usersCanRename"`
-	}
+	} `json:"collection"`
 
 	Files struct {
 		AclModifiable            bool `json:"aclModifiable"`
@@ -44,14 +44,14 @@ type FSSupport struct {
 		SearchSupported          bool `json:"searchSupported"`
 		StreamingSearchSupported bool `json:"streamingSearchSupported"`
 		SharesSupported          bool `json:"sharesSupported"`
-	}
+	} `json:"files"`
 }
 
 type ProviderFile struct {
-	Id                string
-	Status            UFileStatus
-	CreatedAt         fnd.Timestamp
-	LegacySensitivity string
+	Id                string        `json:"id,omitempty"`
+	Status            UFileStatus   `json:"status"`
+	CreatedAt         fnd.Timestamp `json:"createdAt"`
+	LegacySensitivity string        `json:"legacySensitivity,omitempty"`
 }
 
 type UFileStatus struct {
@@ -61,15 +61,15 @@ type UFileStatus struct {
 	// TODO This technically breaks with UCloud's current API because we are sending 0 instead of null.
 	//   I think we should change the core/frontend to consider FSSupport when reading 0 values here.
 
-	SizeInBytes                  int64
-	SizeIncludingChildrenInBytes int64
+	SizeInBytes                  int64 `json:"sizeInBytes"`
+	SizeIncludingChildrenInBytes int64 `json:"sizeIncludingChildrenInBytes"`
 
-	ModifiedAt fnd.Timestamp
-	AccessedAt fnd.Timestamp
+	ModifiedAt fnd.Timestamp `json:"modifiedAt"`
+	AccessedAt fnd.Timestamp `json:"accessedAt"`
 
-	UnixMode  int
-	UnixOwner int
-	UnixGroup int
+	UnixMode  int `json:"unixMode"`
+	UnixOwner int `json:"unixOwner"`
+	UnixGroup int `json:"unixGroup"`
 }
 
 type FileIconHint string

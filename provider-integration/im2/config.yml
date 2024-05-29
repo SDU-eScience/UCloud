@@ -18,6 +18,11 @@ provider:
       enabled: true
       retentionDays: 180
 
+  envoy:
+    directory: /var/run/ucloud/envoy
+    excutable: /usr/bin/envoy
+    funceWrapper: false
+
 services:
   type: Slurm
 

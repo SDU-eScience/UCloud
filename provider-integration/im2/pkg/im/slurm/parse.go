@@ -6,8 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"ucloud.dk/pkg/im/safe"
+	"ucloud.dk/pkg/util"
 )
 
 type Tag struct {
@@ -133,7 +132,7 @@ func unmarshal(str string, data any) {
 			switch f := field.Interface().(type) {
 			case string:
 				field.Set(reflect.ValueOf(v))
-			case safe.String:
+			case util.OptString:
 				f.Set(v)
 				field.Set(reflect.ValueOf(f))
 			case []string:

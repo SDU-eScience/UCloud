@@ -1,6 +1,5 @@
 package dk.sdu.cloud.integration.backend.accounting
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -37,7 +36,7 @@ class GiftTest : IntegrationTest() {
                     val evilUser = createUser("evil-${UUID.randomUUID()}")
                     val provider = createSampleProducts()
                     val root = initializeRootProject(provider.projectId)
-                    val createdProject = initializeNormalProject(root.projectId)
+                    val createdProject = initializeNormalProject(root)
                     for (simplifiedGift in input.gifts) {
                         val gift = GiftWithCriteria(
                             id = 0L,

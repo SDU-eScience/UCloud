@@ -12,6 +12,8 @@ export interface MainContainerProps {
     headerSize?: number;
 }
 
+export const MAIN_CONTAINER_MAX_WIDTH = "1400px";
+
 export function MainContainer({
     main,
     additional,
@@ -28,7 +30,7 @@ export function MainContainer({
     }, [mainYpad]);
 
     return (
-        <Box zIndex={-1} data-component={"main"} p={pad} marginX="auto" maxWidth={"1400px"}>
+        <Box zIndex={-1} data-component={"main"} p={pad} marginX="auto" maxWidth={MAIN_CONTAINER_MAX_WIDTH}>
             {header && (
                 <Box
                     className={HeaderContainer}

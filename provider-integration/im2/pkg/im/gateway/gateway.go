@@ -1,32 +1,25 @@
 package gateway
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/base64"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync/atomic"
+	"time"
+	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/log"
 	"unicode"
 )
-
-// TODO CONFIGURATION NEEDS TO COME FROM SOMEWHERE
-
-var ProviderId = "grpc-test-provider"
-var LaunchRealInstances = true
-var GatewayManagedExternally = false
-var ConfigurationChannel = make(chan ConfigurationMessage)
-var EnvoyExecutable = "/usr/local/bin/getenvoy"
-var FuncEWrapper = true
-var InternalAddressToProvider = "127.0.0.1"
-var EnvoyConfigurationDirectory = "/var/run/ucloud/envoy"
-var LogDirectory = "/var/log/ucloud"
 
 const fileClusters = "clusters.yaml"
 const fileRds = "rds.yaml"
@@ -37,13 +30,14 @@ const fileBadGateway = "bad-gateway.html"
 var badGatewayHtml []byte
 
 const ServerClusterName = "_UCloud"
-const ServerClusterPort = 11042
+const ServerClusterPort = 42000
 
 type ConfigurationMessage struct {
-	ClusterUp   *EnvoyCluster
-	ClusterDown *EnvoyCluster
-	RouteUp     *EnvoyRoute
-	RouteDown   *EnvoyRoute
+	ClusterUp              *EnvoyCluster
+	ClusterDown            *EnvoyCluster
+	RouteUp                *EnvoyRoute
+	RouteDown              *EnvoyRoute
+	LaunchingUserInstances *bool
 }
 
 type Config struct {
@@ -53,17 +47,28 @@ type Config struct {
 	InitialRoutes   []*EnvoyRoute
 }
 
-func Initialize(config Config) {
+var configChannel chan []byte
+var isLaunchingUserInstances bool = false
+
+func Initialize(config Config, channel chan []byte) {
 	Pause()
 
 	var routes = make(map[*EnvoyRoute]bool)
 	var clusters = make(map[string]*EnvoyCluster)
 
+	configChannel = channel
+
+	stateDir := cfg.Provider.Envoy.StateDirectory
+	internalAddress := cfg.Provider.Envoy.InternalAddressToProvider
+	managedExternally := cfg.Provider.Envoy.ManagedExternally
+	executable := cfg.Provider.Envoy.Executable
+	useFunceWrapper := cfg.Provider.Envoy.FunceWrapper
+
 	{
 		var err error
 		if err == nil {
 			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileBadGateway),
+				fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
 				badGatewayHtml,
 				0o600,
 			)
@@ -71,14 +76,14 @@ func Initialize(config Config) {
 
 		if err == nil {
 			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileConfig),
+				fmt.Sprintf("%v/%v", stateDir, fileConfig),
 				[]byte(fmt.Sprintf(
 					envoyConfigTemplate,
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
+					fmt.Sprintf("%v/%v", stateDir, fileClusters),
 					config.ListenAddress,
 					config.Port,
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileBadGateway),
-					fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
+					fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
+					fmt.Sprintf("%v/%v", stateDir, fileRds),
 				)),
 				0o600,
 			)
@@ -86,7 +91,7 @@ func Initialize(config Config) {
 
 		if err == nil {
 			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
+				fmt.Sprintf("%v/%v", stateDir, fileRds),
 				[]byte("{}"),
 				0o600,
 			)
@@ -94,14 +99,15 @@ func Initialize(config Config) {
 
 		if err == nil {
 			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
+				fmt.Sprintf("%v/%v", stateDir, fileClusters),
 				[]byte("{}"),
 				0o600,
 			)
 		}
 
 		if err != nil {
-			log.Fatalf("Failed to write required configuration files for the gateway: %v", err)
+			log.Error("Failed to write required configuration files for the gateway: %v", err)
+			os.Exit(1)
 		}
 	}
 
@@ -127,14 +133,25 @@ func Initialize(config Config) {
 
 		clusters[ServerClusterName] = &EnvoyCluster{
 			Name:    ServerClusterName,
-			Address: InternalAddressToProvider,
+			Address: internalAddress,
 			Port:    ServerClusterPort,
-			UseDNS:  unicode.IsDigit([]rune(InternalAddressToProvider)[0]),
+			UseDNS:  !unicode.IsDigit([]rune(internalAddress)[0]),
 		}
 	}
 
 	go func() {
-		for message := range ConfigurationChannel {
+		for binMessage := range configChannel {
+			message := ConfigurationMessage{}
+			err := gob.NewDecoder(bytes.NewBuffer(binMessage)).Decode(&message)
+			if err != nil {
+				log.Warn("Failed to decode message: %", err)
+				continue
+			}
+
+			if message.LaunchingUserInstances != nil {
+				isLaunchingUserInstances = *message.LaunchingUserInstances
+			}
+
 			if message.RouteDown != nil {
 				delete(routes, message.RouteDown)
 			}
@@ -168,14 +185,14 @@ func Initialize(config Config) {
 			if !paused.Load() {
 				version := fmt.Sprintf("%x%x%x", rand.Int63(), rand.Int63(), rand.Int63())
 				err := os.WriteFile(
-					fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileRds),
+					fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
 					[]byte(formatRoutes(version, routes)),
 					0o600,
 				)
 
 				if err == nil {
 					err = os.WriteFile(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileClusters),
+						fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
 						[]byte(formatClusters(version, clusters)),
 						0o600,
 					)
@@ -183,47 +200,48 @@ func Initialize(config Config) {
 
 				if err == nil {
 					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileRds),
-						fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileRds),
+						fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
+						fmt.Sprintf("%v/%v", stateDir, fileRds),
 					)
 				}
 
 				if err == nil {
 					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", EnvoyConfigurationDirectory, version, fileClusters),
-						fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileClusters),
+						fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
+						fmt.Sprintf("%v/%v", stateDir, fileClusters),
 					)
 				}
 
 				if err != nil {
-					log.Printf("Failed to write configuration files for the gateway: %v", err)
+					log.Warn("Failed to write configuration files for the gateway: %v", err)
 				}
 			}
 		}
 	}()
 
-	if !GatewayManagedExternally {
+	if !managedExternally {
 		go func() {
-			logFilePath := fmt.Sprintf("%v/%v", LogDirectory, "envoy.log")
+			logFilePath := filepath.Join(cfg.Provider.Logs.Directory, "envoy.log")
 
 			for {
 				func() {
-					logFile, err := os.Create(logFilePath)
+					logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE, 0666)
 					if err != nil {
-						log.Fatalf("Failed to create log file for gateway: %v", err)
+						log.Error("Failed to create log file for gateway: %v", err)
+						os.Exit(1)
 					}
 
 					//goland:noinspection GoUnhandledErrorResult
 					defer logFile.Close()
 
 					var args []string = nil
-					if FuncEWrapper {
+					if useFunceWrapper {
 						args = append(args, "run")
 					}
 					args = append(args, "--config-path")
-					args = append(args, fmt.Sprintf("%v/%v", EnvoyConfigurationDirectory, fileConfig))
+					args = append(args, fmt.Sprintf("%v/%v", stateDir, fileConfig))
 
-					cmd := exec.Command(EnvoyExecutable, args...)
+					cmd := exec.Command(executable, args...)
 
 					cmd.Env = append(cmd.Env, "ENVOY_VERSION=1.23.0")
 					cmd.Stdout = logFile
@@ -231,15 +249,16 @@ func Initialize(config Config) {
 
 					err = cmd.Start()
 					if err != nil {
-						log.Printf("Failed to start gateway: %v", err)
+						log.Warn("Failed to start gateway: %v", err)
 						return
 					}
 
 					err = cmd.Wait()
 					if err != nil {
-						log.Printf("Gateway has crashed: %v (see %v for details)", err, logFilePath)
+						log.Warn("Gateway has crashed: %v (see %v for details)", err, logFilePath)
+						time.Sleep(5 * time.Minute)
 					} else {
-						log.Printf("Gateway has ended early, see %v for details", logFilePath)
+						log.Warn("Gateway has ended early, see %v for details", logFilePath)
 					}
 				}()
 			}
@@ -251,7 +270,17 @@ var paused = atomic.Bool{}
 
 func Resume() {
 	paused.Store(false)
-	ConfigurationChannel <- ConfigurationMessage{}
+	SendMessage(ConfigurationMessage{})
+}
+
+func SendMessage(message ConfigurationMessage) {
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(message)
+	if err != nil {
+		log.Warn("Failed to encode message %v: %v", message, err)
+		return
+	}
+	configChannel <- buf.Bytes()
 }
 
 func Pause() {
@@ -338,16 +367,6 @@ static_resources:
                   route_config_name: local_route
                   config_source:
                     path: %v
-          transport_socket:
-            name: envoy.transport_sockets.tls
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
-              common_tls_context:
-                tls_certificates:
-                - certificate_chain: {filename: "certs/server-cert.pem"}
-                  private_key: {filename: "certs/server-key.pem"}
-                alpn_protocols: ["h2,http/1.1"]
-
 `
 
 type EnvoyCluster struct {
@@ -363,7 +382,6 @@ const envoyClusterTemplate = `
     "connect_timeout": "0.25s",
     "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
     "lb_policy": "ROUND_ROBIN",
-	"http2_protocol_options": {},
     "type": %v ,
     "upstream_connection_options": {
         "tcp_keepalive": {}
@@ -386,13 +404,7 @@ const envoyClusterTemplate = `
                 ]
             }
         ]
-    },
-	"transport_socket": {
-		"name": "envoy.transport_sockets.tls",
-		"typed_config": {
-			"@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext"
-		}
-	}
+    }
 }
 `
 
@@ -472,7 +484,7 @@ const envoyRouteTemplateRealUserHeader = `{
 		"prefix": "/",
 		"headers": [{
 			"name": "UCloud-Username",
-			"exact_match": %v
+			"exact_match": "%v"
 		}]
 	}
 }`
@@ -483,7 +495,7 @@ const envoyRouteTemplateRealUserQueryParam = `{
 		"prefix": "/",
 		"query_parameters": [{
 			"name": "usernameHint",
-			"string_match": { "exact": %v }
+			"string_match": { "exact": "%v" }
 		}]
 	}
 }`
@@ -494,7 +506,7 @@ const envoyRouteTemplateVnc = `{
 		"path": %v,
 		"query_parameters": [{
 			"name": "token",
-			"string_match": { "exact": %v }
+			"string_match": { "exact": "%v" }
 		}]
 	}
 }`
@@ -529,7 +541,7 @@ func (c *EnvoyRoute) formatRoute() []string {
 
 	switch c.Type {
 	case RouteTypeUser:
-		if LaunchRealInstances {
+		if isLaunchingUserInstances {
 			if len(c.Identifier) == 0 {
 				// Service instance
 				result = append(
@@ -574,7 +586,7 @@ func (c *EnvoyRoute) formatRoute() []string {
 			fmt.Sprintf(
 				envoyRouteTemplateVnc,
 				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/vnc", ProviderId)),
+				jsonify(fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id)),
 				jsonify(c.Identifier),
 			),
 		)
@@ -584,7 +596,7 @@ func (c *EnvoyRoute) formatRoute() []string {
 			fmt.Sprintf(
 				envoyRouteTemplateAuthorize,
 				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/authorize-app", ProviderId)),
+				jsonify(fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id)),
 			),
 		)
 	case RouteTypeIngress:

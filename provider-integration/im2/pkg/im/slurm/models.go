@@ -1,10 +1,12 @@
 package slurm
 
-import "ucloud.dk/pkg/im/safe"
+import (
+	"ucloud.dk/pkg/util"
+)
 
 type Account struct {
 	Name          string         `slurm:"Account"`
-	Parent        safe.String    `slurm:"ParentName"`
+	Parent        util.OptString `slurm:"ParentName"`
 	Description   string         `slurm:"Descr"            format:"description"`
 	Organization  string         `slurm:"Org"              format:"organization"`
 	DefaultQoS    string         `slurm:"Def QOS"          format:"defaultqos"`

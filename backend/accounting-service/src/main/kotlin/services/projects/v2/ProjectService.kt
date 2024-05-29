@@ -849,7 +849,12 @@ class ProjectService(
 
         ctx.withSession(remapExceptions = true) { session ->
             requireAdmin(actorAndProject.actor, request.items.map { it.id }, session)
+
             request.items.forEach {
+                if (!isRenamingAllowed(actorAndProject, it.id)) {
+                    throw RPCException("You are not allowed to rename this project!", HttpStatusCode.Forbidden)
+                }
+
                 session.sendPreparedStatement(
                     {
                         setParameter("projectId", it.id)
@@ -859,6 +864,24 @@ class ProjectService(
                 )
             }
         }
+    }
+
+    private suspend fun isRenamingAllowed(
+        actorAndProject: ActorAndProject,
+        projectId: String,
+        ctx: DBContext = db,
+    ): Boolean {
+        val parent = retrieve(
+            actorAndProject,
+            ProjectsRetrieveRequest(projectId),
+            ctx = ctx
+        ).specification.parent ?: return false
+
+        return retrieve(
+            ActorAndProject(Actor.System, null),
+            ProjectsRetrieveRequest(parent, includeSettings = true),
+            ctx = ctx
+        ).status.settings!!.subprojects!!.allowRenaming
     }
 
     suspend fun unarchive(

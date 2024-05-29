@@ -3,6 +3,7 @@ package orchestrators
 import (
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type Resource struct {
@@ -72,8 +73,8 @@ type ResourceUpdate struct {
 }
 
 type ProductSupport struct {
-	Product     apm.ProductReference `json:"product"`
-	Maintenance Maintenance          `json:"maintenance,omitempty"`
+	Product     apm.ProductReference     `json:"product"`
+	Maintenance util.Option[Maintenance] `json:"maintenance,omitempty"`
 }
 
 type Maintenance struct {

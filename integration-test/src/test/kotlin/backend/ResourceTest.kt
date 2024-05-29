@@ -94,7 +94,7 @@ suspend fun initializeResourceTestContext(
     val providers = products.map { it.category.provider }.toSet()
 
     val root = initializeRootProject(retrieveProviderProjectId())
-    val ourProject = initializeNormalProject(root.projectId)
+    val ourProject = initializeNormalProject(root)
     val (piClient, piUsername, project) = ourProject
     addMemberToProject(project, piClient, adminClient, adminUsername, ProjectRole.ADMIN)
     addMemberToProject(project, piClient, memberClient, memberUsername)
