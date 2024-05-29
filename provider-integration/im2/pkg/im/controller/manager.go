@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -14,6 +15,10 @@ var LaunchUserInstances = false
 func Init(mux *http.ServeMux) {
 	controllerFiles(mux)
 	controllerConnection(mux)
+
+	if cfg.Mode == cfg.ServerModeServer {
+		initEvents()
+	}
 }
 
 type ApiHandler[T any] func(w http.ResponseWriter, r *http.Request, request T)

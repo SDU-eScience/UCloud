@@ -51,3 +51,7 @@ func (t Timestamp) Time() time.Time {
 func (t Timestamp) UnixMilli() int64 {
 	return t.Time().UnixMilli()
 }
+
+func TimeFromUnixMilli(millis uint64) Timestamp {
+	return Timestamp(time.Unix(0, int64(millis*uint64(time.Millisecond))))
+}

@@ -90,6 +90,19 @@ func Launch() {
 		UserModeSecret:       userModeSecret,
 	}
 
+	if mode == cfg.ServerModeServer {
+		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
+		// reloadable.
+		client.DefaultClient = client.MakeClient(
+			cfg.Server.RefreshToken,
+			cfg.Provider.Hosts.UCloud.ToURL(),
+		)
+
+		go func() {
+			ipc.InitIpc()
+		}()
+	}
+
 	// Once all critical parts are loaded, we can trigger the reloadable part of the code's launcher function
 	if *reloadable {
 		im.WatchForReload(&moduleArgs)
@@ -103,19 +116,6 @@ func Launch() {
 	}
 
 	log.Info("UCloud is ready!")
-
-	if mode == cfg.ServerModeServer {
-		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
-		// reloadable.
-		client.DefaultClient = client.MakeClient(
-			cfg.Server.RefreshToken,
-			cfg.Provider.Hosts.UCloud.ToURL(),
-		)
-
-		go func() {
-			ipc.InitIpc()
-		}()
-	}
 
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
 		serverPort := gateway.ServerClusterPort

@@ -14,6 +14,7 @@ import (
 
 var dbFile string
 var db map[string]any
+var dirty = false
 var mutex = sync.Mutex{}
 
 // NOTE(Dan): This is a simple and temporary persistent KV store. We will use this until we have a proper database
@@ -52,7 +53,7 @@ func Init(databaseFile string) bool {
 		defer util.SilentClose(file)
 		for util.IsAlive {
 			flush()
-			time.Sleep(10 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 
@@ -60,6 +61,15 @@ func Init(databaseFile string) bool {
 }
 
 func flush() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if !dirty {
+		return
+	} else {
+		dirty = false
+	}
+
 	file, err := os.CreateTemp(filepath.Dir(dbFile), "temp_*.db")
 	if err != nil {
 		log.Warn("Failed to create temp file: %v", err)
@@ -94,9 +104,14 @@ func Set(key string, value any) {
 	db[key] = value
 }
 
-func Get(key string) (any, bool) {
+func Get[T any](key string) (T, bool) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	value, ok := db[key]
-	return value, ok
+	if ok {
+		return value.(T), ok
+	} else {
+		var zeroValue T
+		return zeroValue, ok
+	}
 }

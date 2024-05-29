@@ -56,21 +56,21 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 }
 
 func MapUCloudToLocal(username string) (uint32, bool) {
-	val, ok := kvdb.Get(fmt.Sprintf("%v%v", uidMapPrefix, username))
+	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", uidMapPrefix, username))
 	if !ok {
 		return 11400, false
 	}
 
-	return val.(uint32), true
+	return val, true
 }
 
 func MapLocalToUCloud(uid uint32) (string, bool) {
-	val, ok := kvdb.Get(fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
+	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
 	if !ok {
 		return "_guest", false
 	}
 
-	return val.(string), true
+	return val, true
 }
 
 func RegisterSigningKey(username string, key string) int {
