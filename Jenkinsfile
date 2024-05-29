@@ -22,6 +22,8 @@ node {
     }
     echo branchName
     echo (jobName)
+    echo "chmods"
+    chown -R jenkins:jenkins provider-integration//integration-module/example-extensions/simple
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
         checkout(
