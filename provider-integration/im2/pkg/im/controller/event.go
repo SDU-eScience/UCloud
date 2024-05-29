@@ -83,7 +83,6 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom u
 	writeBuf.PutU64(replayFrom)
 	writeBuf.PutU64(0) // flags (unused)
 	writeBuf.PutString(client.DefaultClient.RetrieveAccessTokenOrRefresh())
-	log.Info("replaying from %v", replayFrom)
 
 	_ = session.WriteMessage(ws.TextMessage, writeBuf.Bytes())
 	writeBuf.Reset()
