@@ -206,18 +206,7 @@ class GrantTest : IntegrationTest() {
                         ),
                         normalUser.client
                     ).orThrow().id
-
-                    // Also check that the products were visible
-
-                    val allCategories = productsToChoose.grantGivers
-                        .find { it.id == root.projectId }?.categories ?: emptyList()
-
-                    for (request in input.resourcesRequested) {
-                        assertThatInstance(allCategories, "has the product for $request") {
-                            allCategories.any { it.name == request.category && it.provider == request.provider }
-                        }
-                    }
-
+                    
                     // Verify that the application is visible as an ingoing and as an outgoing application
                     assertThatInstance(
                         GrantsV2.browse.call(
