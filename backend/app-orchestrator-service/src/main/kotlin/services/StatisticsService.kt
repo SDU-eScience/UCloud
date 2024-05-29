@@ -77,7 +77,7 @@ class StatisticsService {
                     {
                         setParameter("start", start)
                         setParameter("end", end)
-                        setParameter("project_ids", descendants)
+                        setParameter("project_id", projectId)
                         setParameter("username", actorAndProject.actor.safeUsername().takeIf {
                             projectId == null
                         })
@@ -91,7 +91,7 @@ class StatisticsService {
                                         accounting.wallets_v2 wal on wo.id = wal.wallet_owner
                                     where
                                         (
-                                            wo.project_id in (select unnest(:project_ids::text[]))
+                                            wo.project_id = :project_id
                                             or wo.username = :username::text
                                         )
 
@@ -168,7 +168,8 @@ class StatisticsService {
                         group by
                             j.created_by, j.category, j.provider
                         order
-                            by usage desc , j.provider, j.category, j.created_by;                    """
+                            by usage desc , j.provider, j.category, j.created_by;                    
+                        """
                 ).rows
 
                 var dataPoints = ArrayList<JobUsageByUserDataPoint>()
