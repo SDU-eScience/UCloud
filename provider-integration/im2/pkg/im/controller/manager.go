@@ -9,7 +9,6 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-var Files FileService
 var LaunchUserInstances = false
 
 func Init(mux *http.ServeMux) {

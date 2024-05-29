@@ -8,9 +8,9 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	svc "ucloud.dk/pkg/im/services"
+	"ucloud.dk/pkg/kvdb"
+	"ucloud.dk/pkg/util"
 )
-
-var IsAlive = true
 
 func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	fmt.Printf("Running module launcher with mode=%v\n", args.Mode)
@@ -21,12 +21,16 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 		return
 	}
 
+	if args.Mode == cfg.ServerModeServer {
+		kvdb.Init(args.ConfigDir + "/kv.db")
+	}
+
 	svc.Init(args)
 	ctrl.Init(args.ServerMultiplexer)
 }
 
 func ModuleExit() []byte {
-	IsAlive = false
+	util.IsAlive = false
 	return nil
 }
 

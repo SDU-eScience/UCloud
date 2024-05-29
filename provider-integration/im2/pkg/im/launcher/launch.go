@@ -107,29 +107,9 @@ func Launch() {
 	if mode == cfg.ServerModeServer {
 		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
 		// reloadable.
-
-		ucloud := cfg.Provider.Hosts.UCloud
-		port := ucloud.Port
-		scheme := ucloud.Scheme
-		if scheme != "http" && scheme != "https" {
-			if port == 443 || port == 8443 {
-				scheme = "https"
-			} else {
-				scheme = "http"
-			}
-		}
-
-		if port == 0 {
-			if scheme == "https" {
-				port = 443
-			} else {
-				port = 80
-			}
-		}
-
 		client.DefaultClient = client.MakeClient(
 			cfg.Server.RefreshToken,
-			fmt.Sprintf("%v://%v:%v", scheme, ucloud.Address, port),
+			cfg.Provider.Hosts.UCloud.ToURL(),
 		)
 
 		go func() {

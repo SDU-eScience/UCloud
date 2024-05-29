@@ -437,6 +437,28 @@ func (h HostInfo) validate(filePath string, node *yaml.Node) bool {
 	return err == nil
 }
 
+func (h HostInfo) ToURL() string {
+	port := h.Port
+	scheme := h.Scheme
+	if scheme != "http" && scheme != "https" {
+		if port == 443 || port == 8443 {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+
+	if port == 0 {
+		if scheme == "https" {
+			port = 443
+		} else {
+			port = 80
+		}
+	}
+
+	return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
+}
+
 type ServerConfiguration struct {
 	RefreshToken string
 }
@@ -452,8 +474,10 @@ type ProviderConfiguration struct {
 	Id string
 
 	Hosts struct {
-		UCloud HostInfo
-		Self   HostInfo
+		UCloud       HostInfo
+		Self         HostInfo
+		UCloudPublic HostInfo
+		SelfPublic   HostInfo
 	}
 
 	Ipc struct {
@@ -490,6 +514,20 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		selfHost := requireChild(filePath, hosts, "self", &success)
 		decode(filePath, ucloudHost, &cfg.Hosts.UCloud, &success)
 		decode(filePath, selfHost, &cfg.Hosts.Self, &success)
+
+		ucloudPublic, _ := getChildOrNil(filePath, hosts, "ucloudPublic")
+		if ucloudPublic != nil {
+			decode(filePath, ucloudPublic, &cfg.Hosts.UCloudPublic, &success)
+		} else {
+			cfg.Hosts.UCloudPublic = cfg.Hosts.UCloud
+		}
+
+		selfPublic, _ := getChildOrNil(filePath, hosts, "selfPublic")
+		if selfPublic != nil {
+			decode(filePath, selfPublic, &cfg.Hosts.SelfPublic, &success)
+		} else {
+			cfg.Hosts.SelfPublic = cfg.Hosts.Self
+		}
 
 		if !success {
 			return false, cfg
@@ -615,10 +653,7 @@ type ServicesConfigurationKubernetes struct{}
 type ServicesConfigurationPuhuri struct{}
 
 type ServicesConfigurationSlurm struct {
-	IdentityManagement struct {
-		Type   string
-		Config string
-	}
+	IdentityManagement IdentityManagement
 
 	FileSystems map[string]SlurmFs
 	Ssh         SlurmSsh
@@ -857,9 +892,13 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		if !success {
 			return false, cfg
 		}
-		_ = identityManagement
 
-		// TODO
+		ok, idm := parseIdentityManagement(filePath, identityManagement)
+		if !ok {
+			return false, cfg
+		}
+
+		cfg.IdentityManagement = idm
 	}
 
 	{
@@ -1203,6 +1242,62 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 	}
 
 	return result
+}
+
+type IdentityManagementType string
+
+const (
+	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
+)
+
+var IdentityManagementTypeOptions = []IdentityManagementType{
+	IdentityManagementTypeScripted,
+}
+
+type IdentityManagement struct {
+	Type          IdentityManagementType
+	Configuration any
+}
+
+type IdentityManagementScripted struct {
+	CreateUser     string
+	SyncUserGroups string
+}
+
+func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
+	if m.Type == IdentityManagementTypeScripted {
+		return m.Configuration.(*IdentityManagementScripted)
+	}
+	return nil
+}
+
+func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityManagement) {
+	var result IdentityManagement
+	success := true
+	mType := requireChildEnum(filePath, node, "type", IdentityManagementTypeOptions, &success)
+	result.Type = mType
+	if !success {
+		return false, result
+	}
+
+	if result.Type == IdentityManagementTypeScripted {
+		ok, config := parseIdentityManagementScripted(filePath, node)
+		if !ok {
+			return false, result
+		}
+
+		result.Configuration = &config
+	}
+
+	return success, result
+}
+
+func parseIdentityManagementScripted(filePath string, node *yaml.Node) (bool, IdentityManagementScripted) {
+	var result IdentityManagementScripted
+	success := true
+	result.CreateUser = requireChildFile(filePath, node, "createUser", FileCheckRead, &success)
+	result.SyncUserGroups = requireChildFile(filePath, node, "syncUserGroups", FileCheckRead, &success)
+	return success, result
 }
 
 func ReadPublicKey(configDir string) *rsa.PublicKey {
