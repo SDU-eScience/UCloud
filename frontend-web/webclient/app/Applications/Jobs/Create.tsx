@@ -562,8 +562,6 @@ export const Create: React.FunctionComponent = () => {
                                                                         </TooltipV2>
                                                                     </OverallocationLink>
                                                                 </td>
-
-
                                                             </tr>
                                                         )
                                                     }
