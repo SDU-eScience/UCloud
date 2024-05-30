@@ -206,7 +206,7 @@ class GrantTest : IntegrationTest() {
                         ),
                         normalUser.client
                     ).orThrow().id
-                    
+
                     // Verify that the application is visible as an ingoing and as an outgoing application
                     assertThatInstance(
                         GrantsV2.browse.call(
