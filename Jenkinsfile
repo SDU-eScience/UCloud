@@ -23,9 +23,7 @@ node {
     echo branchName
     echo (jobName)
     echo "chmods"
-    sh script: """
-	chown -R jenkins:jenkins provider-integration//integration-module/example-extensions/simple
-    """
+
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
         checkout(
@@ -157,8 +155,6 @@ def cleanDocker() {
         docker run --rm -v \$PWD:/mnt/folder ubuntu:22.04 bash -c 'rm -rf /mnt/folder/.compose/*'
 
         rm -rf ./tmp
-
-	chown -R jenkins:jenkins provider-integration//integration-module/example-extensions/simple
     """
 }
 
