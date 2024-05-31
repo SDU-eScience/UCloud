@@ -1103,8 +1103,13 @@ class UCloudFilePlugin : FilePlugin {
         suspend fun launchWithPermit(block: suspend CoroutineScope.() -> Unit) {
             val self = this
 
-            permits.withPermit {
-                self.launch { block() }
+            permits.acquire()
+            self.launch {
+                try {
+                    block()
+                } finally {
+                    permits.release()
+                }
             }
         }
     }

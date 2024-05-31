@@ -7,7 +7,7 @@ use.
 ## 31-05-24
 
 ```
-Type 1/SDU @ 2024.1.21
+Type 1/SDU @ 2024.1.22
 UCloud/Core @ 2024.1.19
 UCloud/Frontend @ 2024.1.19
 ```
