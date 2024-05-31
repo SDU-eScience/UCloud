@@ -18,6 +18,7 @@ import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {getStoredProject} from "@/Project/ReduxState";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -42,7 +43,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const activeProject = React.useRef(Client.projectId);
+    const activeProject = React.useRef<string | null | undefined>(Client.projectId);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -50,6 +51,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     }
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+        if (!opts?.isModal) activeProject.current = getStoredProject();
         return baseCallAPI({
             ...parameters,
             projectOverride: activeProject.current ?? ""
