@@ -988,6 +988,8 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				reportError(filePath, driveLocatorsNode, "expected driveLocators to be a dictionary")
 				return false, cfg
 			}
+
+			collectionEntityCount := 0
 			for i := 0; i < len(driveLocatorsNode.Content); i += 2 {
 				locator := SlurmDriveLocator{}
 
@@ -998,6 +1000,18 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
 				locator.Pattern = optionalChildText(filePath, locatorNode, "pattern", &success)
 				locator.Script = optionalChildText(filePath, locatorNode, "script", &success)
+
+				if locator.Entity == SlurmDriveLocatorEntityTypeCollection {
+					collectionEntityCount++
+
+					if collectionEntityCount > 1 {
+						reportError(
+							filePath,
+							locatorNode,
+							"You are only allowed to specify a single locator with entity = Collection per product category!",
+						)
+					}
+				}
 
 				if locator.Pattern == "" && locator.Script == "" {
 					success = false

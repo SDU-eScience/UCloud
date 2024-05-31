@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ContainerDescription
+import dk.sdu.cloud.base64Encode
 
 /**
  * A plugin which performs miscellaneous tasks
@@ -31,6 +32,11 @@ object FeatureMiscellaneous : JobFeature {
         }
 
         builder.upsertAnnotation("ucloud.dk/jobId", job.id)
+        builder.upsertLabel("ucloud.dk/jobId", job.id)
 
+        // NOTE(Dan): Usernames are not safe to put directly into K8s labels since they might not validate the strict
+        // regex they use. They are also too long.
+        val project = job.owner.project
+        if (project != null) builder.upsertLabel("ucloud.dk/workspaceId", project)
     }
 }

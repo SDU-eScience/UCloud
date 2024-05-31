@@ -24,6 +24,8 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.serializer
 import java.util.ArrayList
 import java.util.HashMap
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 
 typealias UnknownResourceApi<Support> = ResourceApi<*, *, *, *, *, *, Support>
 
@@ -116,7 +118,11 @@ class ProviderCommunications(
         validator: suspend (Support, Spec) -> Unit,
     ) {
         val productReferences = request.items.map { it.product }
-        requireAllocation(actorAndProject, productReferences, "looking for a valid allocation (attempting to $actionDescription)")
+        requireAllocation(
+            actorAndProject,
+            productReferences,
+            "looking for a valid allocation (attempting to $actionDescription)"
+        )
         requireSupport(api, productReferences, "trying to $actionDescription") { support ->
             for (reqItem in request.items) {
                 if (reqItem.product != support.product) continue
@@ -179,7 +185,12 @@ class ProviderCommunications(
     private val allocationCache = AsyncCache<Pair<WalletOwner, ProductCategory>, Boolean>(
         backgroundScope,
         timeToLiveMilliseconds = 1000L * 60 * 30,
-        timeoutException = { throw RPCException("Failed to fetch information about allocations", HttpStatusCode.BadGateway) },
+        timeoutException = {
+            throw RPCException(
+                "Failed to fetch information about allocations",
+                HttpStatusCode.BadGateway
+            )
+        },
         retrieve = { (owner, category) ->
             val usableQuota = AccountingV2.browseWalletsInternal
                 .call(
@@ -285,7 +296,8 @@ class ProviderCommunications(
         filterProductType: ProductType? = null,
         fn: suspend (providerId: String) -> Unit,
     ) {
-        val providers = findRelevantProviders(actorAndProject, filterProductType)
+        val (providers, time) = measureTimedValue { findRelevantProviders(actorAndProject, filterProductType) }
+        Prometheus.measureBackgroundDuration("find_relevant_providers", time.inWholeMilliseconds)
 
         coroutineScope {
             val jobs = providers.map { providerId ->
@@ -293,8 +305,10 @@ class ProviderCommunications(
                     try {
                         fn(providerId)
                     } catch (ex: Throwable) {
-                        log.warn("Caught exception while broadcasting message to providers: " +
-                                "${ex.toReadableStacktrace()}")
+                        log.warn(
+                            "Caught exception while broadcasting message to providers: " +
+                                    "${ex.toReadableStacktrace()}"
+                        )
                     }
                 }
             }
@@ -322,31 +336,36 @@ class ProviderCommunications(
 
         forEachRelevantProvider(actorAndProject) { providerId ->
             try {
-                val element = retrieveSupport(api, providerId)
+                val (element, time) = measureTimedValue { retrieveSupport(api, providerId) }
+                Prometheus.measureBackgroundDuration("retrieve_products_$providerId", time.inWholeMilliseconds)
                 mutex.withLock { support[providerId] = element }
             } catch (ex: Throwable) {
                 log.warn("Provider: $providerId ${ex.toReadableStacktrace()}")
             }
         }
 
-        mutex.lock() // Lock, just in case any of the coroutines haven't stopped yet
-
         val result = HashMap<String, ArrayList<ResolvedSupport<P, Support>>>()
-        for ((provider, elements) in support) {
-            val list = result.getOrPut(provider) { ArrayList() }
-            for (elem in elements) {
-                @Suppress("UNCHECKED_CAST")
-                val product = productCache.referenceToProductId(elem.product)?.let {
-                    productCache.productIdToProduct(it)?.toV1() as? P?
-                }
 
-                if (product == null) {
-                    if (elem.product.provider != "aau") log.info("Could not resolve product: ${elem.product}")
-                } else {
-                    list.add(ResolvedSupport(product, elem))
+        val time = measureTime {
+            mutex.lock() // Lock, just in case any of the coroutines haven't stopped yet
+            for ((provider, elements) in support) {
+                val list = result.getOrPut(provider) { ArrayList() }
+                for (elem in elements) {
+                    val product = productCache.referenceToProductId(elem.product)?.let {
+                        @Suppress("UNCHECKED_CAST")
+                        productCache.productIdToProduct(it)?.toV1() as? P?
+                    }
+
+
+                    if (product == null) {
+                        if (elem.product.provider != "aau") log.info("Could not resolve product: ${elem.product}")
+                    } else {
+                        list.add(ResolvedSupport(product, elem))
+                    }
                 }
             }
         }
+        Prometheus.measureBackgroundDuration("retrieve_products_lookup", time.inWholeMilliseconds)
 
         return SupportByProvider(result)
     }
