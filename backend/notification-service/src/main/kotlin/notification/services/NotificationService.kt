@@ -171,7 +171,9 @@ class NotificationService(
 
         return when (type) {
             "JOB_STARTED" -> settings.jobStarted
-            "JOB_STOPPED" -> settings.jobStopped
+            "JOB_COMPLETED" -> settings.jobStopped
+            "JOB_EXPIRED" -> settings.jobStopped
+            "JOB_FAILED" -> settings.jobStopped
             else -> true
         }
     }
