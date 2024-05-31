@@ -1125,7 +1125,6 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 
     ${k} .term {
-        overflow-y: scroll;
         height: 100%;
         width: 100%;
     }
@@ -1484,7 +1483,7 @@ const ProviderUpdates: React.FunctionComponent<{
     }, [state]);
 
     if (addOverflow) {
-        return <Box height={"200px"} overflowY="scroll">
+        return <Box height={"200px"} overflowY="auto">
             <LogOutput updates={updates} maxHeight="200px" />
         </Box>
     } else {

@@ -2,7 +2,8 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import * as React from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
-    Box, Button, Divider, Flex, ButtonGroup, Link, Text
+    Box, Button, Divider, Flex, ButtonGroup, Link, Text,
+    ExternalLink
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Input from "@/ui-components/Input";
@@ -14,6 +15,7 @@ import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
 import AppRoutes from "./Routes";
+import {SITE_DOCUMENTATION_URL} from "../site.config.json";
 
 enum KeyCode {
     ENTER = 13,
@@ -433,3 +435,15 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string; children
         {props.children}
     </Flex>
 );
+
+const OverallocationLinkClass = injectStyle("overallocation-link", k => `
+    ${k}:hover {
+        color: inherit;
+    }
+`);
+
+export function OverallocationLink(props: React.PropsWithChildren): React.ReactNode {
+    return <ExternalLink className={OverallocationLinkClass} href={`${SITE_DOCUMENTATION_URL}guide/project-management.html#overallocation`}>
+        {props.children}
+    </ExternalLink>
+}

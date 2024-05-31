@@ -929,7 +929,11 @@ const Allocations: React.FunctionComponent = () => {
                     <Divider />
                     <Label>
                         Project title
-                        <Input id={"subproject-name"} autoFocus />
+                        <Input onKeyDown={e => {
+                            if (e.code !== "Escape") {
+                                e.stopPropagation();
+                            }
+                        }} id={"subproject-name"} autoFocus />
                     </Label>
                     {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
@@ -1943,7 +1947,7 @@ const initialState: State = {
     subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
     yourAllocations: {},
     editControlsDisabled: false,
-    viewOnlyProjects: false,
+    viewOnlyProjects: true,
 };
 
 const NO_EXPIRATION_FALLBACK = 4102444800353;

@@ -1,10 +1,10 @@
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState} from "@/UCloud/JobsApi";
 import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {isLightThemeStored, timestampUnixMs} from "@/UtilityFunctions";
-import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {addContextSwitcherInPortal, checkIsWorkspaceAdmin, clearFilterStorageValue, dateRangeFilters, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, ColumnTitleList, checkCanConsumeResources} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
@@ -17,6 +17,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as AppStore from "@/Applications/AppStoreApi";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -41,10 +42,18 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const activeProject = React.useRef(Client.projectId);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Jobs", SidebarTabId.RUNS);
+    }
+
+    function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
+        return baseCallAPI({
+            ...parameters,
+            projectOverride: activeProject.current ?? ""
+        });
     }
 
     const omitFilters = !!opts?.omitFilters;
@@ -261,8 +270,17 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 browserRef.current?.refresh();
             }
         }
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
     }, []);
+
+    const setLocalProject = opts?.isModal ? (projectId?: string) => {
+        const b = browserRef.current;
+        if (b) {
+            b.canConsumeResources = checkCanConsumeResources(projectId ?? null, {api: JobsApi});
+            activeProject.current = projectId;
+            b.refresh();
+        }
+    } : undefined;
 
     if (!opts?.embedded && !opts?.isModal) {
         useSetRefreshFunction(() => {
@@ -274,6 +292,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         <div ref={mountRef} />
         {switcher}
     </>;
+
     if (opts?.embedded === true) return <div>{main}</div>;
     return <MainContainer main={main} />;
 }
