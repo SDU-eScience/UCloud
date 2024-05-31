@@ -171,6 +171,7 @@ type EditorAction =
     | {type: "UpdateFullScreenLoading", isLoading: boolean}
     | {type: "UpdateFullScreenError", error: string}
     | {type: "SetResourceError", provider: string, category: string, allocator: string, message: string}
+    | {type: "Reset"}
     ;
 
 function stateReducer(state: EditorState, action: EditorAction): EditorState {
@@ -631,6 +632,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     comments: state.stateDuringEdit.comments?.filter(it => it.id !== action.commentId)
                 }
             };
+        }
+
+        case "Reset": {
+            return defaultState;
         }
     }
 
@@ -1275,6 +1280,7 @@ export function Editor(): React.ReactNode {
 
     useEffect(() => {
         (async () => {
+            dispatchEvent({type: "Reset"});
             switch (getQueryParam(location.search, "type")) {
                 case "grantGiverInitiated": {
                     const startP = getQueryParam(location.search, "start");
@@ -1329,7 +1335,7 @@ export function Editor(): React.ReactNode {
                 }
             }
         })();
-    }, []);
+    }, [location.search]);
 
     // Event handlers
     // -----------------------------------------------------------------------------------------------------------------
