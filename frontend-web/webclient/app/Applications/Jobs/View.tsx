@@ -253,6 +253,7 @@ const Container = injectStyle("job-container", k => `
   ${k} ${topButtons.dot} {
     display: flex;
     gap: 8px;
+    height: 23px;
   }
 `);
 
