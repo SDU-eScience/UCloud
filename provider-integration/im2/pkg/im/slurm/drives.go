@@ -7,7 +7,6 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/slurm"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 )
 
@@ -21,11 +20,11 @@ type DriveInfo struct {
 type UCloudDriveId uint64
 
 func LookupDrive(ucloudDriveId UCloudDriveId) (DriveInfo, error) {
-
+	return DriveInfo{}, nil
 }
 
 func LookupDriveByPath(path string) (DriveInfo, error) {
-
+	return DriveInfo{}, nil
 }
 
 type RegisterDriveInfoFlag int
