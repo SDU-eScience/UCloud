@@ -1318,11 +1318,25 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    if (localStorage.getItem("ALLOW_JOB_DEBUGGING_INFO") != null) {
+        console.log(JSON.stringify({
+            session: sessionResp,
+            backendType,
+            appType,
+            job,
+            support,
+            supportedBackends: {
+                web: isSupported(backendType, support, "web"),
+                vnc: isSupported(backendType, support, "vnc")
+            }
+        }));
+    }
+
     React.useEffect(() => {
         if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
             fetchSession(JobsApi.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: job.id, rank})));
         }
-    }, [job.status.state, appType, supportsInterface]);
+    }, [job.status.state, job.id, appType, supportsInterface]);
 
     const redirectToWeb = React.useMemo(() => {
         if (sessionResp.data == null) return "";
