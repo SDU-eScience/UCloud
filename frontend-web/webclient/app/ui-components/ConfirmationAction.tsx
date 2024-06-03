@@ -436,7 +436,6 @@ export function ConfirmationButtonPlainHTML(
 
     const timeout = {id: -1};
     const timer = {time: holdToConfirmTime};
-    const wasReset = {state: false};
     const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
 
     function end() {
@@ -445,7 +444,7 @@ export function ConfirmationButtonPlainHTML(
             window.clearTimeout(timeout.id);
         }
 
-        if (timer.time > holdToConfirmTime - shakeDelta && !wasReset) {
+        if (timer.time > holdToConfirmTime - shakeDelta && startedMap[TEMP_STARTED_KEY]) {
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
@@ -460,7 +459,6 @@ export function ConfirmationButtonPlainHTML(
         }
         timer.time = holdToConfirmTime;
         startedMap[TEMP_STARTED_KEY] = false;
-        wasReset.state = false;
     }
 
     function start() {
@@ -468,10 +466,6 @@ export function ConfirmationButtonPlainHTML(
         if (timeout.id !== -1) {
             window.clearTimeout(timeout.id);
             timeout.id = -1;
-        }
-
-        if (button.classList.contains("success")) {
-            wasReset.state = true;
         }
 
         button.classList.remove("success");
