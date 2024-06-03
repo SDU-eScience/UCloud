@@ -7,7 +7,7 @@ import (
 )
 
 type MigrationHandler struct {
-	DB      *DBContext
+	DB      DBSession
 	scripts []MigrationScript
 }
 
@@ -19,22 +19,22 @@ type MigrationScript struct {
 func (handler MigrationHandler) migrate() {
 	var missingMigrations []string
 
-	handler.DB.OpenSession()
+	session := handler.DB.Open()
 
-	handler.DB.Exec(`
+	session.Exec(`
 		create table if not exists migrations(
 			id text primary key
 		);
 	`)
 
-	handler.DB.Exec(`
+	session.Exec(`
 		create table if not exists completed_migrations(
 			id text primary key references migrations,
 			completed_at timestamp
 		);
 	`)
 
-	if !handler.DB.Ok {
+	if !session.Ok {
 		log.Fatalf("Failed to create migrations table")
 	}
 

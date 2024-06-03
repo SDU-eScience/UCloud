@@ -1,10 +1,38 @@
 package main
 
 import (
+	"os"
+
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
+	"ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/launcher"
+	"ucloud.dk/pkg/log"
 )
 
 func main() {
+
+	if true {
+		postgres := embeddedpostgres.NewDatabase()
+		err := postgres.Start()
+
+		if err != nil {
+			log.Error("Postgres failed to start %v", err)
+		}
+		defer postgres.Stop()
+
+		log.Debug("Connecting")
+
+		db := database.Connect()
+
+		log.Debug("Opening")
+
+		session := db.Open()
+
+		session.Query("SELECT * from test")
+
+		os.Exit(0)
+	}
+
 	launcher.Launch()
 }
 

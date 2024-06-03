@@ -2,96 +2,112 @@ package database
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"ucloud.dk/pkg/log"
 )
+
+type DBSession interface {
+	Open() DBSession
+	Close()
+	Exec(query string, args ...any)
+	Query(query string, args ...any) *sql.Rows
+	Get(dest interface{}, query string, args ...interface{})
+	Select(dest interface{}, query string, args ...interface{})
+}
+
+type DBContext interface {
+	Open() DBSession
+}
+
+type ReadyToOpenTransaction struct {
+	Connection *sqlx.DB
+}
+
+func (ctx *ReadyToOpenTransaction) Open() DBSession {
+	tx, _ := ctx.Connection.Beginx()
+	return &Transaction{Transaction: tx}
+}
+
+type Transaction struct {
+	Transaction *sqlx.Tx
+	Ok          bool
+	Depth       int
+	Error       DBError
+}
 
 type DBError struct {
 	Message string
 }
 
-type DBContext struct {
-	Connection *sqlx.DB
-	Session    *sqlx.Tx
-	Ok         bool
-	Error      DBError
+func (ctx *Transaction) Open() DBSession {
+	ctx.Depth++
+	return ctx
 }
 
-func DBConnect() DBContext {
-	db, err := sqlx.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
+func (ctx *Transaction) Close() {
+	ctx.Depth--
+
+	if ctx.Depth == 0 {
+		var err error = nil
+		if ctx.Ok {
+			err = ctx.Transaction.Commit()
+		} else {
+			err = ctx.Transaction.Rollback()
+		}
+
+		if err != nil {
+			log.Error("Failed to close transaction: %v", err)
+		}
+	}
+}
+
+func Connect() ReadyToOpenTransaction {
+	db, err := sqlx.Open("postgres", "postgres://postgres:postgres@localhost/postgres")
 	if err != nil {
-		log.Fatalf("Could not open database %v", err)
+		log.Error("Could not open database %v", err)
 	}
 
-	return DBContext{
+	return ReadyToOpenTransaction{
 		Connection: db,
-		Ok:         true,
 	}
 }
 
-func (db *DBContext) OpenSession() {
-	session, err := db.Connection.Beginx()
+func (ctx *Transaction) Exec(query string, args ...any) {
+	_, err := ctx.Transaction.Exec(query, args...)
 
 	if err != nil {
-		log.Fatalf("Could not open transaction %v", err)
-		db.Ok = false
-		db.Error = DBError{fmt.Sprintf("Could not open transaction %v", err)}
-	}
-
-	db.Session = session
-}
-
-func (db *DBContext) Close() error {
-	var err error = nil
-	if !db.Ok {
-		err = db.Session.Rollback()
-	} else {
-		err = db.Session.Commit()
-	}
-
-	if err != nil {
-		log.Fatalf("Could not commit %v", err)
-	}
-	return err
-}
-
-func (db *DBContext) Exec(query string, args ...any) {
-	_, err := db.Session.Exec(query, args...)
-
-	if err != nil {
-		db.Ok = false
-		db.Error = DBError{"Database exec failed: " + query}
+		ctx.Ok = false
+		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
 	}
 }
 
-func (db *DBContext) Query(query string, args ...any) *sql.Rows {
-	res, err := db.Session.Query(query, args...)
+func (ctx *Transaction) Query(query string, args ...any) *sql.Rows {
+	res, err := ctx.Transaction.Query(query, args...)
 
 	if err != nil {
-		db.Ok = false
-		db.Error = DBError{"Database query failed: " + query}
+		ctx.Ok = false
+		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
 	}
 
 	return res
 }
 
-func (db *DBContext) Get(dest interface{}, query string, args ...interface{}) {
-	err := db.Session.Get(dest, query, args...)
+func (ctx *Transaction) Get(dest interface{}, query string, args ...interface{}) {
+	err := ctx.Transaction.Get(dest, query, args...)
 
 	if err != nil {
-		db.Ok = false
-		db.Error = DBError{"Database get failed: " + query}
+		ctx.Ok = false
+		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
 	}
 }
 
-func (db *DBContext) Select(dest interface{}, query string, args ...interface{}) {
-	err := db.Session.Select(dest, query, args...)
+func (ctx *Transaction) Select(dest interface{}, query string, args ...interface{}) {
+	err := ctx.Transaction.Select(dest, query, args...)
 
 	if err != nil {
-		db.Ok = false
-		db.Error = DBError{"Database select failed: " + query}
+		ctx.Ok = false
+		ctx.Error = DBError{"Database select failed: " + err.Error() + "\nquery: " + query}
 	}
 }
