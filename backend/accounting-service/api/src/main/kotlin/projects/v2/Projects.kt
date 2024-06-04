@@ -205,7 +205,7 @@ added or removed from a project. This special group is used by providers when re
 
 ## Creating Projects and Sub-Projects
 
-All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
+All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
 projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The
 project hierarchy plays a significant role in accounting.
 
