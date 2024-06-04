@@ -13,7 +13,6 @@ data class AllocationRequest(
     val provider: String,
     val grantGiver: String,
     val balanceRequested: Long?,
-    val sourceAllocation: Long?,
     val period: GrantApplication.Period,
     val type: String /* "allocation_request" */,
 )
@@ -60,17 +59,6 @@ data class AllocationRequest(
 <details>
 <summary>
 <code>balanceRequested</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>sourceAllocation</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 

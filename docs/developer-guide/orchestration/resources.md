@@ -34,8 +34,8 @@ To understand how resources work, we will first examine what all resources have 
   resources must have a backing product.
 - __A resource specification:__ Describes the resource. For example, this could be the parameters of a 
   computational [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job..md) 
-- __Ownership and permissions:__ All resources have exactly one 
-  [workspace](/docs/developer-guide/accounting-and-projects/projects/projects.md) owner.
+- __Ownership and permissions:__ All resources have exactly one owner, a user either as part of a
+  [project](/docs/developer-guide/accounting-and-projects/projects.md) or not.
 - __Updates and status:__ Providers can send regular updates about a resource. These update describe 
   changes in the system. These changes in turn affect the current status.
   

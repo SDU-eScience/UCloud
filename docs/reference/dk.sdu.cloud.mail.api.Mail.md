@@ -18,6 +18,7 @@ sealed class Mail {
     class GrantApplicationUpdatedMail : Mail()
     class GrantApplicationUpdatedMailToAdmins : Mail()
     class GrantApplicationWithdrawnMail : Mail()
+    class JobEvents : Mail()
     class LowFundsMail : Mail()
     class NewCommentOnApplicationMail : Mail()
     class NewGrantApplicationMail : Mail()

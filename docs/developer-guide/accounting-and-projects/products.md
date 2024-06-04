@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / Products
 # Products
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Products define the services exposed by a Provider._
 
@@ -146,24 +146,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 ## Table of Contents
 <details>
 <summary>
-<a href='#example-browse-all-available-products'>1. Examples</a>
-</summary>
-
-<table><thead><tr>
-<th>Description</th>
-</tr></thread>
-<tbody>
-<tr><td><a href='#example-browse-all-available-products'>Browse all available products</a></td></tr>
-<tr><td><a href='#example-browse-products-by-type'>Browse products by type</a></td></tr>
-<tr><td><a href='#example-retrieve-a-single-product'>Retrieve a single product</a></td></tr>
-</tbody></table>
-
-
-</details>
-
-<details>
-<summary>
-<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
+<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -190,7 +173,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 
 <details>
 <summary>
-<a href='#data-models'>3. Data Models</a>
+<a href='#data-models'>2. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -199,59 +182,47 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#chargetype'><code>ChargeType</code></a></td>
+<td><a href='#accountingfrequency'><code>AccountingFrequency</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#product'><code>Product</code></a></td>
+<td><a href='#accountingunit'><code>AccountingUnit</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productcategory'><code>ProductCategory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#productv2'><code>ProductV2</code></a></td>
 <td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#product.compute'><code>Product.Compute</code></a></td>
-<td>A compute Product</td>
+<td><a href='#productv2.compute'><code>ProductV2.Compute</code></a></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#product.ingress'><code>Product.Ingress</code></a></td>
-<td>An ingress Product</td>
+<td><a href='#productv2.ingress'><code>ProductV2.Ingress</code></a></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#product.license'><code>Product.License</code></a></td>
-<td>A license Product</td>
+<td><a href='#productv2.license'><code>ProductV2.License</code></a></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#product.networkip'><code>Product.NetworkIP</code></a></td>
-<td>An IP address Product</td>
+<td><a href='#productv2.networkip'><code>ProductV2.NetworkIP</code></a></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#product.storage'><code>Product.Storage</code></a></td>
-<td>A storage Product</td>
+<td><a href='#productv2.storage'><code>ProductV2.Storage</code></a></td>
+<td>Products define the services exposed by a Provider.</td>
 </tr>
 <tr>
-<td><a href='#productcategoryid'><code>ProductCategoryId</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#productpriceunit'><code>ProductPriceUnit</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#productreference'><code>ProductReference</code></a></td>
-<td>Contains a unique reference to a Product</td>
-</tr>
-<tr>
-<td><a href='#producttype'><code>ProductType</code></a></td>
-<td>A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)</td>
-</tr>
-<tr>
-<td><a href='#allocationrequestsgroup'><code>AllocationRequestsGroup</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#productsbrowserequest'><code>ProductsBrowseRequest</code></a></td>
+<td><a href='#productsv2browserequest'><code>ProductsV2BrowseRequest</code></a></td>
 <td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
-<td><a href='#productsretrieverequest'><code>ProductsRetrieveRequest</code></a></td>
+<td><a href='#productsv2retrieverequest'><code>ProductsV2RetrieveRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -259,439 +230,12 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 
 </details>
 
-## Example: Browse all available products
-<table>
-<tr><th>Frequency of use</th><td>Common</td></tr>
-<tr>
-<th>Actors</th>
-<td><ul>
-<li>An authenticated user (<code>user</code>)</li>
-</ul></td>
-</tr>
-</table>
-<details>
-<summary>
-<b>Communication Flow:</b> Kotlin
-</summary>
-
-```kotlin
-Products.browse.call(
-    ProductsBrowseRequest(
-        consistency = null, 
-        filterArea = null, 
-        filterCategory = null, 
-        filterName = null, 
-        filterProvider = null, 
-        filterVersion = null, 
-        includeBalance = null, 
-        includeMaxBalance = null, 
-        itemsPerPage = 50, 
-        itemsToSkip = null, 
-        next = null, 
-        showAllVersions = null, 
-    ),
-    user
-).orThrow()
-
-/*
-PageV2(
-    items = listOf(Product.Compute(
-        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
-        category = ProductCategoryId(
-            id = "example-compute", 
-            name = "example-compute", 
-            provider = "example", 
-        ), 
-        chargeType = ChargeType.ABSOLUTE, 
-        cpu = 10, 
-        cpuModel = null, 
-        description = "An example compute product", 
-        freeToUse = false, 
-        gpu = 0, 
-        gpuModel = null, 
-        hiddenInGrantApplications = false, 
-        memoryInGigs = 20, 
-        memoryModel = null, 
-        name = "example-compute", 
-        pricePerUnit = 1000000, 
-        priority = 0, 
-        productType = ProductType.COMPUTE, 
-        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE, 
-        version = 1, 
-        balance = null, 
-        id = "example-compute", 
-        maxUsableBalance = null, 
-    ), Product.Storage(
-        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
-        category = ProductCategoryId(
-            id = "example-storage", 
-            name = "example-storage", 
-            provider = "example", 
-        ), 
-        chargeType = ChargeType.DIFFERENTIAL_QUOTA, 
-        description = "An example storage product (Quota)", 
-        freeToUse = false, 
-        hiddenInGrantApplications = false, 
-        name = "example-storage", 
-        pricePerUnit = 1, 
-        priority = 0, 
-        productType = ProductType.STORAGE, 
-        unitOfPrice = ProductPriceUnit.PER_UNIT, 
-        version = 1, 
-        balance = null, 
-        id = "example-storage", 
-        maxUsableBalance = null, 
-    )), 
-    itemsPerPage = 50, 
-    next = null, 
-)
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> Curl
-</summary>
-
-```bash
-# ------------------------------------------------------------------------------------------------------
-# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
-# $accessToken is a valid access-token issued by UCloud
-# ------------------------------------------------------------------------------------------------------
-
-# Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?itemsPerPage=50" 
-
-# {
-#     "itemsPerPage": 50,
-#     "items": [
-#         {
-#             "type": "compute",
-#             "balance": null,
-#             "maxUsableBalance": null,
-#             "name": "example-compute",
-#             "pricePerUnit": 1000000,
-#             "category": {
-#                 "name": "example-compute",
-#                 "provider": "example"
-#             },
-#             "description": "An example compute product",
-#             "priority": 0,
-#             "cpu": 10,
-#             "memoryInGigs": 20,
-#             "gpu": 0,
-#             "cpuModel": null,
-#             "memoryModel": null,
-#             "gpuModel": null,
-#             "version": 1,
-#             "freeToUse": false,
-#             "allowAllocationRequestsFrom": "ALL",
-#             "unitOfPrice": "CREDITS_PER_MINUTE",
-#             "chargeType": "ABSOLUTE",
-#             "hiddenInGrantApplications": false,
-#             "productType": "COMPUTE"
-#         },
-#         {
-#             "type": "storage",
-#             "balance": null,
-#             "maxUsableBalance": null,
-#             "name": "example-storage",
-#             "pricePerUnit": 1,
-#             "category": {
-#                 "name": "example-storage",
-#                 "provider": "example"
-#             },
-#             "description": "An example storage product (Quota)",
-#             "priority": 0,
-#             "version": 1,
-#             "freeToUse": false,
-#             "allowAllocationRequestsFrom": "ALL",
-#             "unitOfPrice": "PER_UNIT",
-#             "chargeType": "DIFFERENTIAL_QUOTA",
-#             "hiddenInGrantApplications": false,
-#             "productType": "STORAGE"
-#         }
-#     ],
-#     "next": null
-# }
-
-```
-
-
-</details>
-
-<details open>
-<summary>
-<b>Communication Flow:</b> Visual
-</summary>
-
-![](/docs/diagrams/products_browse.png)
-
-</details>
-
-
-## Example: Browse products by type
-<table>
-<tr><th>Frequency of use</th><td>Common</td></tr>
-<tr>
-<th>Actors</th>
-<td><ul>
-<li>An authenticated user (<code>user</code>)</li>
-</ul></td>
-</tr>
-</table>
-<details>
-<summary>
-<b>Communication Flow:</b> Kotlin
-</summary>
-
-```kotlin
-Products.browse.call(
-    ProductsBrowseRequest(
-        consistency = null, 
-        filterArea = ProductType.COMPUTE, 
-        filterCategory = null, 
-        filterName = null, 
-        filterProvider = null, 
-        filterVersion = null, 
-        includeBalance = null, 
-        includeMaxBalance = null, 
-        itemsPerPage = 50, 
-        itemsToSkip = null, 
-        next = null, 
-        showAllVersions = null, 
-    ),
-    user
-).orThrow()
-
-/*
-PageV2(
-    items = listOf(Product.Compute(
-        allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
-        category = ProductCategoryId(
-            id = "example-compute", 
-            name = "example-compute", 
-            provider = "example", 
-        ), 
-        chargeType = ChargeType.ABSOLUTE, 
-        cpu = 10, 
-        cpuModel = null, 
-        description = "An example compute product", 
-        freeToUse = false, 
-        gpu = 0, 
-        gpuModel = null, 
-        hiddenInGrantApplications = false, 
-        memoryInGigs = 20, 
-        memoryModel = null, 
-        name = "example-compute", 
-        pricePerUnit = 1000000, 
-        priority = 0, 
-        productType = ProductType.COMPUTE, 
-        unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE, 
-        version = 1, 
-        balance = null, 
-        id = "example-compute", 
-        maxUsableBalance = null, 
-    )), 
-    itemsPerPage = 50, 
-    next = null, 
-)
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> Curl
-</summary>
-
-```bash
-# ------------------------------------------------------------------------------------------------------
-# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
-# $accessToken is a valid access-token issued by UCloud
-# ------------------------------------------------------------------------------------------------------
-
-# Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/browse?itemsPerPage=50&filterArea=COMPUTE" 
-
-# {
-#     "itemsPerPage": 50,
-#     "items": [
-#         {
-#             "type": "compute",
-#             "balance": null,
-#             "maxUsableBalance": null,
-#             "name": "example-compute",
-#             "pricePerUnit": 1000000,
-#             "category": {
-#                 "name": "example-compute",
-#                 "provider": "example"
-#             },
-#             "description": "An example compute product",
-#             "priority": 0,
-#             "cpu": 10,
-#             "memoryInGigs": 20,
-#             "gpu": 0,
-#             "cpuModel": null,
-#             "memoryModel": null,
-#             "gpuModel": null,
-#             "version": 1,
-#             "freeToUse": false,
-#             "allowAllocationRequestsFrom": "ALL",
-#             "unitOfPrice": "CREDITS_PER_MINUTE",
-#             "chargeType": "ABSOLUTE",
-#             "hiddenInGrantApplications": false,
-#             "productType": "COMPUTE"
-#         }
-#     ],
-#     "next": null
-# }
-
-```
-
-
-</details>
-
-<details open>
-<summary>
-<b>Communication Flow:</b> Visual
-</summary>
-
-![](/docs/diagrams/products_browse-by-type.png)
-
-</details>
-
-
-## Example: Retrieve a single product
-<table>
-<tr><th>Frequency of use</th><td>Common</td></tr>
-<tr>
-<th>Actors</th>
-<td><ul>
-<li>An authenticated user (<code>user</code>)</li>
-</ul></td>
-</tr>
-</table>
-<details>
-<summary>
-<b>Communication Flow:</b> Kotlin
-</summary>
-
-```kotlin
-Products.retrieve.call(
-    ProductsRetrieveRequest(
-        filterArea = null, 
-        filterCategory = "example-compute", 
-        filterName = "example-compute", 
-        filterProvider = "example", 
-        filterVersion = null, 
-        includeBalance = null, 
-        includeMaxBalance = null, 
-    ),
-    user
-).orThrow()
-
-/*
-Product.Compute(
-    allowAllocationRequestsFrom = AllocationRequestsGroup.ALL, 
-    category = ProductCategoryId(
-        id = "example-compute", 
-        name = "example-compute", 
-        provider = "example", 
-    ), 
-    chargeType = ChargeType.ABSOLUTE, 
-    cpu = 10, 
-    cpuModel = null, 
-    description = "An example compute product", 
-    freeToUse = false, 
-    gpu = 0, 
-    gpuModel = null, 
-    hiddenInGrantApplications = false, 
-    memoryInGigs = 20, 
-    memoryModel = null, 
-    name = "example-compute", 
-    pricePerUnit = 1000000, 
-    priority = 0, 
-    productType = ProductType.COMPUTE, 
-    unitOfPrice = ProductPriceUnit.CREDITS_PER_MINUTE, 
-    version = 1, 
-    balance = null, 
-    id = "example-compute", 
-    maxUsableBalance = null, 
-)
-*/
-```
-
-
-</details>
-
-<details>
-<summary>
-<b>Communication Flow:</b> Curl
-</summary>
-
-```bash
-# ------------------------------------------------------------------------------------------------------
-# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
-# $accessToken is a valid access-token issued by UCloud
-# ------------------------------------------------------------------------------------------------------
-
-# Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/products/retrieve?filterName=example-compute&filterCategory=example-compute&filterProvider=example" 
-
-# {
-#     "type": "compute",
-#     "balance": null,
-#     "maxUsableBalance": null,
-#     "name": "example-compute",
-#     "pricePerUnit": 1000000,
-#     "category": {
-#         "name": "example-compute",
-#         "provider": "example"
-#     },
-#     "description": "An example compute product",
-#     "priority": 0,
-#     "cpu": 10,
-#     "memoryInGigs": 20,
-#     "gpu": 0,
-#     "cpuModel": null,
-#     "memoryModel": null,
-#     "gpuModel": null,
-#     "version": 1,
-#     "freeToUse": false,
-#     "allowAllocationRequestsFrom": "ALL",
-#     "unitOfPrice": "CREDITS_PER_MINUTE",
-#     "chargeType": "ABSOLUTE",
-#     "hiddenInGrantApplications": false,
-#     "productType": "COMPUTE"
-# }
-
-```
-
-
-</details>
-
-<details open>
-<summary>
-<b>Communication Flow:</b> Visual
-</summary>
-
-![](/docs/diagrams/products_retrieve.png)
-
-</details>
-
-
 
 ## Remote Procedure Calls
 
 ### `browse`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -699,21 +243,21 @@ _Browse a set of products_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#productsbrowserequest'>ProductsBrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#productsv2browserequest'>ProductsV2BrowseRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#productv2'>ProductV2</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint uses the normal pagination and filter mechanisms to return a list of [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
+This endpoint uses the normal pagination and filter mechanisms to return a list of [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md).
 
 __Examples:__
 
 | Example |
 |---------|
-| [Browse in the full product catalog](/docs/reference/products_browse.md) |
-| [Browse for a specific type of product (e.g. compute)](/docs/reference/products_browse-by-type.md) |
+| [Browse in the full product catalog](/docs/reference/products.v2_browse.md) |
+| [Browse for a specific type of product (e.g. compute)](/docs/reference/products.v2_browse-by-type.md) |
 
 
 ### `retrieve`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -721,19 +265,19 @@ _Retrieve a single product_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#productsretrieverequest'>ProductsRetrieveRequest</a></code>|<code><a href='#product'>Product</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#productsv2retrieverequest'>ProductsV2RetrieveRequest</a></code>|<code><a href='#productv2'>ProductV2</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 __Examples:__
 
 | Example |
 |---------|
-| [Retrieving a single product by ID](/docs/reference/products_retrieve.md) |
+| [Retrieving a single product by ID](/docs/reference/products.v2_retrieve.md) |
 
 
 ### `create`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: SERVICE, ADMIN, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=SERVICE,+ADMIN,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -741,7 +285,7 @@ _Creates a new [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.m
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#product'>Product</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#productv2'>ProductV2</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Only providers and UCloud administrators can create a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md). When this endpoint is
 invoked by a provider, then the provider field of the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  must match the invoking user.
@@ -756,23 +300,24 @@ As a result, you cannot create a new [`Product`](/docs/reference/dk.sdu.cloud.ac
 
 ---
 
-If the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  already exists, then a new `version` of it is created. Version numbers are
-always sequential and the incoming version number is always ignored by UCloud.
+If the [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  already exists, then the existing product is overwritten.
 
 
 
 ## Data Models
 
-### `ChargeType`
+### `AccountingFrequency`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
 
 
 ```kotlin
-enum class ChargeType {
-    ABSOLUTE,
-    DIFFERENTIAL_QUOTA,
+enum class AccountingFrequency {
+    ONCE,
+    PERIODIC_MINUTE,
+    PERIODIC_HOUR,
+    PERIODIC_DAY,
 }
 ```
 
@@ -783,7 +328,7 @@ enum class ChargeType {
 
 <details>
 <summary>
-<code>ABSOLUTE</code>
+<code>ONCE</code>
 </summary>
 
 
@@ -794,7 +339,29 @@ enum class ChargeType {
 
 <details>
 <summary>
-<code>DIFFERENTIAL_QUOTA</code>
+<code>PERIODIC_MINUTE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>PERIODIC_HOUR</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>PERIODIC_DAY</code>
 </summary>
 
 
@@ -811,36 +378,210 @@ enum class ChargeType {
 
 ---
 
-### `Product`
+### `AccountingUnit`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AccountingUnit(
+    val name: String,
+    val namePlural: String,
+    val floatingPoint: Boolean,
+    val displayFrequencySuffix: Boolean,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>namePlural</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>floatingPoint</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>displayFrequencySuffix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProductCategory`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProductCategory(
+    val name: String,
+    val provider: String,
+    val productType: ProductType,
+    val accountingUnit: AccountingUnit,
+    val accountingFrequency: AccountingFrequency,
+    val freeToUse: Boolean?,
+    val allowSubAllocations: Boolean?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>accountingUnit</code>: <code><code><a href='#accountingunit'>AccountingUnit</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>accountingFrequency</code>: <code><code><a href='#accountingfrequency'>AccountingFrequency</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product category
+</summary>
+
+
+
+Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
+has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
+
+
+</details>
+
+<details>
+<summary>
+<code>allowSubAllocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProductV2`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
 
 _Products define the services exposed by a Provider._
 
 ```kotlin
-sealed class Product {
-    abstract val allowAllocationRequestsFrom: AllocationRequestsGroup
-    abstract val balance: Long?
-    abstract val category: ProductCategoryId
-    abstract val chargeType: ChargeType
+sealed class ProductV2 {
+    abstract val category: ProductCategory
     abstract val description: String
-    abstract val freeToUse: Boolean
     abstract val hiddenInGrantApplications: Boolean
-    abstract val id: String
-    abstract val maxUsableBalance: Long?
     abstract val name: String
-    abstract val pricePerUnit: Long
-    abstract val priority: Int
+    abstract val price: Long
     abstract val productType: ProductType
-    abstract val unitOfPrice: ProductPriceUnit
-    abstract val version: Int
+    abstract val usage: Long?
 
-    class Compute : Product()
-    class Ingress : Product()
-    class License : Product()
-    class NetworkIP : Product()
-    class Storage : Product()
+    class Compute : ProductV2()
+    class Ingress : ProductV2()
+    class License : ProductV2()
+    class NetworkIP : ProductV2()
+    class Storage : ProductV2()
 }
 ```
 For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
@@ -852,49 +593,7 @@ For more information see [this](/docs/developer-guide/accounting-and-projects/pr
 
 <details>
 <summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a></code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a></code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -918,20 +617,6 @@ Possible options are:
 
 <details>
 <summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
 <code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
@@ -940,30 +625,6 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 
 ⚠️ WARNING: This doesn't make the `Product`  secret. In only hides the `Product`  from the grant
 system's UI.
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
 
 
 </details>
@@ -982,21 +643,7 @@ system's UI.
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> A integer used for changing the order in which products are displayed (ascending order)
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1008,7 +655,7 @@ For more information go
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code> Classifier used to explain the type of Product
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code> Classifier used to explain the type of Product
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1020,23 +667,11 @@ For more information go
 
 <details>
 <summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a></code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> This property is no longer used.
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1050,42 +685,32 @@ For more information go
 
 ---
 
-### `Product.Compute`
+### `ProductV2.Compute`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_A compute Product_
+
+_Products define the services exposed by a Provider._
 
 ```kotlin
 data class Compute(
     val name: String,
-    val pricePerUnit: Long,
-    val category: ProductCategoryId,
+    val price: Long,
+    val category: ProductCategory,
     val description: String?,
-    val priority: Int?,
     val cpu: Int?,
     val memoryInGigs: Int?,
     val gpu: Int?,
     val cpuModel: String?,
     val memoryModel: String?,
     val gpuModel: String?,
-    val version: Int?,
-    val freeToUse: Boolean?,
-    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
-    val unitOfPrice: ProductPriceUnit?,
-    val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
-    val balance: Long?,
-    val id: String,
-    val maxUsableBalance: Long?,
+    val usage: Long?,
     val type: String /* "compute" */,
 )
 ```
-| Unit | API |
-|------|-----|
-| Measured in hyper-threaded cores (vCPU) | [Click here](/docs/developer-guide/orchestration/compute/jobs.md) |
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -1105,20 +730,18 @@ data class Compute(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 
 
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
 
 
 </details>
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1130,17 +753,6 @@ For more information go
 <details>
 <summary>
 <code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
 </summary>
 
 
@@ -1217,69 +829,6 @@ For more information go
 
 <details>
 <summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
 <code>hiddenInGrantApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to indicate that this Product is not publicly available
 </summary>
 
@@ -1293,7 +842,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1305,31 +854,7 @@ system's UI.
 
 <details>
 <summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1358,36 +883,26 @@ system's UI.
 
 ---
 
-### `Product.Ingress`
+### `ProductV2.Ingress`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_An ingress Product_
+
+_Products define the services exposed by a Provider._
 
 ```kotlin
 data class Ingress(
     val name: String,
-    val pricePerUnit: Long,
-    val category: ProductCategoryId,
+    val price: Long,
+    val category: ProductCategory,
     val description: String?,
-    val priority: Int?,
-    val version: Int?,
-    val freeToUse: Boolean?,
-    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
-    val unitOfPrice: ProductPriceUnit?,
-    val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
-    val balance: Long?,
-    val id: String,
-    val maxUsableBalance: Long?,
+    val usage: Long?,
     val type: String /* "ingress" */,
 )
 ```
-| Unit | API |
-|------|-----|
-| Measured in number of ingresses | [Click here](/docs/developer-guide/orchestration/compute/ingress.md) |
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -1407,20 +922,18 @@ data class Ingress(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 
 
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
 
 
 </details>
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1432,80 +945,6 @@ For more information go
 <details>
 <summary>
 <code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1529,7 +968,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1541,31 +980,7 @@ system's UI.
 
 <details>
 <summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1594,37 +1009,27 @@ system's UI.
 
 ---
 
-### `Product.License`
+### `ProductV2.License`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_A license Product_
+
+_Products define the services exposed by a Provider._
 
 ```kotlin
 data class License(
     val name: String,
-    val pricePerUnit: Long,
-    val category: ProductCategoryId,
+    val price: Long,
+    val category: ProductCategory,
     val description: String?,
-    val priority: Int?,
     val tags: List<String>?,
-    val version: Int?,
-    val freeToUse: Boolean?,
-    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
-    val unitOfPrice: ProductPriceUnit?,
-    val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
-    val balance: Long?,
-    val id: String,
-    val maxUsableBalance: Long?,
+    val usage: Long?,
     val type: String /* "license" */,
 )
 ```
-| Unit | API |
-|------|-----|
-| Measured in number of licenses | [Click here](/docs/developer-guide/orchestration/compute/license.md) |
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -1644,20 +1049,18 @@ data class License(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 
 
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
 
 
 </details>
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1679,81 +1082,7 @@ For more information go
 
 <details>
 <summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
 <code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -1777,7 +1106,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1789,31 +1118,7 @@ system's UI.
 
 <details>
 <summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1842,36 +1147,26 @@ system's UI.
 
 ---
 
-### `Product.NetworkIP`
+### `ProductV2.NetworkIP`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_An IP address Product_
+
+_Products define the services exposed by a Provider._
 
 ```kotlin
 data class NetworkIP(
     val name: String,
-    val pricePerUnit: Long,
-    val category: ProductCategoryId,
+    val price: Long,
+    val category: ProductCategory,
     val description: String?,
-    val priority: Int?,
-    val version: Int?,
-    val freeToUse: Boolean?,
-    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
-    val unitOfPrice: ProductPriceUnit?,
-    val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
-    val balance: Long?,
-    val id: String,
-    val maxUsableBalance: Long?,
+    val usage: Long?,
     val type: String /* "network_ip" */,
 )
 ```
-| Unit | API |
-|------|-----|
-| Measured in number of IP addresses | [Click here](/docs/developer-guide/orchestration/compute/ips.md) |
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -1891,20 +1186,18 @@ data class NetworkIP(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 
 
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
 
 
 </details>
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -1916,80 +1209,6 @@ For more information go
 <details>
 <summary>
 <code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -2013,7 +1232,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2025,31 +1244,7 @@ system's UI.
 
 <details>
 <summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2078,36 +1273,26 @@ system's UI.
 
 ---
 
-### `Product.Storage`
+### `ProductV2.Storage`
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_A storage Product_
+
+_Products define the services exposed by a Provider._
 
 ```kotlin
 data class Storage(
     val name: String,
-    val pricePerUnit: Long,
-    val category: ProductCategoryId,
+    val price: Long,
+    val category: ProductCategory,
     val description: String?,
-    val priority: Int?,
-    val version: Int?,
-    val freeToUse: Boolean?,
-    val allowAllocationRequestsFrom: AllocationRequestsGroup?,
-    val unitOfPrice: ProductPriceUnit?,
-    val chargeType: ChargeType?,
     val hiddenInGrantApplications: Boolean?,
     val productType: ProductType,
-    val balance: Long?,
-    val id: String,
-    val maxUsableBalance: Long?,
+    val usage: Long?,
     val type: String /* "storage" */,
 )
 ```
-| Unit | API |
-|------|-----|
-| Measured in GB (10⁹ bytes. 1 byte = 1 octet) | [Click here](/docs/developer-guide/orchestration/storage/files.md) |
+For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.
 
 <details>
 <summary>
@@ -2127,20 +1312,18 @@ data class Storage(
 
 <details>
 <summary>
-<code>pricePerUnit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The price of a single unit in a single period
+<code>price</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Price is for usage of a single product in the accountingFrequency period specified by the product category.
 </summary>
 
 
 
-For more information go 
-[here](/docs/developer-guide/accounting-and-projects/products.md#understanding-the-price).
 
 
 </details>
 
 <details>
 <summary>
-<code>category</code>: <code><code><a href='#productcategoryid'>ProductCategoryId</a></code></code> The category groups similar products together, it also defines which provider owns the product
+<code>category</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code> The category groups similar products together, it also defines which provider owns the product
 </summary>
 
 
@@ -2152,80 +1335,6 @@ For more information go
 <details>
 <summary>
 <code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A short (single-line) description of the Product
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> A integer used for changing the order in which products are displayed (ascending order)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> This property is no longer used.
-</summary>
-
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-<details>
-<summary>
-<code>allowAllocationRequestsFrom</code>: <code><code><a href='#allocationrequestsgroup'>AllocationRequestsGroup</a>?</code></code> Indicates who should be able to make allocation requests for this product (more specifically the product
-</summary>
-
-
-
-category).
-
-Possible options are:
- - `ALL` (default): Allows allocation requests from both projects and personal workspaces,
- - `PROJECTS`: Allow allocation requests from projects, but not from personal workspaces,
- - `PERSONAL`: Allow allocation requests from personal workspaces, but not projects.
-
-
-</details>
-
-<details>
-<summary>
-<code>unitOfPrice</code>: <code><code><a href='#productpriceunit'>ProductPriceUnit</a>?</code></code> The unit of price. Used in combination with chargeType to create a complete payment model.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>chargeType</code>: <code><code><a href='#chargetype'>ChargeType</a>?</code></code> The category of payment model. Used in combination with unitOfPrice to create a complete payment model.
 </summary>
 
 
@@ -2249,7 +1358,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2261,31 +1370,7 @@ system's UI.
 
 <details>
 <summary>
-<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-<details>
-<summary>
-<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeMaxBalance`
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Included only with certain endpoints which support `includeBalance`
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2314,419 +1399,24 @@ system's UI.
 
 ---
 
-### `ProductCategoryId`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-```kotlin
-data class ProductCategoryId(
-    val name: String,
-    val provider: String,
-    val id: String,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
+### `ProductsV2BrowseRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProductPriceUnit`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-```kotlin
-enum class ProductPriceUnit {
-    CREDITS_PER_UNIT,
-    PER_UNIT,
-    CREDITS_PER_MINUTE,
-    CREDITS_PER_HOUR,
-    CREDITS_PER_DAY,
-    UNITS_PER_MINUTE,
-    UNITS_PER_HOUR,
-    UNITS_PER_DAY,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>CREDITS_PER_UNIT</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PER_UNIT</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>CREDITS_PER_MINUTE</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>CREDITS_PER_HOUR</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>CREDITS_PER_DAY</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>UNITS_PER_MINUTE</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>UNITS_PER_HOUR</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>UNITS_PER_DAY</code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProductReference`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-_Contains a unique reference to a Product_
-
-```kotlin
-data class ProductReference(
-    val id: String,
-    val category: String,
-    val provider: String,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The `Product` ID
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>category</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The ID of the `Product`'s category
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The provider of the `Product`
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProductType`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)_
-
-```kotlin
-enum class ProductType {
-    STORAGE,
-    COMPUTE,
-    INGRESS,
-    LICENSE,
-    NETWORK_IP,
-}
-```
-For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
-
-- `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
-- `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 
-- `INGRESS`: See [`Product.Ingress`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md) 
-- `LICENSE`: See [`Product.License`](/docs/reference/dk.sdu.cloud.accounting.api.Product.License.md) 
-- `NETWORK_IP`: See [`Product.NetworkIP`](/docs/reference/dk.sdu.cloud.accounting.api.Product.NetworkIP.md)
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>STORAGE</code> See Product.Storage
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>COMPUTE</code> See Product.Compute
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>INGRESS</code> See Product.Ingress
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>LICENSE</code> See Product.License
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>NETWORK_IP</code> See Product.NetworkIP
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AllocationRequestsGroup`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-enum class AllocationRequestsGroup {
-    ALL,
-    PERSONAL,
-    PROJECT,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>ALL</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PERSONAL</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PROJECT</code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProductsBrowseRequest`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _The base type for requesting paginated content._
 
 ```kotlin
-data class ProductsBrowseRequest(
+data class ProductsV2BrowseRequest(
     val itemsPerPage: Int?,
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
     val filterName: String?,
     val filterProvider: String?,
-    val filterArea: ProductType?,
+    val filterProductType: ProductType?,
     val filterCategory: String?,
-    val filterVersion: Int?,
-    val showAllVersions: Boolean?,
+    val filterUsable: Boolean?,
     val includeBalance: Boolean?,
     val includeMaxBalance: Boolean?,
 )
@@ -2834,7 +1524,7 @@ paginate through the results.
 
 <details>
 <summary>
-<code>filterArea</code>: <code><code><a href='#producttype'>ProductType</a>?</code></code>
+<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
 </summary>
 
 
@@ -2856,18 +1546,7 @@ paginate through the results.
 
 <details>
 <summary>
-<code>filterVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>showAllVersions</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>filterUsable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -2906,19 +1585,19 @@ paginate through the results.
 
 ---
 
-### `ProductsRetrieveRequest`
+### `ProductsV2RetrieveRequest`
 
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class ProductsRetrieveRequest(
+data class ProductsV2RetrieveRequest(
     val filterName: String,
     val filterCategory: String,
     val filterProvider: String,
-    val filterArea: ProductType?,
-    val filterVersion: Int?,
+    val filterProductType: ProductType?,
+    val filterUsable: Boolean?,
     val includeBalance: Boolean?,
     val includeMaxBalance: Boolean?,
 )
@@ -2964,7 +1643,7 @@ data class ProductsRetrieveRequest(
 
 <details>
 <summary>
-<code>filterArea</code>: <code><code><a href='#producttype'>ProductType</a>?</code></code>
+<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
 </summary>
 
 
@@ -2975,7 +1654,7 @@ data class ProductsRetrieveRequest(
 
 <details>
 <summary>
-<code>filterVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>filterUsable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

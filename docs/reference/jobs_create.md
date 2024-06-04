@@ -27,37 +27,6 @@
 
 /* The user finds an interesting application from the catalog */
 
-val applications = AppStore.listAll.call(
-    PaginationRequest(
-        itemsPerPage = 50, 
-        page = 0, 
-    ),
-    user
-).orThrow()
-
-/*
-applications = Page(
-    items = listOf(ApplicationSummaryWithFavorite(
-        favorite = false, 
-        metadata = ApplicationMetadata(
-            authors = listOf("UCloud"), 
-            description = "This is a batch application", 
-            flavorName = null, 
-            group = null, 
-            isPublic = true, 
-            name = "a-batch-application", 
-            public = true, 
-            title = "A Batch Application", 
-            version = "1.0.0", 
-            website = null, 
-        ), 
-        tags = listOf("very-scientific"), 
-    )), 
-    itemsInTotal = 1, 
-    itemsPerPage = 50, 
-    pageNumber = 0, 
-)
-*/
 
 /* The user selects the first application ('batch' in version '1.0.0') */
 
@@ -65,7 +34,7 @@ applications = Page(
 /* The user requests additional information about the application */
 
 val application = AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "a-batch-application", 
         appVersion = "1.0.0", 
     ),
@@ -144,6 +113,7 @@ application = ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717502319394, 
         description = "This is a batch application", 
         flavorName = null, 
         group = null, 
@@ -265,41 +235,11 @@ BulkResponse(
 
 # The user finds an interesting application from the catalog
 
-# Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerPage=50&page=0" 
-
-# applications = 
-# {
-#     "itemsInTotal": 1,
-#     "itemsPerPage": 50,
-#     "pageNumber": 0,
-#     "items": [
-#         {
-#             "metadata": {
-#                 "name": "a-batch-application",
-#                 "version": "1.0.0",
-#                 "authors": [
-#                     "UCloud"
-#                 ],
-#                 "title": "A Batch Application",
-#                 "description": "This is a batch application",
-#                 "website": null,
-#                 "public": true,
-#                 "flavorName": null,
-#                 "group": null
-#             },
-#             "favorite": false,
-#             "tags": [
-#                 "very-scientific"
-#             ]
-#         }
-#     ]
-# }
-
 # The user selects the first application ('batch' in version '1.0.0')
 
 # The user requests additional information about the application
 
+# Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAndVersion?appName=a-batch-application&appVersion=1.0.0" 
 
 # application = 
@@ -315,7 +255,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "website": null,
 #         "public": true,
 #         "flavorName": null,
-#         "group": null
+#         "group": null,
+#         "createdAt": 1717502319394
 #     },
 #     "invocation": {
 #         "tool": {

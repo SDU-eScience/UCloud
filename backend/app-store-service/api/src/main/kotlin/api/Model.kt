@@ -1268,6 +1268,7 @@ data class ApplicationSummary(
 
     For more information see the [full documentation](/docs/developer-guide/orchestration/compute/appstore/apps.md).
 """, importance = 1000)
+@UCloudApiOwnedBy(AppStore::class)
 data class Application(
     override val metadata: ApplicationMetadata,
     override val invocation: ApplicationInvocationDescription

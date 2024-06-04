@@ -1,5 +1,5 @@
 <p align='center'>
-<a href='/docs/developer-guide/accounting-and-projects/project-notifications.md'>Next section »</a>
+<a href='/docs/developer-guide/accounting-and-projects/providers.md'>Next section »</a>
 </p>
 
 
@@ -12,24 +12,22 @@ _The projects feature allow for collaboration between different users across the
 
 ## Rationale
 
-This project establishes the core abstractions for projects and establishes an event stream for receiving updates about
+This document establishes the core abstractions for projects and establishes an event stream for receiving updates about
 changes. Other services extend the projects feature and subscribe to these changes to create the full project feature.
 
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are
-[users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` and have exactly one 
-`role`. A user always has exactly one `role`. Each project has exactly one principal investigator (`PI`). The `PI` is 
-responsible for managing the project, including adding and removing users.
+[users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` with each having
+exactly one `role`. Each project has exactly one principal investigator (`PI`), and can have multiple `ADMIN`s and `USER`s.
 
-| Role           | Notes                                                                                              |
-|----------------|----------------------------------------------------------------------------------------------------|
-| `PI`           | The primary point of contact for projects. All projects have exactly one PI.                       |
-| `ADMIN`        | Administrators are allowed to perform some project management. A project can have multiple admins. |
-| `USER`         | Has no special privileges.                                                                         |
+| Role           | Notes                                                                                                                 |
+|----------------|-----------------------------------------------------------------------------------------------------------------------|
+| `PI`           | The primary point of contact for projects. Responsible for managing the project, including adding and removing users. |
+| `ADMIN`        | Administrators are allowed to perform some project management.                                                        |
+| `USER`         | Has no special privileges.                                                                                            |
 
-**Table:** The possible roles of a project, and their privileges within project
-management.
+**Table:** The possible roles of a project, and their privileges within project management.
 
 A project can be updated by adding/removing/changing any of its `members`.
 
@@ -48,14 +46,14 @@ added or removed from a project. This special group is used by providers when re
 
 ## Creating Projects and Sub-Projects
 
-All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
+All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
 projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The
-project hierarchy plays a significant role in accounting.
+project hierarchy plays a significant role in [accounting](./accounting/allocations.md).
 
 Normal users can create a project through the [grant application](./grants/grants.md) feature.
 
 A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
-a project must be unique within a single project. `title`s are case-insensitive.
+a subproject must be unique within a single project. `title`s are case-insensitive.
 
 Permissions and memberships are _not_ hierarchical. This means that a user must be explicitly added to every project
 they need permissions in. UCloud administrators can always create a sub-project in any given project. A setting exists
@@ -137,6 +135,10 @@ implement(Descriptions.call) {
 </tr>
 <tr>
 <td><a href='#retrieveproviderproject'><code>retrieveProviderProject</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrieveproviderprojectinternal'><code>retrieveProviderProjectInternal</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -474,6 +476,19 @@ implement(Descriptions.call) {
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#project'>Project</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveProviderProjectInternal`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -1030,6 +1045,7 @@ data class Project(
     val id: String,
     val createdAt: Long,
     val specification: Project.Specification,
+    val modifiedAt: Long,
     val status: Project.Status,
 )
 ```
@@ -1064,6 +1080,17 @@ data class Project(
 <details>
 <summary>
 <code>specification</code>: <code><code><a href='#project.specification'>Project.Specification</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>modifiedAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

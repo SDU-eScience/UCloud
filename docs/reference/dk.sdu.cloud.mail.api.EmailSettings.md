@@ -23,6 +23,8 @@ data class EmailSettings(
     val userRoleChange: Boolean?,
     val userLeft: Boolean?,
     val lowFunds: Boolean?,
+    val jobStarted: Boolean?,
+    val jobStopped: Boolean?,
 )
 ```
 
@@ -177,6 +179,28 @@ data class EmailSettings(
 <details>
 <summary>
 <code>lowFunds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>jobStarted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>jobStopped</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

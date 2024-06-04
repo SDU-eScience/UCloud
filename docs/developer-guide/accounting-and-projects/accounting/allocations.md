@@ -1,6 +1,6 @@
 <p align='center'>
 <a href='/docs/developer-guide/accounting-and-projects/products.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/accounting/visualization.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/accounting-and-projects/grants/grants.md'>Next section »</a>
 </p>
 
 
@@ -95,16 +95,12 @@ __Important calls:__
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#browsesuballocations'><code>browseSubAllocations</code></a></td>
-<td>Browses the catalog of sub-allocations</td>
-</tr>
-<tr>
 <td><a href='#browsewallets'><code>browseWallets</code></a></td>
 <td>Browses the catalog of accessible Wallets</td>
 </tr>
 <tr>
-<td><a href='#searchsuballocations'><code>searchSubAllocations</code></a></td>
-<td>Searches the catalog of sub-allocations</td>
+<td><a href='#retrievedescendants'><code>retrieveDescendants</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#browseproviderallocations'><code>browseProviderAllocations</code></a></td>
@@ -115,27 +111,19 @@ __Important calls:__
 <td>Retrieves a list of up-to-date wallets</td>
 </tr>
 <tr>
+<td><a href='#checkproviderusable'><code>checkProviderUsable</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#findrelevantproviders'><code>findRelevantProviders</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#reportdelta'><code>reportDelta</code></a></td>
+<td><a href='#reportusage'><code>reportUsage</code></a></td>
 <td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#reporttotalusage'><code>reportTotalUsage</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#retrieveallocationsinternal'><code>retrieveAllocationsInternal</code></a></td>
-<td>Retrieves a list of product specific up-to-date allocation from the in-memory DB</td>
 </tr>
 <tr>
 <td><a href='#rootallocate'><code>rootAllocate</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#suballocate'><code>subAllocate</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -158,15 +146,19 @@ __Important calls:__
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#accountingfrequency'><code>AccountingFrequency</code></a></td>
+<td><a href='#allocationgroup'><code>AllocationGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#accountingunit'><code>AccountingUnit</code></a></td>
+<td><a href='#allocationgroup.alloc'><code>AllocationGroup.Alloc</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#accountingunitconversion'><code>AccountingUnitConversion</code></a></td>
+<td><a href='#allocationgroupwithchild'><code>AllocationGroupWithChild</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#allocationgroupwithparent'><code>AllocationGroupWithParent</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -174,23 +166,23 @@ __Important calls:__
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#itemizedcharge'><code>ItemizedCharge</code></a></td>
+<td><a href='#parentorchildwallet'><code>ParentOrChildWallet</code></a></td>
 <td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#productcategory'><code>ProductCategory</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#suballocationv2'><code>SubAllocationV2</code></a></td>
-<td>A parent allocator's view of a `WalletAllocation`</td>
 </tr>
 <tr>
 <td><a href='#usagereportitem'><code>UsageReportItem</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#walletallocationv2'><code>WalletAllocationV2</code></a></td>
+<td><a href='#walletowner'><code>WalletOwner</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletowner.project'><code>WalletOwner.Project</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletowner.user'><code>WalletOwner.User</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -198,16 +190,8 @@ __Important calls:__
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#accountingv2.browseallocationsinternal.request'><code>AccountingV2.BrowseAllocationsInternal.Request</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#accountingv2.browseproviderallocations.request'><code>AccountingV2.BrowseProviderAllocations.Request</code></a></td>
 <td>The base type for requesting paginated content.</td>
-</tr>
-<tr>
-<td><a href='#accountingv2.browsesuballocations.request'><code>AccountingV2.BrowseSubAllocations.Request</code></a></td>
-<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#accountingv2.browsewallets.request'><code>AccountingV2.BrowseWallets.Request</code></a></td>
@@ -218,7 +202,15 @@ __Important calls:__
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#accountingv2.checkproviderusable.requestitem'><code>AccountingV2.CheckProviderUsable.RequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#accountingv2.findrelevantproviders.requestitem'><code>AccountingV2.FindRelevantProviders.RequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#accountingv2.retrievedescendants.request'><code>AccountingV2.RetrieveDescendants.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -226,19 +218,7 @@ __Important calls:__
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#accountingv2.searchsuballocations.request'><code>AccountingV2.SearchSubAllocations.Request</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#accountingv2.suballocate.requestitem'><code>AccountingV2.SubAllocate.RequestItem</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#accountingv2.updateallocation.requestitem'><code>AccountingV2.UpdateAllocation.RequestItem</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#accountingv2.browseallocationsinternal.response'><code>AccountingV2.BrowseAllocationsInternal.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -250,7 +230,15 @@ __Important calls:__
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#accountingv2.checkproviderusable.responseitem'><code>AccountingV2.CheckProviderUsable.ResponseItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#accountingv2.findrelevantproviders.response'><code>AccountingV2.FindRelevantProviders.Response</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#accountingv2.retrievedescendants.response'><code>AccountingV2.RetrieveDescendants.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -260,22 +248,6 @@ __Important calls:__
 
 
 ## Remote Procedure Calls
-
-### `browseSubAllocations`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Browses the catalog of sub-allocations_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#accountingv2.browsesuballocations.request'>AccountingV2.BrowseSubAllocations.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#suballocationv2'>SubAllocationV2</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will find all [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s which are direct children of one of your
-accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s.
-
 
 ### `browseWallets`
 
@@ -291,20 +263,17 @@ _Browses the catalog of accessible Wallets_
 
 
 
-### `searchSubAllocations`
+### `retrieveDescendants`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches the catalog of sub-allocations_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#accountingv2.searchsuballocations.request'>AccountingV2.SearchSubAllocations.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#suballocationv2'>SubAllocationV2</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#accountingv2.retrievedescendants.request'>AccountingV2.RetrieveDescendants.Request</a></code>|<code><a href='#accountingv2.retrievedescendants.response'>AccountingV2.RetrieveDescendants.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint will find all [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s which are direct children of one of your
-accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s.
 
 
 ### `browseProviderAllocations`
@@ -339,6 +308,19 @@ workspace. This is mainly for backend use. For frontend, use the browse call ins
 paginated response
 
 
+### `checkProviderUsable`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#accountingv2.checkproviderusable.requestitem'>AccountingV2.CheckProviderUsable.RequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#accountingv2.checkproviderusable.responseitem'>AccountingV2.CheckProviderUsable.ResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `findRelevantProviders`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -352,7 +334,7 @@ paginated response
 
 
 
-### `reportDelta`
+### `reportUsage`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -363,52 +345,9 @@ paginated response
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#usagereportitem'>UsageReportItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-
-
-### `reportTotalUsage`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#usagereportitem'>UsageReportItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `retrieveAllocationsInternal`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Retrieves a list of product specific up-to-date allocation from the in-memory DB_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#accountingv2.browseallocationsinternal.request'>AccountingV2.BrowseAllocationsInternal.Request</a></code>|<code><a href='#accountingv2.browseallocationsinternal.response'>AccountingV2.BrowseAllocationsInternal.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint will return a list of [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s which are related to the given product
-available to the user.
-This is mainly for backend use. For frontend, use the browse call instead for a paginated response
 
 
 ### `rootAllocate`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#accountingv2.rootallocate.requestitem'>AccountingV2.RootAllocate.RequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `subAllocate`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -417,7 +356,7 @@ This is mainly for backend use. For frontend, use the browse call instead for a 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#accountingv2.suballocate.requestitem'>AccountingV2.SubAllocate.RequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#accountingv2.rootallocate.requestitem'>AccountingV2.RootAllocate.RequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -437,437 +376,80 @@ This is mainly for backend use. For frontend, use the browse call instead for a 
 
 ## Data Models
 
-### `AccountingFrequency`
+### `AllocationGroup`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-enum class AccountingFrequency {
-    ONCE,
-    PERIODIC_MINUTE,
-    PERIODIC_HOUR,
-    PERIODIC_DAY,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>ONCE</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PERIODIC_MINUTE</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PERIODIC_HOUR</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>PERIODIC_DAY</code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AccountingUnit`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class AccountingUnit(
-    val name: String,
-    val namePlural: String,
-    val floatingPoint: Boolean,
-    val displayFrequencySuffix: Boolean,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>namePlural</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>floatingPoint</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>displayFrequencySuffix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AccountingUnitConversion`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class AccountingUnitConversion(
-    val factor: Double,
-    val destinationUnit: AccountingUnit,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>factor</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-double/'>Double</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>destinationUnit</code>: <code><code><a href='#accountingunit'>AccountingUnit</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ChargeDescription`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ChargeDescription(
-    val description: String,
-    val itemized: List<ItemizedCharge>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemized</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#itemizedcharge'>ItemizedCharge</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ItemizedCharge`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ItemizedCharge(
-    val description: String,
-    val usage: Long?,
-    val productId: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ProductCategory`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ProductCategory(
-    val name: String,
-    val provider: String,
-    val productType: ProductType,
-    val accountingUnit: AccountingUnit,
-    val accountingFrequency: AccountingFrequency,
-    val conversionTable: List<AccountingUnitConversion>?,
-    val freeToUse: Boolean?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>provider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>accountingUnit</code>: <code><code><a href='#accountingunit'>AccountingUnit</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>accountingFrequency</code>: <code><code><a href='#accountingfrequency'>AccountingFrequency</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>conversionTable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#accountingunitconversion'>AccountingUnitConversion</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>freeToUse</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Indicates that a Wallet is not required to use this Product category
-</summary>
-
-
-
-Under normal circumstances, a `Wallet`  is always required. This is required even if a `Product` 
-has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is dropped.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `SubAllocationV2`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_A parent allocator's view of a `WalletAllocation`_
-
-```kotlin
-data class SubAllocationV2(
-    val id: String,
-    val path: String,
-    val startDate: Long,
-    val endDate: Long?,
-    val productCategory: ProductCategory,
-    val workspaceId: String,
-    val workspaceTitle: String,
-    val workspaceIsProject: Boolean,
-    val projectPI: String?,
+data class AllocationGroup(
+    val id: Int,
+    val allocations: List<AllocationGroup.Alloc>,
     val usage: Long,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#allocationgroup.alloc'>AllocationGroup.Alloc</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AllocationGroup.Alloc`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Alloc(
+    val id: Long,
+    val startDate: Long,
+    val endDate: Long,
     val quota: Long,
     val grantedIn: Long?,
+    val retiredUsage: Long?,
 )
 ```
 
@@ -878,18 +460,7 @@ data class SubAllocationV2(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>path</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -911,73 +482,7 @@ data class SubAllocationV2(
 
 <details>
 <summary>
-<code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productCategory</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>workspaceId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>workspaceTitle</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>workspaceIsProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>projectPI</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>usage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -1008,6 +513,221 @@ data class SubAllocationV2(
 
 </details>
 
+<details>
+<summary>
+<code>retiredUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AllocationGroupWithChild`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AllocationGroupWithChild(
+    val child: ParentOrChildWallet,
+    val group: AllocationGroup,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>child</code>: <code><code><a href='#parentorchildwallet'>ParentOrChildWallet</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>group</code>: <code><code><a href='#allocationgroup'>AllocationGroup</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AllocationGroupWithParent`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class AllocationGroupWithParent(
+    val parent: ParentOrChildWallet?,
+    val group: AllocationGroup,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>parent</code>: <code><code><a href='#parentorchildwallet'>ParentOrChildWallet</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>group</code>: <code><code><a href='#allocationgroup'>AllocationGroup</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ChargeDescription`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ChargeDescription(
+    val scope: String?,
+    val description: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>scope</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ParentOrChildWallet`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ParentOrChildWallet(
+    val projectId: String?,
+    val projectTitle: String,
+    val pi: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>projectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>projectTitle</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>pi</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -1024,6 +744,7 @@ data class SubAllocationV2(
 
 ```kotlin
 data class UsageReportItem(
+    val isDeltaCharge: Boolean,
     val owner: WalletOwner,
     val categoryIdV2: ProductCategoryIdV2,
     val usage: Long,
@@ -1038,7 +759,18 @@ data class UsageReportItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>isDeltaCharge</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 
@@ -1088,25 +820,33 @@ data class UsageReportItem(
 
 ---
 
-### `WalletAllocationV2`
+### `WalletOwner`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class WalletAllocationV2(
-    val id: String,
-    val allocationPath: List<String>,
-    val localUsage: Long,
-    val quota: Long,
-    val treeUsage: Long?,
-    val startDate: Long,
-    val endDate: Long,
-    val grantedIn: Long?,
-    val deicAllocationId: String?,
-    val canAllocate: Boolean?,
-    val allowSubAllocationsToAllocate: Boolean?,
+sealed class WalletOwner {
+    class Project : WalletOwner()
+    class User : WalletOwner()
+}
+```
+
+
+
+---
+
+### `WalletOwner.Project`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Project(
+    val projectId: String,
+    val type: String /* "project" */,
 )
 ```
 
@@ -1117,7 +857,7 @@ data class WalletAllocationV2(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>projectId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -1128,7 +868,45 @@ data class WalletAllocationV2(
 
 <details>
 <summary>
-<code>allocationPath</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+<code>type</code>: <code><code>String /* "project" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `WalletOwner.User`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class User(
+    val username: String,
+    val type: String /* "user" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -1139,97 +917,10 @@ data class WalletAllocationV2(
 
 <details>
 <summary>
-<code>localUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>type</code>: <code><code>String /* "user" */</code></code> The type discriminator
 </summary>
 
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>quota</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>treeUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>startDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>endDate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>deicAllocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>canAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>allowSubAllocationsToAllocate</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1254,7 +945,14 @@ data class WalletAllocationV2(
 data class WalletV2(
     val owner: WalletOwner,
     val paysFor: ProductCategory,
-    val allocations: List<WalletAllocationV2>,
+    val allocationGroups: List<AllocationGroupWithParent>,
+    val children: List<AllocationGroupWithChild>?,
+    val totalUsage: Long,
+    val localUsage: Long,
+    val maxUsable: Long,
+    val quota: Long,
+    val totalAllocated: Long,
+    val lastSignificantUpdateAt: Long,
 )
 ```
 
@@ -1265,7 +963,7 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 
@@ -1276,7 +974,7 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>paysFor</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code>
+<code>paysFor</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md'>ProductCategory</a></code></code>
 </summary>
 
 
@@ -1287,44 +985,7 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#walletallocationv2'>WalletAllocationV2</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AccountingV2.BrowseAllocationsInternal.Request`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class Request(
-    val owner: WalletOwner,
-    val categoryId: ProductCategoryIdV2,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>allocationGroups</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#allocationgroupwithparent'>AllocationGroupWithParent</a>&gt;</code></code>
 </summary>
 
 
@@ -1335,7 +996,73 @@ data class Request(
 
 <details>
 <summary>
-<code>categoryId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
+<code>children</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#allocationgroupwithchild'>AllocationGroupWithChild</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>totalUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>localUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>quota</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>totalAllocated</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>lastSignificantUpdateAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -1490,90 +1217,6 @@ paginate through the results.
 
 ---
 
-### `AccountingV2.BrowseSubAllocations.Request`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class Request(
-    val filterType: ProductType?,
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>filterType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `AccountingV2.BrowseWallets.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1588,6 +1231,8 @@ data class Request(
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
     val filterType: ProductType?,
+    val includeChildren: Boolean?,
+    val childrenQuery: String?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -1680,6 +1325,28 @@ paginate through the results.
 
 </details>
 
+<details>
+<summary>
+<code>includeChildren</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>childrenQuery</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -1707,7 +1374,55 @@ data class Request(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AccountingV2.CheckProviderUsable.RequestItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RequestItem(
+    val owner: WalletOwner,
+    val category: ProductCategoryIdV2,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
 </summary>
 
 
@@ -1735,6 +1450,7 @@ data class RequestItem(
     val username: String,
     val project: String?,
     val useProject: Boolean,
+    val filterProductType: ProductType?,
 )
 ```
 
@@ -1776,6 +1492,53 @@ data class RequestItem(
 
 </details>
 
+<details>
+<summary>
+<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AccountingV2.RetrieveDescendants.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
+    val project: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>project</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -1792,13 +1555,10 @@ data class RequestItem(
 
 ```kotlin
 data class RequestItem(
-    val owner: WalletOwner,
-    val productCategory: ProductCategoryIdV2,
+    val category: ProductCategoryIdV2,
     val quota: Long,
     val start: Long,
     val end: Long,
-    val deicAllocationId: String?,
-    val forcedSync: Boolean?,
 )
 ```
 
@@ -1809,18 +1569,7 @@ data class RequestItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productCategory</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
 </summary>
 
 
@@ -1862,244 +1611,6 @@ data class RequestItem(
 
 </details>
 
-<details>
-<summary>
-<code>deicAllocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>forcedSync</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AccountingV2.SearchSubAllocations.Request`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class Request(
-    val query: String,
-    val filterType: ProductType?,
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>query</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>filterType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AccountingV2.SubAllocate.RequestItem`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class RequestItem(
-    val parentAllocation: String,
-    val owner: WalletOwner,
-    val quota: Long,
-    val start: Long,
-    val end: Long?,
-    val dry: Boolean?,
-    val grantedIn: Long?,
-    val deicAllocationId: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>parentAllocation</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>quota</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>start</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>end</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>dry</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>grantedIn</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>deicAllocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
 
 
 </details>
@@ -2116,7 +1627,7 @@ data class RequestItem(
 
 ```kotlin
 data class RequestItem(
-    val allocationId: String,
+    val allocationId: Long,
     val newQuota: Long?,
     val newStart: Long?,
     val newEnd: Long?,
@@ -2131,7 +1642,7 @@ data class RequestItem(
 
 <details>
 <summary>
-<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 
@@ -2192,42 +1703,6 @@ data class RequestItem(
 
 ---
 
-### `AccountingV2.BrowseAllocationsInternal.Response`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class Response(
-    val allocations: List<WalletAllocationV2>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#walletallocationv2'>WalletAllocationV2</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `AccountingV2.BrowseProviderAllocations.ResponseItem`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2240,7 +1715,7 @@ data class ResponseItem(
     val owner: WalletOwner,
     val categoryId: ProductCategory,
     val notBefore: Long,
-    val notAfter: Long?,
+    val notAfter: Long,
     val quota: Long,
 )
 ```
@@ -2263,7 +1738,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 
@@ -2274,7 +1749,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>categoryId</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code>
+<code>categoryId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md'>ProductCategory</a></code></code>
 </summary>
 
 
@@ -2296,7 +1771,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> The earliest timestamp at which the reported balance is no longer fully usable
+<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The earliest timestamp at which the reported balance is no longer fully usable
 </summary>
 
 
@@ -2360,6 +1835,42 @@ data class Response(
 
 ---
 
+### `AccountingV2.CheckProviderUsable.ResponseItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ResponseItem(
+    val maxUsable: Long,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>maxUsable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `AccountingV2.FindRelevantProviders.Response`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2380,6 +1891,42 @@ data class Response(
 <details>
 <summary>
 <code>providers</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AccountingV2.RetrieveDescendants.Response`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Response(
+    val descendants: List<String>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>descendants</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
 </summary>
 
 

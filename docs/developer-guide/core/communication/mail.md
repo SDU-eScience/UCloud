@@ -123,6 +123,10 @@ Email templates are pre-defined and are not controllable by clients.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#mail.jobevents'><code>Mail.JobEvents</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#mail.lowfundsmail'><code>Mail.LowFundsMail</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -396,6 +400,8 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
+        jobStarted = false, 
+        jobStopped = false, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -416,6 +422,8 @@ MailDescriptions.toggleEmailSettings.call(
             grantApplicationRejected = true, 
             grantApplicationUpdated = true, 
             grantApplicationWithdrawn = true, 
+            jobStarted = false, 
+            jobStopped = false, 
             lowFunds = true, 
             newCommentOnApplication = true, 
             newGrantApplication = true, 
@@ -449,6 +457,8 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
+        jobStarted = false, 
+        jobStopped = false, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -494,7 +504,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 #         "verificationReminder": true,
 #         "userRoleChange": true,
 #         "userLeft": true,
-#         "lowFunds": true
+#         "lowFunds": true,
+#         "jobStarted": false,
+#         "jobStopped": false
 #     }
 # }
 
@@ -516,7 +528,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "verificationReminder": false,
                 "userRoleChange": true,
                 "userLeft": true,
-                "lowFunds": true
+                "lowFunds": true,
+                "jobStarted": false,
+                "jobStopped": false
             }
         }
     ]
@@ -543,7 +557,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 #         "verificationReminder": false,
 #         "userRoleChange": true,
 #         "userLeft": true,
-#         "lowFunds": true
+#         "lowFunds": true,
+#         "jobStarted": false,
+#         "jobStopped": false
 #     }
 # }
 
@@ -660,6 +676,8 @@ data class EmailSettings(
     val userRoleChange: Boolean?,
     val userLeft: Boolean?,
     val lowFunds: Boolean?,
+    val jobStarted: Boolean?,
+    val jobStopped: Boolean?,
 )
 ```
 
@@ -822,6 +840,28 @@ data class EmailSettings(
 
 </details>
 
+<details>
+<summary>
+<code>jobStarted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>jobStopped</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -895,6 +935,7 @@ sealed class Mail {
     class GrantApplicationUpdatedMail : Mail()
     class GrantApplicationUpdatedMailToAdmins : Mail()
     class GrantApplicationWithdrawnMail : Mail()
+    class JobEvents : Mail()
     class LowFundsMail : Mail()
     class NewCommentOnApplicationMail : Mail()
     class NewGrantApplicationMail : Mail()
@@ -1441,6 +1482,103 @@ data class GrantApplicationWithdrawnMail(
 <details>
 <summary>
 <code>type</code>: <code><code>String /* "applicationWithdrawn" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `Mail.JobEvents`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class JobEvents(
+    val jobIds: List<String>,
+    val jobNames: List<String>,
+    val appTitles: List<String>,
+    val events: List<String>,
+    val subject: String?,
+    val type: String /* "jobEvents" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>jobIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>jobNames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>appTitles</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>events</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>subject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "jobEvents" */</code></code> The type discriminator
 </summary>
 
 [![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)

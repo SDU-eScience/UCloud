@@ -15,6 +15,8 @@ data class Request(
     val consistency: PaginationRequestV2Consistency?,
     val itemsToSkip: Long?,
     val filterType: ProductType?,
+    val includeChildren: Boolean?,
+    val childrenQuery: String?,
 )
 ```
 Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
@@ -99,6 +101,28 @@ paginate through the results.
 <details>
 <summary>
 <code>filterType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeChildren</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>childrenQuery</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

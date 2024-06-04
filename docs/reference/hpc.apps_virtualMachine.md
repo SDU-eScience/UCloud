@@ -22,7 +22,7 @@
 "acme-operating-system" as its base image, as defined in the Tool.  */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-os", 
         appVersion = "1.0.0", 
     ),
@@ -85,14 +85,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717502319295, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-os", 
@@ -139,13 +152,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717502319295
 #     },
 #     "invocation": {
 #         "tool": {

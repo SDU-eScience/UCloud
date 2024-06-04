@@ -114,7 +114,7 @@ fun generateCode() {
                 listOf(
                     Chapter.Feature("projects", "Projects", dk.sdu.cloud.project.api.v2.Projects),
                     Chapter.Feature("providers", "Providers", Providers),
-                    Chapter.Feature("products", "Products", Products),
+                    Chapter.Feature("products", "Products", ProductsV2),
                     Chapter.Node(
                         "accounting",
                         "Accounting",

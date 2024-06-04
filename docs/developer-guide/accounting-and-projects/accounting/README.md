@@ -8,4 +8,3 @@
 # Accounting
 
  - [Accounting](/docs/developer-guide/accounting-and-projects/accounting/allocations.md)
- - [Visualization of Usage](/docs/developer-guide/accounting-and-projects/accounting/visualization.md)

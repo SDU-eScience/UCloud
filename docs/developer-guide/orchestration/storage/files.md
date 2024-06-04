@@ -231,6 +231,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#uploadtype'><code>UploadType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#writeconflictpolicy'><code>WriteConflictPolicy</code></a></td>
 <td>A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)</td>
 </tr>
@@ -480,6 +484,7 @@ Files.createUpload.call(
         conflictPolicy = WriteConflictPolicy.REJECT, 
         id = "/123/folder", 
         supportedProtocols = listOf(UploadProtocol.CHUNKED), 
+        type = UploadType.FOLDER, 
     )),
     user
 ).orThrow()
@@ -517,6 +522,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     "items": [
         {
             "id": "/123/folder",
+            "type": "FOLDER",
             "supportedProtocols": [
                 "CHUNKED"
             ],
@@ -3342,6 +3348,7 @@ An update will typically contain information similar to the `status` field, for 
 ```kotlin
 enum class UploadProtocol {
     CHUNKED,
+    WEBSOCKET,
 }
 ```
 
@@ -3353,6 +3360,65 @@ enum class UploadProtocol {
 <details>
 <summary>
 <code>CHUNKED</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>WEBSOCKET</code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UploadType`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class UploadType {
+    FILE,
+    FOLDER,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>FILE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>FOLDER</code>
 </summary>
 
 
@@ -3600,6 +3666,7 @@ data class FilesCreateFolderRequestItem(
 ```kotlin
 data class FilesCreateUploadRequestItem(
     val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 )
@@ -3613,6 +3680,17 @@ data class FilesCreateUploadRequestItem(
 <details>
 <summary>
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='#uploadtype'>UploadType</a></code></code>
 </summary>
 
 
