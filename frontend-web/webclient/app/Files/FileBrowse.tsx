@@ -1418,7 +1418,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 // the internal structure of a file is.
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => fileName(f.id));
-                browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
+                browser.on("sort", page => {
+                    // Note(Jonas): Default to "ascending" behavior if none is set.
+                    if (browser.browseFilters["sortDirection"] === "descending") {
+                        return page.sort((b, a) => a.id.localeCompare(b.id))
+                    } else {
+                        return page.sort((a, b) => a.id.localeCompare(b.id))
+                    }
+                });
             });
         }
 
