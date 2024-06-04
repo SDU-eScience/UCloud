@@ -169,15 +169,15 @@ object Projects : CallDescriptionContainer("projects.v2") {
         description = """
 The projects feature allow for collaboration between different users across the entire UCloud platform.
 
-This project establishes the core abstractions for projects and establishes an event stream for receiving updates about
+This document establishes the core abstractions for projects and establishes an event stream for receiving updates about
 changes. Other services extend the projects feature and subscribe to these changes to create the full project feature.
 
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are
-[users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` and have exactly one 
-`role`. A user always has exactly one `role`. Each project has exactly one principal investigator (`PI`). The `PI` is 
-responsible for managing the project, including adding and removing users.
+[users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` with each having
+exactly one `role`. Each project has exactly one principal investigator (`PI`). The `PI` is  responsible for managing
+the project, including adding and removing users.
 
 | Role           | Notes                                                                                              |
 |----------------|----------------------------------------------------------------------------------------------------|
@@ -207,12 +207,12 @@ added or removed from a project. This special group is used by providers when re
 
 All projects created by end-users have exactly one parent project. Only UCloud administrators can create root-level
 projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The
-project hierarchy plays a significant role in accounting.
+project hierarchy plays a significant role in [accounting](./accounting/allocations.md).
 
 Normal users can create a project through the [grant application](./grants/grants.md) feature.
 
 A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
-a project must be unique within a single project. `title`s are case-insensitive.
+a subproject must be unique within a single project. `title`s are case-insensitive.
 
 Permissions and memberships are _not_ hierarchical. This means that a user must be explicitly added to every project
 they need permissions in. UCloud administrators can always create a sub-project in any given project. A setting exists
