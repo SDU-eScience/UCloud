@@ -49,9 +49,10 @@ services:
           entity: Project
           pattern: "/work/#{title}"
 
-        collections:
-          entity: Collection
-          pattern: "/collections/#{id}"
+# NOTE(Dan): Not obvious how to do this yet, so we are postponing its consideration.
+#        collections:
+#          entity: Collection
+#          pattern: "/collections/#{id}"
 
         memberFiles:
           entity: MemberFiles

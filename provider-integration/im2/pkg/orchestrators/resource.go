@@ -107,3 +107,12 @@ type ResourceBrowseRequest[Flags any] struct {
 	SortBy        string        `json:"sortBy,omitempty"`
 	SortDirection SortDirection `json:"sortDirection,omitempty"`
 }
+
+type ProviderRegisteredResource[Spec any] struct {
+	Spec                Spec                `json:"spec"`
+	ProviderGeneratedId util.Option[string] `json:"providerGeneratedId"`
+	CreatedBy           util.Option[string] `json:"createdBy"`
+	Project             util.Option[string] `json:"project"`
+	ProjectAllRead      bool                `json:"projectAllRead"`
+	ProjectAllWrite     bool                `json:"projectAllWrite"`
+}

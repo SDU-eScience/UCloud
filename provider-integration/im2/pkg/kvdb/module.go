@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 	"ucloud.dk/pkg/log"
@@ -114,4 +115,17 @@ func Get[T any](key string) (T, bool) {
 		var zeroValue T
 		return zeroValue, ok
 	}
+}
+
+func ListPrefix[T any](prefix string) []T {
+	mutex.Lock()
+	defer mutex.Unlock()
+	var result []T
+
+	for k, v := range db {
+		if strings.HasPrefix(k, prefix) {
+			result = append(result, v)
+		}
+	}
+	return result
 }

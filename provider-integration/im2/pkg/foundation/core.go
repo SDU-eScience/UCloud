@@ -55,3 +55,7 @@ func (t Timestamp) UnixMilli() int64 {
 func TimeFromUnixMilli(millis uint64) Timestamp {
 	return Timestamp(time.Unix(0, int64(millis*uint64(time.Millisecond))))
 }
+
+type FindByStringId struct {
+	Id string `json:"id"`
+}
