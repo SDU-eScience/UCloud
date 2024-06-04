@@ -383,8 +383,6 @@ fun generateCode() {
                             Chapter.ExternalMarkdown("jenkins", "Jenkins", "../service-lib/wiki/jenkins.md"),
                             Chapter.ExternalMarkdown("elastic", "ElasticSearch", "../service-lib/wiki/elastic.md"),
                             Chapter.ExternalMarkdown("grafana", "Grafana", "../service-lib/wiki/grafana.md"),
-                            Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
-                            Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
                             Chapter.Feature("alerting", "Alerting", Alerting),
                             Chapter.Node(
                                 "scripts",
