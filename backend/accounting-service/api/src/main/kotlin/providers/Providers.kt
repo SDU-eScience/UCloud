@@ -233,7 +233,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         )
 
         description = """
-            Providers, the backbone of UCloud, expose compute and storage resources to end-users.
+            Providers, the backbone of UCloud, expose resources, such as compute and storage, to end-users.
 
             UCloud/Core is an orchestrator of $TYPE_REF Resource s. This means, that the core doesn't actually know how 
             to serve files or run computational workloads. Instead, the core must ask one or more $TYPE_REF Provider s 

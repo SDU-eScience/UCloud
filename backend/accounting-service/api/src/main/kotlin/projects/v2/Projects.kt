@@ -176,17 +176,15 @@ changes. Other services extend the projects feature and subscribe to these chang
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are
 [users](/docs/developer-guide/core/users/authentication/users.md) identified by their `username` with each having
-exactly one `role`. Each project has exactly one principal investigator (`PI`). The `PI` is  responsible for managing
-the project, including adding and removing users.
+exactly one `role`. Each project has exactly one principal investigator (`PI`), and can have multiple `ADMIN`s and `USER`s.
 
-| Role           | Notes                                                                                              |
-|----------------|----------------------------------------------------------------------------------------------------|
-| `PI`           | The primary point of contact for projects. All projects have exactly one PI.                       |
-| `ADMIN`        | Administrators are allowed to perform some project management. A project can have multiple admins. |
-| `USER`         | Has no special privileges.                                                                         |
+| Role           | Notes                                                                                                                 |
+|----------------|-----------------------------------------------------------------------------------------------------------------------|
+| `PI`           | The primary point of contact for projects. Responsible for managing the project, including adding and removing users. |
+| `ADMIN`        | Administrators are allowed to perform some project management.                                                        |
+| `USER`         | Has no special privileges.                                                                                            |
 
-**Table:** The possible roles of a project, and their privileges within project
-management.
+**Table:** The possible roles of a project, and their privileges within project management.
 
 A project can be updated by adding/removing/changing any of its `members`.
 
