@@ -29,6 +29,10 @@ covers:
   web and remote desktop (VNC).
 
 ${ApiConventions.nonConformingApiWarning}
+
+$TYPE_REF Application s can be further divided into groups. An $TYPE_REF ApplicationGroup does not influence the
+invocation of the application, but is used solely to visually group applications on UCloud's application store.
+
         """.trimIndent()
     }
 
