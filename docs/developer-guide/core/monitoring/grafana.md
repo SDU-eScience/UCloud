@@ -10,6 +10,8 @@
 To display information from our systems we use [Grafana](https://grafana.com/) to construct dashboards with user
 defined queries.
 
+More information about our use of Grafana can be found in our infrastructure documentation.
+
 ## Data sources
 
 To be able to create dashboards, Grafana needs to have access to different datasources.
@@ -23,18 +25,17 @@ To be able to create dashboards, Grafana needs to have access to different datas
   through [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/) alongside Prometheus.
 - __Postgres:__ Grants access to our database and gives us the possibility to query it for things like: number of
   applications, number of users etc.
+- __UCloud metrics (via Prometheus):__ UCloud exports various metrics via a Prometheus format. These are scraped and
+  made available in Grafana.
 
 ## Dashboards
 
-We have 9 dashboards that can be divided into the following categories:
+We have various dashboards, some examples include:
 
 - __Requests:__ Here we have 2 different dashboards. One for a general overview of the requests being sent on the cloud
   system (request time/averages, status codes, number of requests per user) and another to have a more detailed view on
   a specific request type.
-- __Kubernetes dashboards:__ Here we have 2 different dashboards. These dashboards are automatically created by the
-  [Kubernetes Plugin](https://grafana.com/grafana/plugins/grafana-kubernetes-app). They show cluster, node, deployment
-  and container specific metrics.
-- __Memory, disk and CPU usage:__ A single dashboard that shows the RAM, CPU, Swap and disk usage of all pods.
+- __Node statistics:__ A single dashboard that shows the RAM, CPU, Swap and disk usage of all nodes.
 - __Postgres Stats:__ A single dashboard showing stats from the PostgreSQL database (Queries Per Sec., Row stats, number
   of connections etc.)
 - __UCloud dashboard:__ A single dashboard that shows key numbers of the cloud platform: Number of request, user

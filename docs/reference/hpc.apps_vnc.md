@@ -90,7 +90,7 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
-        createdAt = 1717502319296, 
+        createdAt = 1717663228351, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
@@ -176,7 +176,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #                 "applications": null
 #             }
 #         },
-#         "createdAt": 1717502319296
+#         "createdAt": 1717663228351
 #     },
 #     "invocation": {
 #         "tool": {

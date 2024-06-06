@@ -59,7 +59,7 @@ data class ProductsV2RetrieveRequest(
 
 <details>
 <summary>
-<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+<code>filterProductType</code>: <code><code><a href='#producttype'>ProductType</a>?</code></code>
 </summary>
 
 

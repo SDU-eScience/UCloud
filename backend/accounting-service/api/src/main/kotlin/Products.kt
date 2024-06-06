@@ -10,7 +10,7 @@ import kotlinx.serialization.builtins.serializer
 typealias ProductArea = ProductType
 
 @Serializable
-@UCloudApiOwnedBy(Products::class)
+@UCloudApiOwnedBy(ProductsV2::class)
 @UCloudApiDoc(
     """
         A classifier for a $TYPE_REF Product

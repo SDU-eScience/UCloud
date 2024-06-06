@@ -15,12 +15,7 @@ val db = AsyncDBSessionFactory(micro)
 
 __Code:__ Creating an `AsyncDBSessionFactory`. This factory will provide you with database connections as needed.
 
-The configuration returned by `Micro` will read connection details and associated credentials. Micro will _always_
-select a schema which matches the `ServiceDescription.name`. In other words, every micro-service of UCloud runs in its
-own separate database schema. This means that all micro-services are isolated. You must _never_ access of a different
-micro-service directly. Instead, you must use the APIs provided by every micro-service to access and manipulate their
-data. The deployment scripts (see `ServiceSecrets` of `/infrastructure/k8-resources`) enforce this by creating a
-dedicated Postgres user for every micro-service which only has access to their own database schema.
+The configuration returned by `Micro` will read connection details and associated credentials.
 
 ### Core abstractions
 

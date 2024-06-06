@@ -22,16 +22,18 @@ The goal of UCloud's accounting system is to:
 ## Allocations: Granting access to a service catalog
 
 UCloud achieves the first point by having the ability to grant resource allocations. A resource allocation 
-is also known as a `WalletAllocation`. They grant a workspace the ability to use `Product`s from a 
-specific `ProductCategory`. Unless otherwise stated, a workspace must always hold an allocation to use a 
-product. If a workspace does not hold an allocation, then the accounting system will deny access to them. 
-An allocation sets several limits on how the workspace can use the products. This includes:
+is also known as a `Alloc`. These are grouped into `AllocationGroup`s based on their parent, usage is
+tracked at a group level up until the point any specific allocation retires. They grant a workspace the
+ability to use `ProductV2`s from a specific `ProductCategory`. Unless otherwise stated, a workspace must
+always hold an allocation to use a product. If a workspace does not hold an allocation, then the accounting
+system will deny access to them. An allocation sets several limits on how the workspace can use the
+products. This includes:
 
-- An allocation is only valid for the `Product`s belonging to a single category. For example, if a 
+- An allocation is only valid for the `ProductV2`s belonging to a single category. For example, if a 
   workspace has an allocation for `u1-standard` then it does not grant access to `u1-gpu`.
 - An allocation has a start date and an end date. Outside of this period, the allocation is invalid.
 - Each allocation have an associated quota. If a workspace is using more than the quota allows, then the 
-  provider should deny access to the `Product`.
+  provider should deny access to the `ProductV2`.
 
 ---
 
@@ -68,20 +70,17 @@ parent. Similarly, if the combined usage goes above 10GB then UCloud will lock b
 
 __Important concepts:__
 
-- [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md): Stores a resource allocation which grants a workspace access to a
+- [`AllocationGroup`](/docs/reference/dk.sdu.cloud.accounting.api.AllocationGroup.md)  and [`Alloc`](/docs/reference/dk.sdu.cloud.accounting.api.Alloc.md): Stores a resource allocation which grants a workspace access to a
   ProductCategory
-- [`Wallet`](/docs/reference/dk.sdu.cloud.accounting.api.Wallet.md): Combines multiple allocations, belonging to the same workspace for a specific category.
+- [`WalletV2`](/docs/reference/dk.sdu.cloud.accounting.api.WalletV2.md): Combines multiple allocations, belonging to the same workspace for a specific category.
   The accounting system spreads out usages evenly across all allocations in a Wallet.
 - Allocations form a hierarchy. Over-allocation is allowed but the combined usage in a single allocation 
   tree must not exceed the quota in the root.
   
 __Important calls:__
 
-- [`accounting.v2.rootAllocate`](/docs/reference/accounting.v2.rootAllocate.md)  and [`accounting.v2.subAllocate`](/docs/reference/accounting.v2.subAllocate.md): Create new allocations.
-- [`accounting.v2.updateAllocation`](/docs/reference/accounting.v2.updateAllocation.md): Update an allocation.
-- [`accounting.v2.browseSubAllocations`](/docs/reference/accounting.v2.browseSubAllocations.md), [`accounting.v2.searchSubAllocations`](/docs/reference/accounting.v2.searchSubAllocations.md)  [`accounting.v2.browseAllocationsInternal`](/docs/reference/accounting.v2.browseAllocationsInternal.md): Browse 
-  through your sub allocations.
-- [`accounting.v2.browseWallets`](/docs/reference/accounting.v2.browseWallets.md)  and [`accounting.v2.browseWalletsInternal`](/docs/reference/accounting.v2.browseWalletsInternal.md): Browse through your wallets.
+- [`accounting.v2.browseWallets`](/docs/reference/accounting.v2.browseWallets.md): Browse your allocations and view current usage.
+- [`accounting.v2.reportUsage`](/docs/reference/accounting.v2.reportUsage.md): Endpoint for providers which allow them to report usage of their products.
 
 ## Table of Contents
 <details>

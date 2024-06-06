@@ -193,7 +193,7 @@ JobsProvider.create.call(
                 ), 
                 metadata = ApplicationMetadata(
                     authors = listOf("UCloud"), 
-                    createdAt = 1717502319286, 
+                    createdAt = 1717663228341, 
                     description = "An example application", 
                     flavorName = null, 
                     group = ApplicationGroup(
@@ -525,7 +525,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                                 "applications": null
                             }
                         },
-                        "createdAt": 1717502319286
+                        "createdAt": 1717663228341
                     },
                     "invocation": {
                         "tool": {

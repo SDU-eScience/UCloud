@@ -23,7 +23,7 @@ UCloud can be started using the built-in launcher:
 ./launcher
 ```
 
-[![asciicast](https://asciinema.org/a/416123.svg)](https://asciinema.org/a/416123)
+[![asciicast](https://asciinema.org/a/539738.svg)](https://asciinema.org/a/539738)
 
 ## Storage
 

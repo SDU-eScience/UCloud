@@ -260,6 +260,14 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
             only be responsible for facilitating direct communication. A common example of this is 
             [file uploads]($CALL_REF_LINK files.createUpload).
             
+            ---
+            
+            📝 NOTE: Communication between UCloud/Core and a service provider is in practice subject to various
+            agreements according to applicable law and/or an organization's policies. These are not described here as it
+            is out-of-scope for the technical documentation.
+            
+            ---
+            
             ## Suggested Reading
             
             - [Products](/docs/developer-guide/accounting-and-projects/products.md)
@@ -298,118 +306,6 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
             }
         )
 
-        useCase(
-            registrationUseCase,
-            "Registering a Provider",
-            flow = {
-                val integrationModule = actor("integrationModule", "The integration module (unauthenticated)")
-                val systemAdministrator = actor(
-                    "systemAdministrator",
-                    "The admin of the provider (authenticated as a normal UCloud user)"
-                )
-                val admin = administrator()
-
-                val specification = ProviderSpecification(
-                    "example",
-                    "provider.example.com",
-                    true
-                )
-
-                comment(
-                    """
-                        WARNING: The following flow still works, but is no longer used by the default configuration of
-                        the integration module. Instead, it has been replaced by the much simpler approach of having
-                        a UCloud administrator register the provider manually and then exchange tokens out-of-band.
-                    """.trimIndent()
-                )
-
-                comment("""
-                    This example shows how a Provider registers with UCloud/Core. In this example, the Provider will 
-                    be using the Integration Module. The system administrator, of the Provider, has just installed the 
-                    Integration Module. Before starting the module, the system administrator has configured the module 
-                    to contact UCloud at a known address.
-                """.trimIndent())
-
-                comment("""
-                    When the system administrator launches the Integration Module, it will automatically contact 
-                    UCloud. This request contains the contact information back to the Provider.
-                """.trimIndent())
-
-                success(
-                    requestApproval,
-                    ProvidersRequestApprovalRequest.Information(specification),
-                    ProvidersRequestApprovalResponse.RequiresSignature("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
-                    integrationModule
-                )
-
-                comment("""
-                    UCloud/Core responds with a token and the IM displays a link to the sysadmin. The sysadmin follows 
-                    this link, and authenticates with their own UCloud user. This triggers the following request:
-                """.trimIndent())
-
-                success(
-                    requestApproval,
-                    ProvidersRequestApprovalRequest.Sign(
-                        "9eb96d0a27b1330cdc727ef4316bd48265f71414"
-                    ),
-                    ProvidersRequestApprovalResponse.RequiresSignature("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
-                    integrationModule
-                )
-
-                comment("""
-                    The sysadmin now sends his token to a UCloud administrator. This communication always happen 
-                    out-of-band. For a production system, we expect to have been in a dialogue with you about this 
-                    process already.
-
-                    The UCloud administrator approves the request.
-                """.trimIndent())
-
-                success(
-                    approve,
-                    ProvidersApproveRequest("9eb96d0a27b1330cdc727ef4316bd48265f71414"),
-                    ProvidersApproveResponse("51231"),
-                    admin
-                )
-
-                comment("""
-                    UCloud/Core sends a welcome message to the Integration Module. The core uses the original token to 
-                    authenticate the request. The request also contains the refreshToken and publicKey required by the 
-                    IM. Under normal circumstances, the IM will auto-configure itself to use these tokens.
-                """.trimIndent())
-
-                val response = Provider(
-                    "51231",
-                    specification,
-                    "8accc446c2e3ac924ff07c77d93e1679378a5dad",
-                    "~~ public key ~~",
-                    1633329776235,
-                    ProviderStatus(),
-                    emptyList(),
-                    ResourceOwner("sysadmin", null),
-                )
-
-                success(
-                    IntegrationProvider("example").welcome,
-                    IntegrationProviderWelcomeRequest(
-                        "9eb96d0a27b1330cdc727ef4316bd48265f71414",
-                        ProviderWelcomeTokens(response.refreshToken, response.publicKey)
-                    ),
-                    Unit,
-                    ucloudCore()
-                )
-
-                comment("""
-                    Alternatively, the sysadmin can read the tokens and perform manual configuration.
-                """.trimIndent())
-
-                success(
-                    retrieve,
-                    ResourceRetrieveRequest(ProviderIncludeFlags(), "51231"),
-                    response,
-                    systemAdministrator
-                )
-            }
-        )
         useCase(
             authenticationUseCase,
             "A Provider authenticating with UCloud/Core",

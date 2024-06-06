@@ -396,7 +396,7 @@ application = ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
-        createdAt = 1717502319394, 
+        createdAt = 1717663228434, 
         description = "This is a batch application", 
         flavorName = null, 
         group = null, 
@@ -539,7 +539,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": null,
-#         "createdAt": 1717502319394
+#         "createdAt": 1717663228434
 #     },
 #     "invocation": {
 #         "tool": {
@@ -3825,7 +3825,7 @@ See also:
 
 [![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Retrieve information about how busy the provider's cluster currently is_
 

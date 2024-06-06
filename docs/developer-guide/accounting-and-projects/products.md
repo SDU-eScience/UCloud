@@ -14,7 +14,7 @@ _Products define the services exposed by a Provider._
 ## Rationale
 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose services into UCloud. But, different 
-[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose different services. UCloud uses [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s to define the 
+[`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s expose different services. UCloud uses [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md)s to define the 
 services of a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md). As an example, a 
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  might have the following services:
 
@@ -40,108 +40,31 @@ __Table:__ A single node-type split up into individual slices.
 
 UCloud represent these concepts in the following abstractions:
 
-- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md), defines the behavior of a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md).
+- [`ProductType`](/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md): A classifier for a [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md), defines the behavior of a [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md).
 - [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md): A group of similar [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s. In most cases, [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in a category
   run on identical hardware. 
-- [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
+- [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md): Defines a concrete service exposed by a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider..md) 
 
 Below, we show an example of how a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  can organize their services.
 
 ![](/backend/accounting-service/wiki/products.png)
 
-__Figure:__ All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+__Figure:__ All [`ProductV2`](/docs/reference/dk.sdu.cloud.accounting.api.ProductV2.md)s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
 [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s have zero or more categories of every type, e.g. `example-slim`. 
 In a given category, the [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  has one or more slices.
 
 ## Payment Model
 
 UCloud uses a flexible payment model, which allows [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s to use a model which
-is familiar to them. In short, a [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  must first choose one of the following payment types:
-
-1. __Differential models__ ([`ChargeType.DIFFERENTIAL_QUOTA`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
-   1. Quota ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
-2. __Absolute models__ ([`ChargeType.ABSOLUTE`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md))
-   1. One-time payment ([`ProductPriceUnit.PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
-      [`ProductPriceUnit.CREDITS_PER_UNIT`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
-   2. Periodic payment ([`ProductPriceUnit.UNITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md) and 
-      [`ProductPriceUnit.CREDITS_PER_X`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md))
-      
----
-
-__📝 NOTE:__ To select a model, you must specify a [`ChargeType`](/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md)  and a [`ProductPriceUnit`](/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md). We have 
-shown all valid combinations above.  
-
----
-
-Quotas put a strict limit on the "number of units" in concurrent use. UCloud measures this number in a 
-[`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)  specific way. A unit is pre-defined and stable across the entirety of UCloud. A few quick 
-examples:
-
-- __Storage:__ Measured in GB (10⁹ bytes. 1 byte = 1 octet)
-- __Compute:__ Measured in hyper-threaded cores (vCPU)
-- __Public IPs:__ Measured in IP addresses
-- __Public links:__ Measured in public links
-
-If using an absolute model, then you must choose the unit of allocation:
-
-- You specify allocations in units (`UNITS_PER_X`). For example: 3000 IP addresses.
-- You specify allocations in money (`CREDITS_PER_X`). For example: 1000 DKK.
-
----
-
-__📝 NOTE:__ For precision purposes, UCloud specifies all money sums as integers. As a result, 1 UCloud credit is equal 
-to one millionth of a Danish Crown (DKK).
-
----
-
-When using periodic payments, you must also specify the length of a single period. [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)s are not required to 
-report usage once for every period. But the reporting itself must specify usage in number of periods. 
-UCloud supports period lengths of a minute, one hour and one day.
-
-## Understanding the price
-
-All [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s have a `pricePerUnit` property: 
-
-> The `pricePerUnit` specifies the cost of a single _unit_ in a single _period_.
->
-> Products not paid with credits must have a `pricePerUnit` of 1. Quotas and one-time payments are always made for a 
-> single "period". 
-
-This can lead to some surprising results when defining compute products. Let's consider the example from 
-the beginning:
-
-| Name | vCPU | RAM (GB) | GPU | Price |
-|------|------|----------|-----|-------|
-| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
-| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
-| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
-| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
-
-__Table:__ Human-readable compute products.
-
-When implementing this in UCloud, a Provider might naively set the following prices:
-
-| Name | ChargeType | ProductPriceUnit | Price |
-|------|------------|------------------|-------|
-| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
-| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `200_000` |
-| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `400_000` |
-| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `800_000` |
-
-__Table:__ ️⚠️ Incorrect implementation of prices in UCloud ️⚠️
-
-__This is wrong.__ UCloud defines the price as the cost of using a single unit in a single period. The "unit of use" 
-for a compute product is a single vCPU.  Thus, a correct [`Provider`](/docs/reference/dk.sdu.cloud.provider.api.Provider.md)  implementation would over-report the usage by a 
-factor equal to the number of vCPUs in the machine. Instead, the price must be based on a single vCPU:
-
-| Name | ChargeType | ProductPriceUnit | Price |
-|------|------------|------------------|-------|
-| `example-slim-1` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
-| `example-slim-2` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
-| `example-slim-4` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
-| `example-slim-8` | `ABSOLUTE` | `CREDITS_PER_HOUR` | `100_000` |
-
-__Table:__ ✅ Correct implementation of prices in UCloud ✅
+is familiar to them. The payment model is defined in the [`ProductCategory`](/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory..md)  Here the provider will define the
+[`AccountingUnit`](/docs/reference/dk.sdu.cloud.accounting.api.AccountingUnit.md)  and [`AccountingFrequency`](/docs/reference/dk.sdu.cloud.accounting.api.AccountingFrequency..md)  The unit describes the unit in which the provider reports
+usage. This unit is opaque to UCloud/Core and UCloud/Core will not attempt to convert or in any way interpret the
+meaning of this unit. The frequency describes how often a charge occurs. These are either periodic or non-periodic.
+UCloud's accounting system has slightly different rules depending on if a product is periodic or non-periodic. Providers
+are not required to report once for have period. The frequency simply tells UCloud/Core how to interpret the unit. For
+example a combination of `unit = Core` and `frequency = PERIODIC_MINUTE` should be interpreted as core-minutes. UCloud's
+frontend may choose to convert this into core-hours for better readability, but the internal numbers are stored in
+minutes.
 
 ## Table of Contents
 <details>
@@ -192,6 +115,10 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
 <tr>
 <td><a href='#productcategory'><code>ProductCategory</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#producttype'><code>ProductType</code></a></td>
+<td>A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)</td>
 </tr>
 <tr>
 <td><a href='#productv2'><code>ProductV2</code></a></td>
@@ -497,7 +424,7 @@ data class ProductCategory(
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 
@@ -544,6 +471,98 @@ has a `pricePerUnit` of 0. If `freeToUse = true` then the Wallet requirement is 
 <details>
 <summary>
 <code>allowSubAllocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProductType`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_A classifier for a [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)_
+
+```kotlin
+enum class ProductType {
+    STORAGE,
+    COMPUTE,
+    INGRESS,
+    LICENSE,
+    NETWORK_IP,
+}
+```
+For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
+
+- `STORAGE`: See [`Product.Storage`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Storage.md) 
+- `COMPUTE`: See [`Product.Compute`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Compute.md) 
+- `INGRESS`: See [`Product.Ingress`](/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md) 
+- `LICENSE`: See [`Product.License`](/docs/reference/dk.sdu.cloud.accounting.api.Product.License.md) 
+- `NETWORK_IP`: See [`Product.NetworkIP`](/docs/reference/dk.sdu.cloud.accounting.api.Product.NetworkIP.md)
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>STORAGE</code> See Product.Storage
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>COMPUTE</code> See Product.Compute
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>INGRESS</code> See Product.Ingress
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>LICENSE</code> See Product.License
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>NETWORK_IP</code> See Product.NetworkIP
 </summary>
 
 
@@ -655,7 +674,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code> Classifier used to explain the type of Product
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code> Classifier used to explain the type of Product
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -842,7 +861,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -968,7 +987,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1106,7 +1125,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1232,7 +1251,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1358,7 +1377,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1524,7 +1543,7 @@ paginate through the results.
 
 <details>
 <summary>
-<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+<code>filterProductType</code>: <code><code><a href='#producttype'>ProductType</a>?</code></code>
 </summary>
 
 
@@ -1643,7 +1662,7 @@ data class ProductsV2RetrieveRequest(
 
 <details>
 <summary>
-<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
+<code>filterProductType</code>: <code><code><a href='#producttype'>ProductType</a>?</code></code>
 </summary>
 
 

@@ -48,7 +48,7 @@ data class ProductCategory(
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 

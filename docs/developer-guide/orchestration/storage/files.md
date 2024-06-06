@@ -484,7 +484,7 @@ Files.createUpload.call(
         conflictPolicy = WriteConflictPolicy.REJECT, 
         id = "/123/folder", 
         supportedProtocols = listOf(UploadProtocol.CHUNKED), 
-        type = UploadType.FOLDER, 
+        type = UploadType.FILE, 
     )),
     user
 ).orThrow()
@@ -522,7 +522,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     "items": [
         {
             "id": "/123/folder",
-            "type": "FOLDER",
+            "type": "FILE",
             "supportedProtocols": [
                 "CHUNKED"
             ],
@@ -1713,8 +1713,14 @@ _Creates an upload session between the user and the provider_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filescreateuploadrequestitem'>FilesCreateUploadRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#filescreateuploadresponseitem'>FilesCreateUploadResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-The returned endpoint will accept an upload from the user which will create a file at a location
-specified in this request.
+An upload can be either a file or folder, if supported by the provider, and depending on the
+[`UploadTypespecified`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadTypespecified.md)  in the request. The desired path and a list of supported [`UploadProtocol`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.md)s 
+are also specified in the request. The latter is used by the provider to negotiate which protocol to use.
+
+The response will contain an endpoint which is ready to accept the upload, as well as the chosen
+[`UploadProtocol`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.md)  and a unique token.
+
+At the time of writing the default and preferred protocol is [`UploadProtocol.WEBSOCKET`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.WEBSOCKET.md).
 
 __Errors:__
 

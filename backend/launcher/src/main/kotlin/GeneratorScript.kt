@@ -421,6 +421,11 @@ fun generateCode() {
                             Chapter.Feature("groups", "Groups", ProjectGroups),
                             Chapter.Feature("favorites", "Favorites", ProjectFavorites)
                         )
+                    ),
+                    Chapter.Feature(
+                        "products-legacy",
+                        "Products (Legacy)",
+                        Products,
                     )
                 )
             ),

@@ -29,6 +29,13 @@ exactly one `role`. Each project has exactly one principal investigator (`PI`), 
 
 **Table:** The possible roles of a project, and their privileges within project management.
 
+---
+
+📝 NOTE: PI within a project acts on behalf of a research institution and enforces the rules and procedures. The PI
+can invite an Admin user with whom he/she shares responsibilities.
+
+---
+
 A project can be updated by adding/removing/changing any of its `members`.
 
 A project is sub-divided into groups:
@@ -40,7 +47,7 @@ and the members of a group can only be from the project it belongs to.
 
 ## Special Groups
 
-All projects have some special groups. The most common, and as of 05/01/23 the only, special group is the "All Users"
+All projects have some special groups. The most common, and as of 06/06/24 the only, special group is the "All Users"
 group. This group automatically contains all members of the project. These are synchronized every single time a user is
 added or removed from a project. This special group is used by providers when registering resources with UCloud.
 
@@ -87,7 +94,7 @@ __Figure 2:__ The UCloud user interface allows you to select context through a d
 
 ---
 
-__Example:__ Accessing the project context from a microservice
+__Example:__ Accessing the project context from a service
 
 ```kotlin
 implement(Descriptions.call) {

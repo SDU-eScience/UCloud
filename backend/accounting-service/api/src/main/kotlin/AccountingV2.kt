@@ -38,16 +38,18 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             ## Allocations: Granting access to a service catalog
 
             UCloud achieves the first point by having the ability to grant resource allocations. A resource allocation 
-            is also known as a `WalletAllocation`. They grant a workspace the ability to use `Product`s from a 
-            specific `ProductCategory`. Unless otherwise stated, a workspace must always hold an allocation to use a 
-            product. If a workspace does not hold an allocation, then the accounting system will deny access to them. 
-            An allocation sets several limits on how the workspace can use the products. This includes:
+            is also known as a `Alloc`. These are grouped into `AllocationGroup`s based on their parent, usage is
+            tracked at a group level up until the point any specific allocation retires. They grant a workspace the
+            ability to use `ProductV2`s from a specific `ProductCategory`. Unless otherwise stated, a workspace must
+            always hold an allocation to use a product. If a workspace does not hold an allocation, then the accounting
+            system will deny access to them. An allocation sets several limits on how the workspace can use the
+            products. This includes:
 
-            - An allocation is only valid for the `Product`s belonging to a single category. For example, if a 
+            - An allocation is only valid for the `ProductV2`s belonging to a single category. For example, if a 
               workspace has an allocation for `u1-standard` then it does not grant access to `u1-gpu`.
             - An allocation has a start date and an end date. Outside of this period, the allocation is invalid.
             - Each allocation have an associated quota. If a workspace is using more than the quota allows, then the 
-              provider should deny access to the `Product`.
+              provider should deny access to the `ProductV2`.
 
             ---
 
@@ -84,20 +86,17 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             
             __Important concepts:__
             
-            - $TYPE_REF WalletAllocation: Stores a resource allocation which grants a workspace access to a
+            - $TYPE_REF AllocationGroup and $TYPE_REF Alloc: Stores a resource allocation which grants a workspace access to a
               ProductCategory
-            - $TYPE_REF Wallet: Combines multiple allocations, belonging to the same workspace for a specific category.
+            - $TYPE_REF WalletV2: Combines multiple allocations, belonging to the same workspace for a specific category.
               The accounting system spreads out usages evenly across all allocations in a Wallet.
             - Allocations form a hierarchy. Over-allocation is allowed but the combined usage in a single allocation 
               tree must not exceed the quota in the root.
               
             __Important calls:__
             
-            - $callRef.rootAllocate and $callRef.subAllocate: Create new allocations.
-            - $callRef.updateAllocation: Update an allocation.
-            - $callRef.browseSubAllocations, $callRef.searchSubAllocations $callRef.browseAllocationsInternal: Browse 
-              through your sub allocations.
-            - $callRef.browseWallets and $callRef.browseWalletsInternal: Browse through your wallets.
+            - $callRef.browseWallets: Browse your allocations and view current usage.
+            - $callRef.reportUsage: Endpoint for providers which allow them to report usage of their products.
               
         """.trimIndent())
     }

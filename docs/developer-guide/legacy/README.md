@@ -8,3 +8,4 @@
 # Legacy
 
  - [Projects (Legacy)](/docs/developer-guide/legacy/projects-legacy/README.md)
+ - [Products (Legacy)](/docs/developer-guide/legacy/products-legacy.md)

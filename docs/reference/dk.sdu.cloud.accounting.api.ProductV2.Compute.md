@@ -158,7 +158,7 @@ system's UI.
 
 <details>
 <summary>
-<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+<code>productType</code>: <code><code><a href='#producttype'>ProductType</a></code></code>
 </summary>
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)

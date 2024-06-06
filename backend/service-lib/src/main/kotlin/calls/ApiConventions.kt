@@ -1379,15 +1379,7 @@ Examples:
 
 ---
 
-2: Request classes should use the `Request` suffix, response classes should use the `Response` suffix Examples:
-
-- Correct: `JobsRetrieveRequest`
-- Correct: `JobsRetrieveResponse`
-- Incorrect: `JobsRetrieve` (Missing suffix)
-
----
-
-3: `CallDescriptionContainer`s should be placed in a file named after the container
+2: `CallDescriptionContainer`s should be placed in a file named after the container
 
 - Correct: `Jobs.kt` containing `Jobs`
 - Incorrect: `JobDescriptions.kt` containing `Jobs`
