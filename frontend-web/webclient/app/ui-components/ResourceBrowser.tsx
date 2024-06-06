@@ -2290,6 +2290,8 @@ export class ResourceBrowser<T> {
             document.body.setAttribute("data-no-select", "true");
 
             const dragMoveHandler = (e: MouseEvent) => {
+                this.closeRenameField("cancel", true);
+
                 if (!didMount && isBeyondDeadZone(e)) {
                     if (!isNaN(entryIdx)) {
                         this.select(entryIdx, SelectionMode.SINGLE);
