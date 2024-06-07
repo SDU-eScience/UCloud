@@ -39,7 +39,7 @@ We have various dashboards, some examples include:
 As part of the Grafana stack we use 
 [Loki](https://grafana.com/oss/loki/?pg=logs&plcmt=options&src=ggl-s&mdm=cpc&cnt=124221004773&camp=nb-loki-exact) 
 to search and read our system and container logs.
-We collect logs from each container that runs on the local kubernetes cluster as well as all 
+We collect logs from containers used to run UCloud software as well as all 
 system logs on each of our managed nodes. 
 
 Loki makes it easy for us search efficiently for potential errors reported
