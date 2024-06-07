@@ -34,3 +34,14 @@ We have various dashboards, some examples include:
 - __KPI dashboard:__ A single dashboard showing Key Performance indicators such as new subscribed users and total amount
   of users and their respective organization distribution. Jobs activity and which applications are most used.
 
+## Logging with Loki
+
+As part of the Grafana stack we use 
+[Loki](https://grafana.com/oss/loki/?pg=logs&plcmt=options&src=ggl-s&mdm=cpc&cnt=124221004773&camp=nb-loki-exact) 
+to search and read our system and container logs.
+We collect logs from each container that runs on the local kubernetes cluster as well as all 
+system logs on each of our managed nodes. 
+
+Loki makes it easy for us search efficiently for potential errors reported
+by users. Being able to search for logs from specific nodes or containers combined with timestamps 
+makes it easy to find the logs that are relevant.
