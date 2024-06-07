@@ -117,7 +117,9 @@ interface AdditionalResourceBrowserOpts {
     managesLocalProject?: boolean
 }
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
+const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
@@ -1419,11 +1421,28 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => fileName(f.id));
                 browser.on("sort", page => {
+                    const sortBy = browser.browseFilters["sortBy"] as SortById;
                     // Note(Jonas): Default to "ascending" behavior if none is set.
-                    if (browser.browseFilters["sortDirection"] === "descending") {
-                        return page.sort((b, a) => a.id.localeCompare(b.id))
+                    const descending = browser.browseFilters["sortDirection"] === "descending";
+                    if (sortBy === "MODIFIED_AT") {
+                        if (descending) {
+                            return page.sort((b, a) => (a.status.modifiedAt ?? 0) - (b.status.modifiedAt ?? 0));
+                        } else {
+                            return page.sort((a, b) => (a.status.modifiedAt ?? 0) - (b.status.modifiedAt ?? 0));
+                        }
+                    } else if (sortBy === "SIZE") {
+                        if (descending) {
+                            return page.sort((b, a) => (a.status.sizeInBytes ?? 0) - (b.status.sizeInBytes ?? 0));
+                        } else {
+                            return page.sort((a, b) => (a.status.sizeInBytes ?? 0) - (b.status.sizeInBytes ?? 0));
+                        }
+                    }
+
+                    // sortBy === undefined || sortBy === "PATH"
+                    if (descending) {
+                        return page.sort((b, a) => a.id.localeCompare(b.id));
                     } else {
-                        return page.sort((a, b) => a.id.localeCompare(b.id))
+                        return page.sort((a, b) => a.id.localeCompare(b.id));
                     }
                 });
             });
