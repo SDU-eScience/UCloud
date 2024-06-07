@@ -788,7 +788,7 @@ const AllocationsStyle = injectStyle("allocations", k => `
         margin: 15px 0;
     }
     
-    ${k} .disabled-alloc {
+    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness {
         filter: opacity(0.5);
     }
     
@@ -1614,7 +1614,7 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                     </TooltipV2>
                                                 </>}
-                                                {Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}
+                                                <div className="low-opaqueness">{Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}</div>
                                             </Flex>}
                                         />
                                     )
