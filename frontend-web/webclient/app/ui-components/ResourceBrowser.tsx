@@ -3359,7 +3359,8 @@ export class ResourceBrowser<T> {
 
                 white-space: pre;
                                                                                                                         /* v favoriteIcon-width */
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 18px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 32px);
+                padding-right: 8px; /* So the title doesn't rub up against the second column */
             }
             
             @media screen and (max-width: 860px) {
