@@ -111,7 +111,6 @@ func sendResponseOrError(w http.ResponseWriter, data any, err error) {
 		} else {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(data)
-			log.Info("Sending response: %v", string(data))
 		}
 	}
 }

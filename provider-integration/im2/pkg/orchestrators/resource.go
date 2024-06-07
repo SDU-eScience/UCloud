@@ -96,8 +96,8 @@ type SortDirection string
 
 const (
 	SortDirectionDefault    SortDirection = ""
-	SortDirectionAscending  SortDirection = "ASCENDING"
-	SortDirectionDescending SortDirection = "DESCENDING"
+	SortDirectionAscending  SortDirection = "ascending"
+	SortDirectionDescending SortDirection = "descending"
 )
 
 type ResourceBrowseRequest[Flags any] struct {
@@ -106,6 +106,11 @@ type ResourceBrowseRequest[Flags any] struct {
 	Next          string        `json:"next,omitempty"`
 	SortBy        string        `json:"sortBy,omitempty"`
 	SortDirection SortDirection `json:"sortDirection,omitempty"`
+}
+
+type ResourceRetrieveRequest[Flags any] struct {
+	Flags Flags  `json:"flags,omitempty"`
+	Id    string `json:"id"`
 }
 
 type ProviderRegisteredResource[Spec any] struct {

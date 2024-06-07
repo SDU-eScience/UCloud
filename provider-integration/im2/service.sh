@@ -50,9 +50,14 @@ isrunning() {
 }
 
 startsvc() {
+    if ! [ -f "/usr/bin/dlv" ]; then
+        go install github.com/go-delve/delve/cmd/dlv@latest
+        cp /root/go/bin/dlv /usr/bin/dlv
+    fi
+
     if ! isrunning; then
-        CGO_ENABLED=1 go build -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
-        nohup sudo -u "#$uid" JAVA_OPTS="$JAVA_OPTS" ucloud &> /tmp/service.log &
+        CGO_ENABLED=1 go build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
+        nohup sudo -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
     fi

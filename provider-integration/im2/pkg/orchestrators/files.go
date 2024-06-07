@@ -5,6 +5,7 @@ import (
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type Drive struct {
@@ -116,7 +117,11 @@ func RetrieveDrive(driveId string) (Drive, error) {
 	)
 }
 
-func BrowseDrives(next string) (fnd.PageV2[Drive], error) {
+type BrowseDrivesFlags struct {
+	FilterProviderIds util.Option[string] `json:"filterProviderIds"`
+}
+
+func BrowseDrives(next string, flags BrowseDrivesFlags) (fnd.PageV2[Drive], error) {
 	return c.ApiBrowse[fnd.PageV2[Drive]](
 		driveCtrlNamespace+"browse",
 		driveCtrlContext,

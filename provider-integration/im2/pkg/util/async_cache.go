@@ -78,8 +78,7 @@ func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 
 	c.entries[key] = entry
 
-	// Unlock the mutex and then wait for the result
-	c.mutex.Unlock()
+	// Unlock the mutex and then wait for the result c.mutex.Unlock()
 	return entry.Result()
 }
 
@@ -131,4 +130,24 @@ func (c *AsyncCache[K, V]) attemptPurge() {
 	} else {
 		c.mutex.RUnlock()
 	}
+}
+
+func (c *AsyncCache[K, V]) FindEntry(predicate func(V) bool) (key K, value V, ok bool) {
+	c.attemptPurge()
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	for k, v := range c.entries {
+		if !v.Value.IsSet() {
+			continue
+		}
+
+		actualValue := v.Value.Get()
+		if predicate(actualValue) {
+			return k, actualValue, true
+		}
+	}
+
+	ok = false
+	return
 }

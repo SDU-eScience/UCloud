@@ -8,7 +8,7 @@ import (
 )
 
 type PageV2[T any] struct {
-	Items        []T                 `json:"items,omitempty"`
+	Items        []T                 `json:"items"`
 	Next         util.Option[string] `json:"next,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 }

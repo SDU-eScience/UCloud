@@ -55,6 +55,14 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 	return err
 }
 
+func getDebugPort(uid uint32) (int, bool) {
+	// TODO add this to config make it clear that this is insecure and for development _only_
+	if uid == 11043 {
+		return 51234, true
+	}
+	return 0, false
+}
+
 func MapUCloudToLocal(username string) (uint32, bool) {
 	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", uidMapPrefix, username))
 	if !ok {
@@ -210,7 +218,17 @@ func controllerConnection(mux *http.ServeMux) {
 					args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
 					args = append(args, "-u")
 					args = append(args, fmt.Sprintf("#%v", uid))
+					debugPort, shouldDebug := getDebugPort(uid)
+					if shouldDebug {
+						args = append(args, "/usr/bin/dlv")
+						args = append(args, "exec")
+					}
 					args = append(args, exe)
+					if shouldDebug {
+						args = append(args, "--headless", "--api-version=2", "--continue", "--accept-multiclient")
+						args = append(args, fmt.Sprintf("--listen=0.0.0.0:%v", debugPort))
+						args = append(args, "--")
+					}
 					args = append(args, "user")
 					args = append(args, fmt.Sprint(port))
 

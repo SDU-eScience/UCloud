@@ -7,7 +7,7 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.15"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.23"
 const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-39"
 
 sealed class PortAllocator {
@@ -963,6 +963,14 @@ sealed class ComposeService {
                         "command": ["sleep", "inf"],
                         "hostname": "go-slurm",
                         "init": true,
+                        "ports": [
+                          "${portAllocator.allocate(51233)}:51233",
+                          "${portAllocator.allocate(51234)}:51234",
+                          "${portAllocator.allocate(51235)}:51235",
+                          "${portAllocator.allocate(51236)}:51236",
+                          "${portAllocator.allocate(51237)}:51237",
+                          "${portAllocator.allocate(51238)}:51238"
+                        ],
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",
                           "${imData.absolutePath}:/etc/ucloud",

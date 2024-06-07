@@ -124,7 +124,7 @@ func ListPrefix[T any](prefix string) []T {
 
 	for k, v := range db {
 		if strings.HasPrefix(k, prefix) {
-			result = append(result, v)
+			result = append(result, v.(T))
 		}
 	}
 	return result
