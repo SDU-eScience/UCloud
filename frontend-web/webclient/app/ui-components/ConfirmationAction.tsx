@@ -12,10 +12,10 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
         --progress-border: var(--backgroundDefault, #f00);
         --progress-active: var(--textPrimary, #f00);
-        --progress-success: var(--color, #f00);
+        --progress-success: white;
         --color: var(--errorContrast);
         --background: var(--errorMain, #f00);
-        --tick-stroke: var(--progress-active);
+        --tick-stroke: white;
         
         outline: none;
         user-select: none;
@@ -50,7 +50,6 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         left: 15px;
         position: absolute;
         overflow-y: hidden;
-        background: var(--progress-border);
         transition: transform .3s, opacity .2s;
         opacity: var(--icon-o, 0);
         transform: translateX(var(--icon-x, -4px));
@@ -86,7 +85,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         stroke-dashoffset: 1;
         stroke-dasharray: var(--progress-array, 0) 52;
         stroke-width: 16;
-        stroke: var(--progress-active);
+        stroke: white;
         transition: stroke-dasharray var(--duration) linear;
     }
 
@@ -187,7 +186,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         --icon-x: 6px;
         --progress-border: none;
         --progress-scale: .11;
-        --tick-stroke: var(--progress-success);
+        --tick-stroke: white;
         --background-scale: 0;
         --tick-offset: 36;
         --ul-y: -200%;
