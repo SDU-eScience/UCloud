@@ -296,13 +296,13 @@ export interface ResourceBrowseFeatures {
     showColumnTitles?: boolean;
 }
 
-export interface ColumnTitle {
+export interface ColumnTitle<SortById = string> {
     name: string;
     columnWidth: number;
-    sortById?: string;
+    sortById?: SortById;
 }
 
-export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, ColumnTitle, ColumnTitle];
+export type ColumnTitleList<SortById = string> = [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>];
 
 export class ResourceBrowser<T> {
     // DOM component references
