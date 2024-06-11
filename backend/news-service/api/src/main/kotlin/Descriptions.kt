@@ -76,7 +76,8 @@ object News : CallDescriptionContainer("news") {
         description = """
             News communicates to users about new features, bug fixes and upcoming maintenance.
             
-            Only administrators of UCloud can create news posts. All posts are publicly readable. 
+            Only administrators of UCloud can create news posts. All posts are publicly readable unless they are
+            explicitly marked as `hidden`.
             
             Administrators can view hidden posts using `withHidden = true`. This flag is not usable by normal users.
         """.trimIndent()
@@ -140,7 +141,7 @@ object News : CallDescriptionContainer("news") {
             )
         }
 
-        useCase("invisible-news", "Making a news post as hidden") {
+        useCase("invisible-news", "Marking a news post as hidden") {
             val user = actor("admin", "UCloud Admin")
             success(
                 newPost,
