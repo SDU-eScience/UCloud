@@ -19,6 +19,7 @@ data class ApplicationMetadata(
     val public: Boolean,
     val flavorName: String?,
     val group: ApplicationGroup?,
+    val createdAt: Long?,
     val isPublic: Boolean,
 )
 ```
@@ -121,6 +122,17 @@ The metadata describes information mostly useful for presentation purposes. The 
 <details>
 <summary>
 <code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a>?</code></code> The ApplicationGroup of the Application
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 

@@ -20,7 +20,7 @@ data class Request(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 

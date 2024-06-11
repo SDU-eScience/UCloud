@@ -118,6 +118,9 @@ GitHub, to track the various stages of the lifecycle of an issue and to manage b
 __NOTE(Dan, 13/02/23):__ In the cloud team, we have recently been experimenting with doing the roadmap in an external 
 spreadsheet due to unreliable behavior in ZenHub.
 
+__NOTE(Dan, 06/06/24):__ Note from 13/02/23 is still true. We will likely get rid of ZenHub for this reason, but a
+decision has not been made.
+
 ### Documentation
 
 Technical documentation of UCloud is kept in the same repository as the source code. This means that all documentation
@@ -168,8 +171,8 @@ discussed on GitHub. Instead, the normal procedures for communication and incide
 
 The Project Leader confirms the classification when the issue is being assigned to a developer.
 
-In case of a bug the severity must be evaluated by the Project Leader, and he can decide whether a system lock down is
-necessary.
+In case of a vulnerability the severity must be evaluated by the Project Leader, and they can decide whether a system
+lock down is necessary.
 
 When escalating an incident a ticket have to be created within the help-desk system which will hold the documentation.
 The ISMS will receive a notification through email.
@@ -178,22 +181,23 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 
 ## Monitoring and Auditing
 
-All relevant logs are consumed using the ElasticSearch, FileBeat and Kibana stack and presented in real time.
-The output is mainly presented as Kibana and Grafana views using a number of
-thresholds for the system events. The auditing system is described [here](./auditing.md).
+Audit logs are consumed using the ElasticSearch and Kibana stack and presented in real time. Free-text logs are consumed
+by Loki (see infrastructure documentation for details). The output is mainly presented as Kibana and Grafana views
+using a number of thresholds for the system events. The auditing system is described [here](./auditing.md).
 
 The relevant teams monitor the output.
 
 The output can be grouped in 2 categories:
 
-1. Overall health from a hardware and software perspective. Latencies, hardware utilisation, network traffic etc.
+1. Overall health from a hardware and software perspective.
+   - For example: Latencies, hardware utilisation, network traffic etc.
+2. User behavior
+   - For example: login attempts (successful and errors), network traffic (down and up stream)
 
-2. User behavior- like login attempts (successful and errors), network traffic (down and up stream)
+If undesired system behavior is observed - the Project Leader will be notified by an automatically generated alert and
+decide what action must be taken. The generated support alert will hold the relevant information.
 
-If undesired system behavior is observed - the Project Leader will be notified by an automatically generated ticket and
-decide what action must be taken.  The generated support ticket will hold the documentation/comments.
-
-If the issue involves a user or an UCloud project the relevant user/PI will be notified.
+If the issue involves a user or an UCloud project the relevant user/PI will be notified by the relevant team.
 
 ### Security related issues
 

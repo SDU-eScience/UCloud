@@ -884,14 +884,27 @@ JobsProvider.create.call(
                 ), 
                 metadata = ApplicationMetadata(
                     authors = listOf("UCloud"), 
+                    createdAt = 1717663228341, 
                     description = "An example application", 
                     flavorName = null, 
                     group = ApplicationGroup(
-                        defaultApplication = null, 
-                        description = null, 
-                        id = 0, 
-                        tags = emptyList(), 
-                        title = "Test Group", 
+                        metadata = ApplicationGroup.Metadata(
+                            id = 0, 
+                        ), 
+                        specification = ApplicationGroup.Specification(
+                            categories = emptySet(), 
+                            colorReplacement = ApplicationGroup.ColorReplacements(
+                                dark = null, 
+                                light = null, 
+                            ), 
+                            defaultFlavor = null, 
+                            description = "", 
+                            logoHasText = false, 
+                            title = "Test Group", 
+                        ), 
+                        status = ApplicationGroup.Status(
+                            applications = null, 
+                        ), 
                     ), 
                     isPublic = true, 
                     name = "acme-batch", 
@@ -1184,13 +1197,26 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "public": true,
                         "flavorName": null,
                         "group": {
-                            "id": 0,
-                            "title": "Test Group",
-                            "description": null,
-                            "defaultApplication": null,
-                            "tags": [
-                            ]
-                        }
+                            "metadata": {
+                                "id": 0
+                            },
+                            "specification": {
+                                "title": "Test Group",
+                                "description": "",
+                                "defaultFlavor": null,
+                                "categories": [
+                                ],
+                                "colorReplacement": {
+                                    "light": null,
+                                    "dark": null
+                                },
+                                "logoHasText": false
+                            },
+                            "status": {
+                                "applications": null
+                            }
+                        },
+                        "createdAt": 1717663228341
                     },
                     "invocation": {
                         "tool": {
@@ -2034,7 +2060,7 @@ UCloud/Core already.
 
 [![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Retrieve information about how busy the provider's cluster currently is_
 

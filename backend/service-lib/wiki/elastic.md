@@ -1,15 +1,18 @@
-To help make our metadata on files and applications searchable and to keep our logging information we use
-[Elasticsearch](https://www.elastic.co/products/elasticsearch). This is done by having two separate Elasticsearch
-clusters: One for logs and another for metadata.
+# ElasticSearch
 
-## Shared Configuration and General Setup
+To keep our auditing logging information we use [Elasticsearch](https://www.elastic.co/products/elasticsearch). 
 
-Both clusters consists of 3+ data nodes, 3 master nodes and 2+ client nodes.
+## Configuration and General Setup
 
-Elasticsearch tries to distribute data evenly between its data nodes, however it supports that if a node crosses certain
-thresholds called [watermarks](https://www.elastic.co/guide/en/elasticsearch/reference/current/disk-allocator.html) it
-will take action to try to redistribute, if available, or to stop nodes from creating more shards. In worst case it
-makes the node read-only until the problem has been resolved. These limitation are divided into 3 different levels and
+The Elasticsearch cluster consists of 3 nodes. To be able to have an efficient cluster of this size each
+node have multiple roles in the cluster. Each node is able to handle ingestion of data, data storage, 
+node distribution, and client requests. 
+
+Elasticsearch tries to distribute data evenly between its data nodes, however it 
+supports that if a node crosses certain thresholds called [watermarks](https://www.elastic.co/guide/en/elasticsearch/reference/current/disk-allocator.html) it
+will take action to try to redistribute, if available, or to stop nodes from 
+creating more shards. In worst case it makes the node read-only until the problem 
+has been resolved. These limitation are divided into 3 different levels and
 are shared by both clusters:
 
 - Low: No more shards for replicas can be allocated to this node.
@@ -18,42 +21,17 @@ are shared by both clusters:
   only
   be removed manually by the cluster admin after fixing the storage problem.
 
-## Metadata Searching
-
-We mainly use our metadata on applications to enable quick and efficient searching.
-
-### Applications
-
-When an application is created name, version, title and tags are also created in the application index of our metadata
-Elasticsearch cluster. This information is used to enable advanced search of applications in an efficient manner.
-Just as with files, any update to an application would also be seen in the index.
-
 ## Logging/Audit
 
-All logging/Auditing resides in a single Elasticsearch cluster that only contains logs. We are receiving logs through
-"three" different channels (see figure below).
+All auditing resides in a single Elasticsearch cluster that only contains logs. All auditing
+is collected by the auditing service and then formattet and inserted into the ElasticSearch cluster as shown below.
 
-1. All audit logs created when users are using the cloud service
-2. All system logs from each of the nodes connected to the cluster
-3. All `stderr`/`stdout` from each pod running in the kubernetes cluster
-
-![Logging overview](/backend/service-lib/wiki/LogFlow.png)
+![Logging overview](/Users/schulz/Desktop/UCloud/backend/service-lib/wiki/newLogFlow.png)
 
 ### Cloud Service Auditing Ingestion
 
 The audit logs are created by the users preforming actions on the cloud service and thereby creating events. These
 events are stored in Redis. The Audit Ingestion Service then collects these events and places in their respective index.
-
-### Node Log Ingestion
-
-Each node in the cluster have a [Filebeat](https://www.elastic.co/products/beats/filebeat) instance installed. The
-Filebeat checks the predetermined log files on the nodes. If the log file changes, this change is collected by Filebeat
-and forwarded to the Elasticsearch cluster.
-
-### Pod Log Ingestion
-
-To get the logs from our pods on Kubernetes, we use Filebeat as well. An instance on each node collects logs from each
-pod running on that particular node. These logs are then forwarded to the Elasticsearch cluster.
 
 ### Data Retention and Automated Curation
 
@@ -76,8 +54,8 @@ last 180 days of logs but instead only the last 7 days.
 ## Upgrade Procedures
 
 The person responsible for Elasticsearch should be on the Elasticsearch e-mailing list. If a new version is released,
-it would be necessary to upgrade the deployed clusters. This is done by first upgrading the master nodes, then the
-client and finally the data nodes. This procedure is done manually. The nodes should be removed and added one
+it would be necessary to upgrade the deployed clusters. This is performed by first a rolling upgrade, updating one node 
+at a time. This procedure is done manually. The nodes should be removed and added one
 at a time and be allowed to rejoin the cluster before proceeding. When an update is applied, the Elasticsearch API used
 by the services should also be upgraded and in case of deprecation: Rewrite/update of codebase.
 
@@ -89,8 +67,7 @@ do not have access to more actions than necessary.
 ## Kibana
 
 [Kibana](https://www.elastic.co/products/kibana) is our dashboard for searching and navigating the large amount
-of logs that are generated. This is also username/password protected and the user also have different roles/privileges
-according to their needs. By using Kibana we can search logs for a given period in either the http_logs or the
-filebeat/node logs. It also gives us possibility to search the file and applications metadata. 
+of auditlogs that are generated. This is also username/password protected and the user also have different roles/privileges
+according to their needs. By using Kibana we can search logs for a given period in the http_logs. 
 
 

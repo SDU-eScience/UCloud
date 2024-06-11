@@ -11,7 +11,7 @@ The person responsible for our logging architecture has the 2FA and other creden
 
 Placeholders:
 
-For easy use pof the following curl commands create the following variables in the terminal.
+For easy use pof the following curl -k commands create the following variables in the terminal.
 E.g on MacOS use 'export [variable_name]=[variable_value]'.
 
 - `$DATE` should be replaced with the current date (format YYYY.MM.DD)
@@ -40,11 +40,11 @@ Verification:
 Request #1:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createfolder-$DATE/_search?pretty -d "
+curl -k -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.createfolder-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -67,11 +67,11 @@ Should contain:
 Request #2:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.createupload-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -95,7 +95,7 @@ Request #3:
 
 Collection level
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.retrieve-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.collections.retrieve-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -114,7 +114,7 @@ Should contain:
               .
               .
             },
-            "id" : "43430"
+            "id" : "RANDOM_ID"
           },
           "responseCode" : 404,
 
@@ -122,7 +122,7 @@ Should contain:
 ---
 Folder level:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.retrieve-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.retrieve-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -141,7 +141,7 @@ Should contain:
               .
               .
             },
-            "id" : "/43430/Mojn"
+            "id" : "/RANDOM_ID/Audit-$DATE"
           },
           "responseCode" : 400,
 
@@ -153,11 +153,11 @@ Should contain:
 Request #4:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.copy-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.copy-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -187,11 +187,11 @@ by providing a (1), (2) etc. to the file name
 Request #4:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.trash-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.trash-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -214,11 +214,11 @@ Should contain:
 Request #5:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.move-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -243,11 +243,11 @@ Should contain:
 Request #6:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.metadata.create-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.metadata.create-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -277,11 +277,11 @@ Should contain:
 Request #7:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.metadata.delete-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.metadata.delete-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"token.principal.username:$USERNAME\"
+      \"query\": \"token.principal.username:$USERNAME1\"
     }
   }
 }"
@@ -323,6 +323,7 @@ should be audit1.
     should be audit3.
 - `$ELASTIC_USER` an admin user of the elastic cluster
 - `$ELASTIC_PASSWORD` matching password of the admin user
+- `$APPOROVERID` matching userid of grant approver
 
 Steps:
 
@@ -349,11 +350,11 @@ Be aware that the responses contain project IDs that changes for each test. Thes
 Request #1:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_notifications.create-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_grants.v2.updatestate-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
-      \"query\": \"requestJson.user:$USERNAME1\"
+      \"query\": \"token.principal.username:$APPROVERID\"
     }
   }
 }"
@@ -362,28 +363,15 @@ curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" local
 Should contain:
 ```
 "requestJson" : {
-    "user" : "audit1",
-    "notification" : {
-      "type" : "GRANT_APPLICATION_RESPONSE",
-      "message" : "Grant application updated (Approved)",
-      "id" : null,
-      "meta" : {
-        "grantRecipient" : {
-          "type" : "newProject",
-          "title" : "AUDITTEST-$DATE"
-        },
-        "appId" : APPLICATION_ID
-      },
-      "ts" : 1672876712302,
-      "read" : false
-    }
-}
+    "applicationId" :  "APPLICATION ID",
+    "newState" : "APPROVED"
+  },
 ```
 ---
 Request #2:
 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -405,7 +393,7 @@ Should contain:
 ---
 Request #3:
 ```
- curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty -d "
+ curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -428,7 +416,7 @@ Should contain:
 ---
 Request #4:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.changerole-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.changerole-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -452,7 +440,7 @@ Should contain:
 ---
 Request #5: 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.createinvite-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -475,7 +463,7 @@ Should contain:
 ---
 Request #6:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.acceptinvite-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -499,7 +487,7 @@ Should contain:
 ---
 Request #7
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.createupload-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.createupload-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -527,7 +515,7 @@ Should contain:
 ---
 Request #8:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.metadata.create-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.metadata.create-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -561,7 +549,7 @@ Request #9:
 
 Group Creation:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.creategroup-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.creategroup-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -585,7 +573,7 @@ Should contain:
 
 Adding Member:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_projects.v2.creategroupmember-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_projects.v2.creategroupmember-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -610,7 +598,7 @@ Should contain:
 
 Request #9:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.move-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -638,7 +626,7 @@ Should contain:
 Request #10:
 Drive creation:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.create-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.collections.create-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -666,7 +654,7 @@ Should contain:
 
 Permission setting: 
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -710,7 +698,7 @@ Should contain:
 
 Request #11:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.move-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -740,7 +728,7 @@ Should contain:
 Request #12:
 Permission setting:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.collections.updateacl-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {
@@ -785,7 +773,7 @@ Should contain:
 
 Request #13:
 ```
-curl -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" localhost:9200/http_logs_files.move-$DATE/_search?pretty -d "
+curl -k -u $ELASTIC_USER:$ELASTIC_PASSWORD -H "Content-type:application/json" "https://localhost:9200/http_logs_files.move-$DATE/_search?pretty" -d "
 {
   \"query\": {
     \"query_string\": {

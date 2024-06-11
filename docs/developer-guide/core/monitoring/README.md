@@ -15,7 +15,5 @@
  - [Jenkins](/docs/developer-guide/core/monitoring/jenkins.md)
  - [ElasticSearch](/docs/developer-guide/core/monitoring/elastic.md)
  - [Grafana](/docs/developer-guide/core/monitoring/grafana.md)
- - [Kubernetes Recovery](/docs/developer-guide/core/monitoring/k8-recovery.md)
- - [Stolon Recovery](/docs/developer-guide/core/monitoring/stolon-recovery.md)
  - [Alerting](/docs/developer-guide/core/monitoring/alerting.md)
  - [Management Scripts](/docs/developer-guide/core/monitoring/scripts/README.md)

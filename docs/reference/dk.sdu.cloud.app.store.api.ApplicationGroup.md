@@ -9,11 +9,9 @@
 
 ```kotlin
 data class ApplicationGroup(
-    val id: Int,
-    val title: String,
-    val description: String?,
-    val defaultApplication: String?,
-    val tags: List<String>?,
+    val metadata: ApplicationGroup.Metadata,
+    val specification: ApplicationGroup.Specification,
+    val status: ApplicationGroup.Status?,
 )
 ```
 
@@ -24,7 +22,7 @@ data class ApplicationGroup(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>metadata</code>: <code><code><a href='#applicationgroup.metadata'>ApplicationGroup.Metadata</a></code></code>
 </summary>
 
 
@@ -35,7 +33,7 @@ data class ApplicationGroup(
 
 <details>
 <summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>specification</code>: <code><code><a href='#applicationgroup.specification'>ApplicationGroup.Specification</a></code></code>
 </summary>
 
 
@@ -46,29 +44,7 @@ data class ApplicationGroup(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>defaultApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
+<code>status</code>: <code><code><a href='#applicationgroup.status'>ApplicationGroup.Status</a>?</code></code>
 </summary>
 
 
