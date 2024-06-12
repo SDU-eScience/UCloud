@@ -161,7 +161,8 @@ interface UsageAndQuota {
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
+    | {type: "Reset"}
+    | {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
     | {type: "ManagedProvidersLoaded", providerIds: string[]}
     | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
     | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
@@ -418,6 +419,10 @@ function stateReducer(state: State, action: UIAction): State {
             }
 
             return rebuildTree(newState);
+        }
+
+        case "Reset": {
+            return initialState();
         }
     }
 
@@ -823,10 +828,9 @@ const Allocations: React.FunctionComponent = () => {
     const didCancel = useDidUnmount();
     const projectId = useProjectId();
     const navigate = useNavigate();
-    const [state, rawDispatch] = useReducer(stateReducer, initialState);
+    const [state, rawDispatch] = useReducer(stateReducer, initialState());
     const dispatchEvent = useStateReducerMiddleware(didCancel, rawDispatch);
     const avatars = useAvatars();
-    const searchTimeout = useRef<number>(0);
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
@@ -836,6 +840,7 @@ const Allocations: React.FunctionComponent = () => {
     usePage("Allocations", SidebarTabId.PROJECT);
 
     useEffect(() => {
+        dispatchEvent({type: "Reset"});
         dispatchEvent({type: "Init"});
     }, [projectId]);
 
@@ -1942,12 +1947,14 @@ async function fetchManagedProviders(): Promise<string[]> {
 
 // Initial state
 // =====================================================================================================================
-const initialState: State = {
-    remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
-    subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
-    yourAllocations: {},
-    editControlsDisabled: false,
-    viewOnlyProjects: true,
+function initialState(): State {
+    return {
+        remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
+        subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
+        yourAllocations: {},
+        editControlsDisabled: false,
+        viewOnlyProjects: true,
+    };
 };
 
 const NO_EXPIRATION_FALLBACK = 4102444800353;
