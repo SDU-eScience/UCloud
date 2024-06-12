@@ -3,7 +3,6 @@ package database
 import (
 	"database/sql"
 	"fmt"
-
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"ucloud.dk/pkg/log"
@@ -82,19 +81,19 @@ func Connect() ReadyToOpenTransaction {
 	}
 }
 
-func (ctx *Transaction) Exec(query string, args ...any) {
-	res, err := ctx.Transaction.Exec(query, args...)
+//func (ctx *Transaction) Exec(query string, args ...any) {
+//	res, err := ctx.Transaction.Exec(query, args...)
+//
+//	affected, _ := res.RowsAffected()
+//	fmt.Printf("Exec result: %d\n", affected)
+//
+//	if err != nil {
+//		ctx.Ok = false
+//		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
+//	}
+//}
 
-	affected, _ := res.RowsAffected()
-	fmt.Printf("Exec result: %d\n", affected)
-
-	if err != nil {
-		ctx.Ok = false
-		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
-	}
-}
-
-func (ctx *Transaction) NamedExec(query string, arg interface{}) {
+func (ctx *Transaction) Exec(query string, arg any) {
 	_, err := ctx.Transaction.NamedExec(query, arg)
 
 	if err != nil {
@@ -103,19 +102,20 @@ func (ctx *Transaction) NamedExec(query string, arg interface{}) {
 	}
 }
 
-func (ctx *Transaction) Query(query string, arg interface{}) *sqlx.Rows {
-	res, err := ctx.Transaction.Queryx(query, arg)
+//
+//func (ctx *Transaction) Query(query string, arg interface{}) *sqlx.Rows {
+//	res, err := ctx.Transaction.Queryx(query, arg)
+//
+//	if err != nil {
+//		log.Debug("Something went horribly wrong")
+//		ctx.Ok = false
+//		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
+//	}
+//
+//	return res
+//}
 
-	if err != nil {
-		log.Debug("Something went horribly wrong")
-		ctx.Ok = false
-		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
-	}
-
-	return res
-}
-
-func (ctx *Transaction) NamedQuery(query string, arg interface{}) *sqlx.Rows {
+func (ctx *Transaction) Query(query string, arg any) *sqlx.Rows {
 	res, err := ctx.Transaction.NamedQuery(query, arg)
 
 	if err != nil {
@@ -127,20 +127,73 @@ func (ctx *Transaction) NamedQuery(query string, arg interface{}) *sqlx.Rows {
 	return res
 }
 
-func (ctx *Transaction) Get(dest interface{}, query string, args ...interface{}) {
-	err := ctx.Transaction.Get(dest, query, args...)
+func (ctx *Transaction) Get(dest any, query string, args any) {
+	res, err := ctx.Transaction.NamedQuery(query, args)
+	if err != nil {
+		ctx.Ok = false
+		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+		return
+	}
 
+	count := 0
+	for res.Next() {
+		count++
+		err = res.StructScan(dest)
+
+		if err != nil {
+			ctx.Ok = false
+			ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+			return
+		}
+	}
+
+	if count != 1 {
+		ctx.Ok = false
+		ctx.Error = DBError{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v", count, query)}
+		return
+	}
+}
+
+func Exec(ctx *Transaction, query string, args any) {
+	_, err := ctx.Transaction.NamedExec(query, args)
 	if err != nil {
 		ctx.Ok = false
 		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
 	}
 }
 
-func (ctx *Transaction) Select(dest interface{}, query string, args ...interface{}) {
-	err := ctx.Transaction.Select(dest, query, args...)
+func Get[T any](ctx *Transaction, query string, args any) T {
+	items := Select[T](ctx, query, args)
+	if len(items) != 1 {
+		var dummy T
+		ctx.Ok = false
+		ctx.Error = DBError{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v", len(items), query)}
+		return dummy
+	}
+	return items[0]
+}
 
+func Select[T any](ctx *Transaction, query string, args any) []T {
+	var result []T
+	res, err := ctx.Transaction.NamedQuery(query, args)
 	if err != nil {
 		ctx.Ok = false
-		ctx.Error = DBError{"Database select failed: " + err.Error() + "\nquery: " + query}
+		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+		return nil
 	}
+
+	for res.Next() {
+		var item T
+		err = res.StructScan(&item)
+
+		result = append(result, item)
+
+		if err != nil {
+			ctx.Ok = false
+			ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+			return nil
+		}
+	}
+
+	return result
 }
