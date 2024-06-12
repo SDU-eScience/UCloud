@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -9,7 +10,7 @@ import (
 )
 
 type DBSession interface {
-	Open() DBSession
+	Open() *Transaction
 	Close()
 	Exec(query string, args ...any)
 	Query(query string, args ...any) *sql.Rows
@@ -18,16 +19,19 @@ type DBSession interface {
 }
 
 type DBContext interface {
-	Open() DBSession
+	Open() *Transaction
 }
 
 type ReadyToOpenTransaction struct {
 	Connection *sqlx.DB
 }
 
-func (ctx *ReadyToOpenTransaction) Open() DBSession {
+func (ctx *ReadyToOpenTransaction) Open() *Transaction {
 	tx, _ := ctx.Connection.Beginx()
-	return &Transaction{Transaction: tx}
+	return &Transaction{
+		Transaction: tx,
+		Ok:          true,
+	}
 }
 
 type Transaction struct {
@@ -41,8 +45,9 @@ type DBError struct {
 	Message string
 }
 
-func (ctx *Transaction) Open() DBSession {
+func (ctx *Transaction) Open() *Transaction {
 	ctx.Depth++
+	ctx.Ok = true
 	return ctx
 }
 
@@ -64,9 +69,12 @@ func (ctx *Transaction) Close() {
 }
 
 func Connect() ReadyToOpenTransaction {
-	db, err := sqlx.Open("postgres", "postgres://postgres:postgres@localhost/postgres")
+	db, err := sqlx.Open(
+		"postgres",
+		"user=postgres dbname=postgres password=postgres host=localhost port=5432 sslmode=disable",
+	)
 	if err != nil {
-		log.Error("Could not open database %v", err)
+		log.Fatal("Could not open database %v", err)
 	}
 
 	return ReadyToOpenTransaction{
@@ -75,7 +83,10 @@ func Connect() ReadyToOpenTransaction {
 }
 
 func (ctx *Transaction) Exec(query string, args ...any) {
-	_, err := ctx.Transaction.Exec(query, args...)
+	res, err := ctx.Transaction.Exec(query, args...)
+
+	affected, _ := res.RowsAffected()
+	fmt.Printf("Exec result: %d\n", affected)
 
 	if err != nil {
 		ctx.Ok = false
@@ -83,10 +94,32 @@ func (ctx *Transaction) Exec(query string, args ...any) {
 	}
 }
 
-func (ctx *Transaction) Query(query string, args ...any) *sql.Rows {
-	res, err := ctx.Transaction.Query(query, args...)
+func (ctx *Transaction) NamedExec(query string, arg interface{}) {
+	_, err := ctx.Transaction.NamedExec(query, arg)
 
 	if err != nil {
+		ctx.Ok = false
+		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
+	}
+}
+
+func (ctx *Transaction) Query(query string, arg interface{}) *sqlx.Rows {
+	res, err := ctx.Transaction.Queryx(query, arg)
+
+	if err != nil {
+		log.Debug("Something went horribly wrong")
+		ctx.Ok = false
+		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
+	}
+
+	return res
+}
+
+func (ctx *Transaction) NamedQuery(query string, arg interface{}) *sqlx.Rows {
+	res, err := ctx.Transaction.NamedQuery(query, arg)
+
+	if err != nil {
+		log.Debug("Something went horribly wrong")
 		ctx.Ok = false
 		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
 	}

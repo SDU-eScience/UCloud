@@ -1,7 +1,7 @@
 package main
 
 import (
-	"os"
+	"fmt"
 
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/database"
@@ -16,7 +16,7 @@ func main() {
 		err := postgres.Start()
 
 		if err != nil {
-			log.Error("Postgres failed to start %v", err)
+			log.Fatal("Postgres failed to start: %v", err)
 		}
 		defer postgres.Stop()
 
@@ -27,10 +27,43 @@ func main() {
 		log.Debug("Opening")
 
 		session := db.Open()
+		defer session.Close()
 
-		session.Query("SELECT * from test")
+		if !session.Ok {
+			log.Fatal("Something went wrong 0: %s", session.Error.Message)
+		}
 
-		os.Exit(0)
+		session.Exec(`
+			create table if not exists test (
+				id integer primary key,
+				name varchar(40)
+			)
+		`)
+
+		if !session.Ok {
+			log.Fatal("Something went wrong 1: %s", session.Error.Message)
+		}
+
+		session.Exec(`
+			insert into test (id, name) values (1, 'Brian')
+		`)
+
+		if !session.Ok {
+			log.Fatal("Something went wrong 2: %s", session.Error.Message)
+		}
+
+		var name string
+		session.Get(&name, "select name from test where id = $1",
+			1,
+		)
+
+		if !session.Ok {
+			log.Fatal("Something went wrong 3: %s", session.Error.Message)
+		}
+
+		fmt.Println(name)
+
+		return
 	}
 
 	launcher.Launch()

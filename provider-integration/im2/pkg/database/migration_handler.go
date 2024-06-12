@@ -13,7 +13,7 @@ type MigrationHandler struct {
 
 type MigrationScript struct {
 	Id      string
-	Execute func(connection *DBContext)
+	Execute func(ctx *Transaction)
 }
 
 func (handler MigrationHandler) migrate() {
@@ -43,7 +43,7 @@ func (handler MigrationHandler) migrate() {
 			insert into migrations(id) values ($1) on conflict ($1) do nothing
 		`, script.Id)
 
-		if !handler.DB.Ok {
+		if !session.Ok {
 			log.Fatalf("Failed to register migration %s", script.Id)
 		}
 
@@ -55,7 +55,7 @@ func (handler MigrationHandler) migrate() {
 		where cm.id is null
 	`)
 
-	if !handler.DB.Ok {
+	if !session.Ok {
 		log.Fatalf("Failed to fetch missing migrations")
 	} else {
 		for notCompleted.Next() {
@@ -75,14 +75,14 @@ func (handler MigrationHandler) migrate() {
 	for _, migrationId := range missingMigrations {
 		migration := groupedScripts[migrationId]
 
-		migration.Execute(handler.DB)
+		migration.Execute(session)
 
 		// NOTE(Dan): This needs to be prepared everytime because of schema changes made by the migrations.
 		handler.DB.Exec(`
 			insert into completed_migrations (id, completed_at) values ($1, now())
 		`, migrationId)
 
-		if !handler.DB.Ok {
+		if !session.Ok {
 			log.Fatalf("Failed to run migration: %s", migrationId)
 		}
 	}
