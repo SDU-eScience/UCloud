@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/util"
 
 	"ucloud.dk/pkg/log"
 )
@@ -23,13 +24,14 @@ const (
 type Params map[string]any
 
 type Client struct {
-	httpClient http.Client
-	baseurl    string
-	username   string
-	password   string
+	httpClient  http.Client
+	baseurl     string
+	username    string
+	password    string
+	authTimeout time.Time
 }
 
-func NewClient(url string, verify bool, cacert string) *Client {
+func NewClient(url string, verify bool, cacert string, username, password string) *Client {
 	var certPool *x509.CertPool = nil
 	jar, _ := cookiejar.New(nil)
 
@@ -64,15 +66,22 @@ func NewClient(url string, verify bool, cacert string) *Client {
 			Timeout: time.Duration(5) * time.Second,
 			Jar:     jar,
 		},
-		baseurl: url + "/ipa/session",
+		baseurl:     url + "/ipa/session",
+		username:    username,
+		password:    password,
+		authTimeout: time.Now(),
 	}
 }
 
-func (c *Client) Authenticate(username, password string) bool {
+func (c *Client) doAuthenticate() bool {
+	if time.Now().Before(c.authTimeout) {
+		return false
+	}
+
 	urlstr := c.baseurl + "/login_password"
 	data := url.Values{}
-	data.Set("user", username)
-	data.Set("password", password)
+	data.Set("user", c.username)
+	data.Set("password", c.password)
 
 	req, err := http.NewRequest("POST", urlstr, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -86,20 +95,19 @@ func (c *Client) Authenticate(username, password string) bool {
 
 	resp, err := c.httpClient.Do(req)
 	if resp != nil {
-		defer resp.Body.Close()
+		defer util.SilentClose(resp.Body)
 	}
-	if err != nil {
+	if resp == nil || err != nil {
 		log.Error("http request failed: %v", err)
 		return false
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Error("authentication failed with status code %d", resp.StatusCode)
+		log.Error("authentication failed with status code %d. We will retry in 5 minutes.", resp.StatusCode)
+		c.authTimeout = time.Now().Add(5 * time.Minute)
 		return false
 	}
 
-	c.username = username
-	c.password = password
 	return true
 }
 
@@ -137,16 +145,21 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 
 	resp, err := c.httpClient.Do(req)
 	if resp != nil {
-		defer resp.Body.Close()
+		defer util.SilentClose(resp.Body)
 	}
-	if err != nil {
+	if resp == nil || err != nil {
 		log.Error("http request failed: %v", err)
 		return false
 	}
+	log.Info("Status code: %d", resp.StatusCode)
 
 	// Authentication error
 	if resp.StatusCode == http.StatusUnauthorized {
-		return false
+		if c.doAuthenticate() {
+			return c.Request(method, item, params, rw, rd)
+		} else {
+			return false
+		}
 	}
 
 	// Parse the reponse wrapper
@@ -188,6 +201,10 @@ func (c *Client) UserFind(u *User) ([]string, bool) {
 		"version": api_version,
 		"all":     true,
 		"raw":     true,
+	}
+
+	if len(u.Username) > 0 {
+		p["uid"] = u.Username
 	}
 
 	if len(u.EmployeeNumber) > 0 {

@@ -15,6 +15,7 @@ COPY slurm.conf /etc/slurm/slurm.conf
 COPY cgroup.conf /etc/slurm/cgroup.conf
 
 RUN yum -y install openmpi-devel python3
+RUN yum install -y sssd ipa-client
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig

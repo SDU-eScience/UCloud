@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.ComposeService.Kubernetes.buildAddon
 import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
 import dk.sdu.cloud.ComposeService.Slurm.service
 import java.util.Base64
@@ -7,8 +8,8 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.23"
-const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.0-dev-39"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.24"
+const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.24"
 
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
@@ -44,6 +45,16 @@ data class Environment(
                     for (service in services) {
                         with(service) {
                             build()
+                        }
+                    }
+
+                    val allAddons = listAddons()
+                    for ((providerName, addons) in allAddons) {
+                        val provider = ComposeService.providerFromName(providerName)
+                        with(provider) {
+                            for (addon in addons) {
+                                buildAddon(addon)
+                            }
                         }
                     }
                 }
@@ -91,6 +102,11 @@ class ComposeBuilder(val environment: Environment) {
 
 sealed class ComposeService {
     abstract fun ComposeBuilder.build()
+
+    open fun addons(): Set<String> = emptySet()
+    open fun ComposeBuilder.buildAddon(addon: String) {}
+    open fun installAddon(addon: String) {}
+    open fun startAddon(addon: String) {}
 
     fun ComposeBuilder.service(
         name: String,
@@ -585,12 +601,14 @@ sealed class ComposeService {
             compose.exec(
                 currentEnvironment,
                 "k8",
-                listOf("sh", "-c", """
+                listOf(
+                    "sh", "-c", """
                     while ! test -e "/mnt/k3s/kubeconfig.yaml"; do
                       sleep 1
                       echo "Waiting for Kubernetes to be ready..."
                     done
-                """.trimIndent()),
+                """.trimIndent()
+                ),
                 tty = false
             ).streamOutput().executeToText()
 
@@ -961,7 +979,7 @@ sealed class ComposeService {
                       {
                         "image": "$imDevImage",
                         "command": ["sleep", "inf"],
-                        "hostname": "go-slurm",
+                        "hostname": "go-slurm.ucloud",
                         "init": true,
                         "ports": [
                           "${portAllocator.allocate(51233)}:51233",
@@ -1011,6 +1029,135 @@ sealed class ComposeService {
 
             installMarker.writeText("done")
         }
+
+        override fun addons(): Set<String> = setOf(FREE_IPA_ADDON)
+
+        override fun ComposeBuilder.buildAddon(addon: String) {
+            when (addon) {
+                FREE_IPA_ADDON -> {
+                    val freeipa = "freeipaDataDir".also { volumes.add(it) }
+
+                    service(
+                        "free-ipa",
+                        "FreeIPA",
+                        Json(
+                            //language=json
+                            """
+                                {
+                                    "image": "quay.io/freeipa/freeipa-server:almalinux-9",
+                                    "command": ["ipa-server-install", "--domain=free-ipa.ucloud", "--realm=FREE-IPA.UCLOUD", "--netbios-name=FREE-IPA", "--no-ntp", "--skip-mem-check", "--ds-password=adminadmin", "--admin-password=adminadmin", "--unattended"],
+                                    "environment": {
+                                      "DEBUG_TRACE": "true",
+                                      "DEBUG_NO_EXIT": "true"
+                                    },
+                                    "hostname": "ipa.ucloud",
+                                    "init": false,
+                                    "privileged": false,
+                                    "volumes": [
+                                      "$freeipa:/data:Z",
+                                      "/sys/fs/cgroup:/sys/fs/cgroup"
+                                    ],
+                                    "sysctls": {
+                                      "net.ipv6.conf.all.disable_ipv6": "0"
+                                    },
+                                    "security_opt": [
+                                      "seccomp:unconfined"
+                                    ],
+                                    "cgroup": "host",
+                                    "stop_grace_period": "2s"
+                                }
+                            """
+                        ),
+                        serviceConvention = false,
+                    )
+                }
+            }
+        }
+
+        override fun installAddon(addon: String) {
+            when (addon) {
+                FREE_IPA_ADDON -> {
+                    compose.exec(
+                        currentEnvironment,
+                        "go-slurm",
+                        listOf(
+                            "sh", "-c", """
+                                while ! curl --silent -f http://ipa.ucloud/ipa/config/ca.crt > /dev/null; do
+                                  sleep 1
+                                  date
+                                  echo "Waiting for FreeIPA to be ready - Test #1 (expected to take up to 15 minutes)..."
+                                done
+                            """.trimIndent()
+                        ),
+                        tty = false
+                    ).streamOutput().executeToText()
+
+                    compose.exec(
+                        currentEnvironment,
+                        "free-ipa",
+                        listOf(
+                            "sh", "-c", """
+                                while ! echo adminadmin | kinit admin; do
+                                  sleep 1
+                                  date
+                                  echo "Waiting for FreeIPA to be ready - Test #2 (expected to take a few minutes)..."
+                                done
+                                
+                                echo "FreeIPA is now ready!"
+                            """.trimIndent()
+                        ),
+                        tty = false
+                    ).streamOutput().executeToText()
+
+                }
+            }
+        }
+
+        override fun startAddon(addon: String)  {
+            when (addon) {
+                FREE_IPA_ADDON -> {
+                    val clientsToEnroll = listOf(
+                        "go-slurm",
+                        "c1",
+                        "c2",
+                        "slurmctld",
+                        "slurmdbd"
+                    )
+
+                    clientsToEnroll.map { client ->
+                        Thread {
+                            printStatus("Enrolling $client in FreeIPA...")
+
+                            // NOTE(Dan): This will "fail" with a bunch of errors and warnings because of systemd.
+                            // It will, however, actually do all it needs to do. As a result, we supress the output
+                            // and always exit 0. sssd will fail if freeipa is not ready.
+                            compose.exec(
+                                currentEnvironment,
+                                client,
+                                listOf(
+                                    "sh", "-c", """
+                                        ipa-client-install --mkhomedir --domain ipa.ucloud --server ipa.ucloud --no-ntp \
+                                            --no-dns-sshfp --principal=admin --password=adminadmin --force-join --unattended || true;
+                                    """.trimIndent()
+                                ),
+                                tty = false,
+                            ).executeToText()
+
+                            // NOTE(Dan): This one is a bit flakey. Try a few times, this usually works.
+                            compose.exec(
+                                currentEnvironment,
+                                client,
+                                listOf("sh", "-c", "sssd || sssd || sssd || sssd")
+                            ).streamOutput().executeToText()
+
+                            printStatus("$client has been enrolled in FreeIPA!")
+                        }.also { it.start() }
+                    }.forEach { it.join() }
+                }
+            }
+        }
+
+        const val FREE_IPA_ADDON = "free-ipa"
     }
 
     object Gateway : ComposeService() {
@@ -1085,6 +1232,24 @@ sealed class ComposeService {
                     
                     https://slurm-pg.localhost.direct {
                         reverse_proxy slurmpgweb:8081
+                    }
+                    
+                    https://ipa.localhost.direct {
+                        handle / {
+                            redir https://ipa.localhost.direct/ipa/ui/
+                        }
+                        
+                        handle {
+                            reverse_proxy https://free-ipa {
+                                header_up Host ipa.ucloud
+                                header_up Referer "https://ipa.ucloud{uri}"
+                                
+                                transport http {
+                                    tls
+                                    tls_insecure_skip_verify
+                                }
+                            }
+                        }
                     }
                     
                     *.localhost.direct {
@@ -1204,7 +1369,7 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
               {
                 "image": "$slurmImage",
                 "command": ["slurmdbd", "sshd", "user-sync"],
-                "hostname": "slurmdbd",
+                "hostname": "slurmdbd.ucloud",
                 "volumes": [
                   "${passwdDir.absolutePath}:/mnt/passwd",
                   "${imHome}:/home",
@@ -1231,7 +1396,7 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
               {
                 "image": "$slurmImage",
                 "command": ["slurmctld", "sshd", "user-sync"],
-                "hostname": "slurmctld",
+                "hostname": "slurmctld.ucloud",
                 "volumes": [
                   "${passwdDir.absolutePath}:/mnt/passwd",
                   "${imHome}:/home",
@@ -1259,7 +1424,7 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
                   {
                     "image": "$slurmImage",
                     "command": ["slurmd", "sshd", "user-sync"],
-                    "hostname": "c$id",
+                    "hostname": "c$id.ucloud",
                     "volumes": [
                       "${passwdDir.absolutePath}:/mnt/passwd",
                       "${imHome}:/home",

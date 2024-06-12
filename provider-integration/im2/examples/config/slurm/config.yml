@@ -1,0 +1,104 @@
+provider:
+  id: go-slurm
+
+  hosts:
+    ucloud:
+      address: backend
+      port: 8080
+      scheme: http
+    self:
+      address: go-slurm
+      port: 8889
+      scheme: http
+    selfPublic:
+      address: go-slurm.localhost.direct
+      port: 443
+      scheme: https
+    ucloudPublic:
+      address: ucloud.localhost.direct
+      port: 443
+      scheme: https
+
+  ipc:
+    directory: /var/run/ucloud
+
+  logs:
+    directory: /var/log/ucloud
+    rotation:
+      enabled: true
+      retentionPeriodInDays: 180
+
+  envoy:
+    directory: /var/run/ucloud/envoy
+    executable: /usr/bin/envoy
+    funceWrapper: false
+
+services:
+  type: Slurm
+
+  identityManagement:
+    type: FreeIPA
+
+  fileSystems:
+    storage:
+      management:
+        type: Scripted
+        walletUpdated: /etc/ucloud/extensions/walletUpdated
+        fetchUsage: /etc/ucloud/extensions/fetchUsage
+
+      payment:
+        type: Resource
+        unit: GB
+
+      driveLocators:
+        home:
+          entity: User
+          pattern: "/home/#{username}"
+
+        projects:
+          entity: Project
+          pattern: "/work/#{title}"
+
+  # NOTE(Dan): Not obvious how to do this yet, so we are postponing its consideration.
+  #        collections:
+  #          entity: Collection
+  #          pattern: "/collections/#{id}"
+
+  #        memberFiles:
+  #          entity: MemberFiles
+  #          pattern: "/projects/#{project}/#{username}"
+
+  ssh:
+    enabled: true
+    installKeys: true
+    host:
+      address: frontend.localhost.direct
+      port: 22
+
+  licenses:
+    enabled: false
+
+  slurm:
+    accountManagement:
+      type: Scripted
+      walletUpdated: "/opt/ucloud/on-compute-wallet-updated"
+      fetchUsage: "/opt/ucloud/on-compute-wallet-updated"
+      accountMapper: "/opt/ucloud/on-compute-wallet-updated"
+
+    machines:
+      u1-standard:
+        partition: standard
+        constraint: standard
+
+        nameSuffix: Cpu
+
+        cpu: [ 1, 2, 4 ]
+        memory: [ 1, 2, 4 ]
+
+        cpuModel: Model
+        memoryModel: Model
+
+        payment:
+          type: Resource
+          unit: Cpu
+          interval: Hourly

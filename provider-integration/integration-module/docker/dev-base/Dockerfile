@@ -36,6 +36,9 @@ RUN tar -C /usr/local -xzf go*.tar.gz
 RUN echo 'export PATH=$PATH:/usr/local/go/bin' >> /root/.bashrc
 RUN rm go*.tar.gz
 
+# FreeIPA dependencies
+RUN yum install -y sssd ipa-client
+
 # UCloud
 WORKDIR /usr/bin
 RUN ln -s /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module ucloud

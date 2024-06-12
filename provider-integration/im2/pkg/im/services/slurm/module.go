@@ -7,6 +7,7 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
+	"ucloud.dk/pkg/im/services/idfreeipa"
 	"ucloud.dk/pkg/im/services/idscripted"
 	"ucloud.dk/pkg/log"
 )
@@ -19,9 +20,14 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ctrl.LaunchUserInstances = true
 	ctrl.Files = InitializeFiles()
 
-	switch config.IdentityManagement.Type {
-	case cfg.IdentityManagementTypeScripted:
-		idscripted.Init(config.IdentityManagement.Scripted())
+	// Identity management
+	if cfg.Mode == cfg.ServerModeServer {
+		switch config.IdentityManagement.Type {
+		case cfg.IdentityManagementTypeScripted:
+			idscripted.Init(config.IdentityManagement.Scripted())
+		case cfg.IdentityManagementTypeFreeIpa:
+			idfreeipa.Init(config.IdentityManagement.FreeIPA())
+		}
 	}
 
 	// IPC

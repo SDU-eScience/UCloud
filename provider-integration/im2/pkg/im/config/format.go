@@ -31,6 +31,9 @@ var Provider *ProviderConfiguration
 var Services *ServicesConfiguration
 var Server *ServerConfiguration
 
+var secretsPath string
+var secrets *yaml.Node
+
 var enableErrorReporting = true
 
 func reportError(path string, node *yaml.Node, format string, args ...any) {
@@ -356,10 +359,47 @@ func readAndParse(filePath string) *yaml.Node {
 	return &document
 }
 
+func requireSecrets(reason string) (string, *yaml.Node) {
+	if secrets == nil {
+		reportError("", &dummyNode, "Could not find secrets.yaml but it is required for this configuration. %v", reason)
+		return "", nil
+	}
+
+	return secretsPath, secrets
+}
+
 func Parse(serverMode ServerMode, configDir string) bool {
 	Mode = serverMode
 
 	success := true
+
+	if Mode == ServerModeServer {
+		filePath := filepath.Join(configDir, "secrets.yml")
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil && !os.IsExist(err) {
+			reportError(filePath, nil, "Could not read secrets.yml file. Underlying error: %v", err)
+			return false
+		}
+
+		if err == nil {
+			var document yaml.Node
+
+			err = yaml.Unmarshal(fileBytes, &document)
+			if err != nil {
+				reportError(
+					filePath,
+					nil,
+					"Failed to parse this configuration file as valid YAML. Please check for errors. "+
+						"Underlying error message: %v.",
+					err.Error(),
+				)
+				return false
+			}
+
+			secretsPath = filePath
+			secrets = &document
+		}
+	}
 
 	if Mode == ServerModeServer {
 		filePath := filepath.Join(configDir, "server.yml")
@@ -1247,10 +1287,12 @@ type IdentityManagementType string
 
 const (
 	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
+	IdentityManagementTypeFreeIpa  IdentityManagementType = "FreeIPA"
 )
 
 var IdentityManagementTypeOptions = []IdentityManagementType{
 	IdentityManagementTypeScripted,
+	IdentityManagementTypeFreeIpa,
 }
 
 type IdentityManagement struct {
@@ -1263,9 +1305,25 @@ type IdentityManagementScripted struct {
 	SyncUserGroups string
 }
 
+type IdentityManagementFreeIPA struct {
+	Url        string
+	VerifyTls  bool
+	CaCertFile util.Option[string]
+	Username   string
+	Password   string
+	GroupName  string
+}
+
 func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
 	if m.Type == IdentityManagementTypeScripted {
 		return m.Configuration.(*IdentityManagementScripted)
+	}
+	return nil
+}
+
+func (m *IdentityManagement) FreeIPA() *IdentityManagementFreeIPA {
+	if m.Type == IdentityManagementTypeFreeIpa {
+		return m.Configuration.(*IdentityManagementFreeIPA)
 	}
 	return nil
 }
@@ -1279,12 +1337,30 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 		return false, result
 	}
 
-	if result.Type == IdentityManagementTypeScripted {
+	switch result.Type {
+	case IdentityManagementTypeScripted:
 		ok, config := parseIdentityManagementScripted(filePath, node)
 		if !ok {
 			return false, result
 		}
 
+		result.Configuration = &config
+
+	case IdentityManagementTypeFreeIpa:
+		sPath, secretsNode := requireSecrets("FreeIPA identity management has secret configuration!")
+		if secretsNode == nil {
+			return false, result
+		}
+
+		freeipaNode := requireChild(sPath, secretsNode, "freeipa", &success)
+		if !success {
+			return false, result
+		}
+
+		ok, config := parseIdentityManagementFreeIpa(sPath, freeipaNode)
+		if !ok {
+			return false, result
+		}
 		result.Configuration = &config
 	}
 
@@ -1296,6 +1372,33 @@ func parseIdentityManagementScripted(filePath string, node *yaml.Node) (bool, Id
 	success := true
 	result.CreateUser = requireChildFile(filePath, node, "createUser", FileCheckRead, &success)
 	result.SyncUserGroups = requireChildFile(filePath, node, "syncUserGroups", FileCheckRead, &success)
+	return success, result
+}
+
+func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, IdentityManagementFreeIPA) {
+	var result IdentityManagementFreeIPA
+	success := true
+
+	result.Url = requireChildText(filePath, node, "url", &success)
+
+	verifyTls, hasVerifyTls := optionalChildBool(filePath, node, "verifyTls")
+	result.VerifyTls = verifyTls || !hasVerifyTls
+
+	caCertFile := optionalChildText(filePath, node, "caCertFile", &success)
+	if caCertFile != "" {
+		requireChildFile(filePath, node, "caCertFile", FileCheckRead, &success)
+		result.CaCertFile.Set(caCertFile)
+	}
+
+	result.Username = requireChildText(filePath, node, "username", &success)
+	result.Password = requireChildText(filePath, node, "password", &success)
+	groupName := optionalChildText(filePath, node, "groupName", &success)
+	if groupName != "" {
+		result.GroupName = groupName
+	} else {
+		result.GroupName = "ucloud_users"
+	}
+
 	return success, result
 }
 

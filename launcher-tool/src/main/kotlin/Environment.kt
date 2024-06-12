@@ -244,3 +244,18 @@ fun listConfiguredProviders(): List<String> {
 fun addProvider(providerId: String) {
     File(localEnvironment.jvmFile, "providers.txt").appendText(providerId + "\n")
 }
+
+fun listAddons(): Map<String, Set<String>> {
+    val result = HashMap<String, HashSet<String>>()
+    val lines = runCatching { File(localEnvironment.jvmFile, "provider-addons.txt").readLines() }.getOrNull() ?: emptyList()
+    for (line in lines) {
+        val (provider, addon) = line.split("/")
+        val list = result.getOrPut(provider) { HashSet() }
+        list.add(addon)
+    }
+    return result
+}
+
+fun addAddon(providerId: String, addon: String) {
+    File(localEnvironment.jvmFile, "provider-addons.txt").appendText("$providerId/$addon\n")
+}
