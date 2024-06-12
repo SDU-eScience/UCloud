@@ -132,6 +132,8 @@ __Assessment:__
 - __Alternative technologies:__ Nomad. Bare-metal deployment and compute on different platform (e.g. slurm).
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
 
+Note that our current Kubernetes deployment uses K3s. See infrastructure documentation for more details.
+
 ### Docker
 
 - __Website:__ https://www.docker.com/
@@ -229,37 +231,7 @@ __Assessment:__
 - __Difficulty of migrating to an alternative technology:__ 2
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
 
-## Rancher
-
-- __Website:__ https://rancher.com/
-- __Short description:__ Manages our Kubernetes clusters
-- __Described in:__ [Deployment procedures](./deployment.md)
-
-__Assessment:__
-
-- __How essential is the dependency for UCloud?__ 2
-- __How essential is knowledge of the system to develop UCloud?__ 2
-- __Difficulty of migrating to an alternative technology:__ 3
-- __Alternative technologies:__ Bare-metal Kubernetes deployment/OpenShift
-- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
-
 ## Frontend
-
-### Styled Components
-
-- __Website:__ https://styled-components.com/
-- __Short description:__ CSS in JavaScript. Used by all components in the frontend of UCloud.
-- __Described in:__ Not currently described
-
-__Assessment:__
-
-- __How essential is the dependency for UCloud?__ 4
-- __How essential is knowledge of the system to develop UCloud?__ 4
-- __Difficulty of migrating to an alternative technology:__ 3
-- __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
-
-Styled components is a hugely popular JavaScript library for CSS in JS. Their webpage lists many large companies as
-their users, including: Reddit, GitHub and Lego.
 
 ### ReactJS
 
@@ -289,11 +261,10 @@ __Assessment:__
 - __Difficulty of migrating to an alternative technology:__ 3
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 2
 
-### Webpack
+### Vite
 
-- __Website:__ https://webpack.js.org/
-- __Short description:__ Static module bundler for JavaScript applications.
-- __Described in:__ [Frontend README](../../../frontend-web/README.md)
+- __Website:__ https://vitejs.dev/
+- __Short description:__ Tooling + module bundler for JavaScript applications.
 
 __Assessment:__
 
@@ -301,8 +272,6 @@ __Assessment:__
 - __How essential is knowledge of the system to develop UCloud?__ 3
 - __Difficulty of migrating to an alternative technology:__ 3
 - __Likelihood of the dependency getting discontinued in the coming 5 years:__ 1
-
-WebPack development is [sponsered](https://webpack.js.org/) by several large companies.
 
 ### TypeScript
 

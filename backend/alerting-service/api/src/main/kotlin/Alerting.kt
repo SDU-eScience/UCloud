@@ -13,6 +13,9 @@ object Alerting : CallDescriptionContainer("alerting") {
         rate goes above a threshold an error will be emitted. If the alerting service
         at any points fail to contact Elasticsearch an error will be emitted.
         
+        More information can be found in our infrastructure alerting for all alerts that can be generated. See the
+        Grafana section of this documentation to understand better how some of this data is used.
+        
         At the moment this service is sending alerts to the `#devalerts`/`#alerts`
             channels of slack. The messages are sent to slack via their webhooks feature.
         This service is not specified only to work with slack, but can be hooked up to
@@ -82,23 +85,6 @@ object Alerting : CallDescriptionContainer("alerting") {
         percentage of all requests within the last 15 minutes, the alert triggers.
         
         The check runs each 5 minutes and will also notify when the number of 5XX enters the acceptable range again.
-        
-        **Crash loop and pod failure detection (Kubernetes)**
-        
-        If any pods in the kubernetes cluster fails due to some error or if a pod keeps restarting and ends in a 
-        CrashLoppBackOff (multiple failing restarts within short time) this alert will trigger sending a message
-        specifying which pod have failed.
-        
-        **Node monitoring (Kubernetes)**
-        
-        If a node changes status to a know error state, this alert will send a message declaring the node, state and
-        problem. The follow state are monitored:
-        
-        - **Ready state:** If state is unknown or not ready it will trigger alert
-        - **MemoryPressure:** Node is low on memory
-        - **PIDPressure:** To many processors are active on the node at the same time
-        - **DiskPressure:** Node is low on disk space.
-        - **NetworkUnavailable:** The nodes network is not configured correctly
         
         """.trimIndent()
     }

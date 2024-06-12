@@ -15,6 +15,7 @@ data class GiftWithCriteria(
     val title: String,
     val description: String,
     val resources: List<GrantApplication.AllocationRequest>,
+    val renewEvery: Int,
     val criteria: List<UserCriteria>,
 )
 ```
@@ -73,6 +74,17 @@ Suitable for presentation in UIs
 <details>
 <summary>
 <code>resources</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.grant.api.GrantApplication.AllocationRequest.md'>GrantApplication.AllocationRequest</a>&gt;</code></code> A list of resources which will be granted to users `Gifts.claimGift` this `Gift`.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>renewEvery</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code> Renewal policy for the gift
 </summary>
 
 

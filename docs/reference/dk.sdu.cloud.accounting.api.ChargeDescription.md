@@ -9,8 +9,8 @@
 
 ```kotlin
 data class ChargeDescription(
-    val description: String,
-    val itemized: List<ItemizedCharge>,
+    val scope: String?,
+    val description: String?,
 )
 ```
 
@@ -21,7 +21,7 @@ data class ChargeDescription(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>scope</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -32,7 +32,7 @@ data class ChargeDescription(
 
 <details>
 <summary>
-<code>itemized</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#itemizedcharge'>ItemizedCharge</a>&gt;</code></code>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

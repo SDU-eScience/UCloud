@@ -9,6 +9,7 @@
 
 ```kotlin
 data class UsageReportItem(
+    val isDeltaCharge: Boolean,
     val owner: WalletOwner,
     val categoryIdV2: ProductCategoryIdV2,
     val usage: Long,
@@ -23,7 +24,18 @@ data class UsageReportItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>isDeltaCharge</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 

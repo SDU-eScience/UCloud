@@ -126,7 +126,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ## Authenticating with UCloud
 
             UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-            27/06/23 the following backends are supported:
+            06/06/24 the following backends are supported:
 
             - Authentication with username/password
             - Authentication via WAYF
@@ -191,7 +191,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
 
             The `accessToken` is used to authenticate all API calls. It is passed as a bearer token in the `Authorization` header.
             The token contains a JSON web token. These are tokens which contain a JSON encoded payload and are signed by the
-            authority issuing them. The JWTs in UCloud are signed with the `SHA256withRSA` algorithm. Each microservice can verify a
+            authority issuing them. The JWTs in UCloud are signed with the `SHA256withRSA` algorithm. Each service can verify a
             JWT (without contacting a central server) by using the authentication's service public certificate and additionally
             verifying that the issuer is set to `cloud.sdu.dk`.
 
@@ -283,7 +283,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
 
             UCloud contains a few basic roles used for global authorization. These
             attributes only refer to the global authorization, more fine-grained
-            authorization is done at the service level. A microservice can declare that a
+            authorization is done at the service level. A service can declare that a
             single API endpoint should only be accessible to users with a given role.
 
             The table below shows the global roles in UCloud:
@@ -292,13 +292,12 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             | ---------- | --------------------------------------------------------------------- |
             | `USER`     | A 'normal' end-user                                                   |
             | `ADMIN`    | An administrator of system. Has access to certain privileged actions. |
-            | `SERVICE`  | An internal (micro)service. Has access to certain privileged actions. |
+            | `SERVICE`  | An internal service. Has access to certain privileged actions.        |
             | `PROVIDER` | A UCloud provider used to deliver services.                           |
 
-            The deployment script (see `k8-manager`) is responsible for the creation of service accounts. Service accounts can only
-            authenticate via their `refreshToken`/`accessToken`. Compromised `refreshToken`s can manually be regenerated. Note that
-            the same restrictions apply for `accessToken`s as normal users, they need to expire before access is denied. This
-            happens within 30 minutes. Every microservice has an associated service account.
+            Service accounts can only authenticate via their `refreshToken`/`accessToken`. Compromised `refreshToken`s
+            can manually be regenerated. Note that the same restrictions apply for `accessToken`s as normal users,
+            they need to expire before access is denied. This happens within 30 minutes. 
 
             #### Security Scopes
 
@@ -339,7 +338,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             The default scope for tokens created by the web interface is `all:write`.
             Security scopes are an important part of token extension.
 
-            ### Token Extension
+            ### Token Extension (Deprecated)
 
             Token extension is a mechanism used for when a service needs to perform actions on behalf of a user that cannot be
             performed immediately. For example, an application service might need to upload files back into the system after a long
@@ -502,6 +501,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             }
         }
 
+    @Deprecated("No longer used")
     val tokenExtension = call("tokenExtension", TokenExtensionRequest.serializer(), TokenExtensionResponse.serializer(), CommonErrorMessage.serializer()) {
         audit(TokenExtensionAudit.serializer())
         auth {

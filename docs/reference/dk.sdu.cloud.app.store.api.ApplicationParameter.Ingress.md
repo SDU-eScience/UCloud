@@ -13,8 +13,8 @@ data class Ingress(
     val name: String?,
     val title: String?,
     val description: String?,
+    val optional: Boolean?,
     val defaultValue: Any?,
-    val optional: Boolean,
     val type: String /* "ingress" */,
 )
 ```
@@ -60,7 +60,7 @@ __Compatible with:__ [`AppParameterValue.Ingress`](/docs/reference/dk.sdu.cloud.
 
 <details>
 <summary>
-<code>defaultValue</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/'>Any</a>?</code></code>
+<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -71,7 +71,7 @@ __Compatible with:__ [`AppParameterValue.Ingress`](/docs/reference/dk.sdu.cloud.
 
 <details>
 <summary>
-<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>defaultValue</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/'>Any</a>?</code></code>
 </summary>
 
 

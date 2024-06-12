@@ -23,12 +23,12 @@
 
 /* When the user creates the Job, they have enough credits */
 
-Wallets.browse.call(
-    WalletBrowseRequest(
+AccountingV2.browseWallets.call(
+    AccountingV2.BrowseWallets.Request(
+        childrenQuery = null, 
         consistency = null, 
-        filterEmptyAllocations = null, 
         filterType = null, 
-        includeMaxUsableBalance = null, 
+        includeChildren = false, 
         itemsPerPage = null, 
         itemsToSkip = null, 
         next = null, 
@@ -38,32 +38,50 @@ Wallets.browse.call(
 
 /*
 PageV2(
-    items = listOf(Wallet(
-        allocations = listOf(WalletAllocation(
-            allocationPath = listOf("1254151"), 
-            allowSubAllocationsToAllocate = true, 
-            balance = 500, 
-            canAllocate = false, 
-            endDate = null, 
-            grantedIn = 2, 
-            id = "1254151", 
-            initialBalance = 500000000, 
-            localBalance = 500, 
-            maxUsableBalance = null, 
-            startDate = 1633329776235, 
+    items = listOf(WalletV2(
+        allocationGroups = listOf(AllocationGroupWithParent(
+            group = AllocationGroup(
+                allocations = listOf(AllocationGroup.Alloc(
+                    endDate = 1664865776235, 
+                    grantedIn = null, 
+                    id = 12541154, 
+                    quota = 500000000, 
+                    retiredUsage = null, 
+                    startDate = 1633329776235, 
+                )), 
+                id = 1, 
+                usage = 499000000, 
+            ), 
+            parent = ParentOrChildWallet(
+                pi = "user", 
+                projectId = null, 
+                projectTitle = "Root", 
+            ), 
         )), 
-        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
-        chargeType = ChargeType.ABSOLUTE, 
+        children = null, 
+        lastSignificantUpdateAt = 0, 
+        localUsage = 499000000, 
+        maxUsable = 100000, 
         owner = WalletOwner.User(
             username = "user", 
         ), 
-        paysFor = ProductCategoryId(
-            id = "example-compute", 
+        paysFor = ProductCategory(
+            accountingFrequency = AccountingFrequency.PERIODIC_MINUTE, 
+            accountingUnit = AccountingUnit(
+                displayFrequencySuffix = false, 
+                floatingPoint = true, 
+                name = "DKK", 
+                namePlural = "DKK", 
+            ), 
+            allowSubAllocations = true, 
+            freeToUse = false, 
             name = "example-compute", 
+            productType = ProductType.COMPUTE, 
             provider = "example", 
         ), 
-        productType = ProductType.COMPUTE, 
-        unit = ProductPriceUnit.CREDITS_PER_MINUTE, 
+        quota = 500000000, 
+        totalAllocated = 0, 
+        totalUsage = 499000000, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -233,7 +251,7 @@ Job(
 # When the user creates the Job, they have enough credits
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/v2/browseWallets?includeChildren=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -245,29 +263,48 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #             },
 #             "paysFor": {
 #                 "name": "example-compute",
-#                 "provider": "example"
+#                 "provider": "example",
+#                 "productType": "COMPUTE",
+#                 "accountingUnit": {
+#                     "name": "DKK",
+#                     "namePlural": "DKK",
+#                     "floatingPoint": true,
+#                     "displayFrequencySuffix": false
+#                 },
+#                 "accountingFrequency": "PERIODIC_MINUTE",
+#                 "freeToUse": false,
+#                 "allowSubAllocations": true
 #             },
-#             "allocations": [
+#             "allocationGroups": [
 #                 {
-#                     "id": "1254151",
-#                     "allocationPath": [
-#                         "1254151"
-#                     ],
-#                     "balance": 500,
-#                     "initialBalance": 500000000,
-#                     "localBalance": 500,
-#                     "startDate": 1633329776235,
-#                     "endDate": null,
-#                     "grantedIn": 2,
-#                     "maxUsableBalance": null,
-#                     "canAllocate": false,
-#                     "allowSubAllocationsToAllocate": true
+#                     "parent": {
+#                         "projectId": null,
+#                         "projectTitle": "Root",
+#                         "pi": "user"
+#                     },
+#                     "group": {
+#                         "id": 1,
+#                         "allocations": [
+#                             {
+#                                 "id": 12541154,
+#                                 "startDate": 1633329776235,
+#                                 "endDate": 1664865776235,
+#                                 "quota": 500000000,
+#                                 "grantedIn": null,
+#                                 "retiredUsage": null
+#                             }
+#                         ],
+#                         "usage": 499000000
+#                     }
 #                 }
 #             ],
-#             "chargePolicy": "EXPIRE_FIRST",
-#             "productType": "COMPUTE",
-#             "chargeType": "ABSOLUTE",
-#             "unit": "CREDITS_PER_MINUTE"
+#             "children": null,
+#             "totalUsage": 499000000,
+#             "localUsage": 499000000,
+#             "maxUsable": 100000,
+#             "quota": 500000000,
+#             "totalAllocated": 0,
+#             "lastSignificantUpdateAt": 0
 #         }
 #     ],
 #     "next": null

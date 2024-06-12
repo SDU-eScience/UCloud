@@ -9,7 +9,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createnotification'>CreateNotification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#createnotification'>CreateNotification</a></code>|<code><a href='#createnotificationresponse'>CreateNotificationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

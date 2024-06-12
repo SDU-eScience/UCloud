@@ -12,6 +12,7 @@ data class Project(
     val id: String,
     val createdAt: Long,
     val specification: Project.Specification,
+    val modifiedAt: Long,
     val status: Project.Status,
 )
 ```
@@ -46,6 +47,17 @@ data class Project(
 <details>
 <summary>
 <code>specification</code>: <code><code><a href='#project.specification'>Project.Specification</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>modifiedAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

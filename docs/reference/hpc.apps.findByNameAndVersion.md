@@ -10,7 +10,7 @@ _Retrieves an Application by name and version, or newest Application if version 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#findapplicationandoptionaldependencies'>FindApplicationAndOptionalDependencies</a></code>|<code><a href='#applicationwithfavoriteandtags'>ApplicationWithFavoriteAndTags</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#findbynameandversionrequest'>FindByNameAndVersionRequest</a></code>|<code><a href='#applicationwithfavoriteandtags'>ApplicationWithFavoriteAndTags</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

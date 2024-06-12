@@ -11,6 +11,7 @@
 data class FilesProviderCreateUploadRequestItem(
     val resolvedCollection: FileCollection,
     val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 )
@@ -35,6 +36,17 @@ data class FilesProviderCreateUploadRequestItem(
 <details>
 <summary>
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadType.md'>UploadType</a></code></code>
 </summary>
 
 

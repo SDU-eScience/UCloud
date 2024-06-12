@@ -43,6 +43,9 @@ changes are expected:
 
 ---
 
+[`Application`](/docs/reference/dk.sdu.cloud.app.store.api.Application.md)s can be further divided into groups. An [`ApplicationGroup`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationGroup.md)  does not influence the
+invocation of the application, but is used solely to visually group applications on UCloud's application store.
+
 ## Table of Contents
 <details>
 <summary>
@@ -75,16 +78,20 @@ changes are expected:
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#advancedsearch'><code>advancedSearch</code></a></td>
-<td>Searches in the Application catalog using more advanced parameters</td>
+<td><a href='#browsecategories'><code>browseCategories</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#browsegroups'><code>browseGroups</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#browsespotlight'><code>browseSpotlight</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#create'><code>create</code></a></td>
 <td>Creates a new Application and inserts it into the catalog</td>
-</tr>
-<tr>
-<td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
-<td>Retrieves a logo associated with a group</td>
 </tr>
 <tr>
 <td><a href='#findbyname'><code>findByName</code></a></td>
@@ -95,99 +102,119 @@ changes are expected:
 <td>Retrieves an Application by name and version, or newest Application if version is not specified</td>
 </tr>
 <tr>
-<td><a href='#findbysupportedfileextension'><code>findBySupportedFileExtension</code></a></td>
-<td>Finds a page of Application which can open a specific UFile</td>
-</tr>
-<tr>
-<td><a href='#findlatestbytool'><code>findLatestByTool</code></a></td>
-<td>Retrieves the latest version of an Application using a specific tool</td>
-</tr>
-<tr>
-<td><a href='#haspermission'><code>hasPermission</code></a></td>
-<td>Check if an entity has permission to use a specific Application</td>
-</tr>
-<tr>
-<td><a href='#ispublic'><code>isPublic</code></a></td>
-<td>Checks if an Application is publicly accessible</td>
-</tr>
-<tr>
-<td><a href='#listacl'><code>listAcl</code></a></td>
-<td>Retrieves the permission information associated with an Application</td>
-</tr>
-<tr>
-<td><a href='#listall'><code>listAll</code></a></td>
-<td>Lists all Applications</td>
-</tr>
-<tr>
-<td><a href='#listgroups'><code>listGroups</code></a></td>
+<td><a href='#listallapplications'><code>listAllApplications</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#listtags'><code>listTags</code></a></td>
-<td>List all application tags</td>
+<td><a href='#retrieveacl'><code>retrieveAcl</code></a></td>
+<td>Retrieves the permission information associated with an Application</td>
 </tr>
 <tr>
-<td><a href='#retrievefavorites'><code>retrieveFavorites</code></a></td>
-<td>Retrieves the list of favorite Applications for the curent user</td>
+<td><a href='#retrieveapplogo'><code>retrieveAppLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievecarrouselimage'><code>retrieveCarrouselImage</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievecategory'><code>retrieveCategory</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#retrievegroup'><code>retrieveGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#searchapps'><code>searchApps</code></a></td>
+<td><a href='#retrievegrouplogo'><code>retrieveGroupLogo</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievelandingpage'><code>retrieveLandingPage</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievespotlight'><code>retrieveSpotlight</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievestars'><code>retrieveStars</code></a></td>
+<td>Retrieves the list of favorite Applications for the current user</td>
+</tr>
+<tr>
+<td><a href='#search'><code>search</code></a></td>
 <td>Searches in the Application catalog using a free-text query</td>
 </tr>
 <tr>
-<td><a href='#searchtags'><code>searchTags</code></a></td>
-<td>Browses the Application catalog by tag</td>
+<td><a href='#activatespotlight'><code>activateSpotlight</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#store'><code>store</code></a></td>
-<td>Returns the application catalog sections</td>
+<td><a href='#addgrouptocategory'><code>addGroupToCategory</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#cleargrouplogo'><code>clearGroupLogo</code></a></td>
-<td>Removes a logo associated with a group</td>
+<td><a href='#addlogotogroup'><code>addLogoToGroup</code></a></td>
+<td>Uploads a logo and associates it with a group</td>
 </tr>
 <tr>
-<td><a href='#clearlogo'><code>clearLogo</code></a></td>
-<td>Removes a logo associated with an Application</td>
+<td><a href='#assignapplicationtogroup'><code>assignApplicationToGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#assignprioritytocategory'><code>assignPriorityToCategory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#browseopenwithrecommendations'><code>browseOpenWithRecommendations</code></a></td>
+<td>Finds a page of Application which can open a specific UFile</td>
+</tr>
+<tr>
+<td><a href='#createcategory'><code>createCategory</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#creategroup'><code>createGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#createtag'><code>createTag</code></a></td>
-<td>Attaches a set of tags to an Application</td>
+<td><a href='#createspotlight'><code>createSpotlight</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#delete'><code>delete</code></a></td>
-<td>Removes an Application from the catalog</td>
+<td><a href='#deletecategory'><code>deleteCategory</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#deletegroup'><code>deleteGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#devimport'><code>devImport</code></a></td>
-<td>An endpoint for importing applications - Only usable in dev environments</td>
-</tr>
-<tr>
-<td><a href='#removetag'><code>removeTag</code></a></td>
-<td>Removes a set of tags from an Application</td>
-</tr>
-<tr>
-<td><a href='#setgroup'><code>setGroup</code></a></td>
+<td><a href='#deletespotlight'><code>deleteSpotlight</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#setpublic'><code>setPublic</code></a></td>
-<td>Changes the 'publicly accessible' status of an Application</td>
+<td><a href='#devimport'><code>devImport</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#togglefavorite'><code>toggleFavorite</code></a></td>
+<td><a href='#export'><code>export</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#importfromfile'><code>importFromFile</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#removegroupfromcategory'><code>removeGroupFromCategory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#removelogofromgroup'><code>removeLogoFromGroup</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#togglestar'><code>toggleStar</code></a></td>
 <td>Toggles the favorite status of an Application for the current user</td>
 </tr>
 <tr>
@@ -195,28 +222,32 @@ changes are expected:
 <td>Updates the permissions associated with an Application</td>
 </tr>
 <tr>
-<td><a href='#updateflavor'><code>updateFlavor</code></a></td>
+<td><a href='#updateapplicationflavor'><code>updateApplicationFlavor</code></a></td>
 <td>Updates the flavor name for a set of applications</td>
+</tr>
+<tr>
+<td><a href='#updatecarrousel'><code>updateCarrousel</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updatecarrouselimage'><code>updateCarrouselImage</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#updategroup'><code>updateGroup</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updatelanding'><code>updateLanding</code></a></td>
-<td>Updates the landing page of the application store</td>
+<td><a href='#updatepublicflag'><code>updatePublicFlag</code></a></td>
+<td>Changes the 'publicly accessible' status of an Application</td>
 </tr>
 <tr>
-<td><a href='#updateoverview'><code>updateOverview</code></a></td>
-<td>Updates the overview page of the application store</td>
+<td><a href='#updatespotlight'><code>updateSpotlight</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#uploadgrouplogo'><code>uploadGroupLogo</code></a></td>
-<td>Uploads a logo and associates it with a group</td>
-</tr>
-<tr>
-<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
-<td>Uploads a logo and associates it with an Application</td>
+<td><a href='#updatetoppicks'><code>updateTopPicks</code></a></td>
+<td><i>No description</i></td>
 </tr>
 </tbody></table>
 
@@ -386,15 +417,23 @@ changes are expected:
 <td>A textual value</td>
 </tr>
 <tr>
-<td><a href='#appstorepagetype'><code>AppStorePageType</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#appstoresection'><code>AppStoreSection</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#applicationaccessright'><code>ApplicationAccessRight</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationcategory'><code>ApplicationCategory</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationcategory.metadata'><code>ApplicationCategory.Metadata</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationcategory.specification'><code>ApplicationCategory.Specification</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationcategory.status'><code>ApplicationCategory.Status</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -402,11 +441,23 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#applicationparameter.enumoption'><code>ApplicationParameter.EnumOption</code></a></td>
+<td><a href='#applicationgroup.colorreplacements'><code>ApplicationGroup.ColorReplacements</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#applicationsummary'><code>ApplicationSummary</code></a></td>
+<td><a href='#applicationgroup.metadata'><code>ApplicationGroup.Metadata</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationgroup.specification'><code>ApplicationGroup.Specification</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationgroup.status'><code>ApplicationGroup.Status</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#applicationparameter.enumoption'><code>ApplicationParameter.EnumOption</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -422,6 +473,10 @@ changes are expected:
 <td>Applications specify the input parameters and invocation of a software package.</td>
 </tr>
 <tr>
+<td><a href='#carrouselitem'><code>CarrouselItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#detailedaccessentity'><code>DetailedAccessEntity</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -430,19 +485,15 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#findapplicationandoptionaldependencies'><code>FindApplicationAndOptionalDependencies</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#findbysupportedfileextension'><code>FindBySupportedFileExtension</code></a></td>
-<td>The base type for requesting paginated content.</td>
-</tr>
-<tr>
 <td><a href='#modulessection'><code>ModulesSection</code></a></td>
 <td>Section describing the module capabilities of an application</td>
 </tr>
 <tr>
 <td><a href='#project'><code>Project</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#spotlight'><code>Spotlight</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -458,103 +509,123 @@ changes are expected:
 <td>A reference to a Tool</td>
 </tr>
 <tr>
+<td><a href='#toppick'><code>TopPick</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#aclentryrequest'><code>ACLEntryRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#advancedsearchrequest'><code>AdvancedSearchRequest</code></a></td>
+<td><a href='#appstore.addgrouptocategory.request'><code>AppStore.AddGroupToCategory.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#appsearchrequest'><code>AppSearchRequest</code></a></td>
+<td><a href='#appstore.addlogotogroup.request'><code>AppStore.AddLogoToGroup.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#appstoresectionsrequest'><code>AppStoreSectionsRequest</code></a></td>
+<td><a href='#appstore.assignapplicationtogroup.request'><code>AppStore.AssignApplicationToGroup.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#creategrouprequest'><code>CreateGroupRequest</code></a></td>
+<td><a href='#appstore.assignprioritytocategory.request'><code>AppStore.AssignPriorityToCategory.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#createtagsrequest'><code>CreateTagsRequest</code></a></td>
+<td><a href='#appstore.browsecategories.request'><code>AppStore.BrowseCategories.Request</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#appstore.browsegroups.request'><code>AppStore.BrowseGroups.Request</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#appstore.browseopenwithrecommendations.request'><code>AppStore.BrowseOpenWithRecommendations.Request</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#appstore.browsespotlight.request'><code>AppStore.BrowseSpotlight.Request</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#appstore.devimport.request'><code>AppStore.DevImport.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#deleteapprequest'><code>DeleteAppRequest</code></a></td>
+<td><a href='#appstore.removegroupfromcategory.request'><code>AppStore.RemoveGroupFromCategory.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#deletegrouprequest'><code>DeleteGroupRequest</code></a></td>
+<td><a href='#appstore.retrieveacl.request'><code>AppStore.RetrieveAcl.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#devimportrequest'><code>DevImportRequest</code></a></td>
+<td><a href='#appstore.retrieveapplogo.request'><code>AppStore.RetrieveAppLogo.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#favoriterequest'><code>FavoriteRequest</code></a></td>
+<td><a href='#appstore.retrievecarrouselimage.request'><code>AppStore.RetrieveCarrouselImage.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#findlatestbytoolrequest'><code>FindLatestByToolRequest</code></a></td>
+<td><a href='#appstore.retrievegrouplogo.request'><code>AppStore.RetrieveGroupLogo.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#haspermissionrequest'><code>HasPermissionRequest</code></a></td>
+<td><a href='#appstore.search.request'><code>AppStore.Search.Request</code></a></td>
+<td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#appstore.togglestar.request'><code>AppStore.ToggleStar.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#ispublicrequest'><code>IsPublicRequest</code></a></td>
+<td><a href='#appstore.updateacl.request'><code>AppStore.UpdateAcl.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#listaclrequest'><code>ListAclRequest</code></a></td>
+<td><a href='#appstore.updateapplicationflavor.request'><code>AppStore.UpdateApplicationFlavor.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#retrievegrouprequest'><code>RetrieveGroupRequest</code></a></td>
+<td><a href='#appstore.updatecarrousel.request'><code>AppStore.UpdateCarrousel.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#setgrouprequest'><code>SetGroupRequest</code></a></td>
+<td><a href='#appstore.updatecarrouselimage.request'><code>AppStore.UpdateCarrouselImage.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#setpublicrequest'><code>SetPublicRequest</code></a></td>
+<td><a href='#appstore.updategroup.request'><code>AppStore.UpdateGroup.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#tagsearchrequest'><code>TagSearchRequest</code></a></td>
+<td><a href='#appstore.updatepublicflag.request'><code>AppStore.UpdatePublicFlag.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updateaclrequest'><code>UpdateAclRequest</code></a></td>
+<td><a href='#appstore.updatetoppicks.request'><code>AppStore.UpdateTopPicks.Request</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updateflavorrequest'><code>UpdateFlavorRequest</code></a></td>
+<td><a href='#findbynameandversionrequest'><code>FindByNameAndVersionRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#updategrouprequest'><code>UpdateGroupRequest</code></a></td>
+<td><a href='#appstore.listallapplications.response'><code>AppStore.ListAllApplications.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#appstoresectionsresponse'><code>AppStoreSectionsResponse</code></a></td>
+<td><a href='#appstore.retrieveacl.response'><code>AppStore.RetrieveAcl.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#creategroupresponse'><code>CreateGroupResponse</code></a></td>
+<td><a href='#appstore.retrievelandingpage.response'><code>AppStore.RetrieveLandingPage.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#ispublicresponse'><code>IsPublicResponse</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#retrievegroupresponse'><code>RetrieveGroupResponse</code></a></td>
+<td><a href='#appstore.retrievestars.response'><code>AppStore.RetrieveStars.Response</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -594,7 +665,7 @@ summarized below:
   - With parameters defined in `invocation.parameters` */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-batch", 
         appVersion = "1.0.0", 
     ),
@@ -689,14 +760,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228341, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-batch", 
@@ -754,13 +838,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228341
 #     },
 #     "invocation": {
 #         "tool": {
@@ -907,7 +1004,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 "acme-operating-system" as its base image, as defined in the Tool.  */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-os", 
         appVersion = "1.0.0", 
     ),
@@ -970,14 +1067,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228349, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-os", 
@@ -1024,13 +1134,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228349
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1131,7 +1254,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 interface, runs on port 8080 as defined in the `invocation.web` section. */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-web", 
         appVersion = "1.0.0", 
     ),
@@ -1198,14 +1321,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228350, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-web", 
@@ -1252,13 +1388,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228350
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1365,7 +1514,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 interface, runs on port 5900 as defined in the `invocation.vnc` section. */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-remote-desktop", 
         appVersion = "1.0.0", 
     ),
@@ -1433,14 +1582,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228351, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-remote-desktop", 
@@ -1487,13 +1649,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228351
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1606,7 +1781,7 @@ a hint for the frontend that files with this extension can be opened with this A
 opened like this, the file's parent folder will be mounted as a resource. */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-web", 
         appVersion = "1.0.0", 
     ),
@@ -1673,14 +1848,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228352, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-web", 
@@ -1731,13 +1919,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228352
 #     },
 #     "invocation": {
 #         "tool": {
@@ -1846,7 +2047,7 @@ textual value. If the user does not provide a specific value, it will default to
 passes this value as the first argument on the command-line. */
 
 AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "acme-web", 
         appVersion = "1.0.0", 
     ),
@@ -1935,14 +2136,27 @@ ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228355, 
         description = "An example application", 
         flavorName = null, 
         group = ApplicationGroup(
-            defaultApplication = null, 
-            description = null, 
-            id = 0, 
-            tags = emptyList(), 
-            title = "Test Group", 
+            metadata = ApplicationGroup.Metadata(
+                id = 0, 
+            ), 
+            specification = ApplicationGroup.Specification(
+                categories = emptySet(), 
+                colorReplacement = ApplicationGroup.ColorReplacements(
+                    dark = null, 
+                    light = null, 
+                ), 
+                defaultFlavor = null, 
+                description = "", 
+                logoHasText = false, 
+                title = "Test Group", 
+            ), 
+            status = ApplicationGroup.Status(
+                applications = null, 
+            ), 
         ), 
         isPublic = true, 
         name = "acme-web", 
@@ -1990,13 +2204,26 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "public": true,
 #         "flavorName": null,
 #         "group": {
-#             "id": 0,
-#             "title": "Test Group",
-#             "description": null,
-#             "defaultApplication": null,
-#             "tags": [
-#             ]
-#         }
+#             "metadata": {
+#                 "id": 0
+#             },
+#             "specification": {
+#                 "title": "Test Group",
+#                 "description": "",
+#                 "defaultFlavor": null,
+#                 "categories": [
+#                 ],
+#                 "colorReplacement": {
+#                     "light": null,
+#                     "dark": null
+#                 },
+#                 "logoHasText": false
+#             },
+#             "status": {
+#                 "applications": null
+#             }
+#         },
+#         "createdAt": 1717663228355
 #     },
 #     "invocation": {
 #         "tool": {
@@ -2108,17 +2335,42 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 
 ## Remote Procedure Calls
 
-### `advancedSearch`
+### `browseCategories`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Searches in the Application catalog using more advanced parameters_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#advancedsearchrequest'>AdvancedSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.browsecategories.request'>AppStore.BrowseCategories.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#applicationcategory'>ApplicationCategory</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `browseGroups`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.browsegroups.request'>AppStore.BrowseGroups.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `browseSpotlight`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.browsespotlight.request'>AppStore.BrowseSpotlight.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#spotlight'>Spotlight</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2136,20 +2388,6 @@ _Creates a new Application and inserts it into the catalog_
 
 
 
-### `fetchLogo`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Retrieves a logo associated with a group_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.FetchLogoRequest.md'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `findByName`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2160,7 +2398,7 @@ _Finds Applications given an exact name_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.FindByNameAndPagination.md'>FindByNameAndPagination</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.FindByNameRequest.md'>FindByNameRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2174,67 +2412,24 @@ _Retrieves an Application by name and version, or newest Application if version 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#findapplicationandoptionaldependencies'>FindApplicationAndOptionalDependencies</a></code>|<code><a href='#applicationwithfavoriteandtags'>ApplicationWithFavoriteAndTags</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#findbynameandversionrequest'>FindByNameAndVersionRequest</a></code>|<code><a href='#applicationwithfavoriteandtags'>ApplicationWithFavoriteAndTags</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `findBySupportedFileExtension`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Finds a page of Application which can open a specific UFile_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#findbysupportedfileextension'>FindBySupportedFileExtension</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#applicationwithextension'>ApplicationWithExtension</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `findLatestByTool`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Retrieves the latest version of an Application using a specific tool_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#findlatestbytoolrequest'>FindLatestByToolRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#application'>Application</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `hasPermission`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Check if an entity has permission to use a specific Application_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#haspermissionrequest'>HasPermissionRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `isPublic`
+### `listAllApplications`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Checks if an Application is publicly accessible_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#ispublicrequest'>IsPublicRequest</a></code>|<code><a href='#ispublicresponse'>IsPublicResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstore.listallapplications.response'>AppStore.ListAllApplications.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `listAcl`
+### `retrieveAcl`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -2244,63 +2439,46 @@ _Retrieves the permission information associated with an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#listaclrequest'>ListAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#detailedentitywithpermission'>DetailedEntityWithPermission</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.retrieveacl.request'>AppStore.RetrieveAcl.Request</a></code>|<code><a href='#appstore.retrieveacl.response'>AppStore.RetrieveAcl.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `listAll`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Lists all Applications_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-Results are not ordered in any specific fashion
-
-
-### `listGroups`
+### `retrieveAppLogo`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.retrieveapplogo.request'>AppStore.RetrieveAppLogo.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `listTags`
+### `retrieveCarrouselImage`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_List all application tags_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.retrievecarrouselimage.request'>AppStore.RetrieveCarrouselImage.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `retrieveFavorites`
+### `retrieveCategory`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Retrieves the list of favorite Applications for the curent user_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='#applicationcategory'>ApplicationCategory</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2313,77 +2491,167 @@ _Retrieves the list of favorite Applications for the curent user_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#retrievegrouprequest'>RetrieveGroupRequest</a></code>|<code><a href='#retrievegroupresponse'>RetrieveGroupResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='#applicationgroup'>ApplicationGroup</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `searchApps`
+### `retrieveGroupLogo`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.retrievegrouplogo.request'>AppStore.RetrieveGroupLogo.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveLandingPage`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstore.retrievelandingpage.response'>AppStore.RetrieveLandingPage.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveSpotlight`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='#spotlight'>Spotlight</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `retrieveStars`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Retrieves the list of favorite Applications for the current user_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='#appstore.retrievestars.response'>AppStore.RetrieveStars.Response</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `search`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Searches in the Application catalog using a free-text query_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#appsearchrequest'>AppSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.search.request'>AppStore.Search.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `searchTags`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Browses the Application catalog by tag_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#tagsearchrequest'>TagSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `store`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Returns the application catalog sections_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#appstoresectionsrequest'>AppStoreSectionsRequest</a></code>|<code><a href='#appstoresectionsresponse'>AppStoreSectionsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `clearGroupLogo`
+### `activateSpotlight`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Removes a logo associated with a group_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.ClearLogoRequest.md'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `clearLogo`
+### `addGroupToCategory`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Removes a logo associated with an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.ClearLogoRequest.md'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.addgrouptocategory.request'>AppStore.AddGroupToCategory.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `addLogoToGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Uploads a logo and associates it with a group_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.addlogotogroup.request'>AppStore.AddLogoToGroup.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `assignApplicationToGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.assignapplicationtogroup.request'>AppStore.AssignApplicationToGroup.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `assignPriorityToCategory`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.assignprioritytocategory.request'>AppStore.AssignPriorityToCategory.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `browseOpenWithRecommendations`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Finds a page of Application which can open a specific UFile_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.browseopenwithrecommendations.request'>AppStore.BrowseOpenWithRecommendations.Request</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#applicationwithextension'>ApplicationWithExtension</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `createCategory`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#applicationcategory.specification'>ApplicationCategory.Specification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2396,35 +2664,33 @@ _Removes a logo associated with an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#creategrouprequest'>CreateGroupRequest</a></code>|<code><a href='#creategroupresponse'>CreateGroupResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#applicationgroup.specification'>ApplicationGroup.Specification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `createTag`
+### `createSpotlight`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Attaches a set of tags to an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#spotlight'>Spotlight</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `delete`
+### `deleteCategory`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Removes an Application from the catalog_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#deleteapprequest'>DeleteAppRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2437,39 +2703,37 @@ _Removes an Application from the catalog_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#deletegrouprequest'>DeleteGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `deleteSpotlight`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
 ### `devImport`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_An endpoint for importing applications - Only usable in dev environments_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#devimportrequest'>DevImportRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `removeTag`
-
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Removes a set of tags from an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createtagsrequest'>CreateTagsRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.devimport.request'>AppStore.DevImport.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `setGroup`
+### `export`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -2478,25 +2742,50 @@ _Removes a set of tags from an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#setgrouprequest'>SetGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `setPublic`
+### `importFromFile`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Changes the 'publicly accessible' status of an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#setpublicrequest'>SetPublicRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `toggleFavorite`
+### `removeGroupFromCategory`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.removegroupfromcategory.request'>AppStore.RemoveGroupFromCategory.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `removeLogoFromGroup`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `toggleStar`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -2506,25 +2795,25 @@ _Toggles the favorite status of an Application for the current user_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#favoriterequest'>FavoriteRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.togglestar.request'>AppStore.ToggleStar.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
 ### `updateAcl`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Updates the permissions associated with an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#updateaclrequest'>UpdateAclRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.updateacl.request'>AppStore.UpdateAcl.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `updateFlavor`
+### `updateApplicationFlavor`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
@@ -2534,7 +2823,33 @@ _Updates the flavor name for a set of applications_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#updateflavorrequest'>UpdateFlavorRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.updateapplicationflavor.request'>AppStore.UpdateApplicationFlavor.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateCarrousel`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.updatecarrousel.request'>AppStore.UpdateCarrousel.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateCarrouselImage`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#appstore.updatecarrouselimage.request'>AppStore.UpdateCarrouselImage.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2547,63 +2862,47 @@ _Updates the flavor name for a set of applications_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#updategrouprequest'>UpdateGroupRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.updategroup.request'>AppStore.UpdateGroup.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `updateLanding`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Updates the landing page of the application store_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `updateOverview`
+### `updatePublicFlag`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Updates the overview page of the application store_
+_Changes the 'publicly accessible' status of an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.updatepublicflag.request'>AppStore.UpdatePublicFlag.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `uploadGroupLogo`
+### `updateSpotlight`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Uploads a logo and associates it with a group_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest.md'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#spotlight'>Spotlight</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
-### `uploadLogo`
+### `updateTopPicks`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Uploads a logo and associates it with an Application_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest.md'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#appstore.updatetoppicks.request'>AppStore.UpdateTopPicks.Request</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -2678,6 +2977,7 @@ data class ApplicationMetadata(
     val public: Boolean,
     val flavorName: String?,
     val group: ApplicationGroup?,
+    val createdAt: Long?,
     val isPublic: Boolean,
 )
 ```
@@ -2780,6 +3080,17 @@ The metadata describes information mostly useful for presentation purposes. The 
 <details>
 <summary>
 <code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a>?</code></code> The ApplicationGroup of the Application
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 
@@ -3920,8 +4231,8 @@ data class Ingress(
     val name: String?,
     val title: String?,
     val description: String?,
+    val optional: Boolean?,
     val defaultValue: Any?,
-    val optional: Boolean,
     val type: String /* "ingress" */,
 )
 ```
@@ -3967,7 +4278,7 @@ __Compatible with:__ [`AppParameterValue.Ingress`](/docs/reference/dk.sdu.cloud.
 
 <details>
 <summary>
-<code>defaultValue</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/'>Any</a>?</code></code>
+<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -3978,7 +4289,7 @@ __Compatible with:__ [`AppParameterValue.Ingress`](/docs/reference/dk.sdu.cloud.
 
 <details>
 <summary>
-<code>optional</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+<code>defaultValue</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-any/'>Any</a>?</code></code>
 </summary>
 
 
@@ -6032,126 +6343,6 @@ When this is used with an `Enumeration` it must match the value of one of the as
 
 ---
 
-### `AppStorePageType`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-enum class AppStorePageType {
-    LANDING,
-    FULL,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>LANDING</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>FULL</code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AppStoreSection`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class AppStoreSection(
-    val id: Int,
-    val name: String,
-    val featured: List<ApplicationGroup>,
-    val items: List<ApplicationGroup>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>featured</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>items</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `ApplicationAccessRight`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -6188,19 +6379,75 @@ enum class ApplicationAccessRight {
 
 ---
 
-### `ApplicationGroup`
+### `ApplicationCategory`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class ApplicationGroup(
+data class ApplicationCategory(
+    val metadata: ApplicationCategory.Metadata,
+    val specification: ApplicationCategory.Specification,
+    val status: ApplicationCategory.Status?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>metadata</code>: <code><code><a href='#applicationcategory.metadata'>ApplicationCategory.Metadata</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>specification</code>: <code><code><a href='#applicationcategory.specification'>ApplicationCategory.Specification</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='#applicationcategory.status'>ApplicationCategory.Status</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationCategory.Metadata`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Metadata(
     val id: Int,
-    val title: String,
-    val description: String?,
-    val defaultApplication: String?,
-    val tags: List<String>?,
 )
 ```
 
@@ -6219,6 +6466,32 @@ data class ApplicationGroup(
 
 
 </details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationCategory.Specification`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Specification(
+    val title: String,
+    val description: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
 
 <details>
 <summary>
@@ -6242,9 +6515,72 @@ data class ApplicationGroup(
 
 </details>
 
+
+
+</details>
+
+
+
+---
+
+### `ApplicationCategory.Status`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Status(
+    val groups: List<ApplicationGroup>?,
+)
+```
+
 <details>
 <summary>
-<code>defaultApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>groups</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationgroup'>ApplicationGroup</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationGroup`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ApplicationGroup(
+    val metadata: ApplicationGroup.Metadata,
+    val specification: ApplicationGroup.Specification,
+    val status: ApplicationGroup.Status?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>metadata</code>: <code><code><a href='#applicationgroup.metadata'>ApplicationGroup.Metadata</a></code></code>
 </summary>
 
 
@@ -6255,7 +6591,234 @@ data class ApplicationGroup(
 
 <details>
 <summary>
-<code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
+<code>specification</code>: <code><code><a href='#applicationgroup.specification'>ApplicationGroup.Specification</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='#applicationgroup.status'>ApplicationGroup.Status</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationGroup.ColorReplacements`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ColorReplacements(
+    val light: JsonObject?,
+    val dark: JsonObject?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>light</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>dark</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationGroup.Metadata`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Metadata(
+    val id: Int,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationGroup.Specification`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Specification(
+    val title: String,
+    val description: String,
+    val defaultFlavor: String?,
+    val categories: List<Int>?,
+    val colorReplacement: ApplicationGroup.ColorReplacements?,
+    val logoHasText: Boolean?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>defaultFlavor</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>categories</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>colorReplacement</code>: <code><code><a href='#applicationgroup.colorreplacements'>ApplicationGroup.ColorReplacements</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>logoHasText</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ApplicationGroup.Status`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Status(
+    val applications: List<ApplicationSummaryWithFavorite>?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;?</code></code>
 </summary>
 
 
@@ -6304,42 +6867,6 @@ data class EnumOption(
 <details>
 <summary>
 <code>value</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ApplicationSummary`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class ApplicationSummary(
-    val metadata: ApplicationMetadata,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>metadata</code>: <code><code><a href='#applicationmetadata'>ApplicationMetadata</a></code></code>
 </summary>
 
 
@@ -6542,6 +7069,114 @@ For more information see the [full documentation](/docs/developer-guide/orchestr
 
 ---
 
+### `CarrouselItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class CarrouselItem(
+    val title: String,
+    val body: String,
+    val imageCredit: String,
+    val linkedApplication: String?,
+    val linkedWebPage: String?,
+    val linkedGroup: Int?,
+    val resolvedLinkedApp: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>body</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>imageCredit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>linkedApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>linkedWebPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>linkedGroup</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>resolvedLinkedApp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `DetailedAccessEntity`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -6650,168 +7285,6 @@ data class DetailedEntityWithPermission(
 
 ---
 
-### `FindApplicationAndOptionalDependencies`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class FindApplicationAndOptionalDependencies(
-    val appName: String,
-    val appVersion: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `FindBySupportedFileExtension`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_The base type for requesting paginated content._
-
-```kotlin
-data class FindBySupportedFileExtension(
-    val files: List<String>,
-    val itemsPerPage: Int?,
-    val next: String?,
-    val consistency: PaginationRequestV2Consistency?,
-    val itemsToSkip: Long?,
-)
-```
-Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
-semantics of the call:
-
-| Consistency | Description |
-|-------------|-------------|
-| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
-| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
-
-The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
-results to be consistent if it contains a complete view at some point in time. In practice this means that the results
-must contain all the items, in the correct order and without duplicates.
-
-If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
-contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
-for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
-consistent.
-
-The results might become inconsistent if the client either takes too long, or a service instance goes down while
-fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
-This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
-within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
-
----
-
-__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
-needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
-paginate through the results.
-
----
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>files</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `ModulesSection`
 
 [![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -6893,6 +7366,90 @@ data class Project(
 <details>
 <summary>
 <code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `Spotlight`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Spotlight(
+    val title: String,
+    val body: String,
+    val applications: List<TopPick>,
+    val active: Boolean,
+    val id: Int?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>body</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#toppick'>TopPick</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>active</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
 </summary>
 
 
@@ -7069,6 +7626,102 @@ data class ToolReference(
 
 ---
 
+### `TopPick`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class TopPick(
+    val title: String,
+    val applicationName: String?,
+    val groupId: Int?,
+    val description: String,
+    val defaultApplicationToRun: String?,
+    val logoHasText: Boolean?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>defaultApplicationToRun</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>logoHasText</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `ACLEntryRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -7129,19 +7782,16 @@ data class ACLEntryRequest(
 
 ---
 
-### `AdvancedSearchRequest`
+### `AppStore.AddGroupToCategory.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class AdvancedSearchRequest(
-    val query: String?,
-    val tags: List<String>?,
-    val showAllVersions: Boolean,
-    val itemsPerPage: Int?,
-    val page: Int?,
+data class Request(
+    val groupId: Int,
+    val categoryId: Int,
 )
 ```
 
@@ -7152,7 +7802,7 @@ data class AdvancedSearchRequest(
 
 <details>
 <summary>
-<code>query</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -7163,40 +7813,7 @@ data class AdvancedSearchRequest(
 
 <details>
 <summary>
-<code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>showAllVersions</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>categoryId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -7213,147 +7830,14 @@ data class AdvancedSearchRequest(
 
 ---
 
-### `AppSearchRequest`
+### `AppStore.AddLogoToGroup.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class AppSearchRequest(
-    val query: String,
-    val itemsPerPage: Int?,
-    val page: Int?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>query</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AppStoreSectionsRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class AppStoreSectionsRequest(
-    val page: AppStorePageType,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='#appstorepagetype'>AppStorePageType</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `CreateGroupRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class CreateGroupRequest(
-    val title: String,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `CreateTagsRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class CreateTagsRequest(
-    val tags: List<String>,
+data class Request(
     val groupId: Int,
 )
 ```
@@ -7362,17 +7846,6 @@ data class CreateTagsRequest(
 <summary>
 <b>Properties</b>
 </summary>
-
-<details>
-<summary>
-<code>tags</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
 
 <details>
 <summary>
@@ -7393,16 +7866,16 @@ data class CreateTagsRequest(
 
 ---
 
-### `DeleteAppRequest`
+### `AppStore.AssignApplicationToGroup.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class DeleteAppRequest(
-    val appName: String,
-    val appVersion: String,
+data class Request(
+    val name: String,
+    val group: Int?,
 )
 ```
 
@@ -7413,7 +7886,7 @@ data class DeleteAppRequest(
 
 <details>
 <summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -7424,7 +7897,7 @@ data class DeleteAppRequest(
 
 <details>
 <summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>group</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
 </summary>
 
 
@@ -7441,15 +7914,16 @@ data class DeleteAppRequest(
 
 ---
 
-### `DeleteGroupRequest`
+### `AppStore.AssignPriorityToCategory.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class DeleteGroupRequest(
+data class Request(
     val id: Int,
+    val priority: Int,
 )
 ```
 
@@ -7469,6 +7943,17 @@ data class DeleteGroupRequest(
 
 </details>
 
+<details>
+<summary>
+<code>priority</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -7477,14 +7962,434 @@ data class DeleteGroupRequest(
 
 ---
 
-### `DevImportRequest`
+### `AppStore.BrowseCategories.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class Request(
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.BrowseGroups.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class Request(
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.BrowseOpenWithRecommendations.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class Request(
+    val files: List<String>,
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>files</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.BrowseSpotlight.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class Request(
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.DevImport.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class DevImportRequest(
+data class Request(
     val endpoint: String,
     val checksum: String,
 )
@@ -7525,15 +8430,16 @@ data class DevImportRequest(
 
 ---
 
-### `FavoriteRequest`
+### `AppStore.RemoveGroupFromCategory.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class FavoriteRequest(
-    val appName: String,
+data class Request(
+    val groupId: Int,
+    val categoryId: Int,
 )
 ```
 
@@ -7544,7 +8450,18 @@ data class FavoriteRequest(
 
 <details>
 <summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>categoryId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
 </summary>
 
 
@@ -7561,17 +8478,15 @@ data class FavoriteRequest(
 
 ---
 
-### `FindLatestByToolRequest`
+### `AppStore.RetrieveAcl.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class FindLatestByToolRequest(
-    val tool: String,
-    val itemsPerPage: Int?,
-    val page: Int?,
+data class Request(
+    val name: String,
 )
 ```
 
@@ -7582,29 +8497,7 @@ data class FindLatestByToolRequest(
 
 <details>
 <summary>
-<code>tool</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -7621,17 +8514,18 @@ data class FindLatestByToolRequest(
 
 ---
 
-### `HasPermissionRequest`
+### `AppStore.RetrieveAppLogo.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class HasPermissionRequest(
-    val appName: String,
-    val appVersion: String,
-    val permission: List<ApplicationAccessRight>,
+data class Request(
+    val name: String,
+    val darkMode: Boolean?,
+    val includeText: Boolean?,
+    val placeTextUnderLogo: Boolean?,
 )
 ```
 
@@ -7642,7 +8536,7 @@ data class HasPermissionRequest(
 
 <details>
 <summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -7653,7 +8547,7 @@ data class HasPermissionRequest(
 
 <details>
 <summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>darkMode</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -7664,7 +8558,18 @@ data class HasPermissionRequest(
 
 <details>
 <summary>
-<code>permission</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationaccessright'>ApplicationAccessRight</a>&gt;</code></code>
+<code>includeText</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>placeTextUnderLogo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -7681,15 +8586,16 @@ data class HasPermissionRequest(
 
 ---
 
-### `IsPublicRequest`
+### `AppStore.RetrieveCarrouselImage.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class IsPublicRequest(
-    val applications: List<NameAndVersion>,
+data class Request(
+    val index: Int,
+    val slideTitle: String,
 )
 ```
 
@@ -7700,7 +8606,18 @@ data class IsPublicRequest(
 
 <details>
 <summary>
-<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.store.api.NameAndVersion.md'>NameAndVersion</a>&gt;</code></code>
+<code>index</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>slideTitle</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -7717,15 +8634,18 @@ data class IsPublicRequest(
 
 ---
 
-### `ListAclRequest`
+### `AppStore.RetrieveGroupLogo.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class ListAclRequest(
-    val appName: String,
+data class Request(
+    val id: Int,
+    val darkMode: Boolean?,
+    val includeText: Boolean?,
+    val placeTextUnderLogo: Boolean?,
 )
 ```
 
@@ -7736,7 +8656,40 @@ data class ListAclRequest(
 
 <details>
 <summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>darkMode</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>includeText</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>placeTextUnderLogo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -7753,176 +8706,51 @@ data class ListAclRequest(
 
 ---
 
-### `RetrieveGroupRequest`
+### `AppStore.Search.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_The base type for requesting paginated content._
 
 ```kotlin
-data class RetrieveGroupRequest(
-    val id: Int?,
-    val name: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `SetGroupRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class SetGroupRequest(
-    val groupId: Int?,
-    val applicationName: String,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>groupId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `SetPublicRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class SetPublicRequest(
-    val appName: String,
-    val appVersion: String,
-    val public: Boolean,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>public</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `TagSearchRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class TagSearchRequest(
+data class Request(
     val query: String,
-    val excludeTools: String?,
     val itemsPerPage: Int?,
-    val page: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
 )
 ```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
 
 <details>
 <summary>
@@ -7942,7 +8770,7 @@ data class TagSearchRequest(
 
 <details>
 <summary>
-<code>excludeTools</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
 </summary>
 
 
@@ -7953,7 +8781,7 @@ data class TagSearchRequest(
 
 <details>
 <summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
 </summary>
 
 
@@ -7964,7 +8792,18 @@ data class TagSearchRequest(
 
 <details>
 <summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
 </summary>
 
 
@@ -7981,15 +8820,51 @@ data class TagSearchRequest(
 
 ---
 
-### `UpdateAclRequest`
+### `AppStore.ToggleStar.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class UpdateAclRequest(
-    val applicationName: String,
+data class Request(
+    val name: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.UpdateAcl.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
+    val name: String,
     val changes: List<ACLEntryRequest>,
 )
 ```
@@ -8001,7 +8876,7 @@ data class UpdateAclRequest(
 
 <details>
 <summary>
-<code>applicationName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -8029,14 +8904,14 @@ data class UpdateAclRequest(
 
 ---
 
-### `UpdateFlavorRequest`
+### `AppStore.UpdateApplicationFlavor.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class UpdateFlavorRequest(
+data class Request(
     val applicationName: String,
     val flavorName: String,
 )
@@ -8077,19 +8952,91 @@ data class UpdateFlavorRequest(
 
 ---
 
-### `UpdateGroupRequest`
+### `AppStore.UpdateCarrousel.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class UpdateGroupRequest(
+data class Request(
+    val newSlides: List<CarrouselItem>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>newSlides</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#carrouselitem'>CarrouselItem</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.UpdateCarrouselImage.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
+    val slideIndex: Int,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>slideIndex</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.UpdateGroup.Request`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Request(
     val id: Int,
-    val title: String,
-    val logo: List<Byte>?,
-    val description: String?,
-    val defaultApplication: String?,
+    val newTitle: String?,
+    val newDefaultFlavor: String?,
+    val newDescription: String?,
+    val newLogoHasText: Boolean?,
 )
 ```
 
@@ -8111,7 +9058,7 @@ data class UpdateGroupRequest(
 
 <details>
 <summary>
-<code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>newTitle</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -8122,7 +9069,7 @@ data class UpdateGroupRequest(
 
 <details>
 <summary>
-<code>logo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-byte/'>Byte</a>&gt;?</code></code>
+<code>newDefaultFlavor</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -8133,7 +9080,7 @@ data class UpdateGroupRequest(
 
 <details>
 <summary>
-<code>description</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>newDescription</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -8144,43 +9091,7 @@ data class UpdateGroupRequest(
 
 <details>
 <summary>
-<code>defaultApplication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `AppStoreSectionsResponse`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class AppStoreSectionsResponse(
-    val sections: List<AppStoreSection>,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>sections</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#appstoresection'>AppStoreSection</a>&gt;</code></code>
+<code>newLogoHasText</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 
@@ -8197,15 +9108,17 @@ data class AppStoreSectionsResponse(
 
 ---
 
-### `CreateGroupResponse`
+### `AppStore.UpdatePublicFlag.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class CreateGroupResponse(
-    val id: Int,
+data class Request(
+    val name: String,
+    val version: String,
+    val public: Boolean,
 )
 ```
 
@@ -8216,7 +9129,29 @@ data class CreateGroupResponse(
 
 <details>
 <summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a></code></code>
+<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>version</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>public</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
 </summary>
 
 
@@ -8233,15 +9168,15 @@ data class CreateGroupResponse(
 
 ---
 
-### `IsPublicResponse`
+### `AppStore.UpdateTopPicks.Request`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class IsPublicResponse(
-    val public: JsonObject,
+data class Request(
+    val newTopPicks: List<TopPick>,
 )
 ```
 
@@ -8252,7 +9187,7 @@ data class IsPublicResponse(
 
 <details>
 <summary>
-<code>public</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
+<code>newTopPicks</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#toppick'>TopPick</a>&gt;</code></code>
 </summary>
 
 
@@ -8269,16 +9204,16 @@ data class IsPublicResponse(
 
 ---
 
-### `RetrieveGroupResponse`
+### `FindByNameAndVersionRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
 ```kotlin
-data class RetrieveGroupResponse(
-    val group: ApplicationGroup,
-    val applications: List<ApplicationSummary>,
+data class FindByNameAndVersionRequest(
+    val appName: String,
+    val appVersion: String?,
 )
 ```
 
@@ -8289,7 +9224,7 @@ data class RetrieveGroupResponse(
 
 <details>
 <summary>
-<code>group</code>: <code><code><a href='#applicationgroup'>ApplicationGroup</a></code></code>
+<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -8300,7 +9235,211 @@ data class RetrieveGroupResponse(
 
 <details>
 <summary>
-<code>applications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummary'>ApplicationSummary</a>&gt;</code></code>
+<code>appVersion</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.ListAllApplications.Response`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Response(
+    val items: List<NameAndVersion>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>items</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.store.api.NameAndVersion.md'>NameAndVersion</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.RetrieveAcl.Response`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Response(
+    val entries: List<DetailedEntityWithPermission>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>entries</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#detailedentitywithpermission'>DetailedEntityWithPermission</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.RetrieveLandingPage.Response`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Response(
+    val carrousel: List<CarrouselItem>,
+    val topPicks: List<TopPick>,
+    val categories: List<ApplicationCategory>,
+    val spotlight: Spotlight?,
+    val newApplications: List<ApplicationSummaryWithFavorite>,
+    val recentlyUpdated: List<ApplicationSummaryWithFavorite>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>carrousel</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#carrouselitem'>CarrouselItem</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>topPicks</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#toppick'>TopPick</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>categories</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationcategory'>ApplicationCategory</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>spotlight</code>: <code><code><a href='#spotlight'>Spotlight</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>newApplications</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>recentlyUpdated</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `AppStore.RetrieveStars.Response`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Response(
+    val items: List<ApplicationSummaryWithFavorite>,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>items</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#applicationsummarywithfavorite'>ApplicationSummaryWithFavorite</a>&gt;</code></code>
 </summary>
 
 

@@ -31,6 +31,7 @@ Files.createUpload.call(
         conflictPolicy = WriteConflictPolicy.REJECT, 
         id = "/123/folder", 
         supportedProtocols = listOf(UploadProtocol.CHUNKED), 
+        type = UploadType.FILE, 
     )),
     user
 ).orThrow()
@@ -68,6 +69,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     "items": [
         {
             "id": "/123/folder",
+            "type": "FILE",
             "supportedProtocols": [
                 "CHUNKED"
             ],

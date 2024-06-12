@@ -1,0 +1,25 @@
+<mxfile host="app.diagrams.net" modified="2024-06-04T13:42:34.877Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:126.0) Gecko/20100101 Firefox/126.0" etag="Fd_zkejQuiQapyWKsCPk" version="24.2.5" type="device">
+  <diagram name="Side-1" id="8xRo9pHsJM8NjgPx5Ff7">
+    <mxGraphModel dx="1242" dy="737" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Tm46EEMCTvY0nGqCJZSY-1" value="&lt;div&gt;ElasticSearch&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;http_logs_REQUEST_NAME-yyyy.mm.dd&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.database;whiteSpace=wrap;" vertex="1" parent="1">
+          <mxGeometry x="380" y="190" width="260" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="Tm46EEMCTvY0nGqCJZSY-7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="Tm46EEMCTvY0nGqCJZSY-5" target="Tm46EEMCTvY0nGqCJZSY-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Tm46EEMCTvY0nGqCJZSY-5" value="&lt;div&gt;HTTP request on UCloud&#39;&lt;/div&gt;" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="40" y="255" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Tm46EEMCTvY0nGqCJZSY-6" value="Audit ingestion service" style="whiteSpace=wrap;html=1;aspect=fixed;" vertex="1" parent="1">
+          <mxGeometry x="200" y="255" width="80" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Tm46EEMCTvY0nGqCJZSY-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="Tm46EEMCTvY0nGqCJZSY-6" target="Tm46EEMCTvY0nGqCJZSY-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
