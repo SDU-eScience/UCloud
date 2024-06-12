@@ -114,7 +114,8 @@ const FEATURES: ResourceBrowseFeatures = {
 
 interface AdditionalResourceBrowserOpts {
     initialPath?: string;
-    managesLocalProject?: boolean
+    managesLocalProject?: boolean;
+    additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
@@ -604,6 +605,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    if (opts?.additionalOperations) {
+                        opts.additionalOperations.forEach(op => {
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
+                        })
+                    }
                     return groupOperations(enabledOperations);
                 });
 

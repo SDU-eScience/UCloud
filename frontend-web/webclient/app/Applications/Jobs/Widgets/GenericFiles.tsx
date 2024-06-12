@@ -13,6 +13,8 @@ import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
+import {UFile} from "@/UCloud/UFile";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -53,6 +55,36 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const pathRef = {current: ""};
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
+
+        async function onClick(res: UFile) {
+            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+            if (props.errors[props.parameter.name]) {
+                delete props.errors[props.parameter.name];
+                props.setErrors({...props.errors});
+            }
+            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+            WidgetSetProvider(props.parameter, res.specification.product.provider);
+            dialogStore.success();
+            if (anyFolderDuplicates()) {
+                props.setWarning?.("Duplicate folders selected. This is not always supported.");
+            }
+        }
+
+        function providerRestriction(file: UFile): boolean | string {
+            const fileProvider = file.specification.product.provider;
+            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+            if (provider && provider !== fileProvider) {
+                if (isCorrectlyDir) {
+                    return providerMismatchError("Folders", fileProvider);
+                } else if (isCorrectlyFile) {
+                    return providerMismatchError("Files", fileProvider)
+                }
+            }
+            return isCorrectlyDir || isCorrectlyFile;
+        }
+
+
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
@@ -60,34 +92,11 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: "",
+                    additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction) : fileFavoriteSelection(onClick, providerRestriction)],
                     selection: {
                         text: "Use",
-                        onClick: async res => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                            if (props.errors[props.parameter.name]) {
-                                delete props.errors[props.parameter.name];
-                                props.setErrors({...props.errors});
-                            }
-                            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                            WidgetSetProvider(props.parameter, res.specification.product.provider);
-                            dialogStore.success();
-                            if (anyFolderDuplicates()) {
-                                props.setWarning?.("Duplicate folders selected. This is not always supported.");
-                            }
-                        },
-                        show(file) {
-                            const fileProvider = file.specification.product.provider;
-                            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                            if (provider && provider !== fileProvider) {
-                                if (isCorrectlyDir) {
-                                    return providerMismatchError("Folders", fileProvider);
-                                } else if (isCorrectlyFile) {
-                                    return providerMismatchError("Files", fileProvider)
-                                }
-                            }
-                            return isCorrectlyDir || isCorrectlyFile;
-                        }
+                        onClick,
+                        show: providerRestriction
                     }
                 }} />,
             doNothing,
