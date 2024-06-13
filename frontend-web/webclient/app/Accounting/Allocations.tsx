@@ -21,7 +21,7 @@ import {
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
+import {periodsOverlap, ProductType, WalletOwner, WalletV2} from "@/Accounting";
 import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -1870,6 +1870,22 @@ function ProgressBar({uq, type}: {
 export function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
     const diff = quota - maxUsable - usage;
     return diff / quota <= 0.001;
+}
+
+export function totalUsageExcludingRetiredIfNeeded(wallet: WalletV2): number {
+    let totalusage: number
+    let retired = 0
+    if (wallet.paysFor.accountingFrequency === "ONCE") {
+        totalusage = wallet.totalUsage
+    } else {
+        wallet.allocationGroups.forEach(group =>
+            group.group.allocations.forEach( alloc =>
+                retired += alloc.retiredUsage ?? 0
+            )
+        )
+        totalusage = wallet.totalUsage - retired
+    }
+    return totalusage
 }
 
 const productTypesByPriority: ProductType[] = [
