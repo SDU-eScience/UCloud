@@ -62,6 +62,7 @@ import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {useProject} from "@/Project/cache";
 import {OldProjectRole} from "@/Project";
+import getNow = jsrsasign.KJUR.jws.IntDate.getNow;
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -90,6 +91,9 @@ interface State {
 
                     start: number;
                     end: number;
+
+                    retiredAmount: number;
+                    shouldShowRetiredAmount: boolean
                 }[];
             }[];
         }
@@ -157,6 +161,7 @@ interface UsageAndQuota {
     unit: string;
     maxUsable: number;
     retired: number;
+    retiredAmountStillCounts: boolean;
 }
 
 // State reducer
@@ -541,19 +546,22 @@ function stateReducer(state: State, action: UIAction): State {
                 const combinedUsage = Accounting.combineBalances(usageBalances);
                 const combineMaxUsable = Accounting.combineBalances(maxUsableBalances);
                 const combineRetire = Accounting.combineBalances(retired)
-
+                const combineShouldUseRetired = wallets.map(wallet =>
+                    wallet.paysFor.accountingFrequency === "ONCE"
+                )
                 for (let i = 0; i < combinedQuotas.length; i++) {
                     const usage = combinedUsage[i];
                     const quota = combinedQuotas[i];
                     const maxUsable = combineMaxUsable[i]
                     const retired = combineRetire[i]
-
+                    const shouldUseRetired = combineShouldUseRetired[i]
                     entry.usageAndQuota.push({
                         usage: usage.normalizedBalance,
                         quota: quota.normalizedBalance,
                         unit: usage.unit,
                         maxUsable: maxUsable.normalizedBalance,
-                        retired: retired.normalizedBalance
+                        retired: retired.normalizedBalance,
+                        retiredAmountStillCounts: shouldUseRetired
                     });
                 }
 
@@ -573,7 +581,7 @@ function stateReducer(state: State, action: UIAction): State {
                     )
 
                     const retired = Accounting.combineBalances([{balance: totalRetired, category: wallet.paysFor}])
-
+                    const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
                     entry.wallets.push({
                         category: wallet.paysFor,
 
@@ -582,7 +590,8 @@ function stateReducer(state: State, action: UIAction): State {
                             quota: quota?.[0]?.normalizedBalance ?? 0,
                             unit: usage?.[0]?.unit ?? "",
                             maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0,
-                            retired: retired?.[0]?.normalizedBalance ?? 0
+                            retired: retired?.[0]?.normalizedBalance ?? 0,
+                            retiredAmountStillCounts: shouldUseRetired
                         },
 
                         allocations: wallet.allocationGroups.flatMap(({group}) =>
@@ -593,6 +602,8 @@ function stateReducer(state: State, action: UIAction): State {
                                 quota: alloc.quota,
                                 start: alloc.startDate,
                                 end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
+                                retiredAmount: alloc.retiredUsage ?? 0,
+                                shouldShowRetiredAmount: wallet.paysFor.accountingFrequency !== "ONCE" || (alloc.retiredUsage ?? 0) === 0
                             }))
                         ),
                     });
@@ -638,6 +649,7 @@ function stateReducer(state: State, action: UIAction): State {
                 const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
                 const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
                 const retired = Accounting.combineBalances([{balance: combinedRetired, category: wallet.paysFor}])
+                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
 
                 const newGroup: State["subAllocations"]["recipients"][0]["groups"][0] = {
                     category: wallet.paysFor,
@@ -646,7 +658,8 @@ function stateReducer(state: State, action: UIAction): State {
                         quota: quota?.[0]?.normalizedBalance ?? 0,
                         maxUsable: 0,
                         unit: usage?.[0]?.unit ?? "",
-                        retired: retired?.[0]?.normalizedBalance ?? 0
+                        retired: retired?.[0]?.normalizedBalance ?? 0,
+                        retiredAmountStillCounts: shouldUseRetired
                     },
                     allocations: [],
                 };
@@ -676,7 +689,8 @@ function stateReducer(state: State, action: UIAction): State {
                     usage: number,
                     quota: number,
                     maxUsable: number,
-                    retired: number
+                    retired: number,
+                    retiredAmountStillCounts: boolean
                 }[] = [];
                 for (const group of recipient.groups) {
                     const existing = uqBuilder.find(it =>
@@ -692,7 +706,8 @@ function stateReducer(state: State, action: UIAction): State {
                             quota: group.usageAndQuota.quota,
                             unit: group.usageAndQuota.unit,
                             maxUsable: group.usageAndQuota.maxUsable,
-                            retired: group.usageAndQuota.retired
+                            retired: group.usageAndQuota.retired,
+                            retiredAmountStillCounts: group.usageAndQuota.retiredAmountStillCounts
                         });
                     }
                 }
@@ -1647,7 +1662,10 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                     </TooltipV2>
                                                 </>}
-                                                <div className="low-opaqueness">{Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}</div>
+                                                <div className="low-opaqueness">{
+                                                    (alloc.shouldShowRetiredAmount && alloc.note !== undefined) ? (Accounting.balanceToString(wallet.category, alloc.retiredAmount, {precision: 0}) + " / " + Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0}) ) :
+                                                    Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})
+                                                }</div>
                                             </Flex>}
                                         />
                                     )
@@ -1834,10 +1852,17 @@ function ProgressBar({uq, type}: {
     uq: UsageAndQuota,
     type: ProductType,
 }) {
+    let usage: number
+    if (uq.retiredAmountStillCounts) {
+        usage = uq.usage
+    } else {
+        usage = uq.usage - uq.retired
+    }
+
     return <NewAndImprovedProgress
-        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
+        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
         label={progressText(type, uq)}
-        percentage={uq.quota === 0 ? 0 : (uq.usage / uq.quota) * 100}
+        percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
         withWarning={!withinDelta(uq.quota, uq.maxUsable, uq.usage)}
     />;
 }
@@ -1874,7 +1899,7 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
 
     if (uq.quota !== 0) {
         text += " (";
-        text += Math.round((uq.usage / uq.quota) * 100);
+        text += Math.round((balance / uq.quota) * 100);
         text += "%)";
     }
     return text;
