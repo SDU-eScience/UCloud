@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"ucloud.dk/pkg/log"
@@ -81,84 +82,11 @@ func Connect() ReadyToOpenTransaction {
 	}
 }
 
-//func (ctx *Transaction) Exec(query string, args ...any) {
-//	res, err := ctx.Transaction.Exec(query, args...)
-//
-//	affected, _ := res.RowsAffected()
-//	fmt.Printf("Exec result: %d\n", affected)
-//
-//	if err != nil {
-//		ctx.Ok = false
-//		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
-//	}
-//}
-
-func (ctx *Transaction) Exec(query string, arg any) {
-	_, err := ctx.Transaction.NamedExec(query, arg)
-
-	if err != nil {
-		ctx.Ok = false
-		ctx.Error = DBError{"Database exec failed: " + err.Error() + "\nquery: " + query}
-	}
-}
-
-//
-//func (ctx *Transaction) Query(query string, arg interface{}) *sqlx.Rows {
-//	res, err := ctx.Transaction.Queryx(query, arg)
-//
-//	if err != nil {
-//		log.Debug("Something went horribly wrong")
-//		ctx.Ok = false
-//		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
-//	}
-//
-//	return res
-//}
-
-func (ctx *Transaction) Query(query string, arg any) *sqlx.Rows {
-	res, err := ctx.Transaction.NamedQuery(query, arg)
-
-	if err != nil {
-		log.Debug("Something went horribly wrong")
-		ctx.Ok = false
-		ctx.Error = DBError{"Database query failed: " + err.Error() + "\nquery: " + query}
-	}
-
-	return res
-}
-
-func (ctx *Transaction) Get(dest any, query string, args any) {
-	res, err := ctx.Transaction.NamedQuery(query, args)
-	if err != nil {
-		ctx.Ok = false
-		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
-		return
-	}
-
-	count := 0
-	for res.Next() {
-		count++
-		err = res.StructScan(dest)
-
-		if err != nil {
-			ctx.Ok = false
-			ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
-			return
-		}
-	}
-
-	if count != 1 {
-		ctx.Ok = false
-		ctx.Error = DBError{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v", count, query)}
-		return
-	}
-}
-
 func Exec(ctx *Transaction, query string, args any) {
 	_, err := ctx.Transaction.NamedExec(query, args)
 	if err != nil {
 		ctx.Ok = false
-		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+		ctx.Error = DBError{fmt.Sprintf("Database exec failed: %v\nquery: %v\n", err.Error(), query)}
 	}
 }
 
@@ -167,7 +95,7 @@ func Get[T any](ctx *Transaction, query string, args any) T {
 	if len(items) != 1 {
 		var dummy T
 		ctx.Ok = false
-		ctx.Error = DBError{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v", len(items), query)}
+		ctx.Error = DBError{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v\n", len(items), query)}
 		return dummy
 	}
 	return items[0]
@@ -178,7 +106,7 @@ func Select[T any](ctx *Transaction, query string, args any) []T {
 	res, err := ctx.Transaction.NamedQuery(query, args)
 	if err != nil {
 		ctx.Ok = false
-		ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+		ctx.Error = DBError{fmt.Sprintf("Database select failed: %v\nquery: %v\n", err.Error(), query)}
 		return nil
 	}
 
@@ -190,7 +118,7 @@ func Select[T any](ctx *Transaction, query string, args any) []T {
 
 		if err != nil {
 			ctx.Ok = false
-			ctx.Error = DBError{"Database get failed: " + err.Error() + "\nquery: " + query}
+			ctx.Error = DBError{"Database select failed: " + err.Error() + "\nquery: " + query}
 			return nil
 		}
 	}

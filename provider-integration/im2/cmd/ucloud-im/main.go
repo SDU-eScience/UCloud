@@ -33,35 +33,47 @@ func main() {
 			log.Fatal("Something went wrong 0: %s", session.Error.Message)
 		}
 
-		session.Exec(`
+		database.Exec(session, `
 			create table if not exists test (
 				id integer primary key,
 				name varchar(40)
 			)
-		`)
+		`, map[string]any{})
 
 		if !session.Ok {
 			log.Fatal("Something went wrong 1: %s", session.Error.Message)
 		}
 
-		session.Exec(`
+		database.Exec(session, `
 			insert into test (id, name) values (1, 'Brian')
-		`)
+		`, map[string]any{})
 
 		if !session.Ok {
 			log.Fatal("Something went wrong 2: %s", session.Error.Message)
 		}
 
-		var name string
-		session.Get(&name, "select name from test where id = $1",
-			1,
+		type Person struct {
+			Name string
+		}
+		person := database.Get[Person](session, "select name from test where id = :id",
+			map[string]any{
+				"id": 1,
+			},
 		)
 
 		if !session.Ok {
 			log.Fatal("Something went wrong 3: %s", session.Error.Message)
 		}
 
-		fmt.Println(name)
+		fmt.Println(person.Name)
+
+		rows := database.Select[Person](session, `select unnest(array['Dan', 'Brian', :fie]) as name`, map[string]any{
+			"fie": "Fie",
+		})
+
+		for _, row := range rows {
+			fmt.Println(row.Name)
+		}
 
 		return
 	}

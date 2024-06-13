@@ -21,13 +21,13 @@ func (handler MigrationHandler) migrate() {
 
 	session := handler.DB.Open()
 
-	session.Exec(`
+	Exec(session, `
 		create table if not exists migrations(
 			id text primary key
 		);
 	`, map[string]any{})
 
-	session.Exec(`
+	Exec(session, `
 		create table if not exists completed_migrations(
 			id text primary key references migrations,
 			completed_at timestamp
