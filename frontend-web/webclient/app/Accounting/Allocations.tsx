@@ -1873,19 +1873,19 @@ export function withinDelta(quota: number, maxUsable: number, usage: number): bo
 }
 
 export function totalUsageExcludingRetiredIfNeeded(wallet: WalletV2): number {
-    let totalusage: number
+    let totalUsage: number
     let retired = 0
     if (wallet.paysFor.accountingFrequency === "ONCE") {
-        totalusage = wallet.totalUsage
+        totalUsage = wallet.totalUsage
     } else {
         wallet.allocationGroups.forEach(group =>
             group.group.allocations.forEach( alloc =>
                 retired += alloc.retiredUsage ?? 0
             )
         )
-        totalusage = wallet.totalUsage - retired
+        totalUsage = wallet.totalUsage - retired
     }
-    return totalusage
+    return totalUsage
 }
 
 const productTypesByPriority: ProductType[] = [
