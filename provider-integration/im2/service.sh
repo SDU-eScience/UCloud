@@ -45,6 +45,9 @@ chmod 777 /var/log/ucloud/structured
 ! (test -f /etc/ucloud/core.yaml) || chmod 644 /etc/ucloud/core.yaml
 ! (test -f /etc/ucloud/server.yaml) || chmod 600 /etc/ucloud/server.yaml
 ! (test -f /etc/ucloud/ucloud_crt.pem) || chmod 644 /etc/ucloud/ucloud_crt.pem
+! (test -d /gpfs) && mkdir /gpfs
+! (test -d /gpfs/home) && ln -s /home /gpfs/home
+! (test -d /gpfs/work) && ln -s /work /gpfs/work
 
 isrunning() {
     test -f /tmp/service.pid && (ps -p $(cat /tmp/service.pid) > /dev/null)
@@ -56,8 +59,18 @@ startsvc() {
         cp /root/go/bin/dlv /usr/bin/dlv
     fi
 
+    if ! [ -f "/usr/bin/gpfs-mock" ]; then
+        ln -s /usr/bin/ucloud /usr/bin/gpfs-mock
+    fi
+
     if ! isrunning; then
         CGO_ENABLED=1 $GO build -gcflags "all=-N -l" -o /usr/bin/ucloud -trimpath ucloud.dk/cmd/ucloud-im
+
+        if [ -f "/etc/ucloud/gpfs_mock.yml" ]; then
+            pkill gpfs-mock || true
+            rm -f /tmp/gpfs-mock-startup
+            nohup gpfs-mock &> /tmp/gpfs-mock-startup &
+        fi
         nohup sudo -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us
@@ -69,9 +82,13 @@ stopsvc() {
         kill $(cat /tmp/service.pid)
         rm -f /tmp/service.pid
         rm -f /tmp/service.log
-        pkill ucloud
-        pkill envoy
+        rm -f /var/log/ucloud/*.log
     fi
+
+    pkill ucloud || true
+    pkill envoy || true
+    pkill dlv || true
+    pkill gpfs-mock || true
 }
 
 restartsvc() {

@@ -20,6 +20,10 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ctrl.LaunchUserInstances = true
 	ctrl.Files = InitializeFiles()
 
+	if cfg.Mode == cfg.ServerModeServer {
+		InitFileManagers()
+	}
+
 	// Identity management
 	if cfg.Mode == cfg.ServerModeServer {
 		switch config.IdentityManagement.Type {
@@ -28,6 +32,11 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 		case cfg.IdentityManagementTypeFreeIpa:
 			idfreeipa.Init(config.IdentityManagement.FreeIPA())
 		}
+	}
+
+	// APM
+	if cfg.Mode == cfg.ServerModeServer {
+		ctrl.ApmHandler.HandleNotification = handleApmNotification
 	}
 
 	// IPC
@@ -44,6 +53,19 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	} else if cfg.Mode == cfg.ServerModeUser {
 		resp, err := Hello.Invoke(fmt.Sprintf("This is a message from %v.", os.Getuid()))
 		log.Info("IPC response received! %v %v", resp, err)
+	}
+}
+
+func handleApmNotification(nType ctrl.NotificationMessageType, notification any) {
+	switch nType {
+	case ctrl.NotificationMessageWalletUpdated:
+		update := notification.(*ctrl.NotificationWalletUpdated)
+		drives := EvaluateLocators(update.Owner, update.Category.Name)
+		FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
+
+	case ctrl.NotificationMessageProjectUpdated:
+		update := notification.(*ctrl.NotificationProjectUpdated)
+		_ = update
 	}
 }
 

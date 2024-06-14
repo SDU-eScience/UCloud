@@ -52,12 +52,13 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 	kvdb.Set(fmt.Sprintf("%v%v", uidInvMapPrefix, uid), username)
 	kvdb.Set(fmt.Sprintf("%v%v", uidMapPrefix, username), uid)
 
+	userReplayChannel <- username
 	return err
 }
 
-func getDebugPort(uid uint32) (int, bool) {
+func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
-	if uid == 11043 {
+	if ucloudUsername == "user" {
 		return 51234, true
 	}
 	return 0, false
@@ -176,12 +177,14 @@ func controllerConnection(mux *http.ServeMux) {
 			baseContext+"init",
 			HttpUpdateHandler[initRequest](0, func(w http.ResponseWriter, r *http.Request, request initRequest) {
 				if !LaunchUserInstances {
+					log.Info("Attempting to launch user instance, but this IM will not launch user instances.")
 					sendStatusCode(w, http.StatusNotFound)
 					return
 				}
 
 				uid, ok := MapUCloudToLocal(request.Username)
 				if uid <= 0 || !ok {
+					log.Warn("Could not map UCloud to local identity: %v -> %v (%v)", request.Username, uid, ok)
 					sendStatusCode(w, http.StatusBadRequest)
 					return
 				}
@@ -218,7 +221,7 @@ func controllerConnection(mux *http.ServeMux) {
 					args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
 					args = append(args, "-u")
 					args = append(args, fmt.Sprintf("#%v", uid))
-					debugPort, shouldDebug := getDebugPort(uid)
+					debugPort, shouldDebug := getDebugPort(request.Username)
 					if shouldDebug {
 						args = append(args, "/usr/bin/dlv")
 						args = append(args, "exec")

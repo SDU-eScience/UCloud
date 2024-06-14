@@ -17,6 +17,12 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+var ApmHandler ApmService
+
+type ApmService struct {
+	HandleNotification func(nType NotificationMessageType, notification any)
+}
+
 const replayFromKey = "events-replay-from"
 
 var userReplayChannel chan string
@@ -49,11 +55,36 @@ func initEvents() {
 }
 
 func handleNotification(nType NotificationMessageType, notification any) {
+	handler := ApmHandler.HandleNotification
+	if handler == nil {
+		handler = func(_ NotificationMessageType, _ any) {
+			log.Info("Ignoring notification event!")
+		}
+	}
+
 	switch nType {
 	case NotificationMessageWalletUpdated:
+		success := true
 		update := notification.(*NotificationWalletUpdated)
-		log.Info("Handling wallet event %v", update)
-		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
+			update.Category.Name, update.CombinedQuota, update.Locked)
+		if LaunchUserInstances {
+			if update.Owner.Type == apm.WalletOwnerTypeUser {
+				_, ok := MapUCloudToLocal(update.Owner.Username)
+				if ok {
+					handler(nType, notification)
+				} else {
+					log.Info("Could not map user %v", update.Owner.Username)
+					success = false
+				}
+			} else {
+				handler(nType, notification)
+			}
+		}
+
+		if success {
+			kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		}
 
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)

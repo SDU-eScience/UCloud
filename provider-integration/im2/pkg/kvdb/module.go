@@ -103,6 +103,7 @@ func Set(key string, value any) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	db[key] = value
+	dirty = true
 }
 
 func Get[T any](key string) (T, bool) {
@@ -110,7 +111,11 @@ func Get[T any](key string) (T, bool) {
 	defer mutex.Unlock()
 	value, ok := db[key]
 	if ok {
-		return value.(T), ok
+		converted, ok := value.(T)
+		if !ok {
+			log.Warn("Unexpected value type %T for key %v", value, key)
+		}
+		return converted, ok
 	} else {
 		var zeroValue T
 		return zeroValue, ok
