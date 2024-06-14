@@ -22,7 +22,7 @@ import {
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
 import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
-import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
+import {deepCopy, groupBy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -178,6 +178,8 @@ type UIAction =
     | {type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean}
     ;
 
+
+const fuzzyMatcher = newFuzzyMatchFuse<Accounting.ParentOrChildWallet, "projectId" | "projectTitle">(["projectId", "projectTitle"]);
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "WalletsLoaded": {
@@ -485,16 +487,13 @@ function stateReducer(state: State, action: UIAction): State {
             if (wallet.paysFor.freeToUse) continue;
 
             const children = wallet.children ?? [];
+            const query = state.subAllocations.searchQuery;
             for (const childGroup of children) {
-                const query = state.subAllocations.searchQuery;
                 let matches = query === "";
 
                 if (!matches) {
-                    matches = fuzzyMatch(
-                        childGroup.child,
-                        ["projectId", "projectTitle"],
-                        query,
-                    );
+                    fuzzyMatcher.setCollection([childGroup.child]);
+                    matches = fuzzyMatcher.search(query).length > 0;
                 }
 
                 // TODO more checks?
@@ -1676,7 +1675,7 @@ const Allocations: React.FunctionComponent = () => {
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
                     {state.subAllocations.recipients.map((recipient, recipientIdx) => {
                         return <TreeNode
-                            key={recipient.owner.primaryUsername}
+                            key={recipient.owner.title}
                             left={<Flex gap={"4px"} alignItems={"center"}>
                                 <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
