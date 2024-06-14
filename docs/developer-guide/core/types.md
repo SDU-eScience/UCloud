@@ -54,10 +54,6 @@
 <td>A minimal representation of a security principal.</td>
 </tr>
 <tr>
-<td><a href='#paginationrequest'><code>PaginationRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
 <td><a href='#paginationrequestv2consistency'><code>PaginationRequestV2Consistency</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -623,54 +619,6 @@ All new tokens _should_ contain this information explicitly.
 <details>
 <summary>
 <code>organization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `PaginationRequest`
-
-[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-```kotlin
-data class PaginationRequest(
-    val itemsPerPage: Int?,
-    val page: Int?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
 </summary>
 
 

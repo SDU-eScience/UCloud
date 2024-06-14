@@ -9,13 +9,10 @@
 
 ```kotlin
 data class RequestItem(
-    val owner: WalletOwner,
-    val productCategory: ProductCategoryIdV2,
+    val category: ProductCategoryIdV2,
     val quota: Long,
     val start: Long,
     val end: Long,
-    val deicAllocationId: String?,
-    val forcedSync: Boolean?,
 )
 ```
 
@@ -26,18 +23,7 @@ data class RequestItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productCategory</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryIdV2.md'>ProductCategoryIdV2</a></code></code>
 </summary>
 
 
@@ -71,28 +57,6 @@ data class RequestItem(
 <details>
 <summary>
 <code>end</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>deicAllocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>forcedSync</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

@@ -45,6 +45,7 @@ private val periodicalFrequencies = listOf<AccountingFrequency>(
 )
 
 @Serializable
+@UCloudApiOwnedBy(ProductsV2::class)
 data class ProductCategory(
     val name: String,                   //e.g. u1-cephfs
     val provider: String,               //e.g. UCloud

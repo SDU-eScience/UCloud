@@ -352,3 +352,31 @@ func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
 
 	return file, stat.Size(), nil
 }
+
+func UnitToBytes(unit string) uint64 {
+	switch unit {
+	case "KB":
+		return 1000
+	case "KiB":
+		return 1024
+	case "MB":
+		return 1000 * 1000
+	case "MiB":
+		return 1024 * 1024
+	case "GB":
+		return 1000 * 1000 * 1000
+	case "GiB":
+		return 1024 * 1024 * 1024
+	case "TB":
+		return 1000 * 1000 * 1000 * 1000
+	case "TiB":
+		return 1024 * 1024 * 1024 * 1024
+	case "PB":
+		return 1000 * 1000 * 1000 * 1000 * 1000
+	case "PiB":
+		return 1024 * 1024 * 1024 * 1024 * 1024
+	default:
+		log.Warn("%v Unknown unit %v", util.GetCaller(), unit)
+		return 1
+	}
+}

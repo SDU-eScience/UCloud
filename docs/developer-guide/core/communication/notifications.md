@@ -56,6 +56,10 @@ automatically delivered to any connected frontend via websockets.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#retrievesettings'><code>retrieveSettings</code></a></td>
+<td>Retrieve notification settings/preferences for end-user</td>
+</tr>
+<tr>
 <td><a href='#subscription'><code>subscription</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -78,6 +82,10 @@ automatically delivered to any connected frontend via websockets.
 <tr>
 <td><a href='#markasread'><code>markAsRead</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#updatesettings'><code>updateSettings</code></a></td>
+<td>Update notification settings/preferences for end-user</td>
 </tr>
 </tbody></table>
 
@@ -107,6 +115,10 @@ automatically delivered to any connected frontend via websockets.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#notificationsettings'><code>NotificationSettings</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#internalnotificationrequest'><code>InternalNotificationRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -115,11 +127,23 @@ automatically delivered to any connected frontend via websockets.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#retrievesettingsrequest'><code>RetrieveSettingsRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#createnotificationresponse'><code>CreateNotificationResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#deleteresponse'><code>DeleteResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#markresponse'><code>MarkResponse</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#retrievesettingsresponse'><code>RetrieveSettingsResponse</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -154,7 +178,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1704180845770, 
+            ts = 1717663228605, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -163,8 +187,10 @@ NotificationDescriptions.create.call(
 ).orThrow()
 
 /*
-FindByLongId(
-    id = 56123, 
+CreateNotificationResponse(
+    id = FindByLongId(
+        id = 56123, 
+    ), 
 )
 */
 ```
@@ -193,14 +219,16 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1704180845770,
+        "ts": 1717663228605,
         "read": false
     }
 }'
 
 
 # {
-#     "id": 56123
+#     "id": {
+#         "id": 56123
+#     }
 # }
 
 ```
@@ -250,7 +278,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1704180845774, 
+    ts = 1717663228605, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -346,7 +374,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1704180845776, 
+        ts = 1717663228606, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -393,7 +421,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1704180845776,
+#             "ts": 1717663228606,
 #             "read": false
 #         }
 #     ]
@@ -449,6 +477,20 @@ _Notifies an instance of this service that it should notify an end-user_
 
 
 
+### `retrieveSettings`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Retrieve notification settings/preferences for end-user_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#retrievesettingsrequest'>RetrieveSettingsRequest</a></code>|<code><a href='#retrievesettingsresponse'>RetrieveSettingsResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `subscription`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -471,7 +513,7 @@ _Notifies an instance of this service that it should notify an end-user_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#createnotification'>CreateNotification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#createnotification'>CreateNotification</a></code>|<code><a href='#createnotificationresponse'>CreateNotificationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -484,7 +526,7 @@ _Notifies an instance of this service that it should notify an end-user_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createnotification'>CreateNotification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createnotification'>CreateNotification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#createnotificationresponse'>CreateNotificationResponse</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -524,6 +566,20 @@ _Notifies an instance of this service that it should notify an end-user_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#findbynotificationidbulk'>FindByNotificationIdBulk</a></code>|<code><a href='#markresponse'>MarkResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `updateSettings`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Update notification settings/preferences for end-user_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#notificationsettings'>NotificationSettings</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -710,6 +766,54 @@ data class Notification(
 
 ---
 
+### `NotificationSettings`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class NotificationSettings(
+    val jobStarted: Boolean?,
+    val jobStopped: Boolean?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>jobStarted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>jobStopped</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `InternalNotificationRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -830,6 +934,78 @@ data class ListNotificationRequest(
 
 ---
 
+### `RetrieveSettingsRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RetrieveSettingsRequest(
+    val username: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `CreateNotificationResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class CreateNotificationResponse(
+    val id: FindByLongId?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
 ### `DeleteResponse`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -886,6 +1062,42 @@ data class MarkResponse(
 <details>
 <summary>
 <code>failures</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `RetrieveSettingsResponse`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RetrieveSettingsResponse(
+    val settings: NotificationSettings,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>settings</code>: <code><code><a href='#notificationsettings'>NotificationSettings</a></code></code>
 </summary>
 
 

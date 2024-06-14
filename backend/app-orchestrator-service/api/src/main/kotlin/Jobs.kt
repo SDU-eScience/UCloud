@@ -1578,6 +1578,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
+    @Deprecated("No longer in use. Will likely be replaced by a better endpoint.")
     @UCloudApiExperimental(ExperimentalLevel.BETA)
     val retrieveUtilization = call("retrieveUtilization", JobsRetrieveUtilizationRequest.serializer(), JobsRetrieveUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization")

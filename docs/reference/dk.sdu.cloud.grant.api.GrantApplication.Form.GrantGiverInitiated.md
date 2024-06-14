@@ -10,6 +10,7 @@
 ```kotlin
 data class GrantGiverInitiated(
     val text: String,
+    val subAllocator: Boolean?,
     val type: String /* "grant_giver_initiated" */,
 )
 ```
@@ -22,6 +23,17 @@ data class GrantGiverInitiated(
 <details>
 <summary>
 <code>text</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>subAllocator</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

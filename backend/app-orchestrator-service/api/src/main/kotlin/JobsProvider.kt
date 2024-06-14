@@ -983,6 +983,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
     )
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
+    @Deprecated("No longer in use. Will likely be replaced by a better endpoint.")
     val retrieveUtilization = call("retrieveUtilization", JobsProviderUtilizationRequest.serializer(), JobsProviderUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
 

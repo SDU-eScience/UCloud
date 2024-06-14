@@ -310,37 +310,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 
 /* The user finds an interesting application from the catalog */
 
-val applications = AppStore.listAll.call(
-    PaginationRequest(
-        itemsPerPage = 50, 
-        page = 0, 
-    ),
-    user
-).orThrow()
-
-/*
-applications = Page(
-    items = listOf(ApplicationSummaryWithFavorite(
-        favorite = false, 
-        metadata = ApplicationMetadata(
-            authors = listOf("UCloud"), 
-            description = "This is a batch application", 
-            flavorName = null, 
-            group = null, 
-            isPublic = true, 
-            name = "a-batch-application", 
-            public = true, 
-            title = "A Batch Application", 
-            version = "1.0.0", 
-            website = null, 
-        ), 
-        tags = listOf("very-scientific"), 
-    )), 
-    itemsInTotal = 1, 
-    itemsPerPage = 50, 
-    pageNumber = 0, 
-)
-*/
 
 /* The user selects the first application ('batch' in version '1.0.0') */
 
@@ -348,7 +317,7 @@ applications = Page(
 /* The user requests additional information about the application */
 
 val application = AppStore.findByNameAndVersion.call(
-    FindApplicationAndOptionalDependencies(
+    FindByNameAndVersionRequest(
         appName = "a-batch-application", 
         appVersion = "1.0.0", 
     ),
@@ -427,6 +396,7 @@ application = ApplicationWithFavoriteAndTags(
     ), 
     metadata = ApplicationMetadata(
         authors = listOf("UCloud"), 
+        createdAt = 1717663228434, 
         description = "This is a batch application", 
         flavorName = null, 
         group = null, 
@@ -548,41 +518,11 @@ BulkResponse(
 
 # The user finds an interesting application from the catalog
 
-# Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps?itemsPerPage=50&page=0" 
-
-# applications = 
-# {
-#     "itemsInTotal": 1,
-#     "itemsPerPage": 50,
-#     "pageNumber": 0,
-#     "items": [
-#         {
-#             "metadata": {
-#                 "name": "a-batch-application",
-#                 "version": "1.0.0",
-#                 "authors": [
-#                     "UCloud"
-#                 ],
-#                 "title": "A Batch Application",
-#                 "description": "This is a batch application",
-#                 "website": null,
-#                 "public": true,
-#                 "flavorName": null,
-#                 "group": null
-#             },
-#             "favorite": false,
-#             "tags": [
-#                 "very-scientific"
-#             ]
-#         }
-#     ]
-# }
-
 # The user selects the first application ('batch' in version '1.0.0')
 
 # The user requests additional information about the application
 
+# Authenticated as user
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAndVersion?appName=a-batch-application&appVersion=1.0.0" 
 
 # application = 
@@ -598,7 +538,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "website": null,
 #         "public": true,
 #         "flavorName": null,
-#         "group": null
+#         "group": null,
+#         "createdAt": 1717663228434
 #     },
 #     "invocation": {
 #         "tool": {
@@ -2638,12 +2579,12 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 
 /* When the user creates the Job, they have enough credits */
 
-Wallets.browse.call(
-    WalletBrowseRequest(
+AccountingV2.browseWallets.call(
+    AccountingV2.BrowseWallets.Request(
+        childrenQuery = null, 
         consistency = null, 
-        filterEmptyAllocations = null, 
         filterType = null, 
-        includeMaxUsableBalance = null, 
+        includeChildren = false, 
         itemsPerPage = null, 
         itemsToSkip = null, 
         next = null, 
@@ -2653,32 +2594,50 @@ Wallets.browse.call(
 
 /*
 PageV2(
-    items = listOf(Wallet(
-        allocations = listOf(WalletAllocation(
-            allocationPath = listOf("1254151"), 
-            allowSubAllocationsToAllocate = true, 
-            balance = 500, 
-            canAllocate = false, 
-            endDate = null, 
-            grantedIn = 2, 
-            id = "1254151", 
-            initialBalance = 500000000, 
-            localBalance = 500, 
-            maxUsableBalance = null, 
-            startDate = 1633329776235, 
+    items = listOf(WalletV2(
+        allocationGroups = listOf(AllocationGroupWithParent(
+            group = AllocationGroup(
+                allocations = listOf(AllocationGroup.Alloc(
+                    endDate = 1664865776235, 
+                    grantedIn = null, 
+                    id = 12541154, 
+                    quota = 500000000, 
+                    retiredUsage = null, 
+                    startDate = 1633329776235, 
+                )), 
+                id = 1, 
+                usage = 499000000, 
+            ), 
+            parent = ParentOrChildWallet(
+                pi = "user", 
+                projectId = null, 
+                projectTitle = "Root", 
+            ), 
         )), 
-        chargePolicy = AllocationSelectorPolicy.EXPIRE_FIRST, 
-        chargeType = ChargeType.ABSOLUTE, 
+        children = null, 
+        lastSignificantUpdateAt = 0, 
+        localUsage = 499000000, 
+        maxUsable = 100000, 
         owner = WalletOwner.User(
             username = "user", 
         ), 
-        paysFor = ProductCategoryId(
-            id = "example-compute", 
+        paysFor = ProductCategory(
+            accountingFrequency = AccountingFrequency.PERIODIC_MINUTE, 
+            accountingUnit = AccountingUnit(
+                displayFrequencySuffix = false, 
+                floatingPoint = true, 
+                name = "DKK", 
+                namePlural = "DKK", 
+            ), 
+            allowSubAllocations = true, 
+            freeToUse = false, 
             name = "example-compute", 
+            productType = ProductType.COMPUTE, 
             provider = "example", 
         ), 
-        productType = ProductType.COMPUTE, 
-        unit = ProductPriceUnit.CREDITS_PER_MINUTE, 
+        quota = 500000000, 
+        totalAllocated = 0, 
+        totalUsage = 499000000, 
     )), 
     itemsPerPage = 50, 
     next = null, 
@@ -2848,7 +2807,7 @@ Job(
 # When the user creates the Job, they have enough credits
 
 # Authenticated as user
-curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets/browse?" 
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/v2/browseWallets?includeChildren=false" 
 
 # {
 #     "itemsPerPage": 50,
@@ -2860,29 +2819,48 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/accounting/wallets
 #             },
 #             "paysFor": {
 #                 "name": "example-compute",
-#                 "provider": "example"
+#                 "provider": "example",
+#                 "productType": "COMPUTE",
+#                 "accountingUnit": {
+#                     "name": "DKK",
+#                     "namePlural": "DKK",
+#                     "floatingPoint": true,
+#                     "displayFrequencySuffix": false
+#                 },
+#                 "accountingFrequency": "PERIODIC_MINUTE",
+#                 "freeToUse": false,
+#                 "allowSubAllocations": true
 #             },
-#             "allocations": [
+#             "allocationGroups": [
 #                 {
-#                     "id": "1254151",
-#                     "allocationPath": [
-#                         "1254151"
-#                     ],
-#                     "balance": 500,
-#                     "initialBalance": 500000000,
-#                     "localBalance": 500,
-#                     "startDate": 1633329776235,
-#                     "endDate": null,
-#                     "grantedIn": 2,
-#                     "maxUsableBalance": null,
-#                     "canAllocate": false,
-#                     "allowSubAllocationsToAllocate": true
+#                     "parent": {
+#                         "projectId": null,
+#                         "projectTitle": "Root",
+#                         "pi": "user"
+#                     },
+#                     "group": {
+#                         "id": 1,
+#                         "allocations": [
+#                             {
+#                                 "id": 12541154,
+#                                 "startDate": 1633329776235,
+#                                 "endDate": 1664865776235,
+#                                 "quota": 500000000,
+#                                 "grantedIn": null,
+#                                 "retiredUsage": null
+#                             }
+#                         ],
+#                         "usage": 499000000
+#                     }
 #                 }
 #             ],
-#             "chargePolicy": "EXPIRE_FIRST",
-#             "productType": "COMPUTE",
-#             "chargeType": "ABSOLUTE",
-#             "unit": "CREDITS_PER_MINUTE"
+#             "children": null,
+#             "totalUsage": 499000000,
+#             "localUsage": 499000000,
+#             "maxUsable": 100000,
+#             "quota": 500000000,
+#             "totalAllocated": 0,
+#             "lastSignificantUpdateAt": 0
 #         }
 #     ],
 #     "next": null
@@ -3847,7 +3825,7 @@ See also:
 
 [![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 _Retrieve information about how busy the provider's cluster currently is_
 

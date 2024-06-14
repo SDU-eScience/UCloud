@@ -1136,7 +1136,7 @@ sealed class ComposeService {
                                 client,
                                 listOf(
                                     "sh", "-c", """
-                                        ipa-client-install --mkhomedir --domain ipa.ucloud --server ipa.ucloud --no-ntp \
+                                        ipa-client-install --domain ipa.ucloud --server ipa.ucloud --no-ntp \
                                             --no-dns-sshfp --principal=admin --password=adminadmin --force-join --unattended || true;
                                     """.trimIndent()
                                 ),

@@ -231,6 +231,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#uploadtype'><code>UploadType</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#writeconflictpolicy'><code>WriteConflictPolicy</code></a></td>
 <td>A policy for how UCloud should handle potential naming conflicts for certain operations (e.g. copy)</td>
 </tr>
@@ -480,6 +484,7 @@ Files.createUpload.call(
         conflictPolicy = WriteConflictPolicy.REJECT, 
         id = "/123/folder", 
         supportedProtocols = listOf(UploadProtocol.CHUNKED), 
+        type = UploadType.FILE, 
     )),
     user
 ).orThrow()
@@ -517,6 +522,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
     "items": [
         {
             "id": "/123/folder",
+            "type": "FILE",
             "supportedProtocols": [
                 "CHUNKED"
             ],
@@ -1707,8 +1713,14 @@ _Creates an upload session between the user and the provider_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#filescreateuploadrequestitem'>FilesCreateUploadRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='#filescreateuploadresponseitem'>FilesCreateUploadResponseItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-The returned endpoint will accept an upload from the user which will create a file at a location
-specified in this request.
+An upload can be either a file or folder, if supported by the provider, and depending on the
+[`UploadTypespecified`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadTypespecified.md)  in the request. The desired path and a list of supported [`UploadProtocol`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.md)s 
+are also specified in the request. The latter is used by the provider to negotiate which protocol to use.
+
+The response will contain an endpoint which is ready to accept the upload, as well as the chosen
+[`UploadProtocol`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.md)  and a unique token.
+
+At the time of writing the default and preferred protocol is [`UploadProtocol.WEBSOCKET`](/docs/reference/dk.sdu.cloud.file.orchestrator.api.UploadProtocol.WEBSOCKET.md).
 
 __Errors:__
 
@@ -3342,6 +3354,7 @@ An update will typically contain information similar to the `status` field, for 
 ```kotlin
 enum class UploadProtocol {
     CHUNKED,
+    WEBSOCKET,
 }
 ```
 
@@ -3353,6 +3366,65 @@ enum class UploadProtocol {
 <details>
 <summary>
 <code>CHUNKED</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>WEBSOCKET</code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UploadType`
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class UploadType {
+    FILE,
+    FOLDER,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>FILE</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>FOLDER</code>
 </summary>
 
 
@@ -3600,6 +3672,7 @@ data class FilesCreateFolderRequestItem(
 ```kotlin
 data class FilesCreateUploadRequestItem(
     val id: String,
+    val type: UploadType,
     val supportedProtocols: List<UploadProtocol>,
     val conflictPolicy: WriteConflictPolicy,
 )
@@ -3613,6 +3686,17 @@ data class FilesCreateUploadRequestItem(
 <details>
 <summary>
 <code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code><a href='#uploadtype'>UploadType</a></code></code>
 </summary>
 
 

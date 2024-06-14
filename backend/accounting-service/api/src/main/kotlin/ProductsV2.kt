@@ -276,6 +276,71 @@ object ProductsV2 : CallDescriptionContainer("products.v2") {
     private const val browseByTypeUseCase = "browse-by-type"
     private const val retrieveUseCase = "retrieve"
 
+    init {
+        serializerLookupTable = mapOf(
+            serializerEntry(ProductV2.serializer())
+        )
+
+        val Provider = "$TYPE_REF dk.sdu.cloud.provider.api.Provider"
+        description = """
+Products define the services exposed by a Provider.
+
+$Provider s expose services into UCloud. But, different 
+$Provider s expose different services. UCloud uses $TYPE_REF ProductV2 s to define the 
+services of a $Provider . As an example, a 
+$Provider might have the following services:
+
+- __Storage:__ Two tiers of storage. Fast storage, for short-lived data. Slower storage, for long-term data storage.
+- __Compute:__ Three tiers of compute. Slim nodes for ordinary computations. Fat nodes for memory-hungry applications. 
+  GPU powered nodes for artificial intelligence.
+
+For many $Provider s, the story doesn't stop here. You can often allocate your 
+$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job s on a machine "slice". This can increase overall utilization, as users 
+aren't forced to request full nodes. A $Provider might advertise the following
+slices:
+
+| Name | vCPU | RAM (GB) | GPU | Price |
+|------|------|----------|-----|-------|
+| `example-slim-1` | 1 | 4 | 0 | 0,100 DKK/hr |
+| `example-slim-2` | 2 | 8 | 0 | 0,200 DKK/hr |
+| `example-slim-4` | 4 | 16 | 0 | 0,400 DKK/hr |
+| `example-slim-8` | 8 | 32 | 0 | 0,800 DKK/hr |
+
+__Table:__ A single node-type split up into individual slices.
+
+## Concepts
+
+UCloud represent these concepts in the following abstractions:
+
+- $TYPE_REF ProductType: A classifier for a $TYPE_REF ProductV2, defines the behavior of a $TYPE_REF ProductV2 .
+- $TYPE_REF ProductCategory: A group of similar $TYPE_REF Product s. In most cases, $TYPE_REF Product s in a category
+  run on identical hardware. 
+- $TYPE_REF ProductV2: Defines a concrete service exposed by a $Provider.
+
+Below, we show an example of how a $Provider can organize their services.
+
+![](/backend/accounting-service/wiki/products.png)
+
+__Figure:__ All $TYPE_REF ProductV2 s in UCloud are of a specific type, such as: `STORAGE` and `COMPUTE`.
+$Provider s have zero or more categories of every type, e.g. `example-slim`. 
+In a given category, the $Provider has one or more slices.
+
+## Payment Model
+
+UCloud uses a flexible payment model, which allows $Provider s to use a model which
+is familiar to them. The payment model is defined in the $TYPE_REF ProductCategory. Here the provider will define the
+$TYPE_REF AccountingUnit and $TYPE_REF AccountingFrequency. The unit describes the unit in which the provider reports
+usage. This unit is opaque to UCloud/Core and UCloud/Core will not attempt to convert or in any way interpret the
+meaning of this unit. The frequency describes how often a charge occurs. These are either periodic or non-periodic.
+UCloud's accounting system has slightly different rules depending on if a product is periodic or non-periodic. Providers
+are not required to report once for have period. The frequency simply tells UCloud/Core how to interpret the unit. For
+example a combination of `unit = Core` and `frequency = PERIODIC_MINUTE` should be interpreted as core-minutes. UCloud's
+frontend may choose to convert this into core-hours for better readability, but the internal numbers are stored in
+minutes.
+
+        """.trimIndent()
+    }
+
     val create = call(
         "create",
         BulkRequest.serializer(ProductV2.serializer()),

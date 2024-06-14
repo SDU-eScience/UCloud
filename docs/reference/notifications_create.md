@@ -28,7 +28,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1704180845770, 
+            ts = 1717663228605, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -37,8 +37,10 @@ NotificationDescriptions.create.call(
 ).orThrow()
 
 /*
-FindByLongId(
-    id = 56123, 
+CreateNotificationResponse(
+    id = FindByLongId(
+        id = 56123, 
+    ), 
 )
 */
 ```
@@ -67,14 +69,16 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1704180845770,
+        "ts": 1717663228605,
         "read": false
     }
 }'
 
 
 # {
-#     "id": 56123
+#     "id": {
+#         "id": 56123
+#     }
 # }
 
 ```

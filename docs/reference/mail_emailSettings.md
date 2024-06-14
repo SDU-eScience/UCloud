@@ -33,6 +33,8 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
+        jobStarted = false, 
+        jobStopped = false, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -53,6 +55,8 @@ MailDescriptions.toggleEmailSettings.call(
             grantApplicationRejected = true, 
             grantApplicationUpdated = true, 
             grantApplicationWithdrawn = true, 
+            jobStarted = false, 
+            jobStopped = false, 
             lowFunds = true, 
             newCommentOnApplication = true, 
             newGrantApplication = true, 
@@ -86,6 +90,8 @@ RetrieveEmailSettingsResponse(
         grantApplicationRejected = true, 
         grantApplicationUpdated = true, 
         grantApplicationWithdrawn = true, 
+        jobStarted = false, 
+        jobStopped = false, 
         lowFunds = true, 
         newCommentOnApplication = true, 
         newGrantApplication = true, 
@@ -131,7 +137,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 #         "verificationReminder": true,
 #         "userRoleChange": true,
 #         "userLeft": true,
-#         "lowFunds": true
+#         "lowFunds": true,
+#         "jobStarted": false,
+#         "jobStopped": false
 #     }
 # }
 
@@ -153,7 +161,9 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "verificationReminder": false,
                 "userRoleChange": true,
                 "userLeft": true,
-                "lowFunds": true
+                "lowFunds": true,
+                "jobStarted": false,
+                "jobStopped": false
             }
         }
     ]
@@ -180,7 +190,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmail
 #         "verificationReminder": false,
 #         "userRoleChange": true,
 #         "userLeft": true,
-#         "lowFunds": true
+#         "lowFunds": true,
+#         "jobStarted": false,
+#         "jobStopped": false
 #     }
 # }
 
