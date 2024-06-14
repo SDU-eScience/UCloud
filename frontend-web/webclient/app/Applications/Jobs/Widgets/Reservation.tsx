@@ -34,7 +34,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
     const wallet = selectedMachine ?
         wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category)) :
         undefined;
-
+    
     const balance = wallet ? wallet.quota - totalUsageExcludingRetiredIfNeeded(wallet) : 0;
     const maxUsable = wallet ? wallet.maxUsable : 0;
 
