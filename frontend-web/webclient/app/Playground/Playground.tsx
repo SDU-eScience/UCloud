@@ -20,7 +20,7 @@ const Playground: React.FunctionComponent = () => {
     const main = (
         <>
             <Button onClick={(() => {
-                dialogStore.addDialog(<FavoriteBrowse selection={{
+                dialogStore.addDialog(<FavoriteBrowse navigateToFolder={() => void 0} selection={{
                     async onClick(res) {
                         const file = "path" in res ? await callAPIWithErrorHandler(FilesApi.retrieve({id: res.path})) : res;
                         if (file) {

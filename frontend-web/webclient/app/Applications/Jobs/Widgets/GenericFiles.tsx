@@ -15,6 +15,7 @@ import FileBrowse from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
+import {Selection} from "@/ui-components/ResourceBrowser";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -84,20 +85,39 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             return isCorrectlyDir || isCorrectlyFile;
         }
 
+        const selection: Selection<UFile> = {
+            text: "Use",
+            onClick,
+            show: providerRestriction
+        };
+        
+        const navigateToFolder = (path: string) => {
+            dialogStore.failure();
+            dialogStore.addDialog(
+                <FileBrowse
+                    opts={{
+                        additionalFilters,
+                        isModal: true,
+                        managesLocalProject: true,
+                        initialPath: path,
+                        additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                        selection,
+                    }} />,
+                doNothing,
+                true,
+                FilesApi.fileSelectorModalStyle
+            );    
+        }
 
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
-                    additionalFilters: additionalFilters,
+                    additionalFilters,
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: "",
-                    additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction) : fileFavoriteSelection(onClick, providerRestriction)],
-                    selection: {
-                        text: "Use",
-                        onClick,
-                        show: providerRestriction
-                    }
+                    additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                    selection,
                 }} />,
             doNothing,
             true,

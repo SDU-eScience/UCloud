@@ -24,7 +24,7 @@ import MetadataDocumentApi, {FileMetadataAttached} from "@/UCloud/MetadataDocume
 import AppRoutes from "@/Routes";
 import {image} from "@/Utilities/HTMLUtilities";
 import {isLikelyFolder, sidebarFavoriteCache} from "./FavoriteCache";
-import {callAPI, noopCall} from "@/Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UFile} from "@/UCloud/UFile";
 import {FileIconHint} from ".";
@@ -41,7 +41,7 @@ const FEATURES: ResourceBrowseFeatures = {
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name"}, {name: "", columnWidth: 32}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}];
 
-function FavoriteBrowse({selection}: {selection: Selection<FileMetadataAttached | UFile>}): React.ReactNode {
+function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path: string) => void; selection: Selection<FileMetadataAttached | UFile>}): React.ReactNode {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileMetadataAttached> | null>(null);
@@ -211,8 +211,17 @@ function FavoriteBrowse({selection}: {selection: Selection<FileMetadataAttached 
                 // Rendering of breadcrumbs and the location bar
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
-                browser.on("skipOpen", (oldPath, newPath, resource) => resource != null);
-                browser.on("open", (oldPath, newPath, resource) => noopCall);
+                browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    const pathInfo = sidebarFavoriteCache.fileInfoIfPresent(oldPath);
+                    if (!pathInfo) return true;
+                    else return pathInfo.status.type === "FILE";
+                });
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                    if (resource) {
+                        navigateToFolder(newPath);
+                    }
+                });
 
                 browser.on("wantToFetchNextPage", async (path) => {
                     // TODO(Jonas)
