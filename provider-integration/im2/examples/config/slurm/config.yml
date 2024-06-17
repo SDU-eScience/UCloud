@@ -42,9 +42,7 @@ services:
   fileSystems:
     storage:
       management:
-        type: Scripted
-        walletUpdated: /etc/ucloud/extensions/walletUpdated
-        fetchUsage: /etc/ucloud/extensions/fetchUsage
+        type: GPFS
 
       payment:
         type: Resource
@@ -53,11 +51,13 @@ services:
       driveLocators:
         home:
           entity: User
-          pattern: "/home/#{username}"
+          pattern: "/gpfs/home/#{localUsername}"
+          title: "Home"
 
         projects:
           entity: Project
-          pattern: "/work/#{title}"
+          pattern: "/gpfs/work/#{localGroupName}-#{gid}"
+          title: "Work"
 
   # NOTE(Dan): Not obvious how to do this yet, so we are postponing its consideration.
   #        collections:

@@ -11,6 +11,7 @@ import dk.sdu.cloud.integration.adminClient
 import dk.sdu.cloud.integration.serviceClient
 import dk.sdu.cloud.integration.utils.*
 import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
@@ -36,7 +37,6 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                     val root = initializeRootProject(providerInfo.projectId)
                     val createdProject = initializeNormalProject(root, amount = 1_000_000_000, product = sampleStorageDifferential)
                     val createdProjectWalletOwner = WalletOwner.Project(createdProject.projectId)
-                    val initialRootWallets = findWalletsInternal(WalletOwner.Project(root.projectId)).filter { it.paysFor == sampleStorageDifferential.category  }
 
                     if (input.numberOfExtraDeposits != null) {
                         for (i in 1..input.numberOfExtraDeposits) {
@@ -194,7 +194,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                     }
                 }
 
-                case("1000 GB in Project") {
+                case("1000 GB in Project, with extra deposits") {
                     input(
                         In(
                             GBUsed = 1000,
@@ -226,7 +226,7 @@ class AccountingCorrectnessStorageTest : IntegrationTest() {
                         val postChargeRootState = getSumOfWallets(output.postRootWallets)
                         val totalCharge = input.GBUsed
 
-                        assertEquals(initialState.initialQuota, postChargeState.treeUsage, "Project tree Usage wrong")
+                        assertEquals(totalCharge, postChargeState.treeUsage, "Project tree Usage wrong")
                         assertEquals(totalCharge, postChargeState.localUsage, "project Usage wrong")
                         assertEquals(initialState.initialQuota, postChargeRootState.treeUsage, "root treeUsage wrong")
                         assertEquals(0, postChargeRootState.localUsage, "Root local wrong")

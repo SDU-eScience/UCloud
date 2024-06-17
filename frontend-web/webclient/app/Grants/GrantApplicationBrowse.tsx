@@ -18,12 +18,13 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
+    filter: Grants.ApplicationFilter.SHOW_ALL,
 };
 
 const FEATURES: ResourceBrowseFeatures = {
     renderSpinnerWhenLoading: true,
     sorting: true,
-    filters: false,
+    filters: true,
     breadcrumbsSeparatedBySlashes: false,
     contextSwitcher: true,
 }
@@ -60,7 +61,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     }
 
                     callAPI(Grants.browse({
-                        filter: Grants.ApplicationFilter.SHOW_ALL,
                         includeIngoingApplications: isIngoing || opts?.both,
                         includeOutgoingApplications: !isIngoing || opts?.both,
                         ...defaultRetrieveFlags,
@@ -72,7 +72,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     })
                 });
 
-                browser.on("unhandledShortcut", () => { });
+                browser.on("unhandledShortcut", () => {});
 
                 browser.on("wantToFetchNextPage", async path => {
                     const result = await callAPI(
@@ -81,7 +81,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                             ...defaultRetrieveFlags,
                             ...opts?.additionalFilters,
                             ...browser.browseFilters,
-                            filter: Grants.ApplicationFilter.SHOW_ALL,
                             includeIngoingApplications: isIngoing || opts?.both,
                             includeOutgoingApplications: !isIngoing || opts?.both
                         })
@@ -175,6 +174,21 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 });
 
                 browser.setEmptyIcon("heroDocument");
+
+                browser.on("fetchFilters", () => [{
+                    clearable: false,
+                    type: "options",
+                    icon: "fileSignatureSolid",
+                    key: "filter",
+                    options: [{
+                        icon: "fileSignatureSolid", color: "primaryMain", text: "Show all", value: Grants.ApplicationFilter.SHOW_ALL
+                    }, {
+                        icon: "heroMinus", color: "primaryMain", text: "Active", value: Grants.ApplicationFilter.ACTIVE
+                    }, {
+                        icon: "heroCheck", color: "primaryMain", text: "Inactive", value: Grants.ApplicationFilter.INACTIVE
+                    }],
+                    text: "State"
+                }]);
 
                 browser.on("generateBreadcrumbs", () => {
                     if (opts?.embedded) return [];

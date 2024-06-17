@@ -77,7 +77,6 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 			return
 		}
 
-		log.Info("Request %v %v", r.URL.Path, request)
 		handler(w, r, request)
 	}
 }
