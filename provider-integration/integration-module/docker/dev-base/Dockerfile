@@ -18,7 +18,7 @@ RUN install -o ucloud -g ucloud -d /var/run/ucloud
 RUN install -o ucloud -g ucloud -d /var/run/ucloud/envoy
 RUN install -o ucloud -g ucloud -d /var/log/ucloud
 RUN install -o ucloud -g ucloud -d /etc/ucloud
-RUN echo 'ucloud ALL=(ALL) NOPASSWD:SETENV: /usr/bin/ucloud , /etc/ucloud/extensions/*, /usr/bin/dlv' >> /etc/sudoers
+RUN echo 'ucloud ALL=(ALL) NOPASSWD:SETENV: /usr/bin/ucloud , /etc/ucloud/extensions/*, /usr/bin/dlv, /sbin/sss_cache' >> /etc/sudoers
 RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
 # Envoy

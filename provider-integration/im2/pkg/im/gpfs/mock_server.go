@@ -362,6 +362,11 @@ func mockCreateFileset(f *Fileset) (JobResponse, bool) {
 		return dummyJobResponse(), false
 	}
 
+	err = os.Chmod(actualDirectory, os.FileMode(mode))
+	if err != nil {
+		log.Error("Failed at setting mode of fileset directory at %v: %v", actualDirectory, err)
+		return dummyJobResponse(), false
+	}
 	var fs FilesetResponse
 	fs.Filesets = append(fs.Filesets, FilesetResponseItem{})
 	set := &fs.Filesets[0]

@@ -28,12 +28,22 @@ type ConnectionService struct {
 	RetrieveManifest func() Manifest
 }
 
+type IdentityManagementService struct {
+	HandleAuthentication      func(username string) (uint32, error)
+	HandleProjectNotification func(updated *NotificationProjectUpdated)
+}
+
+var IdentityManagement IdentityManagementService
+
 func ConnectionError(error string) string {
 	return "TODO" // TODO
 }
 
 const uidMapPrefix = "uid-map-"
 const uidInvMapPrefix = "uid-inv-map-"
+
+const gidMapPrefix = "gid-map-"
+const gidInvMapPrefix = "gid-inv-map-"
 
 func RegisterConnectionComplete(username string, uid uint32) error {
 	type Req struct {
@@ -77,6 +87,29 @@ func MapLocalToUCloud(uid uint32) (string, bool) {
 	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
 	if !ok {
 		return "_guest", false
+	}
+
+	return val, true
+}
+
+func RegisterProjectMapping(projectId string, gid uint32) {
+	kvdb.Set(fmt.Sprintf("%v%v", gidInvMapPrefix, gid), projectId)
+	kvdb.Set(fmt.Sprintf("%v%v", gidMapPrefix, projectId), gid)
+}
+
+func MapLocalProjectToUCloud(gid uint32) (string, bool) {
+	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", gidInvMapPrefix, gid))
+	if !ok {
+		return "", false
+	}
+
+	return val, true
+}
+
+func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
+	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", gidMapPrefix, projectId))
+	if !ok {
+		return 11400, false
 	}
 
 	return val, true

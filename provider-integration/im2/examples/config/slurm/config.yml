@@ -56,7 +56,7 @@ services:
 
         projects:
           entity: Project
-          pattern: "/gpfs/work/#{title}"
+          pattern: "/gpfs/work/#{localGroupName}-#{gid}"
           title: "Work"
 
   # NOTE(Dan): Not obvious how to do this yet, so we are postponing its consideration.
