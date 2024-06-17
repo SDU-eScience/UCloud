@@ -35,6 +35,7 @@ object LogoGenerator {
     fun invalidateCache(title: String) {
         val currentCache = cache.get()
         val stillValidCache = currentCache.filterNot { it.key.contains(title)}
+
         while (true) {
             if (cache.compareAndSet(currentCache, stillValidCache)) break
         }
