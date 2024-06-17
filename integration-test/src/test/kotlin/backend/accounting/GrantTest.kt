@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.Time
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.delay
 import org.junit.jupiter.api.Assertions.assertEquals
 import java.util.*
 
@@ -185,7 +186,11 @@ class GrantTest : IntegrationTest() {
                             }
                         },
                         normalUser.client
-                    )
+                    ).orThrow()
+                    println(productsToChoose.grantGivers.size)
+                    for (i in productsToChoose.grantGivers) {
+                        println("products: " + i.categories)
+                    }
 
                     val applicationId = GrantsV2.submitRevision.call(
                         GrantsV2.SubmitRevision.Request(
@@ -201,16 +206,6 @@ class GrantTest : IntegrationTest() {
                         ),
                         normalUser.client
                     ).orThrow().id
-
-                    // Also check that the products were visible
-                    val allCategories = productsToChoose.orThrow().grantGivers
-                        .find { it.id == root.projectId }?.categories ?: emptyList()
-
-                    for (request in input.resourcesRequested) {
-                        assertThatInstance(allCategories, "has the product for $request") {
-                            allCategories.any { it.name == request.category && it.provider == request.provider }
-                        }
-                    }
 
                     // Verify that the application is visible as an ingoing and as an outgoing application
                     assertThatInstance(

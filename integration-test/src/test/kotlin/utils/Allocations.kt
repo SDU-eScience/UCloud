@@ -16,7 +16,7 @@ data class TotalWalletContent(
 fun getSumOfWallets(wallets: List<WalletV2>): TotalWalletContent{
     val initialQuota = wallets.sumOf { wallet -> wallet.quota }
     val localUsage = wallets.sumOf { wallet -> wallet.localUsage }
-    val treeUsage = wallets.sumOf { wallet -> wallet.allocationGroups.sumOf { it.group.usage } }
+    val treeUsage = wallets.sumOf { wallet -> wallet.totalUsage }
     return TotalWalletContent(initialQuota, localUsage, treeUsage)
 }
 
