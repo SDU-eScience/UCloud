@@ -22,6 +22,8 @@ node {
     }
     echo branchName
     echo (jobName)
+    echo "chmods"
+
     //Make check on PR creator and specific branches. master, staging, PRs
     stage('Checkout') {
         checkout(

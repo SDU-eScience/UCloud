@@ -6,12 +6,10 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-type CreationCallback func(username string) (uint32, error)
-
-func Init(callback CreationCallback) {
+func Init() {
 	ctrl.Connections = ctrl.ConnectionService{
 		Initiate: func(username string, signingKey util.Option[int]) (redirectToUrl string) {
-			uid, err := callback(username)
+			uid, err := ctrl.IdentityManagement.HandleAuthentication(username)
 			if err != nil {
 				return ctrl.ConnectionError(err.Error())
 			}

@@ -1,0 +1,7 @@
+port: 62394
+username: gpfs
+password: gpfspassword
+preconfiguredSystemsAndSets:
+  gpfs:
+    home: /home
+    work: /work

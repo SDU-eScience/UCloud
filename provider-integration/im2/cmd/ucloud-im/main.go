@@ -1,10 +1,18 @@
 package main
 
 import (
+	"os"
+	"ucloud.dk/pkg/im/gpfs"
 	"ucloud.dk/pkg/im/launcher"
 )
 
 func main() {
+	exeName := os.Args[0]
+	if exeName == "gpfs-mock" {
+		gpfs.RunMockServer()
+		return
+	}
+
 	launcher.Launch()
 }
 

@@ -1,11 +1,11 @@
 package slurm
 
 import (
+	"errors"
 	"fmt"
-	"os"
+	"net/http"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -18,22 +18,15 @@ func driveIpcServer() {
 
 }
 
-type DriveInfo struct {
-	Owner    apm.WalletOwner
-	Title    string
-	Path     string
-	Category string
-}
-
-func RegisterDriveInfo(info DriveInfo) (string, error) {
-	info.Path = filepath.Clean(info.Path)
+func RegisterDriveInfo(info LocatedDrive) error {
+	info.FilePath = filepath.Clean(info.FilePath)
 
 	resource := orc.ProviderRegisteredResource[orc.DriveSpecification]{
 		Spec: orc.DriveSpecification{
 			Title: info.Title,
 			Product: apm.ProductReference{
-				Id:       info.Category,
-				Category: info.Category,
+				Id:       info.CategoryName,
+				Category: info.CategoryName,
 				Provider: cfg.Provider.Id,
 			},
 		},
@@ -43,7 +36,7 @@ func RegisterDriveInfo(info DriveInfo) (string, error) {
 			fmt.Sprintf(
 				"%v-%v",
 				cfg.Provider.Id,
-				info.Path,
+				info.FilePath,
 			),
 		),
 	}
@@ -56,90 +49,148 @@ func RegisterDriveInfo(info DriveInfo) (string, error) {
 		resource.Project = util.OptValue(info.Owner.ProjectId)
 	}
 
-	resp, err := orc.RegisterDrive(resource)
+	_, err := orc.RegisterDrive(resource)
 	if err != nil {
-		return "", err
+		var httpErr *util.HttpError
+		hOk := errors.As(err, &httpErr)
+		if !hOk || httpErr.StatusCode != http.StatusConflict {
+			return err
+		}
 	}
 
-	return resp, nil
+	return nil
 }
 
-func EvaluateLocators(owner apm.WalletOwner) {
+type LocatedDrive struct {
+	Title                  string
+	LocatorName            string
+	CategoryName           string
+	FilePath               string
+	Owner                  apm.WalletOwner
+	Parameters             map[string]string
+	RecommendedOwnerName   string
+	RecommendedGroupName   string
+	RecommendedPermissions string
+}
+
+func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
+	var result []LocatedDrive
 	if cfg.Mode != cfg.ServerModeServer {
 		log.Warn("EvaluateLocators must be called in server mode!")
-		return
+		return nil
 	}
 
-	params := make(map[string]any)
+	recommendedUserOwner := ""
+	recommendedGroupOwner := ""
+	recommendedPermissions := "0700"
+	params := make(map[string]string)
 	if owner.Type == apm.WalletOwnerTypeUser {
 		localUid, ok := ctrl.MapUCloudToLocal(owner.Username)
 		if !ok {
 			log.Warn("Unknown user: %v", owner.Username)
-			return
+			return nil
 		}
 
 		userInfo, err := user.LookupId(fmt.Sprint(localUid))
 		if err != nil {
 			log.Warn("Local username is unknown: ucloud=%v uid=%v err=%v", owner.Username, localUid, err)
-			return
+			return nil
 		}
 
 		params["localUsername"] = userInfo.Username
+		params["ucloudUsername"] = owner.Username
+		params["uid"] = fmt.Sprint(localUid)
+		recommendedUserOwner = userInfo.Username
+		recommendedGroupOwner = userInfo.Username
 	} else if owner.Type == apm.WalletOwnerTypeProject {
-		log.Warn("Not yet implemented EvaluateLocators for projects")
-		return
+		localGid, ok := ctrl.MapUCloudProjectToLocal(owner.ProjectId)
+		if !ok {
+			log.Warn("Unknown project: %v", owner.ProjectId)
+			return nil
+		}
+
+		groupInfo, err := user.LookupGroupId(fmt.Sprint(localGid))
+		if err != nil {
+			log.Warn("Local group is unknown: ucloud=%v uid=%v err=%v", owner.ProjectId, localGid, err)
+			return nil
+		}
+
+		recommendedUserOwner = "root"
+		recommendedPermissions = "0770"
+
+		params["localGroupName"] = groupInfo.Name
+		params["ucloudProjectId"] = owner.ProjectId
+		params["gid"] = fmt.Sprint(localGid)
+		recommendedGroupOwner = groupInfo.Name
 	} else {
 		log.Warn("Unhandled owner type: %v", owner.Type)
-		return
+		return nil
 	}
 
 	for categoryName, fs := range ServiceConfig.FileSystems {
+		if category != categoryName {
+			continue
+		}
+
 		for locatorName, locator := range fs.DriveLocators {
 			params["locatorName"] = locatorName
 			params["categoryName"] = categoryName
 
-			switch locator.Entity {
-			case cfg.SlurmDriveLocatorEntityTypeUser:
-				path := ""
+			if owner.Type == apm.WalletOwnerTypeUser && locator.Entity != cfg.SlurmDriveLocatorEntityTypeUser {
+				continue
+			}
 
-				if locator.Pattern != "" {
-					path = locator.Pattern
-					for key, value := range params {
-						path = strings.ReplaceAll(path, fmt.Sprintf("#{%v}", key), fmt.Sprint(value))
-					}
-				} else if locator.Script != "" {
-					type scriptResp struct {
-						Path string `json:"path"`
-					}
+			if owner.Type == apm.WalletOwnerTypeProject && locator.Entity != cfg.SlurmDriveLocatorEntityTypeProject {
+				continue
+			}
 
-					ext := ctrl.NewExtension[map[string]any, scriptResp]()
-					ext.Script = locator.Script
+			path := ""
 
-					resp, ok := ext.Invoke(params)
+			title := locatorName
+			if locator.Title != "" {
+				title = util.InjectParametersIntoString(locator.Title, params)
+			}
 
-					if !ok {
-						continue
-					}
-
-					path = resp.Path
+			if locator.Pattern != "" {
+				path = locator.Pattern
+				path = util.InjectParametersIntoString(locator.Pattern, params)
+			} else if locator.Script != "" {
+				type scriptResp struct {
+					Path string `json:"path"`
 				}
 
-				if path != "" {
-					stat, err := os.Stat(path)
-					if err != nil {
-						log.Warn("Locator %v/%v has returned an invalid path: %v", categoryName, locatorName, err)
-						continue
-					}
-					if !stat.IsDir() {
-						log.Warn(
-							"Locator %v/%v has returned a path to something which is not a directory",
-							categoryName,
-							locatorName,
-						)
-						continue
-					}
+				ext := ctrl.NewExtension[map[string]string, scriptResp]()
+				ext.Script = locator.Script
+
+				resp, ok := ext.Invoke(params)
+
+				if !ok {
+					continue
 				}
+
+				path = resp.Path
+			}
+
+			if path != "" {
+				parametersCopy := make(map[string]string)
+				for k, v := range params {
+					parametersCopy[k] = v
+				}
+
+				result = append(result, LocatedDrive{
+					Title:                  title,
+					LocatorName:            locatorName,
+					CategoryName:           categoryName,
+					FilePath:               path,
+					Owner:                  owner,
+					Parameters:             parametersCopy,
+					RecommendedOwnerName:   recommendedUserOwner,
+					RecommendedGroupName:   recommendedGroupOwner,
+					RecommendedPermissions: recommendedPermissions,
+				})
 			}
 		}
 	}
+
+	return result
 }

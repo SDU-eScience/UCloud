@@ -51,6 +51,7 @@ func Launch() {
 	}
 
 	if !cfg.Parse(mode, *configDir) {
+		fmt.Printf("Failed to parse configuration!\n")
 		return
 	}
 
@@ -128,7 +129,9 @@ func Launch() {
 			fmt.Sprintf(":%v", serverPort),
 			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				handler, _ := im.Args.ServerMultiplexer.Handler(request)
-				handler.ServeHTTP(writer, request)
+				newWriter := NewLoggingResponseWriter(writer)
+				handler.ServeHTTP(newWriter, request)
+				log.Info("%v %v %v", request.Method, request.RequestURI, newWriter.statusCode)
 			}),
 		)
 
@@ -137,4 +140,18 @@ func Launch() {
 			os.Exit(1)
 		}
 	}
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
 }

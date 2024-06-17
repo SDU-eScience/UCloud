@@ -28,12 +28,22 @@ type ConnectionService struct {
 	RetrieveManifest func() Manifest
 }
 
+type IdentityManagementService struct {
+	HandleAuthentication      func(username string) (uint32, error)
+	HandleProjectNotification func(updated *NotificationProjectUpdated)
+}
+
+var IdentityManagement IdentityManagementService
+
 func ConnectionError(error string) string {
 	return "TODO" // TODO
 }
 
 const uidMapPrefix = "uid-map-"
 const uidInvMapPrefix = "uid-inv-map-"
+
+const gidMapPrefix = "gid-map-"
+const gidInvMapPrefix = "gid-inv-map-"
 
 func RegisterConnectionComplete(username string, uid uint32) error {
 	type Req struct {
@@ -52,12 +62,13 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 	kvdb.Set(fmt.Sprintf("%v%v", uidInvMapPrefix, uid), username)
 	kvdb.Set(fmt.Sprintf("%v%v", uidMapPrefix, username), uid)
 
+	userReplayChannel <- username
 	return err
 }
 
-func getDebugPort(uid uint32) (int, bool) {
+func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
-	if uid == 11043 {
+	if ucloudUsername == "user" {
 		return 51234, true
 	}
 	return 0, false
@@ -76,6 +87,29 @@ func MapLocalToUCloud(uid uint32) (string, bool) {
 	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
 	if !ok {
 		return "_guest", false
+	}
+
+	return val, true
+}
+
+func RegisterProjectMapping(projectId string, gid uint32) {
+	kvdb.Set(fmt.Sprintf("%v%v", gidInvMapPrefix, gid), projectId)
+	kvdb.Set(fmt.Sprintf("%v%v", gidMapPrefix, projectId), gid)
+}
+
+func MapLocalProjectToUCloud(gid uint32) (string, bool) {
+	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", gidInvMapPrefix, gid))
+	if !ok {
+		return "", false
+	}
+
+	return val, true
+}
+
+func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
+	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", gidMapPrefix, projectId))
+	if !ok {
+		return 11400, false
 	}
 
 	return val, true
@@ -176,12 +210,14 @@ func controllerConnection(mux *http.ServeMux) {
 			baseContext+"init",
 			HttpUpdateHandler[initRequest](0, func(w http.ResponseWriter, r *http.Request, request initRequest) {
 				if !LaunchUserInstances {
+					log.Info("Attempting to launch user instance, but this IM will not launch user instances.")
 					sendStatusCode(w, http.StatusNotFound)
 					return
 				}
 
 				uid, ok := MapUCloudToLocal(request.Username)
 				if uid <= 0 || !ok {
+					log.Warn("Could not map UCloud to local identity: %v -> %v (%v)", request.Username, uid, ok)
 					sendStatusCode(w, http.StatusBadRequest)
 					return
 				}
@@ -218,7 +254,7 @@ func controllerConnection(mux *http.ServeMux) {
 					args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
 					args = append(args, "-u")
 					args = append(args, fmt.Sprintf("#%v", uid))
-					debugPort, shouldDebug := getDebugPort(uid)
+					debugPort, shouldDebug := getDebugPort(request.Username)
 					if shouldDebug {
 						args = append(args, "/usr/bin/dlv")
 						args = append(args, "exec")

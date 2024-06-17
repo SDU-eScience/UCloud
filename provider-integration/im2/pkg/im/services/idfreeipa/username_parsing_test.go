@@ -2,7 +2,7 @@ package idfreeipa
 
 import "testing"
 
-func TestUsernameParsing(t *testing.T) {
+func TestAsciiNormalization(t *testing.T) {
 	parsed := parseUCloudUsername("Dan…æT")
 	assertEquals(t, "Dan...ae", parsed.FirstName)
 	assertEquals(t, "T", parsed.LastName)

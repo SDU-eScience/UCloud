@@ -9,6 +9,7 @@ import (
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/im/services/idfreeipa"
 	"ucloud.dk/pkg/im/services/idscripted"
+	"ucloud.dk/pkg/im/services/nopconn"
 	"ucloud.dk/pkg/log"
 )
 
@@ -20,14 +21,25 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ctrl.LaunchUserInstances = true
 	ctrl.Files = InitializeFiles()
 
+	if cfg.Mode == cfg.ServerModeServer {
+		InitFileManagers()
+	}
+
 	// Identity management
 	if cfg.Mode == cfg.ServerModeServer {
+		nopconn.Init()
+
 		switch config.IdentityManagement.Type {
 		case cfg.IdentityManagementTypeScripted:
 			idscripted.Init(config.IdentityManagement.Scripted())
 		case cfg.IdentityManagementTypeFreeIpa:
 			idfreeipa.Init(config.IdentityManagement.FreeIPA())
 		}
+	}
+
+	// APM
+	if cfg.Mode == cfg.ServerModeServer {
+		ctrl.ApmHandler.HandleNotification = handleApmNotification
 	}
 
 	// IPC
@@ -45,6 +57,11 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 		resp, err := Hello.Invoke(fmt.Sprintf("This is a message from %v.", os.Getuid()))
 		log.Info("IPC response received! %v %v", resp, err)
 	}
+}
+
+func handleApmNotification(update *ctrl.NotificationWalletUpdated) {
+	drives := EvaluateLocators(update.Owner, update.Category.Name)
+	FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
 }
 
 var Hello = ipc.NewCall[string, string]("slurm.hello")

@@ -151,7 +151,6 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 		log.Error("http request failed: %v", err)
 		return false
 	}
-	log.Info("Status code: %d", resp.StatusCode)
 
 	// Authentication error
 	if resp.StatusCode == http.StatusUnauthorized {

@@ -17,6 +17,12 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+var ApmHandler ApmService
+
+type ApmService struct {
+	HandleNotification func(update *NotificationWalletUpdated)
+}
+
 const replayFromKey = "events-replay-from"
 
 var userReplayChannel chan string
@@ -49,15 +55,49 @@ func initEvents() {
 }
 
 func handleNotification(nType NotificationMessageType, notification any) {
+	walletHandler := ApmHandler.HandleNotification
+	if walletHandler == nil {
+		walletHandler = func(notification *NotificationWalletUpdated) {
+			log.Info("Ignoring wallet notification")
+		}
+	}
+
+	projectHandler := IdentityManagement.HandleProjectNotification
+	if projectHandler == nil {
+		projectHandler = func(updated *NotificationProjectUpdated) {
+			log.Info("Ignoring project update")
+		}
+	}
+
 	switch nType {
 	case NotificationMessageWalletUpdated:
+		// TODO ignore allocator projects
+
+		success := true
 		update := notification.(*NotificationWalletUpdated)
-		log.Info("Handling wallet event %v", update)
-		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
+			update.Category.Name, update.CombinedQuota, update.Locked)
+		if LaunchUserInstances {
+			if update.Owner.Type == apm.WalletOwnerTypeUser {
+				_, ok := MapUCloudToLocal(update.Owner.Username)
+				if ok {
+					walletHandler(update)
+				} else {
+					log.Info("Could not map user %v", update.Owner.Username)
+					success = false
+				}
+			} else {
+				walletHandler(update)
+			}
+		}
+
+		if success {
+			kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		}
 
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)
-		log.Info("Handling project event %v", update)
+		projectHandler(update)
 		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
 	}
 }
