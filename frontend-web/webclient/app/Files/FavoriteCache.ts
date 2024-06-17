@@ -20,7 +20,7 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
             this.setCache(await callAPI(metadataApi.browse({
                 filterActive: true,
                 filterTemplate: "Favorite",
-                itemsPerPage: 10
+                itemsPerPage: 100
             })));
         } catch (error) {
             this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
