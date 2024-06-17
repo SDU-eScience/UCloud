@@ -1228,6 +1228,8 @@ class AppService(
 
         g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo,
             newLogoHasText, newColorRemapping?.light, newColorRemapping?.dark)
+
+        LogoGenerator.invalidateCache(g.get().title)
     }
 
     suspend fun assignApplicationToGroup(
