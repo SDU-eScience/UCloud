@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2024.1.16",
+    "version": "2024.1.19",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -17,7 +17,6 @@
         "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {
-        "@ginkgo-bioworks/react-json-schema-form-builder": "2.10.2",
         "@novnc/novnc": "1.4.0",
         "@reduxjs/toolkit": "2.2.5",
         "@rjsf/core": "4.2.3",
@@ -31,8 +30,7 @@
         "jsrsasign": "11.1.0",
         "localforage": "1.10.0",
         "magic-bytes.js": "1.10.0",
-        "monaco-editor": "0.48.0",
-        "path-browserify": "1.0.1",
+        "monaco-editor": "0.49.0",
         "react": "18.3.1",
         "react-apexcharts": "1.4.1",
         "react-datepicker": "6.9.0",
@@ -46,8 +44,7 @@
         "react-transition-group": "4.4.5",
         "redux": "4.2.1",
         "rusha": "0.8.14",
-        "svgi": "1.1.2",
-        "ua-parser-js": "1.0.37",
+        "ua-parser-js": "1.0.38",
         "xterm": "5.3.0",
         "xterm-addon-fit": "0.8.0"
     },
@@ -64,9 +61,9 @@
         "@types/rusha": "0.8.3",
         "@types/styled-system": "5.1.22",
         "@types/ua-parser-js": "0.7.39",
-        "@vitejs/plugin-react": "4.3.0",
+        "@vitejs/plugin-react": "4.3.1",
         "@vitejs/plugin-react-refresh": "1.3.6",
         "typescript": "5.4.5",
-        "vite": "5.2.11"
+        "vite": "5.3.1"
     }
 }

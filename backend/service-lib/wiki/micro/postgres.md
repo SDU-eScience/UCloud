@@ -1,9 +1,7 @@
 UCloud uses [PostgreSQL](https://www.postgresql.org/) for its general purpose data-storage needs. Low-level access to
 the PostgreSQL database done via the [jasync-sql](https://github.com/jasync-sql/jasync-sql) library, which provides
 Kotlin co-routine support to avoid blocking our threads associated with our coroutines. In practice, access to Postgres
-is done through our library (described in this document) which wraps `jasync-sql`. Our production deployment uses
-[stolon](https://github.com/sorintlab/stolon) to manage a high availability PostgreSQL cluster. You can find details
-about the `stolon` deployment in `/infrastructure/k8.kts`.
+is done through our library (described in this document) which wraps `jasync-sql`.
 
 ## SQL in UCloud
 
@@ -17,12 +15,7 @@ val db = AsyncDBSessionFactory(micro)
 
 __Code:__ Creating an `AsyncDBSessionFactory`. This factory will provide you with database connections as needed.
 
-The configuration returned by `Micro` will read connection details and associated credentials. Micro will _always_
-select a schema which matches the `ServiceDescription.name`. In other words, every micro-service of UCloud runs in its
-own separate database schema. This means that all micro-services are isolated. You must _never_ access of a different
-micro-service directly. Instead, you must use the APIs provided by every micro-service to access and manipulate their
-data. The deployment scripts (see `ServiceSecrets` of `/infrastructure/k8-resources`) enforce this by creating a
-dedicated Postgres user for every micro-service which only has access to their own database schema.
+The configuration returned by `Micro` will read connection details and associated credentials.
 
 ### Core abstractions
 

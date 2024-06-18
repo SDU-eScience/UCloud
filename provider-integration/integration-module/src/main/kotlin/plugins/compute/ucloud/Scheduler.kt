@@ -19,7 +19,6 @@ data class AllocatedReplica<UserData>(
 //  where only one type can be in a single scheduler. This would save a lot of string comparisons.
 class Scheduler<UserData> {
     private var time = 0L
-    private var dumpStateAt = 1L
 
     private var nextNodeIdx = 0
     private val nodeNames = arrayOfNulls<String>(MAX_NODES)
@@ -533,11 +532,6 @@ class Scheduler<UserData> {
                 queueJobIds[queueIdx] = 0L
                 queueEntry.data = null
             }
-        }
-
-        if (time >= dumpStateAt) {
-            dumpStateAt += 10
-            log.info("Scheduler state:\n" + dumpState())
         }
 
         jobsRunningMetric.set(runningReplicas().asSequence().count().toDouble())

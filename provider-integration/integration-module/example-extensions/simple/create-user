@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+cat $1 > /dev/stderr
+echo '{"uid": 11043}'
+

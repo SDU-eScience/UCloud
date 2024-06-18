@@ -1,8 +1,11 @@
 package orchestrators
 
 import (
+	"fmt"
 	"ucloud.dk/pkg/apm"
+	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type Drive struct {
@@ -97,3 +100,63 @@ const (
 	WriteConflictPolicyReplace     WriteConflictPolicy = "REPLACE"
 	WriteConflictPolicyMergeRename WriteConflictPolicy = "MERGE_RENAME"
 )
+
+// API
+// =====================================================================================================================
+
+const fileCtrlContext = "/api/files/control/"
+const driveCtrlContext = "/api/files/collections/control/"
+const driveCtrlNamespace = "files.collections.control."
+
+func RetrieveDrive(driveId string) (Drive, error) {
+	return c.ApiRetrieve[Drive](
+		driveCtrlNamespace+"retrieve",
+		driveCtrlContext,
+		"",
+		[]string{"id", driveId},
+	)
+}
+
+type BrowseDrivesFlags struct {
+	FilterProviderIds util.Option[string] `json:"filterProviderIds"`
+}
+
+func BrowseDrives(next string, flags BrowseDrivesFlags) (fnd.PageV2[Drive], error) {
+	return c.ApiBrowse[fnd.PageV2[Drive]](
+		driveCtrlNamespace+"browse",
+		driveCtrlContext,
+		"",
+		[]string{"next", next},
+	)
+}
+
+func RegisterDrives(drives []ProviderRegisteredResource[DriveSpecification]) (ids []string, err error) {
+	resp, err := c.ApiUpdate[fnd.BulkResponse[fnd.FindByStringId]](
+		driveCtrlNamespace+"register",
+		driveCtrlContext,
+		"register",
+		fnd.BulkRequest[ProviderRegisteredResource[DriveSpecification]]{
+			Items: drives,
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, item := range resp.Responses {
+		ids = append(ids, item.Id)
+	}
+	return ids, nil
+}
+
+func RegisterDrive(drive ProviderRegisteredResource[DriveSpecification]) (string, error) {
+	ids, err := RegisterDrives([]ProviderRegisteredResource[DriveSpecification]{drive})
+	if err != nil {
+		return "", err
+	}
+	if len(ids) != 1 {
+		return "", fmt.Errorf("malformed response from UCloud did not receive exactly one ID back")
+	}
+	return ids[0], nil
+}

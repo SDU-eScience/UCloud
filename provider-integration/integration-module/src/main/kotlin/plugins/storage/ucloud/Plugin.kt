@@ -50,6 +50,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
@@ -57,6 +59,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import libc.clib
 import org.cliffc.high_scale_lib.NonBlockingHashSet
 import java.nio.ByteBuffer
+import kotlin.coroutines.CoroutineContext
 import kotlin.math.min
 
 class UCloudFilePlugin : FilePlugin {
@@ -543,7 +546,7 @@ class UCloudFilePlugin : FilePlugin {
                         val fileId = buffer.getInt().toUInt()
                         val fileEntry: FileListingEntry = listing[fileId]
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        ProcessingScope.launch {
+                        ChunkProcessingScope.launchWithPermit {
                             if (!frame.buffer.isDirect) {
                                 DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
                                     val data = if (buffer.hasArray()) {
@@ -1084,6 +1087,31 @@ class UCloudFilePlugin : FilePlugin {
 
     companion object : Loggable {
         override val log = logger()
+    }
+
+    // NOTE(Dan): We are using this to a limit on the number of chunks we are willing to process in the background.
+    // If this is uncapped we risk using very large amounts of memory in the case were the storage system is slower than
+    // our networking system.
+    private object ChunkProcessingScope : CoroutineScope {
+        const val THREAD_COUNT = 16
+
+        private val job = SupervisorJob()
+        @OptIn(DelicateCoroutinesApi::class)
+        override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(THREAD_COUNT, "ChunkProcessing")
+        val permits = Semaphore(THREAD_COUNT * 2)
+
+        suspend fun launchWithPermit(block: suspend CoroutineScope.() -> Unit) {
+            val self = this
+
+            permits.acquire()
+            self.launch {
+                try {
+                    block()
+                } finally {
+                    permits.release()
+                }
+            }
+        }
     }
 }
 

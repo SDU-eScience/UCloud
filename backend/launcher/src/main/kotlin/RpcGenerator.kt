@@ -120,6 +120,8 @@ fun KClass<*>.generateGenericReplacements(
     return superTypeClassifier.generateGenericReplacements(builder)
 }
 
+private val noCyclesHack = HashSet<String>()
+
 fun GeneratedTypeReference.attachOwner(
     owner: KClass<out CallDescriptionContainer>,
     visitedTypes: LinkedHashMap<String, GeneratedType>
@@ -131,8 +133,11 @@ fun GeneratedTypeReference.attachOwner(
         is GeneratedTypeReference.Dictionary -> valueType.attachOwner(owner, visitedTypes)
         is GeneratedTypeReference.Structure -> {
             if (!name.startsWith("dk.sdu.cloud.")) return
-
             this.generics.forEach { it.attachOwner(owner, visitedTypes) }
+
+            if (noCyclesHack.contains(this.name)) return
+            noCyclesHack.add(this.name)
+
             val typePackageName = this.name.split(".")
                 .filter { it.firstOrNull()?.isLowerCase() == true }
                 .joinToString(".")

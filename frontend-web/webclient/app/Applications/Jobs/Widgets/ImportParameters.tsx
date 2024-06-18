@@ -120,7 +120,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
 
     return <Box>
         <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
-            <Button color="secondaryMain" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
+            <Button marginLeft="auto" color="secondaryMain" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -129,9 +129,9 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                 <ul>
                     {messages.map((it, i) =>
                         <li key={i}>
-                            {it.type === "error" ? <Icon name={"warning"} color={"errorMain"} /> : null}
-                            {it.type === "warning" ? <Icon name={"warning"} color={"warningMain"} /> : null}
-                            {it.type === "info" ? <Icon name={"info"} /> : null}
+                            {it.type === "error" ? <Icon mr="8px" name={"warning"} color={"errorMain"} /> : null}
+                            {it.type === "warning" ? <Icon mr="8px" name={"warning"} color={"warningMain"} /> : null}
+                            {it.type === "info" ? <Icon mr="8px" name={"info"} /> : null}
                             {it.message}
                         </li>
                     )}
@@ -454,8 +454,9 @@ async function cleanupImportResult(
             output.replicas = undefined;
         }
     }
-
-    if (output.timeAllocation !== undefined) {
+    
+    // Note(Jonas): timeAllocation is listed as undefinable, but it can also be null. Ignore null values.
+    if (output.timeAllocation != null) {
         if (typeof output.timeAllocation !== "object") {
             result.messages.push({type: "warning", message: "Corrupt time allocation"});
             output.timeAllocation = undefined;

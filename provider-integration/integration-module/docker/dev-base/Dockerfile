@@ -18,7 +18,7 @@ RUN install -o ucloud -g ucloud -d /var/run/ucloud
 RUN install -o ucloud -g ucloud -d /var/run/ucloud/envoy
 RUN install -o ucloud -g ucloud -d /var/log/ucloud
 RUN install -o ucloud -g ucloud -d /etc/ucloud
-RUN echo 'ucloud ALL=(ALL) NOPASSWD:SETENV: /usr/bin/ucloud , /etc/ucloud/extensions/*' >> /etc/sudoers
+RUN echo 'ucloud ALL=(ALL) NOPASSWD:SETENV: /usr/bin/ucloud , /etc/ucloud/extensions/*, /usr/bin/dlv, /sbin/sss_cache' >> /etc/sudoers
 RUN echo 'Defaults runas_allow_unknown_id' >> /etc/sudoers
 
 # Envoy
@@ -35,6 +35,9 @@ RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
 RUN tar -C /usr/local -xzf go*.tar.gz
 RUN echo 'export PATH=$PATH:/usr/local/go/bin' >> /root/.bashrc
 RUN rm go*.tar.gz
+
+# FreeIPA dependencies
+RUN yum install -y sssd ipa-client
 
 # UCloud
 WORKDIR /usr/bin

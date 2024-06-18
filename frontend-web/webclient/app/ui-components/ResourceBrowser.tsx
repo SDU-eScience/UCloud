@@ -50,6 +50,13 @@ const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 
+
+export interface Selection<T> {
+    onClick(res: T): void;
+    show(res: T): boolean | string;
+    text: string;
+}
+
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
@@ -73,11 +80,7 @@ export interface ResourceBrowserOpts<T> {
     // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
     // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
     isModal?: boolean;
-    selection?: {
-        onClick(res: T): void;
-        show(res: T): boolean | string;
-        text: string;
-    }
+    selection?: Selection<T>;
 }
 
 interface FilterInput {
@@ -296,13 +299,13 @@ export interface ResourceBrowseFeatures {
     showColumnTitles?: boolean;
 }
 
-export interface ColumnTitle {
+export interface ColumnTitle<SortById = string> {
     name: string;
     columnWidth: number;
-    sortById?: string;
+    sortById?: SortById;
 }
 
-export type ColumnTitleList = [Omit<ColumnTitle, "columnWidth">, ColumnTitle, ColumnTitle, ColumnTitle];
+export type ColumnTitleList<SortById = string> = [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>];
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -772,7 +775,7 @@ export class ResourceBrowser<T> {
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
             }
-            
+
             attemptCloseRenameField(ev);
 
             // Attempt to allow deselecting by clicking outside table
@@ -2290,6 +2293,8 @@ export class ResourceBrowser<T> {
             document.body.setAttribute("data-no-select", "true");
 
             const dragMoveHandler = (e: MouseEvent) => {
+                this.closeRenameField("cancel", true);
+
                 if (!didMount && isBeyondDeadZone(e)) {
                     if (!isNaN(entryIdx)) {
                         this.select(entryIdx, SelectionMode.SINGLE);
@@ -3359,7 +3364,8 @@ export class ResourceBrowser<T> {
 
                 white-space: pre;
                                                                                                                         /* v favoriteIcon-width */
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 18px);
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--favoriteWidth) - 32px);
+                padding-right: 8px; /* So the title doesn't rub up against the second column */
             }
             
             @media screen and (max-width: 860px) {

@@ -9,7 +9,7 @@
 
 ```kotlin
 data class RequestItem(
-    val allocationId: String,
+    val allocationId: Long,
     val newQuota: Long?,
     val newStart: Long?,
     val newEnd: Long?,
@@ -24,7 +24,7 @@ data class RequestItem(
 
 <details>
 <summary>
-<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

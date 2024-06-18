@@ -114,7 +114,7 @@ fun generateCode() {
                 listOf(
                     Chapter.Feature("projects", "Projects", dk.sdu.cloud.project.api.v2.Projects),
                     Chapter.Feature("providers", "Providers", Providers),
-                    Chapter.Feature("products", "Products", Products),
+                    Chapter.Feature("products", "Products", ProductsV2),
                     Chapter.Node(
                         "accounting",
                         "Accounting",
@@ -383,8 +383,6 @@ fun generateCode() {
                             Chapter.ExternalMarkdown("jenkins", "Jenkins", "../service-lib/wiki/jenkins.md"),
                             Chapter.ExternalMarkdown("elastic", "ElasticSearch", "../service-lib/wiki/elastic.md"),
                             Chapter.ExternalMarkdown("grafana", "Grafana", "../service-lib/wiki/grafana.md"),
-                            Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
-                            Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
                             Chapter.Feature("alerting", "Alerting", Alerting),
                             Chapter.Node(
                                 "scripts",
@@ -423,6 +421,11 @@ fun generateCode() {
                             Chapter.Feature("groups", "Groups", ProjectGroups),
                             Chapter.Feature("favorites", "Favorites", ProjectFavorites)
                         )
+                    ),
+                    Chapter.Feature(
+                        "products-legacy",
+                        "Products (Legacy)",
+                        Products,
                     )
                 )
             ),

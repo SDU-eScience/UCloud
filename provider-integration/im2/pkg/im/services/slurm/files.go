@@ -1,11 +1,12 @@
 package slurm
 
 import (
+	"encoding/json"
 	"fmt"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
+	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,7 +14,7 @@ import (
 	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/orchestrators"
+	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
@@ -22,27 +23,13 @@ var browseCache *lru.LRU[string, []cachedDirEntry]
 func InitializeFiles() ctrl.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	return ctrl.FileService{
-		BrowseFiles:  browse,
-		CreateFolder: nil,
+		BrowseFiles:           browse,
+		RetrieveFile:          retrieve,
+		CreateFolder:          createFolder,
+		Move:                  move,
+		CreateDownloadSession: createDownload,
+		Download:              download,
 	}
-}
-
-// NOTE(Dan): Let's assume that this is how the equivalent of a controller talks to us
-
-func mapPath(path string, drive *orchestrators.Drive) string {
-	elements := strings.Split(filepath.Clean(path), "/")
-	if len(elements) < 3 {
-		return "/home/user"
-	}
-	return "/home/user/" + strings.Join(elements[2:], "/")
-}
-
-func inverseMap(path string, drive *orchestrators.Drive) string {
-	list := strings.Split(filepath.Clean(path), "/")
-	if len(list) < 3 {
-		return ""
-	}
-	return "/" + drive.Id + "/" + strings.Join(list[3:], "/")
 }
 
 type cachedDirEntry struct {
@@ -96,8 +83,8 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 	}
 }
 
-func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderFile], error) {
-	internalPath := mapPath(request.Path, &request.Drive)
+func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
+	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
 	sortBy := request.SortBy
 
 	fileList, ok := browseCache.Get(internalPath)
@@ -114,7 +101,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 			// TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
 			//   was just added to the project. See the current Kotlin implementation for more details.
 			log.Info("Could not open directory at %v %v", internalPath, err)
-			return fnd.EmptyPage[orchestrators.ProviderFile](), &util.HttpError{
+			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find directory",
 			}
@@ -122,7 +109,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 
 		fileNames, err := file.Readdirnames(-1)
 		if err != nil {
-			return fnd.EmptyPage[orchestrators.ProviderFile](), &util.HttpError{
+			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find and read directory. Is this a directory?",
 			}
@@ -162,7 +149,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 		}
 
 		slices.SortFunc(entries, cmpFunction)
-		if request.SortDirection == orchestrators.SortDirectionDescending {
+		if request.SortDirection == orc.SortDirectionDescending {
 			slices.Reverse(entries)
 		}
 
@@ -179,10 +166,10 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 	}
 
 	if offset >= len(fileList) || offset < 0 {
-		return fnd.EmptyPage[orchestrators.ProviderFile](), nil
+		return fnd.EmptyPage[orc.ProviderFile](), nil
 	}
 
-	items := make([]orchestrators.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
+	items := make([]orc.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
 
 	itemIdx := 0
 	i := offset
@@ -205,30 +192,106 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderF
 			itemIdx += 1
 		}
 
-		readMetadata(entry.absPath, entry.info, item, &request.Drive)
+		readMetadata(entry.absPath, entry.info, item, request.Drive)
 	}
 
-	nextToken := ""
+	nextToken := util.OptNone[string]()
 	if i < len(fileList) {
-		nextToken = fmt.Sprintf("%v", i)
+		nextToken.Set(fmt.Sprintf("%v", i))
 	}
 
-	return fnd.PageV2[orchestrators.ProviderFile]{
+	return fnd.PageV2[orc.ProviderFile]{
 		Items:        items[:itemIdx],
 		ItemsPerPage: 250,
-		Next:         util.OptValue(nextToken),
+		Next:         nextToken,
 	}, nil
 }
 
-func readMetadata(internalPath string, stat os.FileInfo, file *orchestrators.ProviderFile, drive *orchestrators.Drive) {
-	file.Status.Type = orchestrators.FileTypeFile
-	if stat.IsDir() {
-		file.Status.Type = orchestrators.FileTypeDirectory
+func retrieve(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
+	bah, _ := json.Marshal(request)
+	log.Info("retrieve drive='%v' path='%v' %v", request.Drive.Id, request.Path, string(bah))
+	var result orc.ProviderFile
+	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
+	stat, err := os.Stat(internalPath)
+	if err != nil {
+		return result, &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Could not find file!",
+		}
 	}
 
-	// TODO These two
-	file.Id = inverseMap(internalPath, drive)
-	file.Status.Icon = orchestrators.FileIconHintNone
+	readMetadata(internalPath, stat, &result, request.Drive)
+	return result, nil
+}
+
+func createFolder(request ctrl.CreateFolderRequest) error {
+	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
+	err := os.MkdirAll(internalPath, 0770)
+	if err != nil {
+		return &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Could not create directory!",
+		}
+	}
+
+	return nil
+}
+
+func move(request ctrl.MoveFileRequest) error {
+	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
+	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
+
+	err := os.Rename(sourcePath, destPath)
+	if err != nil {
+		parentPath := util.Parent(destPath)
+		parentStat, err := os.Stat(parentPath)
+		log.Info("path = %v stat=%v err=%v", parentPath, parentStat, err)
+		if err != nil {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Could not find destination!",
+			}
+		} else if !parentStat.IsDir() {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Destination is not a directory!",
+			}
+		}
+
+		_, err = os.Stat(destPath)
+		if err == nil {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Destination already exists!",
+			}
+		}
+
+		return &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Unable to move file.",
+		}
+	}
+
+	return nil
+}
+
+func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile, drive orc.Drive) {
+	file.Status.Type = orc.FileTypeFile
+	if stat.IsDir() {
+		file.Status.Type = orc.FileTypeDirectory
+	}
+
+	file.Id = InternalToUCloudWithDrive(drive, internalPath)
+	file.Status.Icon = orc.FileIconHintNone
+	fileName := util.FileName(internalPath)
+	switch fileName {
+	case "Trash":
+		file.Status.Icon = orc.FileIconHintDirectoryTrash
+	case "Jobs":
+		fallthrough
+	case "UCloud Jobs":
+		file.Status.Icon = orc.FileIconHintDirectoryJobs
+	}
 
 	file.CreatedAt = FileModTime(stat)
 	file.Status.ModifiedAt = FileModTime(stat)
@@ -240,4 +303,80 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orchestrators.Pro
 	file.Status.UnixOwner = FileUid(stat)
 	file.Status.UnixGroup = FileGid(stat)
 	file.Status.UnixMode = int(stat.Mode()) & 0777 // only keep permissions bits
+}
+
+func validateDownloadAndOpenFile(session ctrl.DownloadSession) (*os.File, os.FileInfo, error) {
+	internalPath := UCloudToInternalWithDrive(session.Drive, session.Path)
+	file, err := os.Open(internalPath)
+	if err != nil {
+		util.SilentClose(file)
+		return nil, nil, &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Could not find file!",
+		}
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		util.SilentClose(file)
+		return nil, nil, &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Could not find file!",
+		}
+	}
+	if stat.IsDir() {
+		util.SilentClose(file)
+		return nil, nil, &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Unable to download directories!",
+		}
+	}
+	return file, stat, nil
+}
+
+func createDownload(session ctrl.DownloadSession) error {
+	file, _, err := validateDownloadAndOpenFile(session)
+	if err != nil {
+		return err
+	} else {
+		util.SilentClose(file)
+		return nil
+	}
+}
+
+func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
+	file, stat, err := validateDownloadAndOpenFile(session)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return file, stat.Size(), nil
+}
+
+func UnitToBytes(unit string) uint64 {
+	switch unit {
+	case "KB":
+		return 1000
+	case "KiB":
+		return 1024
+	case "MB":
+		return 1000 * 1000
+	case "MiB":
+		return 1024 * 1024
+	case "GB":
+		return 1000 * 1000 * 1000
+	case "GiB":
+		return 1024 * 1024 * 1024
+	case "TB":
+		return 1000 * 1000 * 1000 * 1000
+	case "TiB":
+		return 1024 * 1024 * 1024 * 1024
+	case "PB":
+		return 1000 * 1000 * 1000 * 1000 * 1000
+	case "PiB":
+		return 1024 * 1024 * 1024 * 1024 * 1024
+	default:
+		log.Warn("%v Unknown unit %v", util.GetCaller(), unit)
+		return 1
+	}
 }

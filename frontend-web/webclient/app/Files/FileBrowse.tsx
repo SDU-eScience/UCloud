@@ -114,10 +114,13 @@ const FEATURES: ResourceBrowseFeatures = {
 
 interface AdditionalResourceBrowserOpts {
     initialPath?: string;
-    managesLocalProject?: boolean
+    managesLocalProject?: boolean;
+    additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
-const rowTitles: ColumnTitleList = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
+const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
@@ -602,6 +605,11 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    if (opts?.additionalOperations) {
+                        opts.additionalOperations.forEach(op => {
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
+                        })
+                    }
                     return groupOperations(enabledOperations);
                 });
 
@@ -822,11 +830,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             row.stat3.replaceChildren(button);
                         }
                     } else {
-                        row.stat3.replaceChildren(createHTMLElements({
-                            tagType: "div",
-                            style: {marginTop: "auto", marginBottom: "auto"},
-                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                        }));
+                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                            row.stat3.replaceChildren(createHTMLElements({
+                                tagType: "div",
+                                style: {marginTop: "auto", marginBottom: "auto"},
+                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                            }));
+                        }
                     }
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
@@ -1418,7 +1428,31 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 // the internal structure of a file is.
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => fileName(f.id));
-                browser.on("sort", page => page.sort((a, b) => a.id.localeCompare(b.id)));
+                browser.on("sort", page => {
+                    const sortBy = browser.browseFilters["sortBy"] as SortById;
+                    // Note(Jonas): Default to "ascending" behavior if none is set.
+                    const descending = browser.browseFilters["sortDirection"] === "descending";
+                    if (sortBy === "MODIFIED_AT") {
+                        if (descending) {
+                            return page.sort((b, a) => (a.status.modifiedAt ?? 0) - (b.status.modifiedAt ?? 0));
+                        } else {
+                            return page.sort((a, b) => (a.status.modifiedAt ?? 0) - (b.status.modifiedAt ?? 0));
+                        }
+                    } else if (sortBy === "SIZE") {
+                        if (descending) {
+                            return page.sort((b, a) => (a.status.sizeInBytes ?? 0) - (b.status.sizeInBytes ?? 0));
+                        } else {
+                            return page.sort((a, b) => (a.status.sizeInBytes ?? 0) - (b.status.sizeInBytes ?? 0));
+                        }
+                    }
+
+                    // sortBy === undefined || sortBy === "PATH"
+                    if (descending) {
+                        return page.sort((b, a) => a.id.localeCompare(b.id));
+                    } else {
+                        return page.sort((a, b) => a.id.localeCompare(b.id));
+                    }
+                });
             });
         }
 

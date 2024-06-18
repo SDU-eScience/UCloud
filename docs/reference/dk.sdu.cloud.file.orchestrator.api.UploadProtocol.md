@@ -10,6 +10,7 @@
 ```kotlin
 enum class UploadProtocol {
     CHUNKED,
+    WEBSOCKET,
 }
 ```
 
@@ -21,6 +22,17 @@ enum class UploadProtocol {
 <details>
 <summary>
 <code>CHUNKED</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>WEBSOCKET</code>
 </summary>
 
 

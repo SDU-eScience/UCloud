@@ -253,6 +253,7 @@ const Container = injectStyle("job-container", k => `
   ${k} ${topButtons.dot} {
     display: flex;
     gap: 8px;
+    height: 23px;
   }
 `);
 
@@ -1125,7 +1126,6 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 
     ${k} .term {
-        overflow-y: scroll;
         height: 100%;
         width: 100%;
     }
@@ -1318,11 +1318,25 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    if (localStorage.getItem("ALLOW_JOB_DEBUGGING_INFO") != null) {
+        console.log(JSON.stringify({
+            session: sessionResp,
+            backendType,
+            appType,
+            job,
+            support,
+            supportedBackends: {
+                web: isSupported(backendType, support, "web"),
+                vnc: isSupported(backendType, support, "vnc")
+            }
+        }));
+    }
+
     React.useEffect(() => {
         if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
             fetchSession(JobsApi.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: job.id, rank})));
         }
-    }, [job.status.state, appType, supportsInterface]);
+    }, [job.status.state, job.id, appType, supportsInterface]);
 
     const redirectToWeb = React.useMemo(() => {
         if (sessionResp.data == null) return "";
@@ -1484,7 +1498,7 @@ const ProviderUpdates: React.FunctionComponent<{
     }, [state]);
 
     if (addOverflow) {
-        return <Box height={"200px"} overflowY="scroll">
+        return <Box height={"200px"} overflowY="auto">
             <LogOutput updates={updates} maxHeight="200px" />
         </Box>
     } else {

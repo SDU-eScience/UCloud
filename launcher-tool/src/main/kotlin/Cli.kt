@@ -80,6 +80,40 @@ fun cliIntercept(args: List<String>) {
             }
         }
 
+        "addon", "addons" -> {
+            initializeServiceList()
+            val svcName = args.getOrNull(1) ?: printHelp()
+            val provider = runCatching { ComposeService.providerFromName(svcName) }.getOrNull() ?: run {
+                println("Unknown service: $svcName! Try one of the following:")
+                ComposeService.allProviders().forEach {
+                    println("  - ${it.name}: ${it.title}")
+                }
+                exitProcess(0)
+            }
+
+            val addonName = args.getOrNull(2) ?: printHelp()
+            if (addonName !in provider.addons()) {
+                println("Unknown addon: $addonName! Try one of the following:")
+                for (addon in provider.addons().sorted()) {
+                    println(" - $addon")
+                }
+                exitProcess(0)
+            }
+
+            addAddon(svcName, addonName)
+            generateComposeFile()
+            syncRepository()
+
+            LoadingIndicator("Starting addon containers").use {
+                compose.up(currentEnvironment, noRecreate = true).executeToText()
+            }
+
+            LoadingIndicator("Installing addon $svcName/$addonName").use {
+                provider.installAddon(addonName)
+                provider.startAddon(addonName)
+            }
+        }
+
         "env", "environment" -> {
             val envCommand = args.getOrNull(1) ?: printHelp()
 

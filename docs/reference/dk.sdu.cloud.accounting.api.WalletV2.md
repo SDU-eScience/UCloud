@@ -11,7 +11,14 @@
 data class WalletV2(
     val owner: WalletOwner,
     val paysFor: ProductCategory,
-    val allocations: List<WalletAllocationV2>,
+    val allocationGroups: List<AllocationGroupWithParent>,
+    val children: List<AllocationGroupWithChild>?,
+    val totalUsage: Long,
+    val localUsage: Long,
+    val maxUsable: Long,
+    val quota: Long,
+    val totalAllocated: Long,
+    val lastSignificantUpdateAt: Long,
 )
 ```
 
@@ -22,7 +29,7 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 
@@ -33,7 +40,7 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>paysFor</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code>
+<code>paysFor</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md'>ProductCategory</a></code></code>
 </summary>
 
 
@@ -44,7 +51,84 @@ data class WalletV2(
 
 <details>
 <summary>
-<code>allocations</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#walletallocationv2'>WalletAllocationV2</a>&gt;</code></code>
+<code>allocationGroups</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#allocationgroupwithparent'>AllocationGroupWithParent</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>children</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#allocationgroupwithchild'>AllocationGroupWithChild</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>totalUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>localUsage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsable</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>quota</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>totalAllocated</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>lastSignificantUpdateAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

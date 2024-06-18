@@ -9,7 +9,7 @@
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#creategrouprequest'>CreateGroupRequest</a></code>|<code><a href='#creategroupresponse'>CreateGroupResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#applicationgroup.specification'>ApplicationGroup.Specification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByIntId.md'>FindByIntId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

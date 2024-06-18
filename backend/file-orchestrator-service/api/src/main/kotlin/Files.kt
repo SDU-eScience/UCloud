@@ -332,7 +332,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesCreateUploadRequestItem(
                             "/123/folder",
-                            UploadType.FOLDER,
+                            UploadType.FILE,
                             listOf(UploadProtocol.CHUNKED),
                             WriteConflictPolicy.REJECT
                         )
@@ -756,8 +756,14 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         documentation {
             summary = "Creates an upload session between the user and the provider"
             description = """
-                The returned endpoint will accept an upload from the user which will create a file at a location
-                specified in this request.
+                An upload can be either a file or folder, if supported by the provider, and depending on the
+                $TYPE_REF UploadTypespecified in the request. The desired path and a list of supported $TYPE_REF UploadProtocol s 
+                are also specified in the request. The latter is used by the provider to negotiate which protocol to use.
+                
+                The response will contain an endpoint which is ready to accept the upload, as well as the chosen
+                $TYPE_REF UploadProtocol and a unique token.
+                
+                At the time of writing the default and preferred protocol is $TYPE_REF UploadProtocol.WEBSOCKET .
             """.trimIndent()
 
             responseExample(

@@ -1,4 +1,4 @@
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Accounting and Project Management](/docs/developer-guide/accounting-and-projects/README.md) / [Products](/docs/developer-guide/accounting-and-projects/products.md)
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Legacy](/docs/developer-guide/legacy/README.md) / [Products (Legacy)](/docs/developer-guide/legacy/products-legacy.md)
 
 # `AllocationRequestsGroup`
 

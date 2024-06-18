@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 	"ucloud.dk/pkg/log"
@@ -14,6 +15,7 @@ import (
 
 var dbFile string
 var db map[string]any
+var dirty = false
 var mutex = sync.Mutex{}
 
 // NOTE(Dan): This is a simple and temporary persistent KV store. We will use this until we have a proper database
@@ -52,7 +54,7 @@ func Init(databaseFile string) bool {
 		defer util.SilentClose(file)
 		for util.IsAlive {
 			flush()
-			time.Sleep(10 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 
@@ -60,6 +62,15 @@ func Init(databaseFile string) bool {
 }
 
 func flush() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if !dirty {
+		return
+	} else {
+		dirty = false
+	}
+
 	file, err := os.CreateTemp(filepath.Dir(dbFile), "temp_*.db")
 	if err != nil {
 		log.Warn("Failed to create temp file: %v", err)
@@ -92,11 +103,34 @@ func Set(key string, value any) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	db[key] = value
+	dirty = true
 }
 
-func Get(key string) (any, bool) {
+func Get[T any](key string) (T, bool) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	value, ok := db[key]
-	return value, ok
+	if ok {
+		converted, ok := value.(T)
+		if !ok {
+			log.Warn("Unexpected value type %T for key %v", value, key)
+		}
+		return converted, ok
+	} else {
+		var zeroValue T
+		return zeroValue, ok
+	}
+}
+
+func ListPrefix[T any](prefix string) []T {
+	mutex.Lock()
+	defer mutex.Unlock()
+	var result []T
+
+	for k, v := range db {
+		if strings.HasPrefix(k, prefix) {
+			result = append(result, v.(T))
+		}
+	}
+	return result
 }

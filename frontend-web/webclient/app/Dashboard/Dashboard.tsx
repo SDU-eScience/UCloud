@@ -32,12 +32,11 @@ import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
-import {NoResultsCardBody} from "@/UtilityComponents";
+import {NoResultsCardBody, OverallocationLink} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {UNABLE_TO_USE_FULL_ALLOC_MESSAGE} from "@/Accounting";
 import {withinDelta} from "@/Accounting/Allocations";
 
 interface NewsRequestProps extends PaginationRequest {
@@ -53,7 +52,7 @@ function Dashboard(): React.ReactNode {
         page: 0,
         withHidden: false,
     }), emptyPage);
-    
+
     usePage("Dashboard", SidebarTabId.NONE);
 
     const dispatch = useDispatch();
@@ -140,7 +139,7 @@ function Invites({projectReloadRef, inviteReloadRef}: {
 }): React.ReactNode {
     const [showProjectInvites, setShowProjectInvites] = React.useState(true);
     const [showShareInvites, setShowShareInvites] = React.useState(true);
-    
+
     React.useEffect(() => {
         // HACK(Jonas): Hacky approach to ensure that --rowWidth is correctly set on initial mount.
         setShowProjectInvites(false);
@@ -226,7 +225,7 @@ function DashboardResources({wallets}: {
         if (compare !== 0) return compare;
 
         return (a.quota < b.quota) ? 1 : -1;
-    }).slice(0,7);
+    }).slice(0, 7);
 
     return (
         <DashboardCard
@@ -255,10 +254,11 @@ function DashboardResources({wallets}: {
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
-                                            {withinDelta(n.quota, n.maxUsable, n.totalUsage) ? null :
-                                                <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                            {withinDelta(n.quota, n.maxUsable, n.totalUsage) ? null : <OverallocationLink>
+                                                <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                     <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                </TooltipV2>}
+                                                </TooltipV2>
+                                            </OverallocationLink>}
                                             {Accounting.balanceToString(n.paysFor, n.totalUsage, {
                                                 precision: 0,
                                                 removeUnitIfPossible: true

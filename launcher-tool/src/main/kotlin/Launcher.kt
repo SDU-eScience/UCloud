@@ -135,7 +135,11 @@ fun main(args: Array<String>) {
         if (shouldInitializeTestEnvironment) {
             val providers = ComposeService.allProviders()
             for (provider in providers) {
-                Commands.createProvider(provider.name)
+                if(provider.name == "go-slurm") {
+                    //skip
+                } else {
+                    Commands.createProvider(provider.name)
+                }
             }
         }
 
@@ -723,9 +727,20 @@ fun startCluster(compose: DockerCompose, noRecreate: Boolean) {
         }
     }
 
+    val allAddons = listAddons()
     for (provider in listConfiguredProviders()) {
         LoadingIndicator("Starting provider: ${ComposeService.providerFromName(provider).title}").use {
             startService(serviceByName(provider)).executeToText()
+        }
+
+        val addons = allAddons[provider]
+        if (addons != null) {
+            val p = ComposeService.providerFromName(provider)
+            for (addon in addons) {
+                LoadingIndicator("Starting addon: $addon").use {
+                    p.startAddon(addon)
+                }
+            }
         }
     }
 }

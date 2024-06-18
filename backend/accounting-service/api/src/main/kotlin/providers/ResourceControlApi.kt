@@ -148,6 +148,7 @@ abstract class ResourceControlApi<
             errorClass = typeOfIfPossible<CommonErrorMessage>(),
         )
 
+    @Deprecated("Replace with new accounting endpoints")
     val checkCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
             CommonErrorMessage>
         get() = call(
@@ -168,6 +169,7 @@ abstract class ResourceControlApi<
             errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
+    @Deprecated("Replace with new accounting endpoints")
     val chargeCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
         CommonErrorMessage>
         get() = call(

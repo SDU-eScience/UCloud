@@ -3,7 +3,6 @@ package util
 import (
 	"encoding/json"
 	"fmt"
-	"ucloud.dk/pkg/log"
 )
 
 type OptString = Option[string]
@@ -52,7 +51,6 @@ func (s *Option[T]) String() string {
 }
 
 func (s Option[T]) MarshalJSON() ([]byte, error) {
-	log.Info("Marshal option %v %v", s.Value, s.Present)
 	if s.Present {
 		return json.Marshal(s.Value)
 	} else {

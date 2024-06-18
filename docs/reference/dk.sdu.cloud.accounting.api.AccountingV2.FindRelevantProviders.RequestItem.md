@@ -12,6 +12,7 @@ data class RequestItem(
     val username: String,
     val project: String?,
     val useProject: Boolean,
+    val filterProductType: ProductType?,
 )
 ```
 
@@ -45,6 +46,17 @@ data class RequestItem(
 <details>
 <summary>
 <code>useProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterProductType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a>?</code></code>
 </summary>
 
 

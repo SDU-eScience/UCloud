@@ -22,7 +22,7 @@ import {
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
 import {periodsOverlap, ProductType, WalletOwner} from "@/Accounting";
-import {deepCopy, fuzzyMatch, groupBy} from "@/Utilities/CollectionUtilities";
+import {deepCopy, groupBy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -161,7 +161,8 @@ interface UsageAndQuota {
 // State reducer
 // =====================================================================================================================
 type UIAction =
-    {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
+    | {type: "Reset"}
+    | {type: "WalletsLoaded", wallets: Accounting.WalletV2[];}
     | {type: "ManagedProvidersLoaded", providerIds: string[]}
     | {type: "ManagedProductsLoaded", products: Record<string, Accounting.ProductCategoryV2[]>}
     | {type: "GiftsLoaded", gifts: Gifts.GiftWithCriteria[]}
@@ -177,6 +178,8 @@ type UIAction =
     | {type: "ToggleViewOnlyProjects", viewOnlyProjects: boolean}
     ;
 
+
+const fuzzyMatcher = newFuzzyMatchFuse<Accounting.ParentOrChildWallet, "projectId" | "projectTitle">(["projectId", "projectTitle"]);
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "WalletsLoaded": {
@@ -419,6 +422,10 @@ function stateReducer(state: State, action: UIAction): State {
 
             return rebuildTree(newState);
         }
+
+        case "Reset": {
+            return initialState();
+        }
     }
 
     // Utility functions for mutating state
@@ -480,16 +487,13 @@ function stateReducer(state: State, action: UIAction): State {
             if (wallet.paysFor.freeToUse) continue;
 
             const children = wallet.children ?? [];
+            const query = state.subAllocations.searchQuery;
             for (const childGroup of children) {
-                const query = state.subAllocations.searchQuery;
                 let matches = query === "";
 
                 if (!matches) {
-                    matches = fuzzyMatch(
-                        childGroup.child,
-                        ["projectId", "projectTitle"],
-                        query,
-                    );
+                    fuzzyMatcher.setCollection([childGroup.child]);
+                    matches = fuzzyMatcher.search(query).length > 0;
                 }
 
                 // TODO more checks?
@@ -788,7 +792,7 @@ const AllocationsStyle = injectStyle("allocations", k => `
         margin: 15px 0;
     }
     
-    ${k} .disabled-alloc {
+    ${k} .disabled-alloc .row-left, ${k} .disabled-alloc .low-opaqueness {
         filter: opacity(0.5);
     }
     
@@ -823,10 +827,9 @@ const Allocations: React.FunctionComponent = () => {
     const didCancel = useDidUnmount();
     const projectId = useProjectId();
     const navigate = useNavigate();
-    const [state, rawDispatch] = useReducer(stateReducer, initialState);
+    const [state, rawDispatch] = useReducer(stateReducer, initialState());
     const dispatchEvent = useStateReducerMiddleware(didCancel, rawDispatch);
     const avatars = useAvatars();
-    const searchTimeout = useRef<number>(0);
     const allocationTree = useRef<TreeApi>(null);
     const suballocationTree = useRef<TreeApi>(null);
     const searchBox = useRef<HTMLInputElement>(null);
@@ -836,6 +839,7 @@ const Allocations: React.FunctionComponent = () => {
     usePage("Allocations", SidebarTabId.PROJECT);
 
     useEffect(() => {
+        dispatchEvent({type: "Reset"});
         dispatchEvent({type: "Init"});
     }, [projectId]);
 
@@ -929,7 +933,11 @@ const Allocations: React.FunctionComponent = () => {
                     <Divider />
                     <Label>
                         Project title
-                        <Input id={"subproject-name"} autoFocus />
+                        <Input onKeyDown={e => {
+                            if (e.code !== "Escape") {
+                                e.stopPropagation();
+                            }
+                        }} id={"subproject-name"} autoFocus />
                     </Label>
                     {state.remoteData.managedProviders.length > 0 || !checkCanConsumeResources(Client.projectId ?? null, {api: {isCoreResource: false}}) ?
                         <Label>
@@ -1610,7 +1618,7 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                     </TooltipV2>
                                                 </>}
-                                                {Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}
+                                                <div className="low-opaqueness">{Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})}</div>
                                             </Flex>}
                                         />
                                     )
@@ -1667,7 +1675,7 @@ const Allocations: React.FunctionComponent = () => {
                 <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
                     {state.subAllocations.recipients.map((recipient, recipientIdx) => {
                         return <TreeNode
-                            key={recipient.owner.primaryUsername}
+                            key={recipient.owner.title}
                             left={<Flex gap={"4px"} alignItems={"center"}>
                                 <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
                                     <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
@@ -1938,12 +1946,14 @@ async function fetchManagedProviders(): Promise<string[]> {
 
 // Initial state
 // =====================================================================================================================
-const initialState: State = {
-    remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
-    subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
-    yourAllocations: {},
-    editControlsDisabled: false,
-    viewOnlyProjects: false,
+function initialState(): State {
+    return {
+        remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
+        subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
+        yourAllocations: {},
+        editControlsDisabled: false,
+        viewOnlyProjects: true,
+    };
 };
 
 const NO_EXPIRATION_FALLBACK = 4102444800353;

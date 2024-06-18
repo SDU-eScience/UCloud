@@ -1,8 +1,11 @@
 package main
 
 import (
+	"os"
+
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/im/gpfs"
 	"ucloud.dk/pkg/im/launcher"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/migrations"
@@ -32,6 +35,12 @@ func main() {
 		migrations.LoadMigrations()
 		migrations.Migrate(session)
 
+		return
+	}
+
+	exeName := os.Args[0]
+	if exeName == "gpfs-mock" {
+		gpfs.RunMockServer()
 		return
 	}
 

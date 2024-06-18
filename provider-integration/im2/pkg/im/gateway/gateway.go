@@ -18,6 +18,7 @@ import (
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
+	"ucloud.dk/pkg/util"
 	"unicode"
 )
 
@@ -231,8 +232,7 @@ func Initialize(config Config, channel chan []byte) {
 						os.Exit(1)
 					}
 
-					//goland:noinspection GoUnhandledErrorResult
-					defer logFile.Close()
+					defer util.SilentClose(logFile)
 
 					var args []string = nil
 					if useFunceWrapper {

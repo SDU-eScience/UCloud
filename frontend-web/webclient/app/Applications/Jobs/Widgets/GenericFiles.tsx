@@ -13,6 +13,9 @@ import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
+import {UFile} from "@/UCloud/UFile";
+import {Selection} from "@/ui-components/ResourceBrowser";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -53,42 +56,68 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const pathRef = {current: ""};
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
+
+        async function onClick(res: UFile) {
+            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+            if (props.errors[props.parameter.name]) {
+                delete props.errors[props.parameter.name];
+                props.setErrors({...props.errors});
+            }
+            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
+            WidgetSetProvider(props.parameter, res.specification.product.provider);
+            dialogStore.success();
+            if (anyFolderDuplicates()) {
+                props.setWarning?.("Duplicate folders selected. This is not always supported.");
+            }
+        }
+
+        function providerRestriction(file: UFile): boolean | string {
+            const fileProvider = file.specification.product.provider;
+            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
+            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
+            if (provider && provider !== fileProvider) {
+                if (isCorrectlyDir) {
+                    return providerMismatchError("Folders", fileProvider);
+                } else if (isCorrectlyFile) {
+                    return providerMismatchError("Files", fileProvider)
+                }
+            }
+            return isCorrectlyDir || isCorrectlyFile;
+        }
+
+        const selection: Selection<UFile> = {
+            text: "Use",
+            onClick,
+            show: providerRestriction
+        };
+        
+        const navigateToFolder = (path: string) => {
+            dialogStore.failure();
+            dialogStore.addDialog(
+                <FileBrowse
+                    opts={{
+                        additionalFilters,
+                        isModal: true,
+                        managesLocalProject: true,
+                        initialPath: path,
+                        additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                        selection,
+                    }} />,
+                doNothing,
+                true,
+                FilesApi.fileSelectorModalStyle
+            );    
+        }
+
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
-                    additionalFilters: additionalFilters,
+                    additionalFilters,
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: "",
-                    selection: {
-                        text: "Use",
-                        onClick: async res => {
-                            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                            if (props.errors[props.parameter.name]) {
-                                delete props.errors[props.parameter.name];
-                                props.setErrors({...props.errors});
-                            }
-                            FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
-                            WidgetSetProvider(props.parameter, res.specification.product.provider);
-                            dialogStore.success();
-                            if (anyFolderDuplicates()) {
-                                props.setWarning?.("Duplicate folders selected. This is not always supported.");
-                            }
-                        },
-                        show(file) {
-                            const fileProvider = file.specification.product.provider;
-                            const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
-                            const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";
-                            if (provider && provider !== fileProvider) {
-                                if (isCorrectlyDir) {
-                                    return providerMismatchError("Folders", fileProvider);
-                                } else if (isCorrectlyFile) {
-                                    return providerMismatchError("Files", fileProvider)
-                                }
-                            }
-                            return isCorrectlyDir || isCorrectlyFile;
-                        }
-                    }
+                    additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
+                    selection,
                 }} />,
             doNothing,
             true,

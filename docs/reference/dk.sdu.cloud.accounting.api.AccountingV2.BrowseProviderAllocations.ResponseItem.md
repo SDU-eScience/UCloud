@@ -13,7 +13,7 @@ data class ResponseItem(
     val owner: WalletOwner,
     val categoryId: ProductCategory,
     val notBefore: Long,
-    val notAfter: Long?,
+    val notAfter: Long,
     val quota: Long,
 )
 ```
@@ -36,7 +36,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.WalletOwner.md'>WalletOwner</a></code></code>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
 </summary>
 
 
@@ -47,7 +47,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>categoryId</code>: <code><code><a href='#productcategory'>ProductCategory</a></code></code>
+<code>categoryId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategory.md'>ProductCategory</a></code></code>
 </summary>
 
 
@@ -69,7 +69,7 @@ data class ResponseItem(
 
 <details>
 <summary>
-<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> The earliest timestamp at which the reported balance is no longer fully usable
+<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The earliest timestamp at which the reported balance is no longer fully usable
 </summary>
 
 

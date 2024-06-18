@@ -8,7 +8,7 @@ import (
 )
 
 type PageV2[T any] struct {
-	Items        []T                 `json:"items,omitempty"`
+	Items        []T                 `json:"items"`
 	Next         util.Option[string] `json:"next,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 }
@@ -50,4 +50,12 @@ func (t Timestamp) Time() time.Time {
 
 func (t Timestamp) UnixMilli() int64 {
 	return t.Time().UnixMilli()
+}
+
+func TimeFromUnixMilli(millis uint64) Timestamp {
+	return Timestamp(time.Unix(0, int64(millis*uint64(time.Millisecond))))
+}
+
+type FindByStringId struct {
+	Id string `json:"id"`
 }

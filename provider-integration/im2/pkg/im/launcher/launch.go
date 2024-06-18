@@ -51,6 +51,7 @@ func Launch() {
 	}
 
 	if !cfg.Parse(mode, *configDir) {
+		fmt.Printf("Failed to parse configuration!\n")
 		return
 	}
 
@@ -90,6 +91,19 @@ func Launch() {
 		UserModeSecret:       userModeSecret,
 	}
 
+	if mode == cfg.ServerModeServer {
+		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
+		// reloadable.
+		client.DefaultClient = client.MakeClient(
+			cfg.Server.RefreshToken,
+			cfg.Provider.Hosts.UCloud.ToURL(),
+		)
+
+		go func() {
+			ipc.InitIpc()
+		}()
+	}
+
 	// Once all critical parts are loaded, we can trigger the reloadable part of the code's launcher function
 	if *reloadable {
 		im.WatchForReload(&moduleArgs)
@@ -104,19 +118,6 @@ func Launch() {
 
 	log.Info("UCloud is ready!")
 
-	if mode == cfg.ServerModeServer {
-		// NOTE(Dan): The initial setup is _not_ reloadable. This is similar to how the HTTP server setup is also not
-		// reloadable.
-		client.DefaultClient = client.MakeClient(
-			cfg.Server.RefreshToken,
-			cfg.Provider.Hosts.UCloud.ToURL(),
-		)
-
-		go func() {
-			ipc.InitIpc()
-		}()
-	}
-
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
 		serverPort := gateway.ServerClusterPort
 		if mode == cfg.ServerModeUser {
@@ -128,7 +129,9 @@ func Launch() {
 			fmt.Sprintf(":%v", serverPort),
 			http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				handler, _ := im.Args.ServerMultiplexer.Handler(request)
-				handler.ServeHTTP(writer, request)
+				newWriter := NewLoggingResponseWriter(writer)
+				handler.ServeHTTP(newWriter, request)
+				log.Info("%v %v %v", request.Method, request.RequestURI, newWriter.statusCode)
 			}),
 		)
 
@@ -137,4 +140,18 @@ func Launch() {
 			os.Exit(1)
 		}
 	}
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
 }

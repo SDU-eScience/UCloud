@@ -52,24 +52,34 @@ class UsageScan(
                             loopActive = false
                             return@whileGraal
                         }
-                        val driveInfo = task.driveInfo
-                        val driveRoot = driveInfo.driveRoot ?: return@whileGraal
-                        if (driveInfo.inMaintenanceMode) return@whileGraal
-                        // TODO This blocks the thread while we are collecting the size.
-                        val size = fastDirectoryStats.getRecursiveSize(driveRoot, allowSlowPath = true) ?: return@whileGraal
+                        val taskName = "storage_scan"
+                        Prometheus.countBackgroundTask(taskName)
 
-                        pathConverter.locator.updateDriveSize(driveInfo.drive.ucloudId, size)
+                        val start = Time.now()
+                        try {
+                            val driveInfo = task.driveInfo
+                            val driveRoot = driveInfo.driveRoot ?: return@whileGraal
+                            if (driveInfo.inMaintenanceMode) return@whileGraal
+                            // TODO This blocks the thread while we are collecting the size.
+                            val size = fastDirectoryStats.getRecursiveSize(driveRoot, allowSlowPath = true)
+                                ?: return@whileGraal
 
-                        val ucloudMetadata = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId)
-                            ?: return@whileGraal
+                            pathConverter.locator.updateDriveSize(driveInfo.drive.ucloudId, size)
 
-                        reportUsage(
-                            ucloudMetadata.workspace,
-                            ucloudMetadata.product,
-                            size,
-                            minutesUsed = null,
-                            scope = task.driveInfo.drive.ucloudId.toString(),
-                        )
+                            val ucloudMetadata = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId)
+                                ?: return@whileGraal
+
+                            reportUsage(
+                                ucloudMetadata.workspace,
+                                ucloudMetadata.product,
+                                size,
+                                minutesUsed = null,
+                                scope = task.driveInfo.drive.ucloudId.toString(),
+                            )
+                        } finally {
+                            val end = Time.now()
+                            Prometheus.measureBackgroundDuration(taskName, end - start)
+                        }
                     } catch (ex: Throwable) {
                         log.warn("Caught exception while scanning ($taskId): ${ex.toReadableStacktrace()}")
                     }
@@ -142,6 +152,8 @@ class UsageScan(
         try {
             var next: String? = null
             var innerActive = true
+
+            var scansSubmitted = 0
             whileGraal({ innerActive }) {
                 val page = pathConverter.locator.enumerateDrives(next = next)
                 val driveIds = page.items.map { it.drive.ucloudId }
@@ -155,6 +167,7 @@ class UsageScan(
                         scanQueue.send(ScanTask(item))
                     }
                 }
+                scansSubmitted += page.items.size
 
                 val nextToken = page.next
                 if (nextToken == null) {
@@ -162,6 +175,10 @@ class UsageScan(
                 } else {
                     next = nextToken
                 }
+            }
+
+            if (scansSubmitted > 0) {
+                log.info("Started $scansSubmitted drive scans!")
             }
         } catch (ex: Throwable) {
             log.warn("Caught exception while scanning usage for $pluginName: ${ex.toReadableStacktrace()}")

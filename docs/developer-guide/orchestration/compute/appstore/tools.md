@@ -60,10 +60,6 @@ changes are expected:
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#fetchlogo'><code>fetchLogo</code></a></td>
-<td>Retrieves a logo associated with a Tool</td>
-</tr>
-<tr>
 <td><a href='#findbyname'><code>findByName</code></a></td>
 <td>Finds a Page of Tools which share the same name</td>
 </tr>
@@ -72,20 +68,8 @@ changes are expected:
 <td>Finds a Tool by name and version</td>
 </tr>
 <tr>
-<td><a href='#listall'><code>listAll</code></a></td>
-<td>Queries the entire catalog of Tools</td>
-</tr>
-<tr>
-<td><a href='#clearlogo'><code>clearLogo</code></a></td>
-<td>Deletes an existing logo from a Tool</td>
-</tr>
-<tr>
 <td><a href='#create'><code>create</code></a></td>
 <td>Creates a new Tool and adds it to the internal catalog</td>
-</tr>
-<tr>
-<td><a href='#uploadlogo'><code>uploadLogo</code></a></td>
-<td>Uploads a logo and associates it with a Tool</td>
 </tr>
 </tbody></table>
 
@@ -111,10 +95,6 @@ changes are expected:
 <td>The specification of a Tool</td>
 </tr>
 <tr>
-<td><a href='#findbynameandpagination'><code>FindByNameAndPagination</code></a></td>
-<td>Request type to find a Page of resources defined by a name</td>
-</tr>
-<tr>
 <td><a href='#findbynameandversion'><code>FindByNameAndVersion</code></a></td>
 <td>A request type to find a resource by name and version</td>
 </tr>
@@ -131,16 +111,8 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
-<td><a href='#clearlogorequest'><code>ClearLogoRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#fetchlogorequest'><code>FetchLogoRequest</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#uploadapplicationlogorequest'><code>UploadApplicationLogoRequest</code></a></td>
-<td><i>No description</i></td>
+<td><a href='#findbynamerequest'><code>FindByNameRequest</code></a></td>
+<td>Request type to find a Page of resources defined by a name</td>
 </tr>
 </tbody></table>
 
@@ -404,21 +376,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/tools/byNameAn
 
 ## Remote Procedure Calls
 
-### `fetchLogo`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Retrieves a logo associated with a Tool_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#fetchlogorequest'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint might return 404 Not Found if the Tool has no logo
-
-
 ### `findByName`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -429,7 +386,7 @@ _Finds a Page of Tools which share the same name_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='#findbynameandpagination'>FindByNameAndPagination</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#tool'>Tool</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#findbynamerequest'>FindByNameRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#tool'>Tool</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -447,36 +404,6 @@ _Finds a Tool by name and version_
 
 
 
-### `listAll`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Authenticated](https://img.shields.io/static/v1?label=Auth&message=Authenticated&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Queries the entire catalog of Tools_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.PaginationRequest.md'>PaginationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.Page.md'>Page</a>&lt;<a href='#tool'>Tool</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-This endpoint is not recommended for use and will likely disappear in a future release. The results are
-returned in no specific order.
-
-
-### `clearLogo`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Deletes an existing logo from a Tool_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#clearlogorequest'>ClearLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
 ### `create`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -488,20 +415,6 @@ _Creates a new Tool and adds it to the internal catalog_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
-
-
-
-### `uploadLogo`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
-
-
-_Uploads a logo and associates it with a Tool_
-
-| Request | Response | Error |
-|---------|----------|-------|
-|<code><a href='#uploadapplicationlogorequest'>UploadApplicationLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -764,67 +677,6 @@ If no providers are supplied, then this Tool will implicitly support all Provide
 
 ---
 
-### `FindByNameAndPagination`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Request type to find a Page of resources defined by a name_
-
-```kotlin
-data class FindByNameAndPagination(
-    val appName: String,
-    val itemsPerPage: Int?,
-    val page: Int?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
 ### `FindByNameAndVersion`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -1055,15 +907,18 @@ enum class ToolBackend {
 
 ---
 
-### `ClearLogoRequest`
+### `FindByNameRequest`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Request type to find a Page of resources defined by a name_
 
 ```kotlin
-data class ClearLogoRequest(
-    val name: String,
+data class FindByNameRequest(
+    val appName: String,
+    val itemsPerPage: Int?,
+    val page: Int?,
 )
 ```
 
@@ -1074,7 +929,7 @@ data class ClearLogoRequest(
 
 <details>
 <summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>appName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -1083,34 +938,9 @@ data class ClearLogoRequest(
 
 </details>
 
-
-
-</details>
-
-
-
----
-
-### `FetchLogoRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class FetchLogoRequest(
-    val name: String,
-)
-```
-
 <details>
 <summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
 </summary>
 
 
@@ -1119,34 +949,9 @@ data class FetchLogoRequest(
 
 </details>
 
-
-
-</details>
-
-
-
----
-
-### `UploadApplicationLogoRequest`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class UploadApplicationLogoRequest(
-    val name: String,
-)
-```
-
 <details>
 <summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>name</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>page</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code>
 </summary>
 
 

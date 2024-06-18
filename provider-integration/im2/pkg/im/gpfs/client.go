@@ -119,30 +119,45 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 	return true
 }
 
-func (c *Client) JobWait(jobid int) (JobResponse, bool) {
+func (c *Client) JobWaitOnResponse(response JobResponse) int {
+	if len(response.Jobs) == 0 {
+		return -1
+	}
+
+	if response.Jobs[0].Status == "COMPLETED" {
+		return 1
+	}
+
+	if response.Jobs[0].Status != "RUNNING" {
+		return -1
+	}
+	return 0
+}
+
+func (c *Client) JobWait(response JobResponse) bool {
+	if len(response.Jobs) == 0 {
+		return false
+	}
+	jobid := response.Jobs[0].JobID
+
 	jr := JobResponse{}
 	url := fmt.Sprintf("jobs/%d", jobid)
 	tmout := c.timeout
 
 	for tmout > 0 {
-		ok := c.Request("GET", url, nil, &jr)
-		if !ok {
-			return jr, false
-		}
-
-		if jr.Jobs[0].Status == "COMPLETED" {
-			return jr, true
-		}
-
-		if jr.Jobs[0].Status != "RUNNING" {
-			return jr, false
+		c.Request("GET", url, nil, &jr)
+		status := c.JobWaitOnResponse(response)
+		if status == -1 {
+			return false
+		} else if status == 1 {
+			return true
 		}
 
 		time.Sleep(time.Second)
 		tmout--
 	}
 
-	return jr, false
+	return false
 }
 
 func (c *Client) FilesetExists(filesystem, fileset string) bool {
@@ -174,7 +189,7 @@ func (c *Client) FilesetQuery(filesystem, fileset string) (Fileset, bool) {
 	}
 
 	// Send request
-	fr := FilesetReponse{}
+	fr := FilesetResponse{}
 	url := fmt.Sprintf("filesystems/%s/filesets/%s", filesystem, fileset)
 	ok := c.Request("GET", url, nil, &fr)
 	if !ok {
@@ -196,7 +211,7 @@ func (c *Client) FilesetQuery(filesystem, fileset string) (Fileset, bool) {
 	result.Path = fr.Filesets[0].Config.Path
 	result.Created, _ = time.Parse("2006-01-02 15:04:05,000", fr.Filesets[0].Config.Created)
 
-	result.UsageBytes = 1024 * qr.Quotas[0].BlockUsage
+	result.UsageBytes = 1024 * qr.Quotas[0].BlockUsage // TODO does this not mean that the block size is hardcoded at 1KiB?
 	result.QuotaBytes = 1024 * qr.Quotas[0].BlockQuota
 	result.UsageFiles = qr.Quotas[0].FilesUsage
 	result.QuotaFiles = qr.Quotas[0].FilesQuota
@@ -252,7 +267,7 @@ func (c *Client) FilesetCreate(f *Fileset) bool {
 	}
 
 	// Wait
-	_, ok = c.JobWait(jr.Jobs[0].JobID)
+	ok = c.JobWait(jr)
 	return ok
 }
 
@@ -289,7 +304,7 @@ func (c *Client) FilesetQuota(f *Fileset) bool {
 	}
 
 	// Wait
-	_, ok = c.JobWait(jr.Jobs[0].JobID)
+	ok = c.JobWait(jr)
 	return ok
 }
 
@@ -312,7 +327,7 @@ func (c *Client) FilesetUnlink(filesystem, fileset string) bool {
 	}
 
 	// Wait
-	_, ok = c.JobWait(jr.Jobs[0].JobID)
+	ok = c.JobWait(jr)
 	return ok
 }
 
@@ -335,6 +350,6 @@ func (c *Client) FilesetDelete(filesystem, fileset string) bool {
 	}
 
 	// Wait
-	_, ok = c.JobWait(jr.Jobs[0].JobID)
+	ok = c.JobWait(jr)
 	return ok
 }

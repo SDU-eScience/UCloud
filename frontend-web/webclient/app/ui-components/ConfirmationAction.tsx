@@ -12,10 +12,10 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
         --progress-border: var(--backgroundDefault, #f00);
         --progress-active: var(--textPrimary, #f00);
-        --progress-success: var(--color, #f00);
+        --progress-success: white;
         --color: var(--errorContrast);
         --background: var(--errorMain, #f00);
-        --tick-stroke: var(--progress-active);
+        --tick-stroke: white;
         
         outline: none;
         user-select: none;
@@ -50,7 +50,6 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         left: 15px;
         position: absolute;
         overflow-y: hidden;
-        background: var(--progress-border);
         transition: transform .3s, opacity .2s;
         opacity: var(--icon-o, 0);
         transform: translateX(var(--icon-x, -4px));
@@ -86,7 +85,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         stroke-dashoffset: 1;
         stroke-dasharray: var(--progress-array, 0) 52;
         stroke-width: 16;
-        stroke: var(--progress-active);
+        stroke: white;
         transition: stroke-dasharray var(--duration) linear;
     }
 
@@ -187,7 +186,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         --icon-x: 6px;
         --progress-border: none;
         --progress-scale: .11;
-        --tick-stroke: var(--progress-success);
+        --tick-stroke: white;
         --background-scale: 0;
         --tick-offset: 36;
         --ul-y: -200%;
@@ -436,7 +435,6 @@ export function ConfirmationButtonPlainHTML(
 
     const timeout = {id: -1};
     const timer = {time: holdToConfirmTime};
-    const wasReset = {state: false};
     const TEMP_STARTED_KEY = Math.random() + new Date().getTime();
 
     function end() {
@@ -445,7 +443,7 @@ export function ConfirmationButtonPlainHTML(
             window.clearTimeout(timeout.id);
         }
 
-        if (timer.time > holdToConfirmTime - shakeDelta && !wasReset) {
+        if (timer.time > holdToConfirmTime - shakeDelta && startedMap[TEMP_STARTED_KEY]) {
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
@@ -460,7 +458,6 @@ export function ConfirmationButtonPlainHTML(
         }
         timer.time = holdToConfirmTime;
         startedMap[TEMP_STARTED_KEY] = false;
-        wasReset.state = false;
     }
 
     function start() {
@@ -468,10 +465,6 @@ export function ConfirmationButtonPlainHTML(
         if (timeout.id !== -1) {
             window.clearTimeout(timeout.id);
             timeout.id = -1;
-        }
-
-        if (button.classList.contains("success")) {
-            wasReset.state = true;
         }
 
         button.classList.remove("success");
