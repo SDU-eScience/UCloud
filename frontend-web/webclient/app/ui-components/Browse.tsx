@@ -1,5 +1,5 @@
 import * as React from "react";
-import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PageV2} from "@/UCloud";
 import {InvokeCommand, useCloudCommand} from "@/Authentication/DataHook";
 import * as Pagination from "@/Pagination";
@@ -8,7 +8,7 @@ import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
-import {doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
+import {doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
@@ -139,7 +139,7 @@ interface ItemRowProps<T, CB> {
     renaming?: RenamingState<T>;
 }
 
-export const ItemRow = <T, CB>(
+const ItemRow = <T, CB>(
     props: React.PropsWithChildren<ItemRowProps<T, CB>>
 ): React.ReactNode => {
     const renderer = props.renderer;
@@ -247,7 +247,8 @@ interface StandardListBrowse<T, CB> {
     headerSize?: number;
 }
 
-export function StandardList<T, CB = EmptyObject>(
+// TODO(Jonas): Remove
+export function StandardList<T, CB = Record<string, never>>(
     props: React.PropsWithChildren<StandardListBrowse<T, CB>>
 ): React.ReactNode {
     const scrollingContainerRef = useRef<HTMLDivElement>(null);

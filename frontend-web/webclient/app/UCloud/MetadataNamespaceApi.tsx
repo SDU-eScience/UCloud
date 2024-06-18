@@ -153,6 +153,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
         }, []);
         return <TitledCard>
+            {/* TODO(Jonas): Remove usage */}
             <StandardList
                 generateCall={generateCall}
                 renderer={this.templateRenderer}

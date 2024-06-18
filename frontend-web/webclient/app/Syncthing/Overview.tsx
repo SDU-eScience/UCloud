@@ -1,13 +1,10 @@
 import * as React from "react";
 import {NavigateFunction, useNavigate} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
-import {SafeLogo} from "@/Applications/AppToolLogo";
 import {usePage} from "@/Navigation/Redux";
-import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {BrowseType} from "@/Resource/BrowseType";
-import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, FtIcon, List} from "@/ui-components";
+import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, List} from "@/ui-components";
 import MainContainer from "@/ui-components/MainContainer";
 import TitledCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
@@ -15,21 +12,18 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
 import {Job} from "@/UCloud/JobsApi";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
-import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath} from "@/Files/FilePath";
 import {fileName} from "@/Utilities/FileUtilities";
-import {ListRowStat} from "@/ui-components/List";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
-import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
-import Spinner from "@/LoadingIcon/LoadingIcon";
-import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
+import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard, isLightThemeStored, createHTMLElements} from "@/UtilityFunctions";
+import {getQueryParam} from "@/Utilities/URIUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
-
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
@@ -45,7 +39,12 @@ import AppRoutes from "@/Routes";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {div} from "@/Utilities/HTMLUtilities";
 import {arrayToPage} from "@/Types";
-import {AsyncCache} from "@/Utilities/AsyncCache";
+import {retrieveAppLogo} from "@/Applications/AppStoreApi";
+import {FlexClass} from "@/ui-components/Flex";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
+import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 // UI state management
 // ================================================================================
@@ -467,18 +466,7 @@ export const Overview: React.FunctionComponent = () => {
                     </Text>
 
                     <List mt="16px">
-                        {devices.map(it =>
-                            <ItemRow
-                                item={it}
-                                key={it.deviceId}
-                                browseType={BrowseType.Embedded}
-                                renderer={DeviceRenderer}
-                                operations={deviceOperations}
-                                callbacks={operationCb}
-                                toggleSet={deviceToggleSet}
-                                itemTitle={"Device"}
-                            />
-                        )}
+                        <DeviceBrowse devices={devices} dispatch={dispatch} opts={{embedded: true}} />
                     </List>
                 </TitledCard>
 
@@ -492,27 +480,13 @@ export const Overview: React.FunctionComponent = () => {
                             We synchronize your files from this server. Monitor the health of your servers here.
                         </Text>
 
-                        {servers.length === 0 ? <>
+                        {servers.length === 0 ?
                             <Box mt="16px">
                                 <b>We are currently starting a Syncthing server for you. </b><br />
                                 If nothing happens, then you should try reloading this page.
-                            </Box>
-                        </> : <>
-                            <List mt="16px">
-                                {servers.map(it =>
-                                    <ItemRow
-                                        item={it}
-                                        key={it.id}
-                                        browseType={BrowseType.Embedded}
-                                        renderer={ServerRenderer}
-                                        toggleSet={serverToggleSet}
-                                        operations={serverOperations}
-                                        callbacks={operationCb}
-                                        itemTitle={"Server"}
-                                    />
-                                )}
-                            </List>
-                        </>}
+                            </Box> :
+                            <ServerBrowse servers={servers} dispatch={dispatch} opts={{embedded: true}} />
+                        }
                     </TitledCard>
                 }
             </div>
@@ -541,29 +515,6 @@ export const Overview: React.FunctionComponent = () => {
 
 // Secondary interface
 // ================================================================================
-const DeviceRenderer: ItemRenderer<SyncthingDevice> = {
-    Icon: ({size}) => {
-        return <Icon name="cubeSolid" size={size} />
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        return <>{resource.label}</>;
-    },
-
-    ImportantStats: ({resource}) => {
-        if (!resource) return null;
-
-        const doCopyId = useCallback((e: React.SyntheticEvent) => {
-            e.stopPropagation();
-            copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
-        }, [resource.deviceId]);
-
-        const trigger = <div className={DeviceBox} onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></div>;
-        return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
-    }
-};
-
 const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
     {
         text: "Copy device ID",
@@ -604,51 +555,6 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
         shortcut: ShortcutKey.R
     }
 ];
-
-const ServerRenderer: ItemRenderer<Job> = {
-    Icon: ({resource, size}) => {
-        if (!resource) return null;
-        return <SafeLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
-    },
-
-    MainTitle: ({resource}) => {
-        if (!resource) return null;
-        const rawTitle = resource.specification.name ?? `Server (${resource.id})`;
-        const title = removePrefixFrom("Syncthing ", rawTitle);
-        return <>{title}</>
-    },
-
-    ImportantStats: ({resource}) => {
-        if (!resource) return null;
-        const status = resource.status.state ?? "IN_QUEUE";
-        switch (status) {
-            case "IN_QUEUE":
-            case "EXPIRED":
-            case "SUSPENDED":
-            case "CANCELING": {
-                return <Flex alignItems="center">
-                    <Spinner />
-                    <Box ml="8px">Updating...</Box>
-                </Flex>;
-            }
-
-            case "RUNNING": {
-                return <Flex alignItems="center">
-                    <Icon name="check" color="successMain" />
-                    <Box ml="8px">Running</Box>
-                </Flex>
-            }
-
-            case "SUCCESS":
-            case "FAILURE": {
-                return <Flex alignItems="center">
-                    <Icon name="pauseSolid" color="infoMain" />
-                    <Box ml="8px">Paused</Box>
-                </Flex>;
-            }
-        }
-    }
-};
 
 const serverOperations: Operation<Job, OperationCallbacks>[] = [
     {
@@ -1053,6 +959,245 @@ const DeviceBox = injectStyleSimple("device-box", `
     user-select: none;
     -webkit-user-select: none;
 `);
+
+const SPINNER = new ReactStaticRenderer(() => <HexSpin size={30} />);
+function ServerBrowse({servers, dispatch, opts}: {dispatch(action: UIAction): void; servers?: Job[], opts: ResourceBrowserOpts<Job>}): React.ReactNode {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<Job>>(null);
+    const navigate = useNavigate();
+
+    const features: ResourceBrowseFeatures = {
+        dragToSelect: true,
+    };
+
+    React.useEffect(() => {
+        const browser = browserRef.current;
+        if (browser && servers) {
+            browser.registerPage(arrayToPage(servers), "/", true);
+            browser.rerender();
+        }
+    }, [servers]);
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<Job>(mount, "Servers", opts).init(browserRef, features, "/", browser => {
+                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 50}]);
+
+                browser.on("skipOpen", () => true);
+                browser.on("open", (oldPath, newPath, resource) => {
+                });
+
+                browser.on("unhandledShortcut", () => {});
+
+                browser.on("wantToFetchNextPage", async path => {});
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("Syncthing folders", e, {}))
+
+                browser.on("renderRow", (server, row, dims) => {
+                    const [appIcon, setAppIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(appIcon);
+                    appIcon.style.minWidth = "20px"
+                    appIcon.style.minHeight = "20px"
+                    row.title.append(appIcon);
+                    setAppIcon(retrieveAppLogo({
+                        name: server.specification.application.name,
+                        darkMode: !isLightThemeStored(),
+                        includeText: false,
+                        placeTextUnderLogo: false,
+                    }));
+
+                    const rawTitle = server.specification.name ?? `Server (${server.id})`;
+                    const title = removePrefixFrom("Syncthing ", rawTitle);
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
+
+                    const flexWrapper = createHTMLElements({
+                        tagType: "div",
+                        className: FlexClass,
+                        style: {alignItems: "center"}
+                    });
+                    row.stat3.append(flexWrapper);
+
+                    const status = server.status.state;
+                    
+                    let iconName: IconName | null = null;
+                    let iconColor: ThemeColor | null = null;
+                    let innerText = "";
+                    switch (status) {
+                        case "IN_QUEUE":
+                        case "EXPIRED":
+                        case "SUSPENDED":
+                        case "CANCELING": {
+                            flexWrapper.append(SPINNER.clone());
+                            innerText = "Updating...";
+                            break;
+                        }
+
+                        case "RUNNING": {
+                            iconName = "check";
+                            iconColor = "successMain";
+                            innerText = "Running...";
+                            break;
+                        }
+
+                        case "SUCCESS":
+                        case "FAILURE": {
+                            iconName = "pauseSolid";
+                            iconColor = "infoMain";
+                            innerText = "Paused...";
+                            break;
+                        }
+                    }
+
+                    if (iconName && iconColor) {
+                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                        flexWrapper.append(icon);
+                        
+                        ResourceBrowser.icons.renderIcon({
+                            name: iconName,
+                            color: iconColor,
+                            color2: iconColor,
+                            height: 32,
+                            width: 32
+                        }).then(setIcon);
+                    }
+
+                    flexWrapper.append(createHTMLElements({
+                        tagType: "div",
+                        style: {marginLeft: "8px"},
+                        innerText
+                    }));
+
+                });
+
+                browser.setEmptyIcon("heroServer");
+
+                browser.on("generateBreadcrumbs", () => {
+                    return [];
+                });
+
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch,
+                    navigate
+                }));
+
+                browser.on("fetchOperations", () => {
+                    const selected = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", f => f()) as OperationCallbacks;
+                    return serverOperations.filter(it => it.enabled(selected, callbacks, selected));
+                });
+
+                browser.on("pathToEntry", server => server.id);
+            });
+        }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
+    }, []);
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useSetRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
+
+    return <div ref={mountRef} />;
+}
+
+
+function DeviceBrowse({devices, dispatch, opts}: {dispatch(action: UIAction): void; devices?: SyncthingDevice[], opts: ResourceBrowserOpts<SyncthingDevice>}): React.ReactNode {
+    const mountRef = React.useRef<HTMLDivElement | null>(null);
+    const browserRef = React.useRef<ResourceBrowser<SyncthingDevice>>(null);
+
+    const features: ResourceBrowseFeatures = {
+        dragToSelect: true,
+    };
+
+    React.useEffect(() => {
+        const browser = browserRef.current;
+        if (browser && devices) {
+            browser.registerPage(arrayToPage(devices), "/", true);
+            browser.rerender();
+        }
+    }, [devices]);
+
+    React.useLayoutEffect(() => {
+        const mount = mountRef.current;
+        if (mount && !browserRef.current) {
+            new ResourceBrowser<SyncthingDevice>(mount, "Syncthing devices", opts).init(browserRef, features, "/", browser => {
+                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 50}]);
+
+                browser.on("open", (oldPath, newPath, resource) => {
+                });
+
+                browser.on("unhandledShortcut", () => {});
+
+                browser.on("wantToFetchNextPage", async path => {});
+                browser.on("renderEmptyPage", e => browser.defaultEmptyPage("Syncthing folders", e, {}))
+
+                browser.on("renderRow", (device, row, dims) => {
+                    const [deviceIcon, setDeviceIcon] = ResourceBrowser.defaultIconRenderer();
+                    row.title.append(deviceIcon);
+                    ResourceBrowser.icons.renderIcon({
+                        name: "cubeSolid",
+                        height: 32,
+                        width: 32,
+                        color: "textPrimary",
+                        color2: "textPrimary",
+                    }).then(setDeviceIcon);
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(device.label, dims, row));
+
+
+                    /* TODO */
+                    ImportantStats: ({resource}) => {
+                        if (!resource) return null;
+
+                        const doCopyId = useCallback((e: React.SyntheticEvent) => {
+                            e.stopPropagation();
+                            copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
+                        }, [resource.deviceId]);
+
+                        const trigger = <div className={DeviceBox} onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></div>;
+                        return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
+                    }
+                });
+
+                browser.setEmptyIcon("cubeSolid");
+
+                browser.on("generateBreadcrumbs", () => {
+                    return [];
+                });
+
+                browser.on("fetchOperationsCallback", () => ({
+                    dispatch
+                }));
+
+                browser.on("fetchOperations", () => {
+                    const selected = browser.findSelectedEntries();
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", f => f()) as OperationCallbacks;
+                    return deviceOperations.filter(it => it.enabled(selected, callbacks, selected));
+                });
+
+                browser.on("pathToEntry", device => device.deviceId);
+            });
+        }
+        if (opts?.reloadRef) {
+            opts.reloadRef.current = () => {
+                browserRef.current?.refresh();
+            }
+        }
+    }, []);
+
+    if (!opts?.embedded && !opts?.isModal) {
+        useSetRefreshFunction(() => {
+            browserRef.current?.refresh();
+        });
+    }
+
+    return <div ref={mountRef} />;
+}
+
 
 let permissionProblems: Record<string, boolean> = {};
 
