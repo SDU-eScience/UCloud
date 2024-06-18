@@ -75,12 +75,8 @@ type JobStatus struct {
 	StartedAt           fnd.Timestamp      `json:"startedAt,omitempty"`
 	ExpiresAt           fnd.Timestamp      `json:"expiresAt,omitempty"`
 	ResolvedApplication Application        `json:"resolvedApplication,omitempty"`
-	//override var resolvedSupport: ResolvedSupport<Product.Compute, ComputeSupport>? = null,
-	//override var resolvedProduct: Product.Compute? = null,
-	AllowRestart bool `json:"allowRestart"`
+	AllowRestart        bool               `json:"allowRestart"`
 }
-
-//) : ResourceStatus<Product.Compute, ComputeSupport>
 
 type JobUpdate struct {
 	State                  JobState `json:"state,omitempty"`
@@ -92,26 +88,6 @@ type JobUpdate struct {
 	AllowRestart           bool     `json:"allowRestart"`
 	NewMounts              []string `json:"newMounts"`
 }
-
-/*  init {
-        if (allowRestart == true) {
-            when (state) {
-                JobState.SUCCESS,
-                JobState.FAILURE,
-                JobState.SUSPENDED -> {
-                    // This is OK
-                }
-
-                else -> {
-                    throw RPCException(
-                        "Cannot set `allowRestart` with a state of $state!",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            }
-        }
-    }
-}*/
 
 type JobSpecification struct {
 	ResourceSpecification
@@ -127,45 +103,16 @@ type JobSpecification struct {
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
 }
 
-/*    init {
-        if (name != null && !name.matches(nameRegex)) {
-            throw RPCException(
-                "Provided job name is invalid. It cannot contain any special characters ($name).",
-                HttpStatusCode.BadRequest
-            )
-        }
-
-        if (name != null && name.length > 200) {
-            throw RPCException("Provided job name is too long", HttpStatusCode.BadRequest)
-        }
-    }
-
-    companion object {
-        private val nameRegex = Regex("""[\w ():_-]+""")
-    }
-}*/
-
 type ComputeProductReference apm.ProductReference
 
 type JobOutput struct {
 	OutputFolder string `json:"ouputfolder,omitempty"`
 }
 
-//typealias JobsExtendRequest = BulkRequest<JobsExtendRequestItem>
-//typealias JobsExtendResponse = BulkResponse<Unit?>
-
 type JobsExtendRequestItem struct {
 	JobId         string         `json:"jobId"`
 	RequestedTime SimpleDuration `json:"requestedTime"`
 }
-
-//typealias JobsSuspendRequest = BulkRequest<JobsSuspendRequestItem>
-//typealias JobsSuspendResponse = BulkResponse<Unit?>
-//typealias JobsSuspendRequestItem = FindByStringId
-
-//typealias JobsUnsuspendRequest = BulkRequest<JobsUnsuspendRequestItem>
-//typealias JobsUnsuspendResponse = BulkResponse<Unit?>
-//typealias JobsUnsuspendRequestItem = FindByStringId
 
 func (job *Job) getParameterValues(ofType AppParameterValueType) []AppParameterValue {
 	var result []AppParameterValue
@@ -178,10 +125,6 @@ func (job *Job) getParameterValues(ofType AppParameterValueType) []AppParameterV
 
 	return result
 }
-
-//typealias JobsOpenInteractiveSessionRequest = BulkRequest<JobsOpenInteractiveSessionRequestItem>
-
-//typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
 
 type OpenSessionWithProvider struct {
 	ProviderDomain string      `json:"providerDomain"`
