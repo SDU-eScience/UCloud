@@ -200,6 +200,7 @@ class AccountingSystem(
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
                                         is AccountingRequest.SubAllocate -> subAllocate(msg)
+                                        is AccountingRequest.RollBackGrantAllocations -> rollBack(msg)
                                         is AccountingRequest.ScanRetirement -> scanRetirement(msg)
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
@@ -265,12 +266,18 @@ class AccountingSystem(
                             try {
                                 toCheck.forEach { checkWalletHierarchy(it) }
                             } catch (e: Throwable) {
-                                response = Response.error(
-                                    HttpStatusCode.InternalServerError,
-                                    e.toReadableStacktrace().toString()
-                                )
+                                if (request.message is AccountingRequest.SubAllocate) {
+                                    response = Response.error(
+                                        HttpStatusCode.UnprocessableEntity,
+                                        e.message.toString(),
+                                    )
+                                } else {
+                                    response = Response.error(
+                                        HttpStatusCode.InternalServerError,
+                                        e.toReadableStacktrace().toString()
+                                    )
+                                }
                             }
-
                             response.id = request.id
                             responses.emit(response)
                         }
@@ -641,6 +648,17 @@ class AccountingSystem(
         reevaluateWalletsAfterUpdate(wallet)
 
         return allocationId
+    }
+
+    private fun rollBack(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to rollback")
+
+        val allocations = allocations.filter { it.value.grantedIn == request.grantedIn }.map { it.value }
+        allocations.forEach { alloc ->
+            alloc.isRolledBack = true
+            alloc.isDirty = true
+        }
+        return Response.ok(Unit)
     }
 
     private fun markSignificantUpdate(wallet: InternalWallet, now: Long) {

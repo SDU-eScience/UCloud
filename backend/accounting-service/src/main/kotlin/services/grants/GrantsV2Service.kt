@@ -27,6 +27,8 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.slack.api.Alert
+import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.serialization.builtins.ListSerializer
@@ -1182,11 +1184,13 @@ class GrantsV2Service(
                         )
                     )
 
-                    actionQueue.add(Action.UpdateApprovalState(command.projectId, command.newState))
-                    actionQueue.add(Action.UpdateOverallState(newOverallState))
                     if (newOverallState == GrantApplication.State.APPROVED) {
                         actionQueue.add(Action.GrantResources)
                     }
+                    //NOTE HENRIK: Moved down after the granting of resources since we cannot move it back to
+                    // non-approved if first approved. Should not make a difference if all goes well.
+                    actionQueue.add(Action.UpdateApprovalState(command.projectId, command.newState))
+                    actionQueue.add(Action.UpdateOverallState(newOverallState))
                 }
 
                 Command.Withdraw -> {
@@ -1493,22 +1497,53 @@ class GrantsV2Service(
                         session.sendQuery("commit") // commit state changes immediately in case we crash
                         session.sendQuery("begin")
 
-                        doc.allocationRequests.forEach { req ->
+                        var failed = false
+                        doc.allocationRequests.forEachIndexed { i, req ->
                             // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
                             //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
                             //  not really a great solution.
+                            try {
+                                ctx.accountingService.sendRequest(
+                                    AccountingRequest.SubAllocate(
+                                        IdCard.System,
+                                        ProductCategoryIdV2(req.category, req.provider),
+                                        walletOwner.reference(),
+                                        req.balanceRequested!!,
+                                        req.period.start ?: Time.now(),
+                                        req.period.end ?: Time.now(),
+                                        ownerOverride = req.grantGiver,
+                                        grantedIn = application.id.toLongOrNull(),
+                                    )
+                                )
+                            } catch (e: Throwable) {
+                                failed = true
+                                if (e is RPCException) {
+                                    if (e.httpStatusCode == HttpStatusCode.UnprocessableEntity) {
+                                        SlackDescriptions.sendAlert.call(
+                                            Alert(
+                                                "Error in Accounting hierarchy: ${e.message}"
+                                            ),
+                                            ctx.serviceClient
+                                        )
+                                        println(e)
+
+                                    }
+                                } else {
+                                    println(e.toReadableStacktrace())
+                                }
+                            }
+                        }
+
+                        if (failed) {
+                            val grantedIn = application.id.toLong()
+                            println("Rolling back the allocations granted in $grantedIn due to error")
                             ctx.accountingService.sendRequest(
-                                AccountingRequest.SubAllocate(
+                                AccountingRequest.RollBackGrantAllocations(
                                     IdCard.System,
-                                    ProductCategoryIdV2(req.category, req.provider),
-                                    walletOwner.reference(),
-                                    req.balanceRequested!!,
-                                    req.period.start ?: Time.now(),
-                                    req.period.end ?: Time.now(),
-                                    ownerOverride = req.grantGiver,
-                                    grantedIn = application.id.toLongOrNull(),
+                                    grantedIn
                                 )
                             )
+                            throw RPCException("Failed to grant resources. Try Again.", HttpStatusCode.UnprocessableEntity)
                         }
 
                         if (doc.recipient is GrantApplication.Recipient.NewProject && walletOwner is WalletOwner.Project) {
