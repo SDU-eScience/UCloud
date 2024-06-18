@@ -13,6 +13,9 @@ type GenericLicenseServer struct {
 }
 
 func Upsert(ctx *database.Transaction, license GenericLicenseServer) bool {
+
+	// TODO(Brian) Check that product allocation exists
+
 	database.Exec(ctx, `
 		insert into generic_license_servers (name, category, address, port, license)
         values (:name, :category, :address::text, :port, :license::text)
@@ -21,8 +24,8 @@ func Upsert(ctx *database.Transaction, license GenericLicenseServer) bool {
             port = excluded.port,
             license = excluded.license
 	`, map[string]any{
-		"name":     "",
-		"category": "",
+		"name":     license.Product.Id,
+		"category": license.Product.Category,
 		"address":  license.Address,
 		"port":     license.Port,
 		"license":  license.License,
@@ -46,13 +49,12 @@ func Delete(ctx *database.Transaction, ref apm.ProductReference) bool {
 }
 
 func Browse(ctx *database.Transaction) []GenericLicenseServer {
-
 	type GenericLicenseServerRow struct {
-		Name     string
-		Category string
-		Address  string
-		Port     int
-		License  string
+		Name     string `db:"name"`
+		Category string `db:"category"`
+		Address  string `db:"address"`
+		Port     int    `db:"port"`
+		License  string `db:"license"`
 	}
 
 	rows := database.Select[GenericLicenseServerRow](ctx, `
