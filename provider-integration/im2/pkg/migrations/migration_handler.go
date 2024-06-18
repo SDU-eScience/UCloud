@@ -1,9 +1,7 @@
 package migrations
 
 import (
-	"fmt"
 	"log"
-	"time"
 
 	_ "github.com/lib/pq"
 	"ucloud.dk/pkg/database"
@@ -29,19 +27,6 @@ func Migrate(ctx *database.Transaction) {
 			completed_at timestamp
 		);
 	`, map[string]any{})
-
-	// TODO TEST
-	type CompletedMigrationsRowOne struct {
-		Id          string    `db:"id"`
-		CompletedAt time.Time `db:"completed_at"`
-	}
-	completedRows := database.Select[CompletedMigrationsRowOne](ctx, `
-		select * from completed_migrations
-		`, map[string]any{},
-	)
-
-	fmt.Printf("FOUND %d MIGRATIONS\n", len(completedRows))
-	// TODO TEST END
 
 	if !ctx.Ok {
 		log.Fatalf("Failed to create migrations table")

@@ -1,9 +1,6 @@
 package main
 
 import (
-	"fmt"
-	"time"
-
 	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/launcher"
@@ -13,11 +10,13 @@ import (
 
 func main() {
 
-	if true {
+	// Change to run migrations
+	if false {
 		postgres := embeddedpostgres.NewDatabase(
 			embeddedpostgres.DefaultConfig().
-				Database("ucloud-im").
-				DataPath("/home/xirov/ucloud-data"), // TODO(Brian) Not working?
+				Database("ucloud-im"),
+			//DataPath("/home/user/ucloud-data"),
+			// TODO(Brian) Should be set for persistent storage, but not sure it's working?
 		)
 		err := postgres.Start()
 
@@ -30,31 +29,8 @@ func main() {
 		session := db.Open()
 		defer session.Close()
 
-		// Migrations
 		migrations.LoadMigrations()
 		migrations.Migrate(session)
-
-		if !session.Ok {
-			log.Fatal("Something went wrong 1: %s", session.Error.Message)
-		}
-
-		type CompletedMigrationsRow struct {
-			Id          string    `db:"id"`
-			CompletedAt time.Time `db:"completed_at"`
-		}
-		completedRows := database.Select[CompletedMigrationsRow](session, `
-			select * from completed_migrations
-			`, map[string]any{},
-		)
-
-		if !session.Ok {
-			log.Fatal("Something went wrong 3: %s", session.Error.Message)
-		}
-
-		fmt.Printf("FOUND %d MIGRATIONS\n", len(completedRows))
-		for _, row := range completedRows {
-			fmt.Printf("Got row: %s %v\n", row.Id, row.CompletedAt)
-		}
 
 		return
 	}
