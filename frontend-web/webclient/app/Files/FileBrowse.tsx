@@ -830,11 +830,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             row.stat3.replaceChildren(button);
                         }
                     } else {
-                        row.stat3.replaceChildren(createHTMLElements({
-                            tagType: "div",
-                            style: {marginTop: "auto", marginBottom: "auto"},
-                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                        }));
+                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                            row.stat3.replaceChildren(createHTMLElements({
+                                tagType: "div",
+                                style: {marginTop: "auto", marginBottom: "auto"},
+                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                            }));
+                        }
                     }
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
