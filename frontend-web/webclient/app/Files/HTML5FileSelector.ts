@@ -21,13 +21,6 @@ interface FileSystemDirectoryReader {
     readEntries(successCallback: (batch: FileSystemEntry[]) => void, errorCallback: (error: unknown) => void): Promise<PackagedFile[]>;
 }
 
-type FileListFetcher = () => Promise<PackagedFile[]>;
-
-/*export interface FileUploadEvent {
-    rootEntry: {name: string, isDirectory: boolean};
-    fetcher: FileListFetcher;
-}*/
-
 class FileTraverser {
     private readonly root: FileSystemEntry;
     private stack: FileSystemDirectoryEntry[] = [];

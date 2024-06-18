@@ -50,6 +50,13 @@ const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
 
+
+export interface Selection<T> {
+    onClick(res: T): void;
+    show(res: T): boolean | string;
+    text: string;
+}
+
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     omitFilters?: boolean;
@@ -73,11 +80,7 @@ export interface ResourceBrowserOpts<T> {
     // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
     // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
     isModal?: boolean;
-    selection?: {
-        onClick(res: T): void;
-        show(res: T): boolean | string;
-        text: string;
-    }
+    selection?: Selection<T>;
 }
 
 interface FilterInput {
@@ -772,7 +775,7 @@ export class ResourceBrowser<T> {
             if (this.contextMenuHandlers.length) {
                 this.closeContextMenu();
             }
-            
+
             attemptCloseRenameField(ev);
 
             // Attempt to allow deselecting by clicking outside table
