@@ -108,6 +108,10 @@ type ResourceBrowseRequest[Flags any] struct {
 	SortDirection SortDirection `json:"sortDirection,omitempty"`
 }
 
+type ResourceSpecification struct {
+	Product apm.ProductReference `json:"product"`
+}
+
 type ResourceRetrieveRequest[Flags any] struct {
 	Flags Flags  `json:"flags,omitempty"`
 	Id    string `json:"id"`

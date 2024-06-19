@@ -11,7 +11,7 @@ import {
 import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index";
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import {EnumFilter} from "@/Resource/Filter";
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";

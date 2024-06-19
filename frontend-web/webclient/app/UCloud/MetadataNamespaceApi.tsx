@@ -11,7 +11,7 @@ import {Grid, Icon} from "@/ui-components";
 import * as React from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {ItemRenderer, StandardCallbacks, StandardList} from "@/ui-components/Browse";
+import {ItemRenderer, StandardCallbacks} from "@/ui-components/Browse";
 import {ListRowStat} from "@/ui-components/List";
 import {ResourceProperties} from "@/Resource/Properties";
 import TitledCard from "@/ui-components/HighlightedCard";
@@ -24,7 +24,6 @@ import {prettierString} from "@/UtilityFunctions";
 import {Product} from "@/Accounting";
 import {apiBrowse, apiCreate, apiRetrieve} from "@/Authentication/DataHook";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export type FileMetadataTemplateNamespaceType = "COLLABORATORS" | "PER_USER";
 
@@ -153,7 +152,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
             return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
         }, []);
         return <TitledCard>
-            <StandardList
+            {/* <StandardList
                 generateCall={generateCall}
                 renderer={this.templateRenderer}
                 operations={this.templateOps}
@@ -164,7 +163,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                 extraCallbacks={extraCallbacks}
                 navigate={it => setPreviewing(it)}
                 hide={!!previewing}
-            />
+            /> */}
             {previewing ? <>
                 <Grid gridGap={"32px"} width={"800px"} margin={"10px auto"}>
                     <Section>
