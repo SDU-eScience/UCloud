@@ -478,14 +478,6 @@ export function b64DecodeUnicode(str: string) {
     }).join(''));
 }
 
-export function merge<T>(a: T, b: T): T {
-    return {...a, ...b};
-}
-
-
-export type EmptyObject = {
-    [K in any]: never
-}
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
 export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
 export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
