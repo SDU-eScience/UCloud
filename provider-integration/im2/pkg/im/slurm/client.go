@@ -117,7 +117,7 @@ func (c *Client) AccountAddUser(user, account string) bool {
 		return false
 	}
 
-	cmd := []string{"sacctmgr", "-i", "add", "user", "account=" + account}
+	cmd := []string{"sacctmgr", "-i", "add", "user", user, "account=" + account}
 	_, ok := util.RunCommand(cmd)
 	return ok
 }
@@ -131,7 +131,7 @@ func (c *Client) AccountRemoveUser(user, account string) bool {
 		return false
 	}
 
-	cmd := []string{"sacctmgr", "-i", "remove", "user", "account=" + account}
+	cmd := []string{"sacctmgr", "-i", "remove", "user", user, "account=" + account}
 	_, ok := util.RunCommand(cmd)
 	return ok
 }

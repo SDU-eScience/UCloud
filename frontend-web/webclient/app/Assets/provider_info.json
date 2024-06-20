@@ -178,6 +178,21 @@
                     "image": "/Images/lustre-overview.svg"
                 }
             ]
+        },
+        {
+            "id": "go-slurm",
+            "title": "Slurm (Go IM2)",
+            "logo": "gopher.png",
+            "shortTitle": "Slurm/IM2",
+            "shortDescription": "Development version of IM2.",
+            "description": "Development version of IM2.",
+            "url": "https://github.com/sdu-escience/ucloud",
+            "texts": [
+                {
+                    "description": "Nothing to show here. This is just a development version if IM2.",
+                    "image": "/Images/ucloud-1.png"
+                }
+            ]
         }
     ]
 }

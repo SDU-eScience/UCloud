@@ -946,21 +946,18 @@ sealed class ComposeService {
             if (!passwdFile.exists()) {
                 passwdFile.writeText(
                     """
-                        ucloud:x:998:998::/home/ucloud:/bin/sh
-                        ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
+                        ucloud:x:11042:11042::/home/ucloud:/bin/sh
                     """.trimIndent()
                 )
                 groupFile.writeText(
                     """
-                        ucloud:x:998:
-                        ucloudalt:x:11042:
+                        ucloud:x:11042:
                     """.trimIndent()
                 )
 
                 shadowFile.writeText(
                     """
                         ucloud:!:19110::::::
-                        ucloudalt:!:19110::::::
                     """.trimIndent()
                 )
             }

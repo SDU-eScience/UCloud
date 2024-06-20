@@ -30,7 +30,7 @@ type ConnectionService struct {
 
 type IdentityManagementService struct {
 	HandleAuthentication      func(username string) (uint32, error)
-	HandleProjectNotification func(updated *NotificationProjectUpdated)
+	HandleProjectNotification func(updated *NotificationProjectUpdated) bool
 }
 
 var IdentityManagement IdentityManagementService
@@ -44,6 +44,17 @@ const uidInvMapPrefix = "uid-inv-map-"
 
 const gidMapPrefix = "gid-map-"
 const gidInvMapPrefix = "gid-inv-map-"
+
+var connectionCompleteCallbacks []func(username string, uid uint32)
+var projectNotificationCallbacks []func(updated *NotificationProjectUpdated)
+
+func OnConnectionComplete(callback func(username string, uid uint32)) {
+	connectionCompleteCallbacks = append(connectionCompleteCallbacks, callback)
+}
+
+func OnProjectNotification(callback func(updated *NotificationProjectUpdated)) {
+	projectNotificationCallbacks = append(projectNotificationCallbacks, callback)
+}
 
 func RegisterConnectionComplete(username string, uid uint32) error {
 	type Req struct {
@@ -63,6 +74,10 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 	kvdb.Set(fmt.Sprintf("%v%v", uidMapPrefix, username), uid)
 
 	userReplayChannel <- username
+
+	for _, callback := range connectionCompleteCallbacks {
+		callback(username, uid)
+	}
 	return err
 }
 

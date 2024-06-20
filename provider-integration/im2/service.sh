@@ -3,7 +3,7 @@ set -e
 
 PATH=$PATH:/usr/local/sdkman/candidates/gradle/current/bin:/usr/local/bin
 running_k8=$(grep "providerId: k8" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
-running_slurm=$(grep "providerId: slurm" /etc/ucloud/core.yaml &> /dev/null ; echo $?)
+running_slurm=$(grep "go-slurm" /etc/ucloud/config.yml &> /dev/null ; echo $?)
 running_munged=$(ps aux | grep "/usr/sbin/munged" | grep -v grep &> /dev/null ; echo $?)
 GO=/usr/local/go/bin/go
 
@@ -15,12 +15,21 @@ fi
 
 uid=11042
 
+initSlurmServiceAccount() {
+  # Ensure that the UCloud service account has the operator permissions
+  sacctmgr -i add user ucloud Account=ucloud || true
+  sacctmgr -i modify user ucloud set adminlevel=operator || true
+  touch /etc/ucloud/.slurmsysop
+}
+
 if [[ $running_slurm == 0 ]]; then
     chown -R munge:munge /etc/munge || true
 
     if [[ $running_munged == 1 ]]; then
         gosu munge /usr/sbin/munged;
     fi
+
+    ! (test -f /etc/ucloud/.slurmsysop) && initSlurmServiceAccount;
 fi
 
 chmod 755 /work || true
@@ -48,6 +57,7 @@ chmod 777 /var/log/ucloud/structured
 ! (test -d /gpfs) && mkdir /gpfs
 ! (test -d /gpfs/home) && ln -s /home /gpfs/home
 ! (test -d /gpfs/work) && ln -s /work /gpfs/work
+
 
 isrunning() {
     test -f /tmp/service.pid && (ps -p $(cat /tmp/service.pid) > /dev/null)

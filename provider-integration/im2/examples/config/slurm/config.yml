@@ -80,14 +80,18 @@ services:
 
   slurm:
     accountManagement:
-      type: Scripted
-      walletUpdated: "/opt/ucloud/on-compute-wallet-updated"
-      fetchUsage: "/opt/ucloud/on-compute-wallet-updated"
-      accountMapper: "/opt/ucloud/on-compute-wallet-updated"
+      accounting: # Usage and quota management
+        type: Automatic
+
+      accountMapper:
+        type: Pattern
+        users: "#{localUsername}_#{productCategory}"
+        projects: "#{localGroupName}_#{productCategory}"
 
     machines:
       u1-standard:
         partition: standard
+        qos: standard
         constraint: standard
 
         nameSuffix: Cpu

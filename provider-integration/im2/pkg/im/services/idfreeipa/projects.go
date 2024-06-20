@@ -1,22 +1,18 @@
 package idfreeipa
 
 import (
-	"encoding/json"
-	"fmt"
 	anyascii "github.com/anyascii/go"
 	"os/user"
 	"regexp"
 	"strconv"
 	"strings"
-	"ucloud.dk/pkg/apm"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/freeipa"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
-func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) {
+func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	gid, ok := ctrl.MapUCloudProjectToLocal(updated.Project.Id)
 	if !ok {
 		success := false
@@ -52,56 +48,20 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) {
 		if !success {
 			log.Warn("Did not manage to create project group within 100 tries: %v %v", updated.Project.Id,
 				updated.Project.Specification.Title)
-			return
+			return false
 		} else {
 			clearSssdCache()
 			ctrl.RegisterProjectMapping(updated.Project.Id, uint32(gid))
 		}
 	}
 
-	project, _ := getLastKnownProject(updated.Project.Id)
-	oldMembers := project.Status.Members
-	saveLastKnownProject(updated.Project)
-
 	localGroup, err := user.LookupGroupId(strconv.Itoa(int(gid)))
 	if err != nil {
 		log.Warn("Could not lookup project group %v -> %v -> Unknown", updated.Project.Id, gid)
-		return
+		return false
 	}
 
-	var newMembers []string
-	var removedMembers []string
-	{
-		for _, member := range updated.Project.Status.Members {
-			found := false
-			for _, oldMember := range oldMembers {
-				if member.Username == oldMember.Username {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				newMembers = append(newMembers, member.Username)
-			}
-		}
-
-		for _, oldMember := range oldMembers {
-			found := false
-			for _, newMember := range updated.Project.Status.Members {
-				if oldMember.Username == newMember.Username {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				removedMembers = append(removedMembers, oldMember.Username)
-			}
-		}
-	}
-
-	for _, member := range newMembers {
+	for _, member := range updated.ProjectComparison.MembersAddedToProject {
 		memberUid, ok := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
@@ -120,7 +80,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) {
 		}
 	}
 
-	for _, member := range removedMembers {
+	for _, member := range updated.ProjectComparison.MembersRemovedFromProject {
 		memberUid, ok := ctrl.MapUCloudToLocal(member)
 		if !ok {
 			continue
@@ -138,6 +98,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) {
 			continue
 		}
 	}
+	return true
 }
 
 func clearSssdCache() {
@@ -160,27 +121,3 @@ func generateProjectName(ucloudTitle string) string {
 }
 
 var duplicateUnderscores = regexp.MustCompile("_+")
-
-// temp kvdb
-
-const kvdbProjectPrefix = "project-"
-
-func saveLastKnownProject(project apm.Project) {
-	data, _ := json.Marshal(project)
-	kvdb.Set(fmt.Sprintf("%v%v", kvdbProjectPrefix, project.Id), data)
-}
-
-func getLastKnownProject(projectId string) (apm.Project, bool) {
-	jsonData, ok := kvdb.Get[[]byte](kvdbProjectPrefix + projectId)
-	if !ok {
-		return apm.Project{}, false
-	}
-
-	var result apm.Project
-	err := json.Unmarshal(jsonData, &result)
-	if err != nil {
-		log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-		return apm.Project{}, false
-	}
-	return result, true
-}

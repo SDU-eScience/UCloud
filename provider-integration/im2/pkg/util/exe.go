@@ -18,7 +18,7 @@ func RunCommand(arg []string) (string, bool) {
 	err := cmd.Run()
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
-		log.Info("Command failed: %s", s)
+		log.Info("Command failed: %s -> %s", strings.Join(arg, " "), s)
 	}
 
 	return strings.TrimSpace(stdout.String()), err == nil

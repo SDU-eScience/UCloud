@@ -29,6 +29,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import java.io.FileInputStream
 
 class OpenIdConnectPlugin : ConnectionPlugin {
     override val pluginTitle: String = "OpenIdConnect"

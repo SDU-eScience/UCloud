@@ -14,17 +14,18 @@ type ServicesConfigurationSlurm struct {
 }
 
 type SlurmCompute struct {
-	AccountManagement SlurmComputeAccountManagement
+	AccountManagement SlurmAccountManagement
 	Machines          map[string]SlurmMachineCategory
 }
 
 type SlurmMachineCategory struct {
-	Payment PaymentInfo
-	Groups  map[string]SlurmMachineCategoryGroup
+	Payment   PaymentInfo
+	Groups    map[string]SlurmMachineCategoryGroup
+	Partition string
+	Qos       util.Option[string]
 }
 
 type SlurmMachineCategoryGroup struct {
-	Partition   string
 	Constraint  string
 	NameSuffix  MachineResourceType
 	Configs     []SlurmMachineConfiguration
@@ -40,11 +41,88 @@ type SlurmMachineConfiguration struct {
 	Gpu               int
 }
 
-type SlurmComputeAccountManagement struct {
-	IsScripted    bool
+type SlurmAccountManagement struct {
+	Accounting    SlurmAccounting
+	AccountMapper SlurmAccountMapper
+}
+
+type SlurmAccounting struct {
+	Type          SlurmAccountingType
+	Configuration any
+}
+
+func (m *SlurmAccounting) Automatic() *SlurmAccountingAutomatic {
+	if m.Type == SlurmAccountingTypeAutomatic {
+		return m.Configuration.(*SlurmAccountingAutomatic)
+	}
+	return nil
+}
+
+func (m *SlurmAccounting) Scripted() *SlurmAccountingScripted {
+	if m.Type == SlurmAccountingTypeScripted {
+		return m.Configuration.(*SlurmAccountingScripted)
+	}
+	return nil
+}
+
+type SlurmAccountingType string
+
+const (
+	SlurmAccountingTypeAutomatic SlurmAccountingType = "Automatic"
+	SlurmAccountingTypeScripted  SlurmAccountingType = "Scripted"
+)
+
+var SlurmAccountingTypeOptions = []SlurmAccountingType{
+	SlurmAccountingTypeAutomatic,
+	SlurmAccountingTypeScripted,
+}
+
+type SlurmAccountingScripted struct {
 	WalletUpdated string
 	FetchUsage    string
-	AccountMapper string
+}
+
+type SlurmAccountingAutomatic struct {
+}
+
+type SlurmAccountMapper struct {
+	Type          SlurmAccountMapperType
+	Configuration any
+}
+
+func (m *SlurmAccountMapper) Scripted() *SlurmAccountMapperScripted {
+	if m.Type == SlurmAccountMapperTypeScripted {
+		return m.Configuration.(*SlurmAccountMapperScripted)
+	}
+	return nil
+}
+
+func (m *SlurmAccountMapper) Pattern() *SlurmAccountMapperPattern {
+	if m.Type == SlurmAccountMapperTypePattern {
+		return m.Configuration.(*SlurmAccountMapperPattern)
+	}
+	return nil
+}
+
+type SlurmAccountMapperType string
+
+const (
+	SlurmAccountMapperTypePattern  SlurmAccountMapperType = "Pattern"
+	SlurmAccountMapperTypeScripted SlurmAccountMapperType = "Scripted"
+)
+
+var SlurmAccountMapperTypeOptions = []SlurmAccountMapperType{
+	SlurmAccountMapperTypePattern,
+	SlurmAccountMapperTypeScripted,
+}
+
+type SlurmAccountMapperPattern struct {
+	Users    string
+	Projects string
+}
+
+type SlurmAccountMapperScripted struct {
+	Script string
 }
 
 type SlurmSsh struct {
@@ -303,14 +381,34 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		{
 			management := &cfg.Compute.AccountManagement
 			managementNode := requireChild(filePath, slurmNode, "accountManagement", &success)
-			managementType := requireChildEnum(filePath, managementNode, "type",
-				[]string{"Automatic", "Scripted"}, &success)
 
-			management.IsScripted = managementType == "Scripted"
-			if management.IsScripted {
-				management.AccountMapper = requireChildText(filePath, managementNode, "accountMapper", &success)
-				management.FetchUsage = requireChildText(filePath, managementNode, "fetchUsage", &success)
-				management.WalletUpdated = requireChildText(filePath, managementNode, "walletUpdated", &success)
+			accountingNode := requireChild(filePath, managementNode, "accounting", &success)
+			management.Accounting.Type = requireChildEnum(filePath, accountingNode, "type", SlurmAccountingTypeOptions, &success)
+			if !success {
+				return false, cfg
+			}
+
+			switch management.Accounting.Type {
+			case SlurmAccountingTypeAutomatic:
+				res := parseAccountingAutomatic(filePath, accountingNode, &success)
+				management.Accounting.Configuration = &res
+			case SlurmAccountingTypeScripted:
+				res := parseAccountingScripted(filePath, accountingNode, &success)
+				management.Accounting.Configuration = &res
+			}
+
+			accountMapperNode := requireChild(filePath, managementNode, "accountMapper", &success)
+			management.AccountMapper.Type = requireChildEnum(filePath, accountMapperNode, "type", SlurmAccountMapperTypeOptions, &success)
+			if !success {
+				return false, cfg
+			}
+			switch management.AccountMapper.Type {
+			case SlurmAccountMapperTypePattern:
+				res := parseAccountMapperPattern(filePath, accountMapperNode, &success)
+				management.AccountMapper.Configuration = &res
+			case SlurmAccountMapperTypeScripted:
+				res := parseAccountMapperScripted(filePath, accountMapperNode, &success)
+				management.AccountMapper.Configuration = &res
 			}
 
 			if !success {
@@ -339,6 +437,12 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				false,
 				&success,
 			)
+
+			category.Partition = requireChildText(filePath, machineNode, "partition", &success)
+			qos := optionalChildText(filePath, machineNode, "qos", &success)
+			if qos != "" {
+				category.Qos.Set(qos)
+			}
 
 			if !hasChild(machineNode, "groups") {
 				group := parseSlurmMachineGroup(filePath, machineNode, &success)
@@ -389,7 +493,6 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 
 func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) SlurmMachineCategoryGroup {
 	result := SlurmMachineCategoryGroup{}
-	result.Partition = requireChildText(filePath, node, "partition", success)
 	result.Constraint = requireChildText(filePath, node, "constraint", success)
 	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
@@ -497,5 +600,29 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 		}
 	}
 
+	return result
+}
+
+func parseAccountingAutomatic(filePath string, node *yaml.Node, success *bool) SlurmAccountingAutomatic {
+	return SlurmAccountingAutomatic{}
+}
+
+func parseAccountingScripted(filePath string, node *yaml.Node, success *bool) SlurmAccountingScripted {
+	result := SlurmAccountingScripted{}
+	result.FetchUsage = requireChildFile(filePath, node, "fetchUsage", FileCheckRead, success)
+	result.WalletUpdated = requireChildFile(filePath, node, "walletUpdated", FileCheckRead, success)
+	return result
+}
+
+func parseAccountMapperPattern(filePath string, node *yaml.Node, success *bool) SlurmAccountMapperPattern {
+	result := SlurmAccountMapperPattern{}
+	result.Users = requireChildText(filePath, node, "users", success)
+	result.Projects = requireChildText(filePath, node, "projects", success)
+	return result
+}
+
+func parseAccountMapperScripted(filePath string, node *yaml.Node, success *bool) SlurmAccountMapperScripted {
+	result := SlurmAccountMapperScripted{}
+	result.Script = requireChildFile(filePath, node, "script", FileCheckRead, success)
 	return result
 }

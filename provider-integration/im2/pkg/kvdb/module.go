@@ -122,14 +122,14 @@ func Get[T any](key string) (T, bool) {
 	}
 }
 
-func ListPrefix[T any](prefix string) []T {
+func ListKeysWithPrefix(prefix string) []string {
 	mutex.Lock()
 	defer mutex.Unlock()
-	var result []T
+	var result []string
 
-	for k, v := range db {
+	for k, _ := range db {
 		if strings.HasPrefix(k, prefix) {
-			result = append(result, v.(T))
+			result = append(result, k)
 		}
 	}
 	return result

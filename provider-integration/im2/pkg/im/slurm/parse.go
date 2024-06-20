@@ -185,7 +185,7 @@ func marshal(data any) []string {
 		switch f := rv.Field(i).Interface().(type) {
 		case string:
 			if len(f) > 0 {
-				s := fmt.Sprintf(`%s="%s"`, tag, f)
+				s := fmt.Sprintf(`%s=%s`, tag, f)
 				result = append(result, s)
 			}
 		case []string:

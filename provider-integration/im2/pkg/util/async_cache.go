@@ -78,7 +78,8 @@ func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 
 	c.entries[key] = entry
 
-	// Unlock the mutex and then wait for the result c.mutex.Unlock()
+	// Unlock the mutex and then wait for the result
+	c.mutex.Unlock()
 	return entry.Result()
 }
 

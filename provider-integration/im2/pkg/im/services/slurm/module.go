@@ -23,6 +23,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 
 	if cfg.Mode == cfg.ServerModeServer {
 		InitFileManagers()
+		InitAccountManagement()
 	}
 
 	// Identity management
@@ -62,6 +63,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 func handleApmNotification(update *ctrl.NotificationWalletUpdated) {
 	drives := EvaluateLocators(update.Owner, update.Category.Name)
 	FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
+	AccountManagement.OnWalletUpdated(update)
 }
 
 var Hello = ipc.NewCall[string, string]("slurm.hello")

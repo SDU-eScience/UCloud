@@ -64,17 +64,22 @@ func handleNotification(nType NotificationMessageType, notification any) {
 
 	projectHandler := IdentityManagement.HandleProjectNotification
 	if projectHandler == nil {
-		projectHandler = func(updated *NotificationProjectUpdated) {
+		projectHandler = func(updated *NotificationProjectUpdated) bool {
 			log.Info("Ignoring project update")
+			return true
 		}
 	}
 
 	switch nType {
 	case NotificationMessageWalletUpdated:
-		// TODO ignore allocator projects
-
 		success := true
 		update := notification.(*NotificationWalletUpdated)
+
+		if update.Project.IsSet() && !update.Project.Get().Specification.CanConsumeResources {
+			// ignore allocator projects
+			return
+		}
+
 		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
 			update.Category.Name, update.CombinedQuota, update.Locked)
 		if LaunchUserInstances {
@@ -97,7 +102,18 @@ func handleNotification(nType NotificationMessageType, notification any) {
 
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)
-		projectHandler(update)
+
+		before, _ := getLastKnownProject(update.Project.Id)
+		update.ProjectComparison = compareProjects(before, update.Project)
+
+		if projectHandler(update) {
+			saveLastKnownProject(update.Project)
+		}
+
+		for _, callback := range projectNotificationCallbacks {
+			callback(update)
+		}
+
 		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
 	}
 }
@@ -173,6 +189,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom u
 					if isProject {
 						notification.Owner.Type = apm.WalletOwnerTypeProject
 						notification.Owner.ProjectId = projects[workspaceRef].Id
+						notification.Project.Set(projects[workspaceRef])
 					} else {
 						notification.Owner.Type = apm.WalletOwnerTypeUser
 						notification.Owner.Username = users[workspaceRef]
@@ -241,11 +258,13 @@ type NotificationWalletUpdated struct {
 	CombinedQuota uint64
 	Locked        bool
 	LastUpdate    fnd.Timestamp
+	Project       util.Option[apm.Project]
 }
 
 type NotificationProjectUpdated struct {
 	LastUpdate fnd.Timestamp
 	Project    apm.Project
+	ProjectComparison
 }
 
 type buf struct {
@@ -378,4 +397,72 @@ func (b *buf) GetString() string {
 	}
 
 	return string(result)
+}
+
+const kvdbProjectPrefix = "project-"
+
+func saveLastKnownProject(project apm.Project) {
+	data, _ := json.Marshal(project)
+	kvdb.Set(fmt.Sprintf("%v%v", kvdbProjectPrefix, project.Id), data)
+}
+
+func getLastKnownProject(projectId string) (apm.Project, bool) {
+	jsonData, ok := kvdb.Get[[]byte](kvdbProjectPrefix + projectId)
+	if !ok {
+		return apm.Project{}, false
+	}
+
+	var result apm.Project
+	err := json.Unmarshal(jsonData, &result)
+	if err != nil {
+		log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
+		return apm.Project{}, false
+	}
+	return result, true
+}
+
+type ProjectComparison struct {
+	MembersAddedToProject     []string
+	MembersRemovedFromProject []string
+}
+
+func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
+	oldMembers := before.Status.Members
+
+	var newMembers []string
+	var removedMembers []string
+	{
+		for _, member := range after.Status.Members {
+			found := false
+			for _, oldMember := range oldMembers {
+				if member.Username == oldMember.Username {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				newMembers = append(newMembers, member.Username)
+			}
+		}
+
+		for _, oldMember := range oldMembers {
+			found := false
+			for _, newMember := range after.Status.Members {
+				if oldMember.Username == newMember.Username {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				removedMembers = append(removedMembers, oldMember.Username)
+			}
+		}
+	}
+
+	return ProjectComparison{
+		MembersAddedToProject:     newMembers,
+		MembersRemovedFromProject: removedMembers,
+	}
 }
