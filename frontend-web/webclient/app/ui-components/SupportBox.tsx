@@ -31,22 +31,23 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
 }
 
 export default function Support(): React.ReactNode {
-    const textArea = useRef<HTMLInputElement>(null);
-    const titleArea = useRef<HTMLInputElement>(null);
+    const [textArea, setTextArea] = useState("");
+    const [titleArea, setTitleArea] = useState("");
     const [type, setType] = useState(SupportType.SUGGESTION);
     const [loading, invokeCommand] = useCloudCommand();
     const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
 
     async function onSubmit(event: React.FormEvent): Promise<void> {
         event.preventDefault();
-        const text = textArea.current?.value ?? "";
-        const title = titleArea.current?.value ?? "";
+        const text = textArea;
+        const title = titleArea;
         if (text.trim()) {
             try {
                 await invokeCommand(submitTicket({subject: title, message: `${type}: ${text}`}));
-                textArea.current!.value = "";
-                titleArea.current!.value = "";
+                setTextArea("");
+                setTitleArea("");
                 snackbarStore.addSuccess("Support ticket submitted!", false);
+                closeRef.current();
             } catch (e) {
                 snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred submitting the message"), false);
             }
@@ -67,7 +68,7 @@ export default function Support(): React.ReactNode {
 
     React.useEffect(() => {
         const controller = fetchStatus();
-        
+
         function closeOnEscapeDown(e: KeyboardEvent) {
             if (e.key === "Escape") {
                 closeRef.current();
@@ -143,16 +144,16 @@ export default function Support(): React.ReactNode {
                     <form onSubmit={onSubmit} style={{display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px"}}>
                         <Label>
                             Subject
-                            <Input width="100%" inputRef={titleArea} />
+                            <Input width="100%" value={titleArea} onChange={e => setTitleArea(e.target.value)} />
                         </Label>
 
                         <Label>
                             {type === SupportType.BUG ?
                                 "Describe your problem below and we will investigate it." :
-                                "Describe your suggestion and we will look into it."
+                                "Describe your suggestion below and we will look into it."
                             }
 
-                            <TextArea width="100%" inputRef={textArea} rows={6} />
+                            <TextArea width="100%" value={textArea} onChange={e => setTextArea(e.target.value)} rows={6} />
                         </Label>
 
                         <Button
