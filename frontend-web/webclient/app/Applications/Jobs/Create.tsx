@@ -97,6 +97,10 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
+function getLicense(app: ApplicationWithFavoriteAndTags): string | undefined {
+    return app.invocation.tool.tool?.description.license
+}
+
 export const Create: React.FunctionComponent = () => {
     const [emailNotifications, setEmailNotifications] = React.useState<UserDetailsState>(initialState);
     const [jobEmailNotifications, setJobEmailNotifications] = useState<"never" | "start" | "ends" | "start_or_ends">("never");
@@ -440,6 +444,7 @@ export const Create: React.FunctionComponent = () => {
     const anyError = errorCount > 0;
 
     const appGroup = application.metadata.group;
+    const license = getLicense(application);
 
     return <MainContainer
         main={
@@ -464,6 +469,7 @@ export const Create: React.FunctionComponent = () => {
                                 </ExternalLink>
                             </Box>
                         )}
+                        {license ? <Box my="auto"><TooltipV2 tooltip={`License: ${license}`}><Icon size="24" mr="18px" name="fileSignatureSolid" /></TooltipV2></Box> : null}
                         <UtilityBar />
                     </Flex>
                 </Flex>
