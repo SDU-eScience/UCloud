@@ -33,10 +33,9 @@ object LogoGenerator {
     private val cache = AtomicReference<Map<String, ByteArray>>(emptyMap())
 
     fun invalidateCache(title: String) {
-        val currentCache = cache.get()
-        val stillValidCache = currentCache.filterNot { it.key.contains(title)}
-
         while (true) {
+            val currentCache = cache.get()
+            val stillValidCache = currentCache.filterNot { it.key.contains(title)}
             if (cache.compareAndSet(currentCache, stillValidCache)) break
         }
     }

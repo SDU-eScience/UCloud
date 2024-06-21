@@ -109,7 +109,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     retired = retired,
                     retiredUsage = retiredUsage,
                     grantedIn = grantedIn,
-                    isDirty = false
+                    isDirty = false,
+                    commited = true
                 )
 
                 allocations[allocationId] = allocation
@@ -513,9 +514,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             }
 
             //Insert or update allocations
-
-            //Filter rolled back allocation so that we do not write them to system
-            val dirtyAllocations = allocations.filter { it.value.isDirty && !it.value.isRolledBack}
+            //Only write dirty and commited allocations
+            val dirtyAllocations = allocations.filter { it.value.isDirty && it.value.commited}
 
             session.sendPreparedStatement(
                 {
@@ -573,33 +573,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 """
             )
 
-            //Should we somehow have made a sync before the allocation was rolled back then delete it from DB.
-            val rolledBackAllocations = allocations.filter { it.value.isRolledBack }
-            if (rolledBackAllocations.isNotEmpty()) {
-                session.sendPreparedStatement(
-                    {
-                        rolledBackAllocations.entries.split {
-                            into("ids") { (id, _) -> id.toLong() }
-                        }
-                    },
-                    """
-                        with data as (
-                            select unnest(:ids::bigint[]) id
-                        )
-                        delete
-                        from accounting.wallet_allocations_v2
-                        where id in (select id from data)
-                    """, debug = true
-                )
-            }
-
             dirtyAllocations.forEach { (allocId, _) ->
                 allocations[allocId]!!.isDirty = false
-            }
-
-            //delete rolled back in-mem DB
-            rolledBackAllocations.forEach { (allocId, _) ->
-                allocations.remove(allocId)
             }
 
             //Sample wallets?

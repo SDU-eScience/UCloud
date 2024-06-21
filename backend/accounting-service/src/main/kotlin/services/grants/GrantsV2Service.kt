@@ -1544,8 +1544,14 @@ class GrantsV2Service(
                                 )
                             )
                             throw RPCException("Failed to grant resources. Try Again.", HttpStatusCode.UnprocessableEntity)
+                        } else {
+                            ctx.accountingService.sendRequest(
+                                AccountingRequest.CommitAllocations(
+                                    IdCard.System,
+                                    application.id.toLong()
+                                )
+                            )
                         }
-
                         if (doc.recipient is GrantApplication.Recipient.NewProject && walletOwner is WalletOwner.Project) {
                             ctx.projects.notifyChanges(session, listOf(walletOwner.projectId))
                         }

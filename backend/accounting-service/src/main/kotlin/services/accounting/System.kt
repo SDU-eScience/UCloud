@@ -200,7 +200,8 @@ class AccountingSystem(
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
                                         is AccountingRequest.SubAllocate -> subAllocate(msg)
-                                        is AccountingRequest.RollBackGrantAllocations -> rollBack(msg)
+                                        is AccountingRequest.CommitAllocations -> commitAllocations(msg)
+                                        is AccountingRequest.RollBackGrantAllocations -> rollBackGrantAllocations(msg)
                                         is AccountingRequest.ScanRetirement -> scanRetirement(msg)
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
@@ -596,7 +597,8 @@ class AccountingSystem(
             end = end,
             retired = false,
             grantedIn = grantedIn,
-            isDirty = true
+            isDirty = true,
+            commited = false
         )
 
         allocations[allocationId] = newAllocation
@@ -650,13 +652,39 @@ class AccountingSystem(
         return allocationId
     }
 
-    private fun rollBack(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
-        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to rollback")
+    private fun rollBackGrantAllocations(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to rollback allocations")
+        val foundAllocations = allocations.values.filter { it.grantedIn == request.grantedIn }
+        if (foundAllocations.isEmpty()) return Response.ok(Unit)
+        if (foundAllocations.any { it.commited }) return Response.error(HttpStatusCode.BadRequest, "Cannot be allowed to rollback already commit allocations")
+        foundAllocations.forEach { alloc  ->
+            val allocGroup = allocationGroups.filter { it.value.allocationSet.contains(alloc.id) }
+            allocGroup.forEach { id, group ->
+                //This is okay since the allocation have never been active
+                group.allocationSet.remove(alloc.id)
+            }
+            allocations.remove(alloc.id)
+        }
+        return Response.ok(Unit)
+    }
 
-        val allocations = allocations.filter { it.value.grantedIn == request.grantedIn }.map { it.value }
-        allocations.forEach { alloc ->
-            alloc.isRolledBack = true
-            alloc.isDirty = true
+    private fun commitAllocations(request: AccountingRequest.CommitAllocations): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to commit allocations")
+        if (request.ids != null && request.grantedIn != null) return Response.error(HttpStatusCode.BadRequest, "commit only based on grant id or allocation ids")
+        if (request.ids != null) {
+            if (request.ids.isEmpty()) return Response.ok(Unit)
+            request.ids.forEach { id ->
+                val alloc = allocations[id] ?: return@forEach
+                alloc.commited = true
+                alloc.isDirty = true
+            }
+        }
+        if (request.grantedIn != null) {
+            val allocations = allocations.filter { it.value.grantedIn == request.grantedIn }.map { it.value }
+            allocations.forEach { alloc ->
+                alloc.commited = true
+                alloc.isDirty = true
+            }
         }
         return Response.ok(Unit)
     }

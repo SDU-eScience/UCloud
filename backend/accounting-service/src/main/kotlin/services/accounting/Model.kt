@@ -50,10 +50,10 @@ data class InternalAllocation(
     var retiredUsage: Long = 0L,
     val grantedIn: Long?,
     var isDirty: Boolean,
-    var isRolledBack: Boolean = false
+    var commited: Boolean = false
 ) {
     fun isActive(now: Long): Boolean {
-        return !retired && !isRolledBack && now >= start
+        return !retired && commited && now >= start
     }
 
     fun preferredBalance(now: Long): Long {
