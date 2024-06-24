@@ -50,7 +50,7 @@ data class InternalAllocation(
     var retiredUsage: Long = 0L,
     val grantedIn: Long?,
     var isDirty: Boolean,
-    var commited: Boolean = false
+    var committed: Boolean = false
 ) {
     fun isActive(now: Long): Boolean {
         return !retired && commited && now >= start
