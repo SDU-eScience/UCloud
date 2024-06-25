@@ -9,13 +9,32 @@ import (
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 func driveIpcServer() {
+	evaluateLocatorsIpc.Handler(func(r *ipc.Request[apm.WalletOwner]) ipc.Response[[]LocatedDrive] {
+		if !ctrl.BelongsToWorkspace(r.Payload, r.Uid) {
+			return ipc.Response[[]LocatedDrive]{
+				StatusCode: http.StatusForbidden,
+				Payload:    nil,
+			}
+		}
 
+		var drives []LocatedDrive
+
+		for categoryName, _ := range ServiceConfig.FileSystems {
+			drives = append(drives, EvaluateLocators(r.Payload, categoryName)...)
+		}
+
+		return ipc.Response[[]LocatedDrive]{
+			StatusCode: http.StatusOK,
+			Payload:    drives,
+		}
+	})
 }
 
 func RegisterDriveInfo(info LocatedDrive) error {
@@ -73,13 +92,37 @@ type LocatedDrive struct {
 	RecommendedPermissions string
 }
 
-func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
-	var result []LocatedDrive
+var evaluateLocatorsIpc = ipc.NewCall[apm.WalletOwner, []LocatedDrive]("slurm.drives.evaluateLocators")
+
+func EvaluateAllLocators(owner apm.WalletOwner) []LocatedDrive {
 	if cfg.Mode != cfg.ServerModeServer {
-		log.Warn("EvaluateLocators must be called in server mode!")
-		return nil
+		res, err := evaluateLocatorsIpc.Invoke(owner)
+		if err != nil {
+			return nil
+		}
+		return res
+	} else {
+		var result []LocatedDrive
+		for categoryName, _ := range ServiceConfig.FileSystems {
+			result = append(result, EvaluateLocators(owner, categoryName)...)
+		}
+		return result
+	}
+}
+
+func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
+	if cfg.Mode != cfg.ServerModeServer {
+		all := EvaluateAllLocators(owner)
+		var result []LocatedDrive
+		for _, item := range all {
+			if item.CategoryName == category {
+				result = append(result, item)
+			}
+		}
+		return result
 	}
 
+	var result []LocatedDrive
 	recommendedUserOwner := ""
 	recommendedGroupOwner := ""
 	recommendedPermissions := "0700"

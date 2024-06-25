@@ -712,14 +712,12 @@ const (
 	PaymentIntervalMinutely PaymentInterval = "Minutely"
 	PaymentIntervalHourly   PaymentInterval = "Hourly"
 	PaymentIntervalDaily    PaymentInterval = "Daily"
-	PaymentIntervalMonthly  PaymentInterval = "Monthly"
 )
 
 var PaymentIntervalOptions = []PaymentInterval{
 	PaymentIntervalMinutely,
 	PaymentIntervalHourly,
 	PaymentIntervalDaily,
-	PaymentIntervalMonthly,
 }
 
 type PaymentType string

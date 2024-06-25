@@ -103,7 +103,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 	case NotificationMessageProjectUpdated:
 		update := notification.(*NotificationProjectUpdated)
 
-		before, _ := getLastKnownProject(update.Project.Id)
+		before, _ := GetLastKnownProject(update.Project.Id)
 		update.ProjectComparison = compareProjects(before, update.Project)
 
 		if projectHandler(update) {
@@ -406,7 +406,7 @@ func saveLastKnownProject(project apm.Project) {
 	kvdb.Set(fmt.Sprintf("%v%v", kvdbProjectPrefix, project.Id), data)
 }
 
-func getLastKnownProject(projectId string) (apm.Project, bool) {
+func GetLastKnownProject(projectId string) (apm.Project, bool) {
 	jsonData, ok := kvdb.Get[[]byte](kvdbProjectPrefix + projectId)
 	if !ok {
 		return apm.Project{}, false
@@ -419,6 +419,32 @@ func getLastKnownProject(projectId string) (apm.Project, bool) {
 		return apm.Project{}, false
 	}
 	return result, true
+}
+
+func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
+	ucloudUser, ok := MapLocalToUCloud(uid)
+	if !ok {
+		return false
+	}
+
+	if workspace.Type == apm.WalletOwnerTypeUser {
+		return ucloudUser == workspace.Username
+	} else {
+		project, ok := GetLastKnownProject(workspace.ProjectId)
+		if !ok {
+			return false
+		}
+
+		isMember := false
+		for _, member := range project.Status.Members {
+			if member.Username == ucloudUser {
+				isMember = true
+				break
+			}
+		}
+
+		return isMember
+	}
 }
 
 type ProjectComparison struct {

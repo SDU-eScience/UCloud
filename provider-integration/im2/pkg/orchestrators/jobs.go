@@ -1,8 +1,14 @@
 package orchestrators
 
 import (
+	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/log"
+	"ucloud.dk/pkg/util"
 )
 
 type JsonObject string
@@ -75,6 +81,7 @@ type JobStatus struct {
 	StartedAt           fnd.Timestamp      `json:"startedAt,omitempty"`
 	ExpiresAt           fnd.Timestamp      `json:"expiresAt,omitempty"`
 	ResolvedApplication Application        `json:"resolvedApplication,omitempty"`
+	ResolvedProduct     apm.ProductV2      `json:"resolvedProduct,omitempty"`
 	AllowRestart        bool               `json:"allowRestart"`
 }
 
@@ -97,7 +104,7 @@ type JobSpecification struct {
 	AllowDuplicateJob bool                         `json:"allowDuplicateJob"`
 	Parameters        map[string]AppParameterValue `json:"parameters,omitempty"`
 	Resources         []AppParameterValue          `json:"resources,omitempty"`
-	TimeAllocation    SimpleDuration               `json:"timeAllocation,omitempty"`
+	TimeAllocation    util.Option[SimpleDuration]  `json:"timeAllocation,omitempty"`
 	OpenedFile        string                       `json:"openedFile,omitempty"`
 	RestartOnExit     bool                         `json:"restartOnExit,omitempty"`
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
@@ -179,4 +186,305 @@ func OpenSessionVnc(jobId string, rank int, url string, password string, domainO
 		Password:       password,
 		DomainOverride: domainOverride,
 	}
+}
+
+// NOTE(Dan): This is slightly different from how escapeBash works in the Kotlin version since this also automatically
+// wraps it in single quotes. This is how it was used in all cases anyway, so this makes it slightly simpler to use.
+
+func EscapeBash(s string) string {
+	builder := &strings.Builder{}
+	builder.WriteRune('\'')
+	for _, c := range []rune(s) {
+		if c == '\'' {
+			builder.WriteString("'\"'\"'")
+		} else {
+			builder.WriteRune(c)
+		}
+	}
+	builder.WriteRune('\'')
+	return builder.String()
+}
+
+type ParamAndValue struct {
+	Parameter ApplicationParameter
+	Value     AppParameterValue
+}
+
+type ArgBuilder func(value ParamAndValue) string
+
+func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
+	return func(pv ParamAndValue) string {
+		param := pv.Parameter
+		value := pv.Value
+
+		switch param.Type {
+		case ApplicationParameterTypeTextArea:
+			fallthrough
+		case ApplicationParameterTypeText:
+			return fmt.Sprint(value.Value)
+
+		case ApplicationParameterTypeFloatingPoint:
+			fallthrough
+		case ApplicationParameterTypeInteger:
+			return fmt.Sprint(value.Value)
+
+		case ApplicationParameterTypeBoolean:
+			b := value.Value.(bool)
+			res := ""
+			if b {
+				res = param.TrueValue
+			} else {
+				res = param.FalseValue
+			}
+
+			if res == "" {
+				if b {
+					return "true"
+				} else {
+					return "false"
+				}
+			} else {
+				return res
+			}
+
+		case ApplicationParameterTypeEnumeration:
+			stringified := fmt.Sprint(value.Value)
+
+			for _, opt := range param.Options {
+				if opt.Name == stringified {
+					return opt.Value
+				}
+			}
+			return stringified
+
+		case ApplicationParameterTypeInputFile:
+			fallthrough
+		case ApplicationParameterTypeInputDirectory:
+			return fileMapper(value.Path)
+
+		case ApplicationParameterTypePeer:
+			return value.Hostname
+
+		case ApplicationParameterTypeLicenseServer:
+			fallthrough
+		case ApplicationParameterTypeNetworkIp:
+			fallthrough
+		case ApplicationParameterTypeIngress:
+			return value.Id
+
+		default:
+			log.Warn("Unhandled value type: %v", param.Type)
+			return ""
+		}
+	}
+}
+
+func BuildParameter(param InvocationParameter, values map[string]ParamAndValue, environmentVariable bool, builder ArgBuilder) []string {
+	switch param.Type {
+	case InvocationParameterTypeWord:
+		return []string{param.InvocationParameterWord.Word}
+
+	case InvocationParameterTypeEnv:
+		if environmentVariable {
+			return []string{fmt.Sprintf("$(%v)", param.InvocationParameterEnv.Variable)}
+		} else {
+			return []string{fmt.Sprintf("$%v", param.InvocationParameterEnv.Variable)}
+		}
+
+	case InvocationParameterTypeVar:
+		v := &param.InvocationParameterVar
+		prefixGlobal := strings.Trim(v.PrefixGlobal, " ")
+		suffixGlobal := strings.Trim(v.SuffixGlobal, " ")
+		prefixVariable := strings.Trim(v.PrefixVariable, " ")
+		suffixVariable := strings.Trim(v.SuffixVariable, " ")
+
+		relevantValues := make(map[string]ParamAndValue)
+		for key, value := range values {
+			if slices.Contains(v.VariableNames, key) {
+				relevantValues[key] = value
+			}
+		}
+
+		// We assume that verification has already taken place. If we have no values it should mean that they are all
+		// optional. We don't include anything (including prefixGlobal) if no values were given.
+		if len(relevantValues) == 0 {
+			return nil
+		}
+
+		var middlePart []string
+
+		for _, variableName := range v.VariableNames {
+			value, ok := relevantValues[variableName]
+			if !ok {
+				continue
+			}
+
+			mainArg := strings.Builder{}
+			if len(prefixVariable) > 0 {
+				if v.IsPrefixVariablePartOfArg {
+					mainArg.WriteString(prefixVariable)
+				} else {
+					middlePart = append(middlePart, prefixVariable)
+				}
+			}
+
+			mainArg.WriteString(builder(value))
+
+			if v.IsSuffixVariablePartOfArg {
+				mainArg.WriteString(suffixVariable)
+				middlePart = append(middlePart, mainArg.String())
+			} else {
+				middlePart = append(middlePart, mainArg.String())
+				if len(suffixVariable) > 0 {
+					middlePart = append(middlePart, suffixVariable)
+				}
+			}
+		}
+
+		if prefixGlobal == "" && suffixGlobal == "" {
+			return middlePart
+		}
+
+		var result []string
+		if len(prefixGlobal) > 0 {
+			result = append(result, prefixGlobal)
+		}
+
+		result = append(result, middlePart...)
+
+		if len(suffixGlobal) > 0 {
+			result = append(result, suffixGlobal)
+		}
+
+		return result
+
+	case InvocationParameterTypeBoolFlag:
+		f := &param.InvocationParameterBoolFlag
+		value, ok := values[f.VariableName]
+		if !ok {
+			return nil
+		}
+
+		asBool, ok := value.Value.Value.(bool)
+		if !ok || !asBool {
+			return nil
+		}
+
+		return []string{f.Flag}
+
+	default:
+		log.Warn("Unhandled value type: %v", param.Type)
+		return nil
+	}
+}
+
+func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) bool {
+	switch param.Type {
+	case ApplicationParameterTypeInputDirectory:
+		fallthrough
+	case ApplicationParameterTypeInputFile:
+		if value.Type != AppParameterValueTypeFile {
+			return false
+		}
+
+	case ApplicationParameterTypeBoolean:
+		if value.Type != AppParameterValueTypeBoolean {
+			return false
+		}
+
+	case ApplicationParameterTypeFloatingPoint:
+		if value.Type != AppParameterValueTypeFloatingPoint {
+			return false
+		}
+
+	case ApplicationParameterTypeIngress:
+		if value.Type != AppParameterValueTypeIngress {
+			return false
+		}
+
+	case ApplicationParameterTypeInteger:
+		if value.Type != AppParameterValueTypeInteger {
+			return false
+		}
+
+	case ApplicationParameterTypeLicenseServer:
+		if value.Type != AppParameterValueTypeLicense {
+			return false
+		}
+
+	case ApplicationParameterTypeNetworkIp:
+		if value.Type != AppParameterValueTypeNetwork {
+			return false
+		}
+
+	case ApplicationParameterTypePeer:
+		if value.Type != AppParameterValueTypePeer {
+			return false
+		}
+
+	case ApplicationParameterTypeText:
+		if value.Type != AppParameterValueTypeText {
+			return false
+		}
+
+	case ApplicationParameterTypeEnumeration:
+		if value.Type != AppParameterValueTypeEnumeration {
+			return false
+		}
+
+	case ApplicationParameterTypeTextArea:
+		if value.Type != AppParameterValueTypeTextArea {
+			return false
+		}
+	}
+	return true
+}
+
+func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDescription) map[string]ParamAndValue {
+	parameters := make(map[string]ParamAndValue)
+	for _, param := range application.Parameters {
+		if param.DefaultValue == nil {
+			continue
+		}
+
+		var value AppParameterValue
+		err := json.Unmarshal(param.DefaultValue, &value)
+		if err != nil {
+			continue
+		}
+
+		if !VerifyParameterType(&param, &value) {
+			continue
+		}
+
+		parameters[param.Name] = ParamAndValue{
+			Parameter: param,
+			Value:     value,
+		}
+	}
+
+	for paramName, value := range job.Specification.Parameters {
+		var parameter util.Option[ApplicationParameter]
+		for _, jobParam := range application.Parameters {
+			if jobParam.Name == paramName {
+				parameter.Set(jobParam)
+				break
+			}
+		}
+
+		if !parameter.IsSet() {
+			continue
+		}
+
+		param := parameter.Get()
+		if !VerifyParameterType(&param, &value) {
+			continue
+		}
+
+		parameters[paramName] = ParamAndValue{
+			Parameter: param,
+			Value:     value,
+		}
+	}
+	return parameters
 }

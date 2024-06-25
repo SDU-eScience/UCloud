@@ -17,19 +17,19 @@ type Request[T any] struct {
 	Payload   T
 }
 
-type Response struct {
+type Response[T any] struct {
 	StatusCode int
-	Payload    any
+	Payload    T
 }
 
 type Call[Req any, Resp any] struct {
-	Handler func(handler func(r *Request[Req]) Response)
+	Handler func(handler func(r *Request[Req]) Response[Resp])
 	Invoke  func(r Req) (resp Resp, err error)
 }
 
 func NewCall[Req any, Resp any](operation string) Call[Req, Resp] {
 	return Call[Req, Resp]{
-		Handler: func(handler func(r *Request[Req]) Response) {
+		Handler: func(handler func(r *Request[Req]) Response[Resp]) {
 			RegisterServerHandler[Req](im.Args.IpcMultiplexer, operation, handler)
 		},
 		Invoke: func(r Req) (resp Resp, err error) {
@@ -38,7 +38,7 @@ func NewCall[Req any, Resp any](operation string) Call[Req, Resp] {
 	}
 }
 
-func RegisterServerHandler[T any](mux *http.ServeMux, operation string, handler func(r *Request[T]) Response) {
+func RegisterServerHandler[Req any, Resp any](mux *http.ServeMux, operation string, handler func(r *Request[Req]) Response[Resp]) {
 	mux.HandleFunc("/"+operation, func(w http.ResponseWriter, r *http.Request) {
 		uid, ok := GetConnectionUid(r)
 		if !ok {
@@ -59,14 +59,14 @@ func RegisterServerHandler[T any](mux *http.ServeMux, operation string, handler 
 			return
 		}
 
-		var payload T
+		var payload Req
 		err = json.Unmarshal(body, &payload)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		req := &Request[T]{
+		req := &Request[Req]{
 			Operation: operation,
 			Uid:       uid,
 			Payload:   payload,

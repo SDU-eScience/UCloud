@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	"encoding/json"
 	fnd "ucloud.dk/pkg/foundation"
 )
 
@@ -11,8 +12,8 @@ type NameAndVersion struct {
 
 type SimpleDuration struct {
 	Hours   int
-	Minutes int8
-	Seconds int8
+	Minutes int
+	Seconds int
 }
 
 func (d *SimpleDuration) toMillis() int64 {
@@ -21,8 +22,8 @@ func (d *SimpleDuration) toMillis() int64 {
 
 func (d *SimpleDuration) fromMillis(durationMs int64) SimpleDuration {
 	var hours = int(durationMs / (1000 * 60 * 60))
-	var minutes = int8(durationMs % (1000 * 60 * 60) / (1000 * 60))
-	var seconds = int8(((durationMs % (1000 * 60 * 60)) / (1000 * 60)) / 1000)
+	var minutes = int(durationMs % (1000 * 60 * 60) / (1000 * 60))
+	var seconds = int(((durationMs % (1000 * 60 * 60)) / (1000 * 60)) / 1000)
 
 	return SimpleDuration{hours, minutes, seconds}
 }
@@ -45,15 +46,17 @@ const (
 )
 
 type ToolDescription struct {
-	NameAndVersion
-	RequiredModules    []string    `json:"requiredModules"`
-	Authors            []string    `json:"authors"`
-	Title              string      `json:"title"`
-	Description        string      `json:"description"`
-	Backend            ToolBackend `json:"backend"`
-	License            string      `json:"license"`
-	Image              string      `json:"image,omitempty"`
-	SupportedProviders []string    `json:"supportedProviders,omitempty"`
+	Info                  NameAndVersion `json:"info"`
+	DefaultNumberOfNodes  int            `json:"defaultNumberOfNodes"`
+	DefaultTimeAllocation SimpleDuration `json:"defaultTimeAllocation"`
+	RequiredModules       []string       `json:"requiredModules"`
+	Authors               []string       `json:"authors"`
+	Title                 string         `json:"title"`
+	Description           string         `json:"description"`
+	Backend               ToolBackend    `json:"backend"`
+	License               string         `json:"license"`
+	Image                 string         `json:"image,omitempty"`
+	SupportedProviders    []string       `json:"supportedProviders,omitempty"`
 }
 
 type Tool struct {
@@ -182,8 +185,44 @@ type ContainerDescription struct {
 	RunAsRealUser          bool `json:"runAsRealUser"`
 }
 
-type InvocationParameter struct { // TODO
+type InvocationParameterType string
 
+const (
+	InvocationParameterTypeEnv      InvocationParameterType = "env"
+	InvocationParameterTypeWord     InvocationParameterType = "word"
+	InvocationParameterTypeVar      InvocationParameterType = "var"
+	InvocationParameterTypeBoolFlag InvocationParameterType = "bool_flag"
+)
+
+type InvocationParameter struct {
+	Type InvocationParameterType `json:"type"`
+	InvocationParameterEnv
+	InvocationParameterWord
+	InvocationParameterVar
+	InvocationParameterBoolFlag
+}
+
+type InvocationParameterEnv struct {
+	Variable string `json:"variable,omitempty"`
+}
+
+type InvocationParameterWord struct {
+	Word string `json:"word,omitempty"`
+}
+
+type InvocationParameterVar struct {
+	VariableNames             []string `json:"variableNames,omitempty"`
+	PrefixGlobal              string   `json:"prefixGlobal,omitempty"`
+	SuffixGlobal              string   `json:"suffixGlobal,omitempty"`
+	PrefixVariable            string   `json:"prefixVariable,omitempty"`
+	SuffixVariable            string   `json:"suffixVariable,omitempty"`
+	IsPrefixVariablePartOfArg bool     `json:"isPrefixVariablePartOfArg,omitempty"`
+	IsSuffixVariablePartOfArg bool     `json:"isSuffixVariablePartOfArg,omitempty"`
+}
+
+type InvocationParameterBoolFlag struct {
+	VariableName string `json:"variableName,omitempty"`
+	Flag         string `json:"flag,omitempty"`
 }
 
 type ModulesSection struct {
@@ -197,7 +236,7 @@ type ApplicationParameter struct {
 	Type         ApplicationParameterType `json:"type"`
 	Name         string                   `json:"name"`
 	Optional     bool                     `json:"optional"`
-	DefaultValue any                      `json:"defaultValue,omitempty"` // TODO JsonElement??
+	DefaultValue json.RawMessage          `json:"defaultValue,omitempty"`
 	Title        string                   `json:"title"`
 	Description  string                   `json:"description"`
 	MinValue     any                      `json:"min"`

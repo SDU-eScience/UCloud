@@ -32,13 +32,13 @@ type SlurmMachineCategoryGroup struct {
 	CpuModel    string
 	GpuModel    string
 	MemoryModel string
-	Price       []float64
 }
 
 type SlurmMachineConfiguration struct {
 	Cpu               int
 	MemoryInGigabytes int
 	Gpu               int
+	Price             float64
 }
 
 type SlurmAccountManagement struct {
@@ -465,17 +465,21 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			if category.Payment.Type == PaymentTypeMoney {
 				for key := range category.Groups {
 					group, _ := category.Groups[key]
-					if group.Price == nil {
-						reportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
-						return false, cfg
+					for _, machineConfig := range group.Configs {
+						if machineConfig.Price == 0 {
+							reportError(filePath, machineNode, "price must be specified for all machine groups when payment type is Money!")
+							return false, cfg
+						}
 					}
 				}
 			} else {
 				for key := range category.Groups {
 					group, _ := category.Groups[key]
-					if group.Price != nil {
-						reportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
-						return false, cfg
+					for _, machineConfig := range group.Configs {
+						if machineConfig.Price != 0 {
+							reportError(filePath, machineNode, "price must not be specified for all machine groups when payment type is Resource!")
+							return false, cfg
+						}
 					}
 				}
 			}
@@ -584,8 +588,6 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 		}
 	}
 
-	result.Price = price
-
 	if *success {
 		for i := 0; i < len(cpu); i++ {
 			gpuCount := 0
@@ -596,6 +598,7 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 				Cpu:               cpu[i],
 				MemoryInGigabytes: memory[i],
 				Gpu:               gpuCount,
+				Price:             price[i],
 			})
 		}
 	}

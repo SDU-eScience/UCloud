@@ -4,10 +4,9 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.accounting.util.IdCard
-import dk.sdu.cloud.accounting.util.ResourceDocument
-import dk.sdu.cloud.accounting.util.ResourceDocumentUpdate
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.appCache
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.backgroundScope
@@ -61,8 +60,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
+import java.util.*
 import java.util.concurrent.CancellationException
+import kotlin.Comparator
 import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 import kotlin.math.min
 import kotlin.random.Random
 
@@ -310,6 +312,35 @@ class JobResourceService(
             listeners.forEach { it.onVerified(actorAndProject, job) }
         }
 
+        for (reqItem in request.items) {
+            if (reqItem.product.provider != "aau") continue
+
+            val project = actorAndProject.project
+            val owner = if (project != null) {
+                WalletOwner.Project(project)
+            } else {
+                WalletOwner.User(actorAndProject.actor.safeUsername())
+            }
+
+            val success = payment.creditCheckForPayments(
+                listOf(
+                    Payment(
+                        UUID.randomUUID().toString(),
+                        1L,
+                        1L,
+                        1L,
+                        "",
+                        actorAndProject.actor.safeUsername(),
+                        owner,
+                        reqItem.product
+                    )
+                )
+            ).single() is PaymentService.ChargeResult.Charged
+
+            if (!success) {
+                throw RPCException("You do not have enough credits to start this job!", HttpStatusCode.PaymentRequired)
+            }
+        }
         // The remaining code will notify the provider and store the job in persistent storage. We allow failures and
         // propagate a null for the ID in the response. The only exception to this is if the user only requested to
         // create a single job, in that case the error is sent to the user instead.
@@ -327,7 +358,8 @@ class JobResourceService(
                 val provider = job.product.provider
                 documents.createViaProvider(card, job.product, initialState, addOwnerToAcl = true) { doc ->
                     val mapped = docMapper.map(null, doc)
-                    val result = providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
+                    val result =
+                        providers.call(provider, actorAndProject, { JobsProvider(it).create }, bulkRequestOf(mapped))
                     listeners.forEach { it.onCreate(mapped) }
                     allActiveJobs[doc.id] = Unit
                     result.singleIdOrNull()
@@ -362,8 +394,10 @@ class JobResourceService(
 
                 val piMember = members.find { it.role == ProjectRole.PI }
                 ActorAndProject(
-                    Actor.SystemOnBehalfOfUser(piMember?.username
-                        ?: throw RPCException("Unknown or bad project", HttpStatusCode.NotFound)),
+                    Actor.SystemOnBehalfOfUser(
+                        piMember?.username
+                            ?: throw RPCException("Unknown or bad project", HttpStatusCode.NotFound)
+                    ),
                     project,
                 )
             } else {
@@ -598,7 +632,12 @@ class JobResourceService(
         }
     }
 
-    private suspend fun addNotification(user: String?, newState: JobState, jobId: String, jobSpecification: JobSpecification) {
+    private suspend fun addNotification(
+        user: String?,
+        newState: JobState,
+        jobId: String,
+        jobSpecification: JobSpecification
+    ) {
         if (user == null) return;
 
         val appTitle = appCache.resolveApplication(jobSpecification.application)!!.metadata.title
@@ -690,7 +729,7 @@ class JobResourceService(
             val notifications = jobMailNotifications[user] ?: continue
             if (notifications.isEmpty()) continue
 
-            val jobIds = notifications.map {it.jobId }
+            val jobIds = notifications.map { it.jobId }
             val jobNames = notifications.map { it.jobName }
             val appTitles = notifications.map { it.appTitle }
 
@@ -1040,7 +1079,7 @@ class JobResourceService(
                     if (firstException == null) firstException = ex
                     log.info(
                         "Caught exception while opening interactive session (${jobs.map { it.id }}): " +
-                            "${ex.toReadableStacktrace()}"
+                                "${ex.toReadableStacktrace()}"
                     )
                     responses.addAll(jobs.map { null })
                 }

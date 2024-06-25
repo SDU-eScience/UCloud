@@ -9,6 +9,9 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.toReadableStacktrace
+import io.ktor.client.statement.*
+import kotlin.random.Random
 
 data class Payment(
     val chargeId: String,
@@ -36,6 +39,7 @@ class PaymentService(
 
     suspend fun charge(payments: List<Payment>): List<ChargeResult> {
         val items = ArrayList<UsageReportItem>()
+
         for (payment in payments) {
             val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
             items.add(
@@ -49,31 +53,38 @@ class PaymentService(
             )
         }
 
-        val results = AccountingV2.reportUsage.call(
+        val call = AccountingV2.reportUsage.call(
             BulkRequest(items),
             serviceClient
-        ).orNull()?.responses ?: Array(payments.size) { false }.toList()
+        )
+
+        val results = call.orNull()?.responses ?: Array(payments.size) { false }.toList()
 
         return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
-        return AccountingV2.checkProviderUsable.call(
-            BulkRequest(
-                payments.map { payment ->
-                    AccountingV2.CheckProviderUsable.RequestItem(
-                        payment.owner,
-                        ProductCategoryIdV2(payment.product.category, payment.product.provider)
-                    )
-                }
-            ),
-            serviceClient,
-        ).orThrow().responses.mapIndexed { index, response ->
-            val payment = payments[index]
-            val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+        try {
+            return AccountingV2.checkProviderUsable.call(
+                BulkRequest(
+                    payments.map { payment ->
+                        AccountingV2.CheckProviderUsable.RequestItem(
+                            payment.owner,
+                            ProductCategoryIdV2(payment.product.category, payment.product.provider)
+                        )
+                    }
+                ),
+                serviceClient,
+            ).orThrow().responses.mapIndexed { index, response ->
+                val payment = payments[index]
+                val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
 
-            if (response.maxUsable >= balanceUsed) ChargeResult.Charged
-            else ChargeResult.InsufficientFunds
+                if (response.maxUsable >= balanceUsed) ChargeResult.Charged
+                else ChargeResult.InsufficientFunds
+            }
+        } catch (ex: Throwable) {
+            log.info("Credit check failed ${ex.toReadableStacktrace()}")
+            throw ex
         }
     }
 

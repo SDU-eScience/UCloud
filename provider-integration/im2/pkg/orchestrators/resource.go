@@ -125,3 +125,11 @@ type ProviderRegisteredResource[Spec any] struct {
 	ProjectAllRead      bool                `json:"projectAllRead"`
 	ProjectAllWrite     bool                `json:"projectAllWrite"`
 }
+
+func ResourceOwnerToWalletOwner(resource Resource) apm.WalletOwner {
+	if resource.Owner.Project != "" {
+		return apm.WalletOwnerProject(resource.Owner.Project)
+	} else {
+		return apm.WalletOwnerUser(resource.Owner.CreatedBy)
+	}
+}
