@@ -594,12 +594,15 @@ func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) Slu
 			if gpu != nil {
 				gpuCount = gpu[i]
 			}
-			result.Configs = append(result.Configs, SlurmMachineConfiguration{
+			configuration := SlurmMachineConfiguration{
 				Cpu:               cpu[i],
 				MemoryInGigabytes: memory[i],
 				Gpu:               gpuCount,
-				Price:             price[i],
-			})
+			}
+			if price != nil {
+				configuration.Price = price[i]
+			}
+			result.Configs = append(result.Configs, configuration)
 		}
 	}
 

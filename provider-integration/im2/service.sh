@@ -17,6 +17,7 @@ uid=11042
 
 initSlurmServiceAccount() {
   # Ensure that the UCloud service account has the operator permissions
+  sacctmgr -i create account ucloud
   sacctmgr -i add user ucloud Account=ucloud || true
   sacctmgr -i modify user ucloud set adminlevel=operator || true
   touch /etc/ucloud/.slurmsysop
