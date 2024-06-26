@@ -224,8 +224,8 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
-                    // TODO(Jonas)
-                    // browser.registerPage(result, path, false);
+                    sidebarFavoriteCache.fetch(favorites.next);
+                    // Note(Jonas): Don't register page as this is done in the useEffect on cache-content change
                 });
 
                 browser.on("fetchBrowserFeatures", () => {
