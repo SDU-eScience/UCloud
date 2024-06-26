@@ -31,6 +31,17 @@ sealed class AccountingRequest<Resp> {
         val grantedIn: Long? = null,
     ) : AccountingRequest<Int>()
 
+    data class RollBackGrantAllocations(
+        override val idCard: IdCard,
+        val grantedIn: Long? = null,
+    ) : AccountingRequest<Int>()
+
+    data class CommitAllocations(
+        override val idCard: IdCard,
+        val grantedIn: Long? = null,
+        val ids: List<Int>? = null
+    ) : AccountingRequest<Int>()
+
     data class Charge(
         override val idCard: IdCard,
         val owner: String,

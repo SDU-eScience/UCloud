@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.accounting.util.AsyncCache
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -32,6 +31,14 @@ const val LightBackground = 0xf8f8f9
 object LogoGenerator {
     private val mutex = Mutex()
     private val cache = AtomicReference<Map<String, ByteArray>>(emptyMap())
+
+    fun invalidateCache(title: String) {
+        while (true) {
+            val currentCache = cache.get()
+            val stillValidCache = currentCache.filterNot { it.key.contains(title)}
+            if (cache.compareAndSet(currentCache, stillValidCache)) break
+        }
+    }
 
     suspend fun generateLogoWithText(
         cacheKey: String,

@@ -109,7 +109,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     retired = retired,
                     retiredUsage = retiredUsage,
                     grantedIn = grantedIn,
-                    isDirty = false
+                    isDirty = false,
+                    commited = true
                 )
 
                 allocations[allocationId] = allocation
@@ -513,7 +514,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             }
 
             //Insert or update allocations
-            val dirtyAllocations = allocations.filter { it.value.isDirty }
+            //Only write dirty and commited allocations
+            val dirtyAllocations = allocations.filter { it.value.isDirty && it.value.commited}
 
             session.sendPreparedStatement(
                 {
