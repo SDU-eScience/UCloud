@@ -3,7 +3,6 @@ package slurm
 import (
 	"encoding/json"
 	"fmt"
-	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	"io"
 	"net/http"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
@@ -27,6 +28,7 @@ func InitializeFiles() ctrl.FileService {
 		RetrieveFile:          retrieve,
 		CreateFolder:          createFolder,
 		Move:                  move,
+		Copy:                  copyFiles,
 		CreateDownloadSession: createDownload,
 		Download:              download,
 	}
@@ -238,6 +240,44 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 }
 
 func move(request ctrl.MoveFileRequest) error {
+	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
+	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
+
+	err := os.Rename(sourcePath, destPath)
+	if err != nil {
+		parentPath := util.Parent(destPath)
+		parentStat, err := os.Stat(parentPath)
+		log.Info("path = %v stat=%v err=%v", parentPath, parentStat, err)
+		if err != nil {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Could not find destination!",
+			}
+		} else if !parentStat.IsDir() {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Destination is not a directory!",
+			}
+		}
+
+		_, err = os.Stat(destPath)
+		if err == nil {
+			return &util.HttpError{
+				StatusCode: http.StatusNotFound,
+				Why:        "Unable to move file. Destination already exists!",
+			}
+		}
+
+		return &util.HttpError{
+			StatusCode: http.StatusNotFound,
+			Why:        "Unable to move file.",
+		}
+	}
+
+	return nil
+}
+
+func copyFiles(request ctrl.CopyFileRequest) error {
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
