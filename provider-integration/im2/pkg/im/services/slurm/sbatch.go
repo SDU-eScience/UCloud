@@ -10,7 +10,7 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-func CreateSBatchFile(job *orc.Job) (string, error) {
+func CreateSBatchFile(job *orc.Job, jobFolder string) (string, error) {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
@@ -22,17 +22,9 @@ func CreateSBatchFile(job *orc.Job) (string, error) {
 		}
 	}
 
-	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
-	if !ok {
-		return "", &util.HttpError{
-			StatusCode: http.StatusInternalServerError,
-			Why:        "Unable to create job folder",
-		}
-	}
-
 	accountName := ""
 	{
-		accounts := AccountManagement.UCloudConfigurationFindSlurmAccount(SlurmJobConfiguration{
+		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(SlurmJobConfiguration{
 			Owner:              orc.ResourceOwnerToWalletOwner(job.Resource),
 			EstimatedProduct:   job.Specification.Product,
 			EstimatedNodeCount: job.Specification.Replicas,
@@ -101,7 +93,7 @@ func CreateSBatchFile(job *orc.Job) (string, error) {
 	builder := &strings.Builder{}
 	{
 		appendLine(builder, "#!/usr/bin/env bash")
-		appendLine(builder, "#SBATCH --chdir %v", jobFolder)
+		appendLine(builder, "#SBATCH --chdir %v", orc.EscapeBash(jobFolder))
 		appendLine(builder, "#SBATCH --cpus-per-task %d", cpuAllocation)
 		appendLine(builder, "#SBATCH --mem %v", memoryAllocation)
 		appendLine(builder, "#SBATCH --gpus-per-node %d", job.Status.ResolvedProduct.Gpu)
@@ -121,7 +113,7 @@ func CreateSBatchFile(job *orc.Job) (string, error) {
 		if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
 			allocatedPort := 10000 + rand.Intn(40000)
 			appendLine(builder, "export UCLOUD_PORT=%d", allocatedPort)
-			appendLine(builder, "echo %d > %v", allocatedPort, filepath.Join(jobFolder, AllocatedPortFile))
+			appendLine(builder, "echo %d > %v", allocatedPort, orc.EscapeBash(filepath.Join(jobFolder, AllocatedPortFile)))
 			appendLine(builder, "")
 		}
 

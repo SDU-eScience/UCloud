@@ -133,3 +133,8 @@ func ResourceOwnerToWalletOwner(resource Resource) apm.WalletOwner {
 		return apm.WalletOwnerUser(resource.Owner.CreatedBy)
 	}
 }
+
+type ResourceUpdateAndId[U any] struct {
+	Id     string `json:"id"`
+	Update U      `json:"update"`
+}

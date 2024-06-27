@@ -90,9 +90,9 @@ services:
 
     machines:
       u1-standard:
-        partition: standard
+        partition: normal
         qos: standard
-        constraint: standard
+        # constraint: standard
 
         nameSuffix: Cpu
 

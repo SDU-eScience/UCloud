@@ -6,23 +6,22 @@ import (
 	"slices"
 	"strings"
 	"ucloud.dk/pkg/apm"
+	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
-
-type JsonObject string
 
 type ExportedParametersRequest struct {
 	Application       NameAndVersion       `json:"application"`
 	Product           apm.ProductReference `json:"product"`
 	Name              string               `json:"name,omitempty"`
 	Replicas          int                  `json:"replicas"`
-	Parameters        JsonObject           `json:"parameters"`
-	Resources         []JsonObject         `json:"resources"`
+	Parameters        json.RawMessage      `json:"parameters"`
+	Resources         []json.RawMessage    `json:"resources"`
 	TimeAllocation    SimpleDuration       `json:"timeAllocation,omitempty"`
-	ResolvedProduct   JsonObject           `json:"resolvedProduct,omitempty"`
-	ResolvedSupport   JsonObject           `json:"resolvedSupport,omitempty"`
+	ResolvedProduct   json.RawMessage      `json:"resolvedProduct,omitempty"`
+	ResolvedSupport   json.RawMessage      `json:"resolvedSupport,omitempty"`
 	AllowDuplicateJob bool                 `json:"allowDuplicateJob"`
 	SshEnabled        bool
 }
@@ -31,7 +30,7 @@ type ExportedParameters struct {
 	SiteVersion       int                         `json:"siteVersion"`
 	Request           ExportedParametersRequest   `json:"request"`
 	ResolvedResources ExportedParametersResources `json:"ResolvedResources"`
-	MachineType       JsonObject                  `json:"machineType"`
+	MachineType       json.RawMessage             `json:"machineType"`
 }
 
 type ExportedParametersResources struct {
@@ -50,8 +49,8 @@ const (
 	JobStateSuspended JobState = "SUSPENDED"
 )
 
-func (jobState *JobState) isFinal() bool {
-	switch *jobState {
+func (jobState JobState) IsFinal() bool {
+	switch jobState {
 	case JobStateSuccess, JobStateFailure, JobStateExpired:
 		return true
 	default:
@@ -77,23 +76,23 @@ type Job struct {
 
 type JobStatus struct {
 	State               JobState
-	JobParametersJson   ExportedParameters `json:"jobParametersJson,omitempty"`
-	StartedAt           fnd.Timestamp      `json:"startedAt,omitempty"`
-	ExpiresAt           fnd.Timestamp      `json:"expiresAt,omitempty"`
-	ResolvedApplication Application        `json:"resolvedApplication,omitempty"`
-	ResolvedProduct     apm.ProductV2      `json:"resolvedProduct,omitempty"`
-	AllowRestart        bool               `json:"allowRestart"`
+	JobParametersJson   ExportedParameters         `json:"jobParametersJson,omitempty"`
+	StartedAt           util.Option[fnd.Timestamp] `json:"startedAt,omitempty"`
+	ExpiresAt           util.Option[fnd.Timestamp] `json:"expiresAt,omitempty"`
+	ResolvedApplication Application                `json:"resolvedApplication,omitempty"`
+	ResolvedProduct     apm.ProductV2              `json:"resolvedProduct,omitempty"`
+	AllowRestart        bool                       `json:"allowRestart"`
 }
 
 type JobUpdate struct {
-	State                  JobState `json:"state,omitempty"`
-	OutputFolder           string   `json:"outputFolder,omitempty"`
-	Status                 string   `json:"status,omitempty"`
-	ExpectedState          JobState `json:"expectedState"`
-	ExpectedDifferentState bool     `json:"expectedDifferentState,omitempty"`
-	NewTimeAllocation      int64    `json:"newTimeAllocation"`
-	AllowRestart           bool     `json:"allowRestart"`
-	NewMounts              []string `json:"newMounts"`
+	State                  util.Option[JobState] `json:"state"`
+	OutputFolder           util.Option[string]   `json:"outputFolder"`
+	Status                 util.Option[string]   `json:"status"`
+	ExpectedState          util.Option[JobState] `json:"expectedState"`
+	ExpectedDifferentState util.Option[bool]     `json:"expectedDifferentState"`
+	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
+	AllowRestart           util.Option[bool]     `json:"allowRestart"`
+	NewMounts              util.Option[[]string] `json:"newMounts"`
 }
 
 type JobSpecification struct {
@@ -487,4 +486,50 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 		}
 	}
 	return parameters
+}
+
+type JobSupport struct {
+	Product apm.ProductReference `json:"product"`
+	Docker  struct {
+		UniversalBackendSupport
+	} `json:"docker"`
+	VirtualMachine struct {
+		UniversalBackendSupport
+		Suspension bool `json:"suspension,omitempty"`
+	} `json:"virtualMachine"`
+	Native struct {
+		UniversalBackendSupport
+	} `json:"native"`
+}
+
+type UniversalBackendSupport struct {
+	Enabled       bool `json:"enabled,omitempty"`
+	Web           bool `json:"web,omitempty"`
+	Vnc           bool `json:"vnc,omitempty"`
+	Logs          bool `json:"logs,omitempty"`
+	Terminal      bool `json:"terminal,omitempty"`
+	Peers         bool `json:"peers,omitempty"`
+	TimeExtension bool `json:"timeExtension,omitempty"`
+}
+
+// API
+// =====================================================================================================================
+
+const jobsCtrlContext = "/api/jobs/control/"
+
+type BrowseJobsFlags struct {
+	FilterApplication  util.Option[string]   `json:"filterApplication"`
+	FilterState        util.Option[JobState] `json:"filterState"`
+	IncludeParameters  bool                  `json:"includeParameters"`
+	IncludeApplication bool                  `json:"includeApplication"`
+	IncludeProduct     bool                  `json:"includeProduct"`
+}
+
+func BrowseJobs(next string, flags BrowseJobsFlags) (fnd.PageV2[Job], error) {
+	return c.ApiBrowse[fnd.PageV2[Job]](
+		jobsCtrlContext+"browse",
+		jobsCtrlContext,
+		"",
+		append([]string{"next", next}, c.StructToParameters(flags)...),
+	)
 }

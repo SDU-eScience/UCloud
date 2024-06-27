@@ -1,25 +1,35 @@
 ---
 application: v1
-name: dtu-slurm-poc
-version: 1.6
+name: slurm-tool
+version: 1
 
 applicationType: BATCH
 
 allowMultiNode: true
 
-title: Slurm Poc Hello
-description: Sample app to run SLURM batch job
-authors: ["DTU AIT"]
+title: Slurm tool
+description: Slurm Tool
+authors: ["UCloud"]
 
 tool:
-  name: dtu-slurm-poc-tool
-  version: 4
+  name: slurm-tool
+  version: 1
 
 parameters:
-  file_content:
+  file:
     optional:  false
-    title: "Sbatch File"
-    description: "Content of .sbatch file"
-    type: textarea
+    title: "file"
+    description: "A description of file"
+    type: input_file
+  integer:
+    optional: true
+    title: "An optional integer"
+    description: "Some description for the optional integer"
+    type: integer
 
-invocation: []
+invocation:
+  - tail
+  - -f
+  - /dev/null
+  - type: var
+    vars: file

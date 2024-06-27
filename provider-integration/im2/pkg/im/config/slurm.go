@@ -497,7 +497,7 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 
 func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) SlurmMachineCategoryGroup {
 	result := SlurmMachineCategoryGroup{}
-	result.Constraint = requireChildText(filePath, node, "constraint", success)
+	result.Constraint = optionalChildText(filePath, node, "constraint", success)
 	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)

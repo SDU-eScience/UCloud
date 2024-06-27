@@ -144,6 +144,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     }
                 }
 
+//                log.info("$method $url ${call.fullName} $shortRequestMessage")
                 log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
             }
 

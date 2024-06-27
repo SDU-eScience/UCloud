@@ -2,8 +2,10 @@ package slurm
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"ucloud.dk/pkg/util"
 )
 
@@ -219,7 +221,7 @@ func (c *Client) JobQuery(id int) *Job {
 		return nil
 	}
 
-	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres"}
+	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
 	stdout, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
@@ -232,6 +234,62 @@ func (c *Client) JobQuery(id int) *Job {
 	}
 
 	return nil
+}
+
+func (c *Client) JobList() []Job {
+	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
+	stdout, ok := util.RunCommand(cmd)
+	if !ok {
+		return nil
+	}
+
+	var jobs []Job
+	unmarshal(stdout, &jobs)
+	return jobs
+}
+
+func (c *Client) JobSubmit(pathToScript string) (int, error) {
+	cmd := []string{"sbatch", pathToScript}
+	stdout, ok := util.RunCommand(cmd)
+	if !ok {
+		if strings.Contains(stdout, "Requested time limit is invalid") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why: "The requested time limit is larger than what the system allows. " +
+					"Try with a smaller time allocation.",
+			}
+		} else if strings.Contains(stdout, "Node count specification invalid") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else if strings.Contains(stdout, "More processors") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else if strings.Contains(stdout, "Requested node config") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        fmt.Sprintf("Slurm could not process your request. %v", stdout),
+			}
+		}
+	}
+
+	jobId, err := strconv.Atoi(strings.TrimSpace(stdout))
+	if err != nil {
+		return -1, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        fmt.Sprintf("Failed to understand output of sbatch. Expected a job ID but got: %v", stdout),
+		}
+	}
+
+	return jobId, nil
 }
 
 func (c *Client) JobCancel(id int) bool {

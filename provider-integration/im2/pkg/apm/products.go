@@ -105,6 +105,14 @@ type ProductV2 struct {
 	GpuModel     string `json:"gpuModel,omitempty"`
 }
 
+func (p *ProductV2) ToReference() ProductReference {
+	return ProductReference{
+		Id:       p.Name,
+		Category: p.Category.Name,
+		Provider: p.Category.Provider,
+	}
+}
+
 // API
 // =====================================================================================================================
 

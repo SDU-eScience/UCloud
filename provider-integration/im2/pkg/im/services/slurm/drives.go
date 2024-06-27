@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -22,8 +23,8 @@ func CacheDrive(drive orc.Drive) {
 func RetrieveDrive(driveId string) (orc.Drive, bool) {
 	return idToDriveCache.Get(driveId, func() (orc.Drive, error) {
 		if cfg.Mode == cfg.ServerModeUser {
-			// TODO TODO TODO
-			return orc.Drive{}, fmt.Errorf("Not yet implemented")
+			drive, err := retrieveDriveByIdIpc.Invoke(fnd.FindByStringId{Id: driveId})
+			return drive, err
 		} else {
 			return orc.RetrieveDrive(driveId)
 		}
