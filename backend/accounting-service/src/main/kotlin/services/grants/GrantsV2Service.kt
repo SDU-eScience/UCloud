@@ -1057,9 +1057,9 @@ class GrantsV2Service(
                             )
                         )
 
+                        actionQueue.add(Action.GrantResources)
                         actionQueue.add(Action.UpdateApprovalState(grantGiver, GrantApplication.State.APPROVED))
                         actionQueue.add(Action.UpdateOverallState(GrantApplication.State.APPROVED))
-                        actionQueue.add(Action.GrantResources)
                     } else {
                         val newRefIds = if (isGrantGiver()) command.doc.referenceIds else null
                         if (newRefIds != null) {
@@ -1521,7 +1521,7 @@ class GrantsV2Service(
                                     if (e.httpStatusCode == HttpStatusCode.UnprocessableEntity) {
                                         SlackDescriptions.sendAlert.call(
                                             Alert(
-                                                "Error in Accounting hierarchy: ${e.message}"
+                                                "Error in Accounting hierarchy while processing GrantId ${application.id}: ${e.message}"
                                             ),
                                             ctx.serviceClient
                                         )

@@ -636,7 +636,9 @@ class AccountingSystem(
 
         if (parentWallet != null) {
             parentWallet.isDirty = true
+            println("Insert Alloc: W$parentWalletId before: ${parentWallet.totalAllocated}")
             if (isActiveNow) parentWallet.totalAllocated += quota
+            println("Insert Alloc: W$parentWalletId after: ${parentWallet.totalAllocated}")
 
             // NOTE(Dan): Insert a childrenUsage entry if we don't already have one. This is required to make
             // childrenUsage a valid tool for looking up children in the parent wallet.
@@ -672,8 +674,15 @@ class AccountingSystem(
         foundAllocations.forEach { alloc ->
             val allocGroup = allocationGroups.filter { it.value.allocationSet.contains(alloc.id) }
             allocGroup.forEach { id, group ->
+                val parentId = group.parentWallet
                 //This is okay since the allocation have never been active
                 group.allocationSet.remove(alloc.id)
+                //removing the alloced value from the parent wallet.
+                val parentWallet = walletsById[parentId]
+                if (parentWallet != null){
+                    parentWallet.totalAllocated -= alloc.quota
+                }
+
             }
             allocations.remove(alloc.id)
         }
@@ -1078,7 +1087,9 @@ class AccountingSystem(
             val parent = internalAllocation.parentWallet
             if (parent != 0) {
                 val parentWallet = walletsById.getValue(parent)
+                println("Update Alloc: W$parent before: ${parentWallet.totalAllocated}")
                 parentWallet.totalAllocated += quotaDiff
+                println("Update Alloc: W$parent after: ${parentWallet.totalAllocated}")
                 parentWallet.isDirty = true
             }
         }
@@ -1214,7 +1225,9 @@ class AccountingSystem(
             parentWallet.childrenUsage[wallet.id] = (parentWallet.childrenUsage[wallet.id] ?: 0L) - toRetire
             parentWallet.childrenRetiredUsage[wallet.id] =
                 (parentWallet.childrenRetiredUsage[wallet.id] ?: 0L) + toRetire
+            println("Retire Alloc: W${parentWallet.id} before: ${parentWallet.totalAllocated}")
             parentWallet.totalAllocated -= alloc.quota
+            println("Retire Alloc: W${parentWallet.id} after: ${parentWallet.totalAllocated}")
             parentWallet.totalRetiredAllocated += alloc.quota
             parentWallet.isDirty = true
         }
