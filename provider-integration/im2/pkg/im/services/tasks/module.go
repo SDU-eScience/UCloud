@@ -1,13 +1,16 @@
 package tasks
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/slurm"
+	"ucloud.dk/pkg/log"
 )
 
 /**
@@ -63,29 +66,68 @@ type FileTaskCopy struct {
 	Request controller.CopyFileRequest
 }
 
+type FileTaskSpecification struct {
+	title string
+}
+
 func RegisterTask(task FileTask) {
 
 	taskFolder := findAndInitTaskFolder(task.DriveId)
 
-	/*
-	   // NOTE(Dan): We first find the task folder to make sure that the arguments are valid
+	// TODO(Brian) Register task through ipc
+	//response := ipc.NewCall[FileTaskSpecification, string]("tasks.Register")
 
-	   	val response = pluginContext.ipcClient.sendRequest(TaskIpc.register, TaskSpecification(task.title))
-	   	task.id = response.id
-	   	task.timestamp = Time.now()
-	   	task.collectionId = task.collectionId
+	file, err := os.OpenFile(
+		taskFolder+"/"+taskPrefix+task.Id+taskSuffix,
+		os.O_CREATE+os.O_RDWR, os.FileMode(int(770)),
+	)
+	if err != nil {
+		log.Error("Failed to create task file: %v", err)
+		return
+	}
+	defer file.Close()
 
-	   	val file = NativeFile.open(
-	   	    taskFolder.path + "/" + TASK_PREFIX + task.id + TASK_SUFFIX,
-	   	    readOnly = false,
-	   	    truncateIfNeeded = true
-	   	)
+	taskString, _ := json.Marshal(task)
+	_, err = file.WriteString(string(taskString))
 
-	   	file.writeText(
-	   	    defaultMapper.encodeToString(PosixTask.serializer(), task),
-	   	    autoClose = true
-	   	)
-	*/
+	if err != nil {
+		log.Error("Failed to write to task file: %v", err)
+		return
+	}
+}
+
+func MarkTaskAsComplete(driveId string, taskId string) {
+	filePath := findAndInitTaskFolder(driveId) + "/" + taskPrefix + taskId + taskSuffix
+
+	// TODO(Brian)
+	//pluginContext.ipcClient.sendRequest(TaskIpc.markAsComplete, FindByStringId(taskId))
+
+	os.Remove(filePath)
+}
+
+func RetrieveCurrentTasks(driveId string) []FileTask {
+	result := []FileTask{}
+
+	taskFolder := findAndInitTaskFolder(driveId)
+
+	dirEntries, _ := os.ReadDir(taskFolder)
+
+	for _, entry := range dirEntries {
+		if strings.HasPrefix(entry.Name(), taskPrefix) && strings.HasSuffix(entry.Name(), taskSuffix) {
+			file, _ := os.ReadFile(taskFolder + "/" + entry.Name())
+			task := FileTask{}
+			err := json.Unmarshal(file, &task)
+
+			if err != nil {
+				log.Error("Unable to unmarshal task %s: %v", entry.Name(), err)
+				continue
+			}
+
+			result = append(result, task)
+		}
+	}
+
+	return result
 }
 
 func findAndInitTaskFolder(driveId string) string {
