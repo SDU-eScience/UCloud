@@ -53,7 +53,7 @@ data class InternalAllocation(
     var committed: Boolean = false
 ) {
     fun isActive(now: Long): Boolean {
-        return !retired && commited && now >= start
+        return !retired && committed && now >= start
     }
 
     fun preferredBalance(now: Long): Long {

@@ -735,6 +735,10 @@ function stateReducer(state: State, action: UIAction): State {
             }
         }
 
+        subAllocations.recipients.sort((a, b) => {
+            return a.owner.title.localeCompare(b.owner.title);
+        });
+
         return {
             ...state,
             yourAllocations,
@@ -1664,8 +1668,8 @@ const Allocations: React.FunctionComponent = () => {
                                                     </TooltipV2>
                                                 </>}
                                                 <div className="low-opaqueness">{
-                                                    (alloc.shouldShowRetiredAmount && alloc.note !== undefined) ? (Accounting.balanceToString(wallet.category, alloc.retiredAmount, {precision: 0}) + " / " + Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})) :
-                                                        Accounting.balanceToString(wallet.category, alloc.quota, {precision: 0})
+                                                    (alloc.shouldShowRetiredAmount && alloc.note !== undefined) ? (Accounting.balanceToString(wallet.category, alloc.retiredAmount, {precision: 2}) + " / " + Accounting.balanceToString(wallet.category, alloc.quota, {precision: 2})) :
+                                                        Accounting.balanceToString(wallet.category, alloc.quota, {precision: 2})
                                                 }</div>
                                             </Flex>}
                                         />
@@ -1819,7 +1823,7 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Flex gap={"4px"} width={"250px"}>
                                                             <Input
                                                                 height={"24px"}
-                                                                defaultValue={Accounting.explainUnit(g.category).priceFactor * alloc.quota}
+                                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
                                                                 autoFocus
                                                                 onKeyDown={onEditKey}
                                                                 onBlur={onEditBlur}
@@ -1853,6 +1857,7 @@ function ProgressBar({uq, type}: {
     uq: UsageAndQuota,
     type: ProductType,
 }) {
+    if (uq.quota == 0) return null;
     let usage: number
     if (uq.retiredAmountStillCounts) {
         usage = uq.usage
@@ -1891,11 +1896,11 @@ function progressText(type: ProductType, uq: UsageAndQuota): string {
     }
 
     text += Accounting.balanceToStringFromUnit(type, uq.unit, balance, {
-        precision: 0,
+        precision: 2,
         removeUnitIfPossible: true
     });
     text += " / ";
-    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota, {precision: 0});
+    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota, {precision: 2});
 
     if (uq.quota !== 0) {
         text += " (";

@@ -43,7 +43,7 @@ class UsageScan(
             }
         }
 
-        repeat(Runtime.getRuntime().availableProcessors()) { taskId ->
+        repeat(8) { taskId ->
             ScanningScope.launch {
                 var loopActive = true
                 whileGraal({ isActive && loopActive }) {

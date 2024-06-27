@@ -449,7 +449,10 @@ class AccountingSystem(
         val idCard = request.idCard
         //Check that we only give root allocations to Root projects
         if (idCard !is IdCard.User) {
-            return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E1 I=${idCard})")
+            return Response.error(
+                HttpStatusCode.Forbidden,
+                "You are not allowed to create a root allocation! (E1 I=${idCard})"
+            )
         }
 
         if (idCard.activeProject == 0) {
@@ -460,7 +463,10 @@ class AccountingSystem(
             ?: return Response.error(HttpStatusCode.InternalServerError, "Could not lookup project from id card")
 
         val wallet = authorizeAndLocateWallet(request.idCard, projectId, request.category, ActionType.ROOT_ALLOCATE)
-            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E2 U=${idCard.uid} P=${idCard.activeProject} AO=${idCard.adminOf.toList()} G=${idCard.groups.toList()})")
+            ?: return Response.error(
+                HttpStatusCode.Forbidden,
+                "You are not allowed to create a root allocation! (E2 U=${idCard.uid} P=${idCard.activeProject} AO=${idCard.adminOf.toList()} G=${idCard.groups.toList()})"
+            )
 
         val currentParents = wallet.allocationsByParent.keys
         if (currentParents.isNotEmpty() && currentParents.singleOrNull() != 0) {
@@ -598,7 +604,7 @@ class AccountingSystem(
             retired = false,
             grantedIn = grantedIn,
             isDirty = true,
-            commited = false
+            committed = false
         )
 
         allocations[allocationId] = newAllocation
@@ -653,11 +659,17 @@ class AccountingSystem(
     }
 
     private fun rollBackGrantAllocations(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
-        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to rollback allocations")
+        if (request.idCard != IdCard.System) return Response.error(
+            HttpStatusCode.Forbidden,
+            "User is not allowed to rollback allocations"
+        )
         val foundAllocations = allocations.values.filter { it.grantedIn == request.grantedIn }
         if (foundAllocations.isEmpty()) return Response.ok(Unit)
-        if (foundAllocations.any { it.commited }) return Response.error(HttpStatusCode.BadRequest, "Cannot be allowed to rollback already commit allocations")
-        foundAllocations.forEach { alloc  ->
+        if (foundAllocations.any { it.committed }) return Response.error(
+            HttpStatusCode.BadRequest,
+            "Cannot be allowed to rollback already commit allocations"
+        )
+        foundAllocations.forEach { alloc ->
             val allocGroup = allocationGroups.filter { it.value.allocationSet.contains(alloc.id) }
             allocGroup.forEach { id, group ->
                 //This is okay since the allocation have never been active
@@ -669,20 +681,26 @@ class AccountingSystem(
     }
 
     private fun commitAllocations(request: AccountingRequest.CommitAllocations): Response<Unit> {
-        if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "User is not allowed to commit allocations")
-        if (request.ids != null && request.grantedIn != null) return Response.error(HttpStatusCode.BadRequest, "commit only based on grant id or allocation ids")
+        if (request.idCard != IdCard.System) return Response.error(
+            HttpStatusCode.Forbidden,
+            "User is not allowed to commit allocations"
+        )
+        if (request.ids != null && request.grantedIn != null) return Response.error(
+            HttpStatusCode.BadRequest,
+            "commit only based on grant id or allocation ids"
+        )
         if (request.ids != null) {
             if (request.ids.isEmpty()) return Response.ok(Unit)
             request.ids.forEach { id ->
                 val alloc = allocations[id] ?: return@forEach
-                alloc.commited = true
+                alloc.committed = true
                 alloc.isDirty = true
             }
         }
         if (request.grantedIn != null) {
             val allocations = allocations.filter { it.value.grantedIn == request.grantedIn }.map { it.value }
             allocations.forEach { alloc ->
-                alloc.commited = true
+                alloc.committed = true
                 alloc.isDirty = true
             }
         }

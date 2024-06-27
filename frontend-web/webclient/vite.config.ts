@@ -2,7 +2,7 @@ import {defineConfig, UserConfigExport} from "vite";
 import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
-import {DEV_SITE, SANDBOX_SITE} from "./site.config.json";
+import {PRODUCTION_SITE, DEV_SITE, SANDBOX_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
 
@@ -15,7 +15,7 @@ function targetFromConfig(mode: Mode): string {
 
     switch (mode) {
         case "development":
-            return `https://${DEV_SITE}`;
+            return `https://${PRODUCTION_SITE}`;
         case "sandbox":
             return `https://${SANDBOX_SITE}`;
         case "compose":
