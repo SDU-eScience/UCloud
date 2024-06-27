@@ -4,6 +4,16 @@ This page tracks a high-level overview of changes to the version of UCloud
 hosted at cloud.sdu.dk. This page is intended for internal
 use.
 
+## 27-06-24
+
+```
+SDU/K8s @ 2024.1.33
+AAU/K8s @ 2024.1.33
+UCloud/Core @ 2024.1.33
+UCloud/Frontend @ 2024.1.33
+```
+
+
 ## 21-06-24
 
 ```
