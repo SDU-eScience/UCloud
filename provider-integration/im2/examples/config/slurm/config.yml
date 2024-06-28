@@ -79,6 +79,7 @@ services:
     enabled: false
 
   slurm:
+    fakeResourceAllocation: true
     accountManagement:
       accounting: # Usage and quota management
         type: Automatic

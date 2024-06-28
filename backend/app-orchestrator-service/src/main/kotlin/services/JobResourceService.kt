@@ -1797,6 +1797,7 @@ class JobResourceService(
             createdAt,
             JobOutput(outputFolder = data.outputFolder),
             permissions,
+            providerGeneratedId = doc.providerId,
         )
     }
 

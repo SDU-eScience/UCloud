@@ -145,6 +145,18 @@ class EnvoyConfigurationService(
                     }
 
                     is ConfigurationMessage.RouteUp -> {
+                        if (nextMessage.route is EnvoyRoute.WebIngressSession) {
+                            val iter = routes.iterator()
+                            while (iter.hasNext()) {
+                                val it = iter.next()
+                                if (it !is EnvoyRoute.WebIngressSession) continue
+
+                                if (it.domain == nextMessage.route.domain) {
+                                    iter.remove()
+                                }
+                            }
+                        }
+
                         routes.add(nextMessage.route)
                     }
 

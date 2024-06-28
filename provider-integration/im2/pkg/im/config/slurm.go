@@ -14,8 +14,9 @@ type ServicesConfigurationSlurm struct {
 }
 
 type SlurmCompute struct {
-	AccountManagement SlurmAccountManagement
-	Machines          map[string]SlurmMachineCategory
+	AccountManagement      SlurmAccountManagement
+	Machines               map[string]SlurmMachineCategory
+	FakeResourceAllocation bool
 }
 
 type SlurmMachineCategory struct {
@@ -415,6 +416,9 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				return false, cfg
 			}
 		}
+
+		fakeResourceAllocation, ok := optionalChildBool(filePath, slurmNode, "fakeResourceAllocation")
+		cfg.Compute.FakeResourceAllocation = fakeResourceAllocation && ok
 
 		cfg.Compute.Machines = make(map[string]SlurmMachineCategory)
 		machinesNode := requireChild(filePath, slurmNode, "machines", &success)

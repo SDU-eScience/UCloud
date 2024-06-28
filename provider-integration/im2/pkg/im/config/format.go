@@ -172,7 +172,10 @@ func requireChildBool(path string, node *yaml.Node, child string, success *bool)
 
 func optionalChildBool(path string, node *yaml.Node, child string) (value bool, ok bool) {
 	enableErrorReporting = false
+	ok = true
+
 	value = requireChildBool(path, node, child, &ok)
+
 	enableErrorReporting = true
 	return
 }
@@ -585,7 +588,6 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		if Mode == ServerModeServer {
 			ipcDirModeRequired = FileCheckReadWrite
 		}
-		fmt.Printf("Mode is %v so we will require %v\n", Mode, ipcDirModeRequired)
 		directory := requireChildFolder(filePath, ipc, "directory", ipcDirModeRequired, &success)
 		cfg.Ipc.Directory = directory
 		if !success {

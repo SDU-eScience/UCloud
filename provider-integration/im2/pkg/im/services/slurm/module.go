@@ -15,6 +15,10 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ServiceConfig = config
 
 	ctrl.LaunchUserInstances = true
+	if cfg.Mode == cfg.ServerModeServer {
+		ctrl.InitJobDatabase()
+	}
+
 	ctrl.Files = InitializeFiles()
 	ctrl.Jobs = InitCompute()
 	InitAccountManagement()

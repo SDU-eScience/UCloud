@@ -1,8 +1,12 @@
 package controller
 
 import (
+	"net/http"
 	"sync"
 	"time"
+	fnd "ucloud.dk/pkg/foundation"
+	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -12,18 +16,78 @@ import (
 // This database is intended to be used by the server mode. The server must initialize the system by invoking
 // InitJobDatabase().
 
-var activeJobs map[string]*orc.Job
+var activeJobs = make(map[string]*orc.Job)
 var activeJobsMutex = sync.Mutex{}
 
+type trackRequestType struct {
+	JobId      string
+	ProviderId string
+}
+
+var trackRequest = ipc.NewCall[trackRequestType, util.Empty]("jobdb.track")
+var retrieveRequest = ipc.NewCall[string, *orc.Job]("jobdb.retrieve")
+
 type JobUpdateBatch struct {
-	entries                      []orc.ResourceUpdateAndId[orc.JobUpdate]
-	trackedDirtyStates           map[string]orc.JobState
-	jobIdsToRemoveFromActiveList []string
+	entries            []orc.ResourceUpdateAndId[orc.JobUpdate]
+	trackedDirtyStates map[string]orc.JobState
+	failed             bool
 }
 
 func InitJobDatabase() {
+	if cfg.Mode != cfg.ServerModeServer {
+		return
+	}
+
 	activeJobsMutex.Lock()
 	defer activeJobsMutex.Unlock()
+
+	trackRequest.Handler(func(r *ipc.Request[trackRequestType]) ipc.Response[util.Empty] {
+		job, err := orc.RetrieveJob(r.Payload.JobId,
+			orc.BrowseJobsFlags{
+				IncludeParameters:  true,
+				IncludeApplication: true,
+				IncludeProduct:     true,
+			},
+		)
+
+		if !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+				Payload:    util.Empty{},
+			}
+		}
+
+		if err == nil {
+			job.ProviderGeneratedId = r.Payload.ProviderId
+			TrackNewJob(job)
+		}
+
+		return ipc.Response[util.Empty]{
+			StatusCode: http.StatusOK,
+			Payload:    util.Empty{},
+		}
+	})
+
+	retrieveRequest.Handler(func(r *ipc.Request[string]) ipc.Response[*orc.Job] {
+		job, ok := RetrieveJob(r.Payload)
+		if !ok {
+			return ipc.Response[*orc.Job]{
+				StatusCode: http.StatusNotFound,
+				Payload:    nil,
+			}
+		}
+
+		if !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
+			return ipc.Response[*orc.Job]{
+				StatusCode: http.StatusNotFound,
+				Payload:    nil,
+			}
+		}
+		return ipc.Response[*orc.Job]{
+			StatusCode: http.StatusOK,
+			Payload:    job,
+		}
+	})
 
 	fetchAllJobs(orc.JobStateInQueue)
 	fetchAllJobs(orc.JobStateSuspended)
@@ -31,11 +95,29 @@ func InitJobDatabase() {
 }
 
 func TrackNewJob(job orc.Job) {
-	activeJobsMutex.Lock()
-	defer activeJobsMutex.Unlock()
+	if cfg.Mode == cfg.ServerModeServer {
+		activeJobsMutex.Lock()
+		defer activeJobsMutex.Unlock()
 
-	// NOTE(Dan): A copy is intended here.
-	activeJobs[job.Id] = &job
+		// NOTE(Dan): A copy is intended here.
+		activeJobs[job.Id] = &job
+	}
+
+	if cfg.Mode == cfg.ServerModeUser {
+		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
+	}
+}
+
+func RetrieveJob(jobId string) (*orc.Job, bool) {
+	if cfg.Mode == cfg.ServerModeServer {
+		activeJobsMutex.Lock()
+		job, ok := activeJobs[jobId]
+		activeJobsMutex.Unlock()
+		return job, ok
+	} else {
+		job, err := retrieveRequest.Invoke(jobId)
+		return job, err == nil
+	}
 }
 
 func BeginJobUpdates() *JobUpdateBatch {
@@ -43,6 +125,10 @@ func BeginJobUpdates() *JobUpdateBatch {
 	return &JobUpdateBatch{
 		trackedDirtyStates: make(map[string]orc.JobState),
 	}
+}
+
+func (b *JobUpdateBatch) GetJobs() map[string]*orc.Job {
+	return activeJobs
 }
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
@@ -56,7 +142,7 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 	b.trackedDirtyStates[jobId] = state
 
 	currentJob, ok := activeJobs[jobId]
-	if !ok || currentJob.Status.State != state {
+	if ok && currentJob.Status.State != state {
 		message := ""
 		if status.IsSet() {
 			message = status.Get()
@@ -94,30 +180,113 @@ func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
 }
 
 func (b *JobUpdateBatch) flush() {
+	if b.failed {
+		return
+	}
+
 	if len(b.entries) == 0 {
 		return
 	}
 
+	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+		Items: b.entries,
+	})
+
+	if err != nil {
+		b.failed = true
+		log.Warn("Failed to flush updated jobs: %v", err)
+		return
+	}
+
 	for _, entry := range b.entries {
-		newState := entry.Update.State
-		if newState.IsSet() && newState.Get().IsFinal() {
-			b.jobIdsToRemoveFromActiveList = append(b.jobIdsToRemoveFromActiveList, entry.Id)
+		u := &entry.Update
+		job, ok := activeJobs[entry.Id]
+
+		if !ok {
+			continue
+		}
+
+		if u.ExpectedState.IsSet() {
+			if u.ExpectedState.Get() != job.Status.State {
+				continue
+			}
+		}
+
+		if u.ExpectedDifferentState.Get() {
+			if u.ExpectedDifferentState.Get() && job.Status.State == u.State.Get() {
+				continue
+			}
+		}
+
+		if u.State.IsSet() {
+			job.Status.State = u.State.Get()
+
+			if u.State.Get() == orc.JobStateRunning {
+				job.Status.StartedAt.Set(fnd.Timestamp(time.Now()))
+
+				alloc := job.Specification.TimeAllocation
+				if alloc.IsSet() {
+					job.Status.ExpiresAt.Set(fnd.Timestamp(
+						job.Status.StartedAt.Get().Time().Add(time.Duration(alloc.Get().ToMillis()) * time.Millisecond),
+					))
+				}
+			}
+		}
+
+		if u.NewTimeAllocation.IsSet() {
+			newDuration := orc.SimpleDurationFromMillis(u.NewTimeAllocation.Get())
+			job.Specification.TimeAllocation.Set(newDuration)
+			if job.Status.StartedAt.IsSet() {
+				job.Status.ExpiresAt.Set(fnd.Timestamp(
+					job.Status.StartedAt.Get().Time().Add(time.Duration(newDuration.ToMillis()) * time.Millisecond),
+				))
+			}
+		}
+
+		if u.AllowRestart.IsSet() {
+			job.Status.AllowRestart = u.AllowRestart.Get()
+		}
+
+		if u.OutputFolder.IsSet() {
+			job.Output.OutputFolder.Set(u.OutputFolder.Get())
+		}
+
+		// NOTE(Dan): Mounts are not tracked here since we do not know if they should be added or not. Instead, we rely
+		// on UCloud/Core sending the job one more time which should cause TrackNewJob() to be called again (correcting
+		// the state).
+
+		job.Updates = append(job.Updates, *u)
+
+		if u.State.IsSet() && u.State.Get().IsFinal() {
+			delete(activeJobs, entry.Id)
 		}
 	}
+
+	b.entries = b.entries[:0]
 }
 
 func (b *JobUpdateBatch) End() {
 	defer activeJobsMutex.Unlock()
 
+	if b.failed {
+		return
+	}
+
 	var jobsWithUnknownState []string
-	for activeJobId, _ := range activeJobs {
+	now := time.Now()
+	for activeJobId, job := range activeJobs {
+		if job.Status.State == orc.JobStateInQueue && now.Sub(job.CreatedAt.Time()) < 5*time.Minute {
+			// Do not immediately terminated jobs that we do not get an update for, it might not be on the list yet.
+			// If they do not turn up within 5 minutes, consider it failed.
+			continue
+		}
+
 		_, ok := b.trackedDirtyStates[activeJobId]
 		if !ok {
 			jobsWithUnknownState = append(jobsWithUnknownState, activeJobId)
 		}
 	}
 
-	now := time.Now()
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 

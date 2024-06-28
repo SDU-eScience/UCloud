@@ -299,8 +299,8 @@ class ResourceStore<T>(
         }
 
         if (providerId != null) {
-            updateProviderId(idCard, allocatedId, providerId)
             doc.providerId = providerId
+            updateProviderId(IdCard.System, allocatedId, providerId)
         }
 
         if (addOwnerToAcl && idCard is IdCard.User) {
@@ -1835,6 +1835,9 @@ class ResourceStoreBucket<T>(
             override fun shouldTerminate(): Boolean = isDone
             override fun call(arrIdx: Int) {
                 if (self.id[arrIdx] != id) return
+
+                self.dirtyFlag[arrIdx] = true
+                anyDirty = true
                 self.providerGeneratedId[arrIdx] = newProviderId
                 isDone = true
             }

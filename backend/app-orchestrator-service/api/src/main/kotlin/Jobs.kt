@@ -229,6 +229,8 @@ data class Job(
     val output: JobOutput? = null,
 
     override val permissions: ResourcePermissions? = null,
+
+    override val providerGeneratedId: String? = null,
 ) : Resource<Product.Compute, ComputeSupport>, DocVisualizable {
     companion object {
         fun fromSpecification(

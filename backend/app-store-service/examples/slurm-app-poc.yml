@@ -1,7 +1,7 @@
 ---
 application: v1
 name: slurm-tool
-version: 1
+version: 2
 
 applicationType: BATCH
 
@@ -28,8 +28,5 @@ parameters:
     type: integer
 
 invocation:
-  - tail
-  - -f
-  - /dev/null
   - type: var
     vars: file

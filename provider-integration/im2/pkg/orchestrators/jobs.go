@@ -112,7 +112,7 @@ type JobSpecification struct {
 type ComputeProductReference apm.ProductReference
 
 type JobOutput struct {
-	OutputFolder string `json:"ouputfolder,omitempty"`
+	OutputFolder util.Option[string] `json:"ouputfolder"`
 }
 
 type JobsExtendRequestItem struct {
@@ -515,6 +515,7 @@ type UniversalBackendSupport struct {
 // API
 // =====================================================================================================================
 
+const jobsCtrlNamespace = "jobs.control."
 const jobsCtrlContext = "/api/jobs/control/"
 
 type BrowseJobsFlags struct {
@@ -525,11 +526,30 @@ type BrowseJobsFlags struct {
 	IncludeProduct     bool                  `json:"includeProduct"`
 }
 
+func RetrieveJob(jobId string, flags BrowseJobsFlags) (Job, error) {
+	return c.ApiRetrieve[Job](
+		jobsCtrlNamespace+"retrieve",
+		jobsCtrlContext,
+		"",
+		append([]string{"id", jobId}, c.StructToParameters(flags)...),
+	)
+}
+
 func BrowseJobs(next string, flags BrowseJobsFlags) (fnd.PageV2[Job], error) {
 	return c.ApiBrowse[fnd.PageV2[Job]](
-		jobsCtrlContext+"browse",
+		jobsCtrlNamespace+"browse",
 		jobsCtrlContext,
 		"",
 		append([]string{"next", next}, c.StructToParameters(flags)...),
 	)
+}
+
+func UpdateJobs(request fnd.BulkRequest[ResourceUpdateAndId[JobUpdate]]) error {
+	_, err := c.ApiUpdate[util.Empty](
+		jobsCtrlNamespace+"update",
+		jobsCtrlContext,
+		"update",
+		request,
+	)
+	return err
 }

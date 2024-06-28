@@ -10,7 +10,7 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-func CreateSBatchFile(job *orc.Job, jobFolder string) (string, error) {
+func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (string, error) {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
@@ -20,24 +20,6 @@ func CreateSBatchFile(job *orc.Job, jobFolder string) (string, error) {
 			StatusCode: http.StatusInternalServerError,
 			Why:        "Unknown product requested",
 		}
-	}
-
-	accountName := ""
-	{
-		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(SlurmJobConfiguration{
-			Owner:              orc.ResourceOwnerToWalletOwner(job.Resource),
-			EstimatedProduct:   job.Specification.Product,
-			EstimatedNodeCount: job.Specification.Replicas,
-		})
-
-		if len(accounts) != 1 {
-			return "", &util.HttpError{
-				StatusCode: http.StatusInternalServerError,
-				Why:        "Ambiguous number of accounts",
-			}
-		}
-
-		accountName = accounts[0]
 	}
 
 	formattedTimeAllocation := ""
@@ -90,6 +72,13 @@ func CreateSBatchFile(job *orc.Job, jobFolder string) (string, error) {
 		}
 	}
 
+	devComment := ""
+	if ServiceConfig.Compute.FakeResourceAllocation {
+		devComment = fmt.Sprintf("# Real CPU = %v, Real mem = %v", cpuAllocation, memoryAllocation)
+		cpuAllocation = 1
+		memoryAllocation = "50"
+	}
+
 	builder := &strings.Builder{}
 	{
 		appendLine(builder, "#!/usr/bin/env bash")
@@ -109,6 +98,11 @@ func CreateSBatchFile(job *orc.Job, jobFolder string) (string, error) {
 		}
 		appendLine(builder, "#SBATCH --account %v", accountName)
 		appendLine(builder, "")
+
+		if devComment != "" {
+			appendLine(builder, devComment)
+			appendLine(builder, "")
+		}
 
 		if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
 			allocatedPort := 10000 + rand.Intn(40000)
