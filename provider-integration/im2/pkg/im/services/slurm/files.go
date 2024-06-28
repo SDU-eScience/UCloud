@@ -240,6 +240,7 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 }
 
 func move(request ctrl.MoveFileRequest) error {
+	log.Info("move hit")
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
@@ -281,7 +282,33 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
-	err := os.Rename(sourcePath, destPath)
+	if request.Policy == orc.WriteConflictPolicyRename {
+		existing, _ := os.Stat(destPath)
+		if existing != nil {
+			newPath, err := findAvailableNameOnRename(destPath)
+			destPath = newPath
+
+			if err != nil {
+				log.Error(err.Error())
+				return err
+			}
+		}
+	}
+
+	source, _ := os.Open(sourcePath)
+
+	// TODO(Brian)
+	stat, _ := os.Stat(sourcePath)
+	if stat.IsDir() {
+		return &util.HttpError{
+			StatusCode: http.StatusNotImplemented,
+			Why:        "Copy of folders not implemented yet",
+		}
+	}
+
+	dest, _ := os.Create(destPath)
+	_, err := io.Copy(dest, source)
+
 	if err != nil {
 		parentPath := util.Parent(destPath)
 		parentStat, err := os.Stat(parentPath)
@@ -289,12 +316,12 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		if err != nil {
 			return &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Unable to move file. Could not find destination!",
+				Why:        "Unable to copy file. Could not find destination!",
 			}
 		} else if !parentStat.IsDir() {
 			return &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Unable to move file. Destination is not a directory!",
+				Why:        "Unable to copy file. Destination is not a directory!",
 			}
 		}
 
@@ -302,13 +329,13 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		if err == nil {
 			return &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Unable to move file. Destination already exists!",
+				Why:        "Unable to copy file. Destination already exists!",
 			}
 		}
 
 		return &util.HttpError{
 			StatusCode: http.StatusNotFound,
-			Why:        "Unable to move file.",
+			Why:        "Unable to copy file.",
 		}
 	}
 
@@ -381,6 +408,35 @@ func createDownload(session ctrl.DownloadSession) error {
 	} else {
 		util.SilentClose(file)
 		return nil
+	}
+}
+
+func findAvailableNameOnRename(path string) (string, error) {
+	parent := util.Parent(path)
+	fileName := util.FileName(path)
+	extensionIndex := strings.LastIndex(fileName, ".")
+	newExtension := ""
+
+	if extensionIndex > 0 {
+		extension := fileName[extensionIndex:]
+		fileName = fileName[:extensionIndex]
+		newExtension = extension
+	}
+
+	for i := 1; i < 10000; i++ {
+		newFilename := fmt.Sprintf("%s(%d)", fileName, i)
+		newPath := fmt.Sprintf("%s/%s%s", parent, newFilename, newExtension)
+
+		file, _ := os.Stat(newPath)
+
+		if file == nil {
+			return newPath, nil
+		}
+	}
+
+	return "", &util.HttpError{
+		StatusCode: http.StatusBadRequest,
+		Why:        fmt.Sprintf("Not able to rename file: %s", path),
 	}
 }
 

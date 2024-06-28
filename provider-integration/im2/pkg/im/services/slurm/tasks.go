@@ -1,16 +1,21 @@
-package tasks
+package slurm
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	fnd "ucloud.dk/pkg/foundation"
-	"ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/services/slurm"
+	cfg "ucloud.dk/pkg/im/config"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
+	orc "ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/pkg/util"
 )
 
 /**
@@ -63,23 +68,64 @@ type FileTaskMove struct {
 }*/
 
 type FileTaskCopy struct {
-	Request controller.CopyFileRequest
+	CopyRequest ctrl.CopyFileRequest
 }
 
-type FileTaskSpecification struct {
-	title string
+var registerCall = ipc.NewCall[FileTask, string]("task.register")
+var markAsCompleteCall = ipc.NewCall[string, util.Empty]("task.markAsComplete")
+
+func InitTaskSystem() {
+	log.Info("Initializing FileTasks")
+	if cfg.Mode == cfg.ServerModeServer {
+		registerCall.Handler(func(r *ipc.Request[FileTask]) ipc.Response[string] {
+			drive, ok := RetrieveDrive(r.Payload.DriveId)
+
+			if !ok {
+				return ipc.Response[string]{
+					StatusCode: http.StatusNotFound,
+					Payload:    "",
+				}
+			}
+
+			walletOwner := orc.ResourceOwnerToWalletOwner(drive.Resource)
+
+			if !ctrl.BelongsToWorkspace(walletOwner, r.Uid) {
+				return ipc.Response[string]{
+					StatusCode: http.StatusNotFound,
+					Payload:    "",
+				}
+			}
+
+			// TODO(Brian) Do something
+
+			return ipc.Response[string]{
+				StatusCode: http.StatusOK,
+				Payload:    util.RandomToken(16),
+			}
+		})
+
+		markAsCompleteCall.Handler(func(r *ipc.Request[string]) ipc.Response[util.Empty] {
+			log.Info("markAsComplete got: %s", r.Payload)
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+				Payload:    util.Empty{},
+			}
+		})
+	}
 }
 
 func RegisterTask(task FileTask) {
 
 	taskFolder := findAndInitTaskFolder(task.DriveId)
 
-	// TODO(Brian) Register task through ipc
-	//response := ipc.NewCall[FileTaskSpecification, string]("tasks.Register")
+	// (Brian) Register task through ipc
+	resp, _ := registerCall.Invoke(task)
+	task.Id = resp
+	task.Timestamp = fnd.Timestamp(time.Now())
 
 	file, err := os.OpenFile(
 		taskFolder+"/"+taskPrefix+task.Id+taskSuffix,
-		os.O_CREATE+os.O_RDWR, os.FileMode(int(770)),
+		os.O_CREATE+os.O_RDWR, os.FileMode(0770),
 	)
 	if err != nil {
 		log.Error("Failed to create task file: %v", err)
@@ -98,9 +144,9 @@ func RegisterTask(task FileTask) {
 
 func MarkTaskAsComplete(driveId string, taskId string) {
 	filePath := findAndInitTaskFolder(driveId) + "/" + taskPrefix + taskId + taskSuffix
-
-	// TODO(Brian)
-	//pluginContext.ipcClient.sendRequest(TaskIpc.markAsComplete, FindByStringId(taskId))
+	if _, err := markAsCompleteCall.Invoke(taskId); err != nil {
+		log.Error("Failed to mark task as complete %s: %v", taskId, err)
+	}
 
 	os.Remove(filePath)
 }
@@ -113,31 +159,32 @@ func RetrieveCurrentTasks(driveId string) []FileTask {
 	dirEntries, _ := os.ReadDir(taskFolder)
 
 	for _, entry := range dirEntries {
-		if strings.HasPrefix(entry.Name(), taskPrefix) && strings.HasSuffix(entry.Name(), taskSuffix) {
-			file, _ := os.ReadFile(taskFolder + "/" + entry.Name())
-			task := FileTask{}
-			err := json.Unmarshal(file, &task)
-
-			if err != nil {
-				log.Error("Unable to unmarshal task %s: %v", entry.Name(), err)
-				continue
-			}
-
-			result = append(result, task)
+		if !strings.HasPrefix(entry.Name(), taskPrefix) || !strings.HasSuffix(entry.Name(), taskSuffix) {
+			continue
 		}
+
+		file, _ := os.ReadFile(taskFolder + "/" + entry.Name())
+		task := FileTask{}
+		err := json.Unmarshal(file, &task)
+
+		if err != nil {
+			log.Error("Unable to unmarshal task %s: %v", entry.Name(), err)
+			continue
+		}
+
+		result = append(result, task)
 	}
 
 	return result
 }
 
 func findAndInitTaskFolder(driveId string) string {
-	folder, _ := slurm.UCloudToInternal(fmt.Sprintf("/%s/%s", driveId, taskFolder))
+	folder, _ := UCloudToInternal(fmt.Sprintf("/%s/%s", driveId, taskFolder))
 
 	if _, err := os.Stat(folder); errors.Is(err, os.ErrNotExist) {
-		os.Mkdir(
-			folder,
-			os.FileMode(int(770)),
-		)
+		if err := os.Mkdir(folder, os.FileMode(0770)); err != nil {
+			log.Error("Unable to create folder: %v", err)
+		}
 	}
 
 	return folder

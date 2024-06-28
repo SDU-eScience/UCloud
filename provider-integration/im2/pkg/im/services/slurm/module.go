@@ -2,6 +2,7 @@ package slurm
 
 import (
 	"syscall"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/idfreeipa"
@@ -16,6 +17,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 
 	ctrl.LaunchUserInstances = true
 	ctrl.Files = InitializeFiles()
+	InitTaskSystem()
 
 	if cfg.Mode == cfg.ServerModeUser {
 		// NOTE(Dan): Set the umask required for this service. This is done to make sure that projects have predictable
