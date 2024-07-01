@@ -2,12 +2,12 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef} from "react";
 import {injectStyle} from "@/Unstyled";
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, Icon, Input, Select, TextArea} from "@/ui-components";
+import {Box, Button, Checkbox, ExternalLink, Icon, Input, Select, TextArea} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {PageV2} from "@/UCloud";
+import {ProviderTitle, getProviderTitle} from "@/Providers/ProviderTitle";
+import {PageV2, provider} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
@@ -1965,8 +1965,10 @@ export function Editor(): React.ReactNode {
                                 if (relevantCategories.length === 0) return null;
 
                                 return <React.Fragment key={providerId}>
-                                    <h3><ProviderLogo providerId={providerId} size={40} /> <ProviderTitle
-                                        providerId={providerId} /></h3>
+                                    <ExternalLink href={`/app${AppRoutes.providers.detailed(providerId)}`}>
+                                        <h3><ProviderLogo providerId={providerId} size={40} /> <ProviderTitle
+                                            providerId={providerId} /><Icon name="heroArrowTopRightOnSquare" /></h3>
+                                    </ExternalLink>
 
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
