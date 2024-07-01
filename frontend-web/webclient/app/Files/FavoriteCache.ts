@@ -14,9 +14,11 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
     private isDirty: boolean = false;
     public loading = false;
     public error = "";
+    public initialized = false;
 
     public async fetch(next?: string): Promise<void> {
         this.loading = true;
+        this.initialized = true;
         try {
             this.setCache(await callAPI(metadataApi.browse({
                 filterActive: true,
