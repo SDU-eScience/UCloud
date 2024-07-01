@@ -8,8 +8,8 @@ import java.util.Base64
 @JvmInline
 value class Json(val encoded: String)
 
-const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.24"
-const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.24"
+const val imDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2024.1.35"
+const val slurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2024.1.35"
 
 sealed class PortAllocator {
     abstract fun allocate(port: Int): Int
@@ -1144,7 +1144,7 @@ sealed class ComposeService {
                             compose.exec(
                                 currentEnvironment,
                                 client,
-                                listOf("sh", "-c", "sssd || sssd || sssd || sssd")
+                                listOf("sh", "-c", "sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd")
                             ).streamOutput().executeToText()
 
                             printStatus("$client has been enrolled in FreeIPA!")
@@ -1261,6 +1261,12 @@ sealed class ComposeService {
                             header_regexp slurmapp Host ^slurm-.*
                         }
                         reverse_proxy @slurmapps slurm:8889
+
+                        @goslurmapps {
+                            header_regexp goslurmapp Host ^goslurm-.*
+                        }
+                        reverse_proxy @goslurmapps go-slurm:8889
+
                     }
                 """.trimIndent()
             )
@@ -1485,6 +1491,19 @@ fun slurmInstall(providerContainer: String) {
             "/etc/slurm"
         ),
         tty = false
+    ).streamOutput().executeToText()
+
+    compose.exec(
+        currentEnvironment,
+        "slurmctld",
+        listOf(
+            "/usr/bin/sacctmgr",
+            "--immediate",
+            "add",
+            "qos",
+            "standard"
+        ),
+        tty = false,
     ).streamOutput().executeToText()
 
     // Restart slurmctld in case configuration file has changed

@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -40,11 +41,14 @@ func InitCompute() ctrl.JobsService {
 	}
 
 	return ctrl.JobsService{
-		Submit:           submitJob,
-		Terminate:        terminateJob,
-		Extend:           extendJob,
-		RetrieveProducts: retrieveMachineSupport,
-		Follow:           follow,
+		Submit:            submitJob,
+		Terminate:         terminateJob,
+		Extend:            extendJob,
+		RetrieveProducts:  retrieveMachineSupport,
+		Follow:            follow,
+		HandleShell:       handleShell,
+		OpenWebSession:    openWebSession,
+		ServerFindIngress: serverFindIngress,
 	}
 }
 
@@ -347,7 +351,7 @@ func loadProducts() {
 		}
 
 		support.Native.Enabled = true
-		support.Native.Web = true
+		support.Native.Web = ServiceConfig.Compute.Web.Enabled
 		support.Native.Vnc = true
 		support.Native.Logs = true
 		support.Native.Terminal = true
@@ -485,6 +489,47 @@ func follow(session *ctrl.FollowJobSession) {
 
 		time.Sleep(200 * time.Millisecond)
 	}
+}
+
+func serverFindIngress(job *orc.Job) ctrl.ConfiguredWebIngress {
+	return ctrl.ConfiguredWebIngress{
+		IsPublic:     false,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + ServiceConfig.Compute.Web.Suffix,
+	}
+}
+
+func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
+	parsedId, ok := parseProviderId(job.ProviderGeneratedId)
+	if !ok {
+		return cfg.HostInfo{}, errors.New("could not parse provider id")
+	}
+
+	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
+	if len(nodes) <= rank {
+		return cfg.HostInfo{}, errors.New("could not find slurm node")
+	}
+
+	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
+	if !ok {
+		return cfg.HostInfo{}, fmt.Errorf("could not resolve internal folder needed for logs: %v", jobFolder)
+	}
+
+	outputFolder := filepath.Join(jobFolder, job.Id)
+	portFilePath := filepath.Join(outputFolder, AllocatedPortFile)
+	portFileData, err := os.ReadFile(portFilePath)
+	if err != nil {
+		return cfg.HostInfo{}, fmt.Errorf("could not read port file: %v", err)
+	}
+	allocatedPort, err := strconv.Atoi(strings.TrimSpace(string(portFileData)))
+	if err != nil {
+		return cfg.HostInfo{}, fmt.Errorf("corrupt port file: %v", err)
+	}
+
+	return cfg.HostInfo{
+		Address: nodes[rank],
+		Port:    allocatedPort,
+		Scheme:  "http",
+	}, nil
 }
 
 func FindJobFolder(owner apm.WalletOwner) (string, bool) {
