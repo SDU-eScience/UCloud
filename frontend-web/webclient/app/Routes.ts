@@ -21,6 +21,10 @@ const admin = {
     scripts: () => "/admin/scripts",
     playground: () => "/playground",
 };
+    
+const providers = {
+    detailed: (id: string) => `/providers/detailed/${id}`
+}
 
 const shares = {
     sharedByMe: () => "/shares/outgoing",
@@ -132,6 +136,7 @@ const AppRoutes = {
     syncthing,
     grants,
     accounting,
+    providers,
     files,
 };
 
