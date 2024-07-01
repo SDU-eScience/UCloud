@@ -6,8 +6,8 @@ import {Box, Button, Checkbox, ExternalLink, Icon, Input, Select, TextArea} from
 import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {ProviderTitle, getProviderTitle} from "@/Providers/ProviderTitle";
-import {PageV2, provider} from "@/UCloud";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
