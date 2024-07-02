@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
@@ -20,6 +21,8 @@ import (
 )
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
+var tasksInitializedMutex sync.Mutex
+var tasksInitialized []string
 
 func InitializeFiles() ctrl.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
@@ -31,6 +34,31 @@ func InitializeFiles() ctrl.FileService {
 		Copy:                  copyFiles,
 		CreateDownloadSession: createDownload,
 		Download:              download,
+	}
+}
+
+func initializeFileTasks(driveId string) {
+	tasksInitializedMutex.Lock()
+	defer tasksInitializedMutex.Unlock()
+	var found = false
+
+	for _, initializedTask := range tasksInitialized {
+		if initializedTask == driveId {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		tasksInitialized = append(tasksInitialized, driveId)
+		currentTasks := RetrieveCurrentTasks(driveId)
+
+		currentTasksJson, _ := json.Marshal(currentTasks)
+		log.Info("CurrentTasks: %s", currentTasksJson)
+
+		for _, task := range currentTasks {
+			task.process(false)
+		}
 	}
 }
 
@@ -88,6 +116,8 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
 	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
 	sortBy := request.SortBy
+
+	initializeFileTasks(request.Drive.Id)
 
 	fileList, ok := browseCache.Get(internalPath)
 	if !ok || request.Next == "" {
@@ -240,7 +270,6 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 }
 
 func move(request ctrl.MoveFileRequest) error {
-	log.Info("move hit")
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
@@ -279,6 +308,45 @@ func move(request ctrl.MoveFileRequest) error {
 }
 
 func copyFiles(request ctrl.CopyFileRequest) error {
+	task := FileTask{
+		Type:        FileTaskTypeCopy,
+		Title:       "Copying files...",
+		DriveId:     request.OldDrive.Id,
+		Timestamp:   fnd.Timestamp(time.Now()),
+		CopyRequest: request,
+	}
+
+	task.process(true)
+
+	return nil
+}
+
+func (t *FileTask) process(doCreate bool) {
+	processTaskJson, _ := json.Marshal(t)
+	log.Info("task.process called %s", processTaskJson)
+
+	if doCreate {
+		RegisterTask(t)
+	}
+
+	go func() {
+		if t.Type == FileTaskTypeCopy {
+			err := processCopyTask(t)
+
+			if err != nil {
+				log.Error("Copy task failed: %v", err)
+				return
+			}
+
+			MarkTaskAsComplete(t.DriveId, t.Id)
+		}
+	}()
+}
+
+func processCopyTask(task *FileTask) error {
+	request := task.CopyRequest
+	log.Info("ProcessCopyTask %v", request)
+
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
@@ -340,6 +408,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 	}
 
 	return nil
+
 }
 
 func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile, drive orc.Drive) {

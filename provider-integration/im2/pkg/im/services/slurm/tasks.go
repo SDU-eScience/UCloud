@@ -51,7 +51,7 @@ type FileTask struct {
 	//FileTaskMoveToTrash
 	//FileTaskEmptyTrash
 	//FileTaskMove
-	FileTaskCopy
+	CopyRequest ctrl.CopyFileRequest
 }
 
 /*type FileTaskMoveToTrash struct {
@@ -68,7 +68,7 @@ type FileTaskMove struct {
 }*/
 
 type FileTaskCopy struct {
-	CopyRequest ctrl.CopyFileRequest
+	ctrl.CopyFileRequest
 }
 
 var registerCall = ipc.NewCall[FileTask, string]("task.register")
@@ -114,12 +114,12 @@ func InitTaskSystem() {
 	}
 }
 
-func RegisterTask(task FileTask) {
+func RegisterTask(task *FileTask) {
 
 	taskFolder := findAndInitTaskFolder(task.DriveId)
 
-	// (Brian) Register task through ipc
-	resp, _ := registerCall.Invoke(task)
+	// TODO (Brian) Register task through ipc
+	resp, _ := registerCall.Invoke(*task)
 	task.Id = resp
 	task.Timestamp = fnd.Timestamp(time.Now())
 
@@ -143,11 +143,13 @@ func RegisterTask(task FileTask) {
 }
 
 func MarkTaskAsComplete(driveId string, taskId string) {
+	log.Info("Marking task %s as complete", taskId)
 	filePath := findAndInitTaskFolder(driveId) + "/" + taskPrefix + taskId + taskSuffix
 	if _, err := markAsCompleteCall.Invoke(taskId); err != nil {
 		log.Error("Failed to mark task as complete %s: %v", taskId, err)
 	}
 
+	log.Info("Removing %s", filePath)
 	os.Remove(filePath)
 }
 
