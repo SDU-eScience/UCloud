@@ -2,50 +2,72 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Button, Flex} from "@/ui-components";
+import {Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
-import {callAPIWithErrorHandler, noopCall, useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import FavoriteBrowse from "@/Files/FavoritesBrowse";
-import FilesApi from "@/UCloud/FilesApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {dialogStore} from "@/Dialog/DialogStore";
+import {showWarning} from "@/Accounting/Allocations";
 
 const iconsNames = Object.keys(icons) as IconName[];
+
+interface UsageAndQuota {
+    usage: number;
+    quota: number;
+    unit: string;
+    maxUsable: number;
+    retiredAmount: number;
+    retiredAmountStillCounts: boolean;
+}
+
+const usagesAndTypes: {
+    uq: UsageAndQuota;
+    triangle: boolean;
+}[] = [{
+    triangle: false,
+    uq: {maxUsable: 90 - 4, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 4}
+},{
+    triangle: true,
+    uq: {maxUsable: 90 - (0.95 * 90), quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 0.95 * 90}
+}, {
+    triangle: false,
+    uq: {maxUsable: 90 - 84, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 84}
+}, /* {
+    triangle: true,
+    uq: {maxUsable: 0, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 44}
+} */];
 
 const Playground: React.FunctionComponent = () => {
     const main = (
         <>
-            <Button onClick={(() => {
-                dialogStore.addDialog(<FavoriteBrowse navigateToFolder={() => void 0} selection={{
-                    async onClick(res) {
-                        const file = "path" in res ? await callAPIWithErrorHandler(FilesApi.retrieve({id: res.path})) : res;
-                        if (file) {
-                            if (file.status.type !== "DIRECTORY") {
-                                snackbarStore.addFailure("Wanted directory, got something else!", false);
-                            } else {
-                                snackbarStore.addSuccess("Success!!!", false);
-                                dialogStore.success();
-                            }
-                        }
-                    }, show(res) {
-                        return true;
-                    }, text: "Use"
-                }} />, noopCall);
-            })}>
-                Select file
-            </Button>
-            <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
+            {usagesAndTypes.map(({uq, triangle}) => {
+                if (uq.quota == 0) return null;
+                let usage: number
+                if (uq.retiredAmountStillCounts) {
+                    usage = uq.usage
+                } else {
+                    usage = uq.usage - uq.retiredAmount
+                }
+
+                return <NewAndImprovedProgress
+                    limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
+                    label={triangle ? "Expect warning" : "Expect no warning"}
+                    percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
+                    withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
+                />
+            })}
+
+
+            {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={40} label="Forty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={60} label="Sixty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={80} label="Eighty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={100} label="Hundred!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={120} label="Above!!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={120} label="OY!" percentage={110} />
-            <NewAndImprovedProgress limitPercentage={100} label="OY!" percentage={130} withWarning />
+            <NewAndImprovedProgress limitPercentage={100} label="OY!" percentage={130} withWarning /> */}
             <PaletteColors />
             <Colors />
             <EveryIcon />
