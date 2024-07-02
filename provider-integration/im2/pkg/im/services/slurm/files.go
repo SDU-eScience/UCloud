@@ -343,6 +343,40 @@ func (t *FileTask) process(doCreate bool) {
 	}()
 }
 
+func copyDirectory(sourcePath string, destPath string) error {
+	log.Info("copyDirectory: %s to %s", sourcePath, destPath)
+
+	sourceFile, _ := os.Open(sourcePath)
+
+	err := os.Mkdir(destPath, 0770)
+
+	if err != nil {
+		return err
+	}
+
+	dirEntries, _ := sourceFile.ReadDir(0)
+	for _, entry := range dirEntries {
+		if entry.IsDir() {
+			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
+			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
+			copyDirectory(newSource, newDest)
+		} else {
+			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
+			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
+
+			source, _ := os.Open(newSource)
+			dest, _ := os.Create(newDest)
+			_, err := io.Copy(dest, source)
+
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func processCopyTask(task *FileTask) error {
 	request := task.CopyRequest
 	log.Info("ProcessCopyTask %v", request)
@@ -363,19 +397,19 @@ func processCopyTask(task *FileTask) error {
 		}
 	}
 
-	source, _ := os.Open(sourcePath)
-
-	// TODO(Brian)
 	stat, _ := os.Stat(sourcePath)
-	if stat.IsDir() {
-		return &util.HttpError{
-			StatusCode: http.StatusNotImplemented,
-			Why:        "Copy of folders not implemented yet",
-		}
-	}
 
-	dest, _ := os.Create(destPath)
-	_, err := io.Copy(dest, source)
+	err := func() error {
+		if stat.IsDir() {
+			return copyDirectory(sourcePath, destPath)
+		} else {
+			source, _ := os.Open(sourcePath)
+			dest, _ := os.Create(destPath)
+			_, err := io.Copy(dest, source)
+
+			return err
+		}
+	}()
 
 	if err != nil {
 		parentPath := util.Parent(destPath)
