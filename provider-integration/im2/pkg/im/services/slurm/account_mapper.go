@@ -296,6 +296,7 @@ func reverseAccMapKey(input string) (owner apm.WalletOwner, category string, ok 
 		owner = apm.WalletOwnerProject(projectId)
 	}
 
+	ok = true
 	return
 }
 

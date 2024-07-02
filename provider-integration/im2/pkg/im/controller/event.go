@@ -80,8 +80,11 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			return
 		}
 
+		trackAllocation(update)
+
 		log.Info("Handling wallet event %v %v %v %v %v", update.Owner.Username, update.Owner.ProjectId,
 			update.Category.Name, update.CombinedQuota, update.Locked)
+
 		if LaunchUserInstances {
 			if update.Owner.Type == apm.WalletOwnerTypeUser {
 				_, ok := MapUCloudToLocal(update.Owner.Username)
@@ -491,4 +494,44 @@ func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
 		MembersAddedToProject:     newMembers,
 		MembersRemovedFromProject: removedMembers,
 	}
+}
+
+const kvdbAllocationPrefix = "allocation-"
+
+type TrackedAllocation struct {
+	Owner         apm.WalletOwner
+	Category      string
+	CombinedQuota uint64
+	Locked        bool
+	LastUpdate    fnd.Timestamp
+}
+
+func trackAllocationKey(owner apm.WalletOwner, categoryName string) string {
+	return fmt.Sprintf("%v%v/%v/%v", kvdbAllocationPrefix, categoryName, owner.Username, owner.ProjectId)
+}
+
+func trackAllocation(update *NotificationWalletUpdated) {
+	key := trackAllocationKey(update.Owner, update.Category.Name)
+	kvdb.Set(key, TrackedAllocation{
+		Owner:         update.Owner,
+		Category:      update.Category.Name,
+		CombinedQuota: update.CombinedQuota,
+		Locked:        update.Locked,
+		LastUpdate:    update.LastUpdate,
+	})
+}
+
+func FindAllAllocations(categoryName string) []TrackedAllocation {
+	var result []TrackedAllocation
+
+	prefix := kvdbAllocationPrefix + categoryName + "/"
+	keys := kvdb.ListKeysWithPrefix(prefix)
+	for _, key := range keys {
+		alloc, ok := kvdb.Get[TrackedAllocation](key)
+		if ok {
+			result = append(result, alloc)
+		}
+	}
+
+	return result
 }

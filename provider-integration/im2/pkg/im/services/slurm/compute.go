@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/slurm"
@@ -35,6 +36,7 @@ func InitCompute() ctrl.JobsService {
 		go func() {
 			for util.IsAlive {
 				loopComputeMonitoring()
+				loopAccounting()
 				time.Sleep(5 * time.Second)
 			}
 		}()
@@ -49,6 +51,46 @@ func InitCompute() ctrl.JobsService {
 		HandleShell:       handleShell,
 		OpenWebSession:    openWebSession,
 		ServerFindIngress: serverFindIngress,
+	}
+}
+
+var nextComputeAccountingTime = time.Now()
+
+func loopAccounting() {
+	now := time.Now()
+	if now.After(nextComputeAccountingTime) {
+		billing := Accounting.FetchUsage()
+
+		var reportItems []apm.UsageReportItem
+		for owner, usage := range billing {
+			reportItems = append(reportItems,
+				apm.UsageReportItem{
+					IsDeltaCharge: false,
+					Owner:         owner.Owner,
+					CategoryIdV2: apm.ProductCategoryIdV2{
+						Name:     owner.AssociatedWithCategory,
+						Provider: cfg.Provider.Id,
+					},
+					Usage: usage,
+				},
+			)
+
+			if len(reportItems) > 500 {
+				_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportItems})
+				if err != nil {
+					log.Warn("Failed to report usage: %v", err)
+				}
+			}
+		}
+
+		if len(reportItems) > 0 {
+			_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: reportItems})
+			if err != nil {
+				log.Warn("Failed to report usage: %v", err)
+			}
+		}
+
+		nextComputeAccountingTime = now.Add(30 * time.Second)
 	}
 }
 

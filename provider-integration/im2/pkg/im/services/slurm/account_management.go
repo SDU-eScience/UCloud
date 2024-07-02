@@ -10,6 +10,7 @@ import (
 
 type AccountingService interface {
 	OnWalletUpdated(update *ctrl.NotificationWalletUpdated)
+	FetchUsage() map[SlurmAccountOwner]int64
 }
 
 type AccountMapperService interface {

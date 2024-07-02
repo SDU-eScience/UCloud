@@ -330,3 +330,41 @@ func expandNodeList(str string) []string {
 	}
 	return result
 }
+
+func (c *Client) AccountBillingList() map[string]int64 {
+	var result = map[string]int64{}
+	stdout, ok := util.RunCommand([]string{"sshare", "-Pho", "account,user,grptresraw"})
+	if !ok {
+		return result
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		columns := strings.Split(line, "|")
+		if len(columns) != 3 {
+			continue
+		}
+
+		account := strings.TrimSpace(columns[0])
+		user := strings.TrimSpace(columns[1])
+		grptresRaw := strings.TrimSpace(columns[2])
+
+		if account == "" || user != "" {
+			continue
+		}
+
+		billingSubmatches := billingRegex.FindStringSubmatch(grptresRaw)
+		if len(billingSubmatches) != 2 {
+			continue
+		}
+		usage, err := strconv.ParseInt(billingSubmatches[1], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		result[account] = usage
+	}
+	return result
+}
+
+var billingRegex = regexp.MustCompile("billing=(\\d+)")

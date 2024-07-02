@@ -170,3 +170,15 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 
 	SlurmClient.AccountModify(account)
 }
+
+func (a *automaticAccountManagementService) FetchUsage() map[SlurmAccountOwner]int64 {
+	result := map[SlurmAccountOwner]int64{}
+	billing := SlurmClient.AccountBillingList()
+	for account, usage := range billing {
+		owners := AccountMapper.ServerLookupOwnerOfAccount(account)
+		for _, owner := range owners {
+			result[owner] = usage
+		}
+	}
+	return result
+}
