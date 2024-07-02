@@ -53,9 +53,6 @@ func initializeFileTasks(driveId string) {
 		tasksInitialized = append(tasksInitialized, driveId)
 		currentTasks := RetrieveCurrentTasks(driveId)
 
-		currentTasksJson, _ := json.Marshal(currentTasks)
-		log.Info("CurrentTasks: %s", currentTasksJson)
-
 		for _, task := range currentTasks {
 			task.process(false)
 		}
@@ -322,9 +319,6 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 }
 
 func (t *FileTask) process(doCreate bool) {
-	processTaskJson, _ := json.Marshal(t)
-	log.Info("task.process called %s", processTaskJson)
-
 	if doCreate {
 		RegisterTask(t)
 	}
@@ -343,13 +337,10 @@ func (t *FileTask) process(doCreate bool) {
 	}()
 }
 
-func copyDirectory(sourcePath string, destPath string) error {
-	log.Info("copyDirectory: %s to %s", sourcePath, destPath)
-
+func copyFolder(sourcePath string, destPath string) error {
 	sourceFile, _ := os.Open(sourcePath)
 
 	err := os.Mkdir(destPath, 0770)
-
 	if err != nil {
 		return err
 	}
@@ -359,7 +350,7 @@ func copyDirectory(sourcePath string, destPath string) error {
 		if entry.IsDir() {
 			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
 			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
-			copyDirectory(newSource, newDest)
+			copyFolder(newSource, newDest)
 		} else {
 			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
 			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
@@ -379,7 +370,6 @@ func copyDirectory(sourcePath string, destPath string) error {
 
 func processCopyTask(task *FileTask) error {
 	request := task.CopyRequest
-	log.Info("ProcessCopyTask %v", request)
 
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
@@ -401,7 +391,7 @@ func processCopyTask(task *FileTask) error {
 
 	err := func() error {
 		if stat.IsDir() {
-			return copyDirectory(sourcePath, destPath)
+			return copyFolder(sourcePath, destPath)
 		} else {
 			source, _ := os.Open(sourcePath)
 			dest, _ := os.Create(destPath)
@@ -414,7 +404,6 @@ func processCopyTask(task *FileTask) error {
 	if err != nil {
 		parentPath := util.Parent(destPath)
 		parentStat, err := os.Stat(parentPath)
-		log.Info("path = %v stat=%v err=%v", parentPath, parentStat, err)
 		if err != nil {
 			return &util.HttpError{
 				StatusCode: http.StatusNotFound,
