@@ -1868,13 +1868,14 @@ function ProgressBar({uq, type}: {
         limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
         label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
-        withWarning={!withinDelta(uq.quota, uq.maxUsable, uq.usage)}
+        withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
     />;
 }
 
-export function withinDelta(quota: number, maxUsable: number, usage: number): boolean {
-    const diff = quota - maxUsable - usage;
-    return diff / quota <= 0.001;
+export function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+    if (maxUsable + usage >= quota) return false;
+    if (maxUsable + usage === 0) return false;
+    return usage / (maxUsable + usage) >= 0.95; // Note(Jonas): Also handles usage === 0
 }
 
 const productTypesByPriority: ProductType[] = [

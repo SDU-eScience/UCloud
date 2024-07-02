@@ -139,14 +139,17 @@ type OpenSessionWithProvider struct {
 }
 
 type OpenSession struct {
-	Type              OpenSessionType
-	JobId             string
-	Rank              int
-	DomainOverride    string ``
-	RedirectClientTo  string
-	SessionIdentifier string
-	Url               string
-	Password          string
+	Type           OpenSessionType `json:"type"`
+	JobId          string          `json:"jobId"`
+	Rank           int             `json:"rank"`
+	DomainOverride string          `json:"domainOverride"`
+
+	RedirectClientTo string `json:"redirectClientTo,omitempty"` // Web
+
+	SessionIdentifier string `json:"sessionIdentifier,omitempty"` // Shell
+
+	Url      string `json:"url,omitempty"`      // VNC
+	Password string `json:"password,omitempty"` // VNC
 }
 
 type OpenSessionType string

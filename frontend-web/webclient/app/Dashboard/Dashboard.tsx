@@ -37,7 +37,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {totalUsageExcludingRetiredIfNeeded, withinDelta} from "@/Accounting/Allocations";
+import {totalUsageExcludingRetiredIfNeeded, showWarning} from "@/Accounting/Allocations";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -254,7 +254,7 @@ function DashboardResources({wallets}: {
                                     </TableCell>
                                     <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                         <Flex justifyContent="end">
-                                            {withinDelta(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
+                                            {!showWarning(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
                                                 <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                     <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
                                                 </TooltipV2>

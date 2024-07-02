@@ -89,6 +89,11 @@ services:
         users: "#{localUsername}_#{productCategory}"
         projects: "#{localGroupName}_#{productCategory}"
 
+    web:
+      enabled: true
+      prefix: "goslurm-"
+      suffix: ".localhost.direct"
+
     machines:
       u1-standard:
         partition: normal

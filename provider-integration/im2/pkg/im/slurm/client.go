@@ -301,3 +301,32 @@ func (c *Client) JobCancel(id int) bool {
 	_, ok := util.RunCommand(cmd)
 	return ok
 }
+
+func (c *Client) JobGetNodeList(id int) []string {
+	stdout, ok := util.RunCommand([]string{"sacct", "--jobs", fmt.Sprint(id), "--format", "nodelist",
+		"--parsable2", "--allusers", "--allocations", "--noheader"})
+	if !ok {
+		return nil
+	}
+
+	return expandNodeList(stdout)
+}
+
+func expandNodeList(str string) []string {
+	var result []string
+	stdout, ok := util.RunCommand([]string{"scontrol", "show", "hostname", str})
+	if !ok {
+		return result
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		result = append(result, trimmed)
+	}
+	return result
+}

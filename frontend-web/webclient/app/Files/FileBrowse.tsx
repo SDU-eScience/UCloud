@@ -161,8 +161,10 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        search: !opts?.isModal
+        search: !opts?.isModal,
+        filters: !opts?.omitFilters,
     }
+
 
     const didUnmount = useDidUnmount();
 

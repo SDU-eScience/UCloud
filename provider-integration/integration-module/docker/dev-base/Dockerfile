@@ -50,4 +50,6 @@ WORKDIR /opt/ucloud
 RUN cp /etc/passwd /etc/passwd.orig
 RUN cp /etc/group /etc/group.orig
 RUN cp /etc/shadow /etc/shadow.orig
-
+RUN mkdir /gpfs
+RUN ln -s /home /gpfs/home
+RUN ln -s /work /gpfs/work

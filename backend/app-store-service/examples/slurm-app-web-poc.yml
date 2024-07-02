@@ -1,0 +1,29 @@
+---
+application: v1
+name: slurm-web-tool
+version: 2
+
+applicationType: WEB
+web:
+  port: 55555
+
+allowMultiNode: true
+
+title: Slurm tool
+description: Slurm Tool
+authors: ["UCloud"]
+
+tool:
+  name: slurm-tool
+  version: 1
+
+parameters:
+  file:
+    optional:  false
+    title: "file"
+    description: "The executable to run"
+    type: input_file
+
+invocation:
+  - type: var
+    vars: file

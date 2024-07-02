@@ -502,6 +502,13 @@ func (h HostInfo) ToURL() string {
 	return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
 }
 
+func (h HostInfo) ToWebSocketUrl() string {
+	url := h.ToURL()
+	url = strings.ReplaceAll(url, "http://", "ws://")
+	url = strings.ReplaceAll(url, "https://", "wss://")
+	return url
+}
+
 type ServerConfiguration struct {
 	RefreshToken string
 }
