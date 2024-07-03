@@ -45,10 +45,12 @@ class UsageScan(
 
         repeat(8) { taskId ->
             ScanningScope.launch {
+                log.info("Scan loop has started!")
                 var loopActive = true
                 whileGraal({ isActive && loopActive }) {
                     try {
                         val task = scanQueue.receiveCatching().getOrNull() ?: run {
+                            log.error("Breaking scan loop! This should probably not happen unless we are shutting down.")
                             loopActive = false
                             return@whileGraal
                         }
@@ -107,11 +109,14 @@ class UsageScan(
 
     private suspend fun usageScanFetchDriveIdsForScanGraal(
         driveIds: List<Long>,
-        lastScans: HashMap<Long, Long>,
-        now: Long
-    ) {
+        ignoreTimeSinceLastScan: Boolean,
+    ): List<Long> {
         if (driveIds.isNotEmpty()) {
-            dbConnection.withSession { session ->
+            val now = Time.now()
+            val minimumTime = if (ignoreTimeSinceLastScan) 0L else now - (1000L * 60 * 60 * 8)
+            val lastScans = HashMap<Long, Long>()
+
+            return dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
                         select drive_id, last_scan
@@ -127,6 +132,8 @@ class UsageScan(
                     }
                 )
 
+                val toUpdate = lastScans.filter { ignoreTimeSinceLastScan || it.value <= minimumTime }.map { it.key }
+
                 session.prepareStatement(
                     """
                         with data as (
@@ -140,12 +147,15 @@ class UsageScan(
                     """
                 ).useAndInvokeAndDiscardGraal(
                     prepare = {
-                        bindList("drive_ids", driveIds, SQL_TYPE_HINT_INT8)
+                        bindList("drive_ids", toUpdate, SQL_TYPE_HINT_INT8)
                         bindLong("now", now)
                     }
                 )
+
+                toUpdate
             }
         }
+        return emptyList()
     }
 
     private suspend fun scanAll(ignoreTimeSinceLastScan: Boolean) {
@@ -157,17 +167,15 @@ class UsageScan(
             whileGraal({ innerActive }) {
                 val page = pathConverter.locator.enumerateDrives(next = next)
                 val driveIds = page.items.map { it.drive.ucloudId }
-                val lastScans = HashMap<Long, Long>()
-                val now = Time.now()
-                usageScanFetchDriveIdsForScanGraal(driveIds, lastScans, now)
+                val toScan = usageScanFetchDriveIdsForScanGraal(driveIds, ignoreTimeSinceLastScan)
 
-                page.items.forEachGraal { item ->
-                    val timeSinceLastScan = now - (lastScans[item.drive.ucloudId] ?: 0L)
-                    if (ignoreTimeSinceLastScan || timeSinceLastScan >= 1000L * 60 * 60 * 12) {
-                        scanQueue.send(ScanTask(item))
+                toScan.forEachGraal { item ->
+                    val toSubmit = page.items.find { it.drive.ucloudId == item }
+                    if (toSubmit != null) {
+                        scansSubmitted++
+                        scanQueue.send(ScanTask(toSubmit))
                     }
                 }
-                scansSubmitted += page.items.size
 
                 val nextToken = page.next
                 if (nextToken == null) {
@@ -177,7 +185,7 @@ class UsageScan(
                 }
             }
 
-            if (scansSubmitted > 0) {
+            if (scansSubmitted >= 0) {
                 log.info("Started $scansSubmitted drive scans!")
             }
         } catch (ex: Throwable) {
