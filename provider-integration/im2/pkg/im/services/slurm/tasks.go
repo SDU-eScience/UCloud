@@ -43,39 +43,21 @@ const (
 )
 
 type FileTask struct {
-	Type      FileTaskType
-	Title     string
-	DriveId   string
-	Id        string
-	Timestamp fnd.Timestamp
-	//FileTaskMoveToTrash
-	//FileTaskEmptyTrash
-	//FileTaskMove
-	CopyRequest ctrl.CopyFileRequest
-}
-
-/*type FileTaskMoveToTrash struct {
-	Drive   orc.Drive
-	Request []FilesProviderTrashRequestItem
-}
-
-type FileTaskEmptyTrash struct {
-	Request FilesProviderEmptyTrashRequestItem
-}
-
-type FileTaskMove struct {
-	Request FilesProviderMoveRequestItem
-}*/
-
-type FileTaskCopy struct {
-	ctrl.CopyFileRequest
+	Type               FileTaskType
+	Title              string
+	DriveId            string
+	Id                 string
+	Timestamp          fnd.Timestamp
+	MoveToTrashRequest ctrl.MoveToTrashRequest
+	EmptyTrashRequest  ctrl.EmptyTrashRequest
+	MoveRequest        ctrl.MoveFileRequest
+	CopyRequest        ctrl.CopyFileRequest
 }
 
 var registerCall = ipc.NewCall[FileTask, string]("task.register")
 var markAsCompleteCall = ipc.NewCall[string, util.Empty]("task.markAsComplete")
 
 func InitTaskSystem() {
-	log.Info("Initializing FileTasks")
 	if cfg.Mode == cfg.ServerModeServer {
 		registerCall.Handler(func(r *ipc.Request[FileTask]) ipc.Response[string] {
 			drive, ok := RetrieveDrive(r.Payload.DriveId)

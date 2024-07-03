@@ -30,8 +30,10 @@ func InitializeFiles() ctrl.FileService {
 		BrowseFiles:           browse,
 		RetrieveFile:          retrieve,
 		CreateFolder:          createFolder,
-		Move:                  move,
+		Move:                  moveFiles,
 		Copy:                  copyFiles,
+		MoveToTrash:           moveToTrash,
+		EmptyTrash:            emptyTrash,
 		CreateDownloadSession: createDownload,
 		Download:              download,
 	}
@@ -266,9 +268,35 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 	return nil
 }
 
-func move(request ctrl.MoveFileRequest) error {
+func moveFiles(request ctrl.MoveFileRequest) error {
+	task := FileTask{
+		Type:        FileTaskTypeMove,
+		Title:       "Moving files...",
+		DriveId:     request.OldDrive.Id,
+		Timestamp:   fnd.Timestamp(time.Now()),
+		MoveRequest: request,
+	}
+
+	task.process(true)
+
+	return nil
+}
+
+func processMoveTask(task *FileTask) error {
+	request := task.MoveRequest
+
 	sourcePath := UCloudToInternalWithDrive(request.OldDrive, request.OldPath)
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
+
+	if request.Policy == orc.WriteConflictPolicyRename {
+		newPath, err := findAvailableNameOnRename(destPath)
+		destPath = newPath
+
+		if err != nil {
+			log.Error(err.Error())
+			return err
+		}
+	}
 
 	err := os.Rename(sourcePath, destPath)
 	if err != nil {
@@ -318,23 +346,101 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 	return nil
 }
 
+func moveToTrash(request ctrl.MoveToTrashRequest) error {
+	log.Info("MOVE TO TRASH CALLED")
+
+	task := FileTask{
+		Type:               FileTaskTypeMoveToTrash,
+		Title:              "Moving files to trash...",
+		DriveId:            request.Drive.Id,
+		Timestamp:          fnd.Timestamp(time.Now()),
+		MoveToTrashRequest: request,
+	}
+
+	task.process(true)
+
+	return nil
+}
+
+func emptyTrash(request ctrl.EmptyTrashRequest) error {
+	return nil
+}
+
 func (t *FileTask) process(doCreate bool) {
 	if doCreate {
 		RegisterTask(t)
 	}
 
 	go func() {
-		if t.Type == FileTaskTypeCopy {
-			err := processCopyTask(t)
+		switch t.Type {
+		case FileTaskTypeCopy:
+			{
+				err := processCopyTask(t)
 
-			if err != nil {
-				log.Error("Copy task failed: %v", err)
-				return
+				if err != nil {
+					log.Error("Copy task failed: %v", err)
+					return
+				}
+
+				MarkTaskAsComplete(t.DriveId, t.Id)
 			}
+		case FileTaskTypeMove:
+			{
+				err := processMoveTask(t)
 
-			MarkTaskAsComplete(t.DriveId, t.Id)
+				if err != nil {
+					log.Error("Move task failed: %v", err)
+					return
+				}
+
+				MarkTaskAsComplete(t.DriveId, t.Id)
+			}
+		case FileTaskTypeMoveToTrash:
+			{
+				err := processMoveToTrash(t)
+
+				if err != nil {
+					log.Error("Move to trash failed: %v", err)
+					return
+				}
+
+				MarkTaskAsComplete(t.DriveId, t.Id)
+			}
 		}
 	}()
+}
+
+func processMoveToTrash(task *FileTask) error {
+	expectedTrashLocation := UCloudToInternalWithDrive(
+		task.MoveToTrashRequest.Drive,
+		fmt.Sprintf("/%s/Trash", task.MoveToTrashRequest.Drive.Id),
+	)
+
+	log.Info("Expected trash location: %s", expectedTrashLocation)
+
+	if exists, _ := os.Stat(expectedTrashLocation); exists == nil {
+		os.Mkdir(expectedTrashLocation, 0770)
+	}
+
+	newPath, _ := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(task.MoveToTrashRequest.Path)))
+	log.Info("NEW PATH: %s", newPath)
+
+	moveTask := FileTask{
+		Type:    FileTaskTypeMove,
+		Title:   task.Title,
+		DriveId: task.DriveId,
+		MoveRequest: ctrl.MoveFileRequest{
+			OldDrive: task.MoveToTrashRequest.Drive,
+			NewDrive: task.MoveToTrashRequest.Drive,
+			OldPath:  task.MoveToTrashRequest.Path,
+			NewPath:  newPath,
+			Policy:   orc.WriteConflictPolicyRename,
+		},
+	}
+
+	processMoveTask(&moveTask)
+
+	return nil
 }
 
 func copyFolder(sourcePath string, destPath string) error {
@@ -375,15 +481,12 @@ func processCopyTask(task *FileTask) error {
 	destPath := UCloudToInternalWithDrive(request.NewDrive, request.NewPath)
 
 	if request.Policy == orc.WriteConflictPolicyRename {
-		existing, _ := os.Stat(destPath)
-		if existing != nil {
-			newPath, err := findAvailableNameOnRename(destPath)
-			destPath = newPath
+		newPath, err := findAvailableNameOnRename(destPath)
+		destPath = newPath
 
-			if err != nil {
-				log.Error(err.Error())
-				return err
-			}
+		if err != nil {
+			log.Error(err.Error())
+			return err
 		}
 	}
 
@@ -504,6 +607,10 @@ func createDownload(session ctrl.DownloadSession) error {
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
+	if found, _ := os.Stat(path); found == nil {
+		return path, nil
+	}
+
 	parent := util.Parent(path)
 	fileName := util.FileName(path)
 	extensionIndex := strings.LastIndex(fileName, ".")

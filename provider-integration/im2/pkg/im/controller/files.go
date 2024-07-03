@@ -18,12 +18,13 @@ import (
 var Files FileService
 
 type FileService struct {
-	BrowseFiles  func(request BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error)
-	RetrieveFile func(request RetrieveFileRequest) (orc.ProviderFile, error)
-	CreateFolder func(request CreateFolderRequest) error
-	Move         func(request MoveFileRequest) error
-	Copy         func(request CopyFileRequest) error
-
+	BrowseFiles           func(request BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error)
+	RetrieveFile          func(request RetrieveFileRequest) (orc.ProviderFile, error)
+	CreateFolder          func(request CreateFolderRequest) error
+	Move                  func(request MoveFileRequest) error
+	Copy                  func(request CopyFileRequest) error
+	MoveToTrash           func(request MoveToTrashRequest) error
+	EmptyTrash            func(request EmptyTrashRequest) error
 	CreateDownloadSession func(request DownloadSession) error
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
 }
@@ -60,6 +61,15 @@ type CopyFileRequest struct {
 	OldPath  string
 	NewPath  string
 	Policy   orc.WriteConflictPolicy
+}
+
+type MoveToTrashRequest struct {
+	Drive orc.Drive
+	Path  string
+}
+
+type EmptyTrashRequest struct {
+	Drive orc.Drive
 }
 
 type RetrieveFileRequest struct {
@@ -375,7 +385,41 @@ func controllerFiles(mux *http.ServeMux) {
 			},
 		),
 	)
-	mux.HandleFunc(fileContext+"trash", func(w http.ResponseWriter, r *http.Request) {})
+
+	type trashRequest struct {
+		Drive orc.Drive `json:"resolvedCollection"`
+		Path  string    `json:"id"`
+	}
+
+	mux.HandleFunc(fileContext+"trash",
+		HttpUpdateHandler[fnd.BulkRequest[trashRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[trashRequest]) {
+				var errors []error
+				for _, item := range request.Items {
+					err := Files.MoveToTrash(MoveToTrashRequest{
+						Drive: item.Drive,
+						Path:  item.Path,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[longRunningTask]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, longRunningTask{Type: "complete"})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		),
+	)
 	mux.HandleFunc(fileContext+"emptyTrash", func(w http.ResponseWriter, r *http.Request) {})
 	mux.HandleFunc(fileContext+"upload", func(w http.ResponseWriter, r *http.Request) {})
 	mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
