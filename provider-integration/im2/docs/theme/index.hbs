@@ -1,0 +1,308 @@
+<!DOCTYPE HTML>
+<html lang="{{ language }}" class="{{ default_theme }}" dir="{{ text_direction }}">
+<head>
+    <!-- Book generated using mdBook -->
+    <meta charset="UTF-8">
+    <title>{{ title }}</title>
+    {{#if is_print }}
+        <meta name="robots" content="noindex">
+    {{/if}}
+    {{#if base_url}}
+        <base href="{{ base_url }}">
+    {{/if}}
+
+
+    <!-- Custom HTML head -->
+    {{> head}}
+
+    <meta name="description" content="{{ description }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+
+    {{#if favicon_svg}}
+        <link rel="icon" href="{{ path_to_root }}favicon.svg">
+    {{/if}}
+    {{#if favicon_png}}
+        <link rel="shortcut icon" href="{{ path_to_root }}favicon.png">
+    {{/if}}
+    <link rel="stylesheet" href="{{ path_to_root }}css/variables.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/general.css">
+    <link rel="stylesheet" href="{{ path_to_root }}css/chrome.css">
+    {{#if print_enable}}
+        <link rel="stylesheet" href="{{ path_to_root }}css/print.css" media="print">
+    {{/if}}
+
+    <!-- Fonts -->
+    <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
+    {{#if copy_fonts}}
+        <link rel="stylesheet" href="{{ path_to_root }}fonts/fonts.css">
+    {{/if}}
+
+    <!-- Highlight.js Stylesheets -->
+    <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
+    <link rel="stylesheet" href="{{ path_to_root }}tomorrow-night.css">
+    <link rel="stylesheet" href="{{ path_to_root }}ayu-highlight.css">
+
+    <!-- Custom theme stylesheets -->
+    {{#each additional_css}}
+        <link rel="stylesheet" href="{{ ../path_to_root }}{{ this }}">
+    {{/each}}
+
+    {{#if mathjax_support}}
+        <!-- MathJax -->
+        <script async
+                src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    {{/if}}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+          rel="stylesheet">
+</head>
+<body class="sidebar-visible no-js">
+<div id="body-container">
+    <!-- Provide site root to javascript -->
+    <script>
+        var path_to_root = "{{ path_to_root }}";
+        var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "{{ preferred_dark_theme }}" : "{{ default_theme }}";
+    </script>
+
+    <!-- Work around some values being stored in localStorage wrapped in quotes -->
+    <script>
+        try {
+            var theme = localStorage.getItem('mdbook-theme');
+            var sidebar = localStorage.getItem('mdbook-sidebar');
+
+            if (theme.startsWith('"') && theme.endsWith('"')) {
+                localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+            }
+
+            if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+            }
+        } catch (e) {
+        }
+    </script>
+
+    <!-- Set the theme before any content is loaded, prevents flash -->
+    <script>
+        var theme;
+        try {
+            theme = localStorage.getItem('mdbook-theme');
+        } catch (e) {
+        }
+        if (theme === null || theme === undefined) {
+            theme = default_theme;
+        }
+        var html = document.querySelector('html');
+        html.classList.remove('{{ default_theme }}')
+        html.classList.add(theme);
+        var body = document.querySelector('body');
+        body.classList.remove('no-js')
+        body.classList.add('js');
+    </script>
+
+    <div>
+        {{> header}}
+        <div id="menu-bar" class="menu-bar">
+            <a id="logo" href="{{ path_to_root }}">
+                <img src="{{ path_to_root }}ucloud-blue.png" alt="UCloud logo"/>
+                {{ book_title }}
+
+                <aside>v2024.1.0</aside>
+            </a>
+
+            <div style="flex-grow: 1"></div>
+
+            <button id="switch-theme" aria-label="Switch to dark theme">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 96 96"
+                     style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+                    <g class="toggle-sun">
+                        <path d="M35.044,0l-11.56,23.484l-23.484,11.56l14.557,21.754l-1.73,26.117l26.118,-1.73l21.753,14.558l11.56,-23.485l23.484,-11.56l-14.557,-21.753l1.73,-26.118l-26.118,1.731l-21.753,-14.558Zm5.015,18.716c16.091,-4.312 32.656,5.252 36.968,21.343c4.311,16.091 -5.252,32.656 -21.344,36.968c-16.091,4.311 -32.656,-5.252 -36.967,-21.344c-4.312,-16.091 5.252,-32.656 21.343,-36.967Z"/>
+                    </g>
+                    <g class="toggle-circle">
+                        <circle cx="47.871" cy="47.871" r="22"/>
+                    </g>
+                </svg>
+            </button>
+
+
+            <form id="searchbar-outer" class="searchbar-outer">
+                <div id="searchbar-wrapper">
+                    <i class="fa fa-search"></i>
+                    <input type="search" id="searchbar" name="searchbar" placeholder="Search">
+                </div>
+            </form>
+        </div>
+
+
+    </div>
+
+    <div id="sidebar-and-content">
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            {{#toc}}{{/toc}}
+            <ol class="chapter">
+                <li class="part-title">Links</li>
+                <li class="chapter-item"><a href="https://github.com/sdu-escience/ucloud" target="_blank">Source
+                    Code</a></li>
+                <li class="chapter-item"><a href="https://github.com/sdu-escience/ucloud/releases" target="_blank">Releases</a>
+                </li>
+            </ol>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+            <div class="page">
+                {{#if search_enabled}}
+                    <div id="search-wrapper" class="hidden">
+
+                        <div id="searchresults-outer" class="searchresults-outer hidden">
+                            <div id="searchresults-header" class="searchresults-header"></div>
+                            <ul id="searchresults">
+                            </ul>
+                        </div>
+                    </div>
+                {{/if}}
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function (link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        {{{ content }}}
+                    </main>
+
+                    <nav class="nav-chapters">
+                        {{#previous}}
+                            <a rel="prev" href="{{ path_to_root }}{{link}}?paginated" class="nav-chapter previous"
+                               title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                                <div>
+                                    <span class="direction">Previous</span>
+                                    <span class="title">{{title}}</span>
+                                </div>
+                            </a>
+                        {{/previous}}
+
+                        {{#next}}
+                            <a rel="next prefetch" href="{{ path_to_root }}{{link}}?paginated" class="nav-chapter next"
+                               title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <div>
+                                    <span class="direction">Next</span>
+                                    <span class="title">{{title}}</span>
+                                </div>
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        {{/next}}
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{#if live_reload_endpoint}}
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "{{{live_reload_endpoint}}}";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function () {
+                socket.close();
+            }
+        </script>
+    {{/if}}
+
+    {{#if playground_line_numbers}}
+        <script>
+            window.playground_line_numbers = true;
+        </script>
+    {{/if}}
+
+    {{#if playground_copyable}}
+        <script>
+            window.playground_copyable = true;
+        </script>
+    {{/if}}
+
+    {{#if playground_js}}
+        <script src="{{ path_to_root }}ace.js"></script>
+        <script src="{{ path_to_root }}editor.js"></script>
+        <script src="{{ path_to_root }}mode-rust.js"></script>
+        <script src="{{ path_to_root }}theme-dawn.js"></script>
+        <script src="{{ path_to_root }}theme-tomorrow_night.js"></script>
+    {{/if}}
+
+    {{#if search_js}}
+        <script src="{{ path_to_root }}elasticlunr.min.js"></script>
+        <script src="{{ path_to_root }}mark.min.js"></script>
+        <script src="{{ path_to_root }}searcher.js"></script>
+    {{/if}}
+
+    <script src="{{ path_to_root }}clipboard.min.js"></script>
+    <script src="{{ path_to_root }}highlight.js"></script>
+    <script src="{{ path_to_root }}book.js"></script>
+
+    <!-- Custom JS scripts -->
+    {{#each additional_js}}
+        <script src="{{ ../path_to_root }}{{this}}"></script>
+    {{/each}}
+
+    {{#if is_print}}
+        {{#if mathjax_support}}
+            <script>
+                window.addEventListener('load', function () {
+                    MathJax.Hub.Register.StartupHook('End', function () {
+                        window.setTimeout(window.print, 100);
+                    });
+                });
+            </script>
+        {{else}}
+            <script>
+                window.addEventListener('load', function () {
+                    window.setTimeout(window.print, 100);
+                });
+            </script>
+        {{/if}}
+    {{/if}}
+
+    <script>
+        const path = document.location.pathname;
+        const isPaginated = document.location.search.indexOf("paginated") !== -1;
+        const scrollKey = "scrollPosition/" + path;
+        const content = document.querySelector("#page-wrapper");
+        let scrollThrottle = -1;
+        content.addEventListener("scroll", (ev) => {
+            window.clearTimeout(scrollThrottle);
+            scrollThrottle = window.setTimeout(() => {
+                sessionStorage.setItem(scrollKey, content.scrollTop);
+            }, 100);
+        });
+
+        let newScrollPos = 0;
+        if (!isPaginated) {
+            const savedPos = sessionStorage.getItem(scrollKey);
+            if (savedPos) {
+                const parsedPos = parseInt(savedPos);
+                if (!isNaN(parsedPos)) {
+                    newScrollPos = parsedPos;
+                }
+            }
+        }
+        content.scrollTop = newScrollPos;
+
+        history.replaceState(null, "", document.location.pathname);
+    </script>
+</div>
+</body>
+</html>
