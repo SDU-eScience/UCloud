@@ -268,20 +268,6 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 	return nil
 }
 
-func moveFiles(request ctrl.MoveFileRequest) error {
-	task := FileTask{
-		Type:        FileTaskTypeMove,
-		Title:       "Moving files...",
-		DriveId:     request.OldDrive.Id,
-		Timestamp:   fnd.Timestamp(time.Now()),
-		MoveRequest: request,
-	}
-
-	task.process(true)
-
-	return nil
-}
-
 func processMoveTask(task *FileTask) error {
 	request := task.MoveRequest
 
@@ -332,6 +318,18 @@ func processMoveTask(task *FileTask) error {
 	return nil
 }
 
+func moveFiles(request ctrl.MoveFileRequest) error {
+	task := FileTask{
+		Type:        FileTaskTypeMove,
+		Title:       "Moving files...",
+		DriveId:     request.OldDrive.Id,
+		Timestamp:   fnd.Timestamp(time.Now()),
+		MoveRequest: request,
+	}
+
+	return task.process(true)
+}
+
 func copyFiles(request ctrl.CopyFileRequest) error {
 	task := FileTask{
 		Type:        FileTaskTypeCopy,
@@ -341,14 +339,10 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		CopyRequest: request,
 	}
 
-	task.process(true)
-
-	return nil
+	return task.process(true)
 }
 
 func moveToTrash(request ctrl.MoveToTrashRequest) error {
-	log.Info("MOVE TO TRASH CALLED")
-
 	task := FileTask{
 		Type:               FileTaskTypeMoveToTrash,
 		Title:              "Moving files to trash...",
@@ -357,57 +351,70 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 		MoveToTrashRequest: request,
 	}
 
-	task.process(true)
-
-	return nil
+	return task.process(true)
 }
 
 func emptyTrash(request ctrl.EmptyTrashRequest) error {
-	return nil
+	driveId := strings.Split(request.Path, "/")[1]
+
+	task := FileTask{
+		Type:              FileTaskTypeEmptyTrash,
+		Title:             "Emptying trash...",
+		DriveId:           driveId,
+		Timestamp:         fnd.Timestamp(time.Now()),
+		EmptyTrashRequest: request,
+	}
+
+	return task.process(true)
 }
 
-func (t *FileTask) process(doCreate bool) {
+func (t *FileTask) process(doCreate bool) error {
 	if doCreate {
 		RegisterTask(t)
 	}
+
+	var err error
 
 	go func() {
 		switch t.Type {
 		case FileTaskTypeCopy:
 			{
-				err := processCopyTask(t)
-
-				if err != nil {
-					log.Error("Copy task failed: %v", err)
-					return
-				}
-
+				err = processCopyTask(t)
 				MarkTaskAsComplete(t.DriveId, t.Id)
 			}
 		case FileTaskTypeMove:
 			{
-				err := processMoveTask(t)
-
-				if err != nil {
-					log.Error("Move task failed: %v", err)
-					return
-				}
-
+				err = processMoveTask(t)
 				MarkTaskAsComplete(t.DriveId, t.Id)
 			}
 		case FileTaskTypeMoveToTrash:
 			{
-				err := processMoveToTrash(t)
-
-				if err != nil {
-					log.Error("Move to trash failed: %v", err)
-					return
-				}
-
+				err = processMoveToTrash(t)
+				MarkTaskAsComplete(t.DriveId, t.Id)
+			}
+		case FileTaskTypeEmptyTrash:
+			{
+				err = processEmptyTrash(t)
 				MarkTaskAsComplete(t.DriveId, t.Id)
 			}
 		}
 	}()
+
+	return err
+}
+
+func processEmptyTrash(task *FileTask) error {
+	drive, _ := RetrieveDrive(task.DriveId)
+	trashLocation := UCloudToInternalWithDrive(drive, task.EmptyTrashRequest.Path)
+
+	trashEntries, _ := os.ReadDir(trashLocation)
+
+	for _, entry := range trashEntries {
+		path := fmt.Sprintf("%s/%s", trashLocation, entry.Name())
+		os.RemoveAll(path)
+	}
+
+	return nil
 }
 
 func processMoveToTrash(task *FileTask) error {
@@ -416,14 +423,13 @@ func processMoveToTrash(task *FileTask) error {
 		fmt.Sprintf("/%s/Trash", task.MoveToTrashRequest.Drive.Id),
 	)
 
-	log.Info("Expected trash location: %s", expectedTrashLocation)
-
 	if exists, _ := os.Stat(expectedTrashLocation); exists == nil {
 		os.Mkdir(expectedTrashLocation, 0770)
 	}
 
-	newPath, _ := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(task.MoveToTrashRequest.Path)))
-	log.Info("NEW PATH: %s", newPath)
+	newPath, _ := InternalToUCloud(
+		fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(task.MoveToTrashRequest.Path)),
+	)
 
 	moveTask := FileTask{
 		Type:    FileTaskTypeMove,

@@ -69,7 +69,7 @@ type MoveToTrashRequest struct {
 }
 
 type EmptyTrashRequest struct {
-	Drive orc.Drive
+	Path string
 }
 
 type RetrieveFileRequest struct {
@@ -420,7 +420,40 @@ func controllerFiles(mux *http.ServeMux) {
 			},
 		),
 	)
-	mux.HandleFunc(fileContext+"emptyTrash", func(w http.ResponseWriter, r *http.Request) {})
+
+	type emptyTrashRequest struct {
+		Path string `json:"id"`
+	}
+
+	mux.HandleFunc(fileContext+"emptyTrash",
+		HttpUpdateHandler[fnd.BulkRequest[emptyTrashRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[emptyTrashRequest]) {
+				var errors []error
+				for _, item := range request.Items {
+					err := Files.EmptyTrash(EmptyTrashRequest{
+						Path: item.Path,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[longRunningTask]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, longRunningTask{Type: "complete"})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+
+			},
+		),
+	)
 	mux.HandleFunc(fileContext+"upload", func(w http.ResponseWriter, r *http.Request) {})
 	mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
 }
