@@ -135,22 +135,23 @@ const BackgroundTasks: React.FunctionComponent = () => {
     }, [uploads]);
 
     useEffect(() => {
+        function onBeforeUnload(): boolean {
+            snackbarStore.addInformation(
+                "You currently have uploads in progress. Are you sure you want to leave UCloud?",
+                true
+            );
+            return false;
+        }
         if (activeUploadCount > 0) {
-            window.onbeforeunload = () => {
-                snackbarStore.addInformation(
-                    "You currently have uploads in progress. Are you sure you want to leave UCloud?",
-                    true
-                );
-                return false;
-            };
+            window.addEventListener("beforeunload", onBeforeUnload);
         }
 
         return () => {
-            window.onbeforeunload = null;
+            window.removeEventListener("beforeunload", onBeforeUnload);
         };
     }, [uploads]);
 
-    const hasTaskInFocus = taskInFocus && (tasks && tasks[taskInFocus]);
+    const hasTaskInFocus = taskInFocus && tasks[taskInFocus];
     const numberOfTasks = Object.keys(tasks).length + activeUploadCount;
     if (numberOfTasks === 0) return null;
     return (
@@ -159,7 +160,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 width="600px"
                 left="-400px"
                 top="37px"
-                trigger={<Flex justifyContent="center"><TasksIcon /></Flex>}
+                trigger={<Flex justifyContent="center">{TasksIcon}</Flex>}
             >
                 {!tasks ? null :
                     <>
@@ -187,7 +188,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
                 ariaHideApp={false}
                 className={CardClass}
             >
-                {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus!]!} />}
+                {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus]} />}
             </ReactModal>
         </>
     );
@@ -260,10 +261,10 @@ const TasksIconBase = injectStyle("task-icon-base", k => `
 
     ${k} {
         animation: spin 2s linear infinite;
-        margin-right: 8px;
+        margin-bottom: 16px;
     }
 `);
 
-const TasksIcon = (): React.ReactNode => <Icon className={TasksIconBase} name="notchedCircle" />;
+const TasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="20px" width="20px" className={TasksIconBase} name="notchedCircle" />;
 
 export default BackgroundTasks;

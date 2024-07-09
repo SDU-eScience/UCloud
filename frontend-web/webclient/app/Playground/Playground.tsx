@@ -1,64 +1,370 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Flex} from "@/ui-components";
+import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
+import {Box, Card, Flex, Text} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {showWarning} from "@/Accounting/Allocations";
+import {UploadState, useUploads} from "@/Files/Upload";
+import {TaskProgress, TaskRow, UploaderRow} from "@/Files/Uploader";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {formatDistance} from "date-fns";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import {WebSocketConnection} from "@/Authentication/ws";
+import {injectStyle} from "@/Unstyled";
+import {PrettyFilePath} from "@/Files/FilePath";
+import {sizeToString} from "@/Utilities/FileUtilities";
+import {addStandardDialog} from "@/UtilityComponents";
+
+let maxUpdateEntries = -1;
+const MOCKING = {
+    id: 0,
+    mockTask(kind: Task["kind"]): Task {
+        switch (kind) {
+            case "COPY": {
+                return MOCKING.mockCopyTask();
+            }
+            case "EMPTY_TRASH": {
+                return MOCKING.mockEmptyTrashTask();
+            }
+            case "TRANSFER": {
+                return MOCKING.mockTransferTask();
+            }
+        }
+    },
+
+
+    mockCopyTask(): CopyFiles {
+        return {
+            id: (++MOCKING.id).toString(),
+            status: TaskState.PENDING,
+            createdAt: new Date().getTime(),
+            updatedAt: new Date().getTime(),
+            kind: "COPY",
+            destination: "/SomePosition",
+            source: "/file",
+        }
+    },
+
+    mockEmptyTrashTask(): EmptyTrash {
+        return {
+            id: (++MOCKING.id).toString(),
+            status: TaskState.PENDING,
+            createdAt: new Date().getTime(),
+            updatedAt: new Date().getTime(),
+            kind: "EMPTY_TRASH",
+            path: `/67126/Trash`,
+        }
+    },
+
+    mockTransferTask(): TransferFiles {
+        return {
+            id: (++MOCKING.id).toString(),
+            status: TaskState.PENDING,
+            createdAt: new Date().getTime(),
+            updatedAt: new Date().getTime(),
+            kind: "TRANSFER",
+            source: "/file",
+            destination: "Thing??"
+        }
+    },
+
+    mockUpdateEntries() {
+        const index = Math.floor(Math.random() * taskStore.inProgress.length);
+        const entry = taskStore.inProgress[index];
+        if (entry && entry.status !== TaskState.PAUSED) {
+            const newEntry = {...entry};
+
+            if (entry.fileSizeProgress != null && entry.fileSizeTotal != null) {
+                newEntry.fileSizeProgress = Math.min(Math.max(1000, entry.fileSizeProgress * 2.5), entry.fileSizeTotal);
+            } else {
+                newEntry.fileSizeProgress = 0;
+                newEntry.fileSizeTotal = (Math.random() * 100000) | 0;
+            }
+            let state = TaskState.IN_PROGRESS;
+            if (newEntry.fileSizeProgress === newEntry.fileSizeTotal) {
+                state = TaskState.SUCCEEDED;
+            } else if (Math.random() < 0.05) {
+                state = TaskState.FAILED;
+                newEntry.error = "Failed due to threshold!"
+            }
+            newEntry.status = state;
+            taskStore.inProgress[index] = newEntry;
+            taskStore.updateTasksToFinished();
+        }
+
+        if (maxUpdateEntries !== -1) {
+            if (--maxUpdateEntries === 0) {
+                return console.log("maxUpdateEntries reached");
+            }
+        }
+
+        if (taskStore.inProgress.length > 0) {
+            window.setTimeout(MOCKING.mockUpdateEntries, 200 + Math.random() * 50);
+        } else {
+            console.log("Not setting timeout.");
+        }
+    },
+
+    mockPause(task: Task) {
+        MOCKING.mockNewState(task, TaskState.PAUSED);
+    },
+
+    mockResume(task: Task) {
+        MOCKING.mockNewState(task, TaskState.IN_PROGRESS);
+    },
+
+    mockCancel(task: Task) {
+        MOCKING.mockNewState(task, TaskState.CANCELLED);
+    },
+
+    mockNewState(task: Task, state: TaskState) {
+        const index = taskStore.inProgress.findIndex(it => it === task);
+        if (index === -1) return;
+        const newTask = {...task};
+        newTask.status = state;
+        taskStore.inProgress[index] = newTask;
+    }
+}
+
+enum TaskState {
+    PENDING, // Needed? Could just be if updates.length === 0
+    PAUSED,
+    IN_PROGRESS,
+    CANCELLED,
+    FAILED,
+    SUCCEEDED
+};
+
+interface TaskBase {
+    id: string; // number? Also, no need to show end-user.
+    end?: number;
+    updatedAt: number;
+    createdAt: number;
+    status: TaskState;
+    expectedEnd?: number;
+    fileSizeTotal?: number;
+    fileSizeProgress?: number;
+    error?: string;
+}
+
+type Task = CopyFiles | TransferFiles | EmptyTrash; // Upload is handled differently
+
+interface CopyFiles extends TaskBase {
+    kind: "COPY";
+    source: string;
+    destination: string;
+}
+
+interface TransferFiles extends TaskBase {
+    kind: "TRANSFER";
+    source: string;
+    destination: string;
+}
+
+interface EmptyTrash extends TaskBase {
+    kind: "EMPTY_TRASH";
+    path: string; // Path to trash could be neat. User could be deleting multiple trash-folder contents, or just change drive/project during
+}
 
 const iconsNames = Object.keys(icons) as IconName[];
 
-interface UsageAndQuota {
-    usage: number;
-    quota: number;
-    unit: string;
-    maxUsable: number;
-    retiredAmount: number;
-    retiredAmountStillCounts: boolean;
+export const taskStore = new class extends ExternalStoreBase {
+    ws: WebSocketConnection;
+    inProgress: Task[] = [];
+    finishedTasks: Task[] = [];
+
+    async fetch(): Promise<void> {
+        const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
+        for (let i = 0; i < 16; i++) {
+            this.inProgress[i] = MOCKING.mockTask(kinds[i % kinds.length]);
+        }
+
+        setTimeout(MOCKING.mockUpdateEntries, 1000);
+
+        // const result = await callAPI(({
+        //     method: "GET",
+        //     path: buildQueryString("/tasks", {itemsPerPage: 100, page: 0})
+        // }));
+    }
+
+    updateTasksToFinished() {
+        let anyChange = false;
+
+        for (const entry of this.inProgress) {
+            if (!entry) continue;
+            if (isTaskFinished(entry)) {
+                anyChange = true;
+                taskStore.finishedTasks.push(entry);
+                taskStore.inProgress = taskStore.inProgress.filter(it => it !== entry);
+            }
+        }
+
+        if (anyChange) this.emitChange();
+    }
+}();
+
+taskStore.fetch().then(() => console.log(taskStore.inProgress));
+
+function getNewestState(task: Task): TaskState | undefined {
+    return task.status;
 }
 
-const usagesAndTypes: {
-    uq: UsageAndQuota;
-    triangle: boolean;
-}[] = [{
-    triangle: false,
-    uq: {maxUsable: 90 - 4, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 4}
-},{
-    triangle: true,
-    uq: {maxUsable: 90 - (0.95 * 90), quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 0.95 * 90}
-}, {
-    triangle: false,
-    uq: {maxUsable: 90 - 84, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 84}
-}, /* {
-    triangle: true,
-    uq: {maxUsable: 0, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 44}
-} */];
+function isTaskFinished(task: Task): boolean {
+    const s = getNewestState(task);
+    return s === TaskState.FAILED || s === TaskState.SUCCEEDED;
+}
+
+function didTaskNotFinish(task: Task): boolean {
+    return [TaskState.CANCELLED, TaskState.FAILED].includes(task.status);
+}
+
+function iconNameFromTaskType(task: Task): IconName {
+    switch (task.kind) {
+        case "COPY":
+            return "copy";
+        case "EMPTY_TRASH":
+            return "trash";
+        case "TRANSFER":
+            return "move";
+    }
+}
+
+function TaskItem({task}: {task: Task}): React.JSX.Element {
+    const lastUpdate = getNewestState(task);
+
+    let taskSpecificContent: React.JSX.Element | null = null;
+    switch (task.kind) {
+        case "COPY": {
+            taskSpecificContent = <>{isTaskFinished(task) ? "Copied" : "Copying"} <b>{task.source}</b> to <b>{task.destination}</b></>
+            break;
+        }
+        case "EMPTY_TRASH": {
+            taskSpecificContent = <>{isTaskFinished(task) ? "Emptied" : "Emptying"} trash <b><PrettyFilePath path={task.path} /></b></>
+            break;
+        }
+        case "TRANSFER": {
+            taskSpecificContent = <>{isTaskFinished(task) ? "Transferred" : "Transferring"} <b>{task.source}</b> to <b>{task.destination}</b></>;
+            break;
+        }
+    }
+
+    let operations: React.ReactNode = null;
+    switch (task.status) {
+        case TaskState.FAILED:
+        case TaskState.PENDING:
+        case TaskState.SUCCEEDED:
+            break;
+        case TaskState.IN_PROGRESS: {
+            operations = <>
+                <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" />
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />
+            </>
+            break;
+        }
+        case TaskState.PAUSED: {
+            operations = <>
+                <Icon cursor="pointer" onClick={() => MOCKING.mockResume(task)} name="play" color="primaryMain" />
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />
+            </>
+            break;
+        }
+    }
+
+    const endTimeStamp = getNewestState(task) === TaskState.SUCCEEDED ? <>, finished {formatDistance(task.createdAt, new Date().getTime())} ago</> : null;
+    const startTime: number | null = task.createdAt
+
+    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? <Text ml="auto" fontSize={"12px"}>{sizeToString(task.fileSizeProgress)} / {sizeToString(task.fileSizeTotal)}</Text> : null;
+
+    return <TaskRow
+        icon={<Icon name={iconNameFromTaskType(task)} size={28} />}
+        left={<Text mb="12px">{taskSpecificContent}</Text>}
+        right={progressText}
+        operations={operations}
+        error={task.error}
+        progressInfo={{
+            stopped: didTaskNotFinish(task),
+            limit: task.fileSizeTotal ?? 100,
+            progress: task.fileSizeProgress ?? 0
+        }}
+    />
+}
+
+function promptCancel(task: Task) {
+    addStandardDialog({
+        title: "Cancel task?",
+        message: "This will cancel the task, and will have to be restarted to finish.",
+        onConfirm: () => MOCKING.mockCancel(task),
+        cancelText: "Back",
+        confirmText: "Cancel task",
+        onCancel: () => void 0,
+    })
+}
+
+const noopCallbacks = ({
+    clearUploads: () => void 0,
+    pauseUploads: () => void 0,
+    resumeUploads: () => void 0,
+    startUploads: () => void 0,
+    stopUploads: () => void 0
+});
 
 const Playground: React.FunctionComponent = () => {
+    const [uploads] = useUploads();
+    const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
+
+    const uploadingFiles = React.useMemo(() => uploads.filter(it => it.state !== UploadState.DONE), [uploads]);
+    const uploadedFiles = React.useMemo(() => uploads.filter(it => it.state === UploadState.DONE), [uploads]);
+
+    const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
+    const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
+
+    const anyFinished = finishedTasks.length > 0;
+
+    const taskNumbers = React.useMemo(() => {
+        let successes = 0;
+        let failures = 0;
+        for (const task of finishedTasks) {
+            const state = getNewestState(task);
+            if (state === TaskState.FAILED) failures++;
+            else if (state === TaskState.SUCCEEDED) successes++;
+        }
+        return {successes, failures};
+    }, [finishedTasks]);
+
     const main = (
         <>
-            {usagesAndTypes.map(({uq, triangle}) => {
-                if (uq.quota == 0) return null;
-                let usage: number
-                if (uq.retiredAmountStillCounts) {
-                    usage = uq.usage
-                } else {
-                    usage = uq.usage - uq.retiredAmount
-                }
-
-                return <NewAndImprovedProgress
-                    limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
-                    label={triangle ? "Expect warning" : "Expect no warning"}
-                    percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
-                    withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
-                />
-            })}
-
+            <Card width="600px" height={"620px"} style={{paddingBottom: "20px"}} overflowY={"scroll"}>
+                <Flex>
+                    <h3>Background tasks</h3>
+                    <Box ml="auto" mt="-8px" mr="-8px">
+                        <ProgressCircle
+                            size={56}
+                            textColor="textPrimary"
+                            pendingColor="secondaryMain"
+                            finishedColor="successMain"
+                            successes={taskNumbers.successes}
+                            total={finishedTasks.length + inProgressTasks.length + uploads.length}
+                            failures={taskNumbers.failures}
+                        />
+                    </Box>
+                </Flex>
+                <Box height={"526px"} overflowY="scroll">
+                    {uploadingFiles.length + inProgressTasks.length ? <h4>In progress</h4> : null}
+                    <Box onClick={() => setUploaderVisible(true)}>
+                        {uploads.filter(it => it.state === UploadState.UPLOADING).map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
+                    </Box>
+                    {inProgressTasks.map(t => <TaskItem task={t} />)}
+                    {anyFinished ? <h4 style={{marginBottom: "4px"}}>Finished tasks</h4> : null}
+                    {uploadedFiles.map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
+                    {finishedTasks.map(t => <TaskItem task={t} />)}
+                </Box>
+            </Card>
+            <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={40} label="Forty!" percentage={30} />
@@ -292,4 +598,24 @@ function PaletteColors(): React.ReactNode {
     </Flex>
 }
 
+function ProgressCircle({
+    successes,
+    failures,
+    total,
+    pendingColor,
+    finishedColor,
+    textColor,
+    size
+}: {successes: number; failures: number; total: number; size: number; textColor: ThemeColor; pendingColor: ThemeColor; finishedColor: ThemeColor;}): React.ReactNode {
+    return (<svg width={size.toString()} height={size.toString()} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
+        <circle r={61.5} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="15" strokeDasharray="386.22px" strokeDashoffset=""></circle>
+        <circle r={61.5} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="15" strokeLinecap="butt" strokeDashoffset="216px" fill="transparent" strokeDasharray="386.22px"></circle>
+        <text x="35px" y="83px" fill={`var(--${textColor})`} fontSize="39px" fontWeight="bold" style={{transform: "rotate(90deg) translate(0%, -139px)"}}>
+            {successes + failures + "/" + total}
+        </text>
+    </svg>)
+}
+
 export default Playground;
+
+

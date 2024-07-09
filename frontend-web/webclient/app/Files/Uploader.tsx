@@ -52,6 +52,7 @@ import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {NewAndImprovedProgress} from "@/ui-components/Progress";
 
 const MAX_CONCURRENT_UPLOADS = 5;
 const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 256;
@@ -818,13 +819,9 @@ const Uploader: React.FunctionComponent = () => {
         <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
             <div>
                 <Flex>
-                    <Box ml="auto" />
-                    <Icon onClick={closeModal} cursor="pointer" color="textPrimary" size="16px" name="close" />
-                </Flex>
-                <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="6px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
                 <Text className={UploaderSpeedTextClass}>{uploadingText}</Text>
@@ -836,7 +833,7 @@ const Uploader: React.FunctionComponent = () => {
             }}>
                 <div className="uploads" style={{width: "100%"}}>
                     {uploads.map((upload, idx) => (
-                        <UploadRow
+                        <UploaderRow
                             key={`${upload.name}-${idx}`}
                             upload={upload}
                             callbacks={callbacks}
@@ -877,7 +874,7 @@ const Uploader: React.FunctionComponent = () => {
                         marginRight: "4px"
                     }}>
                         {resumables.map(it =>
-                            <div className={UploaderRowClass} key={it}>
+                            <div className={TaskRowClass} key={it}>
                                 <Spacer paddingTop="20px"
                                     left={<>
                                         <div>
@@ -974,18 +971,19 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         border-width: 2px;
         border-color: var(--textPrimary);
         border-style: dashed;
-        border-radius: 24px;
+        border-radius: 10px;
     }
 `);
 
-const UploaderRowClass = injectStyle("uploader-row", k => `
+export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
-        border-radius: 24px;
-        border: 1px solid var(--textPrimary);
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 20%);
         height: 70px;
         width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
+        box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
 
     ${k} > div:first-child {
@@ -999,8 +997,10 @@ const UploaderRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k} > div.error-box {
+        margin-top: 4px;
+        margin-bottom: 4px;
         width: 100%;
-        border-radius: 16px;
+        border-radius: 10px;
     }
 
     ${k} > div > div:first-child {
@@ -1023,113 +1023,128 @@ function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 
-function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
+export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
-    const stopped = upload.terminationRequested || upload.error;
+    const stopped = upload.terminationRequested || !!upload.error;
 
-    return upload.folderName ? (
-        <div className={UploaderRowClass} data-has-error={upload.error != null}>
-            <div>
-                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
-                <div>
-                    <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
-                    <Text
-                        fontSize="12px">Uploaded {upload.filesCompleted} of {upload.filesDiscovered} {upload.filesDiscovered > 1 ? "files" : "file"}</Text>
-                </div>
-                <div />
-                <Flex mr="16px">
+    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1};
+    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} ${sizeToString(uploadCalculateSpeed(upload))}/s`;
+    const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="32px" />;
+    const title = <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName ?? upload.name}</Truncate>;
+    const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
+        <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+            callbacks.clearUploads([upload]);
+            const fullFilePath = upload.targetPath + "/" + upload.name;
+            removeUploadFromStorage(fullFilePath);
+            upload.state = UploadState.DONE;
+        }} color={stopped ? "errorMain" : "primaryMain"} />
+    </TooltipV2>;
+
+    // TODO(Jonas): There is _some_ overlap that can be reused between the two instead of having to entirely different options
+    return upload.folderName ?
+        <TaskRow
+            error={upload.error}
+            icon={icon}
+            left={<Box style={{
+                height: "32px",
+                marginTop: "-10px"
+            }}>
+                {title}
+                <Flex>
+                    <Text mt="-2px" fontSize="10px">
+                        Uploaded {upload.filesCompleted} of {upload.filesDiscovered} {upload.filesDiscovered > 1 ? "files" : "file"}
+                    </Text>
+                </Flex>
+            </Box>}
+            right={right}
+            operations={inProgress ? <>
+                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                    onClick={() => callbacks.stopUploads([upload])} />
+            </> : removeOperation}
+            progressInfo={progressInfo}
+        /> : <TaskRow
+            error={upload.error}
+            icon={icon}
+            left={title}
+            right={right}
+            operations={inProgress ? <>
+                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
+                    onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
+                    color="primaryMain" /> : null}
+                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
+                    onMouseEnter={() => setHoverPause(true)} /> : null}
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                    onClick={() => callbacks.stopUploads([upload])} />
+            </>
+                : <>
+                    {paused ? <Icon cursor="pointer" mr="8px" name="play"
+                        onClick={() => callbacks.resumeUploads([upload])}
+                        color="primaryMain" /> : null}
+                    {removeOperation}
+                </>}
+            progressInfo={progressInfo}
+        />;
+}
+
+export function TaskRow({icon, left, right, progressInfo, operations, error}: {
+    icon: React.ReactNode;
+    left: React.ReactNode;
+    right: React.ReactNode;
+    operations: React.ReactNode;
+    error?: string;
+    progressInfo: {
+        stopped: boolean;
+        progress: number;
+        limit: number;
+    }
+}): React.ReactNode {
+    return (<div className={TaskRowClass} data-has-error={error != null}>
+        <div>
+            <div>{icon}</div>
+            <div>{left}</div>
+            <div />
+            <Box>
+                <Flex mr="16px" justifyContent="end">
                     <Text style={{fontSize: "var(--secondaryText)"}}>
-                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                        {" / "}
-                        {sizeToString(upload.fileSizeInBytes ?? 0)}
-                        {" "}
-                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
+                        {right}
                     </Text>
                     <Box mr="8px" />
-                    {inProgress ? <>
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                            onClick={() => callbacks.stopUploads([upload])} />
-                    </>
-                        :
-                        <TooltipV2 tooltip={"Click to remove row"}>
-                            <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                                callbacks.clearUploads([upload]);
-                                const fullFilePath = upload.targetPath + "/" + upload.name;
-                                removeUploadFromStorage(fullFilePath);
-                                upload.state = UploadState.DONE;
-                            }} color={stopped ? "errorMain" : "primaryMain"} />
-                        </TooltipV2>}
+                    {operations}
                 </Flex>
-            </div>
-            <div className="error-box">
-                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
-            </div>
+            </Box>
         </div>
-    ) : (
-        <div className={UploaderRowClass} data-has-error={upload.error != null}>
-            <div>
-                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.name)}} size="32px" /></div>
-                <div>
-                    <Truncate maxWidth="270px" color="var(--textPrimary)"
-                        fontSize="18px">{upload.name}</Truncate>
-                    <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
-                </div>
-                <div />
-                <Flex mr="16px">
-                    <Text style={{fontSize: "var(--secondaryText)"}}>
-                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                        {" / "}
-                        {sizeToString(upload.fileSizeInBytes ?? 0)}
-                        {" "}
-                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
-                    </Text>
-                    <Box mr="8px" />
-                    {inProgress ? <>
-                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                            onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                            color="primaryMain" /> : null}
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                            onMouseEnter={() => setHoverPause(true)} /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                            onClick={() => callbacks.stopUploads([upload])} />
-                    </>
-                        :
-                        <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                                onClick={() => callbacks.resumeUploads([upload])}
-                                color="primaryMain" /> : null}
-                            <TooltipV2 tooltip={"Click to remove row"}>
-                                <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                                    callbacks.clearUploads([upload]);
-                                    const fullFilePath = upload.targetPath + "/" + upload.name;
-                                    removeUploadFromStorage(fullFilePath);
-                                    upload.state = UploadState.DONE;
-                                }} color={stopped ? "errorMain" : "primaryMain"} />
-                            </TooltipV2>
-                        </>}
-                </Flex>
-            </div>
-            <div className="error-box">
-                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
-            </div>
+        <Box mt="8px" width="calc(100% - 16px)" minHeight={"8px"}>
+            <TaskProgress stopped={progressInfo.stopped} progress={progressInfo.progress} limit={progressInfo.limit} />
+        </Box>
+        <div className="error-box">
+            {error ? <div className={ErrorSpan}>{error}</div> : null}
         </div>
-    );
+    </div>)
 }
 
 const ErrorSpan = injectStyleSimple("error-span", `
     color: white;
-    border: 1px solid red;
-    background-color: red;
-    padding-left: 4px;
-    padding-right: 4px;
+    border: 1px solid var(-errorMain);
+    background-color: var(--errorMain);
+    padding-left: 6px;
+    padding-right: 6px;
     border-radius: 12px;
     margin-right: 16px;
 `);
+
+export function TaskProgress({progress, limit, stopped}: {stopped: boolean; progress: number; limit: number}): React.JSX.Element {
+    return <NewAndImprovedProgress
+        limitPercentage={stopped ? 0 : 100}
+        height="8px"
+        width="100%"
+        percentage={progress / limit * 100}
+    />;
+}
 
 const UploaderArt: React.FunctionComponent = () => {
     return <div className={UploadArtWrapper}>

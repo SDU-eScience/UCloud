@@ -71,32 +71,35 @@ const Progress = ({color, percent, active, label}: Progress): React.ReactNode =>
 
 const NewAndImprovedProgressStyle = injectStyle("progress", k => `
     ${k} {
-        margin-top: 20px;
-        height: 5px;
-        width: 250px;
+        height: var(--progress-bar-height);
+        width: var(--progress-bar-width);
         border-radius: 5px;
         position: relative;
         display: inline-flex;
         background: linear-gradient(
-        120deg,
-        var(--primaryLight) 0%, var(--primaryDark) var(--percentage),
-        var(--secondaryMain) var(--percentage), var(--secondaryDark)  var(--limit)
-        );
+            120deg,
+            var(--primaryLight) 0%, var(--primaryDark) var(--percentage),
+            var(--secondaryMain) var(--percentage), var(--secondaryDark)
+            var(--limit));
+    }
+
+    ${k}[data-label] {
+        margin-top: 20px;
     }
     
     ${k}:before {
         content: '';
-        border-radius: 0 5px 5px 0;
+        border-radius: 5px;
         position: absolute;
         top: 0;
         right: 0;
         width: 100%;
         height: 100%;
         background: linear-gradient(
-            120deg, #0000 0%, #0000 var(--limit), var(--errorLight) var(--limit), var(--errorDark) 100%)
+            120deg, #0000 0%, #0000 var(--limit), var(--errorLight) var(--limit), var(--errorDark) 100%);
     }
     
-    ${k}:after {
+    ${k}[data-label]:after {
         content: attr(data-label);
         font-size: 12px;
         position: absolute;
@@ -111,8 +114,10 @@ export function NewAndImprovedProgress({
     label,
     percentage,
     limitPercentage,
-    withWarning
-}: {label: string; percentage: number; limitPercentage: number; withWarning?: boolean}): React.ReactNode {
+    withWarning,
+    width = "250px",
+    height = "5px",
+}: {label?: string; percentage: number; limitPercentage: number; withWarning?: boolean; width?: string, height?: string;}): React.ReactNode {
     const style: CSSProperties = {};
     // for visualization purposes we offset values too small or too close to 100%
     if (percentage > 0.1 && percentage < 2) {
@@ -123,6 +128,8 @@ export function NewAndImprovedProgress({
     }
     style["--percentage"] = percentage + "%";
     style["--limit"] = limitPercentage + "%";
+    style["--progress-bar-width"] = width;
+    style["--progress-bar-height"] = height;
     const warning = withWarning ? <OverallocationLink><TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
         <Icon size={"20px"} mr="8px" name={"heroExclamationTriangle"} color={"warningMain"} />
     </TooltipV2></OverallocationLink> : null;
