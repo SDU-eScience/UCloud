@@ -17,7 +17,7 @@ html {
 body {
     margin: 0;
     font-size: 1.6rem;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 code {
@@ -46,9 +46,6 @@ h1 code, h2 code, h3 code, h4 code, h5 code, h6 code {
 .boring { opacity: 0.6; }
 .hide-boring .boring { display: none; }
 .hidden { display: none !important; }
-
-h2, h3 { margin-block-start: 2.5em; }
-h4, h5 { margin-block-start: 2em; }
 
 .header + .header h3,
 .header + .header h4,
@@ -108,32 +105,113 @@ h6:target::before {
     text-decoration: none;
 }
 
-table {
-    margin: 0 auto;
-    border-collapse: collapse;
-}
-table td {
-    padding: 3px 20px;
-    border: 1px var(--table-border-color) solid;
-}
-table thead {
-    background: var(--table-header-bg);
-}
-table thead td {
-    font-weight: 700;
-    border: none;
-}
-table thead th {
-    padding: 3px 20px;
-}
-table thead tr {
-    border: 1px var(--table-header-bg) solid;
-}
-/* Alternate background colors for rows */
-table tbody tr:nth-child(2n) {
-    background: var(--table-alternate-bg);
+/* TABLE */
+.table-wrapper {
+    border: var(--border);
+    border-radius: var(--radius);
+    margin-top: 16px;
+    margin-bottom: 16px;
+
+    --radius: 8px;
+    --border: 1px solid #c1c7d4;
+    --header-color: #f0f4ff;
+    --cell-padding: 16px;
 }
 
+html.dark .table-wrapper {
+    --header-color: #21262c;
+    --border: 1px solid var(--sidebar-spacer);
+}
+
+table {
+    text-align: left;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+tr {
+    border-top: var(--border);
+    border-bottom: var(--border);
+    vertical-align: top;
+}
+
+th, td {
+    border-left: var(--border);
+    border-right: var(--border);
+    padding: var(--cell-padding);
+}
+
+th:first-child, td:first-child {
+    border-left: 0;
+}
+
+th:last-child, td:last-child {
+    border-right: 0;
+}
+
+tr:first-child {
+    border-top: 0;
+}
+
+thead tr:first-child > td:first-child, thead tr:first-child > th:first-child {
+    border-top-left-radius: var(--radius);
+}
+
+thead tr:first-child > td:last-child, thead tr:first-child > th:last-child {
+    border-top-right-radius: var(--radius);
+}
+
+tbody tr:last-child {
+    border-bottom: 0;
+}
+
+thead tr {
+    background: var(--header-color);
+}
+
+tr p:first-child {
+    margin-top: 0;
+}
+
+tr p:last-child {
+    margin-bottom: 0;
+}
+
+/* TABLE */
+
+/* Style for the first level ordered list */
+.content ol {
+    counter-reset: section;
+}
+
+.content ol > li {
+    counter-increment: section;
+    list-style: none;
+    position: relative;
+}
+
+.content ol > li::before {
+    content: counters(section, ".") ". ";
+    position: absolute;
+    left: -1.5em; /* Adjust the value as needed */
+}
+
+/* Style for the second level ordered list */
+.content ol > li > ol {
+    counter-reset: subsection;
+    list-style: none;
+    padding-left: 1.5em; /* Adjust the padding as needed */
+}
+
+.content ol > li > ol > li {
+    counter-increment: subsection;
+}
+
+.content ol > li > ol > li::before {
+    content: counters(section, ".") "" counter(subsection, lower-alpha) ". ";
+    position: absolute;
+    left: -1.5em; /* Adjust the value as needed */
+}
 
 blockquote {
     margin: 20px 0;
@@ -190,7 +268,7 @@ kbd {
 
 .chapter li.part-title {
     color: var(--sidebar-fg);
-    margin: 5px 0px;
+    margin: 5px 0;
     font-weight: bold;
 }
 
@@ -198,31 +276,72 @@ kbd {
     font-style: italic;
 }
 
+.content picture {
+    margin: 0 auto;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.content picture.no-shadow img,
+.content picture.diagram img {
+    box-shadow: unset;
+}
+
+.content picture.diagram img {
+    max-width: calc(100% - 30px);
+}
+
+html.light .content picture img.dark {
+    display: none;
+}
+
+html.dark .content picture img.light {
+    display: none;
+}
+
+.content picture {
+    margin: 32px 0;
+}
+
+.content picture img {
+    max-width: 600px;
+    box-shadow: 1px 1px 5px 1px rgb(0, 0, 0, 40%);
+    margin-bottom: 8px;
+}
+
+.content picture p {
+    display: inline;
+    margin: 0;
+}
+
+.content picture figcaption::before {
+    content: "Figure: ";
+    font-weight: bold;
+}
+
+.content picture figcaption {
+    max-width: 600px;
+}
+
 .info-box {
     padding: 16px;
-    border-radius: 16px;
-    border: 2px solid var(--info-box-border, black);
-    background: var(--info-box-bg, none);
-    color: var(--info-box-fg, var(--fg));
+    border-left: 5px solid var(--info-box-border, black);
     display: flex;
-    flex-direction: row;
-    gap: 24px;
+    flex-direction: column;
     margin: 16px 0;
 }
 
 .info-box i {
-    color: var(--info-box-fg, #000000);
     font-size: 32px;
+    color: var(--info-box-border);
 }
 
 .info-box.warning {
     --info-box-border: #cc8500;
-    --info-box-bg: #FFA500FF;
-    --info-box-fg: #000000;
 }
 
 .info-box.info {
-    --info-box-bg: #2164c2;
     --info-box-border: #1a4f99;
-    --info-box-fg: #ffffff;
 }

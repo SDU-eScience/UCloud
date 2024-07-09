@@ -33,10 +33,9 @@
     {{/if}}
 
     <!-- Fonts -->
-    <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
-    {{#if copy_fonts}}
-        <link rel="stylesheet" href="{{ path_to_root }}fonts/fonts.css">
-    {{/if}}
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/fontawesome.css">
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/brands.css">
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/solid.css">
 
     <!-- Highlight.js Stylesheets -->
     <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
@@ -277,6 +276,54 @@
     {{/if}}
 
     <script>
+        const tabbedCards = document.querySelectorAll(".tabbed-card");
+        console.log("Tabbed cards", tabbedCards);
+
+        for (const card of tabbedCards) {
+            const tabs = card.querySelectorAll("& > div");
+
+            const navElement = document.createElement("nav");
+            const navUl = document.createElement("ul");
+            navElement.append(navUl);
+            card.prepend(navElement);
+
+            const activateTab = (idx) => {
+                for (const child of navUl.children) child.classList.remove("active");
+                for (const tab of tabs) tab.classList.remove("visible");
+
+                navUl.children[idx].classList.add("active");
+                tabs[idx].classList.add("visible");
+            };
+
+            let tabIndex = 0;
+            for (const tab of tabs) {
+                const myIndex = tabIndex;
+                const li = document.createElement("li");
+                const iconName = tab.getAttribute("data-icon") ?? "";
+                const title = tab.getAttribute("data-title") ?? "";
+
+                const icon = document.createElement("i");
+                icon.className = iconName;
+                li.append(icon);
+                li.append(title);
+                navUl.append(li);
+
+                li.addEventListener("click", () => {
+                    activateTab(myIndex);
+                });
+
+                tabIndex++;
+            }
+
+            activateTab(0);
+
+            card.classList.add("visible");
+            console.log("These are the tabs", tabs);
+        }
+    </script>
+
+    <script>
+        // Keep this at the bottom such that all other content has had a chance to load in.
         const path = document.location.pathname;
         const isPaginated = document.location.search.indexOf("paginated") !== -1;
         const scrollKey = "scrollPosition/" + path;

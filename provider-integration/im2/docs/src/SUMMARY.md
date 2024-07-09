@@ -15,7 +15,7 @@
 
 - [Getting Started](./provider/getting-started.md)
 - [Sandbox Access](./provider/sandbox.md)
-- [Production Access](./provider/sandbox.md)
+- [Production Access](./provider/production.md)
 
 # UCloud/IM for Slurm-based HPC
 
@@ -49,7 +49,7 @@
 
 # Operation Guide
 
-- [Troubleshooting](./ops/troubleshooting-scripts.md)
+- [Troubleshooting](./ops/troubleshooting.md)
 - [Metrics and Alerts](./ops/metrics.md)
 - [Resource Allocations](./ops/resource-allocation.md)
 
