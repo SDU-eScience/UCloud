@@ -49,6 +49,14 @@ a > .hljs {
     height: 32px;
 }
 
+html.dark #logo .light {
+    display: none;
+}
+
+html.light #logo .dark {
+    display: none;
+}
+
 #logo aside {
     margin-left: 16px;
     font-size: 80%;

@@ -276,7 +276,7 @@ kbd {
     font-style: italic;
 }
 
-.content picture {
+.content figure {
     margin: 0 auto;
     width: 100%;
     display: flex;
@@ -284,45 +284,57 @@ kbd {
     flex-direction: column;
 }
 
-.content picture.no-shadow img,
-.content picture.diagram img {
+.content figure.mac-screenshot img,
+.content figure.no-shadow img,
+.content figure.diagram img {
     box-shadow: unset;
 }
 
-.content picture.diagram img {
+.content figure.diagram img {
     max-width: calc(100% - 30px);
 }
 
-html.light .content picture img.dark {
+html.light .content figure img.dark {
     display: none;
 }
 
-html.dark .content picture img.light {
+html.dark .content figure img.light {
     display: none;
 }
 
-.content picture {
+.content figure {
     margin: 32px 0;
 }
 
-.content picture img {
-    max-width: 600px;
-    box-shadow: 1px 1px 5px 1px rgb(0, 0, 0, 40%);
-    margin-bottom: 8px;
+.content figure pre {
+    max-width: 800px;
+    width: 100%;
 }
 
-.content picture p {
+.content figure.mac-screenshot,
+.content figure.mac-screenshot img {
+    /* mac screenshots have built-in margin */
+    margin: 0;
+}
+
+.content figure img {
+    max-width: 800px;
+    box-shadow: 1px 1px 5px 1px rgb(0, 0, 0, 40%);
+    margin-bottom: 32px;
+}
+
+.content figure p {
     display: inline;
     margin: 0;
 }
 
-.content picture figcaption::before {
+.content figure figcaption::before {
     content: "Figure: ";
     font-weight: bold;
 }
 
-.content picture figcaption {
-    max-width: 600px;
+.content figure figcaption {
+    max-width: 800px;
 }
 
 .info-box {

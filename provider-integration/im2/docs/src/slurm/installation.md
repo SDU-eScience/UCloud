@@ -130,7 +130,7 @@ you should now be able to select your provider project from the project switcher
 manage your provider by inviting them through the interface. See the [end-user documentation](https://docs.cloud.sdu.dk)
 for more details.
 
-<picture>
+<figure>
 
 ![](./project_switcher.png)
 
@@ -140,7 +140,7 @@ You will be able to manage parts of your provider through UCloud's interface. To
 provider project which you are automatically added to.
 
 </figcaption>
-</picture>
+</figure>
 
 ## Bootstrapping the Configuration
 
@@ -284,7 +284,7 @@ Connection complete! Welcome 'local-test-user'/'UCloudUser#1234'!
 
 In the UCloud user-interface, a new project should appear with the name of your service-provider:
 
-<picture>
+<figure>
 
 ![](./project_switcher_personal.png)
 
@@ -293,13 +293,13 @@ In the UCloud user-interface, a new project should appear with the name of your 
 A new project has appeared, allowing your user to consume resources from your service-provider!
 
 </figcaption>
-</picture>
+</figure>
 
 Similarly, the other parts of the UCloud user-interface also now show your resource on your service-provider. For
 example, the file management interface will show you the relevant top-level folder that you specified during the
 configuration bootstrap procedure.
 
-<picture>
+<figure>
 
 ![](./drives.png)
 
@@ -309,7 +309,7 @@ The `/work` folder has appeared inside UCloud. This is the same folder which was
 process. Depending on the folder(s) you chose, you might see something different.
 
 </figcaption>
-</picture>
+</figure>
 
 ## Next Steps
 

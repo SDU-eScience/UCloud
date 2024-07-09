@@ -10,10 +10,10 @@ networking.
 
 ## Overall Architecture
 
-<picture class="diagram">
+<figure class="diagram">
 
-<img class="light" src="./arch_direct_light.png">
-<img class="dark" src="./arch_direct_dark.png">
+<img class="light" src="./arch_direct_light.svg">
+<img class="dark" src="./arch_direct_dark.svg">
 
 <figcaption>
 
@@ -21,7 +21,7 @@ Overall architecture of UCloud/IM for Slurm-based HPC. This diagram depicts a pr
 networking.
 
 </figcaption>
-</picture>
+</figure>
 
 In the architecture above, we have several actors. We have summarised the role of each actor in the table below:
 
@@ -202,10 +202,10 @@ outgoing network connections.
 
 A result of this, is that all user information, is proxied through a UCloud controlled server. 
 
-<picture class="diagram">
+<figure class="diagram">
 
-<img class="light" src="./arch_proxy_light.png">
-<img class="dark" src="./arch_proxy_dark.png">
+<img class="light" src="./arch_proxy_light.svg">
+<img class="dark" src="./arch_proxy_dark.svg">
 
 <figcaption>
 
@@ -213,7 +213,7 @@ In proxy mode networking, all traffic is tunneled through a reverse proxy establ
 an outgoing network connection.
 
 </figcaption>
-</picture>
+</figure>
 
 ## Direct Mode Networking Requirements
 
