@@ -130,13 +130,13 @@ const MOCKING = {
         MOCKING.mockNewState(task, TaskState.CANCELLED);
         taskStore.finishedTasks[task.id] = task;
         delete taskStore.inProgress[task.id];
+        taskStore.emitChange();
     },
 
     mockNewState(task: Task, state: TaskState) {
         const newTask = {...task};
         newTask.status = state;
         newTask.updatedAt = new Date().getTime();
-        const len = Object.values(taskStore.inProgress).length;
         taskStore.inProgress[task.id] = newTask;
     }
 }
@@ -308,7 +308,7 @@ const noopCallbacks = ({
     stopUploads: () => void 0
 });
 
-const Playground: React.FunctionComponent = () => {
+export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
     const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
 
@@ -332,36 +332,40 @@ const Playground: React.FunctionComponent = () => {
             else if (state === TaskState.SUCCEEDED) successes++;
         }
         return {successes, failures};
-    }, [finishedTasks]);
+    }, [Object.values(finishedTasks).length]);
 
+    return (<Card width="600px" height={"620px"} style={{paddingBottom: "20px"}} overflowY={"scroll"}>
+        <Flex>
+            <h3>Background tasks</h3>
+            <Box ml="auto" mt="-8px" mr="-8px">
+                <ProgressCircle
+                    size={56}
+                    textColor="textPrimary"
+                    pendingColor="secondaryMain"
+                    finishedColor="successMain"
+                    successes={taskNumbers.successes}
+                    total={finishedTaskList.length + inProgressTaskList.length + uploads.length}
+                    failures={taskNumbers.failures}
+                />
+            </Box>
+        </Flex>
+        <Box height={"526px"} overflowY="scroll">
+            {uploadingFiles.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
+            <Box onClick={() => setUploaderVisible(true)}>
+                {uploads.filter(it => it.state === UploadState.UPLOADING).map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
+            </Box>
+            {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+            {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => taskStore.finishedTasks = {}} /></Flex> : null}
+            {uploadedFiles.map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
+            {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+        </Box>
+    </Card>)
+}
+
+const Playground: React.FunctionComponent = () => {
     const main = (
         <>
-            <Card width="600px" height={"620px"} style={{paddingBottom: "20px"}} overflowY={"scroll"}>
-                <Flex>
-                    <h3>Background tasks</h3>
-                    <Box ml="auto" mt="-8px" mr="-8px">
-                        <ProgressCircle
-                            size={56}
-                            textColor="textPrimary"
-                            pendingColor="secondaryMain"
-                            finishedColor="successMain"
-                            successes={taskNumbers.successes}
-                            total={finishedTaskList.length + inProgressTaskList.length + uploads.length}
-                            failures={taskNumbers.failures}
-                        />
-                    </Box>
-                </Flex>
-                <Box height={"526px"} overflowY="scroll">
-                    {uploadingFiles.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
-                    <Box onClick={() => setUploaderVisible(true)}>
-                        {uploads.filter(it => it.state === UploadState.UPLOADING).map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
-                    </Box>
-                    {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-                    {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => taskStore.finishedTasks = {}} /></Flex> : null}
-                    {uploadedFiles.map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
-                    {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-                </Box>
-            </Card>
+            <TaskList />
             <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
