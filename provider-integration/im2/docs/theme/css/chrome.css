@@ -642,3 +642,11 @@ html.light {
 .tabbed-card > div {
     margin: 16px;
 }
+
+code.hljs {
+    border-radius: 8px;
+}
+
+pre code.hljs {
+    padding: 16px;
+}

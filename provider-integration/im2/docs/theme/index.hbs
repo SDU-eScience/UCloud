@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="{{ language }}" class="{{ default_theme }}" dir="{{ text_direction }}">
+<html lang="{{ language }}" class="" dir="{{ text_direction }}">
 <head>
     <!-- Book generated using mdBook -->
     <meta charset="UTF-8">
@@ -38,9 +38,8 @@
     <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/solid.css">
 
     <!-- Highlight.js Stylesheets -->
-    <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
-    <link rel="stylesheet" href="{{ path_to_root }}tomorrow-night.css">
-    <link rel="stylesheet" href="{{ path_to_root }}ayu-highlight.css">
+    <link rel="stylesheet" href="{{ path_to_root }}atom-one-dark.css">
+    <link rel="stylesheet" href="{{ path_to_root }}atom-one-light.css">
 
     <!-- Custom theme stylesheets -->
     {{#each additional_css}}
@@ -278,7 +277,6 @@
 
     <script>
         const tabbedCards = document.querySelectorAll(".tabbed-card");
-        console.log("Tabbed cards", tabbedCards);
 
         for (const card of tabbedCards) {
             const tabs = card.querySelectorAll("& > div");

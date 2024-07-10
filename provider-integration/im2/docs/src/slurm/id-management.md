@@ -37,7 +37,7 @@ identities have already been configured correctly by a system administrator (or 
 The connection procedure is started by the end-user while logged into your system's frontend. From your frontend, they
 will be able to run the following command:
 
-```text
+```console
 $ whoami
 localusr01
 
@@ -216,13 +216,12 @@ Start by enabling the FreeIPA integration in the `identityManagement` section in
 
 <figure>
 
-
 ```yaml
 services:
-   type: Slurm
+  type: Slurm
 
-   identityManagement:
-      type: FreeIPA
+  identityManagement:
+    type: FreeIPA
 ```
 
 <figcaption>
@@ -238,7 +237,7 @@ this file, then you can create it:
 
 <figure>
 
-```text
+```console
 $ sudo touch /etc/ucloud/secrets.yml
 $ sudo chown ucloud:ucloud /etc/ucloud/secrets.yml
 $ sudo chmod 600 /etc/ucloud/secrets.yml
@@ -262,6 +261,8 @@ freeipa:
   username: ucloudipauser   # Update this to match the name of your service account
   password: adminadmin      # Update the password to match your service account
   verifyTls: true
+  namingPolicy: # This controls how to name users and projects
+    type: Default
 ```
 
 <figcaption>
@@ -272,9 +273,241 @@ The configuration required for FreeIPA. Remember to change the values such that 
 
 </figure>
 
+#### Naming Policies
+
+TODO The `namingPolicy` configuration property has not yet been implemented. What is described here is simply the only
+behavior currently implemented.
+
+The `namingPolicy` configuration property allows you to control how to name new users and projects. Keep in mind that
+the naming policy is only used when users and projects are created. This means that if you make changes to the naming
+policy then already existing projects and users will not be changed in any way. UCloud/IM allows you to change the
+policy since it stores the ID from creation and not the computed name.
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>
+
+`Default`
+
+</td>
+<td>
+
+The default naming policy will attempt to create alphanumeric names which closely resemble the name of the user and
+project, while remaining POSIX compliant.
+
+__Users:__ Usernames use the following format:
+
+```text
+${firstLetterOfFirstName}${lastName}${twoDigitNumber}
+```
+
+The `twoDigitNumber` is used to differentiate between users with the exact same username. The number is always present
+and starts at 1. The usernames are created from the UCloud username, below is an example transformation:
+
+```text
+DonnaJensen#4512 -> djensen01
+```
+
+The names will always use pure ASCII. A transformation is made to resemble the closest equivalent as possible.
+For example:
+
+```text
+JensHågensen#5128 -> jhagensen01
+```
+
+Usernames are cut off to ensure they do not become too long. Take for example this exaggerated example:
+
+```text
+ThisisaverylongusernameLongerthanwewouldexpectmostpeopletohave#1234 -> tlongerthanwewouldexpectmost01
+```
+
+For users where their last name is not apparent, their first name is used instead.
+
+```text
+Alice#1234 -> alice01
+```
+
+__Projects:__ Projects use a similar format:
+
+```text
+${cleanedProjectTitle}${twoDigitNumber}
+```
+
+The cleaning process is similar to the username cleaning process, except it also handles various form of spaces and
+replace them with underscores. Below is a number of examples:
+
+```text
+testProject -> testproject01
+My SandBox PrOject -> my_sandbox_project01
+this is my long project nåme what will it be -> this_is_my_long_project_name01
+```
+
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+
 #### Breakdown of operations executed by UCloud/IM
 
-TODO
+In this section we will break down the exact operations invoked by UCloud/IM when managing your users and projects.
+This section is intended to help you understand how UCloud/IM will interface with your system and in which situations
+it might conflict with other systems.
+
+It is important to understand that this is all that the FreeIPA integration will do. Users and groups can be created
+in FreeIPA without UCloud/IM and as long as it does not conflict with the content of this section, the UCloud/IM will
+not interfere with those entities.
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>Trigger</th>
+<th>Description</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>User connected</td>
+<td>
+
+**1. Check if the user already exists**
+
+This is done by looking up users which have an `employeenumber` matching their UCloud username.
+
+```text
+Command: user_find
+
+employeenumber: $UCloudUsername
+```
+
+If the user exists, re-establish a mapping between the UCloud user and the existing identity and do not run any of the
+remaining steps.
+
+**2. Create a user with the username specified by the naming policy**
+
+```text
+Command: user_add
+
+uid: $LocalUsername
+givenname: $FirstName
+sn: $LastName
+cn: $FirstName $LastName
+employeenumber: $UCloudUsername
+```
+
+**3. Add the newly created user to the `ucloud_users` group**
+
+As explained in the [installation procedure](./installation.md), UCloud/IM for Slurm depends on sudo to be configured to
+allow changing user to any member of the `ucloud_users` group. Since UCloud/IM will need to run commands on this user's
+behalf, it will have to add the user to this group.
+
+```text
+Command: group_add_member
+
+cn: ucloud_users
+user: $LocalUsername
+```
+
+**4. Save the mapping in UCloud/IM's local database**
+
+This will allow all components of UCloud/IM to determine what the mapping is. It will also allow the project creation
+logic to lookup the UID of users from their UCloud username.
+
+**5. Run the add member trigger of all projects the user belongs to**
+
+See the "project updated" trigger for details.
+
+</td>
+</tr>
+
+<tr>
+
+<td>Project updated</td>
+
+<td>
+
+Note that this is triggered everytime a project is updated, including when it is first created.
+
+**1. Check if the project already exists**
+
+This is done by looking up in UCloud/IM's local database to check if the project has already been created. This will
+return the corresponding Unix GID. If the project already exists skip to step 3.
+
+**2. Create the project using a name specified by the naming policy**
+
+```text
+Command: group_add
+
+cn: $ProjectGroupName
+description: UCloud Project: $UCloudProjectId
+```
+
+The resulting Unix GID is saved in UCloud/IM's local database such that it will be found by step 1 during the next
+update.
+
+Following the group creation, the following command is executed by UCloud/IM (Server):
+
+```console
+$ sudo /sbin/sss_cache -E
+```
+
+**3. Add new members (repeated for each new member)**
+
+UCloud/IM keeps track of which members are added to or removed from a project. This step is repeated for each new member
+added to the project. If no members are added, then this step is skipped.
+
+If the member added to the project has not yet connected to the provider, skip this member.
+
+```text
+Command: group_add_member
+
+cn: $ProjectGroupName
+user: $LocalUsername
+```
+
+**4. Remove members no longer part of the project (repeated for each member)**
+
+UCloud/IM keeps track of which members are added to or removed from a project. This step is repeated for each member. 
+If no members are removed, then this step is skipped.
+
+If the member removed from the project has not yet connected to the provider, skip this member.
+
+```text
+Command: group_remove_member
+
+cn: $ProjectGroupName
+user: $LocalUsername
+```
+
+</td>
+
+</tr>
+
+<tr>
+<td>User disconnects</td>
+
+<td>
+
+TODO Remove user from all projects
+
+</td>
+</tr>
+
+</tbody>
+
+</table>
+</div>
 
 ### Scripted
 

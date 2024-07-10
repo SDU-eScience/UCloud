@@ -47,21 +47,21 @@ RPM packages for RHEL are automatically built. You can download the latest RPM p
 [here](https://github.com/sdu-escience/ucloud/releases). Once you have downloaded the package, you can install it with
 the following command:
 
-```text
+```console
 $ sudo dnf install -y ucloud-im-rhel.rpm
 ```
 
 This package will automatically configure and install UCloud/IM and you are ready for the next steps. You can verify
 that the installation was successful by running the following command:
 
-```text
+```console
 $ ucloud version
 UCloud/IM 2024.1.0
 ```
 
 You can additionally verify that your machine is configured correctly by running:
 
-```text
+```console
 $ sudo ucloud slurm verify
 Software
 -------------------------------------------------------------------------------
@@ -117,7 +117,7 @@ should aim to re-use this file.
 Before you can start UCloud/IM, you must register as a service provider. This is only needs to be done once. You can
 automatically register with the sandbox environment by running the following command:
 
-```text
+```console
 $ sudo ucloud register --sandbox
 Please finish the registration by going to https://sandbox.dev.cloud.sdu.dk/app/provider/registration?token=XXXXXXXXXXXX
 
@@ -167,13 +167,13 @@ an unmanaged state to a managed state.
 
 In order to start the bootstrapping process, you can run the following command:
 
-```text
+```console
 $ sudo ucloud slurm bootstrap
 ```
 
 This will take you through a configuration wizard, as shown below:
 
-```text
+```console
 Welcome, $providerName. This configuration wizard will take you through the bootstrapping process. You will need to
 answer a few questions about your environment.
 
@@ -220,13 +220,13 @@ In order to test the configuration, we must first ensure that UCloud/IM is turne
 
 You can start UCloud/IM via `systemd` by running the following command:
 
-```text
+```console
 $ sudo systemctl start ucloud-im
 ```
 
 You can verify that UCloud/IM is running by checking the status.
 
-```text
+```console
 $ sudo systemctl status ucloud-im
 ● ucloud-im.service - UCloud Integration Module
    Loaded: loaded (/usr/lib/systemd/system/ucloud-im.service; enabled; vendor preset: disabled)
@@ -235,13 +235,13 @@ $ sudo systemctl status ucloud-im
 
 In case of errors, you should check the log files in `/var/log/ucloud`. At this stage, you should focus on:
 
-```text
+```console
 $ sudo less /var/log/ucloud/server.log
 ```
 
 You might also be able to find useful information in the journal:
 
-```text
+```console
 $ sudo journalctl -u ucloud-im
 ```
 
@@ -270,7 +270,7 @@ on Slurm. In other words, this user should be configured as a normal user of the
 
 As your test user, run the following command to initiate the connection procedure:
 
-```text
+```console
 $ whoami
 local-test-user
 
