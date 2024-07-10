@@ -40,41 +40,41 @@ const MOCKING = {
 
     mockCopyTask(): CopyFiles {
         return {
-            id: (++MOCKING.id).toString(),
+            id: ++MOCKING.id,
             status: TaskState.PENDING,
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime(),
             kind: "COPY",
-            destination: "/SomePosition",
-            source: "/file",
+            destination: "/SomePosition" + MOCKING.id,
+            source: "/file" + MOCKING.id
         }
     },
 
     mockEmptyTrashTask(): EmptyTrash {
         return {
-            id: (++MOCKING.id).toString(),
+            id: ++MOCKING.id,
             status: TaskState.PENDING,
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime(),
             kind: "EMPTY_TRASH",
-            path: `/67126/Trash`,
+            path: `/67126/Trash` + MOCKING.id
         }
     },
 
     mockTransferTask(): TransferFiles {
         return {
-            id: (++MOCKING.id).toString(),
+            id: ++MOCKING.id,
             status: TaskState.PENDING,
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime(),
             kind: "TRANSFER",
-            source: "/file",
-            destination: "Thing??"
+            source: "/file" + MOCKING.id,
+            destination: "Thing/" + MOCKING.id
         }
     },
 
     mockUpdateEntries() {
-        const index = Math.floor(Math.random() * taskStore.inProgress.length);
+        const index = Math.floor(Math.random() * Object.values(taskStore.inProgress).length);
         const entry = taskStore.inProgress[index];
         if (entry && entry.status !== TaskState.PAUSED) {
             const newEntry = {...entry};
@@ -93,8 +93,16 @@ const MOCKING = {
                 newEntry.error = "Failed due to threshold!"
             }
             newEntry.status = state;
-            taskStore.inProgress[index] = newEntry;
-            taskStore.updateTasksToFinished();
+            newEntry.updatedAt = new Date().getTime();
+
+            if ([TaskState.CANCELLED, TaskState.FAILED, TaskState.SUCCEEDED].includes(newEntry.status)) {
+                delete taskStore.inProgress[index];
+                taskStore.finishedTasks[index] = newEntry;
+            } else {
+                taskStore.inProgress[index] = newEntry;
+            }
+
+            taskStore.emitChange();
         }
 
         if (maxUpdateEntries !== -1) {
@@ -103,7 +111,7 @@ const MOCKING = {
             }
         }
 
-        if (taskStore.inProgress.length > 0) {
+        if (Object.values(taskStore.inProgress).length > 0) {
             window.setTimeout(MOCKING.mockUpdateEntries, 200 + Math.random() * 50);
         } else {
             console.log("Not setting timeout.");
@@ -120,14 +128,16 @@ const MOCKING = {
 
     mockCancel(task: Task) {
         MOCKING.mockNewState(task, TaskState.CANCELLED);
+        taskStore.finishedTasks[task.id] = task;
+        delete taskStore.inProgress[task.id];
     },
 
     mockNewState(task: Task, state: TaskState) {
-        const index = taskStore.inProgress.findIndex(it => it === task);
-        if (index === -1) return;
         const newTask = {...task};
         newTask.status = state;
-        taskStore.inProgress[index] = newTask;
+        newTask.updatedAt = new Date().getTime();
+        const len = Object.values(taskStore.inProgress).length;
+        taskStore.inProgress[task.id] = newTask;
     }
 }
 
@@ -141,8 +151,7 @@ enum TaskState {
 };
 
 interface TaskBase {
-    id: string; // number? Also, no need to show end-user.
-    end?: number;
+    id: number; // number? Also, no need to show end-user.
     updatedAt: number;
     createdAt: number;
     status: TaskState;
@@ -175,13 +184,14 @@ const iconsNames = Object.keys(icons) as IconName[];
 
 export const taskStore = new class extends ExternalStoreBase {
     ws: WebSocketConnection;
-    inProgress: Task[] = [];
-    finishedTasks: Task[] = [];
+    inProgress: Record<number, Task> = {};
+    finishedTasks: Record<number, Task> = {};
 
     async fetch(): Promise<void> {
         const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
-        for (let i = 0; i < 16; i++) {
-            this.inProgress[i] = MOCKING.mockTask(kinds[i % kinds.length]);
+        for (let i = 0; i < 8; i++) {
+            const t = MOCKING.mockTask(kinds[i % kinds.length]);
+            this.inProgress[t.id] = t;
         }
 
         setTimeout(MOCKING.mockUpdateEntries, 1000);
@@ -191,24 +201,9 @@ export const taskStore = new class extends ExternalStoreBase {
         //     path: buildQueryString("/tasks", {itemsPerPage: 100, page: 0})
         // }));
     }
-
-    updateTasksToFinished() {
-        let anyChange = false;
-
-        for (const entry of this.inProgress) {
-            if (!entry) continue;
-            if (isTaskFinished(entry)) {
-                anyChange = true;
-                taskStore.finishedTasks.push(entry);
-                taskStore.inProgress = taskStore.inProgress.filter(it => it !== entry);
-            }
-        }
-
-        if (anyChange) this.emitChange();
-    }
 }();
 
-taskStore.fetch().then(() => console.log(taskStore.inProgress));
+taskStore.fetch();
 
 function getNewestState(task: Task): TaskState | undefined {
     return task.status;
@@ -321,14 +316,17 @@ const Playground: React.FunctionComponent = () => {
     const uploadedFiles = React.useMemo(() => uploads.filter(it => it.state === UploadState.DONE), [uploads]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
-    const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
+    const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
 
-    const anyFinished = finishedTasks.length > 0;
+    const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
+    const finishedTaskList = Object.values(finishedTasks);
+
+    const anyFinished = finishedTaskList.length > 0;
 
     const taskNumbers = React.useMemo(() => {
         let successes = 0;
         let failures = 0;
-        for (const task of finishedTasks) {
+        for (const task of finishedTaskList) {
             const state = getNewestState(task);
             if (state === TaskState.FAILED) failures++;
             else if (state === TaskState.SUCCEEDED) successes++;
@@ -348,20 +346,20 @@ const Playground: React.FunctionComponent = () => {
                             pendingColor="secondaryMain"
                             finishedColor="successMain"
                             successes={taskNumbers.successes}
-                            total={finishedTasks.length + inProgressTasks.length + uploads.length}
+                            total={finishedTaskList.length + inProgressTaskList.length + uploads.length}
                             failures={taskNumbers.failures}
                         />
                     </Box>
                 </Flex>
                 <Box height={"526px"} overflowY="scroll">
-                    {uploadingFiles.length + inProgressTasks.length ? <h4>In progress</h4> : null}
+                    {uploadingFiles.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
                     <Box onClick={() => setUploaderVisible(true)}>
                         {uploads.filter(it => it.state === UploadState.UPLOADING).map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
                     </Box>
-                    {inProgressTasks.map(t => <TaskItem task={t} />)}
-                    {anyFinished ? <h4 style={{marginBottom: "4px"}}>Finished tasks</h4> : null}
+                    {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+                    {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => taskStore.finishedTasks = {}} /></Flex> : null}
                     {uploadedFiles.map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
-                    {finishedTasks.map(t => <TaskItem task={t} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
                 </Box>
             </Card>
             <Box mb="60px" />
@@ -607,7 +605,7 @@ function ProgressCircle({
     textColor,
     size
 }: {successes: number; failures: number; total: number; size: number; textColor: ThemeColor; pendingColor: ThemeColor; finishedColor: ThemeColor;}): React.ReactNode {
-    // https://codepen.io/mjurczyk/pen/wvBKOvP
+    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
     const successAngle = successes / total;
     const failureAngle = (failures + successes) / total;
     const radius = 61.5;
