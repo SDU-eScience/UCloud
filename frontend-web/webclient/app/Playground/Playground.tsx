@@ -334,7 +334,7 @@ export function TaskList(): React.ReactNode {
         return {successes, failures};
     }, [Object.values(finishedTasks).length]);
 
-    return (<Card width="600px" height={"620px"} style={{paddingBottom: "20px"}} overflowY={"scroll"}>
+    return (<Card width="600px" height={"620px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
         <Flex>
             <h3>Background tasks</h3>
             <Box ml="auto" mt="-8px" mr="-8px">
