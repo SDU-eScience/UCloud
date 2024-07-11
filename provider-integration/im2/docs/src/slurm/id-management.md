@@ -437,7 +437,8 @@ See the "project updated" trigger for details.
 
 <td>
 
-Note that this is triggered everytime a project is updated, including when it is first created.
+Note that this is triggered everytime a project is updated, including when it is first created. You will only receive
+notifications about projects that have an allocation on your provider.
 
 **1. Check if the project already exists**
 
@@ -478,7 +479,7 @@ user: $LocalUsername
 
 **4. Remove members no longer part of the project (repeated for each member)**
 
-UCloud/IM keeps track of which members are added to or removed from a project. This step is repeated for each member. 
+UCloud/IM keeps track of which members are added to or removed from a project. This step is repeated for each member.
 If no members are removed, then this step is skipped.
 
 If the member removed from the project has not yet connected to the provider, skip this member.
@@ -511,6 +512,286 @@ TODO Remove user from all projects
 
 ### Scripted
 
+This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+user and project creation. It is entirely up to you to create these scripts. All scripts will be invoked with a single
+argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below for
+details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and
+debug information should be printed to `stderr`. In case of errors a non-zero exit code should be returned.
+
+In order to configure this integration, you must first configure it:
+
+<figure>
+
+```yaml
+services:
+  type: Slurm
+
+  identityManagement:
+    type: Scripted
+    onUserConnected: /opt/ucloud/extensions/onUserConnected
+    onProjectUpdated: /opt/ucloud/extensions/onProjectUpdated
+```
+
+<figcaption>
+
+The Scripted integration is enabled by setting the `type` property of `identityManagement` to `Scripted` and providing
+the relevant scripts.
+
+</figcaption>
+
+</figure>
+
+Note that the scripts pointed to in the configuration file is your choice. You can point it to any script of your
+choosing. The script does not have to reside in any specific folder. The script _must_ be readable and executable by the
+UCloud/IM (Server) user. They do not have to be invoked by any of the user instances.
+
+#### Script: `onUserConnected`
+
+The `onUserConnected` script is invoked _every_ time a user connects to this service provider. As input, it will receive
+the UCloud the username, as well as a parsed version of the UCloud username. This input will suggest a username using
+the default naming policy from the FreeIPA integration. The suggested username will not contain the two-digit number at
+the end.
+
+This script __must__ check if the UCloud user has registered before and in that case return the old UID. It is the
+responsibility of the script to save this information somewhere it can be retrieved later. In case the user has not
+registered before, then the script __must:__
+
+- Create a new user and be ready to return its UID
+- Add the new user to the `ucloud_users` group
+
+<div class="table-wrapper script-example">
+<table>
+<tbody>
+
+<tr>
+<th>Request</th>
+
+<td>
+
+```json
+{
+  /* string */
+  "ucloudUsername": "",
+
+  /* string */
+  "firstName": "",
+
+  /* string */
+  "lastName": "",
+
+  /* string */
+  "suggestedUsername": ""
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Response</th>
+
+<td>
+
+```json
+{
+  /* uint32 */
+  "uid": 0
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example request</th>
+<td>
+
+```json
+{
+  "ucloudUsername": "DonnaJensen#4512",
+  "firstName": "Donna",
+  "lastName": "Jensen",
+  "suggestedUsername": "djensen"
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example response</th>
+<td>
+
+```json
+{
+  "uid": 41235122
+}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+#### Script: `onProjectUpdated`
+
+<div class="table-wrapper script-example">
+<table>
+
+<tr>
+<th>Request</th>
+<td>
+
+```json
+{
+    /* string */
+    "ucloudProjectId": "",
+  
+    /* string */
+    "projectTitle": "",
+
+    /* string */
+    "suggestedGroupName": "",
+  
+    /* uint32 | null */
+    "unixGid": null,
+  
+    /* object[] */
+    "allMembers": [
+        {
+            /* uint32 */
+            "uid": 0,
+
+            /* string */
+            "ucloudUsername": "",
+
+            /* "PI" | "ADMIN" | "USER" */
+            "role": "USER"
+        }
+    ],
+  
+    /* object[] */
+    "membersAddedToProject": [
+        {
+            /* uint32 */
+            "uid": 0,
+          
+            /* string */
+            "ucloudUsername": "",
+          
+            /* "PI" | "ADMIN" | "USER" */
+            "role": "USER"
+        }
+    ],
+
+    /* object[] */
+    "membersRemovedFromProject": [
+        {
+            /* uint32 */
+            "uid": 0,
+          
+            /* string */
+            "ucloudUsername": ""
+        }
+    ]
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Response</th>
+<td>
+
+_No response required_
+
+</td>
+</tr>
+
+<tr>
+<th>Example request</th>
+<td>
+
+```json
+{
+    "ucloudProjectId": "94056ba8-b752-4018-8aab-d1caa5bc86aa",
+    "projectTitle": "My sandbox project",
+    "suggestedGroupName": "my_sandbox_project",
+    "unixGid": 5234281,
+  
+    "allMembers": [
+        {
+          "uid": 41235100,
+          "ucloudUsername": "UCloudUser#1234",
+          "role": "PI"
+        },     
+        {
+          "uid": 41235101,
+          "ucloudUsername": "Alice#1234",
+          "role": "ADMIN"
+        },     
+        {
+          "uid": 41235102,
+          "ucloudUsername": "Bob#1234",
+          "role": "ADMIN"
+        },     
+      
+        /* NOTE: Charlie#1234 has not yet connected to the provider and is not included in this list */
+      
+        {
+            "uid": 41235122,
+            "ucloudUsername": "DonnaJensen#4512",
+            "role": "USER"
+        }
+    ],
+  
+    "membersAddedToProject": [
+        {
+            "uid": 41235122,
+            "ucloudUsername": "DonnaJensen#4512",
+            "role": "USER"
+        }
+    ],
+
+    "membersRemovedFromProject": [
+        {
+            "uid": 412353147,
+            "ucloudUsername": "Eric#1234"
+        }
+    ]
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example response</th>
+<td>
+
+_No response_
+
+</td>
+</tr>
+
+</table>
+</div>
+
 ### OpenID Connect
 
+TODO Design tbd
+
 ## Migrating from an Unmanaged to Managed Provider
+
+TODO This section has not yet been written. It will need to cover the following topics:
+
+- Explain what will happen when you turn on one of these integrations
+- Explain that you cannot go back to being an unmanaged provider
+- Outline the procedure for converting unmanaged workspaces into managed workspaces
+  - Explain how to convert the allocations. This will need to be done by hand but the IM can provide CLI tools for this.
+
+It is not obvious that this section belongs here, since we have not yet explained the full extent of accounting and
+quota management. But this is the thing which actually makes you a managed provider.

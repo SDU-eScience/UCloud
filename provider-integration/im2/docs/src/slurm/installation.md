@@ -259,6 +259,9 @@ Ubuntu instructions **go here**.
 
 Manual instructions **go here**.
 
+TODO Cover sudo and the groups required. Explain that the `ucloud_users` group must exist and the ucloud service user
+be able to use it.
+
 </div>
 
 </div>

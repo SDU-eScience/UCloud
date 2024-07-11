@@ -179,6 +179,10 @@ tr p:last-child {
 
 /* TABLE */
 
+.table-wrapper.script-example th {
+    width: 150px;
+}
+
 /* Style for the first level ordered list */
 .content ol {
     counter-reset: section;
@@ -361,3 +365,6 @@ html.dark .content figure img.light {
 html.dark .info-box.info {
     --info-box-border: #096de3;
 }
+
+h2, h3 { margin-block-start: 2em; }
+h4, h5 { margin-block-start: 2em; }
