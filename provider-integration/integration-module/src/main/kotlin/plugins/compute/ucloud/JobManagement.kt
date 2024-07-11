@@ -497,7 +497,21 @@ class JobManagement(
     private suspend fun markJobAsComplete(jobId: String): Boolean {
         runtime.removeJobFromQueue(jobId)
         val replicas = runtime.list().filter { it.jobId == jobId }
-        return markJobAsComplete(replicas)
+        val didDelete = markJobAsComplete(replicas)
+
+        if (!didDelete) {
+            // NOTE(Dan): This is not the cleanest of ways to perform a cleanup, but it will work for now. This code
+            // has been copy & pasted from markJobAsComplete which receives a list of containers. This was causing an
+            // issue since some cleanup functions need to act on other resources that have already been created prior
+            // to the container being created.
+            
+            features.forEach { feature ->
+                with(feature) {
+                    onCleanup(jobId)
+                }
+            }
+        }
+        return didDelete
     }
 
     fun verifyJobs(jobs: List<Job>) {
