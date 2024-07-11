@@ -10,12 +10,11 @@ import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadState, useUploads} from "@/Files/Upload";
-import {TaskProgress, TaskRow, UploaderRow} from "@/Files/Uploader";
+import {TaskRow, UploaderRow} from "@/Files/Uploader";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {formatDistance} from "date-fns";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection} from "@/Authentication/ws";
-import {injectStyle} from "@/Unstyled";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
@@ -273,11 +272,11 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
     const endTimeStamp = getNewestState(task) === TaskState.SUCCEEDED ? <>, finished {formatDistance(task.createdAt, new Date().getTime())} ago</> : null;
     const startTime: number | null = task.createdAt
 
-    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? <Text ml="auto" fontSize={"12px"}>{sizeToString(task.fileSizeProgress)} / {sizeToString(task.fileSizeTotal)}</Text> : null;
+    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : null;
 
     return <TaskRow
         icon={<Icon name={iconNameFromTaskType(task)} size={28} />}
-        left={<Text mb="12px">{taskSpecificContent}</Text>}
+        left={taskSpecificContent}
         right={progressText}
         operations={operations}
         error={task.error}

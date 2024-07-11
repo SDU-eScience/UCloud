@@ -1034,7 +1034,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1};
     const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} ${sizeToString(uploadCalculateSpeed(upload))}/s`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="32px" />;
-    const title = <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName ?? upload.name}</Truncate>;
+    const title = upload.folderName ?? upload.name;
     const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
         <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
             callbacks.clearUploads([upload]);
