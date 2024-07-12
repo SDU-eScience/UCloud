@@ -739,7 +739,8 @@ _No response required_
           "role": "ADMIN"
         },     
       
-        /* NOTE: Charlie#1234 has not yet connected to the provider and is not included in this list */
+        /* NOTE: Charlie#1234 has not yet connected to the provider and is not included
+           in this list */
       
         {
             "uid": 41235122,

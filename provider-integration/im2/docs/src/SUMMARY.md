@@ -26,6 +26,7 @@
 - [Slurm Integration](./slurm/accounting.md)
   - [Interactive Jobs](./slurm/interactive-jobs.md)
   - [SSH Key Upload](./slurm/ssh-keys.md)
+  - [Licenses](./slurm/licenses.md)
 - [Application Management](./slurm/app-management.md)
 - [Reference](./slurm/reference.md)
     - [Configuration](./slurm/config-reference.md)

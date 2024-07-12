@@ -180,7 +180,7 @@ tr p:last-child {
 /* TABLE */
 
 .table-wrapper.script-example th {
-    width: 150px;
+    width: 190px;
 }
 
 /* Style for the first level ordered list */
@@ -327,7 +327,7 @@ html.dark .content figure img.light {
     margin-bottom: 32px;
 }
 
-.content figure p {
+.content figure p:first-child {
     display: inline;
     margin: 0;
 }
