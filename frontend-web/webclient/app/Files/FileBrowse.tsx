@@ -1558,8 +1558,7 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {
-        // TODO(Jonas): No results case
-        return filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map((collection, index) => {
+        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map((collection, index) => {
             const wrapper = document.createElement("li");
             const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
             wrapper.append(pIcon);
@@ -1569,6 +1568,14 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
             span.className = TruncateClass;
             return wrapper;
         });
+        if (result.length !== 0) return result;
+
+        return [createHTMLElements<HTMLLIElement>({
+            tagType: "li",
+            children: [],
+            innerText: "No results found",
+            style: {pointerEvents: "none"}
+        })];
     }
 
     function generateHandlers(filter: string): (() => void)[] {
