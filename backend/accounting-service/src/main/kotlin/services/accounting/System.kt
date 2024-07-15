@@ -179,8 +179,6 @@ class AccountingSystem(
         GlobalScope.launch {
             delay(1000)
             persistence.loadOldData(this@AccountingSystem)
-
-            sendRequestNoUnwrap(AccountingRequest.DebugUsable(IdCard.System))
         }
 
         while (currentCoroutineContext().isActive && isActiveProcessor.get()) {
@@ -498,7 +496,8 @@ class AccountingSystem(
                 request.amount,
                 request.start,
                 request.end,
-                grantedIn = null
+                grantedIn = null,
+                autoCommit = true,
             )
         )
     }
@@ -585,7 +584,8 @@ class AccountingSystem(
         quota: Long,
         start: Long,
         end: Long,
-        grantedIn: Long?
+        grantedIn: Long?,
+        autoCommit: Boolean = false,
     ): Int {
         check(start <= end)
         check(parentWalletId >= 0)
@@ -604,7 +604,7 @@ class AccountingSystem(
             retired = false,
             grantedIn = grantedIn,
             isDirty = true,
-            committed = false
+            committed = autoCommit,
         )
 
         allocations[allocationId] = newAllocation
@@ -1087,9 +1087,7 @@ class AccountingSystem(
             val parent = internalAllocation.parentWallet
             if (parent != 0) {
                 val parentWallet = walletsById.getValue(parent)
-                println("Update Alloc: W$parent before: ${parentWallet.totalAllocated}")
                 parentWallet.totalAllocated += quotaDiff
-                println("Update Alloc: W$parent after: ${parentWallet.totalAllocated}")
                 parentWallet.isDirty = true
             }
         }
@@ -1225,9 +1223,7 @@ class AccountingSystem(
             parentWallet.childrenUsage[wallet.id] = (parentWallet.childrenUsage[wallet.id] ?: 0L) - toRetire
             parentWallet.childrenRetiredUsage[wallet.id] =
                 (parentWallet.childrenRetiredUsage[wallet.id] ?: 0L) + toRetire
-            println("Retire Alloc: W${parentWallet.id} before: ${parentWallet.totalAllocated}")
             parentWallet.totalAllocated -= alloc.quota
-            println("Retire Alloc: W${parentWallet.id} after: ${parentWallet.totalAllocated}")
             parentWallet.totalRetiredAllocated += alloc.quota
             parentWallet.isDirty = true
         }
