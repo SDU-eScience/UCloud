@@ -1531,6 +1531,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 selectorPathRef.current = first.id;
                 b.open(selectorPathRef.current);
             }
+            b.dispatchMessage("generateBreadcrumbs", f => f(selectorPathRef.current));
             return res.items;
         }));
     }
@@ -1589,7 +1590,8 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
         });
     }
 
-    const maxHeight = 400 + browser.CONTEXT_MENU_ITEM_SIZE / 2;
+    const ROW_HEIGHT = 46;
+    const maxHeight = ROW_HEIGHT * 10 + ROW_HEIGHT / 2;
 
     const onKeyUp = function onKeyUp(filter: string) {
         const elements = generateElements(filter);
