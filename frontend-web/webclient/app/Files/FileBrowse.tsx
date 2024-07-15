@@ -953,7 +953,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     collectionCacheForCompletion.retrieve("", () =>
                         callAPI(FileCollectionsApi.browse({
                             itemsPerPage: 250,
-                            filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                            filterMemberFiles: "all",
                         })).then(res => res.items)
                     ).then(doNothing);
 
@@ -978,17 +978,20 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
+                        const disallowNavigation = opts?.isModal || opts?.embedded;
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: {cursor: "pointer"}
+                            style: disallowNavigation ? {} : {cursor: "pointer"}
                         });
-                        providerIconWrapper.title = "Go to drives";
+                        if (!disallowNavigation) providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
                         const navbar = browser.header.querySelector("div.header-first-row");
                         if (navbar) navbar.prepend(providerIconWrapper);
-                        providerIconWrapper.onclick = () => {
-                            navigate(AppRoutes.files.drives());
+                        if (!disallowNavigation) {
+                            providerIconWrapper.onclick = () => {
+                                navigate(AppRoutes.files.drives());
+                            }
                         }
                         pIcon = providerIconWrapper;
                     }
@@ -1542,36 +1545,51 @@ function isReadonly(entries: Permission[]): boolean {
 
 export default FileBrowse;
 
+function matchesFilter(filter: string, collection: FileCollection): boolean {
+    if (!filter) return true;
+    const lCFilter = filter.toLocaleLowerCase();
+    const title = collection.specification.title.toLocaleLowerCase();
+    const id = collection.id;
+    return title.toLocaleLowerCase().includes(lCFilter) || id.includes(lCFilter);
+}
+
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
-    const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
-        const wrapper = document.createElement("li");
-        const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
-        wrapper.append(pIcon);
-        const span = document.createElement("span");
-        wrapper.append(span);
-        span.innerText = `${collection.specification.title} (${collection.id})`;
-        span.className = TruncateClass;
-        if (index + 1 <= 9) {
-            const shortcutElem = document.createElement("div");
-            shortcutElem.className = ShortcutClass;
-            shortcutElem.append(`${index + 1}`);
-            wrapper.append(shortcutElem);
-        }
-        return wrapper;
-    });
+    function generateElements(filter?: string): HTMLLIElement[] {
+        // TODO(Jonas): No results case
+        return filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map((collection, index) => {
+            const wrapper = document.createElement("li");
+            const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
+            wrapper.append(pIcon);
+            const span = document.createElement("span");
+            wrapper.append(span);
+            span.innerText = `${collection.specification.title} (${collection.id})`;
+            span.className = TruncateClass;
+            return wrapper;
+        });
+    }
 
-    const handlers: (() => void)[] = filteredCollections.map(collection => {
-        return () => {
-            if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
-                browser.open(`/${collection.id}`);
+    function generateHandlers(filter: string): (() => void)[] {
+        return filteredCollections.filter(it => matchesFilter(filter, it)).map(collection => {
+            return () => {
+                if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
+                    browser.open(`/${collection.id}`);
+                }
+                browser.closeContextMenu();
             }
-            browser.closeContextMenu();
-        }
-    });
+        });
+    }
 
-    browser.prepareContextMenu(posX, posY, filteredCollections.length);
-    browser.setToContextMenuEntries(elements, handlers);
+    const maxHeight = 400 + browser.CONTEXT_MENU_ITEM_SIZE / 2;
+
+    const onKeyUp = function onKeyUp(filter: string) {
+        const elements = generateElements(filter);
+        browser.setToContextMenuEntries(elements, generateHandlers(filter), true, maxHeight);
+    }
+
+    browser.prepareContextMenu(posX, posY, filteredCollections.length, maxHeight);
+    browser.addContextMenuSearchField(onKeyUp);
+    browser.setToContextMenuEntries(generateElements(undefined), generateHandlers(""), true, maxHeight);
 }
