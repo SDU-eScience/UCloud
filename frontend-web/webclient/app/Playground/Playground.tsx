@@ -206,12 +206,9 @@ export const taskStore = new class extends ExternalStoreBase {
 
 taskStore.fetch();
 
-function getNewestState(task: Task): TaskState | undefined {
-    return task.status;
-}
 
 function isTaskFinished(task: Task): boolean {
-    const s = getNewestState(task);
+    const s = task.status;
     return s === TaskState.FAILED || s === TaskState.SUCCEEDED || s === TaskState.CANCELLED;
 }
 
@@ -231,7 +228,6 @@ function iconNameFromTaskType(task: Task): IconName {
 }
 
 function TaskItem({task}: {task: Task}): React.JSX.Element {
-    const lastUpdate = getNewestState(task);
 
     let taskSpecificContent: React.JSX.Element | null = null;
     const errorText = [TaskState.CANCELLED, TaskState.FAILED].includes(task.status) ? <b>[{prettierString(TaskState[task.status])}]</b> : "";
@@ -273,7 +269,7 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
         }
     }
 
-    const endTimeStamp = getNewestState(task) === TaskState.SUCCEEDED ? <>, finished {formatDistance(task.createdAt, new Date().getTime())} ago</> : null;
+    const endTimeStamp = task.status === TaskState.SUCCEEDED ? <>, finished {formatDistance(task.createdAt, new Date().getTime())} ago</> : null;
     const startTime: number | null = task.createdAt
 
     const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : null;
@@ -331,7 +327,7 @@ export function TaskList(): React.ReactNode {
         let successes = 0;
         let failures = 0;
         for (const task of finishedTaskList) {
-            const state = getNewestState(task);
+            const state = task.status;
             if (state === TaskState.FAILED) failures++;
             else if (state === TaskState.SUCCEEDED) successes++;
         }
