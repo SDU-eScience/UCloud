@@ -18,6 +18,7 @@ import {WebSocketConnection} from "@/Authentication/ws";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
+import {prettierString} from "@/UtilityFunctions";
 
 let maxUpdateEntries = -1;
 const MOCKING = {
@@ -127,8 +128,9 @@ const MOCKING = {
 
     mockCancel(task: Task) {
         MOCKING.mockNewState(task, TaskState.CANCELLED);
-        taskStore.finishedTasks[task.id] = task;
+        const updatedTask = taskStore.inProgress[task.id];
         delete taskStore.inProgress[task.id];
+        taskStore.finishedTasks[task.id] = updatedTask;
         taskStore.emitChange();
     },
 
@@ -210,7 +212,7 @@ function getNewestState(task: Task): TaskState | undefined {
 
 function isTaskFinished(task: Task): boolean {
     const s = getNewestState(task);
-    return s === TaskState.FAILED || s === TaskState.SUCCEEDED;
+    return s === TaskState.FAILED || s === TaskState.SUCCEEDED || s === TaskState.CANCELLED;
 }
 
 function didTaskNotFinish(task: Task): boolean {
@@ -232,17 +234,18 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
     const lastUpdate = getNewestState(task);
 
     let taskSpecificContent: React.JSX.Element | null = null;
+    const errorText = [TaskState.CANCELLED, TaskState.FAILED].includes(task.status) ? <b>[{prettierString(TaskState[task.status])}]</b> : "";
     switch (task.kind) {
         case "COPY": {
-            taskSpecificContent = <>{isTaskFinished(task) ? "Copied" : "Copying"} <b>{task.source}</b> to <b>{task.destination}</b></>
+            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Copied" : "Copying"} <b>{task.source}</b> to <b>{task.destination}</b></>
             break;
         }
         case "EMPTY_TRASH": {
-            taskSpecificContent = <>{isTaskFinished(task) ? "Emptied" : "Emptying"} trash <b><PrettyFilePath path={task.path} /></b></>
+            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Emptied" : "Emptying"} trash <b><PrettyFilePath path={task.path} /></b></>
             break;
         }
         case "TRANSFER": {
-            taskSpecificContent = <>{isTaskFinished(task) ? "Transferred" : "Transferring"} <b>{task.source}</b> to <b>{task.destination}</b></>;
+            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Transferred" : "Transferring"} <b>{task.source}</b> to <b>{task.destination}</b></>;
             break;
         }
     }
@@ -251,6 +254,7 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
     switch (task.status) {
         case TaskState.FAILED:
         case TaskState.PENDING:
+        case TaskState.CANCELLED:
         case TaskState.SUCCEEDED:
             break;
         case TaskState.IN_PROGRESS: {
