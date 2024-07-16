@@ -14,6 +14,7 @@ import {
     doNothing,
     inDevEnvironment,
     stopPropagation,
+    stopPropagationAndPreventDefault,
     timestampUnixMs
 } from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -27,7 +28,7 @@ import {injectStyle, makeClassName, injectStyle as unstyledInjectStyle} from "@/
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ContextSwitcher, projectCache} from "@/Project/ContextSwitcher";
+import {ContextSwitcher, FilterInputClass, projectCache} from "@/Project/ContextSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
@@ -1487,10 +1488,17 @@ export class ResourceBrowser<T> {
         }
     }
 
-    public setToContextMenuEntries(elements: HTMLElement[], handlers: (() => void)[]): void {
+    public setToContextMenuEntries(elements: HTMLElement[], handlers: (() => void)[], clearExistingHandlers?: boolean, maxHeight?: number): void {
         const menu = this.contextMenu;
         const menuList = document.createElement("ul");
         menu.append(menuList);
+
+        if (maxHeight) {
+            menuList.style.maxHeight = `${maxHeight}px`;
+            menuList.style.overflowY = "scroll";
+        }
+
+        if (clearExistingHandlers) this.contextMenuHandlers = [];
         let shortcutNumber = 1;
         for (const element of elements) {
             const myIndex = shortcutNumber - 1;
@@ -2049,6 +2057,8 @@ export class ResourceBrowser<T> {
     closeContextMenu() {
         this.contextMenuHandlers = [];
         this.contextMenu.style.removeProperty("transform");
+        this.contextMenu.style.removeProperty("max-height");
+        this.contextMenu.style.removeProperty("overflow-y");
         this.contextMenu.style.opacity = "0";
         window.setTimeout(() => {
             if (this.contextMenu.style.opacity === "0") {
@@ -3013,13 +3023,14 @@ export class ResourceBrowser<T> {
         return result;
     }
 
-    public prepareContextMenu(posX: number, posY: number, entryCount: number) {
+    public CONTEXT_MENU_ITEM_SIZE = 40;
+    public prepareContextMenu(posX: number, posY: number, entryCount: number, maxHeight?: number) {
         let actualPosX = posX;
         let actualPosY = posY;
         const menu = this.contextMenu;
         menu.innerHTML = "";
-        const itemSize = 40;
-        const listHeight = entryCount * itemSize;
+        const itemSize = this.CONTEXT_MENU_ITEM_SIZE;
+        const listHeight = Math.min(maxHeight ?? entryCount * itemSize, entryCount * itemSize);
         const listWidth = 400;
 
         const rootWidth = window.innerWidth;
@@ -3033,13 +3044,76 @@ export class ResourceBrowser<T> {
             actualPosY = rootHeight - listHeight - 32;
         }
 
-        menu.style.transform = `translate(0, -${listHeight / 2}px) scale3d(1, 0.1, 1)`;
-        window.setTimeout(() => menu.style.transform = "scale3d(1, 1, 1)", 0);
         menu.style.display = "block";
         menu.style.opacity = "1";
 
+        if (maxHeight && maxHeight > entryCount * itemSize) {
+            menu.style.maxHeight = maxHeight + "px";
+            menu.style.overflowY = "scroll";
+        }
+
         menu.style.top = actualPosY + "px";
         menu.style.left = actualPosX + "px";
+    }
+
+
+    public addContextMenuSearchField(onKeyUp: (input: string) => void): void {
+        const searchWrapper = createHTMLElements<HTMLDivElement>({
+            tagType: "div",
+            className: FlexClass,
+            style: {height: "35px"}
+        });
+
+        const search = createHTMLElements<HTMLInputElement>({
+            tagType: "input",
+            className: FilterInputClass,
+            style: {paddingLeft: "8px"},
+        });
+
+        searchWrapper.appendChild(search);
+
+        const [searchIcon, setSearchIcon] = ResourceBrowser.defaultIconRenderer();
+        searchIcon.style.marginLeft = "-34px";
+        searchIcon.style.marginTop = "8px";
+        searchIcon.style.width = searchIcon.style.height = "18px";
+        search.appendChild(searchIcon);
+
+        searchWrapper.append(searchIcon);
+
+        ResourceBrowser.icons
+            .renderIcon({name: "search", color: "textPrimary", color2: "textPrimary", height: 64, width: 64})
+            .then(setSearchIcon);
+
+        search.placeholder = "Search drives...";
+
+        search.addEventListener("click", e => (e.stopImmediatePropagation(), stopPropagationAndPreventDefault(e)));
+
+        search.addEventListener("keydown", e => {
+            if (!["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            }
+        });
+        search.addEventListener("keyup", e => {
+            const value = (e.target as {value: string} | null)?.value;
+            if (e.key === "Escape") {
+                if (value === "") {
+                    this.closeContextMenu();
+                } else {
+                    search.value = "";
+                    onKeyUp("");
+                }
+                return;
+            }
+            if (!["ArrowDown", "ArrowUp"].includes(e.key)) {
+                onKeyUp(value ?? "");
+                for (let i = 1; i < this.contextMenu.children.length; i++) {
+                    this.contextMenu.removeChild(this.contextMenu.children.item(i)!);
+                }
+            }
+        });
+
+        this.contextMenu.appendChild(searchWrapper);
     }
 
     static rowTitleSizePercentage = 56;

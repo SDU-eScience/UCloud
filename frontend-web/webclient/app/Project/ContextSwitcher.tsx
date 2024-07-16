@@ -210,7 +210,7 @@ export function ContextSwitcher({managed}: {
                     <Flex>
                         <Input
                             autoFocus
-                            className={filterInputClass}
+                            className={FilterInputClass}
                             placeholder="Search for a project..."
                             defaultValue={filter}
                             onClick={stopPropagationAndPreventDefault}
@@ -335,7 +335,7 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
 `);
 
 
-const filterInputClass = injectStyle("filter-input", k => `
+export const FilterInputClass = injectStyle("filter-input", k => `
     ${k}:focus {
         border: 0;
         border-bottom: 1px solid var(--borderColor);
