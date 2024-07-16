@@ -3084,7 +3084,7 @@ export class ResourceBrowser<T> {
             .renderIcon({name: "search", color: "textPrimary", color2: "textPrimary", height: 64, width: 64})
             .then(setSearchIcon);
 
-        search.placeholder = "Search drives..."
+        search.placeholder = "Search drives...";
 
         search.addEventListener("click", e => (e.stopImmediatePropagation(), stopPropagationAndPreventDefault(e)));
 
