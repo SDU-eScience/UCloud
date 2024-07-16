@@ -148,14 +148,14 @@ function ClickableDropdown<T>({
 
     useEffect(() => {
         if (open) {
-            document.addEventListener("mousedown", handleClickOutside);
+            document.addEventListener("click", handleClickOutside);
             divRef.current?.addEventListener("keydown", handleKeyPress);
         } else {
-            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
             divRef.current?.removeEventListener("keydown", handleKeyPress);
         }
         return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("click", handleClickOutside);
             divRef.current?.removeEventListener("keydown", handleKeyPress);
         };
     }, [handleClickOutside, handleKeyPress, open]);

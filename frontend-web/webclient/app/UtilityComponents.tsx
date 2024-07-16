@@ -34,6 +34,7 @@ interface StandardDialog {
     addToFront?: boolean;
     confirmButtonColor?: ThemeColor;
     cancelButtonColor?: ThemeColor;
+    stopEvents?: boolean; // Note(Jonas): Should probably be default, but this isn't necessary in so many places it might not be needed.
 }
 
 export function addStandardDialog({
@@ -46,15 +47,24 @@ export function addStandardDialog({
     confirmText = "Confirm",
     addToFront = false,
     cancelButtonColor = "errorMain",
-    confirmButtonColor = "successMain"
+    confirmButtonColor = "successMain",
+    stopEvents,
 }: StandardDialog): void {
+    const stopEventsFunc: React.MouseEventHandler<HTMLDivElement> = e => {
+        debugger;
+        if (stopEvents) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+    }
+
     const validate = (): void => {
         if (validator()) onConfirm();
         dialogStore.success();
     };
 
     dialogStore.addDialog((
-        <div>
+        <div onClick={stopEventsFunc}>
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}

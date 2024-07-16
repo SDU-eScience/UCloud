@@ -296,6 +296,7 @@ function promptCancel(task: Task) {
         cancelText: "Back",
         confirmText: "Cancel task",
         onCancel: () => void 0,
+        stopEvents: true,
     })
 }
 
