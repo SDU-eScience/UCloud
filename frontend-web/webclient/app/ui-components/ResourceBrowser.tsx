@@ -3078,7 +3078,7 @@ export class ResourceBrowser<T> {
         searchIcon.style.width = searchIcon.style.height = "18px";
         search.appendChild(searchIcon);
 
-        searchWrapper.append(searchIcon)
+        searchWrapper.append(searchIcon);
 
         ResourceBrowser.icons
             .renderIcon({name: "search", color: "textPrimary", color2: "textPrimary", height: 64, width: 64})
