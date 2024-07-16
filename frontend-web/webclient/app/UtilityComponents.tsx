@@ -51,7 +51,6 @@ export function addStandardDialog({
     stopEvents,
 }: StandardDialog): void {
     const stopEventsFunc: React.MouseEventHandler<HTMLDivElement> = e => {
-        debugger;
         if (stopEvents) {
             e.stopPropagation();
             e.preventDefault();
