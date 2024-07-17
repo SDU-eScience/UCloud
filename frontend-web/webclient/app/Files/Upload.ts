@@ -103,6 +103,7 @@ export const uploadStore = new class extends ExternalStoreBase {
                 }
             });
         });
+        this.emitChange();
     }
 
     public clearUploads(batch: Upload[], setPausedFilesInFolder: React.Dispatch<React.SetStateAction<string[]>>): void {
@@ -117,6 +118,7 @@ export const uploadStore = new class extends ExternalStoreBase {
             }
             return cpy;
         });
+        this.emitChange();
     }
 
     public getSnapshot() {

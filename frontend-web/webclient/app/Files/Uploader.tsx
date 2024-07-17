@@ -883,7 +883,7 @@ function getUploadTimings(uploads: Upload[]): {
 
 type HandleUploadsFunction = (batch: Upload[]) => void;
 
-interface UploadCallback {
+export interface UploadCallback {
     startUploads: HandleUploadsFunction;
     stopUploads: HandleUploadsFunction;
     pauseUploads: HandleUploadsFunction;
@@ -970,7 +970,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
 `);
 
 
-function uploadIsTerminal(upload: Upload): boolean {
+export function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 

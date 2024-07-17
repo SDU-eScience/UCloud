@@ -9,8 +9,8 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {UploadState, useUploads} from "@/Files/Upload";
-import {TaskRow, UploaderRow} from "@/Files/Uploader";
+import {UploadState, uploadStore, useUploads} from "@/Files/Upload";
+import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {formatDistance} from "date-fns";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
@@ -18,7 +18,8 @@ import {WebSocketConnection} from "@/Authentication/ws";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
-import {prettierString} from "@/UtilityFunctions";
+import {prettierString, stopPropagation} from "@/UtilityFunctions";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 let maxUpdateEntries = -1;
 const MOCKING = {
@@ -190,12 +191,12 @@ export const taskStore = new class extends ExternalStoreBase {
 
     async fetch(): Promise<void> {
         const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
-        for (let i = 0; i < 8; i++) {
-            const t = MOCKING.mockTask(kinds[i % kinds.length]);
-            this.inProgress[t.id] = t;
-        }
+        //for (let i = 0; i < 8; i++) {
+        //    const t = MOCKING.mockTask(kinds[i % kinds.length]);
+        //    this.inProgress[t.id] = t;
+        //}
 
-        setTimeout(MOCKING.mockUpdateEntries, 1000);
+        //setTimeout(MOCKING.mockUpdateEntries, 1000);
 
         // const result = await callAPI(({
         //     method: "GET",
@@ -300,20 +301,14 @@ function promptCancel(task: Task) {
     })
 }
 
-const noopCallbacks = ({
-    clearUploads: () => void 0,
-    pauseUploads: () => void 0,
-    resumeUploads: () => void 0,
-    startUploads: () => void 0,
-    stopUploads: () => void 0
-});
-
 export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
-    const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
-
-    const uploadingFiles = React.useMemo(() => uploads.filter(it => it.state !== UploadState.DONE), [uploads]);
-    const uploadedFiles = React.useMemo(() => uploads.filter(it => it.state === UploadState.DONE), [uploads]);
+    const fileUploads = React.useMemo(() => {
+        const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
+        if (uploadGrouping.finished == null) uploadGrouping.finished = [];
+        if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
+        return uploadGrouping;
+    }, [uploads]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
@@ -321,7 +316,7 @@ export function TaskList(): React.ReactNode {
     const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
     const finishedTaskList = Object.values(finishedTasks);
 
-    const anyFinished = finishedTaskList.length > 0;
+    const anyFinished = finishedTaskList.length + fileUploads.finished.length > 0;
 
     const taskNumbers = React.useMemo(() => {
         let successes = 0;
@@ -334,7 +329,16 @@ export function TaskList(): React.ReactNode {
         return {successes, failures};
     }, [Object.values(finishedTasks).length]);
 
-    return (<Card width="600px" height={"620px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
+
+    const uploadCallbacks: UploadCallback = React.useMemo(() => ({
+        startUploads: () => void 0, // Doesn't make sense in this context
+        clearUploads: b => uploadStore.clearUploads(b, () => void 0),
+        pauseUploads: b => uploadStore.pauseUploads(b),
+        resumeUploads: b => uploadStore.resumeUploads(b, () => void 0),
+        stopUploads: b => uploadStore.stopUploads(b)
+    }), []);
+
+    return (<Card onClick={stopPropagation} width="600px" height={"620px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
         <Flex>
             <h3>Background tasks</h3>
             <Box ml="auto" mt="-8px" mr="-8px">
@@ -350,13 +354,14 @@ export function TaskList(): React.ReactNode {
             </Box>
         </Flex>
         <Box height={"526px"} overflowY="scroll">
-            {uploadingFiles.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
-            <Box onClick={() => setUploaderVisible(true)}>
-                {uploads.filter(it => it.state === UploadState.UPLOADING).map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
-            </Box>
+            {fileUploads.uploading.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
+            {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
             {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-            {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => taskStore.finishedTasks = {}} /></Flex> : null}
-            {uploadedFiles.map(u => <UploaderRow upload={u} callbacks={noopCallbacks} />)}
+            {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => {
+                taskStore.finishedTasks = {};
+                uploadStore.clearUploads(fileUploads.finished, () => void 0);
+            }} /></Flex> : null}
+            {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
             {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
         </Box>
     </Card>)
