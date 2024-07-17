@@ -25,6 +25,7 @@ import {
     Upload,
     uploadCalculateSpeed,
     UploadState,
+    uploadStore,
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
@@ -53,12 +54,7 @@ import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-
-const MAX_CONCURRENT_UPLOADS = 5;
-const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 256;
-const maxChunkSize = 16 * 1000 * 1000;
-const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
-const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
+import {UploadConfig} from "@/Files/Upload";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -140,7 +136,7 @@ function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string
         shaSumWorker.postMessage({type: "Start"});
 
         while (!reader.isEof() && !upload.terminationRequested) {
-            const chunk = await reader.readChunk(maxChunkSize);
+            const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
             shaSumWorker.postMessage({type: "Update", data: chunk});
         }
 
@@ -185,7 +181,7 @@ function createResumeableFolder(
 
                 if (!didInit) {
                     didInit = true;
-                    for (let i = 0; i < MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
+                    for (let i = 0; i < UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
                         startLoop(i);
                     }
                 }
@@ -330,7 +326,7 @@ function createResumeableFolder(
 
     async function startLoop(id: number) {
         while (!upload.terminationRequested && uploadSocket.readyState === WebSocket.OPEN) {
-            if (startedUploads - upload.filesCompleted >= MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
+            if (startedUploads - upload.filesCompleted >= UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
                 await delay(1);
                 continue;
             }
@@ -395,7 +391,7 @@ function createResumeableFolder(
         reader: ChunkedFileReader,
         fileId: number
     ): Promise<[ArrayBuffer, number]> {
-        const chunk = await reader.readChunk(maxChunkSize);
+        const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
         const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
         return [concatArrayBuffers(meta, chunk), chunk.byteLength];
     }
@@ -421,7 +417,7 @@ function sendWsChunk(connection: WebSocket, chunk: ArrayBuffer): Promise<void> {
 }
 
 function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () => void) {
-    if (connection.bufferedAmount + chunk.byteLength < MAX_WS_BUFFER) {
+    if (connection.bufferedAmount + chunk.byteLength < UploadConfig.MAX_WS_BUFFER) {
         connection.send(chunk);
         onComplete();
     } else {
@@ -441,9 +437,9 @@ function createResumeable(
     return async () => {
         if (strategy.protocol === "CHUNKED") {
             while (!reader.isEof() && !upload.terminationRequested) {
-                await sendChunk(await reader.readChunk(maxChunkSize));
+                await sendChunk(await reader.readChunk(UploadConfig.maxChunkSize));
 
-                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                const expiration = new Date().getTime() + UploadConfig.UPLOAD_EXPIRATION_MILLIS;
                 localStorage.setItem(
                     createLocalStorageUploadKey(fullFilePath),
                     JSON.stringify({
@@ -473,7 +469,7 @@ function createResumeable(
                     upload.progressInBytes = parseInt(message.data);
                     uploadTrackProgress(upload);
 
-                    const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                    const expiration = new Date().getTime() + UploadConfig.UPLOAD_EXPIRATION_MILLIS;
                     localStorage.setItem(
                         createLocalStorageUploadKey(fullFilePath),
                         JSON.stringify({
@@ -504,7 +500,7 @@ function createResumeable(
                     uploadSocket.send(`${progressStart} ${reader.fileSize().toString()}`)
 
                     while (!reader.isEof() && !upload.terminationRequested) {
-                        const chunk = await reader.readChunk(maxChunkSize);
+                        const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
                         await sendWsChunk(uploadSocket, chunk);
                     }
                 });
@@ -736,7 +732,7 @@ const Uploader: React.FunctionComponent = () => {
         }
 
         setUploads(allUploads);
-        startUploads(allUploads);
+        startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
     useEffect(() => {
@@ -774,7 +770,7 @@ const Uploader: React.FunctionComponent = () => {
     useEffect(() => {
         if (lookForNewUploads) {
             setLookForNewUploads(false);
-            startUploads(uploads);
+            startUploads(uploads, setLookForNewUploads);
             const shouldReload = uploads.every(it => it.state === UploadState.DONE) &&
                 uploads.some(it => it.targetPath === uploadPath && !it.terminationRequested);
             if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {

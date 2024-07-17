@@ -54,12 +54,69 @@ export function uploadCalculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-const uploadStore = new class extends ExternalStoreBase {
+export const UploadConfig = {
+    MAX_CONCURRENT_UPLOADS: 5,
+    MAX_CONCURRENT_UPLOADS_IN_FOLDER: 256,
+    maxChunkSize: 16 * 1000 * 1000,
+    UPLOAD_EXPIRATION_MILLIS: 2 * 24 * 3600 * 1000,
+    MAX_WS_BUFFER: 1024 * 1024 * 16 * 4,
+}
+
+export const uploadStore = new class extends ExternalStoreBase {
     private uploads: Upload[] = [];
 
     public setUploads(uploads: Upload[]) {
         this.uploads = uploads;
         this.emitChange();
+    }
+
+    public stopUploads(batch: Upload[]): void {
+        for (const upload of batch) {
+            // (??? is this a TODO or comment?)
+            // Find possible entries in resumables
+            upload.terminationRequested = true;
+        }
+        this.emitChange();
+    }
+
+    public pauseUploads(batch: Upload[]): void {
+        for (const upload of batch) {
+            upload.terminationRequested = true;
+            upload.paused = true;
+            upload.state = UploadState.PENDING;
+        }
+        this.emitChange();
+    }
+
+    public resumeUploads(batch: Upload[], setLookForNewUploads: (l: boolean) => void): void {
+        batch.forEach(async it => {
+            it.terminationRequested = undefined;
+            it.paused = undefined;
+            it.state = UploadState.UPLOADING;
+            it.resume?.().then(() => {
+                it.state = UploadState.DONE;
+                setLookForNewUploads(true);
+            }).catch(e => {
+                if (typeof e === "string") {
+                    it.error = e;
+                    it.state = UploadState.DONE;
+                }
+            });
+        });
+    }
+
+    public clearUploads(batch: Upload[], setPausedFilesInFolder: React.Dispatch<React.SetStateAction<string[]>>): void {
+        /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
+        /* Note(Jonas): Yes. */
+        this.uploads = this.uploads.filter(u => !batch.some(b => b === u)); // Note(Jonas): iterates through uploads and omits the ones in the list in the arguments
+        // Note(Jonas): Find possible entries in paused uploads and remove it. 
+        setPausedFilesInFolder(entries => {
+            let cpy = [...entries];
+            for (const upload of batch) {
+                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.name);
+            }
+            return cpy;
+        });
     }
 
     public getSnapshot() {
