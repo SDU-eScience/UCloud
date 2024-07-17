@@ -11,6 +11,7 @@ import (
 
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -26,6 +27,7 @@ type FileService struct {
 	MoveToTrash           func(request MoveToTrashRequest) error
 	EmptyTrash            func(request EmptyTrashRequest) error
 	CreateDownloadSession func(request DownloadSession) error
+	CreateUploadSession   func(request UploadSession) error
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
 }
 
@@ -45,6 +47,11 @@ type DownloadSession struct {
 	Drive     orc.Drive
 	Path      string
 	SessionId string
+}
+
+type UploadSession struct {
+	SessionId  string
+	PluginData string // TODO (Brian)
 }
 
 type MoveFileRequest struct {
@@ -454,8 +461,111 @@ func controllerFiles(mux *http.ServeMux) {
 			},
 		),
 	)
-	mux.HandleFunc(fileContext+"upload", func(w http.ResponseWriter, r *http.Request) {})
+
+	type UploadType string
+
+	const (
+		UploadTypeFile   UploadType = "FILE"
+		UploadTypeFolder UploadType = "FOLDER"
+	)
+
+	type createUploadRequest struct {
+		Drive              orc.Drive               `json:"resolvedCollection"`
+		Id                 string                  `json:"id"`
+		Type               UploadType              `json:"type"`
+		SupportedProtocols []orc.UploadProtocol    `json:"supportedProtocols"`
+		ConflictPolicy     orc.WriteConflictPolicy `json:"conflictPolicy"`
+	}
+
+	type createUploadResponse struct {
+		Endpoint string             `json:"endpoint"`
+		Protocol orc.UploadProtocol `json:"protocol"`
+		Token    string             `json:"token"`
+	}
+
+	mux.HandleFunc(fileContext+"upload",
+		HttpUpdateHandler[fnd.BulkRequest[createUploadRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[createUploadRequest]) {
+				resp := fnd.BulkResponse[createUploadResponse]{}
+				for _, item := range request.Items {
+					sessionId := util.RandomToken(32)
+
+					session := UploadSession{
+						SessionId:  sessionId,
+						PluginData: "Hello",
+					}
+
+					log.Info("Hello world")
+
+					err := Files.CreateUploadSession(session)
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+
+					var isFolder bool = true
+					if item.Type == UploadTypeFile {
+						isFolder = false
+					}
+
+					if isFolder {
+						Files.CreateFolder(CreateFolderRequest{Path: item.Id, Drive: item.Drive, ConflictPolicy: item.ConflictPolicy})
+					}
+
+					resp.Responses = append(
+						resp.Responses,
+						createUploadResponse{
+							Endpoint: generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, sessionId, false, isFolder),
+							Protocol: orc.UploadProtocolWebSocket,
+							Token:    "",
+						},
+					)
+
+					uploadSessions.Set(sessionId, session)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		),
+	)
+
 	mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
 }
 
+func generateUploadPath(
+	config *cfg.ProviderConfiguration,
+	providerId string,
+	protocol orc.UploadProtocol,
+	withToken string,
+	tokenPlaceholder bool,
+	isFolder bool,
+) string {
+	var result string = ""
+	if config != nil {
+		result = fmt.Sprintf("%s%s", result, config.Hosts.SelfPublic.ToURL())
+	}
+
+	var token string = ""
+
+	if tokenPlaceholder {
+		token = "/{token}"
+	} else {
+		if withToken != "" {
+			token = fmt.Sprintf("/%s", withToken)
+		}
+	}
+
+	var folder string = ""
+
+	if isFolder {
+		folder = "/folder"
+	}
+
+	result = fmt.Sprintf("%s/ucloud/%s/%s/upload%s%s", result, providerId, strings.ToLower(string(protocol)), folder, token)
+
+	return result
+}
+
 var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
+var uploadSessions = util.NewCache[string, UploadSession](48 * time.Hour)
