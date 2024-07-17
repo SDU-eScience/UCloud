@@ -37,7 +37,7 @@ identities have already been configured correctly by a system administrator (or 
 The connection procedure is started by the end-user while logged into your system's frontend. From your frontend, they
 will be able to run the following command:
 
-```console
+```terminal
 $ whoami
 localusr01
 
@@ -237,7 +237,7 @@ this file, then you can create it:
 
 <figure>
 
-```console
+```terminal
 $ sudo touch /etc/ucloud/secrets.yml
 $ sudo chown ucloud:ucloud /etc/ucloud/secrets.yml
 $ sudo chmod 600 /etc/ucloud/secrets.yml
@@ -459,7 +459,7 @@ update.
 
 Following the group creation, the following command is executed by UCloud/IM (Server):
 
-```console
+```terminal
 $ sudo /sbin/sss_cache -E
 ```
 
@@ -528,8 +528,8 @@ services:
 
   identityManagement:
     type: Scripted
-    onUserConnected: /opt/ucloud/extensions/onUserConnected
-    onProjectUpdated: /opt/ucloud/extensions/onProjectUpdated
+    onUserConnected: /opt/ucloud/scripts/onUserConnected
+    onProjectUpdated: /opt/ucloud/scripts/onProjectUpdated
 ```
 
 <figcaption>

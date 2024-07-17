@@ -1,4 +1,5 @@
 /* From github.com/highlightjs/highlight.js */
+/* This file has been modified to support a custom 'terminal' language */
 
 /*
 BSD 3-Clause License
@@ -65,6 +66,7 @@ hue-6-2: #e6c07b
 
 .hljs-doctag,
 .hljs-keyword,
+.hljs-magenta,
 .hljs-formula {
     color: #c678dd;
 }
@@ -73,10 +75,12 @@ hue-6-2: #e6c07b
 .hljs-name,
 .hljs-selector-tag,
 .hljs-deletion,
+.hljs-red,
 .hljs-subst {
     color: #e06c75;
 }
 
+.hljs-cyan,
 .hljs-literal {
     color: #56b6c2;
 }
@@ -84,6 +88,7 @@ hue-6-2: #e6c07b
 .hljs-string,
 .hljs-regexp,
 .hljs-addition,
+.hljs-green,
 .hljs-attribute,
 .hljs-meta .hljs-string {
     color: #98c379;
@@ -104,6 +109,7 @@ hue-6-2: #e6c07b
 .hljs-bullet,
 .hljs-link,
 .hljs-meta,
+.hljs-blue,
 .hljs-selector-id,
 .hljs-title {
     color: #61aeee;
@@ -125,4 +131,17 @@ hue-6-2: #e6c07b
 
 .hljs-link {
     text-decoration: underline;
+}
+
+.hljs-escape-sequence {
+    font-size: 0;
+}
+
+.hljs-cyan,
+.hljs-blue,
+.hljs-green,
+.hljs-magenta,
+.hljs-red
+{
+    font-size: 14px;
 }

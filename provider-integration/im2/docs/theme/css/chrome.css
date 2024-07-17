@@ -643,6 +643,10 @@ html.light {
     margin: 16px;
 }
 
+.content figure .tabbed-card pre {
+    max-width: unset;
+}
+
 code.hljs {
     border-radius: 8px;
 }

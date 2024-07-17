@@ -182,6 +182,17 @@ services:
           interval: Hourly
 ```
 
+# Terminal
+
+```terminal
+$ test # comment
+[cyan]cyan🖌️
+[blue]blue🖌️
+[green]green🖌️
+[red]red🖌️
+[magenta]magenta🖌️
+```
+
 # Info boxes
 
 <div class="info-box warning">

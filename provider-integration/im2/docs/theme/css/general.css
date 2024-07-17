@@ -265,6 +265,7 @@ kbd {
     padding: 5px 8px;
     margin: 5px;
     z-index: 1000;
+    font-family: "Roboto", sans-serif;
 }
 .tooltipped .tooltiptext {
     visibility: visible;
@@ -324,6 +325,10 @@ html.dark .content figure img.light {
 .content figure img {
     max-width: 800px;
     box-shadow: 1px 1px 5px 1px rgb(0, 0, 0, 40%);
+}
+
+.content figure img,
+.content figure div.tabbed-card {
     margin-bottom: 32px;
 }
 
@@ -368,3 +373,8 @@ html.dark .info-box.info {
 
 h2, h3 { margin-block-start: 2em; }
 h4, h5 { margin-block-start: 2em; }
+
+code.no-code-wrap,
+.no-code-wrap code {
+    white-space: nowrap;
+}

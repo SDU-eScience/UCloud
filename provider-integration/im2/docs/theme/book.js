@@ -228,7 +228,7 @@ function playground_text(playground, hidden = true) {
                 clipButton.className = 'fa fa-copy clip-button';
                 clipButton.title = 'Copy to clipboard';
                 clipButton.setAttribute('aria-label', clipButton.title);
-                clipButton.innerHTML = '<i class=\"tooltiptext\"></i>';
+                clipButton.innerHTML = '<span class=\"tooltiptext\"></span>';
 
                 buttons.insertBefore(clipButton, buttons.firstChild);
             }

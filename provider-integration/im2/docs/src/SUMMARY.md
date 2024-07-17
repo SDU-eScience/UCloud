@@ -23,14 +23,16 @@
 - [Architecture and Networking](./slurm/architecture.md)
 - [User and Project Management](./slurm/id-management.md)
 - [Filesystem Integration](./slurm/file-management.md)
-- [Slurm Integration](./slurm/accounting.md)
+- [Slurm Integration](./slurm/slurm.md)
+  - [Application Management](./slurm/app-management.md)
   - [Interactive Jobs](./slurm/interactive-jobs.md)
   - [SSH Key Upload](./slurm/ssh-keys.md)
   - [Licenses](./slurm/licenses.md)
-- [Application Management](./slurm/app-management.md)
 - [Reference](./slurm/reference.md)
     - [Configuration](./slurm/config-reference.md)
     - [CLI](./slurm/cli-reference.md)
+- [Appendix](./slurm/appendix.md)
+  - [Advanced Scheduling](./slurm/advanced_scheduling.md)
 
 # UCloud/IM for Kubernetes
 

@@ -6,9 +6,67 @@ be a discussion on how to manage various integrations which are needed for fully
 
 ## Software and Hardware Requirements
 
-TODO Section not yet complete. In this section we will talk about the software and hardware requirements that UCloud/IM
-imposes on your filesystem. We will also discuss, in general terms, how UCloud/IM interacts with the filesystem. This
-discussion will not include file management, as this is covered by the individual integrations.
+UCloud/IM for Slurm targets POSIX-compliant distributed filesystems. It will use the standard APIs to open, close, read
+and write to both files and directories. Said differently, any normal filesystem on which you can run your normal
+command line tools should be compatible with UCloud/IM.
+
+<figure>
+
+```terminal
+$ cd /home/donna01
+$ echo 'Hello' > file.txt
+$ cat file.txt
+Hello
+$ ls -la
+total 2
+drwxr-x---  2 donna01 donna01 4096 Jul 12 10:38 .
+drwx------ 15 donna01 donna01 4096 Jul 12 10:38 ..
+-rw-r-----  1 donna01 donna01    6 Jul 12 10:38 file.txt
+$ rm file.txt
+$ ls -la
+drwxr-x---  2 donna01 donna01 4096 Jul 12 10:38 .
+drwx------ 15 donna01 donna01 4096 Jul 12 10:38 ..
+```
+
+<figcaption>
+
+UCloud/IM targets POSIX-compliant filesystems. If you can use the normal command-line tools to interact with it, then
+it should work.
+
+</figcaption>
+
+</figure>
+
+Recall from a [previous chapter](./architecture.md) that UCloud/IM for Slurm spawns an instance for each user, which
+will run as the real local identity. This also means that all filesystem permissions will be governed simply by the
+normal permission model. Thus, if `Donna#1234` has a local identity of `donna01` then all files created by her will be
+owned by `donna01`. She will also only be able to access files she has the appropriate permissions for.
+
+To ensure proper file permissions when collaborating, the UCloud/IM instance will always create files using a `umask`
+value of `0007`. This ensures that the group (i.e. the rest of the project) will be able any newly created files.
+UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be enforced. For
+managed providers, UCloud/IM will recommend an owner, group and permissions for all drives, these are as follows:
+
+<figure>
+
+| Project type | Owner              | Group               | Mode   |
+|--------------|--------------------|---------------------|--------|
+| Personal     | `${localUsername}` | `${localUsername}`  | `0700` |
+| Project      | `root`             | `${localGroupName}` | `0770` |
+
+<figcaption>
+
+The permissions recommended by UCloud/IM for drives, these are consumed by integrations and are generally followed as
+closely as possible.
+
+</figcaption>
+
+</figure>
+
+It is a requirement that filesystems are mounted consistently across all relevant nodes (frontend and compute). Similar
+to how it is a requirement that identities (UIDs and GIDs) are consistent across all relevant nodes. Thus, if you are
+able to view your home directory at `/home/donna01` on the frontend, then it must be available at `/home/donna01` on all
+relevant compute nodes.
 
 ## Products and Payment
 
@@ -228,7 +286,7 @@ created using the following commands:
 
 <figure>
 
-```console
+```terminal
 $ sudo touch /etc/ucloud/secrets.yml
 $ sudo chown ucloud:ucloud /etc/ucloud/secrets.yml
 $ sudo chmod 600 /etc/ucloud/secrets.yml
@@ -400,7 +458,7 @@ Content-Type: application/json
 
 This step is repeated for all known drives in the entire system.
 
-First a request is sent to retrieve information about the fileset. 
+First a request is sent to retrieve information about the fileset.
 
 ```http request
 GET filesystems/${filesystem}/filesets/${fileset}
@@ -432,6 +490,237 @@ will trigger the "Resource allocation updated" process.
 
 ### WEKA
 
+TODO Not yet implemented.
+
 ### CephFS
 
+TODO Not yet implemented.
+
 ### Scripted (any filesystem)
+
+This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of
+drive management. It is entirely up to you to create these scripts. All scripts will be invoked with a single
+argument, which is a path to a JSON file. The contents of the JSON file will depend on the script, see below for
+details. All scripts are expected to return the response as a JSON object on `stdout`. Detailed error messages and
+debug information should be printed to `stderr`. In case of errors a non-zero exit code should be returned.
+
+In order to configure this integration, you must first configure it:
+
+<figure>
+
+```yaml
+services:
+  type: Slurm
+
+  fileSystems:
+    storage:
+      type: Scripted
+      onQuotaUpdated: /opt/ucloud/scripts/storage/onQuotaUpdated
+      onUsageReporting: /opt/ucloud/scripts/storage/onProjectUpdated
+      usageReportingFrequencyInMinutes: 1440 # Once a day
+```
+
+<figcaption>
+
+The Scripted integration is enabled by setting the `type` property of a filesystem to `Scripted` and providing
+the relevant scripts.
+
+</figcaption>
+
+</figure>
+
+Note that the scripts pointed to in the configuration file is your choice. You can point it to any script of your
+choosing. The script does not have to reside in any specific folder. The script _must_ be readable and executable by the
+UCloud/IM (Server) user. They do not have to be invoked by any of the user instances.
+
+The `usageReportingFrequencyInMinutes` determine how frequently the `onUsageReporting` script is invoked. This value
+should be set depending on fast the `onUsageReporting` script can determine the usage of a drive. If this action is
+fast, then we recommend setting the value to 15. If it is slow, then we recommended setting it accordingly at, for
+example, once per day (1440 minutes).
+
+#### Script: `onQuotaUpdated`
+
+The output of drive locators, explained earlier in this chapter, are provided to the `onQuotaUpdated` script. This
+script is invoked every time a relevant update happens to a resource allocation. This includes the first time that
+the resource allocation is created.
+
+The script is expected to perform the following actions:
+
+- It __must__ ensure that the drive is properly created. The drive must be available as a directory at `drive.filePath`.
+- It __should__ ensure that the owner of the directory is set to `drive.recommendedOwnerName`.
+- It __should__ ensure that the group of the directory is set to `drive.recommendedGroupName`.
+- It __should__ ensure that the mode of the directory is set to `drive.recommendedPermissions`.
+- It __must__ ensure that the quota associated with this folder is set to `quotaUpdate.combinedQuotaInBytes`.
+- It __must__ ensure that the drive _can_ be used if `quotaUpdate.combinedQuotaInbytes > 0`
+  and `quotaUpdate.locked = false`
+- It __must__ ensure that the drive _cannot_ be used if `quotaUpdate.combinedQuotaInbytes = 0`
+  or `quotaUpdate.locked = true`
+
+<div class="table-wrapper script-example">
+<table>
+<tbody>
+
+<tr>
+<th>Request</th>
+
+<td>
+
+```json
+{
+  /* object */
+  "drive": {
+    /* string */
+    "title": "",
+    /* string */
+    "locatorName": "",
+    /* string */
+    "categoryName": "",
+    /* string */
+    "filePath": "",
+    /* string */
+    "recommendedOwnerName": "",
+    /* string */
+    "recommendedGroupName": "",
+    /* string */
+    "recommendedPermissions": ""
+  },
+  /* object */
+  "quotaUpdate": {
+    /* uint64 */
+    "combinedQuotaInBytes": 0,
+    /* bool */
+    "locked": false
+  }
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Response</th>
+
+<td>
+
+_No response required_
+
+</td>
+</tr>
+
+<tr>
+<th>Example request</th>
+<td>
+
+```json
+{
+  "drive": {
+    "title": "Home",
+    "locatorName": "home",
+    "categoryName": "hpc-storage",
+    "filePath": "/home/donna01",
+    "recommendedOwnerName": "donna01",
+    "recommendedGroupName": "donna01",
+    "recommendedPermissions": "0700"
+  },
+  "quotaUpdate": {
+    "combinedQuotaInBytes": 53687091200,
+    "locked": false
+  }
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example response</th>
+<td>
+
+_No response_
+
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+#### Script: `onUsageReporting`
+
+Basic information about drives are given as input to this script. This script is invoked periodically and must determine
+the usage of a given drive and return the result in bytes. The script will be invoked at least once every
+`usageReportingFrequencyInMinutes` minutes. Several `onUsageReporting` scripts can run in parallel and no ordering of
+the drives are guaranteed. The script may also be invoked on-demand by the integration module in response to actions
+taken by the user.
+
+<div class="table-wrapper script-example">
+<table>
+<tbody>
+
+<tr>
+<th>Request</th>
+
+<td>
+
+```json
+{
+  /* string */
+  "locatorName": "",
+  /* string */
+  "categoryName": "",
+  /* string */
+  "filePath": ""
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Response</th>
+
+<td>
+
+```json
+{
+  /* uint64 */
+  "usageInBytes": 0
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example request</th>
+<td>
+
+```json
+{
+  "locatorName": "home",
+  "categoryName": "hpc-storage",
+  "filePath": "/home/donna01"
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<th>Example response</th>
+<td>
+
+```json
+
+{
+  "usageInBytes": 32212254720
+}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
