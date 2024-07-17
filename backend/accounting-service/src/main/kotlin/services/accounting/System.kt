@@ -179,8 +179,6 @@ class AccountingSystem(
         GlobalScope.launch {
             delay(1000)
             persistence.loadOldData(this@AccountingSystem)
-
-            sendRequestNoUnwrap(AccountingRequest.DebugUsable(IdCard.System))
         }
 
         while (currentCoroutineContext().isActive && isActiveProcessor.get()) {
@@ -200,6 +198,8 @@ class AccountingSystem(
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
                                         is AccountingRequest.SubAllocate -> subAllocate(msg)
+                                        is AccountingRequest.CommitAllocations -> commitAllocations(msg)
+                                        is AccountingRequest.RollBackGrantAllocations -> rollBackGrantAllocations(msg)
                                         is AccountingRequest.ScanRetirement -> scanRetirement(msg)
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
@@ -265,12 +265,18 @@ class AccountingSystem(
                             try {
                                 toCheck.forEach { checkWalletHierarchy(it) }
                             } catch (e: Throwable) {
-                                response = Response.error(
-                                    HttpStatusCode.InternalServerError,
-                                    e.toReadableStacktrace().toString()
-                                )
+                                if (request.message is AccountingRequest.SubAllocate) {
+                                    response = Response.error(
+                                        HttpStatusCode.UnprocessableEntity,
+                                        e.message.toString(),
+                                    )
+                                } else {
+                                    response = Response.error(
+                                        HttpStatusCode.InternalServerError,
+                                        e.toReadableStacktrace().toString()
+                                    )
+                                }
                             }
-
                             response.id = request.id
                             responses.emit(response)
                         }
@@ -441,7 +447,10 @@ class AccountingSystem(
         val idCard = request.idCard
         //Check that we only give root allocations to Root projects
         if (idCard !is IdCard.User) {
-            return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E1 I=${idCard})")
+            return Response.error(
+                HttpStatusCode.Forbidden,
+                "You are not allowed to create a root allocation! (E1 I=${idCard})"
+            )
         }
 
         if (idCard.activeProject == 0) {
@@ -452,7 +461,10 @@ class AccountingSystem(
             ?: return Response.error(HttpStatusCode.InternalServerError, "Could not lookup project from id card")
 
         val wallet = authorizeAndLocateWallet(request.idCard, projectId, request.category, ActionType.ROOT_ALLOCATE)
-            ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create a root allocation! (E2 U=${idCard.uid} P=${idCard.activeProject} AO=${idCard.adminOf.toList()} G=${idCard.groups.toList()})")
+            ?: return Response.error(
+                HttpStatusCode.Forbidden,
+                "You are not allowed to create a root allocation! (E2 U=${idCard.uid} P=${idCard.activeProject} AO=${idCard.adminOf.toList()} G=${idCard.groups.toList()})"
+            )
 
         val currentParents = wallet.allocationsByParent.keys
         if (currentParents.isNotEmpty() && currentParents.singleOrNull() != 0) {
@@ -484,7 +496,8 @@ class AccountingSystem(
                 request.amount,
                 request.start,
                 request.end,
-                grantedIn = null
+                grantedIn = null,
+                autoCommit = true,
             )
         )
     }
@@ -571,7 +584,8 @@ class AccountingSystem(
         quota: Long,
         start: Long,
         end: Long,
-        grantedIn: Long?
+        grantedIn: Long?,
+        autoCommit: Boolean = false,
     ): Int {
         check(start <= end)
         check(parentWalletId >= 0)
@@ -589,7 +603,8 @@ class AccountingSystem(
             end = end,
             retired = false,
             grantedIn = grantedIn,
-            isDirty = true
+            isDirty = true,
+            committed = autoCommit,
         )
 
         allocations[allocationId] = newAllocation
@@ -621,7 +636,9 @@ class AccountingSystem(
 
         if (parentWallet != null) {
             parentWallet.isDirty = true
+            println("Insert Alloc: W$parentWalletId before: ${parentWallet.totalAllocated}")
             if (isActiveNow) parentWallet.totalAllocated += quota
+            println("Insert Alloc: W$parentWalletId after: ${parentWallet.totalAllocated}")
 
             // NOTE(Dan): Insert a childrenUsage entry if we don't already have one. This is required to make
             // childrenUsage a valid tool for looking up children in the parent wallet.
@@ -641,6 +658,62 @@ class AccountingSystem(
         reevaluateWalletsAfterUpdate(wallet)
 
         return allocationId
+    }
+
+    private fun rollBackGrantAllocations(request: AccountingRequest.RollBackGrantAllocations): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(
+            HttpStatusCode.Forbidden,
+            "User is not allowed to rollback allocations"
+        )
+        val foundAllocations = allocations.values.filter { it.grantedIn == request.grantedIn }
+        if (foundAllocations.isEmpty()) return Response.ok(Unit)
+        if (foundAllocations.any { it.committed }) return Response.error(
+            HttpStatusCode.BadRequest,
+            "Cannot be allowed to rollback already commit allocations"
+        )
+        foundAllocations.forEach { alloc ->
+            val allocGroup = allocationGroups.filter { it.value.allocationSet.contains(alloc.id) }
+            allocGroup.forEach { id, group ->
+                val parentId = group.parentWallet
+                //This is okay since the allocation have never been active
+                group.allocationSet.remove(alloc.id)
+                //removing the alloced value from the parent wallet.
+                val parentWallet = walletsById[parentId]
+                if (parentWallet != null){
+                    parentWallet.totalAllocated -= alloc.quota
+                }
+
+            }
+            allocations.remove(alloc.id)
+        }
+        return Response.ok(Unit)
+    }
+
+    private fun commitAllocations(request: AccountingRequest.CommitAllocations): Response<Unit> {
+        if (request.idCard != IdCard.System) return Response.error(
+            HttpStatusCode.Forbidden,
+            "User is not allowed to commit allocations"
+        )
+        if (request.ids != null && request.grantedIn != null) return Response.error(
+            HttpStatusCode.BadRequest,
+            "commit only based on grant id or allocation ids"
+        )
+        if (request.ids != null) {
+            if (request.ids.isEmpty()) return Response.ok(Unit)
+            request.ids.forEach { id ->
+                val alloc = allocations[id] ?: return@forEach
+                alloc.committed = true
+                alloc.isDirty = true
+            }
+        }
+        if (request.grantedIn != null) {
+            val allocations = allocations.filter { it.value.grantedIn == request.grantedIn }.map { it.value }
+            allocations.forEach { alloc ->
+                alloc.committed = true
+                alloc.isDirty = true
+            }
+        }
+        return Response.ok(Unit)
     }
 
     private fun markSignificantUpdate(wallet: InternalWallet, now: Long) {

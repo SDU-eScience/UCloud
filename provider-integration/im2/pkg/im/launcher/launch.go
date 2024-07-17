@@ -1,8 +1,10 @@
 package launcher
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -72,6 +74,8 @@ func Launch() {
 		//  instance it must select a secret at random and use it for all subsequent requests. The secret must be
 		//  captured by all relevant requests and validated. The secret is used as a signal that Envoy has successfully
 		//  validated a JWT without passing on the JWT.
+		// TODO(Dan): Websockets are problematic here since they pass the bearer in the request message and not the
+		//   header.
 		gateway.Initialize(gateway.Config{
 			ListenAddress:   "0.0.0.0",
 			Port:            8889,
@@ -155,4 +159,13 @@ func NewLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 func (lrw *loggingResponseWriter) WriteHeader(code int) {
 	lrw.statusCode = code
 	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := lrw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("hijack not supported")
+	}
+
+	return hijacker.Hijack()
 }

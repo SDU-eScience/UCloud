@@ -14,6 +14,12 @@ func SilentClose(closer io.Closer) {
 	}
 }
 
+func SilentCloseIfOk(closer io.Closer, err error) {
+	if err == nil && closer != nil {
+		_ = closer.Close()
+	}
+}
+
 func RandomToken(byteCount int) string {
 	bytes := make([]byte, byteCount)
 	_, _ = rand.Read(bytes)

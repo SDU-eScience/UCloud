@@ -521,7 +521,7 @@ const envoyRouteTemplateIngress = `{
 	"match": {
 		"prefix": "/",
 		"headers": [
-			{ "name": ":authority", "exact_match": %v }
+			{ "name": ":authority", "exact_match": "%v" }
 			%v
 		]
 	}
@@ -530,7 +530,7 @@ const envoyRouteTemplateIngress = `{
 const envoyRouteTemplateIngressCookieEntry = `, {
 	"name": "cookie",
 	"string_match": {
-		"safe_regex": { "regex": %v } }
+		"safe_regex": { "regex": %v }
 	}
 }`
 
@@ -603,6 +603,7 @@ func (c *EnvoyRoute) formatRoute() []string {
 		var cookieMatcher = ""
 		if len(c.AuthTokens) > 0 {
 			var regexBuilder strings.Builder
+			regexBuilder.WriteString(".*ucloud-compute-session-.*=(")
 			for i, elem := range c.AuthTokens {
 				if i > 0 {
 					regexBuilder.WriteString("|")
@@ -610,6 +611,7 @@ func (c *EnvoyRoute) formatRoute() []string {
 
 				regexBuilder.WriteString(urlEncode(elem))
 			}
+			regexBuilder.WriteString(").*")
 
 			cookieMatcher = fmt.Sprintf(
 				envoyRouteTemplateIngressCookieEntry,

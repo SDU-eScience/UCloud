@@ -10,17 +10,21 @@ import FilesApi from "@/UCloud/FilesApi";
 export const sidebarFavoriteCache = new class extends ExternalStoreBase {
     private cache: PageV2<FileMetadataAttached> = {items: [], itemsPerPage: 100};
     private fileInfoCache: Record<string, UFile> = {};
+    private inflightCache: Record<string, boolean> = {};
     private isDirty: boolean = false;
     public loading = false;
     public error = "";
+    public initialized = false;
 
-    public async fetch() {
+    public async fetch(next?: string): Promise<void> {
         this.loading = true;
+        this.initialized = true;
         try {
             this.setCache(await callAPI(metadataApi.browse({
                 filterActive: true,
                 filterTemplate: "Favorite",
-                itemsPerPage: 100
+                itemsPerPage: 10,
+                next
             })));
         } catch (error) {
             this.error = errorMessageOrDefault(error, "Failed to fetch favorite files.");
@@ -31,7 +35,8 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
     public async fetchFileInfo(paths: string[]): Promise<void> {
         const promises: Promise<UFile>[] = [];
         for (const p of paths) {
-            if (!this.fileInfoCache[p]) {
+            if (!this.fileInfoCache[p] && !this.inflightCache[p]) {
+                this.inflightCache[p] = true;
                 promises.push(callAPI(FilesApi.retrieve({id: p})));
             }
         }
@@ -41,6 +46,7 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
         for (const promise of promises) {
             const result = await promise;
             this.fileInfoCache[result.id] = result;
+            this.inflightCache[result.id] = false;
         }
     }
 
@@ -81,7 +87,7 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
 
     public setCache(page: PageV2<FileMetadataAttached>) {
         this.isDirty = true;
-        this.cache = page;
+        this.cache = {items: [...this.cache.items, ...page.items], itemsPerPage: page.itemsPerPage, next: page.next};
 
         this.emitChange();
     }
@@ -89,7 +95,7 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
     public getSnapshot(): Readonly<PageV2<FileMetadataAttached>> {
         if (this.isDirty) {
             this.isDirty = false;
-            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage};
+            return this.cache = {items: this.cache.items, itemsPerPage: this.cache.itemsPerPage, next: this.cache.next};
         }
         return this.cache;
     }

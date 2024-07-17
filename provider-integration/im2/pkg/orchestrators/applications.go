@@ -16,11 +16,11 @@ type SimpleDuration struct {
 	Seconds int
 }
 
-func (d *SimpleDuration) toMillis() int64 {
-	return (int64(d.Hours)*60*60*1000 + int64(d.Minutes)*60*1000 + int64(d.Seconds)*1000)
+func (d SimpleDuration) ToMillis() int64 {
+	return int64(d.Hours)*60*60*1000 + int64(d.Minutes)*60*1000 + int64(d.Seconds)*1000
 }
 
-func (d *SimpleDuration) fromMillis(durationMs int64) SimpleDuration {
+func SimpleDurationFromMillis(durationMs int64) SimpleDuration {
 	var hours = int(durationMs / (1000 * 60 * 60))
 	var minutes = int(durationMs % (1000 * 60 * 60) / (1000 * 60))
 	var seconds = int(((durationMs % (1000 * 60 * 60)) / (1000 * 60)) / 1000)

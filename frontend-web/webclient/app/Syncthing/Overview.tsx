@@ -485,7 +485,7 @@ export const Overview: React.FunctionComponent = () => {
                                 <b>We are currently starting a Syncthing server for you. </b><br />
                                 If nothing happens, then you should try reloading this page.
                             </Box> :
-                            <ServerBrowse servers={servers} dispatch={dispatch} opts={{embedded: true}} />
+                            <ServerBrowse servers={servers} opts={{embedded: true}} callbacks={operationCb} />
                         }
                     </TitledCard>
                 }
@@ -584,6 +584,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
+            console.log(cb)
             callAPIWithErrorHandler(Sync.api.restart({provider: cb.provider, productId: cb.productId}));
         },
         shortcut: ShortcutKey.Q
@@ -961,7 +962,11 @@ const DeviceBox = injectStyleSimple("device-box", `
 `);
 
 const SPINNER = new ReactStaticRenderer(() => <HexSpin size={30} />);
-function ServerBrowse({servers, dispatch, opts}: {dispatch(action: UIAction): void; servers?: Job[], opts: ResourceBrowserOpts<Job>}): React.ReactNode {
+function ServerBrowse({servers, opts, callbacks}: {
+    servers?: Job[];
+    opts: ResourceBrowserOpts<Job>;
+    callbacks: OperationCallbacks;
+}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job>>(null);
     const navigate = useNavigate();
@@ -1075,10 +1080,7 @@ function ServerBrowse({servers, dispatch, opts}: {dispatch(action: UIAction): vo
                     return [];
                 });
 
-                browser.on("fetchOperationsCallback", () => ({
-                    dispatch,
-                    navigate
-                }));
+                browser.on("fetchOperationsCallback", () => callbacks);
 
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();

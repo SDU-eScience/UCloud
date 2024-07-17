@@ -3,6 +3,7 @@ package apm
 import (
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type AllocationGroup struct {
@@ -36,7 +37,7 @@ type ParentOrChildWallet struct {
 }
 
 type WalletOwner struct {
-	Type      WalletOwnerType `json:"type,omitempty"`
+	Type      WalletOwnerType `json:"type"`
 	Username  string          `json:"username,omitempty"`
 	ProjectId string          `json:"projectId,omitempty"`
 }
@@ -63,16 +64,16 @@ func WalletOwnerProject(projectId string) WalletOwner {
 }
 
 type UsageReportItem struct {
-	IsDeltaCharge bool
-	Owner         WalletOwner
-	CategoryIdV2  ProductCategoryIdV2
-	Usage         int64
-	Description   ChargeDescription
+	IsDeltaCharge bool                `json:"isDeltaCharge"`
+	Owner         WalletOwner         `json:"owner"`
+	CategoryIdV2  ProductCategoryIdV2 `json:"categoryIdV2"`
+	Usage         int64               `json:"usage"`
+	Description   ChargeDescription   `json:"description"`
 }
 
 type ChargeDescription struct {
-	Scope       string
-	Description string
+	Scope       util.Option[string] `json:"scope"`
+	Description util.Option[string] `json:"description"`
 }
 
 type WalletV2 struct {

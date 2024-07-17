@@ -2,8 +2,10 @@ package slurm
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"ucloud.dk/pkg/util"
 )
 
@@ -219,7 +221,7 @@ func (c *Client) JobQuery(id int) *Job {
 		return nil
 	}
 
-	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres"}
+	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
 	stdout, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
@@ -234,6 +236,62 @@ func (c *Client) JobQuery(id int) *Job {
 	return nil
 }
 
+func (c *Client) JobList() []Job {
+	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
+	stdout, ok := util.RunCommand(cmd)
+	if !ok {
+		return nil
+	}
+
+	var jobs []Job
+	unmarshal(stdout, &jobs)
+	return jobs
+}
+
+func (c *Client) JobSubmit(pathToScript string) (int, error) {
+	cmd := []string{"sbatch", pathToScript}
+	stdout, ok := util.RunCommand(cmd)
+	if !ok {
+		if strings.Contains(stdout, "Requested time limit is invalid") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why: "The requested time limit is larger than what the system allows. " +
+					"Try with a smaller time allocation.",
+			}
+		} else if strings.Contains(stdout, "Node count specification invalid") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else if strings.Contains(stdout, "More processors") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else if strings.Contains(stdout, "Requested node config") {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Too many nodes requested. Try with a smaller amount of nodes.",
+			}
+		} else {
+			return -1, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        fmt.Sprintf("Slurm could not process your request. %v", stdout),
+			}
+		}
+	}
+
+	jobId, err := strconv.Atoi(strings.TrimSpace(stdout))
+	if err != nil {
+		return -1, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        fmt.Sprintf("Failed to understand output of sbatch. Expected a job ID but got: %v", stdout),
+		}
+	}
+
+	return jobId, nil
+}
+
 func (c *Client) JobCancel(id int) bool {
 	if id <= 0 {
 		return false
@@ -243,3 +301,70 @@ func (c *Client) JobCancel(id int) bool {
 	_, ok := util.RunCommand(cmd)
 	return ok
 }
+
+func (c *Client) JobGetNodeList(id int) []string {
+	stdout, ok := util.RunCommand([]string{"sacct", "--jobs", fmt.Sprint(id), "--format", "nodelist",
+		"--parsable2", "--allusers", "--allocations", "--noheader"})
+	if !ok {
+		return nil
+	}
+
+	return expandNodeList(stdout)
+}
+
+func expandNodeList(str string) []string {
+	var result []string
+	stdout, ok := util.RunCommand([]string{"scontrol", "show", "hostname", str})
+	if !ok {
+		return result
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		result = append(result, trimmed)
+	}
+	return result
+}
+
+func (c *Client) AccountBillingList() map[string]int64 {
+	var result = map[string]int64{}
+	stdout, ok := util.RunCommand([]string{"sshare", "-Pho", "account,user,grptresraw"})
+	if !ok {
+		return result
+	}
+
+	lines := strings.Split(stdout, "\n")
+	for _, line := range lines {
+		columns := strings.Split(line, "|")
+		if len(columns) != 3 {
+			continue
+		}
+
+		account := strings.TrimSpace(columns[0])
+		user := strings.TrimSpace(columns[1])
+		grptresRaw := strings.TrimSpace(columns[2])
+
+		if account == "" || user != "" {
+			continue
+		}
+
+		billingSubmatches := billingRegex.FindStringSubmatch(grptresRaw)
+		if len(billingSubmatches) != 2 {
+			continue
+		}
+		usage, err := strconv.ParseInt(billingSubmatches[1], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		result[account] = usage
+	}
+	return result
+}
+
+var billingRegex = regexp.MustCompile("billing=(\\d+)")

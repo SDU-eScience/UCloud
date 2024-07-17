@@ -2,7 +2,7 @@ import {defineConfig, UserConfigExport} from "vite";
 import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
-import {DEV_SITE, SANDBOX_SITE} from "./site.config.json";
+import {PRODUCTION_SITE, DEV_SITE, SANDBOX_SITE} from "./site.config.json";
 
 // https://vitejs.dev/config/
 

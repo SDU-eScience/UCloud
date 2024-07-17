@@ -79,6 +79,7 @@ services:
     enabled: false
 
   slurm:
+    fakeResourceAllocation: true
     accountManagement:
       accounting: # Usage and quota management
         type: Automatic
@@ -88,11 +89,16 @@ services:
         users: "#{localUsername}_#{productCategory}"
         projects: "#{localGroupName}_#{productCategory}"
 
+    web:
+      enabled: true
+      prefix: "goslurm-"
+      suffix: ".localhost.direct"
+
     machines:
       u1-standard:
-        partition: standard
+        partition: normal
         qos: standard
-        constraint: standard
+        # constraint: standard
 
         nameSuffix: Cpu
 

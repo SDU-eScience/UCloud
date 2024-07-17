@@ -16,8 +16,14 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ServiceConfig = config
 
 	ctrl.LaunchUserInstances = true
+	if cfg.Mode == cfg.ServerModeServer {
+		ctrl.InitJobDatabase()
+	}
+
 	ctrl.Files = InitializeFiles()
 	InitTaskSystem()
+	ctrl.Jobs = InitCompute()
+	InitAccountManagement()
 
 	if cfg.Mode == cfg.ServerModeUser {
 		// NOTE(Dan): Set the umask required for this service. This is done to make sure that projects have predictable
@@ -28,7 +34,6 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 
 	if cfg.Mode == cfg.ServerModeServer {
 		InitFileManagers()
-		InitAccountManagement()
 	}
 
 	// Identity management
@@ -57,5 +62,5 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 func handleApmNotification(update *ctrl.NotificationWalletUpdated) {
 	drives := EvaluateLocators(update.Owner, update.Category.Name)
 	FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
-	AccountManagement.OnWalletUpdated(update)
+	Accounting.OnWalletUpdated(update)
 }

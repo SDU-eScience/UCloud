@@ -1073,7 +1073,7 @@ class JobResourceService(
                             .responses
                             .asSequence()
                             .filterNotNull()
-                            .map { OpenSessionWithProvider(providerDomain, provider, it) }
+                            .map { OpenSessionWithProvider(it.domainOverride ?: providerDomain, provider, it) }
                     )
                 } catch (ex: Throwable) {
                     if (firstException == null) firstException = ex
@@ -1797,6 +1797,7 @@ class JobResourceService(
             createdAt,
             JobOutput(outputFolder = data.outputFolder),
             permissions,
+            providerGeneratedId = doc.providerId,
         )
     }
 

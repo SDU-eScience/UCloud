@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
@@ -15,7 +16,31 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+var evaluateLocatorsIpc = ipc.NewCall[apm.WalletOwner, []LocatedDrive]("slurm.drives.evaluateLocators")
+var retrieveDriveByIdIpc = ipc.NewCall[fnd.FindByStringId, orc.Drive]("slurm.drives.retrieveById")
+
 func driveIpcServer() {
+	retrieveDriveByIdIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[orc.Drive] {
+		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		if err != nil {
+			return ipc.Response[orc.Drive]{
+				StatusCode: http.StatusNotFound,
+				Payload:    orc.Drive{},
+			}
+		}
+
+		if !ctrl.BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(drive.Resource), r.Uid) {
+			return ipc.Response[orc.Drive]{
+				StatusCode: http.StatusNotFound,
+				Payload:    orc.Drive{},
+			}
+		}
+
+		return ipc.Response[orc.Drive]{
+			StatusCode: http.StatusOK,
+			Payload:    drive,
+		}
+	})
 	evaluateLocatorsIpc.Handler(func(r *ipc.Request[apm.WalletOwner]) ipc.Response[[]LocatedDrive] {
 		if !ctrl.BelongsToWorkspace(r.Payload, r.Uid) {
 			return ipc.Response[[]LocatedDrive]{
@@ -91,8 +116,6 @@ type LocatedDrive struct {
 	RecommendedGroupName   string
 	RecommendedPermissions string
 }
-
-var evaluateLocatorsIpc = ipc.NewCall[apm.WalletOwner, []LocatedDrive]("slurm.drives.evaluateLocators")
 
 func EvaluateAllLocators(owner apm.WalletOwner) []LocatedDrive {
 	if cfg.Mode != cfg.ServerModeServer {

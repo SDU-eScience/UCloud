@@ -14,18 +14,18 @@ type ProductReference struct {
 }
 
 type ProductCategoryIdV2 struct {
-	Name     string
-	Provider string
+	Name     string `json:"name,omitempty"`
+	Provider string `json:"provider,omitempty"`
 }
 
 type ProductCategory struct {
-	Name                string
-	Provider            string
-	ProductType         ProductType
-	AccountingUnit      AccountingUnit
-	AccountingFrequency AccountingFrequency
-	FreeToUse           bool
-	AllowSubAllocations bool
+	Name                string              `json:"name,omitempty"`
+	Provider            string              `json:"provider,omitempty"`
+	ProductType         ProductType         `json:"productType,omitempty"`
+	AccountingUnit      AccountingUnit      `json:"accountingUnit"`
+	AccountingFrequency AccountingFrequency `json:"accountingFrequency,omitempty"`
+	FreeToUse           bool                `json:"freeToUse,omitempty"`
+	AllowSubAllocations bool                `json:"allowSubAllocations,omitempty"`
 }
 
 type ProductType string
@@ -103,6 +103,14 @@ type ProductV2 struct {
 	MemoryModel  string `json:"memoryModel,omitempty"`
 	Gpu          int    `json:"gpu,omitempty"`
 	GpuModel     string `json:"gpuModel,omitempty"`
+}
+
+func (p *ProductV2) ToReference() ProductReference {
+	return ProductReference{
+		Id:       p.Name,
+		Category: p.Category.Name,
+		Provider: p.Category.Provider,
+	}
 }
 
 // API

@@ -3,6 +3,8 @@ package slurm
 import (
 	"fmt"
 	"time"
+	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gpfs"
@@ -34,14 +36,11 @@ type GpfsManager struct {
 
 func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
 	for _, drive := range drives {
-		mapping, ok := g.config.Mapping[drive.LocatorName]
+		mapping, filesetName, ok := g.resolveLocatedDrive(drive, update.Category.Name)
 		if !ok {
-			log.Error("Could not determine GPFS mapping for category=%v, locator=%v", update.Category.Name,
-				drive.LocatorName)
 			continue
 		}
 
-		filesetName := util.InjectParametersIntoString(mapping.FileSetPattern, drive.Parameters)
 		filesQuota := 1
 		if update.Locked {
 			filesQuota = 0
@@ -73,4 +72,69 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 			log.Warn("Failed to register drive with UCloud: %v", err)
 		}
 	}
+}
+
+func (g *GpfsManager) resolveLocatedDrive(drive LocatedDrive, category string) (cfg.GpfsMapping, string, bool) {
+	mapping, ok := g.config.Mapping[drive.LocatorName]
+	if !ok {
+		log.Error("Could not determine GPFS mapping for category=%v, locator=%v", category, drive.LocatorName)
+		return cfg.GpfsMapping{}, "", false
+	}
+
+	return mapping, util.InjectParametersIntoString(mapping.FileSetPattern, drive.Parameters), true
+}
+
+func (g *GpfsManager) RunAccountingLoop() {
+	var batch []apm.UsageReportItem
+
+	allocations := ctrl.FindAllAllocations(g.name)
+	for _, allocation := range allocations {
+		locatedDrives := EvaluateAllLocators(allocation.Owner)
+		for _, locatedDrive := range locatedDrives {
+			mapping, filesetName, ok := g.resolveLocatedDrive(locatedDrive, allocation.Category)
+			if !ok {
+				continue
+			}
+
+			fileset, ok := g.client.FilesetQuery(mapping.FileSystem, filesetName)
+			if !ok {
+				continue
+			}
+
+			unitsUsed := int64(fileset.UsageBytes) / int64(g.unitInBytes)
+			batch = append(batch, apm.UsageReportItem{
+				IsDeltaCharge: false,
+				Owner:         allocation.Owner,
+				CategoryIdV2: apm.ProductCategoryIdV2{
+					Name:     allocation.Category,
+					Provider: cfg.Provider.Id,
+				},
+				Usage: unitsUsed,
+				Description: apm.ChargeDescription{
+					Scope: util.OptValue(fmt.Sprintf("%v-%v-%v", cfg.Provider.Id, g.name, locatedDrive.LocatorName)),
+				},
+			})
+
+			g.flushBatch(&batch, false)
+		}
+	}
+	g.flushBatch(&batch, true)
+}
+
+func (g *GpfsManager) flushBatch(batch *[]apm.UsageReportItem, force bool) {
+	current := *batch
+	if len(current) == 0 {
+		return
+	}
+
+	if len(current) < 500 && !force {
+		return
+	}
+
+	_, err := apm.ReportUsage(fnd.BulkRequest[apm.UsageReportItem]{Items: current})
+	if err != nil {
+		log.Warn("Failed to send GPFS accounting batch: %v %v", g.name, err)
+	}
+
+	*batch = nil
 }

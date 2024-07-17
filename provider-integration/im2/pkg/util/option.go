@@ -58,7 +58,7 @@ func (s Option[T]) MarshalJSON() ([]byte, error) {
 	}
 }
 
-func (s Option[T]) UnmarshalJSON(data []byte) error {
+func (s *Option[T]) UnmarshalJSON(data []byte) error {
 	if string(data) == "null" {
 		s.Present = false
 		return nil

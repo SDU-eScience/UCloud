@@ -14,8 +14,16 @@ type ServicesConfigurationSlurm struct {
 }
 
 type SlurmCompute struct {
-	AccountManagement SlurmAccountManagement
-	Machines          map[string]SlurmMachineCategory
+	AccountManagement      SlurmAccountManagement
+	Machines               map[string]SlurmMachineCategory
+	Web                    SlurmWebConfiguration
+	FakeResourceAllocation bool
+}
+
+type SlurmWebConfiguration struct {
+	Enabled bool
+	Prefix  string
+	Suffix  string
 }
 
 type SlurmMachineCategory struct {
@@ -416,6 +424,20 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			}
 		}
 
+		fakeResourceAllocation, ok := optionalChildBool(filePath, slurmNode, "fakeResourceAllocation")
+		cfg.Compute.FakeResourceAllocation = fakeResourceAllocation && ok
+
+		webNode, _ := getChildOrNil(filePath, slurmNode, "web")
+		if webNode != nil {
+			enabled, ok := optionalChildBool(filePath, webNode, "enabled")
+			cfg.Compute.Web.Enabled = enabled && ok
+
+			if cfg.Compute.Web.Enabled {
+				cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
+				cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+			}
+		}
+
 		cfg.Compute.Machines = make(map[string]SlurmMachineCategory)
 		machinesNode := requireChild(filePath, slurmNode, "machines", &success)
 		if machinesNode.Kind != yaml.MappingNode {
@@ -497,7 +519,7 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 
 func parseSlurmMachineGroup(filePath string, node *yaml.Node, success *bool) SlurmMachineCategoryGroup {
 	result := SlurmMachineCategoryGroup{}
-	result.Constraint = requireChildText(filePath, node, "constraint", success)
+	result.Constraint = optionalChildText(filePath, node, "constraint", success)
 	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)

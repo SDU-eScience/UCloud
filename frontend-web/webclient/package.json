@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2024.1.19",
+    "version": "2024.1.33",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -18,10 +18,10 @@
     },
     "dependencies": {
         "@novnc/novnc": "1.4.0",
-        "@reduxjs/toolkit": "2.2.5",
+        "@reduxjs/toolkit": "2.2.6",
         "@rjsf/core": "4.2.3",
         "@svgr/cli": "8.1.0",
-        "apexcharts": "3.49.1",
+        "apexcharts": "3.50.0",
         "assert": "2.1.0",
         "date-fns": "3.6.0",
         "deepcopy": "2.1.0",
@@ -30,7 +30,7 @@
         "jsrsasign": "11.1.0",
         "localforage": "1.10.0",
         "magic-bytes.js": "1.10.0",
-        "monaco-editor": "0.49.0",
+        "monaco-editor": "0.50.0",
         "react": "18.3.1",
         "react-apexcharts": "1.4.1",
         "react-datepicker": "6.9.0",
@@ -38,8 +38,8 @@
         "react-markdown": "9.0.1",
         "react-modal": "3.16.1",
         "react-redux": "8.1.3",
-        "react-router": "6.23.1",
-        "react-router-dom": "6.23.1",
+        "react-router": "6.24.1",
+        "react-router-dom": "6.24.1",
         "react-syntax-highlighter": "15.5.0",
         "react-transition-group": "4.4.5",
         "redux": "4.2.1",
@@ -63,7 +63,7 @@
         "@types/ua-parser-js": "0.7.39",
         "@vitejs/plugin-react": "4.3.1",
         "@vitejs/plugin-react-refresh": "1.3.6",
-        "typescript": "5.4.5",
-        "vite": "5.3.1"
+        "typescript": "5.5.3",
+        "vite": "5.3.3"
     }
 }

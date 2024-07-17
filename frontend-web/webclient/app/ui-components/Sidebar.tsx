@@ -485,7 +485,9 @@ function useSidebarFilesPage(): [
     }, [favorites]);
 
     React.useEffect(() => {
-        sidebarFavoriteCache.fetch();
+        if (!sidebarFavoriteCache.initialized) {
+            sidebarFavoriteCache.fetch();
+        }
     }, []);
 
     const projectId = useProjectId();

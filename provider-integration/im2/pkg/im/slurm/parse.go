@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
@@ -62,49 +63,11 @@ func atoi(s string) int {
 	return f * v
 }
 
-func unmarshal(str string, data any) {
-	rv := reflect.ValueOf(data).Elem()
+func unmarshalWithPredefinedHeader(lines []string, tagMap map[string]Tag, headerMap map[int]string, output any) {
+	rv := reflect.ValueOf(output).Elem()
 	if !rv.CanAddr() {
 		fmt.Printf("cannot assign to the item passed, item must be a pointer in order to assign")
 		return
-	}
-
-	tagMap := map[string]Tag{}
-	for i := 0; i < rv.NumField(); i++ {
-		field := rv.Type().Field(i)
-		tag, ok := field.Tag.Lookup("slurm")
-		if !ok {
-			continue
-		}
-
-		tags := strings.Split(tag, ",")
-		multiline := false
-		tag = ""
-
-		for _, v := range tags {
-			switch v {
-			case "multiline":
-				multiline = true
-			default:
-				tag = v
-			}
-		}
-
-		if tag != "" {
-			tagMap[tag] = Tag{
-				index:     i,
-				multiline: multiline,
-			}
-		}
-	}
-
-	lines := strings.Split(str, "\n")
-	header := strings.Split(lines[0], "|")
-	lines = lines[1:]
-
-	headerMap := map[int]string{}
-	for k, v := range header {
-		headerMap[k] = v
 	}
 
 	for n := range lines {
@@ -166,10 +129,85 @@ func unmarshal(str string, data any) {
 			}
 		}
 	}
+}
 
-	// debug
-	// prettyJSON, _ := json.MarshalIndent(data, "", "\t")
-	// fmt.Println(string(prettyJSON))
+func parseHeader(headerLine string, data any) (map[string]Tag, map[int]string) {
+	rv := reflect.ValueOf(data).Elem()
+	if !rv.CanAddr() {
+		fmt.Printf("cannot assign to the item passed, item must be a pointer in order to assign")
+		return nil, nil
+	}
+
+	tagMap := map[string]Tag{}
+	for i := 0; i < rv.NumField(); i++ {
+		field := rv.Type().Field(i)
+		tag, ok := field.Tag.Lookup("slurm")
+		if !ok {
+			continue
+		}
+
+		tags := strings.Split(tag, ",")
+		multiline := false
+		tag = ""
+
+		for _, v := range tags {
+			switch v {
+			case "multiline":
+				multiline = true
+			default:
+				tag = v
+			}
+		}
+
+		if tag != "" {
+			tagMap[tag] = Tag{
+				index:     i,
+				multiline: multiline,
+			}
+		}
+	}
+
+	header := strings.Split(headerLine, "|")
+	headerMap := map[int]string{}
+	for k, v := range header {
+		headerMap[k] = v
+	}
+
+	return tagMap, headerMap
+}
+
+func unmarshal(str string, data any) {
+	lines := strings.Split(str, "\n")
+	if len(lines) == 0 {
+		log.Warn("%v Received 0 lines of input while unmarshalling Slurm data!", util.GetCaller())
+		return
+	}
+
+	reflectValue := reflect.ValueOf(data)
+	if reflectValue.Elem().Type().Kind() == reflect.Slice {
+		elemType := reflectValue.Elem().Type().Elem()
+
+		dummyElement := reflect.New(elemType)
+		tagMap, headerMap := parseHeader(lines[0], dummyElement.Interface())
+		lines = lines[1:]
+
+		result := reflect.MakeSlice(reflectValue.Elem().Type(), len(lines), len(lines))
+
+		i := 0
+		for len(lines) > 0 {
+			elem := reflect.New(elemType)
+			unmarshalWithPredefinedHeader(lines, tagMap, headerMap, elem.Interface())
+			result.Index(i).Set(elem.Elem())
+			lines = lines[1:]
+			i += 1
+		}
+
+		reflectValue.Elem().Set(result)
+	} else {
+		tagMap, headerMap := parseHeader(lines[0], data)
+		lines = lines[1:]
+		unmarshalWithPredefinedHeader(lines, tagMap, headerMap, data)
+	}
 }
 
 func marshal(data any) []string {

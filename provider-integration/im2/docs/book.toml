@@ -1,0 +1,14 @@
+[book]
+authors = ["Dan Sebastian Thrane"]
+language = "en"
+multilingual = false
+src = "src"
+title = "UCloud/IM"
+
+[preprocessor.external-links]
+
+[output.html.print]
+enable = false
+
+[build]
+create-missing = false

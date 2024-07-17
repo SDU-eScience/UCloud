@@ -543,29 +543,55 @@ export function deleteGroup(request: { id: number }): APICallParameters<unknown,
 }
 
 export function addLogoToGroup(groupId: number, logo: File): Promise<{ error?: string }> {
+    updateAppLogoCacheInvalidationParameter();
     return uploadFile("POST", `${baseContext}/uploadLogo`, logo, {"Upload-Name": b64EncodeUnicode(groupId.toString())});
 }
-
 export function removeLogoFromGroup(request: { id: number }): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "removeLogoFromGroup");
 }
-
 export function retrieveGroupLogo(request: {
     id: number;
     darkMode?: boolean;
     includeText?: boolean;
     placeTextUnderLogo?: boolean;
 }): string {
-    return buildQueryString(`${baseContext}/retrieveGroupLogo`, request);
+    const updatedRequest = {...request};
+    updatedRequest["cacheBust"]  = getAppLogoCacheInvalidationParameter();
+    return buildQueryString(`${baseContext}/retrieveGroupLogo`, updatedRequest);
 }
-
 export function retrieveAppLogo(request: {
     name: string;
     darkMode?: boolean;
     includeText?: boolean;
     placeTextUnderLogo?: boolean;
 }): string {
-    return buildQueryString(`${baseContext}/retrieveAppLogo`, request);
+    const updatedRequest = {...request};
+    updatedRequest["cacheBust"]  = getAppLogoCacheInvalidationParameter();
+    return buildQueryString(`${baseContext}/retrieveAppLogo`, updatedRequest);
+}
+let appLogoCacheInvalidationParameter: number | null = null;
+function getAppLogoCacheInvalidationParameter(): number {
+    if (appLogoCacheInvalidationParameter === null) {
+        const currentValue = localStorage.getItem("app-logo-cache-bust");
+        if (currentValue === null) {
+            appLogoCacheInvalidationParameter = 0;
+            return 0;
+        } else {
+            let value = parseInt(currentValue);
+            if (isNaN(value)) {
+                value = 0;
+            }
+            appLogoCacheInvalidationParameter = value;
+            return value;
+        }
+    } else {
+        return appLogoCacheInvalidationParameter;
+    }
+}
+export function updateAppLogoCacheInvalidationParameter() {
+    const newValue = getAppLogoCacheInvalidationParameter() + 1;
+    appLogoCacheInvalidationParameter = newValue;
+    localStorage.setItem("app-logo-cache-bust", newValue.toString());
 }
 
 export function assignApplicationToGroup(request: {

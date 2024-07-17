@@ -16,6 +16,7 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import * as Accounting from "@/Accounting";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
+import {totalUsageExcludingRetiredIfNeeded} from "@/Accounting/Allocations";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -33,8 +34,7 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
     const wallet = selectedMachine ?
         wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category)) :
         undefined;
-
-    const balance = wallet ? wallet.quota - wallet.totalUsage : 0;
+    const balance = wallet ? wallet.quota - totalUsageExcludingRetiredIfNeeded(wallet) : 0;
     const maxUsable = wallet ? wallet.maxUsable : 0;
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(

@@ -109,7 +109,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     retired = retired,
                     retiredUsage = retiredUsage,
                     grantedIn = grantedIn,
-                    isDirty = false
+                    isDirty = false,
+                    committed = true
                 )
 
                 allocations[allocationId] = allocation
@@ -369,8 +370,8 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                 {
                     dirtyOwners.entries.split {
                         into("ids") { it.key.toLong() }
-                        into("usernames") { (_, o) -> o.reference.takeIf { !o.isProject() }}
-                        into("project_ids") { (_, o) -> o.reference.takeIf { o.isProject() }}
+                        into("usernames") { (_, o) -> o.reference.takeIf { !o.isProject() } }
+                        into("project_ids") { (_, o) -> o.reference.takeIf { o.isProject() } }
                     }
                 },
                 """
@@ -399,7 +400,12 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
                     dirtyWallets.entries.split {
                         into("ids") { it.key.toLong() }
                         into("owners") { (_, wallet) -> wallet.ownedBy.toLong() }
-                        into("categories") { (_, wallet) -> providerToIdMap[Pair(wallet.category.name, wallet.category.provider)]!! }
+                        into("categories") { (_, wallet) ->
+                            providerToIdMap[Pair(
+                                wallet.category.name,
+                                wallet.category.provider
+                            )]!!
+                        }
                         into("local_usages") { (_, wallet) -> wallet.localUsage }
                         into("local_retired_usages") { (_, wallet) -> wallet.localRetiredUsage }
                         into("excess_usages") { (_, wallet) -> wallet.excessUsage }
@@ -513,13 +519,20 @@ class RealAccountingPersistence(private val db: DBContext) : AccountingPersisten
             }
 
             //Insert or update allocations
-            val dirtyAllocations = allocations.filter { it.value.isDirty }
+            //Only write dirty and commited allocations
+            val dirtyAllocations = allocations.filter { it.value.isDirty && it.value.committed }
 
             session.sendPreparedStatement(
                 {
                     dirtyAllocations.entries.split {
                         into("ids") { (id, _) -> id.toLong() }
-                        into("associated_allocation_groups") { (id, _) -> allocationGroups.values.first { it.allocationSet.contains(id) }.id }
+                        into("associated_allocation_groups") { (id, _) ->
+                            allocationGroups.values.first {
+                                it.allocationSet.contains(
+                                    id
+                                )
+                            }.id
+                        }
                         into("grants") { (_, alloc) -> alloc.grantedIn }
                         into("quotas") { (_, alloc) -> alloc.quota }
                         into("start_times") { (_, alloc) -> alloc.start }

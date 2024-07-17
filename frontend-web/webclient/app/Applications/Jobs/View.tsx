@@ -1268,7 +1268,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
     }
     return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
-            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
+            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, omitFilters: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
         />
     </Card>;
 }
