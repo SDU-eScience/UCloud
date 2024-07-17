@@ -547,6 +547,81 @@ function findResumableUploadsFromUploadPath(uploadPath: string): string[] {
     ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
 }
 
+async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) => void) {
+    const activeUploads =
+        uploadStore.getSnapshot().reduce((acc, u) => u.state === UploadState.UPLOADING ? acc + 1 : acc, 0);
+    const maxUploadsToRemaining = UploadConfig.MAX_CONCURRENT_UPLOADS - activeUploads;
+    if (maxUploadsToRemaining > 0) {
+        const creationRequests: FilesCreateUploadRequestItem[] = [];
+        const actualUploads: Upload[] = [];
+        const resumingUploads: Upload[] = [];
+
+        for (const upload of batch) {
+            if (upload.state !== UploadState.PENDING) continue;
+            if (creationRequests.length + resumingUploads.length >= maxUploadsToRemaining) break;
+
+            const uploadType = upload.folderName ? "FOLDER" : "FILE";
+            const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
+                upload.targetPath + "/" + upload.folderName
+                : upload.targetPath + "/" + upload.name;
+
+            const item = fetchValidUploadFromLocalStorage(fullFilePath);
+            if (item !== null) {
+                upload.uploadResponse = item.strategy;
+                resumingUploads.push(upload);
+                upload.state = UploadState.UPLOADING;
+                continue;
+            }
+
+            upload.state = UploadState.UPLOADING;
+            creationRequests.push({
+                supportedProtocols,
+                type: uploadType,
+                conflictPolicy: upload.conflictPolicy,
+                id: fullFilePath,
+            });
+
+            actualUploads.push(upload);
+        }
+
+        if (actualUploads.length + resumingUploads.length === 0) return;
+
+        try {
+            if (creationRequests.length > 0) {
+                const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
+                    FilesApi.createUpload(bulkRequestOf(...creationRequests))
+                )).responses;
+
+                for (const [index, response] of responses.entries()) {
+                    const upload = actualUploads[index];
+                    upload.uploadResponse = response;
+                }
+            }
+
+            for (const upload of [...actualUploads, ...resumingUploads]) {
+                processUpload(upload)
+                    .then(() => {
+                        upload.state = UploadState.DONE;
+                        setLookForNewUploads(true);
+                    })
+                    .catch(e => {
+                        if (typeof e === "string") {
+                            upload.error = e;
+                            upload.state = UploadState.DONE;
+                        }
+                    });
+            }
+        } catch (e) {
+            const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
+            for (let i = 0; i < creationRequests.length; i++) {
+                actualUploads[i].state = UploadState.DONE;
+                actualUploads[i].error = errorMessage;
+            }
+            return;
+        }
+    }
+}
+
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
@@ -559,133 +634,13 @@ const Uploader: React.FunctionComponent = () => {
         setUploaderVisible(false);
     }, []);
 
-    const startUploads = useCallback(async (batch: Upload[]) => {
-        let activeUploads = 0;
-        for (const u of uploads) {
-            if (u.state === UploadState.UPLOADING) activeUploads++;
-        }
-
-        const maxUploadsToUse = MAX_CONCURRENT_UPLOADS - activeUploads;
-        if (maxUploadsToUse > 0) {
-            const creationRequests: FilesCreateUploadRequestItem[] = [];
-            const actualUploads: Upload[] = [];
-            const resumingUploads: Upload[] = [];
-
-            for (const upload of batch) {
-                if (upload.state !== UploadState.PENDING) continue;
-                if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
-
-                const uploadType = upload.folderName ? "FOLDER" : "FILE";
-                const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
-                    upload.targetPath + "/" + upload.folderName
-                    : upload.targetPath + "/" + upload.name;
-
-                const item = fetchValidUploadFromLocalStorage(fullFilePath);
-                if (item !== null) {
-                    upload.uploadResponse = item.strategy;
-                    resumingUploads.push(upload);
-                    upload.state = UploadState.UPLOADING;
-                    continue;
-                }
-
-                upload.state = UploadState.UPLOADING;
-                creationRequests.push({
-                    supportedProtocols,
-                    type: uploadType,
-                    conflictPolicy: upload.conflictPolicy,
-                    id: fullFilePath,
-                });
-
-                actualUploads.push(upload);
-            }
-
-            if (actualUploads.length + resumingUploads.length === 0) return;
-
-            try {
-                if (creationRequests.length > 0) {
-                    const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
-                        FilesApi.createUpload(bulkRequestOf(...creationRequests))
-                    )).responses;
-
-                    for (const [index, response] of responses.entries()) {
-                        const upload = actualUploads[index];
-                        upload.uploadResponse = response;
-                    }
-                }
-
-                for (const upload of [...actualUploads, ...resumingUploads]) {
-                    processUpload(upload)
-                        .then(() => {
-                            upload.state = UploadState.DONE;
-                            setLookForNewUploads(true);
-                        })
-                        .catch(e => {
-                            if (typeof e === "string") {
-                                upload.error = e;
-                                upload.state = UploadState.DONE;
-                            }
-                        });
-                }
-            } catch (e) {
-                const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
-                for (let i = 0; i < creationRequests.length; i++) {
-                    actualUploads[i].state = UploadState.DONE;
-                    actualUploads[i].error = errorMessage;
-                }
-                return;
-            }
-        }
-    }, [uploads]);
-
-    const stopUploads = useCallback((batch: Upload[]) => {
-        for (const upload of batch) {
-            // Find possible entries in resumables
-            upload.terminationRequested = true;
-        }
-    }, []);
-
-    const pauseUploads = useCallback((batch: Upload[]) => {
-        for (const upload of batch) {
-            upload.terminationRequested = true;
-            upload.paused = true;
-            upload.state = UploadState.PENDING;
-        }
-    }, []);
-
-    const resumeUploads = useCallback((batch: Upload[]) => {
-        batch.forEach(async it => {
-            it.terminationRequested = undefined;
-            it.paused = undefined;
-            it.state = UploadState.UPLOADING;
-            it.resume?.().then(() => {
-                it.state = UploadState.DONE;
-                setLookForNewUploads(true);
-            }).catch(e => {
-                if (typeof e === "string") {
-                    it.error = e;
-                    it.state = UploadState.DONE;
-                }
-            });
-        });
-    }, [uploads]);
-
-    const clearUploads = useCallback((batch: Upload[]) => {
-        /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
-        /* Note(Jonas): Yes. */
-        setUploads(uploads.filter(u => !batch.some(b => b === u)));
-        // Note(Jonas): Find possible entries in paused uploads and remove it. 
-        setPausedFilesInFolder(entries => {
-            let cpy = [...entries];
-            for (const upload of batch) {
-                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.name);
-            }
-            return cpy;
-        });
-    }, [uploads]);
-
-    const callbacks: UploadCallback = useMemo(() => (
-        {startUploads, stopUploads, pauseUploads, resumeUploads, clearUploads}
-    ), [startUploads, stopUploads]);
+    const callbacks: UploadCallback = useMemo(() => ({
+        startUploads: b => startUploads(b, setLookForNewUploads),
+        stopUploads: b => uploadStore.stopUploads(b),
+        pauseUploads: b => uploadStore.pauseUploads(b),
+        resumeUploads: b => uploadStore.resumeUploads(b, setLookForNewUploads),
+        clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
+    }), [startUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
