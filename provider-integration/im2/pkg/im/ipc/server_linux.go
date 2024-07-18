@@ -1,5 +1,12 @@
 package ipc
 
+import (
+	"errors"
+	"net"
+	"syscall"
+	"ucloud.dk/pkg/util"
+)
+
 func (l *ipcListener) Accept() (net.Conn, error) {
 	conn, err := l.Listener.Accept()
 	if err != nil {
