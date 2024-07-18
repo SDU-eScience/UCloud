@@ -22,7 +22,7 @@ import {
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
 import {periodsOverlap, ProductType, WalletOwner, WalletV2} from "@/Accounting";
-import {deepCopy, groupBy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
+import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -511,7 +511,7 @@ function stateReducer(state: State, action: UIAction): State {
         // Build the "Your allocations" tree
         const yourAllocations: State["yourAllocations"] = {};
         {
-            const walletsByType = groupBy(walletsInPeriod, it => it.paysFor.productType);
+            const walletsByType = Object.groupBy(walletsInPeriod, it => it.paysFor.productType);
             for (const [type, wallets] of Object.entries(walletsByType)) {
                 yourAllocations[type as ProductType] = {
                     usageAndQuota: [],

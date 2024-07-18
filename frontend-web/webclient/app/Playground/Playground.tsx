@@ -9,7 +9,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {UploadState, uploadStore, useUploads} from "@/Files/Upload";
+import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
 import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {formatDistance} from "date-fns";
@@ -19,7 +19,6 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
 import {prettierString, stopPropagation} from "@/UtilityFunctions";
-import {groupBy} from "@/Utilities/CollectionUtilities";
 
 let maxUpdateEntries = -1;
 const MOCKING = {
@@ -304,11 +303,11 @@ function promptCancel(task: Task) {
 export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
     const fileUploads = React.useMemo(() => {
-        const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
+        const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
         if (uploadGrouping.finished == null) uploadGrouping.finished = [];
         if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
         return uploadGrouping;
-    }, [uploads]);
+    }, [uploads]) as Record<"finished" | "uploading", Upload[]>;
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
