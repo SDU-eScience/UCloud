@@ -315,9 +315,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <Button fullWidth>View in folder</Button>
                     </Link>
                 </Box>
-                <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
+                {fileData.data?.status.type === "FILE" ? <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
                     <Button fullWidth>Download file</Button>
-                </Box>
+                </Box> : null}
             </div>
         </Flex>
     }
