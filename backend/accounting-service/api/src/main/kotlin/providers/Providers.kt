@@ -89,6 +89,7 @@ data class ProviderSpecification(
 
 fun ProviderSpecification.addProviderInfoToRelativeUrl(url: String): String {
     if (url.startsWith("http://") || url.startsWith("https://")) return url
+    if (url.startsWith("ws://") || url.startsWith("wss://")) return url
     return buildString {
         if (https) {
             append("https://")

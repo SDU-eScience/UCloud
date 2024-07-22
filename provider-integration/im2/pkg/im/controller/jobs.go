@@ -3,11 +3,13 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	ws "github.com/gorilla/websocket"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
+	"unicode"
+
+	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	gw "ucloud.dk/pkg/im/gateway"
@@ -15,7 +17,6 @@ import (
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
-	"unicode"
 )
 
 var Jobs JobsService

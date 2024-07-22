@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -24,6 +25,12 @@ var browseCache *lru.LRU[string, []cachedDirEntry]
 var tasksInitializedMutex sync.Mutex
 var tasksInitialized []string
 
+type UploadSessionData struct {
+	ConflictPolicy orc.WriteConflictPolicy
+	Path           string
+	Type           ctrl.UploadType
+}
+
 func InitializeFiles() ctrl.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	return ctrl.FileService{
@@ -35,6 +42,8 @@ func InitializeFiles() ctrl.FileService {
 		MoveToTrash:           moveToTrash,
 		EmptyTrash:            emptyTrash,
 		CreateDownloadSession: createDownload,
+		CreateUploadSession:   createUpload,
+		HandleUploadWs:        uploadWs,
 		Download:              download,
 	}
 }
@@ -610,6 +619,81 @@ func createDownload(session ctrl.DownloadSession) error {
 		util.SilentClose(file)
 		return nil
 	}
+}
+
+func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) {
+	log.Info("createUpload called")
+
+	path := UCloudToInternalWithDrive(request.Drive, request.Path)
+
+	if request.ConflictPolicy == orc.WriteConflictPolicyRename {
+		path, _ = findAvailableNameOnRename(path)
+	}
+
+	data, _ := json.Marshal(
+		UploadSessionData{
+			Path:           path,
+			ConflictPolicy: orc.WriteConflictPolicyRename,
+			Type:           request.Type,
+		},
+	)
+
+	session := ctrl.UploadSession{
+		Id:   util.RandomToken(32),
+		Data: data,
+	}
+
+	return session, nil
+}
+
+func uploadWs(upload ctrl.UploadDataWs) error {
+	defer upload.Socket.Close()
+
+	var fileOffset int64 = 0
+	var fileSize int64 = 0
+
+	var session UploadSessionData
+	json.Unmarshal(upload.Session.Data, &session)
+
+	file, _ := os.OpenFile(session.Path, os.O_CREATE+os.O_RDWR, 0644)
+	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
+	for {
+		messageType, data, readErr := upload.Socket.ReadMessage()
+
+		message := string(data)
+
+		if messageType == websocket.TextMessage {
+			fileInfo := strings.Split(message, " ")
+
+			var err error
+
+			fileOffset, _ = strconv.ParseInt(fileInfo[0], 10, 64)
+			fileSize, err = strconv.ParseInt(fileInfo[1], 10, 64)
+
+			if err != nil {
+				log.Info("Invalid fileinfo found while uploading file")
+			}
+		} else {
+			log.Info("Should upload the following data to %d %d", fileOffset, fileSize)
+
+			written, err := file.WriteAt(data, fileOffset)
+			if err != nil {
+				log.Info("Error while writing: %v", err)
+				break
+			}
+
+			fileOffset += int64(written)
+			upload.Socket.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint(fileOffset)))
+		}
+
+		if readErr != nil {
+			log.Info("error: %v", readErr)
+			break
+		}
+	}
+
+	return nil
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
