@@ -86,6 +86,7 @@ class GrantsV2Service(
         data class UpdateApprovalState(val approver: String, val state: GrantApplication.State) : Action()
         data class UpdateOverallState(val overallState: GrantApplication.State) : Action()
         data object GrantResources : Action()
+        data class TransferCleanup(val oldSource: String, val newSource: String, val newSourceTitle: String, val applicationId: String) : Action()
     }
 
     // Initialization
@@ -278,6 +279,8 @@ class GrantsV2Service(
         request: GrantsV2.Transfer.Request,
     ) {
         val project = actorAndProject.project ?: throw RPCException("Unknown project", HttpStatusCode.BadRequest)
+        //If source and target is same project just skip everything and say OK
+        if (project == request.target) return
         modify(actorAndProject, request.applicationId) {
             runCommand(Command.Transfer(request.comment, project, request.target))
         }
@@ -347,6 +350,9 @@ class GrantsV2Service(
             // the ability to read it as a grant giver, then you may always read it. Otherwise, if you are an active
             // admin of the recipient workspace, then you can read it.
 
+            // NOTE(Henrik): Added max_revision_and_id to make sure that only the newest revisions are used for browsing.
+            // If not present the browse result will be wrong since a transferred application would show up at the previous
+            // grant giver since they were present on the old revisions.
             val items = session.sendPreparedStatement(
                 {
                     setParameter("filter_id", if (filterId != null) filterId.toLongOrNull() ?: -1 else null)
@@ -361,10 +367,18 @@ class GrantsV2Service(
                 },
                 """
                     with
+                        max_revision_and_id as (
+                            select a.id, max(r.revision_number) max_revision
+                            from "grant".applications a join
+                                "grant".revisions r on a.id = r.application_id
+                            group by id
+                            order by id
+                        ),
                         accessible_as_grant_giver as (
                             select rr.application_id as id
                             from
                                 "grant".requested_resources rr
+                                join max_revision_and_id mri on rr.application_id = id and rr.revision_number = max_revision
                                 join project.project_members pm on rr.grant_giver = pm.project_id
                             where
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
@@ -376,15 +390,15 @@ class GrantsV2Service(
                         accessible_as_sender as (
                             select app.id as id
                             from
-                                "grant".applications app,
-                                "grant".forms f
-                            where 
+                                "grant".applications app join max_revision_and_id mri on app.id = mri.id
+                                join "grant".forms f on f.application_id = app.id and mri.max_revision = f.revision_number
+                            where
                                 f.application_id = app.id
                                 and app.requested_by = :username
                                 and (:filter_id::bigint is null or app.id = :filter_id)
                                 and :include_outgoing
                                 and (
-                                    not :use_project_filter 
+                                    not :use_project_filter
                                     or (
                                         f.recipient_type != 'existing_project'
                                         and :project_id::text is null
@@ -399,6 +413,7 @@ class GrantsV2Service(
                             select f.application_id as id
                             from
                                 "grant".forms f
+                                join max_revision_and_id mri on f.application_id = mri.id and f.revision_number = mri.max_revision
                                 join project.projects p on f.recipient = p.id
                                 left join project.project_members pm on p.id = pm.project_id
                             where
@@ -408,7 +423,7 @@ class GrantsV2Service(
                                 and (:filter_id::bigint is null or f.application_id = :filter_id)
                                 and :include_outgoing
                                 and (
-                                    not :use_project_filter 
+                                    not :use_project_filter
                                     or :project_id::text is not distinct from f.recipient
                                 )
                         ),
@@ -1127,6 +1142,18 @@ class GrantsV2Service(
                     val targetPid = ctx.idCardService.lookupPidFromProjectId(command.targetProjectId)
                         ?: throw RPCException("Unknown target project? ${command.targetProjectId}", HttpStatusCode.Forbidden)
 
+                    val targetProject = grantGivers.find { it.id == command.targetProjectId}
+                        ?: throw RPCException("Unknown project? ${command.targetProjectId}", HttpStatusCode.BadRequest)
+
+
+                    //Note(Henrik) Not possible through front-end, but it can be done from backend and it should not
+                    // be possible to transfer a grant if the transferor already has handled the application.
+                    val currentApprovalStateOfTransferor = application.status.stateBreakdown.find { it.projectId == command.sourceProjectId }?.state
+                        ?: throw RPCException("Unknown source project? ${command.sourceProjectId}", HttpStatusCode.BadRequest)
+                    if (currentApprovalStateOfTransferor != GrantApplication.State.IN_PROGRESS) {
+                        throw RPCException("Cannot transfer application since it is $currentApprovalStateOfTransferor", HttpStatusCode.BadRequest)
+                    }
+
                     // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
                     //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
                     //  not really a great solution.
@@ -1146,11 +1173,31 @@ class GrantsV2Service(
 
                         req.copy(grantGiver = command.targetProjectId)
                     }
+                    val newBreakdown = application.status.stateBreakdown.filter {
+                        it.projectId != command.sourceProjectId
+                    } + GrantApplication.GrantGiverApprovalState(
+                                targetProject.id,
+                                targetProject.title,
+                                GrantApplication.State.IN_PROGRESS
+                    )
 
                     insertRevision(
                         command.comment,
                         application.currentRevision.document.copy(
                             allocationRequests = requestsWhichAreNotMoving + requestsAfterMove,
+                            parentProjectId = if (application.currentRevision.document.parentProjectId == command.sourceProjectId)
+                                command.targetProjectId else command.sourceProjectId
+                        ),
+                        application.status.copy(stateBreakdown = newBreakdown)
+                    )
+
+                    //Cleanup Status Grant Giver Approval State in DB
+                    actionQueue.add(
+                        Action.TransferCleanup(
+                            oldSource = command.sourceProjectId,
+                            newSource = command.targetProjectId,
+                            newSourceTitle = targetProject.title,
+                            applicationId = application.id
                         )
                     )
                 }
@@ -1214,7 +1261,7 @@ class GrantsV2Service(
             HttpStatusCode.Forbidden
         )
 
-        private suspend fun insertRevision(comment: String, newDoc: GrantApplication.Document) {
+        private suspend fun insertRevision(comment: String, newDoc: GrantApplication.Document, newStatus: GrantApplication.Status? = null) {
             val rev = GrantApplication.Revision(
                 Time.now(),
                 actorAndProject.actor.safeUsername(),
@@ -1222,11 +1269,19 @@ class GrantsV2Service(
                 newDoc.copy(revisionComment = comment)
             )
 
-            application = application.copy(
-                currentRevision = rev,
-                status = application.status.copy(
+            val status = if (newStatus != null) {
+                newStatus.copy(
                     revisions = application.status.revisions + rev
                 )
+            } else {
+                application.status.copy(
+                    revisions = application.status.revisions + rev
+                )
+            }
+
+            application = application.copy(
+                currentRevision = rev,
+                status = status
             )
 
             actionQueue.add(Action.NewRevision(rev))
@@ -1432,6 +1487,22 @@ class GrantsV2Service(
                         )
                     }
 
+                    is Action.TransferCleanup -> {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("old_id", action.oldSource)
+                                setParameter("new_id", action.newSource)
+                                setParameter("new_title", action.newSourceTitle)
+                                setParameter("application_id", action.applicationId)
+                            },
+                            """
+                                update "grant".grant_giver_approvals
+                                set project_id = :new_id, project_title = :new_title
+                                where application_id = :application_id and project_id = :old_id
+                            """
+                        )
+                    }
+
                     Action.GrantResources -> {
                         val doc = application.currentRevision.document
                         val isSubAllocator = (doc.form as? GrantApplication.Form.GrantGiverInitiated)?.subAllocator == true
@@ -1595,7 +1666,7 @@ class GrantsV2Service(
 
                 for (action in actionQueue) {
                     when (action) {
-                        Action.Initialize -> {
+                        is Action.Initialize, is Action.TransferCleanup -> {
                             notificationsForGrantGivers.add(
                                 NotificationBundle(
                                     notification = Notification(

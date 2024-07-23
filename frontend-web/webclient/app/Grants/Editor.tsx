@@ -81,7 +81,13 @@ interface EditorState {
         referenceIds: string[];
         comments?: Grants.Comment[];
     };
-
+    possibleTransfers: {
+        id: string;
+        title: string;
+        description: string;
+        template: string;
+        checked: boolean;
+    }[];
     allocators: {
         id: string;
         title: string;
@@ -124,6 +130,7 @@ const defaultState: EditorState = {
         },
         durationInMonths: 12
     },
+    possibleTransfers: [],
     application: [],
     applicationDocument: {},
     loading: false,
@@ -216,6 +223,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         case "AllocatorsLoaded": {
             const newAllocators: EditorState["allocators"] = state.allocators
                 .filter(it => action.allocators.some(other => it.id === other.id));
+
             const newResources: EditorState["resources"] = {...state.resources};
 
             let templateKey: keyof Grants.Templates = "newProject";
@@ -287,6 +295,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             return {
                 ...state,
+                possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
                 application: allSections,
@@ -1928,6 +1937,7 @@ export function Editor(): React.ReactNode {
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
+                                            transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
                                         />
                                     )}
@@ -2179,7 +2189,7 @@ const CommentSection: React.FunctionComponent<{
     useLayoutEffect(() => {
         const scrollingBox = scrollingRef.current;
         if (!scrollingBox) return;
-        scrollingBox.scrollTop = Number.MAX_SAFE_INTEGER;
+        scrollingBox.scrollTop = scrollingBox.scrollHeight
     }, [entries]);
 
     const onKeyDown = useCallback<React.KeyboardEventHandler>(ev => {
@@ -2307,6 +2317,7 @@ const GrantGiver: React.FunctionComponent<{
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
     allAllocators: EditorState["allocators"];
+    transfers: EditorState["possibleTransfers"];
     onTransfer?: (source: string, jdestination: string, comment: string) => void;
 }> = props => {
     const checkboxId = `check-${props.projectId}`;
@@ -2331,7 +2342,7 @@ const GrantGiver: React.FunctionComponent<{
         if (!props.onTransfer) return;
 
         const result = await transferProject(
-            props.allAllocators.filter(it => !it.checked && it.id !== props.projectId)
+            props.transfers.filter(it => !it.checked && it.id !== props.projectId)
         );
         if (result) {
             props.onTransfer(props.projectId, result.targetId, result.comment);
