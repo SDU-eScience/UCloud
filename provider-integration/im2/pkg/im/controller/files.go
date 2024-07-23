@@ -554,13 +554,15 @@ func controllerFiles(mux *http.ServeMux) {
 				return
 			}
 
-			log.Info("Session: %v", session)
-
-			Files.HandleUploadWs(UploadDataWs{
+			err = Files.HandleUploadWs(UploadDataWs{
 				Session: session,
 				Socket:  conn,
 			})
 
+			if err != nil {
+				sendError(writer, err)
+				return
+			}
 		},
 	)
 }

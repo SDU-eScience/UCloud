@@ -622,21 +622,27 @@ func createDownload(session ctrl.DownloadSession) error {
 }
 
 func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) {
-	log.Info("createUpload called")
-
 	path := UCloudToInternalWithDrive(request.Drive, request.Path)
 
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename {
 		path, _ = findAvailableNameOnRename(path)
 	}
 
-	data, _ := json.Marshal(
+	data, err := json.Marshal(
 		UploadSessionData{
 			Path:           path,
 			ConflictPolicy: orc.WriteConflictPolicyRename,
 			Type:           request.Type,
 		},
 	)
+
+	if err != nil {
+		log.Error("Unable to marshal upload session: %v", err)
+		return ctrl.UploadSession{}, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Unable to start upload",
+		}
+	}
 
 	session := ctrl.UploadSession{
 		Id:   util.RandomToken(32),
@@ -646,20 +652,30 @@ func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) 
 	return session, nil
 }
 
-func uploadWs(upload ctrl.UploadDataWs) error {
-	defer upload.Socket.Close()
-
+func uploadWsFile(socket *websocket.Conn, session UploadSessionData) error {
 	var fileOffset int64 = 0
 	var fileSize int64 = 0
 
-	var session UploadSessionData
-	json.Unmarshal(upload.Session.Data, &session)
+	file, err := os.OpenFile(session.Path, os.O_CREATE+os.O_RDWR, 0644)
 
-	file, _ := os.OpenFile(session.Path, os.O_CREATE+os.O_RDWR, 0644)
-	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	if err != nil {
+		log.Error("Failed to open file for upload: %v", err)
+		return &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Unable to upload file",
+		}
+	}
 
 	for {
-		messageType, data, readErr := upload.Socket.ReadMessage()
+		messageType, data, readErr := socket.ReadMessage()
+
+		if readErr != nil {
+			log.Error("Failed to read message from socket: %v", readErr)
+			return &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Error occured while uploading file",
+			}
+		}
 
 		message := string(data)
 
@@ -667,33 +683,59 @@ func uploadWs(upload ctrl.UploadDataWs) error {
 			fileInfo := strings.Split(message, " ")
 
 			var err error
-
 			fileOffset, _ = strconv.ParseInt(fileInfo[0], 10, 64)
 			fileSize, err = strconv.ParseInt(fileInfo[1], 10, 64)
 
 			if err != nil {
-				log.Info("Invalid fileinfo found while uploading file")
+				log.Error("Failed to read file information used for upload: %v", err)
+				return &util.HttpError{
+					StatusCode: http.StatusBadRequest,
+					Why:        "Error occured while uploading file",
+				}
 			}
 		} else {
-			log.Info("Should upload the following data to %d %d", fileOffset, fileSize)
-
 			written, err := file.WriteAt(data, fileOffset)
 			if err != nil {
-				log.Info("Error while writing: %v", err)
-				break
+				log.Error("Failed to write to file during upload: %v", err)
+				return &util.HttpError{
+					StatusCode: http.StatusBadRequest,
+					Why:        "Error occured while uploading file",
+				}
 			}
 
 			fileOffset += int64(written)
-			upload.Socket.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint(fileOffset)))
+			socket.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint(fileOffset)))
 		}
 
-		if readErr != nil {
-			log.Info("error: %v", readErr)
-			break
+		if fileOffset >= fileSize {
+			return nil
+		}
+	}
+}
+
+func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
+	return nil
+}
+
+func uploadWs(upload ctrl.UploadDataWs) error {
+	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
+	var session UploadSessionData
+	err := json.Unmarshal(upload.Session.Data, &session)
+
+	if err != nil {
+		log.Error("Unmarshal of session data failed: %v", err)
+		return &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Invalid upload session",
 		}
 	}
 
-	return nil
+	if session.Type == ctrl.UploadTypeFile {
+		return uploadWsFile(upload.Socket, session)
+	} else {
+		return uploadWsFolder(upload.Socket, session)
+	}
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
