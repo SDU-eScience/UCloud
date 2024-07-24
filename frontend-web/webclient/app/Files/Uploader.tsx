@@ -969,7 +969,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         justify-content: end;
         min-width: 56px;
         padding-right: 12px;
-        padding-top: 12px;
+        padding-top: 16px;
     }
 
     ${k} .task-progress {
@@ -983,6 +983,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k} > div.error-box {
+        margin-left: 8px;
         margin-top: 4px;
         margin-bottom: 4px;
         width: 100%;
