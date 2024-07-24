@@ -19,6 +19,7 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
 import {prettierString, stopPropagation} from "@/UtilityFunctions";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 let maxUpdateEntries = -1;
 const MOCKING = {
@@ -46,7 +47,8 @@ const MOCKING = {
             updatedAt: new Date().getTime(),
             kind: "COPY",
             destination: "/SomePosition" + MOCKING.id,
-            source: "/file" + MOCKING.id
+            source: "/file" + MOCKING.id,
+            expectedEnd: new Date().getTime() + 100_000_000 * Math.random(),
         }
     },
 
@@ -69,7 +71,7 @@ const MOCKING = {
             updatedAt: new Date().getTime(),
             kind: "TRANSFER",
             source: "/file" + MOCKING.id,
-            destination: "Thing/" + MOCKING.id
+            destination: "Thing/" + MOCKING.id,
         }
     },
 
@@ -190,12 +192,12 @@ export const taskStore = new class extends ExternalStoreBase {
 
     async fetch(): Promise<void> {
         const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
-        //for (let i = 0; i < 8; i++) {
-        //    const t = MOCKING.mockTask(kinds[i % kinds.length]);
-        //    this.inProgress[t.id] = t;
-        //}
+        for (let i = 0; i < 8; i++) {
+            const t = MOCKING.mockTask(kinds[i % kinds.length]);
+            this.inProgress[t.id] = t;
+        }
 
-        //setTimeout(MOCKING.mockUpdateEntries, 1000);
+        setTimeout(MOCKING.mockUpdateEntries, 1000);
 
         // const result = await callAPI(({
         //     method: "GET",
@@ -229,7 +231,7 @@ function iconNameFromTaskType(task: Task): IconName {
 
 function TaskItem({task}: {task: Task}): React.JSX.Element {
 
-    let taskSpecificContent: React.JSX.Element | null = null;
+    let taskSpecificContent: React.ReactNode = null;
     const errorText = [TaskState.CANCELLED, TaskState.FAILED].includes(task.status) ? <b>[{prettierString(TaskState[task.status])}]</b> : "";
     switch (task.kind) {
         case "COPY": {
@@ -269,14 +271,11 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
         }
     }
 
-    const endTimeStamp = task.status === TaskState.SUCCEEDED ? <>, finished {formatDistance(task.createdAt, new Date().getTime())} ago</> : null;
-    const startTime: number | null = task.createdAt
-
-    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : null;
+    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : "";
 
     return <TaskRow
-        icon={<Icon name={iconNameFromTaskType(task)} size={28} />}
-        left={taskSpecificContent}
+        icon={<Icon name={iconNameFromTaskType(task)} size={24} />}
+        left={taskSpecificContent as unknown as string}
         right={progressText}
         operations={operations}
         error={task.error}
@@ -296,6 +295,8 @@ function promptCancel(task: Task) {
         cancelText: "Back",
         confirmText: "Cancel task",
         onCancel: () => void 0,
+        cancelButtonColor: "successMain",
+        confirmButtonColor: "errorMain",
         stopEvents: true,
     })
 }
@@ -337,29 +338,22 @@ export function TaskList(): React.ReactNode {
         stopUploads: b => uploadStore.stopUploads(b)
     }), []);
 
-    return (<Card onClick={stopPropagation} width="600px" height={"620px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
-        <Flex>
-            <h3>Background tasks</h3>
-            <Box ml="auto" mt="-8px" mr="-8px">
-                <ProgressCircle
-                    size={56}
-                    textColor="textPrimary"
-                    pendingColor="secondaryMain"
-                    finishedColor="successMain"
-                    successes={taskNumbers.successes}
-                    total={finishedTaskList.length + inProgressTaskList.length + uploads.length}
-                    failures={taskNumbers.failures}
-                />
-            </Box>
-        </Flex>
+    return (<Card onClick={stopPropagation} width="450px" height={"560px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
         <Box height={"526px"} overflowY="scroll">
-            {fileUploads.uploading.length + inProgressTaskList.length ? <h4>In progress</h4> : null}
+            {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
             {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
             {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-            {anyFinished ? <Flex><h4 style={{marginBottom: "4px"}}>Finished tasks</h4><Icon ml="auto" name="close" onClick={() => {
-                taskStore.finishedTasks = {};
-                uploadStore.clearUploads(fileUploads.finished, () => void 0);
-            }} /></Flex> : null}
+            {anyFinished ? <Flex>
+                <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
+                <Box ml="auto">
+                    <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
+                        <Icon name="close" onClick={() => {
+                            taskStore.finishedTasks = {};
+                            uploadStore.clearUploads(fileUploads.finished, () => void 0);
+                        }} />
+                    </TooltipV2>
+                </Box>
+            </Flex> : null}
             {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
             {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
         </Box>
@@ -602,35 +596,6 @@ function PaletteColors(): React.ReactNode {
     return <Flex>
         {paletteColors.map(color => <div>{numbers.map(number => <CSSPaletteColorVar color={color} num={number} />)}</div>)}
     </Flex>
-}
-
-function ProgressCircle({
-    successes,
-    failures,
-    total,
-    pendingColor,
-    finishedColor,
-    textColor,
-    size
-}: {successes: number; failures: number; total: number; size: number; textColor: ThemeColor; pendingColor: ThemeColor; finishedColor: ThemeColor;}): React.ReactNode {
-    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
-    const successAngle = successes / total;
-    const failureAngle = (failures + successes) / total;
-    const radius = 61.5;
-    const circumference = 2 * Math.PI * radius;
-    const successDashArray = successAngle * circumference;
-    const failureDashArray = failureAngle * circumference;
-    const successStrokeDasharray = `${successDashArray} ${circumference - successDashArray}`;
-    const failureStrokeDasharray = `${failureDashArray} ${circumference - failureDashArray}`;
-
-    return (<svg width={size.toString()} height={size.toString()} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
-        <circle r={radius} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="15" strokeDasharray="386.22px" strokeDashoffset=""></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="15" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="15" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
-        <text x="35px" y="83px" fill={`var(--${textColor})`} fontSize="39px" fontWeight="bold" style={{transform: "rotate(90deg) translate(0%, -139px)"}}>
-            {successes + failures + "/" + total}
-        </text>
-    </svg>)
 }
 
 export default Playground;

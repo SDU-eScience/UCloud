@@ -55,6 +55,7 @@ import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCl
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
+import {FlexClass} from "@/ui-components/Flex";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -775,7 +776,7 @@ const Uploader: React.FunctionComponent = () => {
                         <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
-                <Text className={UploaderSpeedTextClass}>{uploadingText}</Text>
+                <Text fontSize={10} className={UploaderSpeedTextClass}>{uploadingText}</Text>
             </div>
             <div style={{
                 // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
@@ -930,19 +931,53 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
         border: 1px solid rgba(0, 0, 0, 20%);
-        height: 70px;
+        height: 64px;
         width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
         box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
-
-    ${k} > div:first-child {
-        display: flex;
-        align-items: center;
-        padding-top: 12px;
+    
+    ${k} .icon {
+        padding-left: 8px; 
+        padding-top: 16px;
     }
     
+    ${k} .text {
+        height: 44px;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    
+    ${k} .text:nth-child(2) {
+        padding-top: 8px;
+        padding-left: 8px;
+        flex: 1;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    
+    ${k} .text:nth-child(2) > div:nth-child(2) {
+        font-size: 10px;
+    }
+
+    ${k} .operations {
+        display: flex;
+        justify-content: end;
+        min-width: 56px;
+        padding-right: 12px;
+        padding-top: 12px;
+    }
+
+    ${k} .task-progress {
+        padding-top: 4px;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
     ${k}[data-has-error="true"] {
         height: 90px;
     }
@@ -953,20 +988,6 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         width: 100%;
         border-radius: 10px;
     }
-
-    ${k} > div > div:first-child {
-        margin-left: 16px;
-    }
-
-    ${k} > div > div:nth-child(2) {
-        vertical-align: middle;
-        margin-left: 8px;
-    }
-    
-    ${k} > div > div:nth-child(3) {
-        display: flex;
-        flex-grow: 1;
-}
 `);
 
 
@@ -984,7 +1005,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
 
     const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1};
     const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} ${sizeToString(uploadCalculateSpeed(upload))}/s`;
-    const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="32px" />;
+    const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
     const title = upload.folderName ?? upload.name;
     const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
         <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
@@ -1000,17 +1021,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         <TaskRow
             error={upload.error}
             icon={icon}
-            left={<Box style={{
-                height: "32px",
-                marginTop: "-10px"
-            }}>
-                {title}
-                <Flex>
-                    <Text mt="-2px" fontSize="10px">
-                        Uploaded {upload.filesCompleted} of {upload.filesDiscovered} {upload.filesDiscovered > 1 ? "files" : "file"}
-                    </Text>
-                </Flex>
-            </Box>}
+            left={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
             right={right}
             operations={inProgress ? <>
                 {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
@@ -1044,8 +1055,8 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
 
 export function TaskRow({icon, left, right, progressInfo, operations, error}: {
     icon: React.ReactNode;
-    left: React.ReactNode;
-    right: React.ReactNode;
+    left: string;
+    right: string;
     operations: React.ReactNode;
     error?: string;
     progressInfo: {
@@ -1055,23 +1066,16 @@ export function TaskRow({icon, left, right, progressInfo, operations, error}: {
     }
 }): React.ReactNode {
     return (<div className={TaskRowClass} data-has-error={error != null}>
-        <div>
-            <div>{icon}</div>
-            <div>{left}</div>
-            <div />
-            <Box>
-                <Flex mr="16px" justifyContent="end">
-                    <Text style={{fontSize: "var(--secondaryText)"}}>
-                        {right}
-                    </Text>
-                    <Box mr="8px" />
-                    {operations}
-                </Flex>
-            </Box>
-        </div>
-        <Box mt="8px" width="calc(100% - 16px)" minHeight={"8px"}>
-            <TaskProgress stopped={progressInfo.stopped} progress={progressInfo.progress} limit={progressInfo.limit} />
-        </Box>
+        <Flex>
+            <div className="icon">{icon}</div>
+            <div className="text">
+                <div>{left}</div>
+                <div>{right}</div>
+            </div>
+            <Box mr="8px" />
+            <div className="operations">{operations}</div>
+        </Flex>
+        <div className="task-progress"><TaskProgress stopped={progressInfo.stopped} progress={progressInfo.progress} limit={progressInfo.limit} /></div>
         <div className="error-box">
             {error ? <div className={ErrorSpan}>{error}</div> : null}
         </div>
@@ -1112,9 +1116,9 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle: ReactModal.Styles = ({
     content: {
         ...largeModalStyle.content,
-        left: `calc(50vw - 300px)`,
+        left: `calc(50vw - 225px)`,
         minWidth: "250px",
-        width: "600px",
+        width: "450px",
         maxWidth: "600px",
         height: "auto",
         overflowY: "hidden",

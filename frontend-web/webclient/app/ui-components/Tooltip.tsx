@@ -92,10 +92,10 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     contentWrapper.style.position = "absolute";
     contentWrapper.className = TooltipContent;
     contentWrapper.style.width = `${width}px`;
-    contentWrapper.style.display = "block";    
-    
+    contentWrapper.style.display = "block";
+
     function onHover(ev: MouseEvent) {
-        if (!contentWrapper) return; 
+        if (!contentWrapper) return;
         contentWrapper.replaceChildren(tooltip);
         contentWrapper.classList.add(TooltipVisible);
         const triggerRect = trigger.getBoundingClientRect();
@@ -127,12 +127,12 @@ export function HTMLTooltip(trigger: HTMLElement, tooltip: HTMLElement, opts?: {
     return trigger;
 }
 
-export function TooltipV2(props: {
+export function TooltipV2(props: React.PropsWithChildren<{
     tooltip?: React.ReactNode;
-    children: React.ReactNode;
-}): React.ReactElement {
+    contentWidth?: number;
+}>): React.ReactElement {
     if (props.tooltip === undefined) return <>{props.children}</>;
-    return <Tooltip trigger={props.children}>{props.tooltip ?? null}</Tooltip>;
+    return <Tooltip tooltipContentWidth={props.contentWidth} trigger={props.children}>{props.tooltip ?? null}</Tooltip>;
 }
 
 const tooltipPortalId = "tooltip-portal";

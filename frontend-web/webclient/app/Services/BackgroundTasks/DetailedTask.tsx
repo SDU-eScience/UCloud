@@ -9,10 +9,7 @@ import ProgressBar from "@/ui-components/Progress";
 import {takeLast} from "@/Utilities/CollectionUtilities";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
-const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
-    if (task === undefined) {
-        return null;
-    }
+const DetailedTask: React.FunctionComponent<{task?: TaskUpdate}> = ({task}) => {
 
     const [isScrollLocked, setScrollLocked] = useState(true);
     const ref = useRef<HTMLDivElement>(null);
@@ -21,7 +18,7 @@ const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
             ref.current.scrollTop = ref.current.scrollHeight;
             setScrollLocked(true);
         }
-    }, [ref, task.messageToAppend, isScrollLocked]);
+    }, [ref, task?.messageToAppend, isScrollLocked]);
 
     const checkScroll = useCallback(() => {
         if (ref.current && (ref.current.scrollTop + ref.current.offsetHeight) === ref.current.scrollHeight) {
@@ -30,6 +27,10 @@ const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
             setScrollLocked(false);
         }
     }, [isScrollLocked, ref]);
+
+    if (task === undefined) {
+        return null;
+    }
 
     return (
         <Box height="100%">
@@ -80,12 +81,6 @@ const DetailedTask: React.FunctionComponent<{task: TaskUpdate}> = ({task}) => {
         </Box>
     );
 };
-
-const Container = injectStyle("container", k => `
-  ${k} > div > svg {
-    overflow: visible;
-  }
-`);
 
 const StatusBox = injectStyleSimple("status-box", `
   margin-top: 16px;
