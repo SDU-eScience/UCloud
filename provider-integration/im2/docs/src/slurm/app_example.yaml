@@ -1,0 +1,60 @@
+application: v2 # Required to signify version used for the application definition
+
+name: example
+version: v1.32
+
+parameters:
+  count:
+    type: Integer
+    title: "An optional counter"
+    description: >
+      This is an optional counter which will be bound to the environment variable
+      called `COUNT`.
+  a_flag:
+    type: Boolean
+    title: "An optional flag"
+    description: >
+      This is an optional flag. If turned on, it will produce `--flag` if it is
+      not turned on (the default) then it will not produce any arguments.
+  input:
+    type: File
+    optional: false
+    title: "Example input file"
+    description: >
+      This is an example input file. It was made mandatory by setting
+      `optional: false`
+  output:
+    type: Directory
+    optional: false
+    title: "Output directory"
+    description: >
+      This is a directory used for output.
+
+software:
+  type: Native
+
+  # Building with EasyBuild
+  build:
+    type: EasyBuild
+    repository: MyRepository
+    file: example-module.eb
+
+  # Building with Spack
+  # build:
+  #   type: Spack
+  #   repository: MyRepository
+  #   package: example-module
+
+  load:
+    type: Module
+    modules:
+      - "example-module/1.32"
+
+environment:
+  COUNT: "{{ count }}"
+
+invocation: >
+  example-exe \
+    --input {{ input }} \
+    {{ output | option("--out") }} \
+    {{ a_flag | flag("--flag") }}

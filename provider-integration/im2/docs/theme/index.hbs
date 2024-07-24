@@ -372,9 +372,11 @@
                 const iconName = tab.getAttribute("data-icon") ?? "";
                 const title = tab.getAttribute("data-title") ?? "";
 
-                const icon = document.createElement("i");
-                icon.className = iconName;
-                li.append(icon);
+                if (iconName) {
+                    const icon = document.createElement("i");
+                    icon.className = iconName;
+                    li.append(icon);
+                }
                 li.append(title);
                 navUl.append(li);
 
@@ -403,7 +405,7 @@
         if (!isNaN(parsedPos)) {
             newScrollPos = parsedPos;
         }
-        if (newScrollPos !== 0) {
+        if (savedPos !== null) {
             content.scrollTop = newScrollPos;
             history.replaceState(null, "", document.location.pathname);
         }

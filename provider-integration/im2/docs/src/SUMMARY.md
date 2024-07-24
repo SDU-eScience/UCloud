@@ -25,6 +25,7 @@
 - [Filesystem Integration](./slurm/file-management.md)
 - [Slurm Integration](./slurm/slurm.md)
   - [Application Management](./slurm/app-management.md)
+  - [App Subscription](./slurm/app-subscription.md)
   - [Interactive Jobs](./slurm/interactive-jobs.md)
   - [SSH Key Upload](./slurm/ssh-keys.md)
   - [Licenses](./slurm/licenses.md)
