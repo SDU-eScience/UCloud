@@ -1,0 +1,52 @@
+application: v2
+
+name: mpi
+version: v1.32
+
+software:
+  type: Native
+
+  # TODO Modules and package names have not been tested and might not work in practice.
+  build:
+    type: Spack
+    repository: built-in
+    package: quantum-espresso@7.3
+
+  load:
+    type: Module
+    modules:
+    - "quantum-espresso/7.3"
+
+features:
+  multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
+
+parameters:
+  input_dir:
+    type: Directory
+    optional: false
+    title: "Input directory"
+    description: >
+      The input directory must contain the following files:
+
+      - `pw.Si.in`
+      - `ph.Si.in`
+      - `dynmat.Si.in`
+
+sbatch:
+  ntasks: "{{ ucloud.machine.cpu * ucloud.nodes }}"
+  cpus-per-task: 1
+
+# TODO Tweak this example to be more realistic. We have all the tools to do it,
+# I am just not an expert in how to run these tools.
+invocation: >
+  echo Running on "$(hostname)" with {{ ucloud.machine.name }}
+  echo Available nodes: "$SLURM_NODELIST"
+  echo Slurm_submit_dir: "$SLURM_SUBMIT_DIR"
+  echo Start time: "$(date)"
+
+  export OMP_NUM_THREADS=1
+
+  cd {{ input_dir }}
+  srun -n $SLURM_NTASKS pw.x < pw.Si.in | tee pw.Si.out
+  srun -n $SLURM_NTASKS ph.x < ph.Si.in | tee ph.Si.out
+  srun -n $SLURM_NTASKS dynmat.x < dynmat.Si.in | tee dynmat.Si.out

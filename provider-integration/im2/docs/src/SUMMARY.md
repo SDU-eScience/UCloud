@@ -25,7 +25,7 @@
 - [Filesystem Integration](./slurm/file-management.md)
 - [Slurm Integration](./slurm/slurm.md)
   - [Application Management](./slurm/app-management.md)
-  - [App Subscription](./slurm/app-subscription.md)
+  - [Built-in Applications](./slurm/built-in-apps.md)
   - [Interactive Jobs](./slurm/interactive-jobs.md)
   - [SSH Key Upload](./slurm/ssh-keys.md)
   - [Licenses](./slurm/licenses.md)
@@ -56,6 +56,7 @@
 - [Troubleshooting](./ops/troubleshooting.md)
 - [Metrics and Alerts](./ops/metrics.md)
 - [Resource Allocations](./ops/resource-allocation.md)
+- [Managing the Application Catalog](./ops/app-catalog.md)
 
 # Local Development
 

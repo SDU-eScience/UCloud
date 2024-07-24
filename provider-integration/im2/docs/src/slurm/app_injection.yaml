@@ -1,0 +1,24 @@
+application: v2
+
+name: global-injection
+version: v1.32
+
+software:
+  type: Native
+
+  build:
+    type: Spack
+    repository: MyRepository
+    packages:
+    - package
+
+  load:
+    type: Module
+    modules:
+    - package
+
+invocation: >
+  {% set requiresOptionalPackages = True %}
+  {- myGlobalPreamble -}
+  my-package
+  {- myGlobalPostamble -}

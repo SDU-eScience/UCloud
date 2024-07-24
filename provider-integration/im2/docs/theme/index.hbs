@@ -395,20 +395,22 @@
     </script>
 
     <script>
-        // Keep this at the bottom such that all other content has had a chance to load in.
-        const content = document.querySelector("#page-wrapper");
+        window.setTimeout(() => {
+            // Keep this at the bottom such that all other content has had a chance to load in.
+            const content = document.querySelector("#page-wrapper");
 
-        const params = new URLSearchParams(location.search);
-        const savedPos = params.get("scroll");
-        const parsedPos = parseInt(savedPos);
-        let newScrollPos = 0;
-        if (!isNaN(parsedPos)) {
-            newScrollPos = parsedPos;
-        }
-        if (savedPos !== null) {
-            content.scrollTop = newScrollPos;
-            history.replaceState(null, "", document.location.pathname);
-        }
+            const params = new URLSearchParams(location.search);
+            const savedPos = params.get("scroll");
+            const parsedPos = parseInt(savedPos);
+            let newScrollPos = 0;
+            if (!isNaN(parsedPos)) {
+                newScrollPos = parsedPos;
+            }
+            if (savedPos !== null) {
+                content.scrollTop = newScrollPos;
+                history.replaceState(null, "", document.location.pathname);
+            }
+        }, 0);
     </script>
 </div>
 </body>
