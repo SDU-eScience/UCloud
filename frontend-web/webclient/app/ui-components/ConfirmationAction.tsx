@@ -140,7 +140,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         left: 0;
         right: 0;
     }
-
+    
     ${k} ul li:nth-child(1) {
         opacity: var(--ul-o-1, 1);
     }
@@ -150,17 +150,8 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         opacity: var(--ul-o-2, 0);
     }
 
-    ${k} ul li:nth-child(3) {
-        top: 200%;
-        opacity: var(--ul-o-3, 0);
-    }
-    
     ${k}.process {
         --icon-x: 0;
-        --ul-y: -100%;
-        --ul-o-1: 0;
-        --ul-o-2: 1;
-        --ul-o-3: 0;
     }
 
     ${k}.process,
@@ -189,10 +180,9 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         --tick-stroke: white;
         --background-scale: 0;
         --tick-offset: 36;
-        --ul-y: -200%;
+        --ul-y: -100%;
         --ul-o-1: 0;
-        --ul-o-2: 0;
-        --ul-o-3: 1;
+        --ul-o-2: 1;
     }
 
     ${k}.success > .icons svg.progress {
@@ -361,7 +351,11 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         {...passedProps}
         onMouseDown={start}
         onTouchStart={start}
-        onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}}
+        onMouseEnter={() => setShowHelp(true)}
+        onMouseLeave={() => {
+            setShowHelp(false);
+            if (startedMap[tempStartedKey]) end();
+        }}
         onMouseUp={end}
         onTouchEnd={end}
         onClick={doNothing}
@@ -384,7 +378,6 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         {!props.actionText ? null : (
             <ul style={ulStyle}>
                 <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
-                <li>Hold to confirm</li>
                 <li>Done</li>
             </ul>
         )}
@@ -488,7 +481,13 @@ export function ConfirmationButtonPlainHTML(
 
     button.onmousedown = start;
     button.ontouchstart = start;
-    button.onmouseleave = end;
+    button.onmouseenter = () => {
+        actionTextLi.innerText = "Hold to confirm";
+    };
+    button.onmouseleave = () => {
+        actionTextLi.innerText = actionText;
+        end();
+    };
     button.onmouseup = end;
     button.ontouchend = end;
     button.onclick = e => e.stopImmediatePropagation();
@@ -525,9 +524,6 @@ export function ConfirmationButtonPlainHTML(
     const actionTextLi = document.createElement("li");
     actionTextLi.innerText = actionText;
     ul.append(actionTextLi);
-    const holdToConfirmLi = document.createElement("li");
-    holdToConfirmLi.innerText = "Hold to confirm";
-    ul.append(holdToConfirmLi);
     const doneTextLi = document.createElement("li");
     doneTextLi.innerText = "Done";
     ul.append(doneTextLi);
