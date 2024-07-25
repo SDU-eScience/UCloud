@@ -10,12 +10,20 @@ import {inDevEnvironment, prettierString, stopPropagation} from "@/UtilityFuncti
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection, WebSocketFactory} from "@/Authentication/ws";
 import {IconName} from "@/ui-components/Icon";
-import {Client} from "@/Authentication/HttpClientInstance";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
 import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {Client} from "@/Authentication/HttpClientInstance";
+
+function onBeforeUnload(): boolean {
+    snackbarStore.addInformation(
+        "You currently have uploads in progress. Are you sure you want to leave UCloud?",
+        true
+    );
+    return false;
+}
 
 const BackgroundTasks: React.FunctionComponent = () => {
     const [uploads] = useUploads();
@@ -32,14 +40,9 @@ const BackgroundTasks: React.FunctionComponent = () => {
     }, [uploads]);
 
     useEffect(() => {
-        function onBeforeUnload(): boolean {
-            snackbarStore.addInformation(
-                "You currently have uploads in progress. Are you sure you want to leave UCloud?",
-                true
-            );
-            return false;
-        }
+        window.removeEventListener("beforeunload", onBeforeUnload);
         if (activeUploadCount > 0) {
+
             window.addEventListener("beforeunload", onBeforeUnload);
         }
 
@@ -94,7 +97,6 @@ const MOCKING = {
             }
         }
     },
-
 
     mockCopyTask(): CopyFiles {
         return {
@@ -245,14 +247,9 @@ export const taskStore = new class extends ExternalStoreBase {
     inProgress: Record<number, Task> = {};
     finishedTasks: Record<number, Task> = {};
 
-    constructor() {
-        super();
-        // This should only happen on login. If this client is authenticated, this should/would just not do anything.
-        // this.ws = new WebSocketFactory(Client).open("TODO-TODO", {});
-        this.initConnection();
-    }
+    async initConnection(): Promise<void> {}
 
-    async initConnection(): Promise<void> {
+    mockInitConnection(): void {
         const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
         for (let i = 0; i < 8; i++) {
             const t = MOCKING.mockTask(kinds[i % kinds.length]);
@@ -262,6 +259,7 @@ export const taskStore = new class extends ExternalStoreBase {
         setTimeout(MOCKING.mockUpdateEntries, 1000);
     }
 }();
+taskStore.mockInitConnection();
 
 function isTaskFinished(task: Task): boolean {
     const s = task.status;
@@ -363,6 +361,24 @@ export function TaskList(): React.ReactNode {
         if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
         return uploadGrouping as Record<"finished" | "uploading", Upload[]>;
     }, [uploads]);
+
+    React.useEffect(() => {
+        /* if (Client.isLoggedIn) {
+            const conn = WSFactory.open(
+                "/tasks", {
+                init: async conn => {
+                    await conn.subscribe({
+                        call: "tasks.follow",
+                        payload: {},
+                        handler: message => {
+                            // TODO
+                        }
+                    });
+                    conn.close();
+                },
+            });
+        } */
+    }, [Client.isLoggedIn]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
