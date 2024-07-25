@@ -13,7 +13,7 @@ export interface ItemRenderer<T, CB = any> {
 
 
 // TODO(Jonas): Expand? Change? Should probably be in use for resourcebrowser
-export interface StandardCallbacks<T = any> {
+export interface StandardCallbacks<T> {
     commandLoading: boolean;
     invokeCommand: InvokeCommand;
     reload: () => void;
