@@ -648,10 +648,10 @@ function stateReducer(state: State, action: UIAction): State {
                 let combinedQuota = 0;
                 childGroup.group.allocations.forEach( alloc => {
                     if (allocationIsActive(alloc, new Date().getTime())) {
-                        combinedQuota += alloc.quota
+                        combinedQuota += alloc.quota;
                     }
                 });
-                const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0)
+                const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
                 // Need to have total usage in case retired should be included in final result
                 let combinedUsage = childGroup.group.usage;
                 if (!shouldUseRetired) {
@@ -662,7 +662,7 @@ function stateReducer(state: State, action: UIAction): State {
 
                 const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
                 const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
-                const retiredAmount = Accounting.combineBalances([{balance: combinedRetired, category: wallet.paysFor}])
+                const retiredAmount = Accounting.combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
 
                 const newGroup: State["subAllocations"]["recipients"][0]["groups"][0] = {
                     category: wallet.paysFor,
@@ -1624,7 +1624,7 @@ const Allocations: React.FunctionComponent = () => {
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                <ProgressBar uq={uq} type={type} sub={false} />
+                                <ProgressBar uq={uq} type={type} />
                             </React.Fragment>
                             )}
                         </Flex>}
@@ -1638,7 +1638,7 @@ const Allocations: React.FunctionComponent = () => {
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota} type={type} sub={false} />
+                                    <ProgressBar uq={wallet.usageAndQuota} type={type} />
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1768,7 +1768,7 @@ const Allocations: React.FunctionComponent = () => {
 
                                 {recipient.usageAndQuota.map((uq, idx) => {
                                     if (idx > 2) return null;
-                                    return <ProgressBar key={idx} uq={uq} type={uq.type} sub={false} />;
+                                    return <ProgressBar key={idx} uq={uq} type={uq.type} />;
                                 })}
                             </div>}
                         >
@@ -1784,7 +1784,7 @@ const Allocations: React.FunctionComponent = () => {
                                         </Flex>
                                     </Flex>}
                                     right={
-                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} sub={true} />
+                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} />
                                     }
                                 >
                                     {g.allocations
@@ -1866,22 +1866,21 @@ const Allocations: React.FunctionComponent = () => {
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-function ProgressBar({uq, type, sub}: {
+function ProgressBar({uq, type}: {
     uq: UsageAndQuota,
     type: ProductType,
-    sub: boolean
 }) {
     if (uq.quota == 0) return null;
-    let usage: number
+    let usage: number;
     if (uq.retiredAmountStillCounts) {
-        usage = uq.usage
+        usage = uq.usage;
     } else {
-        usage = uq.usage - uq.retiredAmount
+        usage = uq.usage - uq.retiredAmount;
     }
 
     return <NewAndImprovedProgress
         limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
-        label={progressText(type, uq, sub)}
+        label={progressText(type, uq)}
         percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
         withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
     />;
@@ -1901,14 +1900,14 @@ const productTypesByPriority: ProductType[] = [
     "LICENSE",
 ];
 
-function progressText(type: ProductType, uq: UsageAndQuota, sub:boolean): string {
+function progressText(type: ProductType, uq: UsageAndQuota): string {
     let text = "";
 
-    let balance = 0
+    let balance: number;
     if (uq.retiredAmountStillCounts) {
-        balance = uq.usage
+        balance = uq.usage;
     } else {
-        balance = uq.usage - uq.retiredAmount
+        balance = uq.usage - uq.retiredAmount;
     }
 
     text += Accounting.balanceToStringFromUnit(type, uq.unit, balance, {
