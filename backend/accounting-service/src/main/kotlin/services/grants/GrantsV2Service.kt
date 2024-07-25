@@ -1501,8 +1501,12 @@ class GrantsV2Service(
                             },
                             """
                                 update "grant".grant_giver_approvals
-                                set project_id = :new_id, project_title = :new_title
-                                where application_id = :application_id and project_id = :old_id
+                                set
+                                    project_id = :new_id,
+                                    project_title = :new_title
+                                where
+                                    application_id = :application_id
+                                    and project_id = :old_id
                             """
                         )
                     }
