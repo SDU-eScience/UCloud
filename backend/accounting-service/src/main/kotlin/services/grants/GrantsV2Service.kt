@@ -1194,7 +1194,6 @@ class GrantsV2Service(
                         application.status.copy(stateBreakdown = newBreakdown)
                     )
 
-                    //Cleanup Status Grant Giver Approval State in DB
                     actionQueue.add(
                         Action.TransferCleanup(
                             oldSource = command.sourceProjectId,
