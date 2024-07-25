@@ -1408,7 +1408,7 @@ const CancelButton: React.FunctionComponent<{
         if (!loading) {
             await invokeCommand(JobsApi.terminate(bulkRequestOf({id: job.id})));
         }
-    }, [loading]);
+    }, [loading, job.id]);
 
     return <ConfirmationButton
         color={"errorMain"} icon={"trash"} align="left" width={"250px"} onAction={onCancel} fullWidth={false}
