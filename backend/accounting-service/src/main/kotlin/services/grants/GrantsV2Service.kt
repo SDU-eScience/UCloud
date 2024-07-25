@@ -369,8 +369,9 @@ class GrantsV2Service(
                     with
                         max_revision_and_id as (
                             select a.id, max(r.revision_number) max_revision
-                            from "grant".applications a join
-                                "grant".revisions r on a.id = r.application_id
+                            from
+                                "grant".applications a
+                                join "grant".revisions r on a.id = r.application_id
                             group by id
                             order by id
                         ),
