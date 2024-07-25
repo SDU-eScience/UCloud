@@ -983,9 +983,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k} > div.error-box {
-        margin-left: 8px;
         margin-top: 4px;
-        margin-bottom: 4px;
         width: 100%;
         border-radius: 10px;
     }
@@ -1090,7 +1088,8 @@ const ErrorSpan = injectStyleSimple("error-span", `
     padding-left: 6px;
     padding-right: 6px;
     border-radius: 12px;
-    margin-right: 16px;
+    margin-right: 4px;
+    margin-left: 4px;
 `);
 
 export function TaskProgress({progress, limit, stopped}: {stopped: boolean; progress: number; limit: number}): React.JSX.Element {

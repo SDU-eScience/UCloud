@@ -338,7 +338,7 @@ export function TaskList(): React.ReactNode {
         stopUploads: b => uploadStore.stopUploads(b)
     }), []);
 
-    return (<Card onClick={stopPropagation} width="450px" height={"560px"} style={{paddingTop: "20px", paddingBottom: "20px"}} overflowY={"scroll"}>
+    return (<Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
         <Box height={"526px"} overflowY="scroll">
             {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
             {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
