@@ -390,7 +390,8 @@ class GrantsV2Service(
                         accessible_as_sender as (
                             select app.id as id
                             from
-                                "grant".applications app join max_revision_and_id mri on app.id = mri.id
+                                "grant".applications app
+                                join max_revision_and_id mri on app.id = mri.id
                                 join "grant".forms f on f.application_id = app.id and mri.max_revision = f.revision_number
                             where
                                 f.application_id = app.id
