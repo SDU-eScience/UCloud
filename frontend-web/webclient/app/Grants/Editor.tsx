@@ -2318,7 +2318,7 @@ const GrantGiver: React.FunctionComponent<{
     replaceReject?: React.ReactNode;
     allAllocators: EditorState["allocators"];
     transfers: EditorState["possibleTransfers"];
-    onTransfer?: (source: string, jdestination: string, comment: string) => void;
+    onTransfer?: (source: string, destination: string, comment: string) => void;
 }> = props => {
     const checkboxId = `check-${props.projectId}`;
     const size = 30;
