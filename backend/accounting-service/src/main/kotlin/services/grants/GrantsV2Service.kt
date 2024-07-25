@@ -279,7 +279,7 @@ class GrantsV2Service(
         request: GrantsV2.Transfer.Request,
     ) {
         val project = actorAndProject.project ?: throw RPCException("Unknown project", HttpStatusCode.BadRequest)
-        //If source and target is same project just skip everything and say OK
+        // If source and target is same project just skip everything and say OK
         if (project == request.target) return
         modify(actorAndProject, request.applicationId) {
             runCommand(Command.Transfer(request.comment, project, request.target))
