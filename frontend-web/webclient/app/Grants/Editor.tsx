@@ -2189,7 +2189,7 @@ const CommentSection: React.FunctionComponent<{
     useLayoutEffect(() => {
         const scrollingBox = scrollingRef.current;
         if (!scrollingBox) return;
-        scrollingBox.scrollTop = scrollingBox.scrollHeight
+        scrollingBox.scrollTop = scrollingBox.scrollHeight;
     }, [entries]);
 
     const onKeyDown = useCallback<React.KeyboardEventHandler>(ev => {
