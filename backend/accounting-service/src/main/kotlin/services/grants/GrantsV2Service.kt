@@ -414,7 +414,9 @@ class GrantsV2Service(
                             select f.application_id as id
                             from
                                 "grant".forms f
-                                join max_revision_and_id mri on f.application_id = mri.id and f.revision_number = mri.max_revision
+                                join max_revision_and_id mri on
+                                    f.application_id = mri.id
+                                    and f.revision_number = mri.max_revision
                                 join project.projects p on f.recipient = p.id
                                 left join project.project_members pm on p.id = pm.project_id
                             where
