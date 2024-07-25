@@ -25,44 +25,6 @@ function onBeforeUnload(): boolean {
     return false;
 }
 
-const BackgroundTasks: React.FunctionComponent = () => {
-    const [uploads] = useUploads();
-    const inProgress = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
-
-    const activeUploadCount = useMemo(() => {
-        let activeCount = 0;
-        for (let i = 0; i < uploads.length; i++) {
-            if (uploads[i].state === UploadState.UPLOADING) {
-                activeCount++;
-            }
-        }
-        return activeCount;
-    }, [uploads]);
-
-    useEffect(() => {
-        window.removeEventListener("beforeunload", onBeforeUnload);
-        if (activeUploadCount > 0) {
-
-            window.addEventListener("beforeunload", onBeforeUnload);
-        }
-
-        return () => {
-            window.removeEventListener("beforeunload", onBeforeUnload);
-        };
-    }, [uploads]);
-
-    if ((Object.values(inProgress).length + activeUploadCount) === 0 || !inDevEnvironment()) return null;
-    return (
-        <ClickableDropdown
-            left="50px"
-            bottom="-168px"
-            trigger={<Flex justifyContent="center">{TasksIcon}</Flex>}
-        >
-            <TaskList />
-        </ClickableDropdown>
-    );
-};
-
 const TasksIconBase = injectStyle("task-icon-base", k => `
     @keyframes spin {
         0% {
@@ -259,7 +221,6 @@ export const taskStore = new class extends ExternalStoreBase {
         setTimeout(MOCKING.mockUpdateEntries, 1000);
     }
 }();
-taskStore.mockInitConnection();
 
 function isTaskFinished(task: Task): boolean {
     const s = task.status;
@@ -378,6 +339,7 @@ export function TaskList(): React.ReactNode {
                 },
             });
         } */
+       taskStore.mockInitConnection();
     }, [Client.isLoggedIn]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
@@ -395,26 +357,60 @@ export function TaskList(): React.ReactNode {
         stopUploads: b => uploadStore.stopUploads(b)
     }), []);
 
-    return (<Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
-        <Box height={"526px"} overflowY="scroll">
-            {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
-            {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-            {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-            {anyFinished ? <Flex>
-                <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
-                <Box ml="auto">
-                    <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
-                        <Icon name="close" onClick={() => {
-                            taskStore.finishedTasks = {};
-                            uploadStore.clearUploads(fileUploads.finished, () => void 0);
-                        }} />
-                    </TooltipV2>
+    const activeUploadCount = useMemo(() => {
+        let activeCount = 0;
+        for (let i = 0; i < uploads.length; i++) {
+            if (uploads[i].state === UploadState.UPLOADING) {
+                activeCount++;
+            }
+        }
+        return activeCount;
+    }, [uploads]);
+
+
+    useEffect(() => {
+        window.removeEventListener("beforeunload", onBeforeUnload);
+        if (activeUploadCount > 0) {
+
+            window.addEventListener("beforeunload", onBeforeUnload);
+        }
+
+        return () => {
+            window.removeEventListener("beforeunload", onBeforeUnload);
+        };
+    }, [activeUploadCount]);
+
+    if ((Object.values(inProgressTasks).length + activeUploadCount) === 0 || !inDevEnvironment()) return null;
+    return (
+        <ClickableDropdown
+            left="50px"
+            bottom="-168px"
+            trigger={<Flex justifyContent="center">{TasksIcon}</Flex>}
+        >
+            <Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+                <Box height={"526px"} overflowY="scroll">
+                    {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
+                    {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+                    {anyFinished ? <Flex>
+                        <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
+                        <Box ml="auto">
+                            <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
+                                <Icon name="close" onClick={() => {
+                                    taskStore.finishedTasks = {};
+                                    uploadStore.clearUploads(fileUploads.finished, () => void 0);
+                                }} />
+                            </TooltipV2>
+                        </Box>
+                    </Flex> : null}
+                    {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
                 </Box>
-            </Flex> : null}
-            {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-            {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
-        </Box>
-    </Card>)
+            </Card>
+        </ClickableDropdown>
+    );
+
+
 }
 
-export default BackgroundTasks;
+export default TaskList;
