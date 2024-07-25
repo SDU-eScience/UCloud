@@ -219,7 +219,37 @@ These can be consumed from any application requiring them by using the syntax: `
 </figure>
 </div>
 
+<div data-title="Variables from configuration">
 
+It is possible to read variables from the global configuration in any of the Jinja2 templates. Keep in mind that all
+variables are publicly available for anyone on the system to read.
+
+Assume that the following template snippets are defined in the configuration:
+
+<figure>
+
+```yaml
+# /etc/ucloud/config.yaml
+slurm:
+  applications:
+    variables:
+      myVariables: 40
+      myOtherVariable: 2
+      myGreeting: "hello user"
+```
+
+</figure>
+
+These can be consumed from any application requiring them by using the syntax: `{- templateId -}`.
+
+<figure>
+
+````yaml
+{{#include app_configuration.yaml}}
+````
+
+</figure>
+</div>
 </div>
 
 
