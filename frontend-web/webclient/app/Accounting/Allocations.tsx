@@ -603,7 +603,7 @@ function stateReducer(state: State, action: UIAction): State {
                                 start: alloc.startDate,
                                 end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
                                 retiredAmount: alloc.retiredUsage ?? 0,
-                                shouldShowRetiredAmount: wallet.paysFor.accountingFrequency !== "ONCE" 
+                                shouldShowRetiredAmount: wallet.paysFor.accountingFrequency !== "ONCE"
                             }))
                         ),
                     });
@@ -643,14 +643,26 @@ function stateReducer(state: State, action: UIAction): State {
                     subAllocations.recipients.push(recipient);
                 }
 
-                const combinedUsage = childGroup.group.usage;
-                const combinedQuota = childGroup.group.allocations.reduce((acc, val) => acc + val.quota, 0);
+                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
+
+                let combinedQuota = 0;
+                childGroup.group.allocations.forEach( alloc => {
+                    if (allocationIsActive(alloc, new Date().getTime())) {
+                        combinedQuota += alloc.quota
+                    }
+                });
                 const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0)
+                // Need to have total usage in case retired should be included in final result
+                let combinedUsage = childGroup.group.usage;
+                if (!shouldUseRetired) {
+                     combinedUsage += combinedRetired;
+                }
+
+                const localUsage = childGroup.group.usage;
 
                 const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
                 const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
                 const retiredAmount = Accounting.combineBalances([{balance: combinedRetired, category: wallet.paysFor}])
-                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
 
                 const newGroup: State["subAllocations"]["recipients"][0]["groups"][0] = {
                     category: wallet.paysFor,
@@ -666,9 +678,9 @@ function stateReducer(state: State, action: UIAction): State {
                 };
 
                 const uq = newGroup.usageAndQuota;
-                uq.maxUsable = uq.quota - uq.usage;
+                uq.maxUsable = uq.quota - localUsage;
 
-                for (const alloc of childGroup.group.allocations) {
+                for (const alloc of childGroup.group.allocations.reverse()) {
                     newGroup.allocations.push({
                         allocationId: alloc.id,
                         quota: alloc.quota,
@@ -1612,7 +1624,7 @@ const Allocations: React.FunctionComponent = () => {
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                <ProgressBar uq={uq} type={type} />
+                                <ProgressBar uq={uq} type={type} sub={false} />
                             </React.Fragment>
                             )}
                         </Flex>}
@@ -1626,7 +1638,7 @@ const Allocations: React.FunctionComponent = () => {
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota} type={type} />
+                                    <ProgressBar uq={wallet.usageAndQuota} type={type} sub={false} />
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1753,9 +1765,10 @@ const Allocations: React.FunctionComponent = () => {
                                     </Link>
                                 }
 
+
                                 {recipient.usageAndQuota.map((uq, idx) => {
                                     if (idx > 2) return null;
-                                    return <ProgressBar key={idx} uq={uq} type={uq.type} />;
+                                    return <ProgressBar key={idx} uq={uq} type={uq.type} sub={false} />;
                                 })}
                             </div>}
                         >
@@ -1771,7 +1784,7 @@ const Allocations: React.FunctionComponent = () => {
                                         </Flex>
                                     </Flex>}
                                     right={
-                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} />
+                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} sub={true} />
                                     }
                                 >
                                     {g.allocations
@@ -1853,9 +1866,10 @@ const Allocations: React.FunctionComponent = () => {
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-function ProgressBar({uq, type}: {
+function ProgressBar({uq, type, sub}: {
     uq: UsageAndQuota,
     type: ProductType,
+    sub: boolean
 }) {
     if (uq.quota == 0) return null;
     let usage: number
@@ -1864,9 +1878,10 @@ function ProgressBar({uq, type}: {
     } else {
         usage = uq.usage - uq.retiredAmount
     }
+
     return <NewAndImprovedProgress
-        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
-        label={progressText(type, uq)}
+        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
+        label={progressText(type, uq, sub)}
         percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
         withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
     />;
@@ -1886,14 +1901,14 @@ const productTypesByPriority: ProductType[] = [
     "LICENSE",
 ];
 
-function progressText(type: ProductType, uq: UsageAndQuota): string {
+function progressText(type: ProductType, uq: UsageAndQuota, sub:boolean): string {
     let text = "";
 
     let balance = 0
-    if (type === "COMPUTE") {
-        balance = uq.usage - uq.retiredAmount
-    } else {
+    if (uq.retiredAmountStillCounts) {
         balance = uq.usage
+    } else {
+        balance = uq.usage - uq.retiredAmount
     }
 
     text += Accounting.balanceToStringFromUnit(type, uq.unit, balance, {
