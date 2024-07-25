@@ -1149,7 +1149,7 @@ class GrantsV2Service(
                         ?: throw RPCException("Unknown project? ${command.targetProjectId}", HttpStatusCode.BadRequest)
 
 
-                    //Note(Henrik) Not possible through front-end, but it can be done from backend and it should not
+                    // NOTE(Henrik): Not possible through front-end, but it can be done from backend and it should not
                     // be possible to transfer a grant if the transferor already has handled the application.
                     val currentApprovalStateOfTransferor = application.status.stateBreakdown.find { it.projectId == command.sourceProjectId }?.state
                         ?: throw RPCException("Unknown source project? ${command.sourceProjectId}", HttpStatusCode.BadRequest)
