@@ -378,7 +378,9 @@ class GrantsV2Service(
                             select rr.application_id as id
                             from
                                 "grant".requested_resources rr
-                                join max_revision_and_id mri on rr.application_id = id and rr.revision_number = max_revision
+                                join max_revision_and_id mri on
+                                    rr.application_id = id
+                                    and rr.revision_number = max_revision
                                 join project.project_members pm on rr.grant_giver = pm.project_id
                             where
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
