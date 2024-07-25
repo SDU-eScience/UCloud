@@ -81,25 +81,21 @@ interface EditorState {
         referenceIds: string[];
         comments?: Grants.Comment[];
     };
-    possibleTransfers: {
-        id: string;
-        title: string;
-        description: string;
-        template: string;
-        checked: boolean;
-    }[];
-    allocators: {
-        id: string;
-        title: string;
-        description: string;
-        template: string;
-        checked: boolean;
-    }[];
+    possibleTransfers: Allocators[];
+    allocators: Allocators[];
 
     application: ApplicationSection[];
     applicationDocument: Record<string, string>;
 
     resources: Record<string, ResourceCategory[]>;
+}
+
+interface Allocators {
+    id: string;
+    title: string;
+    description: string;
+    template: string;
+    checked: boolean;
 }
 
 interface SimpleRevision {
