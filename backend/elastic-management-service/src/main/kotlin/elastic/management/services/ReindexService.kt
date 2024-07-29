@@ -128,7 +128,7 @@ class ReindexService(
                     .index(toIndex)
                     .build()
             )
-            .timeout(Time.Builder().time("2m").build())
+            .timeout(Time.Builder().time("3m").build())
             .build()
 
         try {
@@ -136,10 +136,10 @@ class ReindexService(
         } catch (ex: Exception) {
             when (ex) {
                 is IOException -> {
-                    //Did not finish reindexing in 2 min (timeout)
-                    log.info("Did not finish in time (2 min adding to errors)")
+                    //Did not finish reindexing in 3 min (timeout)
+                    log.info("Did not finish in time (3 min adding to errors)")
                     reindexErrors.add(fromIndices.joinToString())
-                    log.info("Does not delete due to mapping issue - investigate")
+                    log.info("Does not delete due to timing issue - investigate")
                 }
                 is ElasticsearchException -> {
                     //This is most likely due to API changes resulting in not same mapping
@@ -162,7 +162,9 @@ class ReindexService(
         }
         //Delete old indices
         fromIndices.forEach {
-            deleteIndex(it, elastic)
+            if (!reindexErrors.contains(it)) {
+                deleteIndex(it, elastic)
+            }
         }
     }
 
