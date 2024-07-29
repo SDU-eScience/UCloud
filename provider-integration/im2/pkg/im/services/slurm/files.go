@@ -1,6 +1,8 @@
 package slurm
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +32,34 @@ type UploadSessionData struct {
 	ConflictPolicy orc.WriteConflictPolicy
 	Path           string
 	Type           ctrl.UploadType
+}
+
+type FileListingEntry struct {
+	Id         uint
+	Path       string
+	Size       uint64
+	ModifiedAt uint64
+	Offset     uint64
+}
+
+type FolderUploadMessageType uint8
+
+const (
+	FolderUploadMessageTypeOk             FolderUploadMessageType = 0
+	FolderUploadMessageTypeChecksum       FolderUploadMessageType = 1
+	FolderUploadMessageTypeChunk          FolderUploadMessageType = 2
+	FolderUploadMessageTypeSkip           FolderUploadMessageType = 3
+	FolderUploadMessageTypeListing        FolderUploadMessageType = 4
+	FolderUploadMessageTypeFilesCompleted FolderUploadMessageType = 5
+)
+
+func (t FolderUploadMessageType) Int() int8 {
+	for i := 0; i <= 5; i++ {
+		if FolderUploadMessageType(i) == t {
+			return int8(i)
+		}
+	}
+	return 0
 }
 
 func InitializeFiles() ctrl.FileService {
@@ -387,25 +418,17 @@ func (t *FileTask) process(doCreate bool) error {
 	go func() {
 		switch t.Type {
 		case FileTaskTypeCopy:
-			{
-				err = processCopyTask(t)
-				MarkTaskAsComplete(t.DriveId, t.Id)
-			}
+			err = processCopyTask(t)
+			MarkTaskAsComplete(t.DriveId, t.Id)
 		case FileTaskTypeMove:
-			{
-				err = processMoveTask(t)
-				MarkTaskAsComplete(t.DriveId, t.Id)
-			}
+			err = processMoveTask(t)
+			MarkTaskAsComplete(t.DriveId, t.Id)
 		case FileTaskTypeMoveToTrash:
-			{
-				err = processMoveToTrash(t)
-				MarkTaskAsComplete(t.DriveId, t.Id)
-			}
+			err = processMoveToTrash(t)
+			MarkTaskAsComplete(t.DriveId, t.Id)
 		case FileTaskTypeEmptyTrash:
-			{
-				err = processEmptyTrash(t)
-				MarkTaskAsComplete(t.DriveId, t.Id)
-			}
+			err = processEmptyTrash(t)
+			MarkTaskAsComplete(t.DriveId, t.Id)
 		}
 	}()
 
@@ -714,7 +737,295 @@ func uploadWsFile(socket *websocket.Conn, session UploadSessionData) error {
 }
 
 func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
+	listing := make(map[uint32]FileListingEntry)
+	responseBuffer := bytes.NewBuffer([]byte{})
+
+	drive, _ := ResolveDriveByPath(session.Path)
+
+	log.Info("sessionPath: %s, drive: %s", session.Path, drive.Id)
+
+	flushResponses := func() {
+		if responseBuffer.Len() > 0 {
+			socket.WriteMessage(websocket.BinaryMessage, responseBuffer.Bytes())
+		}
+		responseBuffer.Reset()
+		log.Info("Flushed responses")
+	}
+
+	var backlog []int
+
+	var filesCompleted atomic.Int32
+
+	// Write FilesCompleted messages to the socket.
+	go func() {
+		var last int32 = 0
+		buf := bytes.NewBuffer([]byte{})
+		for {
+			current := filesCompleted.Load()
+			if last != current {
+				buf.Reset()
+				binary.Write(buf, binary.BigEndian, byte(FolderUploadMessageTypeFilesCompleted.Int()))
+				buf = bytes.NewBuffer(binary.BigEndian.AppendUint32(buf.Bytes(), uint32(current)))
+				socket.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+				log.Info("Writing %v", buf)
+				last = current
+			}
+			time.Sleep(100)
+		}
+	}()
+
+	for {
+		messageType, data, readErr := socket.ReadMessage()
+		buffer := bytes.NewBuffer(data)
+		log.Info("Messagetype is %v", messageType)
+
+		if readErr != nil {
+			log.Error("Failed to read message from socket: %v", readErr)
+			/*return &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Error occured while uploading folder",
+			}*/
+			break
+		}
+
+		uploadMessageType, _ := buffer.ReadByte()
+
+		log.Info("UploadMessageType: %v", uploadMessageType)
+
+		switch FolderUploadMessageType(uploadMessageType) {
+		case FolderUploadMessageTypeListing:
+			{
+				type ListingResponse struct {
+					Message FolderUploadMessageType
+					Entry   uint
+				}
+
+				workChannel := make(chan []FileListingEntry)
+				workResponses := make(chan []ListingResponse)
+
+				// Determine which files needs to be uploaded.
+				go func() {
+					for {
+						entries, more := <-workChannel
+
+						if more {
+							log.Info("Got entries %d", len(entries))
+							var responses []ListingResponse
+
+							for _, entry := range entries {
+								message := FolderUploadMessageTypeOk
+								log.Info("Stat on file %s", entry.Path)
+								fileInfo, err := os.Stat(entry.Path)
+
+								if err != nil {
+									message = FolderUploadMessageTypeOk
+								} else {
+									if fileInfo.IsDir() {
+										message = FolderUploadMessageTypeSkip
+									}
+								}
+
+								responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
+							}
+
+							workResponses <- responses
+						} else {
+							log.Info("Got no entries")
+							break
+						}
+					}
+					close(workChannel)
+				}()
+
+				// Process listing
+				go func() {
+					var batch []FileListingEntry
+
+					for {
+						if buffer.Len() < 1 {
+							break
+						}
+						fileId := binary.BigEndian.Uint32(buffer.Next(4))
+						log.Info("FileId is %v", fileId)
+						size := binary.BigEndian.Uint64(buffer.Next(8))
+						log.Info("size is %v", size)
+						modifiedAt := binary.BigEndian.Uint64(buffer.Next(8))
+						log.Info("ModifiedAt is %v", modifiedAt)
+						pathSize := binary.BigEndian.Uint32(buffer.Next(4))
+						log.Info("pathSize is %v", pathSize)
+
+						if pathSize > 1024*64 {
+							log.Info("Refusing to allocate space for this file: %d", pathSize)
+						}
+
+						path := string(buffer.Next(int(pathSize)))
+						log.Info("path is %v", path)
+
+						fileListingEntry := FileListingEntry{
+							Id:         uint(fileId),
+							Path:       path,
+							Size:       size,
+							ModifiedAt: modifiedAt,
+							Offset:     0,
+						}
+
+						batch = append(batch, fileListingEntry)
+						listing[fileId] = fileListingEntry
+
+						if len(batch) > 100 {
+							workChannel <- batch
+							batch = []FileListingEntry{}
+						}
+					}
+
+					if len(batch) > 0 {
+						workChannel <- batch
+					}
+
+					log.Info("Done processing listing")
+				}()
+
+				go func() {
+					for {
+						batch := <-workResponses
+
+						log.Info("batch is: %v", batch)
+
+						for _, entry := range batch {
+							if responseBuffer.Len() < 64 {
+								flushResponses()
+							}
+							if entry.Message == FolderUploadMessageTypeOk {
+								backlog = append(backlog, int(entry.Entry))
+							}
+
+							binary.Write(responseBuffer, binary.BigEndian, byte(entry.Message.Int()))
+							responseBuffer = bytes.NewBuffer(binary.BigEndian.AppendUint32(responseBuffer.Bytes(), uint32(entry.Entry)))
+						}
+
+						flushResponses()
+					}
+				}()
+			}
+		case FolderUploadMessageTypeSkip:
+			{
+				log.Info("Skip received")
+				fileId := binary.BigEndian.Uint32(buffer.Next(4))
+				filesCompleted.Add(1)
+
+				// Remove from backlog
+				var newBacklog []int
+				for _, entry := range backlog {
+					if entry != int(fileId) {
+						newBacklog = append(newBacklog, entry)
+					}
+				}
+
+				backlog = newBacklog
+			}
+		case FolderUploadMessageTypeChunk:
+			{
+				fileId := binary.BigEndian.Uint32(buffer.Next(4))
+				chunk := buffer.Bytes()
+
+				log.Info("Chunk received for file %d", fileId)
+
+				go func() {
+					fileEntry := listing[fileId]
+
+					isDone, err := doHandleFolderUpload(
+						session,
+						listing[fileId],
+						drive,
+						chunk,
+					)
+
+					if err != nil {
+						log.Info("doHandleFolderUpload failed: %v", err)
+						return
+					}
+
+					fileEntry.Offset += uint64(len(data))
+					if isDone || fileEntry.Offset >= fileEntry.Size {
+						filesCompleted.Add(1)
+
+						var newBacklog []int
+
+						for _, backlogEntry := range backlog {
+							if backlogEntry != int(fileEntry.Id) {
+								newBacklog = append(newBacklog, backlogEntry)
+							}
+						}
+
+						backlog = newBacklog
+					}
+				}()
+			}
+		default:
+			{
+				log.Info("Something else received")
+			}
+		}
+	}
+
+	log.Info("Done here")
+
 	return nil
+}
+
+func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, drive orc.Drive, data []byte) (bool, error) {
+
+	// Create folders
+	folders := strings.Split(entry.Path, "/")
+	folders = folders[0 : len(folders)-1]
+	var allFolders []string
+
+	for i := 0; i < len(folders); i++ {
+		// TODO This really needs to be improved
+		element := strings.Join(folders[0:i+1], "/")
+
+		if strings.Contains(element, "../") {
+			log.Info("Bailing 1")
+			return false, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Bailing 1",
+			}
+		}
+
+		if element == ".." {
+			log.Info("Bailing 2")
+			return false, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Bailing 2",
+			}
+		}
+
+		allFolders = append(allFolders, element)
+		i++
+	}
+
+	for _, folder := range allFolders {
+		createFolder(ctrl.CreateFolderRequest{
+			Path:           InternalToUCloudWithDrive(drive, session.Path+"/"+folder),
+			Drive:          drive,
+			ConflictPolicy: orc.WriteConflictPolicyReject,
+		})
+	}
+
+	targetPath := session.Path + "/" + entry.Path
+
+	// TODO(Brian) Should reuse file descriptor
+	// TODO(Brian) Should write modifiedAt??
+	file, _ := os.OpenFile(targetPath, os.O_CREATE+os.O_RDWR, 0644)
+	defer file.Close()
+
+	_, err := file.Write(data)
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func uploadWs(upload ctrl.UploadDataWs) error {
