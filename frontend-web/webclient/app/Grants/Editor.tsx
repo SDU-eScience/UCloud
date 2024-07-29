@@ -138,7 +138,7 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
+    | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
         type: "GrantGiverInitiatedLoaded",
         wallets: Accounting.WalletV2[],
@@ -223,6 +223,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newResources: EditorState["resources"] = {...state.resources};
 
             let templateKey: keyof Grants.Templates = "newProject";
+            // Issue(4220): None of these are correctly hit and default to newProject.
             if (state.stateDuringCreate) {
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
@@ -662,6 +663,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         if (!state.stateDuringEdit) return state;
         const newEditState = {...state.stateDuringEdit};
 
+        // Issue(4220): Seems to look at `newProject` template, instead of `existingProject`.
+
         const doc = state.stateDuringEdit.document;
         const docText = doc.form.text;
 
@@ -713,8 +716,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         const isGrantGiverInitiated = app && app.status.overallState == "APPROVED" && app.status.revisions.length === 1 && docText.startsWith(grantGiverInitiatedPrefix);
 
+        // Issue(4220): Has the old ones, that are active when submitting the intial one
         const docSections = parseIntoSections(docText);
         const templates = isGrantGiverInitiated ? [grantGiverInitiatedTemplate] : newAllocators.map(it => it.template);
+        // Issue(4220): Adds the new ones
         const newApplication = calculateNewApplication(templates);
 
         const newApplicationDocument: EditorState["applicationDocument"] = {};
@@ -726,7 +731,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             } else {
                 otherSection += section.title;
                 otherSection += ":\n\n";
-                otherSection += section.description
+                otherSection += section.description;
                 otherSection += "\n\n";
             }
         }
