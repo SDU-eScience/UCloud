@@ -264,9 +264,11 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
     let operations: React.ReactNode = null;
     switch (task.status) {
         case TaskState.FAILED:
-        case TaskState.PENDING:
         case TaskState.CANCELLED:
         case TaskState.SUCCEEDED:
+            break;
+        case TaskState.PENDING:
+            operations = <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />;
             break;
         case TaskState.IN_PROGRESS: {
             operations = <>
@@ -339,7 +341,7 @@ export function TaskList(): React.ReactNode {
                 },
             });
         } */
-       taskStore.mockInitConnection();
+        taskStore.mockInitConnection();
     }, [Client.isLoggedIn]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
