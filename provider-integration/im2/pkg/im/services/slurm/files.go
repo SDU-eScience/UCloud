@@ -27,6 +27,7 @@ import (
 var browseCache *lru.LRU[string, []cachedDirEntry]
 var tasksInitializedMutex sync.Mutex
 var tasksInitialized []string
+var uploadDescriptors UploadDescriptors
 
 type UploadSessionData struct {
 	ConflictPolicy orc.WriteConflictPolicy
@@ -38,7 +39,7 @@ type FileListingEntry struct {
 	Id         uint
 	Path       string
 	Size       uint64
-	ModifiedAt uint64
+	ModifiedAt time.Time
 	Offset     uint64
 }
 
@@ -59,10 +60,12 @@ func (t FolderUploadMessageType) Int() int8 {
 			return int8(i)
 		}
 	}
+
 	return 0
 }
 
 func InitializeFiles() ctrl.FileService {
+	uploadDescriptors.startMonitoringLoop()
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	return ctrl.FileService{
 		BrowseFiles:           browse,
@@ -647,7 +650,7 @@ func createDownload(session ctrl.DownloadSession) error {
 func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) {
 	path := UCloudToInternalWithDrive(request.Drive, request.Path)
 
-	if request.ConflictPolicy == orc.WriteConflictPolicyRename {
+	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
 		path, _ = findAvailableNameOnRename(path)
 	}
 
@@ -770,7 +773,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 				log.Info("Writing %v", buf)
 				last = current
 			}
-			time.Sleep(100)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 
@@ -781,11 +784,10 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 
 		if readErr != nil {
 			log.Error("Failed to read message from socket: %v", readErr)
-			/*return &util.HttpError{
+			return &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Error occured while uploading folder",
-			}*/
-			break
+			}
 		}
 
 		uploadMessageType, _ := buffer.ReadByte()
@@ -814,15 +816,32 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 
 							for _, entry := range entries {
 								message := FolderUploadMessageTypeOk
-								log.Info("Stat on file %s", entry.Path)
-								fileInfo, err := os.Stat(entry.Path)
+								log.Info("Stat on file %s", session.Path+"/"+entry.Path)
+								fileInfo, err := os.Stat(session.Path + "/" + entry.Path)
 
 								if err != nil {
+									log.Info("file was not found")
 									message = FolderUploadMessageTypeOk
 								} else {
+									log.Info("Actual: %d %d", fileInfo.Size(), fileInfo.ModTime().UnixMilli())
+									log.Info("Expected: %d %d", entry.Size, entry.ModifiedAt.UnixMilli())
+									diffModifiedAt := entry.ModifiedAt.UnixMilli() - fileInfo.ModTime().UnixMilli()
+									if diffModifiedAt < 0 {
+										diffModifiedAt = diffModifiedAt * -1
+									}
+
 									if fileInfo.IsDir() {
 										message = FolderUploadMessageTypeSkip
+									} else if uint64(fileInfo.Size()) == entry.Size {
+										message = FolderUploadMessageTypeSkip
+									} else if diffModifiedAt < 1000 {
+										message = FolderUploadMessageTypeSkip
 									}
+								}
+
+								if message == FolderUploadMessageTypeSkip {
+									entry.Offset = entry.Size
+									filesCompleted.Add(1)
 								}
 
 								responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
@@ -865,7 +884,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 							Id:         uint(fileId),
 							Path:       path,
 							Size:       size,
-							ModifiedAt: modifiedAt,
+							ModifiedAt: fnd.TimeFromUnixMilli(modifiedAt).Time(),
 							Offset:     0,
 						}
 
@@ -974,7 +993,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 }
 
 func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, drive orc.Drive, data []byte) (bool, error) {
-
 	// Create folders
 	folders := strings.Split(entry.Path, "/")
 	folders = folders[0 : len(folders)-1]
@@ -985,18 +1003,16 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 		element := strings.Join(folders[0:i+1], "/")
 
 		if strings.Contains(element, "../") {
-			log.Info("Bailing 1")
 			return false, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
-				Why:        "Bailing 1",
+				Why:        "Bailing",
 			}
 		}
 
 		if element == ".." {
-			log.Info("Bailing 2")
 			return false, &util.HttpError{
 				StatusCode: http.StatusBadRequest,
-				Why:        "Bailing 2",
+				Why:        "Bailing",
 			}
 		}
 
@@ -1014,12 +1030,15 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 
 	targetPath := session.Path + "/" + entry.Path
 
-	// TODO(Brian) Should reuse file descriptor
-	// TODO(Brian) Should write modifiedAt??
-	file, _ := os.OpenFile(targetPath, os.O_CREATE+os.O_RDWR, 0644)
-	defer file.Close()
+	file := uploadDescriptors.get(targetPath, int64(entry.Offset), false, entry.ModifiedAt)
 
-	_, err := file.Write(data)
+	written, err := file.Handle.Write(data)
+
+	if entry.Offset+uint64(written) >= entry.Size {
+		uploadDescriptors.close(*file, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
+	}
+
+	file.release()
 
 	if err != nil {
 		return false, err
@@ -1089,6 +1108,156 @@ func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
 	}
 
 	return file, stat.Size(), nil
+}
+
+// Upload File Descriptors
+type UploadDescriptors struct {
+	openDescriptors []UploadDescriptor
+	mutex           sync.Mutex
+}
+
+type UploadDescriptor struct {
+	PartialPath string
+	TargetPath  string
+	Handle      *os.File
+	LastUsed    time.Time
+	InUse       *sync.Mutex
+	Waiting     *atomic.Int32
+}
+
+// Releases the upload file descriptor for further writing.
+func (ud *UploadDescriptor) release() {
+	ud.InUse.Unlock()
+	ud.LastUsed = time.Now()
+}
+
+func (descriptors *UploadDescriptors) close(descriptor UploadDescriptor, conflictPolicy orc.WriteConflictPolicy, modifiedAt time.Time) {
+	resolvedTargetPath := descriptor.TargetPath
+
+	if conflictPolicy == orc.WriteConflictPolicyRename {
+		resolvedTargetPath, _ = findAvailableNameOnRename(descriptor.TargetPath)
+	}
+
+	os.Rename(descriptor.PartialPath, resolvedTargetPath)
+
+	if modifiedAt.UnixMilli() > 0 {
+		os.Chtimes(resolvedTargetPath, modifiedAt, modifiedAt)
+	}
+
+	log.Info("Closing fd: %s %s", descriptor.TargetPath, fmt.Sprint(descriptor.Handle.Fd()))
+
+	descriptors.mutex.Lock()
+	descriptor.Handle.Close()
+
+	var newDescriptors []UploadDescriptor
+	for _, openDesc := range descriptors.openDescriptors {
+		if descriptor.Handle.Fd() != openDesc.Handle.Fd() {
+			newDescriptors = append(newDescriptors, openDesc)
+		}
+	}
+
+	descriptors.openDescriptors = newDescriptors
+
+	descriptors.mutex.Unlock()
+}
+
+func (descriptors *UploadDescriptors) get(path string, offset int64, truncate bool, modifiedAt time.Time) *UploadDescriptor {
+	descriptors.mutex.Lock()
+	internalTargetPath, _ := UCloudToInternal(path)
+	internalPartialPath, _ := UCloudToInternal(path + ".ucloud_part")
+
+	var found *UploadDescriptor = nil
+
+	for key, ud := range descriptors.openDescriptors {
+		if ud.PartialPath == internalPartialPath {
+			found = &descriptors.openDescriptors[key]
+		}
+	}
+
+	if found != nil {
+		descriptors.mutex.Unlock()
+		log.Info("Found existing fd: %s %s", found.TargetPath, fmt.Sprint(found.Handle.Fd()))
+		return found
+	}
+
+	var flags int = os.O_CREATE + os.O_RDWR
+	if truncate {
+		flags += os.O_TRUNC
+	}
+
+	handle, _ := os.OpenFile(internalPartialPath, flags, 0644)
+
+	if modifiedAt.UnixMilli() == 0 {
+		os.Chtimes(internalPartialPath, modifiedAt, modifiedAt)
+	}
+
+	newDescriptor := UploadDescriptor{
+		PartialPath: internalPartialPath,
+		TargetPath:  internalTargetPath,
+		Handle:      handle,
+		LastUsed:    time.Now(),
+		InUse:       &sync.Mutex{},
+		Waiting:     &atomic.Int32{},
+	}
+	log.Info("Opened new fd: %s %s", newDescriptor.TargetPath, fmt.Sprint(newDescriptor.Handle.Fd()))
+
+	descriptors.openDescriptors = append(descriptors.openDescriptors, newDescriptor)
+
+	descriptor := &descriptors.openDescriptors[len(descriptors.openDescriptors)-1]
+
+	descriptors.mutex.Unlock()
+
+	descriptor.Waiting.Add(1)
+	descriptor.InUse.Lock()
+	descriptor.Waiting.Add(-1)
+	if offset >= 0 {
+		descriptor.Handle.Seek(offset, 0)
+	}
+
+	return descriptor
+}
+
+// Starts the monitoring loop of upload descriptors, which will periodically close unused file descriptors used for uploads.
+func (d *UploadDescriptors) startMonitoringLoop() {
+	go func() {
+		for {
+			d.mutex.Lock()
+			var closedDescriptors []uintptr
+
+			for _, descriptor := range d.openDescriptors {
+				if time.Now().UnixMilli() > descriptor.LastUsed.UnixMilli()+10000 && descriptor.InUse.TryLock() {
+					if descriptor.Waiting.Load() != 0 {
+						descriptor.InUse.Unlock()
+					} else {
+						descriptor.Handle.Close()
+						closedDescriptors = append(closedDescriptors, descriptor.Handle.Fd())
+					}
+				}
+			}
+
+			// Remove closed descriptors
+			var newDescriptors []UploadDescriptor
+
+			for _, desc := range d.openDescriptors {
+				shouldRemove := false
+				for _, closed := range closedDescriptors {
+					if desc.Handle.Fd() == closed {
+						shouldRemove = true
+						break
+					}
+				}
+
+				if !shouldRemove {
+					newDescriptors = append(newDescriptors, desc)
+				}
+			}
+
+			d.openDescriptors = newDescriptors
+
+			d.mutex.Unlock()
+			time.Sleep(2 * time.Second)
+		}
+	}()
 }
 
 func UnitToBytes(unit string) uint64 {
