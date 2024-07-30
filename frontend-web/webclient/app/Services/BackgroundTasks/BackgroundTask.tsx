@@ -166,7 +166,7 @@ const MOCKING = {
 }
 
 enum TaskState {
-    PENDING, // Needed? Could just be if updates.length === 0
+    PENDING, // or ACCEPTED Needed? Could just be if updates.length === 0
     PAUSED,
     IN_PROGRESS,
     CANCELLED,

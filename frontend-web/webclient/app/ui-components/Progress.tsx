@@ -78,7 +78,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         display: inline-flex;
         background: linear-gradient(
             120deg,
-            var(--primaryLight) 0%, var(--primaryDark) var(--percentage),
+            var(--progress-bar-color-start) 0%, var(--progress-bar-color-end) var(--percentage),
             var(--secondaryMain) var(--percentage), var(--secondaryDark)
             var(--limit));
     }
@@ -96,7 +96,7 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         width: 100%;
         height: 100%;
         background: linear-gradient(
-            120deg, #0000 0%, #0000 var(--limit), var(--errorLight) var(--limit), var(--errorDark) 100%);
+            120deg, #0000 0%, #0000 var(--limit), var(--limit-bar-color-start) var(--limit), var(--limit-bar-color-end) 100%);
     }
     
     ${k}[data-label]:after {
@@ -108,7 +108,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         top: -1.8em;
         width: 100%;
     }
-`)
+`);
+
+interface ColorPair {
+    start: ThemeColor;
+    end: ThemeColor;
+}
 
 export function NewAndImprovedProgress({
     label,
@@ -117,7 +122,15 @@ export function NewAndImprovedProgress({
     withWarning,
     width = "250px",
     height = "5px",
-}: {label?: string; percentage: number; limitPercentage: number; withWarning?: boolean; width?: string, height?: string;}): React.ReactNode {
+    progressColor = {
+        start: "primaryLight",
+        end: "primaryDark",
+    },
+    limitColor = {
+        start: "errorLight",
+        end: "errorDark",
+    },
+}: {label?: string; percentage: number; limitPercentage: number; withWarning?: boolean; width?: string, height?: string; progressColor?: ColorPair; limitColor?: ColorPair;}): React.ReactNode {
     const style: CSSProperties = {};
     // for visualization purposes we offset values too small or too close to 100%
     if (percentage > 0.1 && percentage < 2) {
@@ -130,6 +143,13 @@ export function NewAndImprovedProgress({
     style["--limit"] = limitPercentage + "%";
     style["--progress-bar-width"] = width;
     style["--progress-bar-height"] = height;
+
+    style["--progress-bar-color-start"] = `var(--${progressColor.start})`;
+    style["--progress-bar-color-end"] = `var(--${progressColor.end})`;
+
+    style["--limit-bar-color-start"] = `var(--${limitColor.start})`;
+    style["--limit-bar-color-end"] = `var(--${limitColor.end})`;
+
     const warning = withWarning ? <OverallocationLink><TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
         <Icon size={"20px"} mr="8px" name={"heroExclamationTriangle"} color={"warningMain"} />
     </TooltipV2></OverallocationLink> : null;

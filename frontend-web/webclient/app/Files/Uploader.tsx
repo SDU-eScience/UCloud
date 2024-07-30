@@ -1098,6 +1098,8 @@ export function TaskProgress({progress, limit, stopped}: {stopped: boolean; prog
         height="8px"
         width="100%"
         percentage={progress / limit * 100}
+        progressColor={{start: "primaryMain", end: "primaryMain"}}
+        limitColor={{start: "errorMain", end: "errorMain"}}
     />;
 }
 
