@@ -148,7 +148,7 @@ type EditorAction =
         projectId?: string,
         piUsernameHint: string
     }
-    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[]}
+    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
@@ -223,7 +223,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const newResources: EditorState["resources"] = {...state.resources};
 
             let templateKey: keyof Grants.Templates = "newProject";
-            // Issue(4220): None of these are correctly hit and default to newProject.
             if (state.stateDuringCreate) {
                 if (state.stateDuringCreate.creatingWorkspace) {
                     templateKey = "newProject";
@@ -233,9 +232,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     templateKey = "personalProject";
                 }
             } else {
-                const recipient = state.stateDuringEdit?.recipient;
+                const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
                 if (recipient) {
-                    switch (recipient.type) {
+                    switch (recipient) {
                         case "personalWorkspace":
                             templateKey = "personalProject";
                             break;
@@ -245,6 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         case "existingProject":
                             templateKey = "existingProject";
                             break;
+                        default:
+                            console.warn("Unhandled recipient!");
                     }
                 }
             }
@@ -840,9 +841,9 @@ function useStateReducerMiddleware(
                         const pApp = callAPI(Grants.retrieve({id: event.grantId}));
 
                         const affiliations = await pAffiliations;
-                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
-
                         const application = await pApp;
+                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType: application.currentRevision.document.recipient.type});
+
 
                         const projectPage = await projectPromise;
                         const allRelevantAllocators = new Set(application.status.revisions.flatMap(rev =>
