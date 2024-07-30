@@ -939,8 +939,8 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
     
     ${k} .icon {
-        padding-left: 8px; 
-        padding-top: 16px;
+        padding-left: 10px; 
+        padding-top: 14px;
     }
     
     ${k} .text {
