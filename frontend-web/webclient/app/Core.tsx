@@ -9,6 +9,7 @@ const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"))
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
 const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
+const ApplicationFork = React.lazy((() => import("@/Applications/Fork")));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -125,6 +126,7 @@ const Core = (): React.ReactNode => (
                         <Route path={AppRoutes.apps.category()}
                                element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
+                        <Route path={AppRoutes.apps.fork()} element={React.createElement(requireAuth(ApplicationFork))} />
 
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
 

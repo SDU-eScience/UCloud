@@ -65,6 +65,7 @@ import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmail
 import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
+import AppRoutes from "@/Routes";
 
 interface InsufficientFunds {
     why?: string;
@@ -458,18 +459,18 @@ export const Create: React.FunctionComponent = () => {
                     />
                     <Box flexGrow={1} />
 
-                    <Flex height={"35px"}>
+                    <Flex height={"35px"} alignItems={"center"} gap={"18px"}>
                         {!application.metadata.website ? null : (
-                            <Box mr={"18px"}>
-                                <ExternalLink href={application.metadata.website}>
-                                    <Button>
-                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                        <div>Documentation</div>
-                                    </Button>
-                                </ExternalLink>
-                            </Box>
+                            <ExternalLink href={application.metadata.website}>
+                                <Button>
+                                    <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
+                                    <div>Documentation</div>
+                                </Button>
+                            </ExternalLink>
                         )}
-                        {license ? <Box my="auto"><TooltipV2 tooltip={`License: ${license}`}><Icon size="24" mr="18px" name="fileSignatureSolid" /></TooltipV2></Box> : null}
+                        {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
+
+                        <ForkButton name={application.metadata.name} version={application.metadata.version} />
                         <UtilityBar />
                     </Flex>
                 </Flex>
@@ -520,7 +521,7 @@ export const Create: React.FunctionComponent = () => {
                                             {anyError ?
                                                 <Tooltip trigger={
                                                     <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay" />
+                                                        <Icon name="heroPlay" mr={8} />
                                                         Submit
                                                     </Button>
                                                 }>
@@ -535,7 +536,7 @@ export const Create: React.FunctionComponent = () => {
                                                     disabled={isLoading || !sshValid || isMissingConnection}
                                                     onClick={() => submitJob(false)}
                                                 >
-                                                    <Icon name="heroPlay" />
+                                                    <Icon name="heroPlay" mr={8} />
                                                     Submit
                                                 </Button>
                                             }
@@ -764,6 +765,22 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
 
     ${k} p:last-child {
         margin-bottom: 0;
+    }
+`);
+
+const ForkButton: React.FunctionComponent<{ name: string, version: string }> = ({name, version}) => {
+    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
+    return <TooltipV2 tooltip={`Create a fork of this application to customize it`}>
+        <Link to={AppRoutes.apps.fork(name, version)} color={"textPrimary"} hoverColor={"textPrimary"} className={ForkButtonStyle}>
+            <Icon size="24" name="fork" />
+        </Link>
+    </TooltipV2>
+}
+
+const ForkButtonStyle = injectStyle("fork-button", k => `
+    ${k}:hover svg {
+        transition: transform 0.2s ease;
+        transform: translateY(-15%);
     }
 `);
 

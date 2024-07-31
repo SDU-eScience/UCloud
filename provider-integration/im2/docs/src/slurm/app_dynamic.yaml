@@ -16,13 +16,13 @@ software:
   load:
     type: Module
     modules:
-    - >
+    - |
       {% if ucloud.machine.gpu == 0 %}
       package-cpu
       {% else %}
       package-gpu
       {% endif %}
-    - >
+    - |
       {% if ucloud.machine.gpu == 0 %}
       partition/cpu
       {% else %}
@@ -32,5 +32,5 @@ software:
 sbatch:
   exclusive: "" # This package requires the node to be used exclusively
 
-invocation: >
+invocation: |
   my-package

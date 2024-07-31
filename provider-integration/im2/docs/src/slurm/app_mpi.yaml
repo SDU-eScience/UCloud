@@ -25,7 +25,7 @@ parameters:
     type: Directory
     optional: false
     title: "Input directory"
-    description: >
+    description: |
       The input directory must contain the following files:
 
       - `pw.Si.in`
@@ -38,7 +38,7 @@ sbatch:
 
 # TODO Tweak this example to be more realistic. We have all the tools to do it,
 # I am just not an expert in how to run these tools.
-invocation: >
+invocation: |
   echo Running on "$(hostname)" with {{ ucloud.machine.name }}
   echo Available nodes: "$SLURM_NODELIST"
   echo Slurm_submit_dir: "$SLURM_SUBMIT_DIR"

@@ -17,7 +17,7 @@ software:
     modules:
     - package
 
-invocation: >
+invocation: |
   {% set requiresOptionalPackages = True %}
   {- myGlobalPreamble -}
   my-package

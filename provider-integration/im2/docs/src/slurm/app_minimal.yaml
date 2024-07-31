@@ -9,5 +9,5 @@ software:
   # NOTE: In this case both the load and build sections are omitted. In such a
   # case, the software is simply assumed to be present directly on the host.
 
-invocation: >
+invocation: |
   echo "Hello World!"

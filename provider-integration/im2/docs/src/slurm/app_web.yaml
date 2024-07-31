@@ -27,7 +27,7 @@ software:
 web:
   enabled: true
 
-invocation: >
+invocation: |
   tok=`uuidgen`
   echo "c.ServerApp.token='$tok'" > nb.py
   echo "Use the following token to access JupyterLab:"

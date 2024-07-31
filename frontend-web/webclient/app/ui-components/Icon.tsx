@@ -70,6 +70,9 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
+    if (props.name === "fork") {
+        style.fill = "none";
+    }
 
     return <IconBase {...props} size={size} squared={squared} className={classConcat(IconClass, props.className, props.hoverColor ? "with-hover" : undefined)} data-spin={props.spin === true} style={style} />
 };

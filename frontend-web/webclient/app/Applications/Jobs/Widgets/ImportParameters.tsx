@@ -120,7 +120,10 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
 
     return <Box>
         <Flex flexDirection="row" minWidth="180px" flexWrap="wrap">
-            <Button marginLeft="auto" color="secondaryMain" onClick={() => setImportDialogOpen(true)}><Icon name="heroArrowsUpDown" /> Import parameters</Button>
+            <Button marginLeft="auto" color="secondaryMain" onClick={() => setImportDialogOpen(true)}>
+                <Icon name="heroArrowsUpDown" mr={8} />
+                Import parameters
+            </Button>
         </Flex>
 
         {messages.length === 0 ? null : (

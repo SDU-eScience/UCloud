@@ -47,6 +47,9 @@ RPM packages for RHEL are automatically built. You can download the latest RPM p
 [here](https://github.com/sdu-escience/ucloud/releases). Once you have downloaded the package, you can install it with
 the following command:
 
+TODO Consider if this installation script should enforce a cgroup on user instances since this might limit abuse of
+certain potential features. (Forkable applications and terminal access)
+
 ```terminal
 $ sudo dnf install -y ucloud-im-rhel.rpm
 ```

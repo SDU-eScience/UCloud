@@ -193,7 +193,7 @@ Assume that the following template snippets are defined in the configuration:
 slurm:
   applications:
     templates:
-      myGlobalPreamble: >
+      myGlobalPreamble: |
         {% if requiresOptionalPackages %}
         module load extra-packages
         {% endif %}
@@ -202,7 +202,7 @@ slurm:
         module load gpu-packages
         {% endif %}
       
-      myGlobalPostamble: >
+      myGlobalPostamble: |
         echo "This is the postamble!"
 ```
 
@@ -240,7 +240,7 @@ slurm:
 
 </figure>
 
-These can be consumed from any application requiring them by using the syntax: `{- templateId -}`.
+These can be consumed from any application:
 
 <figure>
 
@@ -903,6 +903,54 @@ The number of nodes dedicated to the job.
 </td>
 </tr>
 
+<tr>
+<td><code>ucloud.partition</code></td>
+<td><code>string</code></td>
+<td>
+
+The partition which the job is going to be submitted to. This is derived from the configuration and the machine slice.
+
+**Example:** `"cpu"`
+
+</td>
+</tr>
+
+<tr>
+<td><code>ucloud.qos</code></td>
+<td><code>string</code></td>
+<td>
+
+The quality-of-service (QoS) which the job is going to be submitted with. This is derived from the configuration and the
+machine slice.
+
+**Example:** `"normal"`
+
+</td>
+</tr>
+
+<tr>
+<td><code>ucloud.application.name</code></td>
+<td><code>string</code></td>
+<td>
+
+The name of the application being submitted.
+
+**Example:** `"quantum-espresso"`
+
+</td>
+</tr>
+
+<tr>
+<td><code>ucloud.application.version</code></td>
+<td><code>string</code></td>
+<td>
+
+The version of the application being submitted.
+
+**Example:** `"7.3"`
+
+</td>
+</tr>
 
 </tbody>
 </table>
@@ -1020,7 +1068,7 @@ following format:
 }
 ```
 
-The output is rendered, _with no escaping applied to it_. Note that this output does not pass back through Jinja and
+The output is rendered _with no escaping applied to it_. Note that this output does not pass back through Jinja and
 thus cannot be used to generate templates at runtime.
 
 
@@ -1036,12 +1084,13 @@ This example assumes that the machine slice used for the job has the name `u1-st
 #!/usr/bin/env python3
 # File: /opt/ucloud/scripts/my-script
 
+import sys
 import json
 
 with open(sys.argv[1]) as fp:
     request = json.load(fp)
 
-response = { output: request["ucloud"]["machine"]["name"] }
+response = { "output": request["ucloud"]["machine"]["name"] }
 print(json.dumps(response))
 ```
 
@@ -1174,3 +1223,65 @@ Slurm should generally use dynamic port allocation unless the software only supp
 </table>
 </div>
 
+### Features
+
+Various optional features can be enabled through the `features` top-level section. These properties are described
+by the table below. All properties in the `features` section have a default value.
+
+<div class="table-wrapper no-code-wrap">
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td><code>multiNode</code></td>
+<td><code>boolean</code> (optional)</td>
+<td>
+
+Default value: `false`
+
+This feature allows a user to add multiple nodes to a single job. This must be explicitly enabled for all applications
+which are capable of doing multi-node processing.
+
+</td>
+</tr>
+
+<tr>
+<td><code>forkable</code></td>
+<td><code>boolean</code> (optional)</td>
+<td>
+
+Default value: `true`
+
+Feature enabling users to customize applications by forking them. This feature is described in detail
+[here](./built-in-apps.md#forkable-applications). Applications using the `Native` software type has this feature enabled
+by default.
+
+</td>
+</tr>
+
+<tr>
+<td><code>requireFork</code></td>
+<td><code>boolean</code> (optional)</td>
+<td>
+
+Default value: `false`
+
+Feature enabling requiring users to fork the application before they can submit it. Such applications cannot be started
+directly by the user without first creating a fork of the application. Anything passed in the invocation will still be
+passed on to the end-user and can be used to explain how to use it.
+
+This property has no effect if `forkable = false`.
+
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>

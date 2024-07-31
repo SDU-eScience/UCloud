@@ -1533,6 +1533,42 @@ export const filterSolid = (props: any) => (
     />
   </svg>
 );
+export const fork = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentcolor"
+    viewBox="0 0 37 45"
+    {...props}
+  >
+    <circle
+      cx={26.5}
+      cy={10.5}
+      r={3.6}
+      stroke="currentcolor"
+      strokeWidth={2.8}
+    />
+    <circle
+      cx={10.5}
+      cy={10.5}
+      r={3.6}
+      stroke="currentcolor"
+      strokeWidth={2.8}
+    />
+    <circle
+      cx={18.5}
+      cy={34.5}
+      r={3.6}
+      stroke="currentcolor"
+      strokeWidth={2.8}
+    />
+    <path
+      stroke="currentcolor"
+      strokeLinecap="round"
+      strokeWidth={2.8}
+      d="M10.5 15.5v0a5 5 0 0 0 5 5h6a5 5 0 0 0 5-5v0M18.5 29.5V22"
+    />
+  </svg>
+);
 export const forward = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

@@ -111,8 +111,14 @@ hue-6-2: #e6c07b
 .hljs-meta,
 .hljs-blue,
 .hljs-selector-id,
+.hljs-terminal-start,
 .hljs-title {
     color: #61aeee;
+}
+
+
+.hljs-terminal-start {
+    user-select: none;
 }
 
 .hljs-built_in,

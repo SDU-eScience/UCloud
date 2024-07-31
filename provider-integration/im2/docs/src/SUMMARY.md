@@ -34,6 +34,7 @@
     - [CLI](./slurm/cli-reference.md)
 - [Appendix](./slurm/appendix.md)
   - [Advanced Scheduling](./slurm/advanced_scheduling.md)
+  - [Built-in Application Index](./slurm/built-in-app-index.md)
 
 # UCloud/IM for Kubernetes
 

@@ -6,19 +6,7 @@ version: v1.32
 software:
   type: Native
 
-  build:
-    type: Spack
-    repository: MyRepository
-    packages:
-    - package
-
-  load:
-    type: Module
-    modules:
-    - package
-
-invocation: >
+invocation: |
   echo {{ cfg.myGreeting | default("hello world") }}
   echo {{ cfg.myVariable }} + {{ cfg.myOtherVariable }} = \
     {{ cfg.myVariable + cfg.myOtherVariable }}
-  my-package

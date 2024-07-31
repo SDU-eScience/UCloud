@@ -53,7 +53,7 @@ software:
 environment:
   COUNT: "{{ count }}"
 
-invocation: >
+invocation: |
   example-exe \
     --input {{ input }} \
     {{ output | option("--out") }} \
