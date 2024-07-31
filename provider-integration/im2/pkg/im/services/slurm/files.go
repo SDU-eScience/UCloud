@@ -960,8 +960,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 		}
 	}
 
-	log.Info("Done here")
-
 	return nil
 }
 
@@ -1024,9 +1022,7 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 }
 
 func uploadWs(upload ctrl.UploadDataWs) error {
-	defer log.Info("Closing socket")
 	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-	defer log.Info("Closed socket")
 
 	var session UploadSessionData
 	err := json.Unmarshal(upload.Session.Data, &session)
