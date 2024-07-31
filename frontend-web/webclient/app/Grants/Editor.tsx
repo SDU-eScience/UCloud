@@ -138,7 +138,7 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
+    | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
         type: "GrantGiverInitiatedLoaded",
         wallets: Accounting.WalletV2[],
@@ -148,7 +148,7 @@ type EditorAction =
         projectId?: string,
         piUsernameHint: string
     }
-    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[]}
+    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
@@ -232,9 +232,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     templateKey = "personalProject";
                 }
             } else {
-                const recipient = state.stateDuringEdit?.recipient;
+                const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
                 if (recipient) {
-                    switch (recipient.type) {
+                    switch (recipient) {
                         case "personalWorkspace":
                             templateKey = "personalProject";
                             break;
@@ -244,6 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         case "existingProject":
                             templateKey = "existingProject";
                             break;
+                        default:
+                            console.warn("Unhandled recipient!");
                     }
                 }
             }
@@ -726,7 +728,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             } else {
                 otherSection += section.title;
                 otherSection += ":\n\n";
-                otherSection += section.description
+                otherSection += section.description;
                 otherSection += "\n\n";
             }
         }
@@ -835,9 +837,9 @@ function useStateReducerMiddleware(
                         const pApp = callAPI(Grants.retrieve({id: event.grantId}));
 
                         const affiliations = await pAffiliations;
-                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
-
                         const application = await pApp;
+                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType: application.currentRevision.document.recipient.type});
+
 
                         const projectPage = await projectPromise;
                         const allRelevantAllocators = new Set(application.status.revisions.flatMap(rev =>
