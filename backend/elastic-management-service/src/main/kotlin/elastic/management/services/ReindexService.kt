@@ -128,7 +128,7 @@ class ReindexService(
                     .index(toIndex)
                     .build()
             )
-            .timeout(Time.Builder().time("3m").build())
+            .timeout(Time.Builder().time("5m").build())
             .build()
 
         try {
@@ -136,8 +136,8 @@ class ReindexService(
         } catch (ex: Exception) {
             when (ex) {
                 is IOException -> {
-                    //Did not finish reindexing in 3 min (timeout)
-                    log.info("Did not finish in time (3 min adding to errors)")
+                    //Did not finish reindexing in 5 min (timeout)
+                    log.info("Did not finish in time (5 min adding to errors)")
                     reindexErrors.add(fromIndices.joinToString())
                     log.info("Does not delete due to timing issue - investigate")
                 }
