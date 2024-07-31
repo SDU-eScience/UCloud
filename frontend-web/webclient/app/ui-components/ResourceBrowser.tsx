@@ -564,6 +564,11 @@ export class ResourceBrowser<T> {
             this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
             this.scrolling.style.overflowY = "auto";
+
+            const location = this.root.querySelector(".location");
+            if (location) {
+                location.setAttribute("in-modal", "");
+            }
         }
 
 
@@ -3308,6 +3313,11 @@ export class ResourceBrowser<T> {
                 cursor: text;
                 height: 35px;
                 transition: margin-right 0.2s;
+            }
+
+            ${browserClass.dot} header[has-location-bar] .location[in-modal] {
+                max-width: 480px;
+                overflow-x: clip;
             }
             
             ${browserClass.dot} header[has-location-bar] .location input {

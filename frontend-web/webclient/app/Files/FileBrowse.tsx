@@ -1004,6 +1004,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
                             driveIcon.style.minWidth = "18px";
+                            driveIcon.style.width = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
