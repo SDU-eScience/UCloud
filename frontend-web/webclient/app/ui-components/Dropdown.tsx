@@ -4,7 +4,6 @@ import {extractSize, injectStyle} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
 import * as React from "react";
 import {CSSProperties} from "react";
-import {ThemeColor} from "@/ui-components/theme";
 
 export const DropdownClass = injectStyle("dropdown", k => `
     ${k} {

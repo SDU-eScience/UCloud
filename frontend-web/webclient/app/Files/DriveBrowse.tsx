@@ -8,7 +8,6 @@ import {
     addContextSwitcherInPortal,
     resourceCreationWithProductSelector,
     providerIcon,
-    checkIsWorkspaceAdmin,
     ResourceBrowserOpts,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
