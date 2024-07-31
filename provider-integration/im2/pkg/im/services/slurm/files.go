@@ -755,8 +755,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 		log.Info("Flushed responses")
 	}
 
-	var backlog []int
-
 	var filesCompleted atomic.Int32
 
 	// Write FilesCompleted messages to the socket.
@@ -766,11 +764,12 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 		for {
 			current := filesCompleted.Load()
 			if last != current {
+
 				buf.Reset()
 				binary.Write(buf, binary.BigEndian, byte(FolderUploadMessageTypeFilesCompleted.Int()))
 				buf = bytes.NewBuffer(binary.BigEndian.AppendUint32(buf.Bytes(), uint32(current)))
 				socket.WriteMessage(websocket.BinaryMessage, buf.Bytes())
-				log.Info("Writing %v", buf)
+				log.Info("Writing %d bytes to socket.. Files completed: %d", len(buf.Bytes()), current)
 				last = current
 			}
 			time.Sleep(100 * time.Millisecond)
@@ -778,8 +777,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 	}()
 
 	for {
-		messageType, data, readErr := socket.ReadMessage()
-		log.Info("Messagetype is %v", messageType)
+		_, data, readErr := socket.ReadMessage()
 
 		if readErr != nil {
 			break
@@ -787,8 +785,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 
 		buffer := bytes.NewBuffer(data)
 		uploadMessageType, _ := buffer.ReadByte()
-
-		log.Info("UploadMessageType: %v", uploadMessageType)
 
 		switch FolderUploadMessageType(uploadMessageType) {
 		case FolderUploadMessageTypeListing:
@@ -810,7 +806,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 							log.Info("Got entries %d", len(entries))
 							var responses []ListingResponse
 
-							for _, entry := range entries {
+							for entryKey, entry := range entries {
 								message := FolderUploadMessageTypeOk
 								log.Info("Stat on file %s", session.Path+"/"+entry.Path)
 								fileInfo, err := os.Stat(session.Path + "/" + entry.Path)
@@ -836,8 +832,8 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 								}
 
 								if message == FolderUploadMessageTypeSkip {
-									entry.Offset = entry.Size
 									filesCompleted.Add(1)
+									entries[entryKey].Offset = entry.Size
 								}
 
 								responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
@@ -911,11 +907,8 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 						log.Info("batch is: %v", batch)
 
 						for _, entry := range batch {
-							if responseBuffer.Len() < 64 {
+							if responseBuffer.Len() > 64 {
 								flushResponses()
-							}
-							if entry.Message == FolderUploadMessageTypeOk {
-								backlog = append(backlog, int(entry.Entry))
 							}
 
 							binary.Write(responseBuffer, binary.BigEndian, byte(entry.Message.Int()))
@@ -927,18 +920,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 		case FolderUploadMessageTypeSkip:
 			{
 				log.Info("Skip received")
-				fileId := binary.BigEndian.Uint32(buffer.Next(4))
 				filesCompleted.Add(1)
-
-				// Remove from backlog
-				var newBacklog []int
-				for _, entry := range backlog {
-					if entry != int(fileId) {
-						newBacklog = append(newBacklog, entry)
-					}
-				}
-
-				backlog = newBacklog
 			}
 		case FolderUploadMessageTypeChunk:
 			{
@@ -948,9 +930,9 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 				log.Info("Chunk received for file %d", fileId)
 
 				go func() {
-					fileEntry := listing[fileId]
+					tmpFileEntry := listing[fileId]
 
-					isDone, err := doHandleFolderUpload(
+					err := doHandleFolderUpload(
 						session,
 						listing[fileId],
 						drive,
@@ -962,20 +944,13 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 						return
 					}
 
-					fileEntry.Offset += uint64(len(data))
-					if isDone || fileEntry.Offset >= fileEntry.Size {
+					tmpFileEntry.Offset += uint64(len(data[5:]))
+					log.Info("New offset is %d", tmpFileEntry.Offset)
+					if tmpFileEntry.Offset >= tmpFileEntry.Size {
 						filesCompleted.Add(1)
-
-						var newBacklog []int
-
-						for _, backlogEntry := range backlog {
-							if backlogEntry != int(fileEntry.Id) {
-								newBacklog = append(newBacklog, backlogEntry)
-							}
-						}
-
-						backlog = newBacklog
 					}
+
+					listing[fileId] = tmpFileEntry
 				}()
 			}
 		default:
@@ -990,7 +965,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 	return nil
 }
 
-func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, drive orc.Drive, data []byte) (bool, error) {
+func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, drive orc.Drive, data []byte) error {
 	// Create folders
 	folders := strings.Split(entry.Path, "/")
 	folders = folders[0 : len(folders)-1]
@@ -1001,14 +976,14 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 		element := strings.Join(folders[0:i+1], "/")
 
 		if strings.Contains(element, "../") {
-			return false, &util.HttpError{
+			return &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Bailing",
 			}
 		}
 
 		if element == ".." {
-			return false, &util.HttpError{
+			return &util.HttpError{
 				StatusCode: http.StatusBadRequest,
 				Why:        "Bailing",
 			}
@@ -1018,11 +993,8 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 		i++
 	}
 
-	log.Info("Is it here1?")
-
 	for _, folder := range allFolders {
 		path, _ := InternalToUCloud(session.Path + "/" + folder)
-		log.Info("path is: %s", path)
 
 		createFolder(ctrl.CreateFolderRequest{
 			Path:           path,
@@ -1031,27 +1003,24 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 		})
 	}
 
-	log.Info("Is it here2?")
-
 	targetPath := session.Path + "/" + entry.Path
 
-	file := uploadDescriptors.get(targetPath, int64(entry.Offset), false, entry.ModifiedAt)
+	uploadDescriptor := uploadDescriptors.get(targetPath, int64(entry.Offset), false, entry.ModifiedAt)
 
-	written, err := file.Handle.Write(data)
+	written, err := uploadDescriptor.Handle.Write(data)
 
-	log.Info("Is it here3?")
-
+	log.Info("Wrote %d MB to %s -- %d", written/1000/1000, entry.Path, entry.Id)
 	if entry.Offset+uint64(written) >= entry.Size {
-		uploadDescriptors.close(*file, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
+		uploadDescriptors.close(*uploadDescriptor, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
 	}
 
-	file.release()
+	uploadDescriptor.release()
 
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	return true, nil
+	return nil
 }
 
 func uploadWs(upload ctrl.UploadDataWs) error {
@@ -1136,12 +1105,15 @@ type UploadDescriptor struct {
 
 // Releases the upload file descriptor for further writing.
 func (ud *UploadDescriptor) release() {
+	log.Info("Releasing upload descriptor %s", ud.TargetPath)
 	ud.InUse.Unlock()
 	ud.LastUsed = time.Now()
 }
 
 func (descriptors *UploadDescriptors) close(descriptor UploadDescriptor, conflictPolicy orc.WriteConflictPolicy, modifiedAt time.Time) {
 	resolvedTargetPath := descriptor.TargetPath
+
+	log.Info("Closing uploadDescriptor %s", descriptor.TargetPath)
 
 	if conflictPolicy == orc.WriteConflictPolicyRename {
 		resolvedTargetPath, _ = findAvailableNameOnRename(descriptor.TargetPath)
@@ -1152,8 +1124,6 @@ func (descriptors *UploadDescriptors) close(descriptor UploadDescriptor, conflic
 	if modifiedAt.UnixMilli() > 0 {
 		os.Chtimes(resolvedTargetPath, modifiedAt, modifiedAt)
 	}
-
-	log.Info("Closing fd: %s %s", descriptor.TargetPath, fmt.Sprint(descriptor.Handle.Fd()))
 
 	descriptors.mutex.Lock()
 	descriptor.Handle.Close()
@@ -1185,6 +1155,7 @@ func (descriptors *UploadDescriptors) get(path string, offset int64, truncate bo
 
 	if found != nil {
 		descriptors.mutex.Unlock()
+		found.InUse.Lock()
 		log.Info("Found existing fd: %s %s", found.TargetPath, fmt.Sprint(found.Handle.Fd()))
 		return found
 	}
@@ -1208,7 +1179,6 @@ func (descriptors *UploadDescriptors) get(path string, offset int64, truncate bo
 		InUse:       &sync.Mutex{},
 		Waiting:     &atomic.Int32{},
 	}
-	log.Info("Opened new fd: %s %s", newDescriptor.TargetPath, fmt.Sprint(newDescriptor.Handle.Fd()))
 
 	descriptors.openDescriptors = append(descriptors.openDescriptors, newDescriptor)
 
