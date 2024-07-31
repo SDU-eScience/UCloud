@@ -148,29 +148,37 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
-            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+            val uidToUse = if (controllerContext.configuration.core.launchRealUserInstances) {
                 UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                user.uid
             } else {
-                null
+                0
             }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
-                        insert into file_download_sessions(session, plugin_name, plugin_data)
-                        values (:session, :plugin_name, :plugin_data)
+                        insert into file_download_sessions(session, plugin_name, plugin_data, owned_by)
+                        values (:session, :plugin_name, :plugin_data, :uid)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("session", request.session)
                         bindString("plugin_name", request.pluginName)
                         bindString("plugin_data", request.pluginData)
+                        bindInt("uid", uidToUse)
                     }
                 )
             }
         })
 
-        server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
+        server.addHandler(FilesDownloadIpc.retrieve.handler { user, request ->
+            val uidToUse = if (controllerContext.configuration.core.launchRealUserInstances) {
+                user.uid
+            } else {
+                0
+            }
+
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -179,10 +187,12 @@ class FileController(
                         from file_download_sessions
                         where
                             session = :token
+                            and owned_by = :uid
                     """
                 ).useAndInvoke(
                     prepare = {
                         bindString("token", request.id)
+                        bindInt("uid", uidToUse)
                     },
                     readRow = { row ->
                         val pluginName = row.getString(0)!!
@@ -196,29 +206,37 @@ class FileController(
         })
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
-            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+            val uidToSave = if (controllerContext.configuration.core.launchRealUserInstances) {
                 UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                user.uid
             } else {
-                null
+                0
             }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
-                        insert into file_upload_sessions(session, plugin_name, plugin_data)
-                        values (:session, :plugin_name, :plugin_data)
+                        insert into file_upload_sessions(session, plugin_name, plugin_data, owned_by)
+                        values (:session, :plugin_name, :plugin_data, :uid)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("session", request.session)
                         bindString("plugin_name", request.pluginName)
                         bindString("plugin_data", request.pluginData)
+                        bindInt("uid", uidToSave)
                     }
                 )
             }
         })
 
-        server.addHandler(FilesUploadIpc.retrieve.handler { _, request ->
+        server.addHandler(FilesUploadIpc.retrieve.handler { user, request ->
+            val uidToUse = if (controllerContext.configuration.core.launchRealUserInstances) {
+                user.uid
+            } else {
+                0
+            }
+
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -227,10 +245,12 @@ class FileController(
                         from file_upload_sessions
                         where
                             session = :token
+                            and owned_by = :uid
                     """
                 ).useAndInvoke(
                     prepare = {
                         bindString("token", request.id)
+                        bindInt("uid", uidToUse)
                     },
                     readRow = { row ->
                         val pluginName = row.getString(0)!!
@@ -240,21 +260,28 @@ class FileController(
                 )
             }
 
-
             result ?: throw RPCException("Invalid token supplied", HttpStatusCode.NotFound)
         })
 
-        server.addHandler(FilesUploadIpc.delete.handler { _, request ->
+        server.addHandler(FilesUploadIpc.delete.handler { user, request ->
+            val uidToUse = if (controllerContext.configuration.core.launchRealUserInstances) {
+                user.uid
+            } else {
+                0
+            }
+
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
                     delete from file_upload_sessions
                     where
                         session = :token
+                        and owned_by = :uid
                 """
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("token", request.id)
+                        bindInt("uid", uidToUse)
                     }
                 )
             }

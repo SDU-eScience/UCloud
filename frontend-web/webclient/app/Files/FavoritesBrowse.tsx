@@ -9,6 +9,7 @@ import {
     ResourceBrowser,
     ColumnTitleList,
     Selection,
+    favoriteRowIcon,
 } from "@/ui-components/ResourceBrowser";
 import {fileName} from "@/Utilities/FileUtilities";
 import {
@@ -135,17 +136,8 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), containerWidth, row);
                     row.title.append(title);
-
-                    // FIXME(Jonas): Duplicated
-                    // TODO(Dan): This seems like it might be useful in more places than just the file browser
-                    const favoriteIcon = image(placeholderImage, {width: 20, height: 20, alt: "Star"});
-                    {
-                        row.star.innerHTML = "";
-                        row.star.style.minWidth = "20px"
-                        row.star.append(favoriteIcon);
-                        row.star.style.cursor = "pointer";
-                        row.star.style.marginRight = "8px";
-                    }
+                    
+                    const favoriteIcon = favoriteRowIcon(row);
 
                     ResourceBrowser.icons.renderIcon({
                         name: "starFilled",

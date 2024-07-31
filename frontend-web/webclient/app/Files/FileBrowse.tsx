@@ -17,7 +17,7 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    ShortcutClass
+    favoriteRowIcon
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -843,15 +843,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
-                    // TODO(Dan): This seems like it might be useful in more places than just the file browser
-                    const favoriteIcon = image(placeholderImage, {width: 20, height: 20, alt: "Star"});
-                    {
-                        row.star.innerHTML = "";
-                        row.star.style.minWidth = "20px"
-                        row.star.append(favoriteIcon);
-                        row.star.style.cursor = "pointer";
-                        row.star.style.marginRight = "8px";
-                    }
+                    const favoriteIcon = favoriteRowIcon(row);
 
                     findFavoriteStatus(file).then(async isFavorite => {
                         const filledStarColor: ThemeColor = "favoriteColor";

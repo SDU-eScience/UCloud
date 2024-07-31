@@ -40,4 +40,6 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V2__Events())
     migrationHandler.addScript(V3__Events())
     migrationHandler.addScript(V3__UserMapping())
+    migrationHandler.addScript(V2__FileUploadSessions())
+    migrationHandler.addScript(V2__FileDownloadSessions())
 }
