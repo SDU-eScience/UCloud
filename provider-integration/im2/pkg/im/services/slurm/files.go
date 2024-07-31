@@ -779,17 +779,13 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 
 	for {
 		messageType, data, readErr := socket.ReadMessage()
-		buffer := bytes.NewBuffer(data)
 		log.Info("Messagetype is %v", messageType)
 
 		if readErr != nil {
-			log.Error("Failed to read message from socket: %v", readErr)
-			return &util.HttpError{
-				StatusCode: http.StatusBadRequest,
-				Why:        "Error occured while uploading folder",
-			}
+			break
 		}
 
+		buffer := bytes.NewBuffer(data)
 		uploadMessageType, _ := buffer.ReadByte()
 
 		log.Info("UploadMessageType: %v", uploadMessageType)
@@ -849,11 +845,13 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 
 							workResponses <- responses
 						} else {
-							log.Info("Got no entries")
+							log.Info("Got no entries.. Breaking")
 							break
 						}
 					}
-					close(workChannel)
+
+					log.Info("Closing workResponses")
+					close(workResponses)
 				}()
 
 				// Process listing
@@ -865,20 +863,15 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 							break
 						}
 						fileId := binary.BigEndian.Uint32(buffer.Next(4))
-						log.Info("FileId is %v", fileId)
 						size := binary.BigEndian.Uint64(buffer.Next(8))
-						log.Info("size is %v", size)
 						modifiedAt := binary.BigEndian.Uint64(buffer.Next(8))
-						log.Info("ModifiedAt is %v", modifiedAt)
 						pathSize := binary.BigEndian.Uint32(buffer.Next(4))
-						log.Info("pathSize is %v", pathSize)
 
 						if pathSize > 1024*64 {
 							log.Info("Refusing to allocate space for this file: %d", pathSize)
 						}
 
 						path := string(buffer.Next(int(pathSize)))
-						log.Info("path is %v", path)
 
 						fileListingEntry := FileListingEntry{
 							Id:         uint(fileId),
@@ -901,12 +894,19 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 						workChannel <- batch
 					}
 
+					close(workChannel)
 					log.Info("Done processing listing")
 				}()
 
 				go func() {
 					for {
-						batch := <-workResponses
+						batch, ok := <-workResponses
+
+						if !ok {
+							log.Info("workResponses is closed. Breaking")
+							flushResponses()
+							break
+						}
 
 						log.Info("batch is: %v", batch)
 
@@ -921,8 +921,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 							binary.Write(responseBuffer, binary.BigEndian, byte(entry.Message.Int()))
 							responseBuffer = bytes.NewBuffer(binary.BigEndian.AppendUint32(responseBuffer.Bytes(), uint32(entry.Entry)))
 						}
-
-						flushResponses()
 					}
 				}()
 			}
@@ -1020,19 +1018,28 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 		i++
 	}
 
+	log.Info("Is it here1?")
+
 	for _, folder := range allFolders {
+		path, _ := InternalToUCloud(session.Path + "/" + folder)
+		log.Info("path is: %s", path)
+
 		createFolder(ctrl.CreateFolderRequest{
-			Path:           InternalToUCloudWithDrive(drive, session.Path+"/"+folder),
+			Path:           path,
 			Drive:          drive,
 			ConflictPolicy: orc.WriteConflictPolicyReject,
 		})
 	}
+
+	log.Info("Is it here2?")
 
 	targetPath := session.Path + "/" + entry.Path
 
 	file := uploadDescriptors.get(targetPath, int64(entry.Offset), false, entry.ModifiedAt)
 
 	written, err := file.Handle.Write(data)
+
+	log.Info("Is it here3?")
 
 	if entry.Offset+uint64(written) >= entry.Size {
 		uploadDescriptors.close(*file, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
@@ -1048,7 +1055,9 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 }
 
 func uploadWs(upload ctrl.UploadDataWs) error {
+	defer log.Info("Closing socket")
 	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	defer log.Info("Closed socket")
 
 	var session UploadSessionData
 	err := json.Unmarshal(upload.Session.Data, &session)
