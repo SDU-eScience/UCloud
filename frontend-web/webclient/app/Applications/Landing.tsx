@@ -569,7 +569,7 @@ const CategoryCardStyle = injectStyle("category-card", k => `
     }
     
     ${k} span {
-        z-index: 10;
+        z-index: 1;
     }
 `);
 
