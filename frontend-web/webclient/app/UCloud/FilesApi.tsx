@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, Permission, PERMISSIONS_TAG,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
@@ -52,7 +52,14 @@ import FileBrowse from "@/Files/FileBrowse";
 import {injectStyle, makeClassName} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {ExtensionType, extensionFromPath, extensionType, isLightThemeStored, languageFromExtension, typeFromMime} from "@/UtilityFunctions";
+import {
+    ExtensionType,
+    extensionFromPath,
+    extensionType,
+    isLightThemeStored,
+    languageFromExtension,
+    typeFromMime
+} from "@/UtilityFunctions";
 import {Markdown} from "@/ui-components";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
 import fileType from "magic-bytes.js";
@@ -127,6 +134,7 @@ export const FileSensitivityVersion = "1.0.0";
 export const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
+
 async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLevel> {
     return (await findSensitivity(file)) ?? "PRIVATE";
 }
@@ -219,7 +227,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{id?: string}>();
+        const {id} = useParams<{ id?: string }>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -266,9 +274,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (!id) return <h1>Missing file id.</h1>
 
-        if (fileData.loading) return <PredicatedLoadingSpinner loading />
+        if (fileData.loading) return <PredicatedLoadingSpinner loading/>
 
-        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (fileData.error) return <Error error={fileData.error.why}/>;
         if (!file) return <></>;
 
         const isFile = file.status.type === "FILE";
@@ -284,7 +292,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             </div>
             <Flex gap="8px">
                 <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider} />
+                <ProviderTitle providerId={file.specification.product.provider}/>
             </Flex>
             <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
             {file.status.modifiedAt ?
@@ -318,14 +326,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         if (isFile) {
             return <Flex className={FilePropertiesLayout}>
                 <div className="A">
-                    <FilePreview file={file} contentRef={downloadRef} />
+                    <FilePreview file={file} contentRef={downloadRef}/>
                 </div>
                 <div className="B">
                     {fileInfo}
                 </div>
-            </Flex >
+            </Flex>
         } else {
-            return <MainContainer main={fileInfo} />;
+            return <MainContainer main={fileInfo}/>;
         }
     }
 
@@ -407,7 +415,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected, cb) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -470,7 +478,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <FileBrowse opts={{
                             isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
                                 text: "Copy to",
-                                show(res) {return res.status.type === "DIRECTORY"},
+                                show(res) {
+                                    return res.status.type === "DIRECTORY"
+                                },
                                 onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                                     try {
@@ -496,7 +506,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 filterProvider: selected[0].specification.product.provider
                             },
                             initialPath: pathRef.current,
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -524,7 +534,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         <FileBrowse opts={{
                             isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
                                 text: "Move to",
-                                show(res) {return res.status.type === "DIRECTORY"},
+                                show(res) {
+                                    return res.status.type === "DIRECTORY"
+                                },
                                 onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
@@ -549,7 +561,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -597,7 +609,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "sensitivity",
                 enabled(selected, cb) {
                     const support = cb.collection?.status.resolvedSupport?.support;
-                    if ((support as FileCollectionSupport)) { /* ??? */}
+                    if ((support as FileCollectionSupport)) { /* ??? */
+                    }
 
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
@@ -617,15 +630,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
+                    const isTrashDirectory = cb.directory?.status.icon == "DIRECTORY_TRASH"
                     if (!support) return false;
                     if (!(support as FileCollectionSupport).files.trashSupported) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
+                    if (
+                        (isTrashDirectory && cb.directory && isReadonly(cb.directory.permissions.myself)) ||
+                        (selected.length !== 0 && selected.every(it => it.status.icon === "DIRECTORY_TRASH" && isReadonly(it.permissions.myself)))) {
+                        return "You cannot delete readonly files."
+                    }
                     if (!(selected.length === 0 && cb.onSelect === undefined)) {
                         return false;
                     }
-                    return cb.directory?.status.icon == "DIRECTORY_TRASH";
+                    return isTrashDirectory;
                 },
                 onClick: async (_, cb) => {
                     addStandardDialog({
@@ -636,10 +655,15 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         cancelButtonColor: "primaryMain",
                         confirmButtonColor: "errorMain",
                         onConfirm: async () => {
-                            await cb.invokeCommand(
-                                this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
-                            );
-                            cb.navigate("/drives");
+                            try {
+                                await cb.invokeCommand(
+                                    this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
+                                );
+                                cb.navigate("/drives");
+                            } catch (e) {
+                                displayErrorMessageOrDefault(e, "Failed to empty trash");
+                            }
+
                         },
                         onCancel: doNothing,
                     });
@@ -710,6 +734,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
+                    if (cb.directory && isReadonly(cb.directory.permissions.myself)) {
+                        return false;
+                    }
                     return selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH";
                 },
                 onClick: async (selected, cb) => {
@@ -861,6 +888,13 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
     snackbarStore.addSuccess(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`, false);
 }
 
+export function isReadonly(entries: Permission[]): boolean {
+    const isAdmin = entries.includes("ADMIN");
+    const isEdit = entries.includes("EDIT");
+    const isRead = entries.includes("READ");
+    return isRead && !isEdit;
+}
+
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
     const result = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(metadataNamespaceApi.browse({
         itemsPerPage: 100,
@@ -883,7 +917,11 @@ export enum SensitivityLevelMap {
     SENSITIVE = "SENSITIVE"
 }
 
-function SensitivityDialog({file, invokeCommand, onUpdated}: {file: UFile; invokeCommand: InvokeCommand; onUpdated(value: SensitivityLevelMap): void;}): React.ReactNode {
+function SensitivityDialog({file, invokeCommand, onUpdated}: {
+    file: UFile;
+    invokeCommand: InvokeCommand;
+    onUpdated(value: SensitivityLevelMap): void;
+}): React.ReactNode {
     const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
     const reason = React.useRef<HTMLInputElement>(null);
@@ -987,9 +1025,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     if (!isSensitivitySupported(file)) {
         dialogStore.addDialog(
             <>
-                <Heading.h2>Sensitive files not supported <Icon name="warning" color="errorMain" size="32" /></Heading.h2>
+                <Heading.h2>Sensitive files not supported <Icon name="warning" color="errorMain"
+                                                                size="32"/></Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1016,7 +1055,8 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
     }
 
-    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} onUpdated={onUpdated} />, () => undefined, true);
+    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
+                                             onUpdated={onUpdated}/>, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1061,12 +1101,17 @@ async function getMonaco(): Promise<any> {
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React.MutableRefObject<Uint8Array>}): React.ReactNode {
+export function FilePreview({file, contentRef}: {
+    file: UFile,
+    contentRef?: React.MutableRefObject<Uint8Array>
+}): React.ReactNode {
     let oldOnResize: typeof window.onresize;
 
     React.useEffect(() => {
         oldOnResize = window.onresize;
-        return () => {window.onresize = oldOnResize}
+        return () => {
+            window.onresize = oldOnResize
+        }
     }, [])
     const [type, setType] = useState<ExtensionType>(null);
     const [loading, invokeCommand] = useCloudCommand();
@@ -1184,7 +1229,7 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
     }, [type, data]);
 
     if (file.status.type !== "FILE") return null;
-    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading/>
 
     let node: React.ReactNode = null;
 
@@ -1196,25 +1241,25 @@ export function FilePreview({file, contentRef}: {file: UFile, contentRef?: React
                 setType("markdown");
                 break;
             }
-            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
+            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")}/>;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(file.id)} src={data} />
+            node = <img className={Image} alt={fileName(file.id)} src={data}/>
             break;
         case "audio":
-            node = <audio className={Audio} controls src={data} />;
+            node = <audio className={Audio} controls src={data}/>;
             break;
         case "video":
-            node = <video className={Video} src={data} controls />;
+            node = <video className={Video} src={data} controls/>;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data}/>;
             break;
         case "markdown":
             node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div />
+            node = <div/>
             break;
     }
 

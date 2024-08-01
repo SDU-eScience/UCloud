@@ -23,7 +23,7 @@ import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion,
+    FileSensitivityVersion, isReadonly,
     isSensitivitySupported,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
@@ -1527,13 +1527,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
             return res.items;
         }));
     }
-}
-
-function isReadonly(entries: Permission[]): boolean {
-    const isAdmin = entries.includes("ADMIN");
-    const isEdit = entries.includes("EDIT");
-    const isRead = entries.includes("READ");
-    return isRead && !isEdit;
 }
 
 export default FileBrowse;
