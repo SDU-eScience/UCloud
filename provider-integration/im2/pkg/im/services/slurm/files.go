@@ -174,7 +174,6 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		if err != nil {
 			// TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
 			//   was just added to the project. See the current Kotlin implementation for more details.
-			log.Info("Could not open directory at %v %v", internalPath, err)
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find directory",
@@ -741,18 +740,16 @@ func uploadWsFile(socket *websocket.Conn, session UploadSessionData) error {
 
 func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 	listing := make(map[uint32]FileListingEntry)
+	errorChannel := make(chan util.HttpError, 5)
 	responseBuffer := bytes.NewBuffer([]byte{})
 
 	drive, _ := ResolveDriveByPath(session.Path)
-
-	log.Info("sessionPath: %s, drive: %s", session.Path, drive.Id)
 
 	flushResponses := func() {
 		if responseBuffer.Len() > 0 {
 			socket.WriteMessage(websocket.BinaryMessage, responseBuffer.Bytes())
 		}
 		responseBuffer.Reset()
-		log.Info("Flushed responses")
 	}
 
 	var filesCompleted atomic.Int32
@@ -764,12 +761,17 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 		for {
 			current := filesCompleted.Load()
 			if last != current {
-
 				buf.Reset()
 				binary.Write(buf, binary.BigEndian, byte(FolderUploadMessageTypeFilesCompleted.Int()))
 				buf = bytes.NewBuffer(binary.BigEndian.AppendUint32(buf.Bytes(), uint32(current)))
-				socket.WriteMessage(websocket.BinaryMessage, buf.Bytes())
-				log.Info("Writing %d bytes to socket.. Files completed: %d", len(buf.Bytes()), current)
+				err := socket.WriteMessage(websocket.BinaryMessage, buf.Bytes())
+				if err != nil {
+					errorChannel <- util.HttpError{
+						StatusCode: http.StatusInternalServerError,
+						Why:        fmt.Sprintf("Problem writing to socket: %v", err),
+					}
+					return
+				}
 				last = current
 			}
 			time.Sleep(100 * time.Millisecond)
@@ -800,53 +802,46 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 				// Determine which files needs to be uploaded.
 				go func() {
 					for {
-						entries, more := <-workChannel
+						entries, ok := <-workChannel
 
-						if more {
-							log.Info("Got entries %d", len(entries))
-							var responses []ListingResponse
-
-							for entryKey, entry := range entries {
-								message := FolderUploadMessageTypeOk
-								log.Info("Stat on file %s", session.Path+"/"+entry.Path)
-								fileInfo, err := os.Stat(session.Path + "/" + entry.Path)
-
-								if err != nil {
-									log.Info("file was not found")
-									message = FolderUploadMessageTypeOk
-								} else {
-									log.Info("Actual: %d %d", fileInfo.Size(), fileInfo.ModTime().UnixMilli())
-									log.Info("Expected: %d %d", entry.Size, entry.ModifiedAt.UnixMilli())
-									diffModifiedAt := entry.ModifiedAt.UnixMilli() - fileInfo.ModTime().UnixMilli()
-									if diffModifiedAt < 0 {
-										diffModifiedAt = diffModifiedAt * -1
-									}
-
-									if fileInfo.IsDir() {
-										message = FolderUploadMessageTypeSkip
-									} else if uint64(fileInfo.Size()) == entry.Size {
-										message = FolderUploadMessageTypeSkip
-									} else if diffModifiedAt < 1000 {
-										message = FolderUploadMessageTypeSkip
-									}
-								}
-
-								if message == FolderUploadMessageTypeSkip {
-									filesCompleted.Add(1)
-									entries[entryKey].Offset = entry.Size
-								}
-
-								responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
-							}
-
-							workResponses <- responses
-						} else {
-							log.Info("Got no entries.. Breaking")
+						if !ok {
 							break
 						}
+
+						var responses []ListingResponse
+
+						for entryKey, entry := range entries {
+							message := FolderUploadMessageTypeOk
+							fileInfo, err := os.Stat(session.Path + "/" + entry.Path)
+
+							if err != nil {
+								message = FolderUploadMessageTypeOk
+							} else {
+								diffModifiedAt := entry.ModifiedAt.UnixMilli() - fileInfo.ModTime().UnixMilli()
+								if diffModifiedAt < 0 {
+									diffModifiedAt = diffModifiedAt * -1
+								}
+
+								if fileInfo.IsDir() {
+									message = FolderUploadMessageTypeSkip
+								} else if uint64(fileInfo.Size()) == entry.Size {
+									message = FolderUploadMessageTypeSkip
+								} else if diffModifiedAt < 1000 {
+									message = FolderUploadMessageTypeSkip
+								}
+							}
+
+							if message == FolderUploadMessageTypeSkip {
+								filesCompleted.Add(1)
+								entries[entryKey].Offset = entry.Size
+							}
+
+							responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
+						}
+
+						workResponses <- responses
 					}
 
-					log.Info("Closing workResponses")
 					close(workResponses)
 				}()
 
@@ -864,7 +859,8 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 						pathSize := binary.BigEndian.Uint32(buffer.Next(4))
 
 						if pathSize > 1024*64 {
-							log.Info("Refusing to allocate space for this file: %d", pathSize)
+							log.Error("Refusing to allocate space for this file: %d", pathSize)
+							continue
 						}
 
 						path := string(buffer.Next(int(pathSize)))
@@ -891,7 +887,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 					}
 
 					close(workChannel)
-					log.Info("Done processing listing")
 				}()
 
 				go func() {
@@ -899,12 +894,9 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 						batch, ok := <-workResponses
 
 						if !ok {
-							log.Info("workResponses is closed. Breaking")
 							flushResponses()
 							break
 						}
-
-						log.Info("batch is: %v", batch)
 
 						for _, entry := range batch {
 							if responseBuffer.Len() > 64 {
@@ -919,7 +911,6 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 			}
 		case FolderUploadMessageTypeSkip:
 			{
-				log.Info("Skip received")
 				filesCompleted.Add(1)
 			}
 		case FolderUploadMessageTypeChunk:
@@ -927,10 +918,17 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 				fileId := binary.BigEndian.Uint32(buffer.Next(4))
 				chunk := buffer.Bytes()
 
-				log.Info("Chunk received for file %d", fileId)
-
 				go func() {
 					tmpFileEntry := listing[fileId]
+
+					// Check if found in listing
+					if tmpFileEntry.Path == "" {
+						errorChannel <- util.HttpError{
+							StatusCode: http.StatusNotFound,
+							Why:        "Attempted to upload chunk to unknown file",
+						}
+						return
+					}
 
 					err := doHandleFolderUpload(
 						session,
@@ -940,12 +938,14 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 					)
 
 					if err != nil {
-						log.Info("doHandleFolderUpload failed: %v", err)
+						errorChannel <- util.HttpError{
+							StatusCode: http.StatusInternalServerError,
+							Why:        fmt.Sprintf("Upload failed: %v", err),
+						}
 						return
 					}
 
 					tmpFileEntry.Offset += uint64(len(data[5:]))
-					log.Info("New offset is %d", tmpFileEntry.Offset)
 					if tmpFileEntry.Offset >= tmpFileEntry.Size {
 						filesCompleted.Add(1)
 					}
@@ -955,7 +955,14 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 			}
 		default:
 			{
-				log.Info("Something else received")
+			}
+		}
+
+		select {
+		case err := <-errorChannel:
+			return &err
+		default:
+			{
 			}
 		}
 	}
@@ -1007,7 +1014,6 @@ func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, dri
 
 	written, err := uploadDescriptor.Handle.Write(data)
 
-	log.Info("Wrote %d MB to %s -- %d", written/1000/1000, entry.Path, entry.Id)
 	if entry.Offset+uint64(written) >= entry.Size {
 		uploadDescriptors.close(*uploadDescriptor, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
 	}
@@ -1101,15 +1107,12 @@ type UploadDescriptor struct {
 
 // Releases the upload file descriptor for further writing.
 func (ud *UploadDescriptor) release() {
-	log.Info("Releasing upload descriptor %s", ud.TargetPath)
 	ud.InUse.Unlock()
 	ud.LastUsed = time.Now()
 }
 
 func (descriptors *UploadDescriptors) close(descriptor UploadDescriptor, conflictPolicy orc.WriteConflictPolicy, modifiedAt time.Time) {
 	resolvedTargetPath := descriptor.TargetPath
-
-	log.Info("Closing uploadDescriptor %s", descriptor.TargetPath)
 
 	if conflictPolicy == orc.WriteConflictPolicyRename {
 		resolvedTargetPath, _ = findAvailableNameOnRename(descriptor.TargetPath)
@@ -1152,7 +1155,6 @@ func (descriptors *UploadDescriptors) get(path string, offset int64, truncate bo
 	if found != nil {
 		descriptors.mutex.Unlock()
 		found.InUse.Lock()
-		log.Info("Found existing fd: %s %s", found.TargetPath, fmt.Sprint(found.Handle.Fd()))
 		return found
 	}
 
