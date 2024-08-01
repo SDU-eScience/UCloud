@@ -13,6 +13,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -45,7 +46,7 @@ type FileService struct {
 	EmptyTrash            func(request EmptyTrashRequest) error
 	CreateDownloadSession func(request DownloadSession) error
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
-	CreateUploadSession   func(request CreateUploadRequest) (UploadSession, error)
+	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
 	HandleUploadWs        func(request UploadDataWs) error
 }
 
@@ -64,12 +65,14 @@ type FilesBrowseFlags struct {
 type DownloadSession struct {
 	Drive     orc.Drive
 	Path      string
+	OwnedBy   uint32
 	SessionId string
 }
 
 type UploadSession struct {
-	Id   string
-	Data []byte
+	Id      string
+	OwnedBy uint32
+	Data    []byte
 }
 
 type UploadDataWs struct {
@@ -305,12 +308,15 @@ func controllerFiles(mux *http.ServeMux) {
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[downloadRequest]) {
 				resp := fnd.BulkResponse[downloadResponse]{}
+				owner, _ := ipc.GetConnectionUid(r)
+
 				for _, item := range request.Items {
 					sessionId := util.RandomToken(32)
 
 					session := DownloadSession{
 						Drive:     item.ResolvedCollection,
 						Path:      item.Id,
+						OwnedBy:   owner,
 						SessionId: sessionId,
 					}
 
@@ -341,6 +347,8 @@ func controllerFiles(mux *http.ServeMux) {
 	)
 
 	mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
+		uid, _ := ipc.GetConnectionUid(r)
+
 		if cfg.Mode == cfg.ServerModeServer {
 			// NOTE(Dan): For some reason the Envoy endpoint was not ready yet. Try to refresh via redirect a few time
 			// to see if it becomes ready.
@@ -357,7 +365,7 @@ func controllerFiles(mux *http.ServeMux) {
 
 		token := r.URL.Query().Get("token")
 		session, ok := downloadSessions.GetNow(token)
-		if !ok {
+		if !ok || uid != session.OwnedBy {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -502,12 +510,20 @@ func controllerFiles(mux *http.ServeMux) {
 		HttpUpdateHandler[fnd.BulkRequest[CreateUploadRequest]](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[CreateUploadRequest]) {
+				owner, _ := ipc.GetConnectionUid(r)
+
 				resp := fnd.BulkResponse[createUploadResponse]{}
 				for _, item := range request.Items {
-					session, err := Files.CreateUploadSession(item)
+					sessionData, err := Files.CreateUploadSession(item)
 					if err != nil {
 						sendError(w, err)
 						return
+					}
+
+					session := UploadSession{
+						Id:      util.RandomToken(32),
+						OwnedBy: owner,
+						Data:    sessionData,
 					}
 
 					if item.Type == UploadTypeFolder {
@@ -537,10 +553,12 @@ func controllerFiles(mux *http.ServeMux) {
 
 	mux.HandleFunc(
 		uploadContext,
-		func(writer http.ResponseWriter, request *http.Request) {
-			conn, err := wsUpgrader.Upgrade(writer, request, nil)
+		func(w http.ResponseWriter, r *http.Request) {
+			uid, _ := ipc.GetConnectionUid(r)
+
+			conn, err := wsUpgrader.Upgrade(w, r, nil)
 			defer util.SilentCloseIfOk(conn, err)
-			token := request.URL.Query().Get("token")
+			token := r.URL.Query().Get("token")
 
 			if err != nil {
 				log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
@@ -549,8 +567,8 @@ func controllerFiles(mux *http.ServeMux) {
 
 			session, ok := uploadSessions.GetNow(token)
 
-			if !ok {
-				writer.WriteHeader(http.StatusNotFound)
+			if !ok || uid != session.OwnedBy {
+				w.WriteHeader(http.StatusNotFound)
 				return
 			}
 
@@ -560,7 +578,7 @@ func controllerFiles(mux *http.ServeMux) {
 			})
 
 			if err != nil {
-				sendError(writer, err)
+				sendError(w, err)
 				return
 			}
 		},

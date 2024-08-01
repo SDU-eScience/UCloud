@@ -646,7 +646,7 @@ func createDownload(session ctrl.DownloadSession) error {
 	}
 }
 
-func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) {
+func createUpload(request ctrl.CreateUploadRequest) ([]byte, error) {
 	path := UCloudToInternalWithDrive(request.Drive, request.Path)
 
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
@@ -663,18 +663,13 @@ func createUpload(request ctrl.CreateUploadRequest) (ctrl.UploadSession, error) 
 
 	if err != nil {
 		log.Error("Unable to marshal upload session: %v", err)
-		return ctrl.UploadSession{}, &util.HttpError{
+		return nil, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to start upload",
 		}
 	}
 
-	session := ctrl.UploadSession{
-		Id:   util.RandomToken(32),
-		Data: data,
-	}
-
-	return session, nil
+	return data, nil
 }
 
 func uploadWsFile(socket *websocket.Conn, session UploadSessionData) error {
