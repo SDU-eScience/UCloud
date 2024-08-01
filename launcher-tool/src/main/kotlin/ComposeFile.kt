@@ -137,7 +137,8 @@ sealed class ComposeService {
         fun allProviders(): List<Provider> = listOf(
             Kubernetes,
             Slurm,
-            GoSlurm,
+            // Excluded for Jenkins purpose
+            // GoSlurm,
         )
     }
 
