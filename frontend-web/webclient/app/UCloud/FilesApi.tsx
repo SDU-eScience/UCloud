@@ -405,7 +405,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Launch with...",
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
-                onClick: (selected, cb) => {
+                onClick: (selected) => {
                     dialogStore.addDialog(
                         <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,

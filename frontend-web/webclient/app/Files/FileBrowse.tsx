@@ -475,7 +475,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
                         snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch (e) {
+                    } catch {
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
                         browser.refresh();
                     }
@@ -605,7 +605,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
                         opts.additionalOperations.forEach(op => {
@@ -672,7 +672,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             showCreateDirectory();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: UFile, defaultValue: string): void {
+                        startRenaming(resource: UFile): void {
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
@@ -873,7 +873,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString()[0];
                         badge.style.cursor = "pointer";
-                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
+                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), () => {
                             browserRef.current?.refresh();
                         });
 
@@ -968,7 +968,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         result.push({title: i === 0 ? collectionName : component, absolutePath: builder});
                     }
 
-                    var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
+                    let pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
                         const disallowNavigation = opts?.isModal || opts?.embedded;
                         const providerIconWrapper = createHTMLElements({
@@ -1034,8 +1034,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const currentComponents = pathComponents(browser.currentPath);
                         if (currentComponents.length > 0) collectionId = currentComponents[0];
                     } else {
-                        let parenthesisStart = firstComponent.indexOf("(");
-                        let parenthesisEnd = firstComponent.indexOf(")");
+                        const parenthesisStart = firstComponent.indexOf("(");
+                        const parenthesisEnd = firstComponent.indexOf(")");
                         if (parenthesisStart !== -1 && parenthesisEnd !== -1 && parenthesisStart < parenthesisEnd) {
                             const parsedNumber = parseInt(firstComponent.substring(parenthesisStart + 1, parenthesisEnd));
                             if (!isNaN(parsedNumber) && parsedNumber > 0) {
@@ -1530,7 +1530,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 }
 
 function isReadonly(entries: Permission[]): boolean {
-    const isAdmin = entries.includes("ADMIN");
+    // const isAdmin = entries.includes("ADMIN");
     const isEdit = entries.includes("EDIT");
     const isRead = entries.includes("READ");
     return isRead && !isEdit;
@@ -1551,7 +1551,7 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {
-        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map((collection, index) => {
+        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map(collection => {
             const wrapper = document.createElement("li");
             const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
             wrapper.append(pIcon);
