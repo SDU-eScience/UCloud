@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch._types.Time
 import co.elastic.clients.elasticsearch.core.ReindexRequest
 import co.elastic.clients.elasticsearch.core.reindex.Destination
 import co.elastic.clients.elasticsearch.core.reindex.Source
+import co.elastic.clients.elasticsearch.tasks.GetTasksRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -18,6 +19,7 @@ import org.elasticsearch.client.RestClient
 import org.slf4j.Logger
 import java.io.IOException
 import java.time.LocalDate
+import java.util.PriorityQueue
 
 class ReindexService(
     private val elastic: ElasticsearchClient
@@ -128,16 +130,23 @@ class ReindexService(
                     .index(toIndex)
                     .build()
             )
-            .timeout(Time.Builder().time("5m").build())
+            .waitForCompletion(false)
+            .timeout(Time.Builder().time("2m").build())
             .build()
 
+        val tasks = PriorityQueue<String>()
         try {
-            elastic.reindex(request)
+            val task = elastic.reindex(request).task()
+
+            if (task != null) {
+                tasks.add(task)
+            }
+
         } catch (ex: Exception) {
             when (ex) {
                 is IOException -> {
-                    //Did not finish reindexing in 5 min (timeout)
-                    log.info("Did not finish in time (5 min adding to errors)")
+                    //Did not finish reindexing in 2 min (timeout)
+                    log.info("Did not recieve confirm response in time (2 min adding to errors)")
                     reindexErrors.add(fromIndices.joinToString())
                     log.info("Does not delete due to timing issue - investigate")
                 }
@@ -158,6 +167,15 @@ class ReindexService(
                     log.warn("not known exception")
                     throw ex
                 }
+            }
+        }
+        //Checking tasks until all are done
+        while (tasks.isNotEmpty()) {
+            val task = tasks.remove()
+            val taskRequest = GetTasksRequest.Builder().taskId(task).build()
+            val complete = elastic.tasks().get(taskRequest).completed()
+            if (!complete) {
+                tasks.add(task)
             }
         }
         //Delete old indices
