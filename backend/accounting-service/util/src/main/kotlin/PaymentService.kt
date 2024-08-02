@@ -53,14 +53,21 @@ class PaymentService(
             )
         }
 
-        val call = AccountingV2.reportUsage.call(
-            BulkRequest(items),
-            serviceClient
-        )
+        try {
+            val call = AccountingV2.reportUsage.call(
+                BulkRequest(items),
+                serviceClient
+            ).orThrow()
 
-        val results = call.orNull()?.responses ?: Array(payments.size) { false }.toList()
+            val results = call.responses
 
-        return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+            return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+        } catch (ex: Throwable) {
+            log.info("Credit report failed: ${ex.toReadableStacktrace()} $items")
+
+            val results = Array(payments.size) { false }.toList()
+            return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+        }
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
