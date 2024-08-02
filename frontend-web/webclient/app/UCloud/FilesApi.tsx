@@ -890,7 +890,7 @@ async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallba
 
 export function isReadonly(entries: Permission[]): boolean {
     const isAdmin = entries.includes("ADMIN");
-    const isEdit = entries.includes("EDIT");
+    const isEdit = entries.includes("EDIT") || isAdmin;
     const isRead = entries.includes("READ");
     return isRead && !isEdit;
 }
