@@ -82,6 +82,7 @@ import {
     UFileStatus
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import AppRoutes from "@/Routes";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -662,7 +663,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 if (path === "") {
                                     cb.navigate("/drives");
                                 } else {
-                                    cb.navigate(buildQueryString("/files", {path: cb.directory?.specification.collection}));
+                                    cb.navigate(AppRoutes.files.path(path));
                                 }
                             } catch (e) {
                                 displayErrorMessageOrDefault(e, "Failed to empty trash");
