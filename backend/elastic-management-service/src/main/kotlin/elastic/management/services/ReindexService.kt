@@ -176,6 +176,7 @@ class ReindexService(
             val complete = elastic.tasks().get(taskRequest).completed()
             if (!complete) {
                 tasks.add(task)
+                Thread.sleep(5000)
             }
         }
         //Delete old indices
