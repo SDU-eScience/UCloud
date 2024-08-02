@@ -92,14 +92,9 @@ class EmptyTrashTask(
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
 
                 val driveInfo = pathConverter.locator.resolveDriveByInternalFile(internalFile)
+                val info = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId) ?: return@doWork
 
-                val owner = if (driveInfo.ownerIsUser == true) {
-                    WalletOwner.User(driveInfo.owner!!)
-                } else {
-                    WalletOwner.Project(driveInfo.owner!!)
-                }
-
-                val drives = pathConverter.locator.listDrivesByWorkspace(owner)
+                val drives = pathConverter.locator.listDrivesByWorkspace(workspace = info.workspace)
 
                 try {
                     if (stagingFolder == null) {
