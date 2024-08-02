@@ -23,6 +23,7 @@
 - [Architecture and Networking](./slurm/architecture.md)
 - [User and Project Management](./slurm/id-management.md)
 - [Filesystem Integration](./slurm/file-management.md)
+  - [Inter-provider file transfers](./slurm/file-transfers.md)
 - [Slurm Integration](./slurm/slurm.md)
   - [Application Management](./slurm/app-management.md)
   - [Built-in Applications](./slurm/built-in-apps.md)
