@@ -269,7 +269,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         for (const it of page.items) {
                             browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, true)
                             if (shareValidationCache[it.sourceFilePath] == null) {
-                                shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                                shareValidationCache[it.sourceFilePath] = ShareValidateState.NOT_VALIDATED;
                                 promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
                                     shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
                                 }).catch(error => {
@@ -315,7 +315,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     for (const it of page.items) {
                         browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, false);
                         if (shareValidationCache[it.sourceFilePath] == null) {
-                            shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                            shareValidationCache[it.sourceFilePath] = ShareValidateState.NOT_VALIDATED;
                             promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
                                 shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
                             }).catch(error => {

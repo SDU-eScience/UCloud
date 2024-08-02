@@ -692,7 +692,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         newAllocators.forEach(it => it.checked = true);
 
         const newResources: EditorState["resources"] = {};
-        let entries = Object.entries(state.resources);
+        const entries = Object.entries(state.resources);
         for (const [provider, categories] of entries) {
             newResources[provider] = categories.map(it => ({
                 ...it,
@@ -2640,7 +2640,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
@@ -2649,7 +2649,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     date.setUTCMonth(date.getUTCMonth() - 6);
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }

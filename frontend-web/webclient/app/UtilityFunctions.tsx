@@ -619,7 +619,7 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
     if (leftToRight) {
         let cur = "";
         let i = 0;
-        let textLength = text.length;
+        const textLength = text.length;
         while (i < textLength) {
             cur += text[i];
             i++;
@@ -632,7 +632,7 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
         return result;
     } else {
         let cur = "";
-        let textLength = text.length;
+        const textLength = text.length;
         let i = textLength - 1;
         while (i >= 0) {
             cur += text[i];

@@ -17,7 +17,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
+import {FilterWidgetProps, PillProps, SortEntry, SortFlags} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -207,9 +207,7 @@ export abstract class ResourceApi<Res extends Resource,
     ];
 
     public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
-        this.filterWidgets.push(w);
-        this.filterPills.push(p);
-    }
+     }
 
     public idIsUriEncoded = false;
 
@@ -229,9 +227,6 @@ export abstract class ResourceApi<Res extends Resource,
     protected constructor(namespace: string) {
         this.namespace = namespace;
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
-
-        this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
-        this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
     }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {

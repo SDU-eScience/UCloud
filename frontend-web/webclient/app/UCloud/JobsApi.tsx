@@ -263,20 +263,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     constructor() {
         super("jobs");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {title: "In queue", value: "IN_QUEUE", icon: "hashtag"},
-                {title: "Running", value: "RUNNING", icon: "hashtag"},
-                {title: "Success", value: "SUCCESS", icon: "check"},
-                {title: "Failure", value: "FAILURE", icon: "close"},
-                {title: "Expired", value: "EXPIRED", icon: "chrono"},
-                {title: "Suspended", value: "SUSPENDED", icon: "pauseSolid"},
-            ]
-        ));
     }
 
     retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] {
