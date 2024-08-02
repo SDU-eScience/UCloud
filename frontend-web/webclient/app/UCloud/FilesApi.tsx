@@ -1025,8 +1025,9 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     if (!isSensitivitySupported(file)) {
         dialogStore.addDialog(
             <>
-                <Heading.h2>Sensitive files not supported <Icon name="warning" color="errorMain"
-                                                                size="32"/></Heading.h2>
+                <Heading.h2>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                </Heading.h2>
                 <p>
                     This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
