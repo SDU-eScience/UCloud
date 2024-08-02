@@ -68,6 +68,7 @@ const apps = {
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
+    fork: (name?: string, version?: string) => buildQueryString("/applications/fork", {name, version}),
 };
 
 const jobs = {

@@ -1,13 +1,17 @@
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Flex, Icon, Tooltip} from "@/ui-components";
-import Text, {TextSpan} from "@/ui-components/Text";
+import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components";
+import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
+import {Feature, hasFeature} from "@/Features";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+
+const DEFAULT_FLAVOR_NAME = "Default";
 
 export const AppHeader: React.FunctionComponent<{
     application: ApplicationWithFavoriteAndTags;
@@ -37,33 +41,49 @@ export const AppHeader: React.FunctionComponent<{
                         </Box>
                     </Flex>
                 </Box>
-                <Flex marginTop="2px">
-                    {props.flavors.length <= 1 ? null :
-                        <Box marginRight="5px">
+                <Flex marginTop="2px" gap={"8px"}>
+                    {props.flavors.length <= 1 && !hasFeature(Feature.COPY_APP_MOCKUP) ? null :
+                        <Box>
                             <ClickableDropdown
                                 closeFnRef={close}
                                 paddingControlledByContent
                                 noYPadding
                                 trigger={
                                     <Flex className={FlavorSelectorClass}>
-                                        {props.application.metadata.flavorName ?? props.application.metadata.title}
+                                        {props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
                                         {" "}
                                         <Icon ml="8px" name="chevronDownLight" size={12} />
                                     </Flex>
                                 }>
-                                {props.flavors.map(f =>
+
+                                {!hasFeature(Feature.COPY_APP_MOCKUP) ? null :
                                     <Box
                                         cursor="pointer"
-                                        key={f.metadata.name}
                                         minWidth={"300px"}
                                         p={"8px"}
                                         onClick={() => {
                                             close.current();
-                                            navigate(Pages.runApplicationWithName(f.metadata.name));
+                                            snackbarStore.addInformation("This is just a mock up!", false);
                                         }}
                                     >
-                                        {f.metadata.flavorName ?? f.metadata.title}
+                                        My fork
                                     </Box>
+                                }
+
+                                {props.flavors.map(f => {
+                                    return <Box
+                                            cursor="pointer"
+                                            key={f.metadata.name}
+                                            minWidth={"300px"}
+                                            p={"8px"}
+                                            onClick={() => {
+                                                close.current();
+                                                navigate(Pages.runApplicationWithName(f.metadata.name));
+                                            }}
+                                        >
+                                            {f.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
+                                        </Box>;
+                                    }
                                 )}
                             </ClickableDropdown>
                         </Box>
@@ -90,7 +110,6 @@ export const AppHeader: React.FunctionComponent<{
                         )}
                     </ClickableDropdown>
                     {newest && newest.metadata.version !== props.application.metadata.version ?
-                        <Flex my="auto">
                         <Tooltip tooltipContentWidth={390} trigger={
                             <div className={TriggerDiv} onClick={e => {
                                 e.preventDefault();
@@ -104,7 +123,7 @@ export const AppHeader: React.FunctionComponent<{
                                 Click to use the newest version.
                             </div>
                         </Tooltip>
-                        </Flex> : null}
+                        : null}
                 </Flex>
             </Flex>
         </Flex>
@@ -112,7 +131,6 @@ export const AppHeader: React.FunctionComponent<{
 };
 
 const TriggerDiv = injectStyleSimple("trigger-div", `
-    margin-left: 6px;
     padding-left: 12px;
     padding-right: 12px;
     text-align: center;
@@ -120,11 +138,15 @@ const TriggerDiv = injectStyleSimple("trigger-div", `
     background-color: var(--warningMain);
     border-radius: 6px;
     cursor: pointer;
+    height: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 `);
 
 const FlavorSelectorClass = injectStyle("flavor-selector", k => `
     ${k} {
-        height: 30px;
+        height: 35px;
         border-radius: 8px;
         padding: 0px 10px;
         align-items: center;

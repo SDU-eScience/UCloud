@@ -564,6 +564,11 @@ export class ResourceBrowser<T> {
             this.root.style.maxHeight = `calc(${largeModalStyle.content?.maxHeight} - 64px)`;
             this.root.style.overflowY = "hidden";
             this.scrolling.style.overflowY = "auto";
+
+            const location = this.root.querySelector(".location");
+            if (location) {
+                location.setAttribute("in-modal", "");
+            }
         }
 
 
@@ -1394,7 +1399,7 @@ export class ResourceBrowser<T> {
 
             {
                 // ...and the text
-                let operationText = op.text;
+                const operationText = op.text;
                 if (operationText) element.append(operationText);
                 if (operationText && shortcut) {
                     const shortcutElem = document.createElement("div");
@@ -1424,7 +1429,7 @@ export class ResourceBrowser<T> {
                 const myIndex = shortcutNumber - 1;
                 this.contextMenuHandlers.push(() => {
                     if (filter.type === "options") {
-                        let c = child as FilterOption;
+                        const c = child as FilterOption;
                         this.browseFilters[filter.key] = c.value;
                         if (c.value === CLEAR_FILTER_VALUE) {
                             clearFilterStorageValue(this.resourceName, filter.key);
@@ -1432,7 +1437,7 @@ export class ResourceBrowser<T> {
                             setFilterStorageValue(this.resourceName, filter.key, c.value);
                         }
                     } else if (filter.type === "multi-option") {
-                        let c = child as MultiOption;
+                        const c = child as MultiOption;
                         const [keyOne, keyTwo] = filter.keys;
                         const [valueOne, valueTwo] = c.values;
                         this.browseFilters[keyOne] = valueOne;
@@ -1466,7 +1471,7 @@ export class ResourceBrowser<T> {
         };
 
         if (filter.type === "options") {
-            let filters = filter.options.slice();
+            const filters = filter.options.slice();
             if (filter.clearable) {
                 filters.unshift({
                     text: "Clear filter",
@@ -1477,7 +1482,7 @@ export class ResourceBrowser<T> {
             }
             renderFilterInContextMenu(filters, x, y);
         } else if (filter.type === "multi-option") {
-            let filters = filter.options.slice();
+            const filters = filter.options.slice();
             filters.unshift({
                 text: "Clear filter",
                 color: "errorMain",
@@ -1586,7 +1591,7 @@ export class ResourceBrowser<T> {
             }
 
             // ...and the text
-            let operationText = typeof op.text === "string" ? op.text : op.text(selected, callbacks);
+            const operationText = typeof op.text === "string" ? op.text : op.text(selected, callbacks);
 
             if (isConfirmButton) {
                 const opEnabled = op.enabled(selected, callbacks, page) === true;
@@ -1759,7 +1764,7 @@ export class ResourceBrowser<T> {
         };
 
         let opCount = 0;
-
+        
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
@@ -1822,7 +1827,7 @@ export class ResourceBrowser<T> {
                     opCount++;
                 }
             }
-
+            
             return element;
         }
 
@@ -2297,7 +2302,7 @@ export class ResourceBrowser<T> {
 
             const scrollingContainer = this.scrolling.parentElement!;
             const scrollingRectangle = scrollingContainer.getBoundingClientRect();
-            let initialScrollTop = scrollingContainer.scrollTop;
+            const initialScrollTop = scrollingContainer.scrollTop;
 
             let didMount = false;
             document.body.setAttribute("data-no-select", "true");
@@ -2975,7 +2980,7 @@ export class ResourceBrowser<T> {
         type: K,
         listener: ResourceBrowserListenerMap<T>[K],
     ) {
-        let arr = this.listeners[type] ?? [];
+        const arr = this.listeners[type] ?? [];
         this.listeners[type] = arr;
         arr.push(listener);
     }
@@ -3308,6 +3313,11 @@ export class ResourceBrowser<T> {
                 cursor: text;
                 height: 35px;
                 transition: margin-right 0.2s;
+            }
+
+            ${browserClass.dot} header[has-location-bar] .location[in-modal] {
+                max-width: 480px;
+                overflow-x: clip;
             }
             
             ${browserClass.dot} header[has-location-bar] .location input {
@@ -4093,7 +4103,7 @@ export function resourceCreationWithProductSelector<T>(
         }
     };
 
-    const onOutsideClick = (e: MouseEvent) => {
+    const onOutsideClick = () => {
         if (selectedProduct === null && isSelectingProduct()) {
             cancelCreation();
         }

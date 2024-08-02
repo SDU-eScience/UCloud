@@ -1,4 +1,4 @@
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {MainContainer} from "@/ui-components/MainContainer";

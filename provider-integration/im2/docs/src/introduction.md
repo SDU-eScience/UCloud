@@ -182,22 +182,37 @@ services:
           interval: Hourly
 ```
 
+# Terminal
+
+```terminal
+$ test # comment
+[cyan]cyan🖌️
+[blue]blue🖌️
+[green]green🖌️
+[red]red🖌️
+[magenta]magenta🖌️
+```
+
 # Info boxes
 
 <div class="info-box warning">
 <i class="fa fa-warning"></i>
 <div>
+
 This is a bad thing which you should pay attention to.
 
 This is more content for the warning box.
+
 </div>
 </div>
 
 <div class="info-box info">
 <i class="fa fa-info-circle"></i>
 <div>
+
 This is an informative thing which you should pay attention to.
 
 This is more content for the warning box.
+
 </div>
 </div>

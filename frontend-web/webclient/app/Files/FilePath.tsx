@@ -5,7 +5,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {api as fileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useEffect, useMemo, useState} from "react";
 
-let collectionCache: Record<string, string> = {};
+const collectionCache: Record<string, string> = {};
 
 function getCachedPrettyFilePath(pathComponents: string[]): string | null {
     if (pathComponents.length === 0) return "/";
@@ -22,7 +22,7 @@ async function prettyFilePathFromComponents(components: string[]): Promise<strin
         const resp = await callAPI<FileCollection>(fileCollectionsApi.retrieve({id: components[0]}));
         collectionCache[components[0]] = resp.specification.title;
         return "/" + joinToString([resp.specification.title, ...components.slice(1)], "/");
-    } catch (e) {
+    } catch {
         return "/" + joinToString(components, "/");
     }
 }

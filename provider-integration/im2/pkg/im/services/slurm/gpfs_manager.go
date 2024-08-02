@@ -41,9 +41,9 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 			continue
 		}
 
-		filesQuota := 1
+		filesQuota := 0
 		if update.Locked {
-			filesQuota = 0
+			filesQuota = 1
 		}
 
 		if !g.client.FilesetExists(mapping.FileSystem, filesetName) {

@@ -53,6 +53,9 @@ type defaultAccountMapper struct {
 }
 
 func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (string, bool) {
+	// TODO(Dan): This should only run once per (workspace, category). A cache is not good enough for this.
+	//   Technically the account mapper should be allowed to literally generate a random value on every invocation and
+	//   everything else should still work as expected.
 	return a.ServerCache.Get(category+"\n"+owner.Username+"\n"+owner.ProjectId, func() (string, error) {
 		_, ok := ServiceConfig.Compute.Machines[category]
 		if !ok {

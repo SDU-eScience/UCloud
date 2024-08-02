@@ -65,7 +65,7 @@ export const jobCache = new class extends ExternalStoreBase {
         for (const job of runningJobs) {
             const duplicate = this.cache.items.find(it => it.id === job.id);
             if (duplicate) {
-                duplicate.status === job.status;
+                duplicate.status = job.status;
             } else {
                 this.cache.items.unshift(job);
             }
