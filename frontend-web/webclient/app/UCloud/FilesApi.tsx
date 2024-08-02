@@ -639,7 +639,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if (
                         (isTrashDirectory && cb.directory && isReadonly(cb.directory.permissions.myself)) ||
                         (selected.length !== 0 && selected.every(it => it.status.icon === "DIRECTORY_TRASH" && isReadonly(it.permissions.myself)))) {
-                        return "You cannot delete readonly files."
+                        return "You cannot delete read-only files."
                     }
                     if (!(selected.length === 0 && cb.onSelect === undefined)) {
                         return false;
