@@ -1,5 +1,4 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
 import {Select} from "@/ui-components";
 import {compute} from "@/UCloud";

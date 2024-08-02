@@ -10,6 +10,7 @@ import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {showWarning} from "@/Accounting/Allocations";
+import {ConfirmationButton, ConfirmationButtonPlainHTML} from "@/ui-components/ConfirmationAction";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -28,7 +29,7 @@ const usagesAndTypes: {
 }[] = [{
     triangle: false,
     uq: {maxUsable: 90 - 4, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 4}
-},{
+}, {
     triangle: true,
     uq: {maxUsable: 90 - (0.95 * 90), quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 0.95 * 90}
 }, {
@@ -40,8 +41,26 @@ const usagesAndTypes: {
 } */];
 
 const Playground: React.FunctionComponent = () => {
+
+    const divRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        if (divRef.current) {
+            divRef.current.append(ConfirmationButtonPlainHTML(document.createElement("div"), "TEXT! ACTION!", () => console.log("foo"), {}))
+        }
+    }, [divRef.current]);
+
+
     const main = (
         <>
+
+            <ConfirmationButton
+                icon="heroTrash"
+                actionText="Action text"
+                onAction={() => console.log("ACTION!!!!")}
+            />
+
+            <div ref={divRef} />
+
             {usagesAndTypes.map(({uq, triangle}) => {
                 if (uq.quota == 0) return null;
                 let usage: number

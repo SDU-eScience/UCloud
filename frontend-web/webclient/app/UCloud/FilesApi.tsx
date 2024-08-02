@@ -5,7 +5,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Error, Flex, Icon, Link, Select, Text, TextArea, Truncate} from "@/ui-components";
+import {Box, Button, Error, Flex, Icon, Link, MainContainer, Select, Text, TextArea, Truncate} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -271,55 +271,62 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         if (fileData.error) return <Error error={fileData.error.why} />;
         if (!file) return <></>;
 
-        return <Flex className={FilePropertiesLayout}>
-            <div className="A">
-                {file.status.type !== "FILE" ? null :
-                    <FilePreview file={file} contentRef={downloadRef} />
-                }
-            </div>
+        const isFile = file.status.type === "FILE";
 
-            <div className="B">
-                <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
-                <div>
-                    <b>Product: </b>
-                    {file.specification.product.id === file.specification.product.category ?
-                        <>{file.specification.product.id}</> :
-                        <>{file.specification.product.id} / {file.specification.product.category}</>
-                    }
-                </div>
-                <Flex gap="8px">
-                    <b>Provider: </b>
-                    <ProviderTitle providerId={file.specification.product.provider} />
-                </Flex>
-                <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-                {file.status.modifiedAt ?
-                    <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-                {file.status.accessedAt ?
-                    <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-                {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                    <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-                {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                    <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                    </div> : null
+        const fileInfo = <>
+            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
+            <div>
+                <b>Product: </b>
+                {file.specification.product.id === file.specification.product.category ?
+                    <>{file.specification.product.id}</> :
+                    <>{file.specification.product.id} / {file.specification.product.category}</>
                 }
-                {file.status.unixOwner != null && file.status.unixGroup != null ?
-                    <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                    null
-                }
-                {file.status.unixMode != null ?
-                    <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                    null
-                }
-                <Box mt={"16px"} mb={"8px"}>
-                    <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
-                        <Button fullWidth>View in folder</Button>
-                    </Link>
-                </Box>
-                <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
-                    <Button fullWidth>Download file</Button>
-                </Box>
             </div>
-        </Flex>
+            <Flex gap="8px">
+                <b>Provider: </b>
+                <ProviderTitle providerId={file.specification.product.provider} />
+            </Flex>
+            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
+            {file.status.modifiedAt ?
+                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
+            {file.status.accessedAt ?
+                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
+            {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
+            {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
+                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
+                </div> : null
+            }
+            {file.status.unixOwner != null && file.status.unixGroup != null ?
+                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
+                null
+            }
+            {file.status.unixMode != null ?
+                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
+                null
+            }
+            <Box mt={"16px"} mb={"8px"}>
+                <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                    <Button fullWidth>View in folder</Button>
+                </Link>
+            </Box>
+            {isFile ? <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
+                <Button fullWidth>Download file</Button>
+            </Box> : null}
+        </>
+
+        if (isFile) {
+            return <Flex className={FilePropertiesLayout}>
+                <div className="A">
+                    <FilePreview file={file} contentRef={downloadRef} />
+                </div>
+                <div className="B">
+                    {fileInfo}
+                </div>
+            </Flex >
+        } else {
+            return <MainContainer main={fileInfo} />;
+        }
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -398,7 +405,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Launch with...",
                 icon: "open",
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
-                onClick: (selected, cb) => {
+                onClick: (selected) => {
                     dialogStore.addDialog(
                         <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,

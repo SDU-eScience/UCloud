@@ -15,3 +15,12 @@ fun V1__FileUploadSessions(): MigrationScript = MigrationScript("V1__FileUploadS
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__FileUploadSessions(): MigrationScript = MigrationScript("V2__FileUploadSessions") { conn ->
+    conn.prepareStatement(
+        // language=postgresql
+        """
+            alter table file_upload_sessions add column owned_by int not null default 0;
+        """
+    ).useAndInvokeAndDiscard()
+}

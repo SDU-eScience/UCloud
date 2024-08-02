@@ -17,7 +17,7 @@ import {
     ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
-    ShortcutClass
+    favoriteRowIcon
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
@@ -475,7 +475,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
                         snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch (e) {
+                    } catch {
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
                         browser.refresh();
                     }
@@ -605,7 +605,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
                         opts.additionalOperations.forEach(op => {
@@ -672,7 +672,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             showCreateDirectory();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: UFile, defaultValue: string): void {
+                        startRenaming(resource: UFile): void {
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
@@ -843,15 +843,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
 
-                    // TODO(Dan): This seems like it might be useful in more places than just the file browser
-                    const favoriteIcon = image(placeholderImage, {width: 20, height: 20, alt: "Star"});
-                    {
-                        row.star.innerHTML = "";
-                        row.star.style.minWidth = "20px"
-                        row.star.append(favoriteIcon);
-                        row.star.style.cursor = "pointer";
-                        row.star.style.marginRight = "8px";
-                    }
+                    const favoriteIcon = favoriteRowIcon(row);
 
                     findFavoriteStatus(file).then(async isFavorite => {
                         const filledStarColor: ThemeColor = "favoriteColor";
@@ -881,7 +873,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString()[0];
                         badge.style.cursor = "pointer";
-                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
+                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), () => {
                             browserRef.current?.refresh();
                         });
 
@@ -953,7 +945,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     collectionCacheForCompletion.retrieve("", () =>
                         callAPI(FileCollectionsApi.browse({
                             itemsPerPage: 250,
-                            filterMemberFiles: "DONT_FILTER_COLLECTIONS",
+                            filterMemberFiles: "all",
                         })).then(res => res.items)
                     ).then(doNothing);
 
@@ -976,19 +968,22 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         result.push({title: i === 0 ? collectionName : component, absolutePath: builder});
                     }
 
-                    var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
+                    let pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
+                        const disallowNavigation = opts?.isModal || opts?.embedded;
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: {cursor: "pointer"}
+                            style: disallowNavigation ? {} : {cursor: "pointer"}
                         });
-                        providerIconWrapper.title = "Go to drives";
+                        if (!disallowNavigation) providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
                         const navbar = browser.header.querySelector("div.header-first-row");
                         if (navbar) navbar.prepend(providerIconWrapper);
-                        providerIconWrapper.onclick = () => {
-                            navigate(AppRoutes.files.drives());
+                        if (!disallowNavigation) {
+                            providerIconWrapper.onclick = () => {
+                                navigate(AppRoutes.files.drives());
+                            }
                         }
                         pIcon = providerIconWrapper;
                     }
@@ -1009,6 +1004,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
                             driveIcon.style.minWidth = "18px";
+                            driveIcon.style.width = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
@@ -1039,8 +1035,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const currentComponents = pathComponents(browser.currentPath);
                         if (currentComponents.length > 0) collectionId = currentComponents[0];
                     } else {
-                        let parenthesisStart = firstComponent.indexOf("(");
-                        let parenthesisEnd = firstComponent.indexOf(")");
+                        const parenthesisStart = firstComponent.indexOf("(");
+                        const parenthesisEnd = firstComponent.indexOf(")");
                         if (parenthesisStart !== -1 && parenthesisEnd !== -1 && parenthesisStart < parenthesisEnd) {
                             const parsedNumber = parseInt(firstComponent.substring(parenthesisStart + 1, parenthesisEnd));
                             if (!isNaN(parsedNumber) && parsedNumber > 0) {
@@ -1528,13 +1524,14 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 selectorPathRef.current = first.id;
                 b.open(selectorPathRef.current);
             }
+            b.dispatchMessage("generateBreadcrumbs", f => f(selectorPathRef.current));
             return res.items;
         }));
     }
 }
 
 function isReadonly(entries: Permission[]): boolean {
-    const isAdmin = entries.includes("ADMIN");
+    // const isAdmin = entries.includes("ADMIN");
     const isEdit = entries.includes("EDIT");
     const isRead = entries.includes("READ");
     return isRead && !isEdit;
@@ -1542,36 +1539,59 @@ function isReadonly(entries: Permission[]): boolean {
 
 export default FileBrowse;
 
+function matchesFilter(filter: string, collection: FileCollection): boolean {
+    if (!filter) return true;
+    const lCFilter = filter.toLocaleLowerCase();
+    const title = collection.specification.title.toLocaleLowerCase();
+    const id = collection.id;
+    return title.toLocaleLowerCase().includes(lCFilter) || id.includes(lCFilter);
+}
+
 // Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
 function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX: number, posY: number): void {
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
-    const elements: HTMLElement[] = filteredCollections.map((collection, index) => {
-        const wrapper = document.createElement("li");
-        const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
-        wrapper.append(pIcon);
-        const span = document.createElement("span");
-        wrapper.append(span);
-        span.innerText = `${collection.specification.title} (${collection.id})`;
-        span.className = TruncateClass;
-        if (index + 1 <= 9) {
-            const shortcutElem = document.createElement("div");
-            shortcutElem.className = ShortcutClass;
-            shortcutElem.append(`${index + 1}`);
-            wrapper.append(shortcutElem);
-        }
-        return wrapper;
-    });
+    function generateElements(filter?: string): HTMLLIElement[] {
+        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map(collection => {
+            const wrapper = document.createElement("li");
+            const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
+            wrapper.append(pIcon);
+            const span = document.createElement("span");
+            wrapper.append(span);
+            span.innerText = `${collection.specification.title} (${collection.id})`;
+            span.className = TruncateClass;
+            return wrapper;
+        });
+        if (result.length !== 0) return result;
 
-    const handlers: (() => void)[] = filteredCollections.map(collection => {
-        return () => {
-            if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
-                browser.open(`/${collection.id}`);
+        return [createHTMLElements<HTMLLIElement>({
+            tagType: "li",
+            children: [],
+            innerText: "No results found",
+            style: {pointerEvents: "none"}
+        })];
+    }
+
+    function generateHandlers(filter: string): (() => void)[] {
+        return filteredCollections.filter(it => matchesFilter(filter, it)).map(collection => {
+            return () => {
+                if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
+                    browser.open(`/${collection.id}`);
+                }
+                browser.closeContextMenu();
             }
-            browser.closeContextMenu();
-        }
-    });
+        });
+    }
 
-    browser.prepareContextMenu(posX, posY, filteredCollections.length);
-    browser.setToContextMenuEntries(elements, handlers);
+    const ROW_HEIGHT = 46;
+    const maxHeight = ROW_HEIGHT * 10 + ROW_HEIGHT / 2;
+
+    const onKeyUp = function onKeyUp(filter: string) {
+        const elements = generateElements(filter);
+        browser.setToContextMenuEntries(elements, generateHandlers(filter), true, maxHeight);
+    }
+
+    browser.prepareContextMenu(posX, posY, filteredCollections.length, maxHeight);
+    browser.addContextMenuSearchField(onKeyUp);
+    browser.setToContextMenuEntries(generateElements(undefined), generateHandlers(""), true, maxHeight);
 }

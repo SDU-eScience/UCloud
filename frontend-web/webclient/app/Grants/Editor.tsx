@@ -81,19 +81,21 @@ interface EditorState {
         referenceIds: string[];
         comments?: Grants.Comment[];
     };
-
-    allocators: {
-        id: string;
-        title: string;
-        description: string;
-        template: string;
-        checked: boolean;
-    }[];
+    possibleTransfers: Allocators[];
+    allocators: Allocators[];
 
     application: ApplicationSection[];
     applicationDocument: Record<string, string>;
 
     resources: Record<string, ResourceCategory[]>;
+}
+
+interface Allocators {
+    id: string;
+    title: string;
+    description: string;
+    template: string;
+    checked: boolean;
 }
 
 interface SimpleRevision {
@@ -124,6 +126,7 @@ const defaultState: EditorState = {
         },
         durationInMonths: 12
     },
+    possibleTransfers: [],
     application: [],
     applicationDocument: {},
     loading: false,
@@ -135,7 +138,7 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
+    | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
         type: "GrantGiverInitiatedLoaded",
         wallets: Accounting.WalletV2[],
@@ -145,7 +148,7 @@ type EditorAction =
         projectId?: string,
         piUsernameHint: string
     }
-    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[]}
+    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
@@ -216,6 +219,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         case "AllocatorsLoaded": {
             const newAllocators: EditorState["allocators"] = state.allocators
                 .filter(it => action.allocators.some(other => it.id === other.id));
+
             const newResources: EditorState["resources"] = {...state.resources};
 
             let templateKey: keyof Grants.Templates = "newProject";
@@ -228,9 +232,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     templateKey = "personalProject";
                 }
             } else {
-                const recipient = state.stateDuringEdit?.recipient;
+                const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
                 if (recipient) {
-                    switch (recipient.type) {
+                    switch (recipient) {
                         case "personalWorkspace":
                             templateKey = "personalProject";
                             break;
@@ -240,6 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         case "existingProject":
                             templateKey = "existingProject";
                             break;
+                        default:
+                            console.warn("Unhandled recipient!");
                     }
                 }
             }
@@ -287,6 +293,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             return {
                 ...state,
+                possibleTransfers: newAllocators,
                 allocators: newAllocators,
                 resources: newResources,
                 application: allSections,
@@ -685,7 +692,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         newAllocators.forEach(it => it.checked = true);
 
         const newResources: EditorState["resources"] = {};
-        let entries = Object.entries(state.resources);
+        const entries = Object.entries(state.resources);
         for (const [provider, categories] of entries) {
             newResources[provider] = categories.map(it => ({
                 ...it,
@@ -721,7 +728,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             } else {
                 otherSection += section.title;
                 otherSection += ":\n\n";
-                otherSection += section.description
+                otherSection += section.description;
                 otherSection += "\n\n";
             }
         }
@@ -830,9 +837,9 @@ function useStateReducerMiddleware(
                         const pApp = callAPI(Grants.retrieve({id: event.grantId}));
 
                         const affiliations = await pAffiliations;
-                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
-
                         const application = await pApp;
+                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType: application.currentRevision.document.recipient.type});
+
 
                         const projectPage = await projectPromise;
                         const allRelevantAllocators = new Set(application.status.revisions.flatMap(rev =>
@@ -1928,6 +1935,7 @@ export function Editor(): React.ReactNode {
                                             }
                                             state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
                                             allAllocators={state.allocators}
+                                            transfers={state.possibleTransfers}
                                             onTransfer={onTransfer}
                                         />
                                     )}
@@ -2179,7 +2187,7 @@ const CommentSection: React.FunctionComponent<{
     useLayoutEffect(() => {
         const scrollingBox = scrollingRef.current;
         if (!scrollingBox) return;
-        scrollingBox.scrollTop = Number.MAX_SAFE_INTEGER;
+        scrollingBox.scrollTop = scrollingBox.scrollHeight;
     }, [entries]);
 
     const onKeyDown = useCallback<React.KeyboardEventHandler>(ev => {
@@ -2307,7 +2315,8 @@ const GrantGiver: React.FunctionComponent<{
     replaceApproval?: React.ReactNode;
     replaceReject?: React.ReactNode;
     allAllocators: EditorState["allocators"];
-    onTransfer?: (source: string, jdestination: string, comment: string) => void;
+    transfers: EditorState["possibleTransfers"];
+    onTransfer?: (source: string, destination: string, comment: string) => void;
 }> = props => {
     const checkboxId = `check-${props.projectId}`;
     const size = 30;
@@ -2331,7 +2340,7 @@ const GrantGiver: React.FunctionComponent<{
         if (!props.onTransfer) return;
 
         const result = await transferProject(
-            props.allAllocators.filter(it => !it.checked && it.id !== props.projectId)
+            props.transfers.filter(it => !it.checked && it.id !== props.projectId)
         );
         if (result) {
             props.onTransfer(props.projectId, result.targetId, result.comment);
@@ -2631,7 +2640,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
@@ -2640,7 +2649,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     date.setUTCMonth(date.getUTCMonth() - 6);
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }

@@ -1,8 +1,7 @@
 import * as React from "react";
-import {useCallback, useMemo, useState} from "react";
+import {useCallback, useState} from "react";
 import {IconName} from "@/ui-components/Icon";
-import {Box, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
+import {Box, Flex, Icon, Stamp} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Cursor} from "@/ui-components/Types";
 import {ListRow, ListRowStat} from "@/ui-components/List";
@@ -158,48 +157,6 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     </div>;
 };
 
-export const TextPill: React.FunctionComponent<{
-    propertyName: string;
-} & PillProps & BaseFilterWidgetProps> = props => {
-    const onRemove = useCallback(() => {
-        props.onDelete([props.propertyName]);
-    }, [props.onDelete, props.propertyName]);
-
-    const value = props.properties[props.propertyName];
-    if (!value) return null;
-
-    return <FilterPill icon={props.icon} onRemove={onRemove} canRemove={props.canRemove}>
-        {props.title}: {value}
-    </FilterPill>;
-};
-
-export const TextFilterWidget: React.FunctionComponent<{
-    propertyName: string
-} & BaseFilterWidgetProps & FilterWidgetProps> = props => {
-    const onExpand = useCallback(() => props.onExpand(props.id), [props.onExpand, props.id]);
-    const currentValue = props.properties[props.propertyName] ?? "";
-    const onChange = useCallback((e: React.SyntheticEvent) => {
-        const newValue = (e.target as HTMLInputElement).value;
-        const properties: Record<string, string | undefined> = {};
-        properties[props.propertyName] = newValue === "" ? undefined : newValue;
-        props.onPropertiesUpdated(properties);
-    }, [props.onPropertiesUpdated, props.propertyName]);
-    return <ExpandableFilterWidget browseType={props.browseType} expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
-        <Input autoFocus value={currentValue} onChange={onChange} width={props.browseType === BrowseType.Embedded ? "calc(100% - 16px)" : undefined} />
-    </ExpandableFilterWidget>;
-};
-
-export function TextFilter(
-    icon: IconName,
-    propertyName: string,
-    title: string
-): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
-    return [
-        (props) => <TextFilterWidget propertyName={propertyName} icon={icon} title={title} {...props} />,
-        (props) => <TextPill propertyName={propertyName} icon={icon} title={title} {...props} />
-    ];
-}
-
 export const DateRangePill: React.FunctionComponent<{
     beforeProperty: string;
     afterProperty: string
@@ -239,7 +196,7 @@ const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onC
     />;
 };
 
-export const DateRangeFilterWidget: React.FunctionComponent<{
+const DateRangeFilterWidget: React.FunctionComponent<{
     beforeProperty: string;
     afterProperty: string
 } & BaseFilterWidgetProps & FilterWidgetProps> = props => {

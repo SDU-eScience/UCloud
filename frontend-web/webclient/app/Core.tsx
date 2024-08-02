@@ -67,7 +67,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
-import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
+import {USER_LOGIN, UserActionType, store} from "@/Utilities/ReduxUtilities";
 import {removeExpiredFileUploads} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
@@ -286,7 +286,7 @@ function LoginSuccess(): React.ReactNode {
     return <Navigate to={path} />;
 }
 
-function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+function dispatchUserAction(dispatch: Dispatch, type: UserActionType): void {
     dispatch({type});
 }
 
