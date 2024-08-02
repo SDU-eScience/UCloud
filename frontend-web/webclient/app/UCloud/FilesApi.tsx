@@ -658,7 +658,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 await cb.invokeCommand(
                                     this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
                                 );
-                                cb.navigate("/drives");
+                                const path = cb.directory?.specification.collection ?? ""
+                                if (path === "") {
+                                    cb.navigate("/drives");
+                                } else {
+                                    cb.navigate(buildQueryString("/files", {path: cb.directory?.specification.collection}));
+                                }
                             } catch (e) {
                                 displayErrorMessageOrDefault(e, "Failed to empty trash");
                             }
