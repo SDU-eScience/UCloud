@@ -252,3 +252,23 @@ for concrete values:
 | Production  | `1.2.3.4/99` |
 
 TODO Subnets.
+
+### UCloud/Proxy Implementation Notes
+
+TODO This section is not part of the documentation, but simply some notes on how it can be implemented in practice.
+
+https://github.com/jpillora/chisel
+
+The UCloud/Proxy system will run a command along the lines of:
+
+```terminal
+$ chisel server --port 42000 --auth user:password --reverse
+```
+
+The Integration module will then run a command along the lines of:
+
+```terminal
+$ chisel client --auth user:password hostname R:42000
+```
+
+At this point UCloud/Proxy will be able to access localhost of the integration module at 42000.
