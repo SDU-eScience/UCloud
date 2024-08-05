@@ -1626,7 +1626,6 @@ export class ResourceBrowser<T> {
 
                     const textChildren = button.querySelectorAll("button > ul > li");
                     textChildren.item(0)["style"].marginTop = "8px";
-                    textChildren.item(2)["style"].marginTop = "-10px";
 
                     button.querySelectorAll("button > div.ucloud-native-icons").forEach(it => {
                         it["style"].marginLeft = "-6px";

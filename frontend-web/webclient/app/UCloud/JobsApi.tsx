@@ -286,7 +286,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
         const ourOps: Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] = [{
             // Re-run app
-            enabled: (selected, cb) => !cb.isModal && selected.length === 1,
+            enabled: (selected, cb) => {
+                const isSyncthing = isSyncthingApp(selected[0]);
+                return !cb.isModal && selected.length === 1 && !isSyncthing;
+            },
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
@@ -328,6 +331,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
         return apiUpdate(request, this.baseContext, "interactiveSession");
     }
+}
+
+export function isSyncthingApp(app?: Job) {
+    return app?.specification.application.name === "syncthing"
 }
 
 export const api = new JobApi()

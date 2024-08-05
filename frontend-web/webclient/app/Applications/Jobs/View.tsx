@@ -28,7 +28,8 @@ import {
     ComputeSupport,
     DockerSupport,
     NativeSupport,
-    VirtualMachineSupport
+    VirtualMachineSupport,
+    isSyncthingApp
 } from "@/UCloud/JobsApi";
 import {PageV2, compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
@@ -1252,7 +1253,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <Box flexGrow={1} />
-        {isUnknownApp ? null :
+        {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                 <Button>Run application again</Button>
             </Link>
