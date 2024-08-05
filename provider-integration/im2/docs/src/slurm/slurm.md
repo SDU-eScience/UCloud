@@ -451,6 +451,10 @@ then it will send either an update or register a new job. New jobs are registere
 outside UCloud. UCloud/IM will keep an internal mapping between Slurm jobs and UCloud jobs, this allows it to know
 which UCloud job is to be updated.
 
+TODO The integration module should keep track of reservations and generate a warning to the user if their job is set to
+expire before the node reservation starts. This is similar to how a warning should be generated if a K8s node is
+cordoned.
+
 ### Example: Dealing with a Known Job
 
 In this example, we will look at how UCloud/IM (Server) deals with the monitoring of a job which it knows. Jobs
