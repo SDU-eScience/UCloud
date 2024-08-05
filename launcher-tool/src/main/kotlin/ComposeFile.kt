@@ -993,6 +993,7 @@ sealed class ComposeService {
                           "${imHome.absolutePath}:/home",
                           "${imWork.absolutePath}:/work",
                           "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/gonja:/opt/gonja",
                           "${environment.repoRoot}/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
                           "$etcSlurm:/etc/slurm-llnl",
                           "${passwdDir.absolutePath}:/mnt/passwd"
