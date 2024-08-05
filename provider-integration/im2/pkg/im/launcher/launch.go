@@ -8,9 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+
 	"ucloud.dk/pkg/client"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
@@ -127,6 +130,7 @@ func Launch() {
 		if mode == cfg.ServerModeUser {
 			port, _ := strconv.Atoi(flag.Arg(1))
 			serverPort = port
+			ctrl.UCloudUsername = flag.Arg(2)
 		}
 
 		err := http.ListenAndServe(

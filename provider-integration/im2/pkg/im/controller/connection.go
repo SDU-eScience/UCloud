@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+
 	"ucloud.dk/pkg/client"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
@@ -282,6 +283,7 @@ func controllerConnection(mux *http.ServeMux) {
 					}
 					args = append(args, "user")
 					args = append(args, fmt.Sprint(port))
+					args = append(args, request.Username)
 
 					child := exec.Command("sudo", args...)
 					child.Stdout = logFile

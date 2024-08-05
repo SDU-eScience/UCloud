@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -8,22 +9,45 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/orchestrators"
+	"ucloud.dk/pkg/im/ipc"
+	"ucloud.dk/pkg/log"
+	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
 var Files FileService
 
-type FileService struct {
-	BrowseFiles  func(request BrowseFilesRequest) (fnd.PageV2[orchestrators.ProviderFile], error)
-	RetrieveFile func(request RetrieveFileRequest) (orchestrators.ProviderFile, error)
-	CreateFolder func(request CreateFolderRequest) error
-	Move         func(request MoveFileRequest) error
+type UploadType string
 
+const (
+	UploadTypeFile   UploadType = "FILE"
+	UploadTypeFolder UploadType = "FOLDER"
+)
+
+type CreateUploadRequest struct {
+	Drive              orc.Drive               `json:"resolvedCollection"`
+	Path               string                  `json:"id"`
+	Type               UploadType              `json:"type"`
+	SupportedProtocols []orc.UploadProtocol    `json:"supportedProtocols"`
+	ConflictPolicy     orc.WriteConflictPolicy `json:"conflictPolicy"`
+}
+
+type FileService struct {
+	BrowseFiles           func(request BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error)
+	RetrieveFile          func(request RetrieveFileRequest) (orc.ProviderFile, error)
+	CreateFolder          func(request CreateFolderRequest) error
+	Move                  func(request MoveFileRequest) error
+	Copy                  func(request CopyFileRequest) error
+	MoveToTrash           func(request MoveToTrashRequest) error
+	EmptyTrash            func(request EmptyTrashRequest) error
 	CreateDownloadSession func(request DownloadSession) error
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
+	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
+	HandleUploadWs        func(request UploadDataWs) error
 }
 
 type FilesBrowseFlags struct {
@@ -39,30 +63,59 @@ type FilesBrowseFlags struct {
 }
 
 type DownloadSession struct {
-	Drive     orchestrators.Drive
+	Drive     orc.Drive
 	Path      string
+	OwnedBy   uint32
 	SessionId string
 }
 
+type UploadSession struct {
+	Id      string
+	OwnedBy uint32
+	Data    []byte
+}
+
+type UploadDataWs struct {
+	Session UploadSession
+	Socket  *ws.Conn
+}
+
 type MoveFileRequest struct {
-	OldDrive orchestrators.Drive
-	NewDrive orchestrators.Drive
+	OldDrive orc.Drive
+	NewDrive orc.Drive
 	OldPath  string
 	NewPath  string
-	Policy   orchestrators.WriteConflictPolicy
+	Policy   orc.WriteConflictPolicy
+}
+
+type CopyFileRequest struct {
+	OldDrive orc.Drive
+	NewDrive orc.Drive
+	OldPath  string
+	NewPath  string
+	Policy   orc.WriteConflictPolicy
+}
+
+type MoveToTrashRequest struct {
+	Drive orc.Drive
+	Path  string
+}
+
+type EmptyTrashRequest struct {
+	Path string
 }
 
 type RetrieveFileRequest struct {
 	Path  string
-	Drive orchestrators.Drive
+	Drive orc.Drive
 	Flags FilesBrowseFlags
 }
 
 type BrowseFilesRequest struct {
 	Path          string
-	Drive         orchestrators.Drive
+	Drive         orc.Drive
 	SortBy        string
-	SortDirection orchestrators.SortDirection
+	SortDirection orc.SortDirection
 	Next          string
 	ItemsPerPage  int
 	Flags         FilesBrowseFlags
@@ -70,18 +123,25 @@ type BrowseFilesRequest struct {
 
 type CreateFolderRequest struct {
 	Path           string
-	Drive          orchestrators.Drive
-	ConflictPolicy orchestrators.WriteConflictPolicy
+	Drive          orc.Drive
+	ConflictPolicy orc.WriteConflictPolicy
 }
 
 func controllerFiles(mux *http.ServeMux) {
 	fileContext := fmt.Sprintf("/ucloud/%v/files/", cfg.Provider.Id)
+	uploadContext := fmt.Sprintf("/ucloud/%v/upload", cfg.Provider.Id)
 	driveContext := fmt.Sprintf("/ucloud/%v/files/collections/", cfg.Provider.Id)
 
 	type filesProviderBrowseRequest struct {
-		ResolvedCollection orchestrators.Drive
-		Browse             orchestrators.ResourceBrowseRequest[FilesBrowseFlags]
+		ResolvedCollection orc.Drive
+		Browse             orc.ResourceBrowseRequest[FilesBrowseFlags]
 	}
+
+	wsUpgrader := ws.Upgrader{
+		ReadBufferSize:  1024 * 4,
+		WriteBufferSize: 1024 * 4,
+	}
+	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	mux.HandleFunc(fileContext+"browse", HttpUpdateHandler[filesProviderBrowseRequest](
 		0,
@@ -103,9 +163,9 @@ func controllerFiles(mux *http.ServeMux) {
 	))
 
 	type createFolderRequestItem struct {
-		ResolvedCollection orchestrators.Drive
+		ResolvedCollection orc.Drive
 		Id                 string
-		ConflictPolicy     orchestrators.WriteConflictPolicy
+		ConflictPolicy     orc.WriteConflictPolicy
 	}
 	type createFolderRequest fnd.BulkRequest[createFolderRequestItem]
 
@@ -133,7 +193,7 @@ func controllerFiles(mux *http.ServeMux) {
 	mux.HandleFunc(
 		driveContext+"retrieveProducts",
 		HttpRetrieveHandler(0, func(w http.ResponseWriter, r *http.Request, request retrieveProductsRequest) {
-			var support orchestrators.FSSupport
+			var support orc.FSSupport
 
 			support.Product.Provider = cfg.Provider.Id
 			support.Product.Id = "storage"
@@ -161,8 +221,8 @@ func controllerFiles(mux *http.ServeMux) {
 
 			sendResponseOrError(
 				w,
-				fnd.BulkResponse[orchestrators.FSSupport]{
-					Responses: []orchestrators.FSSupport{support},
+				fnd.BulkResponse[orc.FSSupport]{
+					Responses: []orc.FSSupport{support},
 				},
 				nil,
 			)
@@ -170,8 +230,8 @@ func controllerFiles(mux *http.ServeMux) {
 	)
 
 	type retrieveRequest struct {
-		ResolvedCollection orchestrators.Drive
-		Retrieve           orchestrators.ResourceRetrieveRequest[FilesBrowseFlags]
+		ResolvedCollection orc.Drive
+		Retrieve           orc.ResourceRetrieveRequest[FilesBrowseFlags]
 	}
 
 	mux.HandleFunc(fileContext+"retrieve", HttpUpdateHandler[retrieveRequest](
@@ -190,11 +250,11 @@ func controllerFiles(mux *http.ServeMux) {
 	)
 
 	type moveRequest struct {
-		ResolvedOldCollection orchestrators.Drive
-		ResolvedNewCollection orchestrators.Drive
+		ResolvedOldCollection orc.Drive
+		ResolvedNewCollection orc.Drive
 		OldId                 string
 		NewId                 string
-		ConflictPolicy        orchestrators.WriteConflictPolicy
+		ConflictPolicy        orc.WriteConflictPolicy
 	}
 
 	type longRunningTask struct {
@@ -236,7 +296,7 @@ func controllerFiles(mux *http.ServeMux) {
 	)
 
 	type downloadRequest struct {
-		ResolvedCollection orchestrators.Drive
+		ResolvedCollection orc.Drive
 		Id                 string
 	}
 	type downloadResponse struct {
@@ -248,12 +308,15 @@ func controllerFiles(mux *http.ServeMux) {
 			0,
 			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[downloadRequest]) {
 				resp := fnd.BulkResponse[downloadResponse]{}
+				owner, _ := ipc.GetConnectionUid(r)
+
 				for _, item := range request.Items {
 					sessionId := util.RandomToken(32)
 
 					session := DownloadSession{
 						Drive:     item.ResolvedCollection,
 						Path:      item.Id,
+						OwnedBy:   owner,
 						SessionId: sessionId,
 					}
 
@@ -284,6 +347,8 @@ func controllerFiles(mux *http.ServeMux) {
 	)
 
 	mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
+		uid, _ := ipc.GetConnectionUid(r)
+
 		if cfg.Mode == cfg.ServerModeServer {
 			// NOTE(Dan): For some reason the Envoy endpoint was not ready yet. Try to refresh via redirect a few time
 			// to see if it becomes ready.
@@ -300,7 +365,7 @@ func controllerFiles(mux *http.ServeMux) {
 
 		token := r.URL.Query().Get("token")
 		session, ok := downloadSessions.GetNow(token)
-		if !ok {
+		if !ok || uid != session.OwnedBy {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -325,11 +390,220 @@ func controllerFiles(mux *http.ServeMux) {
 		_, _ = io.Copy(w, stream)
 	})
 
-	mux.HandleFunc(fileContext+"copy", func(w http.ResponseWriter, r *http.Request) {})
-	mux.HandleFunc(fileContext+"trash", func(w http.ResponseWriter, r *http.Request) {})
-	mux.HandleFunc(fileContext+"emptyTrash", func(w http.ResponseWriter, r *http.Request) {})
-	mux.HandleFunc(fileContext+"upload", func(w http.ResponseWriter, r *http.Request) {})
+	type copyRequest struct {
+		OldDrive       orc.Drive               `json:"resolvedOldCollection"`
+		NewDrive       orc.Drive               `json:"resolvedNewCollection"`
+		OldPath        string                  `json:"oldId"`
+		NewPath        string                  `json:"newId"`
+		ConflictPolicy orc.WriteConflictPolicy `json:"conflictPolicy"`
+	}
+
+	mux.HandleFunc(fileContext+"copy",
+		HttpUpdateHandler[fnd.BulkRequest[copyRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[copyRequest]) {
+				var errors []error
+				for _, item := range request.Items {
+					err := Files.Copy(CopyFileRequest{
+						OldDrive: item.OldDrive,
+						NewDrive: item.NewDrive,
+						OldPath:  item.OldPath,
+						NewPath:  item.NewPath,
+						Policy:   item.ConflictPolicy,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[longRunningTask]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, longRunningTask{Type: "complete"})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		),
+	)
+
+	type trashRequest struct {
+		Drive orc.Drive `json:"resolvedCollection"`
+		Path  string    `json:"id"`
+	}
+
+	mux.HandleFunc(fileContext+"trash",
+		HttpUpdateHandler[fnd.BulkRequest[trashRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[trashRequest]) {
+				var errors []error
+				for _, item := range request.Items {
+					err := Files.MoveToTrash(MoveToTrashRequest{
+						Drive: item.Drive,
+						Path:  item.Path,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[longRunningTask]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, longRunningTask{Type: "complete"})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			},
+		),
+	)
+
+	type emptyTrashRequest struct {
+		Path string `json:"id"`
+	}
+
+	mux.HandleFunc(fileContext+"emptyTrash",
+		HttpUpdateHandler[fnd.BulkRequest[emptyTrashRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[emptyTrashRequest]) {
+				var errors []error
+				for _, item := range request.Items {
+					err := Files.EmptyTrash(EmptyTrashRequest{
+						Path: item.Path,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[longRunningTask]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, longRunningTask{Type: "complete"})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+
+			},
+		),
+	)
+
+	type createUploadResponse struct {
+		Endpoint string             `json:"endpoint"`
+		Protocol orc.UploadProtocol `json:"protocol"`
+		Token    string             `json:"token"`
+	}
+
+	mux.HandleFunc(fileContext+"upload",
+		HttpUpdateHandler[fnd.BulkRequest[CreateUploadRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[CreateUploadRequest]) {
+				owner, _ := ipc.GetConnectionUid(r)
+
+				resp := fnd.BulkResponse[createUploadResponse]{}
+				for _, item := range request.Items {
+					sessionData, err := Files.CreateUploadSession(item)
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+
+					session := UploadSession{
+						Id:      util.RandomToken(32),
+						OwnedBy: owner,
+						Data:    sessionData,
+					}
+
+					if item.Type == UploadTypeFolder {
+						Files.CreateFolder(CreateFolderRequest{Path: item.Path, Drive: item.Drive, ConflictPolicy: item.ConflictPolicy})
+					}
+
+					uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
+
+					resp.Responses = append(
+						resp.Responses,
+						createUploadResponse{
+							Endpoint: uploadPath,
+							Protocol: orc.UploadProtocolWebSocket,
+							Token:    session.Id,
+						},
+					)
+
+					uploadSessions.Set(session.Id, session)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		),
+	)
+
 	mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
+
+	mux.HandleFunc(
+		uploadContext,
+		func(w http.ResponseWriter, r *http.Request) {
+			uid, _ := ipc.GetConnectionUid(r)
+
+			conn, err := wsUpgrader.Upgrade(w, r, nil)
+			defer util.SilentCloseIfOk(conn, err)
+			token := r.URL.Query().Get("token")
+
+			if err != nil {
+				log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+				return
+			}
+
+			session, ok := uploadSessions.GetNow(token)
+
+			if !ok || uid != session.OwnedBy {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			err = Files.HandleUploadWs(UploadDataWs{
+				Session: session,
+				Socket:  conn,
+			})
+
+			if err != nil {
+				sendError(w, err)
+				return
+			}
+		},
+	)
+}
+
+func generateUploadPath(
+	config *cfg.ProviderConfiguration,
+	providerId string,
+	protocol orc.UploadProtocol,
+	token string,
+	username string,
+) string {
+	var hostPath string = ""
+	if config != nil {
+		switch protocol {
+		case orc.UploadProtocolChunked:
+			hostPath = config.Hosts.SelfPublic.ToURLWithoutPort()
+		case orc.UploadProtocolWebSocket:
+			hostPath = config.Hosts.SelfPublic.ToWebSocketUrlWithoutPort()
+		}
+	}
+
+	return fmt.Sprintf("%s/ucloud/%s/upload?token=%s&usernameHint=%s", hostPath, providerId, token, base64.URLEncoding.EncodeToString([]byte(username)))
 }
 
 var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
+var uploadSessions = util.NewCache[string, UploadSession](48 * time.Hour)

@@ -2,6 +2,7 @@ package slurm
 
 import (
 	"syscall"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/idfreeipa"
@@ -20,6 +21,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	}
 
 	ctrl.Files = InitializeFiles()
+	InitTaskSystem()
 	ctrl.Jobs = InitCompute()
 	InitAccountManagement()
 

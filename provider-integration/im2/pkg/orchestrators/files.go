@@ -2,6 +2,7 @@ package orchestrators
 
 import (
 	"fmt"
+
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
@@ -99,6 +100,13 @@ const (
 	WriteConflictPolicyReject      WriteConflictPolicy = "REJECT"
 	WriteConflictPolicyReplace     WriteConflictPolicy = "REPLACE"
 	WriteConflictPolicyMergeRename WriteConflictPolicy = "MERGE_RENAME"
+)
+
+type UploadProtocol string
+
+const (
+	UploadProtocolChunked   UploadProtocol = "CHUNKED"
+	UploadProtocolWebSocket UploadProtocol = "WEBSOCKET"
 )
 
 // API

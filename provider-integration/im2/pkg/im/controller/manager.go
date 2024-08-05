@@ -5,12 +5,14 @@ import (
 	"errors"
 	"io"
 	"net/http"
+
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
 var LaunchUserInstances = false
+var UCloudUsername = ""
 
 func Init(mux *http.ServeMux) {
 	controllerFiles(mux)
