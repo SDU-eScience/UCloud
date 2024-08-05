@@ -366,7 +366,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={projectEntityField}
-                                                placeholder="Project name"
+                                                placeholder="Project path or ID"
                                             />
                                             <Input
                                                 leftLabel
@@ -375,7 +375,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={groupEntityField}
-                                                placeholder="Group name"
+                                                placeholder="Group name or ID"
                                             />
                                         </>
                                     )}

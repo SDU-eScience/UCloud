@@ -6,14 +6,13 @@ import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.accounting.util.IProjectCache
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Project
+import dk.sdu.cloud.app.store.api.ProjectGroup
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.checkSingleLine
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
-import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -31,6 +30,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.imageio.ImageIO
+import kotlin.Pair
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -1388,11 +1388,46 @@ class AppService(
         val acl = accessControlLists.computeIfAbsent(name) { InternalAcl(emptySet()) }
         val additions = HashSet<EntityWithPermission>()
         val revoked = HashSet<AccessEntity>()
+
         for (change in changes) {
             if (change.revoke) {
                 revoked.add(change.entity)
             } else {
-                additions.add(EntityWithPermission(change.entity, change.rights))
+                val newEntity = if (!change.entity.project.isNullOrEmpty() && !change.entity.group.isNullOrEmpty()) {
+                    val projectById = Projects.lookupById.call(
+                        LookupByIdRequest(change.entity.project!!),
+                        serviceClient
+                    ).orNull()
+
+                    val foundProject = projectById ?:
+                        Projects.lookupByPath.call(
+                            LookupByTitleRequest(change.entity.project!!),
+                            serviceClient
+                        ).orRethrowAs {
+                            throw RPCException("Project not found", HttpStatusCode.NotFound)
+                        }
+
+                    val groupByTitle = ProjectGroups.lookupByTitle.call(
+                        LookupByGroupTitleRequest(
+                            foundProject.id,
+                            change.entity.group!!
+                        ),
+                        serviceClient
+                    ).orNull()
+
+                    val foundGroupId = groupByTitle?.groupId
+                        ?: ProjectGroups.lookupProjectAndGroup.call(
+                            LookupProjectAndGroupRequest(foundProject.id, change.entity.group!!), serviceClient
+                        ).orRethrowAs {
+                            throw RPCException("Group not found", HttpStatusCode.NotFound)
+                        }.group.id
+
+                    AccessEntity(null, foundProject.id, foundGroupId)
+                } else {
+                    change.entity
+                }
+
+                additions.add(EntityWithPermission(newEntity, change.rights))
             }
         }
 
