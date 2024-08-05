@@ -1610,41 +1610,43 @@ class AppService(
         name: String
     ): Collection<DetailedEntityWithPermission> {
         val list = retrieveAcl(actorAndProject, name)
-        return list.map { e ->
+        return list.mapNotNull { e ->
             val projectAndGroupLookup =
                 if (!e.entity.project.isNullOrBlank() && !e.entity.group.isNullOrBlank()) {
                     ProjectGroups.lookupProjectAndGroup.call(
                         LookupProjectAndGroupRequest(e.entity.project!!, e.entity.group!!),
                         serviceClient,
-                    ).orRethrowAs {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                    }
+                    ).orNull()
                 } else {
                     null
                 }
 
-            DetailedEntityWithPermission(
-                if (projectAndGroupLookup != null) {
-                    DetailedAccessEntity(
-                        null,
-                        Project(
-                            projectAndGroupLookup.project.id,
-                            projectAndGroupLookup.project.title
-                        ),
-                        ProjectGroup(
-                            projectAndGroupLookup.group.id,
-                            projectAndGroupLookup.group.title
+            if (projectAndGroupLookup == null && e.entity.user == null) {
+                null
+            } else {
+                DetailedEntityWithPermission(
+                    if (projectAndGroupLookup != null) {
+                        DetailedAccessEntity(
+                            null,
+                            Project(
+                                projectAndGroupLookup.project.id,
+                                projectAndGroupLookup.project.title
+                            ),
+                            ProjectGroup(
+                                projectAndGroupLookup.group.id,
+                                projectAndGroupLookup.group.title
+                            )
                         )
-                    )
-                } else {
-                    DetailedAccessEntity(
-                        e.entity.user,
-                        null,
-                        null
-                    )
-                },
-                e.permission
-            )
+                    } else {
+                        DetailedAccessEntity(
+                            e.entity.user,
+                            null,
+                            null
+                        )
+                    },
+                    e.permission
+                )
+            }
         }
     }
 
