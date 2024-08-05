@@ -596,9 +596,9 @@ func generateUploadPath(
 	if config != nil {
 		switch protocol {
 		case orc.UploadProtocolChunked:
-			hostPath = config.Hosts.SelfPublic.ToURLWithoutPort()
+			hostPath = config.Hosts.SelfPublic.ToURL()
 		case orc.UploadProtocolWebSocket:
-			hostPath = config.Hosts.SelfPublic.ToWebSocketUrlWithoutPort()
+			hostPath = config.Hosts.SelfPublic.ToWebSocketUrl()
 		}
 	}
 

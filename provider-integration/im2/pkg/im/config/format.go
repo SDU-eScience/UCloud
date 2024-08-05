@@ -500,35 +500,18 @@ func (h HostInfo) ToURL() string {
 		}
 	}
 
-	return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
-}
-
-func (h HostInfo) ToURLWithoutPort() string {
-	port := h.Port
-	scheme := h.Scheme
-	if scheme != "http" && scheme != "https" {
-		if port == 443 || port == 8443 {
-			scheme = "https"
-		} else {
-			scheme = "http"
-		}
+	portIsDefault := (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
+	if portIsDefault {
+		return fmt.Sprintf("%v://%v", scheme, h.Address)
+	} else {
+		return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
 	}
-
-	return fmt.Sprintf("%v://%v", scheme, h.Address)
 }
 
 func (h HostInfo) ToWebSocketUrl() string {
 	url := h.ToURL()
 	url = strings.ReplaceAll(url, "http://", "ws://")
 	url = strings.ReplaceAll(url, "https://", "wss://")
-	return url
-}
-
-func (h HostInfo) ToWebSocketUrlWithoutPort() string {
-	url := h.ToURLWithoutPort()
-	url = strings.ReplaceAll(url, "http://", "ws://")
-	url = strings.ReplaceAll(url, "https://", "wss://")
-
 	return url
 }
 
