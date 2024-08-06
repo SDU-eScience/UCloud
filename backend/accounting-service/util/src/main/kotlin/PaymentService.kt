@@ -94,8 +94,8 @@ class PaymentService(
             ).orThrow().responses.mapIndexed { index, response ->
                 val payment = payments[index]
                 val paymentRequired = payment.units * payment.pricePerUnit * payment.periods
-                val alreadyPrePayed = scopedUsage[index].alreadyChargedAmount
-                val balanceNeeded = paymentRequired - alreadyPrePayed
+                val alreadyPrepaid = scopedUsage[index].alreadyChargedAmount
+                val balanceNeeded = paymentRequired - alreadyPrepaid
 
                 if (response.maxUsable >= balanceNeeded) ChargeResult.Charged
                 else ChargeResult.InsufficientFunds
