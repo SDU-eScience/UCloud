@@ -1,5 +1,5 @@
 package migrations
 
-func LoadMigrations() {
-	addScript(GenericLicensesV1())
+func loadMigrations() {
+	addScript(genericLicensesV1())
 }

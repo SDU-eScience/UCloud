@@ -1,91 +1,110 @@
 package migrations
 
 import (
-	"log"
-
 	_ "github.com/lib/pq"
-	"ucloud.dk/pkg/database"
+	"os"
+	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/log"
 )
 
-var scripts []MigrationScript
+var scripts []migrationScript
 
-type MigrationScript struct {
+type migrationScript struct {
 	Id      string
-	Execute func(ctx *database.Transaction)
+	Execute func(ctx *db.Transaction)
 }
 
-func Migrate(ctx *database.Transaction) {
-	database.Exec(ctx, `
+func Migrate(ctx *db.Pool) {
+	loadMigrations()
+	createMigrationTables(ctx)
+	scriptsToRun := findMissingMigrations(ctx)
+
+	for _, migration := range scriptsToRun {
+		tx := ctx.Open()
+
+		migration.Execute(tx)
+
+		db.Exec(
+			tx,
+			`
+				insert into completed_migrations (id, completed_at) values (:id, now())
+			`,
+			db.Params{
+				"id": migration.Id,
+			},
+		)
+
+		if !tx.Ok {
+			log.Error("Failed to run migration: %s. %s", migration.Id, tx.ConsumeError().Error())
+			os.Exit(1)
+		}
+
+		tx.CloseOrPanic()
+	}
+}
+
+func createMigrationTables(ctx *db.Pool) {
+	tx := ctx.Open()
+	defer tx.CloseOrPanic()
+
+	db.Exec(tx, `
 		create table if not exists migrations(
 			id text primary key
 		);
 	`, map[string]any{})
 
-	database.Exec(ctx, `
+	db.Exec(tx, `
 		create table if not exists completed_migrations(
 			id text primary key references migrations,
 			completed_at timestamp
 		);
 	`, map[string]any{})
+}
 
-	if !ctx.Ok {
-		log.Fatalf("Failed to create migrations table")
-	}
+func findMissingMigrations(ctx *db.Pool) []migrationScript {
+	tx := ctx.Open()
+	defer tx.CloseOrPanic()
 
 	for _, script := range scripts {
-		database.Exec(ctx, `
+		db.Exec(tx, `
 			insert into migrations(id) values (:id) on conflict (id) do nothing
 		`, map[string]any{"id": script.Id})
-
-		if !ctx.Ok {
-			log.Fatalf("Failed to register migration: %s\n%v\n", script.Id, ctx.Error.Message)
-		}
-
 	}
 
 	type CompletedMigrationsRow struct {
 		Id string
 	}
 
-	var missingMigrations = database.Select[CompletedMigrationsRow](ctx, `
+	missingScriptIds := db.Select[CompletedMigrationsRow](tx, `
 		select m.id
-		from migrations m left join completed_migrations cm on m.id = cm.id
-		where cm.id is null
+		from
+			migrations m
+			left join completed_migrations cm on m.id = cm.id
+		where
+			cm.id is null
 	`, map[string]any{})
 
-	if !ctx.Ok {
-		log.Fatalf("Failed to fetch missing migrations")
-	}
-
-	groupedScripts := make(map[string]MigrationScript)
-
+	var missingScripts []migrationScript
 	for _, script := range scripts {
-		groupedScripts[script.Id] = script
-	}
-
-	for _, migrationId := range missingMigrations {
-		migration := groupedScripts[migrationId.Id]
-
-		migration.Execute(ctx)
-
-		// NOTE(Dan): This needs to be prepared everytime because of schema changes made by the migrations.
-		database.Exec(ctx, `
-			insert into completed_migrations (id, completed_at) values (:id, now())
-		`, map[string]any{"id": migrationId.Id})
-
-		if !ctx.Ok {
-			log.Fatalf("Failed to run migration: %s", migrationId)
+		for _, id := range missingScriptIds {
+			if script.Id == id.Id {
+				missingScripts = append(missingScripts, script)
+				break
+			}
 		}
 	}
+
+	return missingScripts
 }
 
-func addScript(script MigrationScript) {
+func addScript(newScript migrationScript) {
 	for _, thisScript := range scripts {
-		if thisScript.Id == script.Id {
-			log.Fatalf("Failed to add migration script %s: Already exists", script.Id)
+		if thisScript.Id == newScript.Id {
+			log.Error("Failed to add migration migration script %s: Already exists", newScript.Id)
+			os.Exit(1)
 			return
 		}
 	}
 
-	scripts = append(scripts, script)
+	scripts = append(scripts, newScript)
 }

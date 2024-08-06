@@ -2,9 +2,9 @@ package migrations
 
 import "ucloud.dk/pkg/database"
 
-func GenericLicensesV1() MigrationScript {
-	return MigrationScript{
-		Id: "GenericLicensesV1",
+func genericLicensesV1() migrationScript {
+	return migrationScript{
+		Id: "genericLicensesV1",
 		Execute: func(ctx *database.Transaction) {
 			database.Exec(ctx, `
 				create table generic_license_servers(

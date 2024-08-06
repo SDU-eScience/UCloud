@@ -6,14 +6,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -517,12 +516,102 @@ func (h HostInfo) ToWebSocketUrl() string {
 
 type ServerConfiguration struct {
 	RefreshToken string
+
+	Database struct {
+		Embedded              bool
+		EmbeddedDataDirectory string
+
+		Host     HostInfo
+		Username string
+		Password string
+		Database string
+		Ssl      bool
+	}
 }
 
 func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguration) {
 	success := true
 	cfg := ServerConfiguration{}
+
+	// Parse simple properties
 	cfg.RefreshToken = requireChildText(filePath, provider, "refreshToken", &success)
+
+	// Parse the database section
+	dbNode, _ := getChildOrNil(filePath, provider, "database")
+	if dbNode != nil {
+		cfg.Database.Embedded = requireChildBool(filePath, dbNode, "embedded", &success)
+	} else {
+		cfg.Database.Embedded = true
+	}
+
+	if !cfg.Database.Embedded {
+		hostNode := requireChild(filePath, dbNode, "host", &success)
+		decode(filePath, hostNode, &cfg.Database.Host, &success)
+		if cfg.Database.Host.Port == 0 {
+			cfg.Database.Host.Port = 5432
+		}
+
+		cfg.Database.Username = requireChildText(filePath, dbNode, "username", &success)
+		cfg.Database.Password = requireChildText(filePath, dbNode, "password", &success)
+		cfg.Database.Database = requireChildText(filePath, dbNode, "database", &success)
+		cfg.Database.Ssl = requireChildBool(filePath, dbNode, "ssl", &success)
+	} else {
+		db := &cfg.Database
+		if dbNode != nil {
+			db.EmbeddedDataDirectory = optionalChildText(filePath, dbNode, "directory", &success)
+		}
+
+		if db.EmbeddedDataDirectory == "" {
+			db.EmbeddedDataDirectory = "/etc/ucloud/postgres"
+		}
+
+		if success {
+			_, err := os.Stat(db.EmbeddedDataDirectory)
+			if err != nil {
+				if os.IsNotExist(err) {
+					err = os.Mkdir(db.EmbeddedDataDirectory, 0700)
+					if err != nil {
+						reportError(filePath, dbNode, "Could not create postgres data directory at %v: %v", db.EmbeddedDataDirectory, err)
+						success = false
+					}
+				}
+			}
+		}
+
+		if success {
+			// NOTE(Dan): This cannot go in the data dir since the file will be deleted by the embedded postgres instance
+			passwordFile := filepath.Join(filepath.Dir(filePath), ".psql-password")
+			password, err := os.ReadFile(passwordFile)
+			if err != nil {
+				password = []byte(util.RandomToken(32))
+				err = os.WriteFile(passwordFile, password, 0600)
+				if err != nil {
+					reportError(filePath, dbNode, "Could not write postgres password file to disk: %v", err)
+					success = false
+				}
+			}
+
+			db.Host = HostInfo{
+				Address: "127.0.0.1",
+				Port:    5432,
+			}
+
+			db.Username = "ucloud"
+			db.Password = string(password)
+			db.Database = "ucloud"
+			db.Ssl = false
+		}
+	}
+
+	{
+		node := dbNode
+		if node == nil {
+			node = provider
+		}
+
+		cfg.Database.Host.validate(filePath, node)
+	}
+
 	return success, cfg
 }
 

@@ -1,0 +1,9 @@
+refreshToken: "token-goes-here"
+database:
+  embedded: false
+  username: postgres
+  password: postgrespassword
+  database: postgres
+  ssl: false
+  host:
+    address: go-slurm-postgres

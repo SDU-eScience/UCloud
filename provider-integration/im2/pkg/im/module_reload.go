@@ -1,8 +1,8 @@
 package im
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"io"
 	"log"
 	"net/http"
@@ -26,7 +26,7 @@ var _currentModule *ReloadableModule = nil
 type ModuleArgs struct {
 	Mode                 cfg.ServerMode
 	GatewayConfigChannel chan []byte
-	Database             *sql.DB
+	Database             *sqlx.DB
 	ConfigDir            string
 	UserModeSecret       string
 	ServerMultiplexer    *http.ServeMux

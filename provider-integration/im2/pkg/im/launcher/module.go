@@ -1,14 +1,16 @@
 package launcher
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"net/http"
+	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	svc "ucloud.dk/pkg/im/services"
 	"ucloud.dk/pkg/kvdb"
+	"ucloud.dk/pkg/migrations"
 	"ucloud.dk/pkg/util"
 )
 
@@ -22,7 +24,10 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	}
 
 	if args.Mode == cfg.ServerModeServer {
+		db.Database = &db.Pool{Connection: args.Database}
 		kvdb.Init(args.ConfigDir + "/kv.db")
+
+		migrations.Migrate(db.Database)
 	}
 
 	svc.Init(args)
@@ -42,14 +47,14 @@ func ModuleMainStub(oldData []byte, args map[string]any) {
 	mode := cfg.ServerMode(args["Mode"].(int))
 	configDir := args["ConfigDir"].(string)
 	userModeSecret := args["UserModeSecret"].(string)
-	db := args["Database"].(*sql.DB)                                   // can be nil
+	dbPool := args["Database"].(*sqlx.DB)                              // can be nil
 	gatewayConfigChannel := args["GatewayConfigChannel"].(chan []byte) // can be nil
 	ipcMux := args["IpcMultiplexer"].(*http.ServeMux)
 
 	newArgs := im.ModuleArgs{
 		Mode:                 mode,
 		GatewayConfigChannel: gatewayConfigChannel,
-		Database:             db,
+		Database:             dbPool,
 		ConfigDir:            configDir,
 		UserModeSecret:       userModeSecret,
 		ServerMultiplexer:    mux,

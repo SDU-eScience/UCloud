@@ -1,8 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.ComposeService.Kubernetes.buildAddon
 import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
-import dk.sdu.cloud.ComposeService.Slurm.service
 import java.util.Base64
 
 @JvmInline
@@ -737,7 +735,7 @@ sealed class ComposeService {
                 )
             }
 
-            val info = slurmBuild(imDir)
+            val info = slurmBuild(this, this@Slurm, imDir)
             val imHome = info.imHome
             val imWork = info.imWork
             val etcSlurm = info.etcSlurm
@@ -962,7 +960,7 @@ sealed class ComposeService {
                 )
             }
 
-            val info = slurmBuild(imDir)
+            val info = slurmBuild(this, this@GoSlurm, imDir)
             val imHome = info.imHome
             val imWork = info.imWork
             val etcSlurm = info.etcSlurm
@@ -1003,6 +1001,35 @@ sealed class ComposeService {
                     """.trimIndent(),
                 ),
                 serviceConvention = true
+            )
+
+            val postgresDataDir = environment.dataDirectory.child("go-slurm-pg-data").also { it.mkdirs() }
+            service(
+                "go-slurm-postgres",
+                "Slurm (Go): Postgres",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "postgres:15.0",
+                        "hostname": "go-slurm-postgres",
+                        "restart": "always",
+                        "environment": {
+                          "POSTGRES_PASSWORD": "postgrespassword"
+                        },
+                        "volumes": [
+                          "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
+                          "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/gonja:/opt/gonja"
+                        ],
+                        "ports": [
+                          "${portAllocator.allocate(51239)}:5432"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+
+                serviceConvention = false,
             )
         }
 
@@ -1111,7 +1138,7 @@ sealed class ComposeService {
             }
         }
 
-        override fun startAddon(addon: String)  {
+        override fun startAddon(addon: String) {
             when (addon) {
                 FREE_IPA_ADDON -> {
                     val clientsToEnroll = listOf(
@@ -1145,7 +1172,13 @@ sealed class ComposeService {
                             compose.exec(
                                 currentEnvironment,
                                 client,
-                                listOf("sh", "-c", "sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd || sssd")
+                                listOf(
+                                    "sh",
+                                    "-c",
+                                    "sssd || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) " +
+                                            "|| (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || " +
+                                            "(sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd)"
+                                )
                             ).streamOutput().executeToText()
 
                             printStatus("$client has been enrolled in FreeIPA!")
@@ -1309,39 +1342,41 @@ data class SlurmInfo(
     val etcSlurm: String,
 )
 
-fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
-    val imHome = imDir.child("home").also { it.mkdirs() }
-    val imWork = imDir.child("work").also { it.mkdirs() }
-    val imMySqlDb = "immysql".also { volumes.add(it) }
-    val etcMunge = "etc_munge".also { volumes.add(it) }
-    val etcSlurm = "etc_slurm".also { volumes.add(it) }
-    val logSlurm = "log_slurm".also { volumes.add(it) }
+fun slurmBuild(builder: ComposeBuilder, service: ComposeService, imDir: LFile): SlurmInfo {
+    with(builder) {
+        with(service) {
+            val imHome = imDir.child("home").also { it.mkdirs() }
+            val imWork = imDir.child("work").also { it.mkdirs() }
+            val imMySqlDb = "immysql".also { volumes.add(it) }
+            val etcMunge = "etc_munge".also { volumes.add(it) }
+            val etcSlurm = "etc_slurm".also { volumes.add(it) }
+            val logSlurm = "log_slurm".also { volumes.add(it) }
 
-    val passwdDir = imDir.child("passwd").also { it.mkdirs() }
-    val passwdFile = passwdDir.child("passwd")
-    val groupFile = passwdDir.child("group")
-    val shadowFile = passwdDir.child("shadow")
-    if (!passwdFile.exists()) {
-        passwdFile.writeText(
-            """
+            val passwdDir = imDir.child("passwd").also { it.mkdirs() }
+            val passwdFile = passwdDir.child("passwd")
+            val groupFile = passwdDir.child("group")
+            val shadowFile = passwdDir.child("shadow")
+            if (!passwdFile.exists()) {
+                passwdFile.writeText(
+                    """
             """.trimIndent()
-        )
-        groupFile.writeText(
-            """
+                )
+                groupFile.writeText(
+                    """
             """.trimIndent()
-        )
-        shadowFile.writeText(
-            """
+                )
+                shadowFile.writeText(
+                    """
             """.trimIndent()
-        )
-    }
+                )
+            }
 
-    service(
-        "mysql",
-        "Slurm Provider: MySQL (SlurmDB)",
-        Json(
-            //language=json
-            """
+            service(
+                "mysql",
+                "Slurm Provider: MySQL (SlurmDB)",
+                Json(
+                    //language=json
+                    """
               {
                 "image": "mysql:8.3.0",
                 "hostname": "mysql",
@@ -1360,16 +1395,16 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
                 "restart": "always"
               }
             """.trimIndent()
-        ),
-        serviceConvention = false
-    )
+                ),
+                serviceConvention = false
+            )
 
-    service(
-        "slurmdbd",
-        "Slurm Provider: slurmdbd",
-        Json(
-            //language=json
-            """
+            service(
+                "slurmdbd",
+                "Slurm Provider: slurmdbd",
+                Json(
+                    //language=json
+                    """
               {
                 "image": "$slurmImage",
                 "command": ["slurmdbd", "sshd", "user-sync"],
@@ -1387,16 +1422,16 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
                 "restart": "always"
               }
             """.trimIndent()
-        ),
-        serviceConvention = false
-    )
+                ),
+                serviceConvention = false
+            )
 
-    service(
-        "slurmctld",
-        "Slurm Provider: slurmctld",
-        Json(
-            //language=json
-            """
+            service(
+                "slurmctld",
+                "Slurm Provider: slurmctld",
+                Json(
+                    //language=json
+                    """
               {
                 "image": "$slurmImage",
                 "command": ["slurmctld", "sshd", "user-sync"],
@@ -1414,17 +1449,17 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
                 "restart": "always"
               }
             """.trimIndent()
-        ),
-        serviceConvention = false
-    )
+                ),
+                serviceConvention = false
+            )
 
-    for (id in 1..numberOfSlurmNodes) {
-        service(
-            "c$id",
-            "Slurm Provider: Compute node $id",
-            Json(
-                //language=json
-                """
+            for (id in 1..numberOfSlurmNodes) {
+                service(
+                    "c$id",
+                    "Slurm Provider: Compute node $id",
+                    Json(
+                        //language=json
+                        """
                   {
                     "image": "$slurmImage",
                     "command": ["slurmd", "sshd", "user-sync"],
@@ -1442,12 +1477,13 @@ fun ComposeBuilder.slurmBuild(imDir: LFile): SlurmInfo {
                     "restart": "always"
                   }
                 """.trimIndent(),
-            ),
-            serviceConvention = false
-        )
+                    ),
+                    serviceConvention = false
+                )
+            }
+            return SlurmInfo(imHome, imWork, etcSlurm)
+        }
     }
-
-    return SlurmInfo(imHome, imWork, etcSlurm)
 }
 
 fun slurmInstall(providerContainer: String) {

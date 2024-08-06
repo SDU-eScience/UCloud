@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
-
+	"time"
 	"ucloud.dk/pkg/client"
+	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 
@@ -30,13 +32,6 @@ func Launch() {
 		os.Exit(1)
 	}
 
-	/*
-	   database, err := sql.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
-	   if err != nil {
-	       log.Fatalf("Could not open database %v", err)
-	   }
-	   _ = Database
-	*/
 	_ = cfg.ReadPublicKey(*configDir)
 
 	mode := cfg.ServerModePlugin
@@ -61,13 +56,14 @@ func Launch() {
 	}
 
 	userModeSecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
-	fmt.Printf("env=%v\n", os.Environ())
 	if mode == cfg.ServerModeUser && (!userModeSecretOk || userModeSecret == "") {
 		fmt.Printf("No user-Mode secret specified!\n")
 		os.Exit(1)
 	}
 
 	_ = pluginName
+
+	var dbPool *db.Pool = nil
 
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
@@ -86,6 +82,34 @@ func Launch() {
 		}, gatewayConfigChannel)
 
 		gateway.Resume()
+
+		dbConfig := &cfg.Server.Database
+		if dbConfig.Embedded {
+			embeddedDb := embeddedpostgres.NewDatabase(
+				embeddedpostgres.
+					DefaultConfig().
+					StartTimeout(30 * time.Second).
+					Username(dbConfig.Username).
+					Password(dbConfig.Password).
+					Database(dbConfig.Database).
+					DataPath(dbConfig.EmbeddedDataDirectory),
+			)
+
+			err := embeddedDb.Start()
+			if err != nil {
+				fmt.Printf("Failed to start embedded database! %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		dbPool = db.Connect(
+			dbConfig.Username,
+			dbConfig.Password,
+			dbConfig.Host.Address,
+			dbConfig.Host.Port,
+			dbConfig.Database,
+			dbConfig.Ssl,
+		)
 	} else if mode == cfg.ServerModeUser {
 
 	}
@@ -93,9 +117,12 @@ func Launch() {
 	moduleArgs := im.ModuleArgs{
 		Mode:                 mode,
 		GatewayConfigChannel: gatewayConfigChannel,
-		Database:             nil,
 		ConfigDir:            *configDir,
 		UserModeSecret:       userModeSecret,
+	}
+
+	if dbPool != nil {
+		moduleArgs.Database = dbPool.Connection
 	}
 
 	if mode == cfg.ServerModeServer {
