@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	db "ucloud.dk/pkg/database"
 
 	"ucloud.dk/pkg/client"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -40,12 +40,6 @@ func ConnectionError(error string) string {
 	return "TODO" // TODO
 }
 
-const uidMapPrefix = "uid-map-"
-const uidInvMapPrefix = "uid-inv-map-"
-
-const gidMapPrefix = "gid-map-"
-const gidInvMapPrefix = "gid-inv-map-"
-
 var connectionCompleteCallbacks []func(username string, uid uint32)
 var projectNotificationCallbacks []func(updated *NotificationProjectUpdated)
 
@@ -71,8 +65,30 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 		Req{username},
 	)
 
-	kvdb.Set(fmt.Sprintf("%v%v", uidInvMapPrefix, uid), username)
-	kvdb.Set(fmt.Sprintf("%v%v", uidMapPrefix, username), uid)
+	{
+		tx := db.Database.Open()
+
+		db.Exec(
+			tx,
+			`
+				insert into connections(ucloud_username, uid)
+				values (:username, :uid)
+			`,
+			db.Params{
+				"username": username,
+				"uid":      uid,
+			},
+		)
+
+		err = tx.CloseAndReturnErr()
+		if err != nil {
+			log.Warn("Failed to register connection. Underlying error is: %v", err)
+			return &util.HttpError{
+				StatusCode: http.StatusInternalServerError,
+				Why:        "Failed to register connection.",
+			}
+		}
+	}
 
 	userReplayChannel <- username
 
@@ -91,44 +107,108 @@ func getDebugPort(ucloudUsername string) (int, bool) {
 }
 
 func MapUCloudToLocal(username string) (uint32, bool) {
-	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", uidMapPrefix, username))
+	tx := db.Database.Open()
+	val, ok := db.Get[struct{ Uid uint32 }](
+		tx,
+		`
+			select uid
+			from connections
+			where
+				ucloud_username = :username
+		`,
+		db.Params{
+			"username": username,
+		},
+	)
+	tx.CloseOrLog()
 	if !ok {
 		return 11400, false
 	}
 
-	return val, true
+	return val.Uid, true
 }
 
 func MapLocalToUCloud(uid uint32) (string, bool) {
-	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
+	tx := db.Database.Open()
+	val, ok := db.Get[struct {
+		UCloudUsername string `db:"ucloud_username"`
+	}](
+		tx,
+		`
+			select ucloud_username
+			from connections
+			where
+				uid = :uid
+		`,
+		db.Params{
+			"uid": uid,
+		},
+	)
+	tx.CloseOrLog()
+
 	if !ok {
 		return "_guest", false
 	}
 
-	return val, true
+	return val.UCloudUsername, true
 }
 
 func RegisterProjectMapping(projectId string, gid uint32) {
-	kvdb.Set(fmt.Sprintf("%v%v", gidInvMapPrefix, gid), projectId)
-	kvdb.Set(fmt.Sprintf("%v%v", gidMapPrefix, projectId), gid)
+	tx := db.Database.Open()
+
+	db.Exec(
+		tx,
+		`
+			insert into project_connections(ucloud_project_id, gid)
+			values (:project_id, :group_id)
+		`,
+		db.Params{
+			"project_id": projectId,
+			"group_id":   gid,
+		},
+	)
+
+	tx.CloseOrLog()
 }
 
 func MapLocalProjectToUCloud(gid uint32) (string, bool) {
-	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", gidInvMapPrefix, gid))
-	if !ok {
-		return "", false
-	}
-
-	return val, true
+	tx := db.Database.Open()
+	val, ok := db.Get[struct{ ProjectId string }](
+		tx,
+		`
+			select ucloud_project_id
+			from project_connections
+			where
+				gid = :gid
+		`,
+		db.Params{
+			"gid": gid,
+		},
+	)
+	tx.CloseOrLog()
+	return val.ProjectId, ok
 }
 
 func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
-	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", gidMapPrefix, projectId))
+	tx := db.Database.Open()
+	val, ok := db.Get[struct{ Gid uint32 }](
+		tx,
+		`
+			select gid
+			from project_connections
+			where
+				ucloud_project_id = :project_id
+		`,
+		db.Params{
+			"project_id": projectId,
+		},
+	)
+	tx.CloseOrLog()
 	if !ok {
 		return 11400, false
 	}
 
-	return val, true
+	return val.Gid, true
 }
 
 func RegisterSigningKey(username string, key string) int {

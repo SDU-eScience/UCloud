@@ -154,7 +154,7 @@ class IngoingHttpInterceptor(
                     throw ex
                 }
                 else -> {
-                    log.debug(ex.stackTraceToString())
+                    log.warn("Invalid request received (wrong type). ${call.fullName} ${ctx.call.request.path()}, ${ctx.call.request.queryString()}: " + ex.stackTraceToString())
                     debug.system.logThrowable("Failed to parse request", ex, MessageImportance.IMPLEMENTATION_DETAIL)
                     throw RPCException("Invalid request received (wrong type)", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }

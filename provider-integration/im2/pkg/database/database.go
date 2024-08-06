@@ -40,34 +40,26 @@ func (ctx *Pool) Open() *Transaction {
 type Transaction struct {
 	tx              *sqlx.Tx
 	depth           int
-	error           Error
+	error           error
 	didConsumeError bool
 
 	Ok bool
 }
 
-func (ctx *Transaction) PeekError() *Error {
+func (ctx *Transaction) PeekError() error {
 	if ctx.Ok {
 		return nil
 	}
-	return &ctx.error
+	return ctx.error
 }
 
-func (ctx *Transaction) ConsumeError() *Error {
+func (ctx *Transaction) ConsumeError() error {
 	if ctx.Ok {
 		return nil
 	}
 
 	ctx.didConsumeError = true
-	return &ctx.error
-}
-
-type Error struct {
-	Message string
-}
-
-func (e Error) Error() string {
-	return e.Message
+	return ctx.error
 }
 
 func (ctx *Transaction) Open() *Transaction {
@@ -76,7 +68,7 @@ func (ctx *Transaction) Open() *Transaction {
 	return ctx
 }
 
-func (ctx *Transaction) CloseAndReturnErr() *Error {
+func (ctx *Transaction) CloseAndReturnErr() error {
 	ctx.close(false, false)
 	return ctx.ConsumeError()
 }
@@ -122,19 +114,17 @@ func Connect(username, password, host string, port int, database string, ssl boo
 		sslMode = "disable"
 	}
 
-	sprintf := fmt.Sprintf(
-		"postgres://%v:%v@%v:%v/%v?sslmode=%v",
-		username,
-		password,
-		host,
-		port,
-		database,
-		sslMode,
-	)
-	fmt.Printf(sprintf + "\n")
 	db := sqlx.MustOpen(
 		"postgres",
-		sprintf,
+		fmt.Sprintf(
+			"postgres://%v:%v@%v:%v/%v?sslmode=%v",
+			username,
+			password,
+			host,
+			port,
+			database,
+			sslMode,
+		),
 	)
 
 	return &Pool{
@@ -146,19 +136,17 @@ func Exec(ctx *Transaction, query string, args Params) {
 	_, err := ctx.tx.NamedExec(query, args)
 	if err != nil {
 		ctx.Ok = false
-		ctx.error = Error{fmt.Sprintf("Database exec failed: %v\nquery: %v\n", err.Error(), query)}
+		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
 	}
 }
 
-func Get[T any](ctx *Transaction, query string, args Params) T {
+func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 	items := Select[T](ctx, query, args)
 	if len(items) != 1 {
 		var dummy T
-		ctx.Ok = false
-		ctx.error = Error{fmt.Sprintf("Database returned the wrong amount of results: %v\nquery:%v\n", len(items), query)}
-		return dummy
+		return dummy, false
 	}
-	return items[0]
+	return items[0], true
 }
 
 func Select[T any](ctx *Transaction, query string, args Params) []T {
@@ -166,7 +154,7 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 	res, err := ctx.tx.NamedQuery(query, args)
 	if err != nil {
 		ctx.Ok = false
-		ctx.error = Error{fmt.Sprintf("Database select failed: %v\nquery: %v\n", err.Error(), query)}
+		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
 		return nil
 	}
 
@@ -178,7 +166,7 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 
 		if err != nil {
 			ctx.Ok = false
-			ctx.error = Error{"Database select failed: " + err.Error() + "\nquery: " + query}
+			ctx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
 			return nil
 		}
 	}
