@@ -112,6 +112,26 @@ class AccountingController(
             ok(BulkResponse(response))
         }
 
+        implementOrDispatch(AccountingV2.retrieveScopedUsage) {
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+            val response = ArrayList<AccountingV2.RetrieveScopedUsage.ResponseItem>()
+            for (req in request.items) {
+                response.add(
+                    AccountingV2.RetrieveScopedUsage.ResponseItem(
+                        accounting.sendRequest(
+                            AccountingRequest.RetrieveScopedUsage(
+                                idCard,
+                                req.owner.reference(),
+                                req.chargeId,
+                            )
+                        )
+                    )
+                )
+            }
+            ok(BulkResponse(response))
+        }
+
         implementOrDispatch(AccountingV2.updateAllocation) {
             val idCard = idCards.fetchIdCard(actorAndProject)
             for (req in request.items) {

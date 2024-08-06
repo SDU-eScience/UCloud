@@ -125,6 +125,12 @@ sealed class AccountingRequest<Resp> {
         val owner: String,
     ) : AccountingRequest<Long>()
 
+    data class RetrieveScopedUsage(
+        override val idCard: IdCard,
+        val owner: String,
+        val chargeId: String
+    ) : AccountingRequest<Long>()
+
     data class RetrieveDescendants(
         override val idCard: IdCard,
         val projectId: String

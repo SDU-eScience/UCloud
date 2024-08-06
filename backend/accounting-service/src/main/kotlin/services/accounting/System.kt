@@ -218,6 +218,7 @@ class AccountingSystem(
                                         }
 
                                         is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
+                                        is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
                                         is AccountingRequest.DebugState -> {
                                             if (msg.idCard != IdCard.System) {
                                                 Response.error(HttpStatusCode.Forbidden, "Forbidden")
@@ -1408,6 +1409,16 @@ class AccountingSystem(
             queue.addAll(childrenWallets.values)
         }
         return Response.ok(descendantsId.toSet().toList())
+    }
+
+    private fun retrieveScopedUsage(request: AccountingRequest.RetrieveScopedUsage): Response<Long> {
+        if (request.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        }
+
+        val scopeKey = request.owner + "\n" + request.chargeId
+        val usage = scopedUsage[scopeKey] ?: 0L
+        return Response.ok(usage)
     }
 
     private fun scopeKey(wallet: InternalWallet, scope: String): String {

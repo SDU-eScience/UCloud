@@ -71,6 +71,15 @@ class PaymentService(
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
+        val scopedUsage = AccountingV2.retrieveScopedUsage.call(
+            BulkRequest(
+                payments.map { payment ->
+                    AccountingV2.RetrieveScopedUsage.RequestItem(
+                        payment.owner, payment.chargeId
+                    )
+                }
+            ), serviceClient
+        ).orThrow().responses
         try {
             return AccountingV2.checkProviderUsable.call(
                 BulkRequest(
@@ -84,9 +93,11 @@ class PaymentService(
                 serviceClient,
             ).orThrow().responses.mapIndexed { index, response ->
                 val payment = payments[index]
-                val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
+                val paymentRequired = payment.units * payment.pricePerUnit * payment.periods
+                val alreadyPrepaid = scopedUsage[index].alreadyChargedAmount
+                val balanceNeeded = paymentRequired - alreadyPrepaid
 
-                if (response.maxUsable >= balanceUsed) ChargeResult.Charged
+                if (response.maxUsable >= balanceNeeded) ChargeResult.Charged
                 else ChargeResult.InsufficientFunds
             }
         } catch (ex: Throwable) {
