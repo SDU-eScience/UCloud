@@ -169,7 +169,7 @@ export const AppGroup: React.FunctionComponent = () => {
                 </ReactModal>
                 <MainContainer
                     header={
-                        <Flex justifyContent="space-between">
+                        <Flex justifyContent="space-between" maxWidth="800px" ml="auto" mr="auto">
                             <h3 className="title">Edit group</h3>
                             <Flex justifyContent="right" mr="10px">
                                 <Button type="button" onClick={async () => {
@@ -240,19 +240,13 @@ export const AppGroup: React.FunctionComponent = () => {
                                             />
                                         </label>
 
-                                        <Button
-                                            ml="5px"
-                                            type="button"
-                                            color="errorMain"
-                                            disabled={commandLoading}
-                                            onClick={async () => {
+                                        <ConfirmationButton
+                                            icon="heroTrash"
+                                            onAction={async () => {
                                                 await invokeCommand(AppStore.removeLogoFromGroup({id}));
                                                 refresh();
                                             }}
-                                        >
-                                            <Icon name="trash"/>
-                                        </Button>
-
+                                        />
                                     </Flex>
                                 </Flex>
 
@@ -331,20 +325,16 @@ export const AppGroup: React.FunctionComponent = () => {
                                                             </Label>
                                                         </Box>
                                                         <Box>
-                                                            <Button
-                                                                mt="2px"
-                                                                color="errorMain"
-                                                                type="button"
-                                                                onClick={async () => {
+                                                            <ConfirmationButton
+                                                                icon="heroTrash"
+                                                                onAction={async () => {
                                                                     await invokeCommand(AppStore.assignApplicationToGroup({
                                                                         name: app.metadata.name,
                                                                         group: undefined
                                                                     }))
                                                                     refresh();
                                                                 }}
-                                                            >
-                                                                <Icon name="trash"/>
-                                                            </Button>
+                                                            />
                                                         </Box>
                                                     </Flex>
                                                 }

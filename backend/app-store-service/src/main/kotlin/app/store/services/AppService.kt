@@ -186,11 +186,24 @@ class AppService(
                 """
             ).rows
 
-            appRows.forEach { row ->
-                val app = row.toApplication()
-                registerApplication(app, flush = false)
-                val groupLogo = row.getAs<ByteArray?>("group_logo")
-                val logoHasText = row.getBoolean("group_logo_has_text") ?: false
+            val appGroups = session.sendPreparedStatement("""
+                select 
+                    id,
+                    title,
+                    description,
+                    default_name,
+                    logo_has_text,
+                    color_remapping
+                from app_store.application_groups
+            """).rows
+
+            for (row in appGroups) {
+                val id = row.getInt("id") ?: continue
+                val title = row.getString("title") ?: continue
+                val defaultFlavor = row.getString("default_name")
+                val description = row.getString("description") ?: ""
+                val logoHasText = row.getBoolean("logo_has_text") ?: false
+
                 val colorRemapping = row.getString("color_remapping")?.let {
                     defaultMapper.decodeFromString<Map<String, Map<Int, Int>?>>(it)
                 }
@@ -198,15 +211,23 @@ class AppService(
                 val darkRemapping = colorRemapping?.get("dark")
                 val lightRemapping = colorRemapping?.get("light")
 
-                val g = app.metadata.group
-                if (g != null) {
-                    groups[g.metadata.id.toLong()]?.updateMetadata(
-                        logo = groupLogo,
-                        newLogoHasText = logoHasText,
-                        colorRemappingLight = lightRemapping,
-                        colorRemappingDark = darkRemapping,
-                    )
-                }
+                val group = ApplicationGroup(
+                    ApplicationGroup.Metadata(id),
+                    ApplicationGroup.Specification(
+                        title,
+                        description,
+                        defaultFlavor,
+                        colorReplacement = ApplicationGroup.ColorReplacements(lightRemapping, darkRemapping),
+                        logoHasText = logoHasText
+                    ),
+                )
+
+                registerGroup(group)
+            }
+
+            appRows.forEach { row ->
+                val app = row.toApplication()
+                registerApplication(app, flush = false)
             }
 
             val acls = session
@@ -717,6 +738,7 @@ class AppService(
         groupId: Int,
         loadApplications: Boolean = false
     ): ApplicationGroup? {
+        println("Groups consists of ${groups.size}")
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
             ApplicationGroup.Metadata(
@@ -1286,14 +1308,29 @@ class AppService(
             groupIdAllocatorForTestsOnly.getAndIncrement()
         } else {
             db.withSession { session ->
-                session.sendPreparedStatement(
+                val existing = session.sendPreparedStatement(
                     { setParameter("title", title) },
                     """
+                        select id from app_store.application_groups where title = :title
+                    """
+                ).rows.size
+
+                if (existing > 0) {
+                    throw RPCException("Group with name $title already exists", HttpStatusCode.Conflict)
+                }
+
+                try {
+                    session.sendPreparedStatement(
+                        { setParameter("title", title) },
+                         """
                         insert into app_store.application_groups (title)
                         values (:title)
                         returning id
                     """
-                ).rows.single().getInt(0)!!
+                    ).rows.single().getInt(0)!!
+                } catch (e: Exception) {
+                    throw RPCException("Error creating group.", HttpStatusCode.BadRequest)
+                }
             }
         }
 

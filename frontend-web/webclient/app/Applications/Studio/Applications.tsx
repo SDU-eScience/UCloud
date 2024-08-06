@@ -217,14 +217,14 @@ export const App: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={(
-                <Flex justifyContent="space-between">
-                    <Heading.h2 style={{margin: 0}}>
-                        <SafeLogo name={name} type={"APPLICATION"} size={"64px"}/>
-                        {" "}
+                <Flex justifyContent="left" verticalAlign="center" maxWidth="800px" ml="auto" mr="auto">
+                    <SafeLogo name={name} type={"APPLICATION"} size={"64px"}/>
+                    <Heading.h2 pt="20px">
                         {appTitle}
                     </Heading.h2>
                 </Flex>
             )}
+            headerSize={70}
             main={(<>
                 <Flex flexDirection="column">
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
@@ -245,7 +245,7 @@ export const App: React.FunctionComponent = () => {
                                 refresh();
                             }}
                         >
-                            <Heading.h2>Group</Heading.h2>
+                            <Label>Group</Label>
                             <Flex>
                                 <GroupSelector
                                     selectedGroup={selectedGroup}
@@ -255,7 +255,7 @@ export const App: React.FunctionComponent = () => {
                                 />
                             </Flex>
 
-                            <Heading.h2>Flavor (name)</Heading.h2>
+                            <Label>Flavor (name)</Label>
                             <Flex>
                                 <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
                                 <Button
