@@ -1412,6 +1412,10 @@ class AccountingSystem(
     }
 
     private fun retrieveScopedUsage(request: AccountingRequest.RetrieveScopedUsage): Response<Long> {
+        if (request.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        }
+
         val scopeKey = request.owner + "\n" + request.chargeId
         val usage = scopedUsage[scopeKey] ?: 0L
         return Response.ok(usage)

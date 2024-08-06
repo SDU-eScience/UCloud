@@ -114,7 +114,7 @@ class AccountingController(
 
         implementOrDispatch(AccountingV2.retrieveScopedUsage) {
             val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
-            val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)
+            val idCard = if (isService) IdCard.System else throw RPCException("Forbidden", HttpStatusCode.Forbidden)
             val response = ArrayList<AccountingV2.RetrieveScopedUsage.ResponseItem>()
             for (req in request.items) {
                 response.add(

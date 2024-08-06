@@ -249,7 +249,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             BulkResponse.serializer(ResponseItem.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "retrieveScopedUsage", roles = Roles.PROVIDER)
+                httpRetrieve(baseContext, "retrieveScopedUsage", roles = Roles.SERVICE)
             }
         )
     }
