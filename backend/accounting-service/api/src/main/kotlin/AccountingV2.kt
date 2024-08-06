@@ -215,6 +215,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // =================================================================================================================
     val reportUsage = ReportUsage.call
     val checkProviderUsable = CheckProviderUsable.call
+    val retrieveScopedUsage = RetrieveScopedUsage.call
 
     private fun StringBuilder.documentationReportingFromProvider() {}
 
@@ -226,6 +227,29 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "reportUsage", roles = Roles.PROVIDER)
+            }
+        )
+    }
+
+    object RetrieveScopedUsage {
+        @Serializable
+        data class RequestItem(
+            val owner: WalletOwner,
+            val chargeId : String
+        )
+
+        @Serializable
+        data class ResponseItem(
+            val alreadyChargedAmount: Long
+        )
+
+        val call = call(
+            "retrieveScopedUsage",
+            BulkRequest.serializer(RequestItem.serializer()),
+            BulkResponse.serializer(ResponseItem.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "retrieveScopedUsage", roles = Roles.PROVIDER)
             }
         )
     }
