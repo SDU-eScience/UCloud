@@ -26,6 +26,7 @@ import {
 } from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 interface AppVersion {
     version: string;
@@ -341,7 +342,7 @@ export const App: React.FunctionComponent = () => {
                                             width="180px"
                                             onChange={(val: AccessEntityType) => setSelectedEntityType(val)}
                                             trigger={
-                                                <span style={{minWidth: "200px"}}>
+                                                <span style={{minWidth: "100px"}}>
                                                     {prettifyEntityType(selectedEntityType)}
                                                 </span>
                                             }
@@ -379,13 +380,13 @@ export const App: React.FunctionComponent = () => {
                                             />
                                         </>
                                     )}
-                                    <InputLabel width={300} rightLabel leftLabel>
+                                    <InputLabel width={200} rightLabel leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
                                             onChange={(val: ApplicationAccessRight) => setAccess(val)}
                                             trigger={<span
-                                                style={{minWidth: "250px"}}>{prettifyAccessRight(access)}</span>}
+                                                style={{minWidth: "100px"}}>{prettifyAccessRight(access)}</span>}
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
@@ -400,9 +401,9 @@ export const App: React.FunctionComponent = () => {
                                     <Table>
                                         <LeftAlignedTableHeader>
                                             <TableRow>
-                                                <TableHeaderCell width="300px">Name</TableHeaderCell>
-                                                <TableHeaderCell>Permission</TableHeaderCell>
-                                                <TableHeaderCell width={50}>Delete</TableHeaderCell>
+                                                <TableHeaderCell minWidth="300px">Name</TableHeaderCell>
+                                                <TableHeaderCell width="100px">Permission</TableHeaderCell>
+                                                <TableHeaderCell textAlign="right">Delete</TableHeaderCell>
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
@@ -415,25 +416,17 @@ export const App: React.FunctionComponent = () => {
                                                         `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
                                                     )}</TableCell>
                                                 <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    <Button
-                                                        color={"errorMain"}
-                                                        type={"button"}
-                                                        onClick={() => addStandardDialog({
-                                                            title: `Are you sure?`,
-                                                            message: (
-                                                                <Box>
-                                                                    <Text>
-                                                                        Remove permission
-                                                                        for {(permissionEntry.entity.user) ? (
-                                                                        permissionEntry.entity.user
-                                                                    ) : (
-                                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                    )}
-                                                                    </Text>
-                                                                </Box>
-                                                            ),
-                                                            onConfirm: async () => {
+                                                <TableCell>
+                                                    <Flex justifyContent="right">
+                                                        <ConfirmationButton
+                                                            icon="heroTrash"
+                                                            actionKey={
+                                                                permissionEntry.entity.user ?? "" +
+                                                                permissionEntry.entity.project?.id ?? "" +
+                                                                permissionEntry.entity.group?.id ?? "" +
+                                                                permissionEntry.permission
+                                                            }
+                                                            onAction={async () => {
                                                                 await invokeCommand(AppStore.updateAcl({
                                                                     name: name,
                                                                     changes: [
@@ -449,11 +442,9 @@ export const App: React.FunctionComponent = () => {
                                                                     ]
                                                                 }));
                                                                 fetchPermissionEntries(AppStore.retrieveAcl({name}));
-                                                            }
-                                                        })}
-                                                    >
-                                                        <Icon size={16} name="trash"/>
-                                                    </Button>
+                                                            }}
+                                                        />
+                                                    </Flex>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
