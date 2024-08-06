@@ -1009,7 +1009,7 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         return groups.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
-        }
+        }.sortedBy { it.specification.title }
     }
 
     fun listAllApplications(): List<NameAndVersion> {
