@@ -246,7 +246,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     />
 
                     { Client.userIsAdmin ? <>
-                        <Label>Project ID</Label>
+                        <Label>Project ID (only visible to UCloud Admins)</Label>
                         <Flex>
                             <Text color={"textSecondary"}>{projectId}</Text>
                             <Icon
