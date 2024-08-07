@@ -206,7 +206,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 left={
                                     <Flex justifyContent="left">
                                         <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
-                                        <Box ml="10px">
+                                        <Box ml="10px" mt="5px">
                                             {group.specification.title}
                                         </Box>
                                     </Flex>
