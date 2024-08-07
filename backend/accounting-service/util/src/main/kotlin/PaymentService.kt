@@ -96,7 +96,7 @@ class PaymentService(
                 val paymentRequired = payment.units * payment.pricePerUnit * payment.periods
                 val alreadyPrepaid = scopedUsage[index].alreadyChargedAmount
                 val balanceNeeded = paymentRequired - alreadyPrepaid
-
+                log.info("chargeId: ${payment.chargeId}, paymentRequired: $paymentRequired, already paid: $alreadyPrepaid, needs: $balanceNeeded, maxUsable: ${response.maxUsable}")
                 if (response.maxUsable >= balanceNeeded) ChargeResult.Charged
                 else ChargeResult.InsufficientFunds
             }

@@ -1416,8 +1416,12 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
         }
 
-        val scopeKey = request.owner + "\n" + request.chargeId
+        val walletOwnerId = ownersByReference[request.owner]?.id ?: return Response.error(HttpStatusCode.BadRequest, "Failed to lookup owner")
+        val scopeKey =  walletOwnerId.toString() + "\n" + request.chargeId
+        log.info("Scopedkey: $scopeKey")
+        log.info("In scope ${scopedUsage.contains(scopeKey)}")
         val usage = scopedUsage[scopeKey] ?: 0L
+        log.info("FOUND: $usage")
         return Response.ok(usage)
     }
 
