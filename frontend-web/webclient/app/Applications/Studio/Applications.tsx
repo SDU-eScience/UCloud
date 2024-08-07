@@ -246,7 +246,7 @@ export const App: React.FunctionComponent = () => {
                             }}
                         >
                             <Label>Group</Label>
-                            <Flex>
+                            <Flex mb="20px">
                                 <GroupSelector
                                     selectedGroup={selectedGroup}
                                     applicationName={name}

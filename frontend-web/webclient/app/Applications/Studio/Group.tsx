@@ -189,7 +189,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                     const newDescription = descriptionField.value;
 
-                                    await invokeCommand(AppStore.updateGroup({
+                                    const success = await invokeCommand(AppStore.updateGroup({
                                         id: group.data?.metadata.id,
                                         newTitle: newTitle,
                                         newDescription: newDescription,
@@ -198,6 +198,10 @@ export const AppGroup: React.FunctionComponent = () => {
                                         // tags
                                     }));
                                     refresh();
+
+                                    if (success) {
+                                        snackbarStore.addSuccess("Changes saved", false);
+                                    }
                                 }}>Save changes</Button>
                             </Flex>
                         </Flex>
