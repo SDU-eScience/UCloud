@@ -999,7 +999,15 @@ class JobResourceService(
         request: BulkRequest<ResourceChargeCredits>,
         checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
-        return payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
+        log.info("Charge or check: checkOnly: $checkOnly")
+        val result =  payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
+        result.insufficientFunds.forEach {
+            log.info("insuficcient: $it")
+        }
+        result.duplicateCharges.forEach {
+            log.info("dublicate: $it")
+        }
+        return result
     }
 
     // The openInteractiveSession call establishes some kind of interactive session between the end-user and the job
