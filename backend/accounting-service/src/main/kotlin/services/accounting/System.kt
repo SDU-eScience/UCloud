@@ -1416,17 +1416,22 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
         }
 
-        val walletOwnerId = ownersByReference[request.owner]?.id ?: return Response.error(HttpStatusCode.BadRequest, "Failed to lookup owner")
-        val scopeKey =  walletOwnerId.toString() + "\n" + request.chargeId
-        log.info("Scopedkey: $scopeKey")
-        log.info("In scope ${scopedUsage.contains(scopeKey)}")
-        val usage = scopedUsage[scopeKey] ?: 0L
+        val walletOwnerId = ownersByReference[request.owner.reference()]?.id
+            ?: return Response.error(HttpStatusCode.NotFound, "Failed to lookup owner")
+        val key =  scopeKey(walletOwnerId, request.chargeId)
+        log.info("Scopedkey: $key")
+        log.info("In scope ${scopedUsage.contains(key)}")
+        val usage = scopedUsage[key] ?: 0L
         log.info("FOUND: $usage")
         return Response.ok(usage)
     }
 
+    private fun scopeKey(walletOwnerNumeric: Int, scope: String): String {
+        return "$walletOwnerNumeric\n$scope"
+    }
+
     private fun scopeKey(wallet: InternalWallet, scope: String): String {
-        return wallet.ownedBy.toString() + "\n" + scope
+        return scopeKey(wallet.ownedBy, scope)
     }
 
     private fun reevaluateWalletsAfterUpdate(root: InternalWallet) {
@@ -1491,6 +1496,11 @@ class AccountingSystem(
 
                         append("tA: ")
                         append(wallet.totalAllocated)
+                        append("<br>")
+
+                        val maxUsable = maxUsableForWallet(wallet)
+                        append("mU: ")
+                        append(maxUsable)
                         append("<br>")
 
                         if (wallet.childrenUsage.isNotEmpty()) {

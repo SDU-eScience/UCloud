@@ -3,10 +3,7 @@ package dk.sdu.cloud.accounting.services.accounting
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.accounting.api.AccountingV2
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.WalletV2
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IdCard
 
 sealed class AccountingRequest<Resp> {
@@ -127,7 +124,7 @@ sealed class AccountingRequest<Resp> {
 
     data class RetrieveScopedUsage(
         override val idCard: IdCard,
-        val owner: String,
+        val owner: WalletOwner,
         val chargeId: String
     ) : AccountingRequest<Long>()
 

@@ -63,6 +63,18 @@ func WalletOwnerProject(projectId string) WalletOwner {
 	}
 }
 
+func WalletOwnerFromIds(username, projectId string) WalletOwner {
+	result := WalletOwner{}
+	if projectId != "" {
+		result.Type = WalletOwnerTypeProject
+		result.ProjectId = projectId
+	} else {
+		result.Type = WalletOwnerTypeUser
+		result.ProjectId = username
+	}
+	return result
+}
+
 type UsageReportItem struct {
 	IsDeltaCharge bool                `json:"isDeltaCharge"`
 	Owner         WalletOwner         `json:"owner"`

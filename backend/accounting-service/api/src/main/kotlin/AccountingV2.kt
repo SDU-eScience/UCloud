@@ -282,6 +282,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val findRelevantProviders = FindRelevantProviders.call
     val browseProviderAllocations = BrowseProviderAllocations.call
     val retrieveDescendants = RetrieveDescendants.call
+    val adminDebug = AdminDebug.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -380,6 +381,31 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
                         This endpoint is only usable by providers. The endpoint will return a stable results. 
                     """.trimIndent()
                 }
+            }
+        )
+    }
+
+    object AdminDebug {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val mermaidGraph: String,
+        )
+
+        @UCloudApiInternal(InternalLevel.BETA)
+        val call = call(
+            "adminDebug",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminDebug", roles = Roles.ADMIN)
             }
         )
     }

@@ -122,7 +122,7 @@ class AccountingController(
                         accounting.sendRequest(
                             AccountingRequest.RetrieveScopedUsage(
                                 idCard,
-                                req.owner.reference(),
+                                req.owner,
                                 req.chargeId,
                             )
                         )
@@ -244,6 +244,17 @@ class AccountingController(
                     )
                 )
             )
+        }
+
+        implementOrDispatch(AccountingV2.adminDebug) {
+            val graph = accounting.sendRequest(
+                AccountingRequest.DebugState(
+                    IdCard.System,
+                    listOf(request.walletId)
+                )
+            )
+
+            ok(AccountingV2.AdminDebug.Response(graph))
         }
 
         return@with

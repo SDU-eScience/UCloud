@@ -24,6 +24,7 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	}
 
 	if args.Mode == cfg.ServerModeServer {
+		args.Database.MapperFunc(util.ToSnakeCase)
 		db.Database = &db.Pool{Connection: args.Database}
 		kvdb.Init(args.ConfigDir + "/kv.db")
 

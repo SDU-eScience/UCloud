@@ -130,9 +130,7 @@ func MapUCloudToLocal(username string) (uint32, bool) {
 
 func MapLocalToUCloud(uid uint32) (string, bool) {
 	tx := db.Database.Open()
-	val, ok := db.Get[struct {
-		UCloudUsername string `db:"ucloud_username"`
-	}](
+	val, ok := db.Get[struct{ UCloudUsername string }](
 		tx,
 		`
 			select ucloud_username
