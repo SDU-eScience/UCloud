@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.api.Project
 import dk.sdu.cloud.app.store.api.ProjectGroup
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.checkSingleLine
@@ -1467,9 +1469,23 @@ class AppService(
                         }.group.id
 
                     AccessEntity(null, foundProject.id, foundGroupId)
-                } else {
+                } else if (!change.entity.user.isNullOrEmpty()) {
+                    val foundUser = UserDescriptions.lookupUsers.call(
+                        LookupUsersRequest(listOf(change.entity.user!!)),
+                        serviceClient
+                    ).orRethrowAs {
+                        throw RPCException("User not found", HttpStatusCode.NotFound)
+                    }.results
+
+                    if (foundUser[change.entity.user] == null) {
+                        throw RPCException("User not found", HttpStatusCode.NotFound)
+                    }
+
                     change.entity
+                } else {
+                    throw RPCException("Invalid permission entry", HttpStatusCode.BadRequest)
                 }
+
 
                 additions.add(EntityWithPermission(newEntity, change.rights))
             }
