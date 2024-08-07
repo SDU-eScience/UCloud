@@ -125,7 +125,7 @@ suspend fun PaymentService.chargeOrCheckCredits(
 
     ResourceOutputPool.withInstance { pool ->
         val count = documents.retrieveBulk(card, ids, pool, Permission.PROVIDER)
-        PaymentService.log.info("Count: $count , pool : $pool")
+        PaymentService.log.info("Count: $count, pool: $pool")
         for (i in 0 until count) {
             val doc = pool[i]
             for (reqItem in request.items) {
