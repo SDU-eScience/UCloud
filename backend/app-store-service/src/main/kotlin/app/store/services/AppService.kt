@@ -193,6 +193,7 @@ class AppService(
                     description,
                     default_name,
                     logo_has_text,
+                    logo,
                     color_remapping
                 from app_store.application_groups
             """).rows
@@ -202,6 +203,7 @@ class AppService(
                 val title = row.getString("title") ?: continue
                 val defaultFlavor = row.getString("default_name")
                 val description = row.getString("description") ?: ""
+                val logo = row.getAs<ByteArray?>("logo")
                 val logoHasText = row.getBoolean("logo_has_text") ?: false
 
                 val colorRemapping = row.getString("color_remapping")?.let {
@@ -223,6 +225,12 @@ class AppService(
                 )
 
                 registerGroup(group)
+
+                groups[id.toLong()]?.updateMetadata(
+                    logo = logo,
+                    colorRemappingLight = lightRemapping,
+                    colorRemappingDark = darkRemapping
+                )
             }
 
             appRows.forEach { row ->
@@ -738,7 +746,6 @@ class AppService(
         groupId: Int,
         loadApplications: Boolean = false
     ): ApplicationGroup? {
-        println("Groups consists of ${groups.size}")
         val info = groups[groupId.toLong()]?.get() ?: return null
         return ApplicationGroup(
             ApplicationGroup.Metadata(
