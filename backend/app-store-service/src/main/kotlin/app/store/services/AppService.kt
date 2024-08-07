@@ -1175,6 +1175,11 @@ class AppService(
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val g = groups[id.toLong()] ?: throw RPCException("Unknown group: $id", HttpStatusCode.NotFound)
+        val lookupByTitle = groups.filter { it.value.get().title == newTitle }
+
+        if (lookupByTitle.isNotEmpty() && !lookupByTitle.keys.contains(id.toLong())) {
+            throw RPCException("Group with title already exists", HttpStatusCode.Conflict)
+        }
 
         val normalizedNewDescription = newDescription?.trim()
         if (newTitle != null) checkSingleLine("title", newTitle, maximumSize = 64)
