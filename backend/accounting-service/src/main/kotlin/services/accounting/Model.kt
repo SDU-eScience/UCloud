@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.api.AllocationGroup
 import dk.sdu.cloud.accounting.api.ProductCategory
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.client.AtomicInteger
+import kotlinx.serialization.Serializable
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal val didLoadUnsynchronizedGrants = AtomicBoolean(false)
@@ -66,6 +67,7 @@ data class InternalAllocation(
     }
 }
 
+@Serializable
 data class InternalAllocationGroup(
     //Group ID
     val id: Int,
@@ -121,6 +123,7 @@ data class InternalAllocationGroup(
     }
 }
 
+@Serializable
 data class InternalWallet(
     val id: Int,
     val ownedBy: Int,

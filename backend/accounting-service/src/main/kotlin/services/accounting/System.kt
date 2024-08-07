@@ -1,8 +1,7 @@
 package dk.sdu.cloud.accounting.services.accounting
 
 import com.google.common.primitives.Longs.min
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IIdCardService
@@ -12,7 +11,6 @@ import dk.sdu.cloud.accounting.util.findAllFreeProducts
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.toReadableStacktrace
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -23,13 +21,21 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import org.slf4j.Logger
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.math.BigInteger
+import java.text.DateFormat
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.Comparator
+import kotlin.collections.ArrayDeque
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.math.max
 import kotlin.random.Random
 
@@ -219,6 +225,8 @@ class AccountingSystem(
 
                                         is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
+                                        is AccountingRequest.DebugCharge -> debugCharge(msg)
+                                        is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
                                             if (msg.idCard != IdCard.System) {
                                                 Response.error(HttpStatusCode.Forbidden, "Forbidden")
@@ -294,6 +302,30 @@ class AccountingSystem(
                 log.info(ex.toReadableStacktrace().toString())
             }
         }
+    }
+
+    private fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            return chargeWallet(
+                walletsById[msg.walletId] ?:
+                    return Response.error(HttpStatusCode.NotFound, "unknown wallet: ${msg.walletId}"),
+                msg.charge,
+                isDelta = true,
+                scope = null,
+                debug = true,
+            )
+        }
+    }
+
+    private fun debugWallet(msg: AccountingRequest.DebugWallet): Response<JsonObject> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        }
+
+        val wallet = walletsById[msg.walletId] ?: return Response.error(HttpStatusCode.NotFound, "Not found")
+        return Response.ok(defaultMapper.encodeToJsonElement(InternalWallet.serializer(), wallet) as JsonObject)
     }
 
     private suspend fun processPeriodicTasks() {
@@ -732,7 +764,7 @@ class AccountingSystem(
         // Plan charge
         val (totalChargeableAmount, chargeGraph) = run {
             val graph = buildGraph(wallet, now, true)
-            debug(wallet) {
+            debug {
                 buildString {
                     appendLine("# `internalCharge(${wallet.id}, $totalAmount)` (Before)")
                     appendLine("```mermaid")
@@ -750,6 +782,14 @@ class AccountingSystem(
             Pair(maxUsable, graph)
         }
 
+        debug {
+            buildString {
+                appendLine("# `internalCharge(${wallet.id}, $totalAmount)` (During)")
+                appendLine()
+                appendLine("- `totalChargeableAmount`: $totalChargeableAmount")
+            }
+        }
+
         val walletsUpdated = HashMap<Int, Boolean>()
         walletsUpdated[wallet.id] = true
 
@@ -759,9 +799,14 @@ class AccountingSystem(
                 val senderId = chargeGraph.index[senderIndex]
                 val senderWallet = walletsById[senderId]
                 if (senderWallet != null) {
-                    senderWallet.excessUsage = chargeGraph.adjacent[senderIndex][senderIndex + gSize]
+                    val excess = chargeGraph.adjacent[senderIndex][senderIndex + gSize]
+                    senderWallet.excessUsage = excess
                     senderWallet.isDirty = true
                     walletsUpdated[senderId] = true
+
+                    if (excess != 0L) {
+                        debug { "- excess from $senderIndex (to fake root) of $excess\n" }
+                    }
                 }
 
                 for (receiverIndex in 0 until (chargeGraph.vertexCount / 2)) {
@@ -791,7 +836,7 @@ class AccountingSystem(
             visitedWallets.add(walletId)
         }
 
-        debug(wallet) {
+        debug {
             buildString {
                 appendLine("# `internalCharge(${wallet.id}, $totalAmount)` (After)")
                 appendLine("```mermaid")
@@ -861,80 +906,90 @@ class AccountingSystem(
         isDelta: Boolean,
         scope: String? = null,
         scopeExplanation: String? = null,
+        debug: Boolean = false,
     ): Response<Unit> {
-        debug(wallet) {
-            buildString {
-                appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (Before)")
-                appendLine("```mermaid")
-                appendLine(produceMermaidGraph(listOf(wallet.id)))
-                appendLine("```")
+        try {
+            if (debug) {
+                val now = Time.now()
+                startDebuggingSession("W${wallet.id}-$now.txt")
             }
-        }
 
-        val now = Time.now()
-
-        val currentUsage = if (scope == null) {
-            wallet.localUsage
-        } else {
-            scopedUsage[scopeKey(wallet, scope)] ?: 0L
-        }
-
-        val delta = if (isDelta) amount else amount - currentUsage
-
-        if (delta + wallet.localUsage < 0) {
-            return Response.error(
-                HttpStatusCode.BadRequest,
-                "Refusing to process negative charge exceeding local wallet usage"
-            )
-        }
-
-        if (scope != null) {
-            val scopeKey = scopeKey(wallet, scope)
-            scopedUsage[scopeKey] = currentUsage + delta
-            scopedDirty[scopeKey] = true
-        }
-
-        val (totalChargeableAmount, visitedWallets) = internalCharge(wallet, delta, now)
-        if (delta > 0) {
-            wallet.localUsage += delta
-            wallet.excessUsage += delta - totalChargeableAmount
-        } else {
-            wallet.localUsage -= totalChargeableAmount
-        }
-
-        wallet.isDirty = true
-
-        val overSpendingWallets = ArrayList<Int>()
-        for (walletId in visitedWallets) {
-            val visitedWallet = walletsById.getValue(walletId)
-            if (visitedWallet.isOverspending()) {
-                overSpendingWallets.add(walletId)
-                if (!visitedWallet.wasLocked) {
-                    reevaluateWalletsAfterUpdate(visitedWallet)
+            debug {
+                buildString {
+                    appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (Before)")
+                    appendLine("```mermaid")
+                    appendLine(produceMermaidGraph(listOf(wallet.id)))
+                    appendLine("```")
                 }
+            }
+
+            val now = Time.now()
+
+            val currentUsage = if (scope == null) {
+                wallet.localUsage
             } else {
-                if (visitedWallet.wasLocked) {
-                    reevaluateWalletsAfterUpdate(visitedWallet)
+                scopedUsage[scopeKey(wallet, scope)] ?: 0L
+            }
+
+            val delta = if (isDelta) amount else amount - currentUsage
+
+            if (delta + wallet.localUsage < 0) {
+                return Response.error(
+                    HttpStatusCode.BadRequest,
+                    "Refusing to process negative charge exceeding local wallet usage"
+                )
+            }
+
+            if (scope != null) {
+                val scopeKey = scopeKey(wallet, scope)
+                scopedUsage[scopeKey] = currentUsage + delta
+                scopedDirty[scopeKey] = true
+            }
+
+            val (totalChargeableAmount, visitedWallets) = internalCharge(wallet, delta, now)
+            if (delta > 0) {
+                wallet.localUsage += delta
+                wallet.excessUsage += delta - totalChargeableAmount
+            } else {
+                wallet.localUsage -= totalChargeableAmount
+            }
+
+            wallet.isDirty = true
+
+            val overSpendingWallets = ArrayList<Int>()
+            for (walletId in visitedWallets) {
+                val visitedWallet = walletsById.getValue(walletId)
+                if (visitedWallet.isOverspending()) {
+                    overSpendingWallets.add(walletId)
+                    if (!visitedWallet.wasLocked) {
+                        reevaluateWalletsAfterUpdate(visitedWallet)
+                    }
+                } else {
+                    if (visitedWallet.wasLocked) {
+                        reevaluateWalletsAfterUpdate(visitedWallet)
+                    }
                 }
             }
-        }
 
-        var error: String? = null
-        if (overSpendingWallets.isNotEmpty()) {
-            error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
-        }
-
-        debug(wallet) {
-            buildString {
-                appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (After)")
-                appendLine("```mermaid")
-                appendLine(produceMermaidGraph(listOf(wallet.id)))
-                appendLine("```")
+            var error: String? = null
+            if (overSpendingWallets.isNotEmpty()) {
+                error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
             }
-        }
 
-        if (error != null) return Response.error(HttpStatusCode.PaymentRequired, error)
-        return Response.ok(Unit)
+            debug {
+                buildString {
+                    appendLine("# `chargeWallet(${wallet.id}, $amount, isDelta=$isDelta, scope=$scope)` (After)")
+                    appendLine("```mermaid")
+                    appendLine(produceMermaidGraph(listOf(wallet.id)))
+                    appendLine("```")
+                }
+            }
+
+            if (error != null) return Response.error(HttpStatusCode.PaymentRequired, error)
+            return Response.ok(Unit)
+        } finally {
+            stopAnyDebuggingSession()
+        }
     }
 
     private suspend fun browseWallets(request: AccountingRequest.BrowseWallets): Response<List<WalletV2>> {
@@ -1145,6 +1200,7 @@ class AccountingSystem(
             }
 
             if (withOverAllocation) {
+                // 1858950 + 30600 + 0 - 1786500 = 103050
                 var overAllocation = wallet.totalAllocated + wallet.totalRetiredAllocated + wallet.localUsage -
                         wallet.totalActiveQuota()
 
@@ -1503,6 +1559,18 @@ class AccountingSystem(
                         append(maxUsable)
                         append("<br>")
 
+                        append("aQ: ")
+                        append(wallet.totalActiveQuota())
+                        append("<br>")
+
+                        append("tU: ")
+                        append(wallet.totalUsage())
+                        append("<br>")
+
+                        append("ttU: ")
+                        append(wallet.totalTreeUsage())
+                        append("<br>")
+
                         if (wallet.childrenUsage.isNotEmpty()) {
                             append("<br>children:<br>")
                             for ((childId, usage) in wallet.childrenUsage) {
@@ -1549,15 +1617,21 @@ class AccountingSystem(
         }
     }
 
-    private val debugFile by lazy { File("/tmp/debug.txt").printWriter() }
-    private inline fun debug(wallet: InternalWallet, fn: () -> String) {
-        if (!DEBUG) return
-        if (wallet.category.productType != ProductType.LICENSE) return
+    private var debugStream: PrintWriter? = null
+    private fun startDebuggingSession(title: String) {
+        debugStream = File("/tmp", title).printWriter()
+    }
 
-        synchronized(debugFile) {
-            debugFile.println(fn())
-            debugFile.flush()
-        }
+    private fun stopAnyDebuggingSession() {
+        debugStream?.close()
+        debugStream = null
+    }
+
+    private inline fun debug(fn: () -> String) {
+        val stream = debugStream ?: return
+
+        stream.println(fn())
+        stream.flush()
     }
 
     companion object : Loggable {

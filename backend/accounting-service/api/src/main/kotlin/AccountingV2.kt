@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
 
 @UCloudApiInternal(InternalLevel.BETA)
 object AccountingV2 : CallDescriptionContainer("accounting.v2") {
@@ -283,6 +284,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val browseProviderAllocations = BrowseProviderAllocations.call
     val retrieveDescendants = RetrieveDescendants.call
     val adminDebug = AdminDebug.call
+    val adminCharge = AdminCharge.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -396,6 +398,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         @UCloudApiInternal(InternalLevel.BETA)
         data class Response(
             val mermaidGraph: String,
+            val stateDump: JsonObject,
         )
 
         @UCloudApiInternal(InternalLevel.BETA)
@@ -406,6 +409,31 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "adminDebug", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminCharge {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+            val amount: Long,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val errorIfAny: String?
+        )
+
+        val call = call(
+            "adminCharge",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminCharge", roles = Roles.ADMIN)
             }
         )
     }

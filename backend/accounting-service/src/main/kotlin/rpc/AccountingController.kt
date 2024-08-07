@@ -254,7 +254,26 @@ class AccountingController(
                 )
             )
 
-            ok(AccountingV2.AdminDebug.Response(graph))
+            val internalState = accounting.sendRequest(
+                AccountingRequest.DebugWallet(
+                    IdCard.System,
+                    request.walletId
+                )
+            )
+
+            ok(AccountingV2.AdminDebug.Response(graph, internalState))
+        }
+
+        implementOrDispatch(AccountingV2.adminCharge) {
+            val error = accounting.sendRequestNoUnwrap(
+                AccountingRequest.DebugCharge(
+                    IdCard.System,
+                    request.walletId,
+                    request.amount,
+                )
+            )
+
+            ok(AccountingV2.AdminCharge.Response(error))
         }
 
         return@with

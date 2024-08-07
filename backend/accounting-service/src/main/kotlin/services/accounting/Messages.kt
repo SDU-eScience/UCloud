@@ -5,6 +5,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IdCard
+import kotlinx.serialization.json.JsonObject
 
 sealed class AccountingRequest<Resp> {
     abstract val idCard: IdCard
@@ -147,6 +148,17 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val roots: List<Int>? = null,
     ) : AccountingRequest<String>()
+
+    data class DebugWallet(
+        override val idCard: IdCard,
+        val walletId: Int
+    ) : AccountingRequest<JsonObject>()
+
+    data class DebugCharge(
+        override val idCard: IdCard,
+        val walletId: Int,
+        val charge: Long,
+    ) : AccountingRequest<Unit>()
 
     data class DebugUsable(
         override val idCard: IdCard,
