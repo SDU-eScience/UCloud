@@ -1002,10 +1002,10 @@ class JobResourceService(
         log.info("Charge or check: checkOnly: $checkOnly")
         val result =  payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
         result.insufficientFunds.forEach {
-            log.info("insuficcient: $it")
+            log.info("insufficient: $it")
         }
         result.duplicateCharges.forEach {
-            log.info("dublicate: $it")
+            log.info("duplicate: $it")
         }
         return result
     }
