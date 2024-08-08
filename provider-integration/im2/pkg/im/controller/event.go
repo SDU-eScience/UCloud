@@ -13,7 +13,6 @@ import (
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -33,19 +32,20 @@ func initEvents() {
 
 	go func() {
 		for util.IsAlive {
-			tx := db.Database.Open()
-			replayFromTime, _ := db.Get[struct{ LastUpdate time.Time }](
-				tx,
-				`
-					select last_update from apm_events_replay_from where provider_id = :provider_id
-			    `,
-				db.Params{
-					"provider_id": cfg.Provider.Id,
-				},
-			)
-			tx.CloseOrPanic()
+			replayFromTime := db.NewTx[time.Time](func(tx *db.Transaction) time.Time {
+				r, _ := db.Get[struct{ LastUpdate time.Time }](
+					tx,
+					`
+						select last_update from apm_events_replay_from where provider_id = :provider_id
+				    `,
+					db.Params{
+						"provider_id": cfg.Provider.Id,
+					},
+				)
+				return r.LastUpdate
+			})
 
-			replayFrom := replayFromTime.LastUpdate.UnixMilli()
+			replayFrom := replayFromTime.UnixMilli()
 
 			url := cfg.Provider.Hosts.UCloud.ToURL()
 			url = strings.ReplaceAll(url, "http://", "ws://")
@@ -113,7 +113,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 		}
 
 		if success {
-			kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+			setReplayFrom()
 		}
 
 	case NotificationMessageProjectUpdated:
@@ -130,8 +130,25 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			callback(update)
 		}
 
-		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		setReplayFrom()
 	}
+}
+
+func setReplayFrom() {
+	db.NewTxV(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into apm_events_replay_from(provider_id, last_update) 
+				values (:provider_id, now())
+				on conflict (provider_id) do update set
+					last_update = excluded.last_update
+		    `,
+			db.Params{
+				"provider_id": cfg.Provider.Id,
+			},
+		)
+	})
 }
 
 const (
@@ -418,45 +435,46 @@ func (b *buf) GetString() string {
 func saveLastKnownProject(project apm.Project) {
 	data, _ := json.Marshal(project)
 
-	tx := db.Database.Open()
-	db.Exec(
-		tx,
-		`
-			insert into tracked_projects(project_id, ucloud_project, last_update) 
-			values (:project_id, :ucloud_project, now())
-			on conflict do update set
-				ucloud_project = excluded.ucloud_project,
-				last_update = excluded.last_update
-		`,
-		db.Params{
-			"project_id":     project.Id,
-			"ucloud_project": data,
-		},
-	)
-	tx.CloseOrPanic()
+	db.NewTxV(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_projects(project_id, ucloud_project, last_update) 
+				values (:project_id, :ucloud_project, now())
+				on conflict(project_id) do update set
+					ucloud_project = excluded.ucloud_project,
+					last_update = excluded.last_update
+			`,
+			db.Params{
+				"project_id":     project.Id,
+				"ucloud_project": data,
+			},
+		)
+	})
 }
 
 func GetLastKnownProject(projectId string) (apm.Project, bool) {
-	tx := db.Database.Open()
-	jsonData, ok := db.Get[struct{ UCloudProject string }](
-		tx,
-		`
-			select ucloud_project
-			from tracked_projects
-			where project_id = :project_id
-		`,
-		db.Params{
-			"project_id": projectId,
-		},
-	)
-	tx.CloseOrPanic()
+	jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+		jsonData, ok := db.Get[struct{ UCloudProject string }](
+			tx,
+			`
+				select ucloud_project
+				from tracked_projects
+				where project_id = :project_id
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+		return jsonData.UCloudProject, ok
+	})
 
 	if !ok {
 		return apm.Project{}, false
 	}
 
 	var result apm.Project
-	err := json.Unmarshal([]byte(jsonData.UCloudProject), &result)
+	err := json.Unmarshal([]byte(jsonData), &result)
 	if err != nil {
 		log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
 		return apm.Project{}, false
@@ -545,62 +563,62 @@ type TrackedAllocation struct {
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
-	tx := db.Database.Open()
-	db.Exec(
-		tx,
-		`
-			insert into tracked_allocations(owner_username, owner_project, category, combined_quota, locked, last_update)
-			values (:owner_username, :owner_project, :category, :combined_quota, :locked, now())
-			on conflict do update set
-				combined_quota = excluded.combined_quota,
-				locked = excluded.locked,
-				last_update = excluded.last_update
-	    `,
-		db.Params{
-			"owner_username": update.Owner.Username,
-			"owner_project":  update.Owner.ProjectId,
-			"category":       update.Category,
-			"combined_quota": update.CombinedQuota,
-			"locked":         update.Locked,
-		},
-	)
-	tx.CloseOrPanic()
+	db.NewTxV(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_allocations(owner_username, owner_project, category, combined_quota,
+					locked, last_update)
+				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now())
+				on conflict(category, owner_username, owner_project) do update set
+					combined_quota = excluded.combined_quota,
+					locked = excluded.locked,
+					last_update = excluded.last_update
+			`,
+			db.Params{
+				"owner_username": update.Owner.Username,
+				"owner_project":  update.Owner.ProjectId,
+				"category":       update.Category.Name,
+				"combined_quota": update.CombinedQuota,
+				"locked":         update.Locked,
+			},
+		)
+	})
 }
 
 func FindAllAllocations(categoryName string) []TrackedAllocation {
-	var result []TrackedAllocation
+	return db.NewTx[[]TrackedAllocation](func(tx *db.Transaction) []TrackedAllocation {
+		var result []TrackedAllocation
+		rows := db.Select[struct {
+			OwnerUsername string
+			OwnerProject  string
+			Category      string
+			CombinedQuota uint64
+			LastUpdate    time.Time
+			Locked        bool
+		}](
+			tx,
+			`
+				select *
+				from tracked_allocations
+				where
+					category = :category
+			`,
+			db.Params{
+				"category": categoryName,
+			},
+		)
 
-	tx := db.Database.Open()
-	rows := db.Select[struct {
-		OwnerUsername string
-		OwnerProject  string
-		Category      string
-		CombinedQuota uint64
-		LastUpdate    time.Time
-		Locked        bool
-	}](
-		tx,
-		`
-			select *
-			from tracked_allocations
-			where
-				category = :category
-	    `,
-		db.Params{
-			"category": categoryName,
-		},
-	)
-	tx.CloseOrPanic()
+		for _, row := range rows {
+			result = append(result, TrackedAllocation{
+				Owner:         apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
+				Category:      row.Category,
+				CombinedQuota: row.CombinedQuota,
+				Locked:        row.Locked,
+				LastUpdate:    fnd.Timestamp(row.LastUpdate),
+			})
+		}
 
-	for _, row := range rows {
-		result = append(result, TrackedAllocation{
-			Owner:         apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
-			Category:      row.Category,
-			CombinedQuota: row.CombinedQuota,
-			Locked:        row.Locked,
-			LastUpdate:    fnd.Timestamp(row.LastUpdate),
-		})
-	}
-
-	return result
+		return result
+	})
 }

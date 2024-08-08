@@ -65,9 +65,7 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 		Req{username},
 	)
 
-	{
-		tx := db.Database.Open()
-
+	err = db.NewTx[error](func(tx *db.Transaction) error {
 		db.Exec(
 			tx,
 			`
@@ -80,7 +78,7 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 			},
 		)
 
-		err = tx.CloseAndReturnErr()
+		err = tx.ConsumeError()
 		if err != nil {
 			log.Warn("Failed to register connection. Underlying error is: %v", err)
 			return &util.HttpError{
@@ -88,6 +86,11 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 				Why:        "Failed to register connection.",
 			}
 		}
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
 
 	userReplayChannel <- username
@@ -107,106 +110,104 @@ func getDebugPort(ucloudUsername string) (int, bool) {
 }
 
 func MapUCloudToLocal(username string) (uint32, bool) {
-	tx := db.Database.Open()
-	val, ok := db.Get[struct{ Uid uint32 }](
-		tx,
-		`
-			select uid
-			from connections
-			where
-				ucloud_username = :username
-		`,
-		db.Params{
-			"username": username,
-		},
-	)
-	tx.CloseOrLog()
-	if !ok {
-		return 11400, false
-	}
+	return db.NewTx2[uint32, bool](func(tx *db.Transaction) (uint32, bool) {
+		val, ok := db.Get[struct{ Uid uint32 }](
+			tx,
+			`
+				select uid
+				from connections
+				where
+					ucloud_username = :username
+			`,
+			db.Params{
+				"username": username,
+			},
+		)
+		if !ok {
+			return 11400, false
+		}
 
-	return val.Uid, true
+		return val.Uid, true
+	})
 }
 
 func MapLocalToUCloud(uid uint32) (string, bool) {
-	tx := db.Database.Open()
-	val, ok := db.Get[struct{ UCloudUsername string }](
-		tx,
-		`
-			select ucloud_username
-			from connections
-			where
-				uid = :uid
-		`,
-		db.Params{
-			"uid": uid,
-		},
-	)
-	tx.CloseOrLog()
+	return db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+		val, ok := db.Get[struct{ UCloudUsername string }](
+			tx,
+			`
+				select ucloud_username
+				from connections
+				where
+					uid = :uid
+			`,
+			db.Params{
+				"uid": uid,
+			},
+		)
 
-	if !ok {
-		return "_guest", false
-	}
+		if !ok {
+			return "_guest", false
+		}
 
-	return val.UCloudUsername, true
+		return val.UCloudUsername, true
+	})
 }
 
 func RegisterProjectMapping(projectId string, gid uint32) {
-	tx := db.Database.Open()
-
-	db.Exec(
-		tx,
-		`
-			insert into project_connections(ucloud_project_id, gid)
-			values (:project_id, :group_id)
-		`,
-		db.Params{
-			"project_id": projectId,
-			"group_id":   gid,
-		},
-	)
-
-	tx.CloseOrLog()
+	db.NewTxV(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into project_connections(ucloud_project_id, gid)
+				values (:project_id, :group_id)
+			`,
+			db.Params{
+				"project_id": projectId,
+				"group_id":   gid,
+			},
+		)
+	})
 }
 
 func MapLocalProjectToUCloud(gid uint32) (string, bool) {
-	tx := db.Database.Open()
-	val, ok := db.Get[struct{ ProjectId string }](
-		tx,
-		`
-			select ucloud_project_id
-			from project_connections
-			where
-				gid = :gid
-		`,
-		db.Params{
-			"gid": gid,
-		},
-	)
-	tx.CloseOrLog()
-	return val.ProjectId, ok
+	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
+		val, ok := db.Get[struct{ ProjectId string }](
+			tx,
+			`
+				select ucloud_project_id
+				from project_connections
+				where
+					gid = :gid
+			`,
+			db.Params{
+				"gid": gid,
+			},
+		)
+		return val.ProjectId, ok
+	})
 }
 
 func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
-	tx := db.Database.Open()
-	val, ok := db.Get[struct{ Gid uint32 }](
-		tx,
-		`
-			select gid
-			from project_connections
-			where
-				ucloud_project_id = :project_id
-		`,
-		db.Params{
-			"project_id": projectId,
-		},
-	)
-	tx.CloseOrLog()
-	if !ok {
-		return 11400, false
-	}
+	return db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
+		val, ok := db.Get[struct{ Gid uint32 }](
+			tx,
+			`
+				select gid
+				from project_connections
+				where
+					ucloud_project_id = :project_id
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+		if !ok {
+			return 11400, false
+		}
 
-	return val.Gid, true
+		return val.Gid, true
+	})
 }
 
 func RegisterSigningKey(username string, key string) int {

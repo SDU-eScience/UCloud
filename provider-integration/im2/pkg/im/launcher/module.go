@@ -9,7 +9,6 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	svc "ucloud.dk/pkg/im/services"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/migrations"
 	"ucloud.dk/pkg/util"
 )
@@ -26,9 +25,7 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	if args.Mode == cfg.ServerModeServer {
 		args.Database.MapperFunc(util.ToSnakeCase)
 		db.Database = &db.Pool{Connection: args.Database}
-		kvdb.Init(args.ConfigDir + "/kv.db")
-
-		migrations.Migrate(db.Database)
+		migrations.Migrate()
 	}
 
 	svc.Init(args)

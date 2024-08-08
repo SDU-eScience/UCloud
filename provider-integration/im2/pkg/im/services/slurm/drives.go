@@ -138,5 +138,9 @@ func InternalToUCloudWithDrive(drive orc.Drive, path string) string {
 	cleanPath := filepath.Clean(path)
 	basePath := DriveToLocalPath(drive) + "/"
 	withoutBasePath, _ := strings.CutPrefix(cleanPath, basePath)
-	return "/" + drive.Id + "/" + withoutBasePath
+	if cleanPath+"/" == basePath {
+		return "/" + drive.Id
+	} else {
+		return "/" + drive.Id + "/" + withoutBasePath
+	}
 }

@@ -5,7 +5,10 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"os"
+	"strings"
+	"time"
 	"ucloud.dk/pkg/log"
+	"ucloud.dk/pkg/util"
 )
 
 type Params map[string]any
@@ -14,7 +17,7 @@ type Params map[string]any
 // do not have strong requirements on the transaction. Use Pool if you must control the transaction. Use Transaction
 // if it must already be open (and have the transaction controlled elsewhere).
 type Ctx interface {
-	Open() *Transaction
+	open() *Transaction
 }
 
 type Pool struct {
@@ -23,7 +26,7 @@ type Pool struct {
 
 var Database *Pool = nil
 
-func (ctx *Pool) Open() *Transaction {
+func (ctx *Pool) open() *Transaction {
 	tx, err := ctx.Connection.Beginx()
 	if err != nil {
 		log.Error("Failed to open transaction: %v", err)
@@ -35,6 +38,100 @@ func (ctx *Pool) Open() *Transaction {
 		depth: 1,
 		Ok:    true,
 	}
+}
+
+func NewTxV(fn func(tx *Transaction)) {
+	NewTx(func(tx *Transaction) util.Empty {
+		fn(tx)
+		return util.Empty{}
+	})
+}
+
+func NewTx2[A, B any](fn func(tx *Transaction) (A, B)) (A, B) {
+	t := NewTx(func(tx *Transaction) util.Tuple2[A, B] {
+		a, b := fn(tx)
+		return util.Tuple2[A, B]{a, b}
+	})
+	return t.First, t.Second
+}
+
+func NewTx3[A, B, C any](fn func(tx *Transaction) (A, B, C)) (A, B, C) {
+	t := NewTx(func(tx *Transaction) util.Tuple3[A, B, C] {
+		a, b, c := fn(tx)
+		return util.Tuple3[A, B, C]{a, b, c}
+	})
+	return t.First, t.Second, t.Third
+}
+
+func NewTx[T any](fn func(tx *Transaction) T) T {
+	return ContinueTx(Database, fn)
+}
+
+func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
+	var errorLog []string
+	devMode := util.DevelopmentModeEnabled()
+	for i := 0; i < 10; i++ {
+		tx := ctx.open()
+		result := fn(tx)
+
+		devModeRetry := devMode && i == 0 && tx.Ok
+		if devModeRetry {
+			tx.Ok = false
+			tx.didConsumeError = false
+			tx.error = fmt.Errorf("first run is always retried to ensure idempotency in dev mode")
+		}
+
+		if !tx.Ok {
+			_ = tx.tx.Rollback()
+			if tx.didConsumeError {
+				return result
+			} else {
+				errorLog = append(errorLog, tx.error.Error())
+			}
+		} else {
+			err := tx.tx.Commit()
+			if err == nil {
+				return result
+			} else {
+				tx.error = err
+			}
+		}
+
+		if !devModeRetry {
+			log.Warn("Database transaction has failed! Automatically retrying in two seconds... %v", tx.error.Error())
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	panic(
+		fmt.Sprintf(
+			"Unable to complete database transaction after 10 retries. Fatal failure!\n%v",
+			strings.Join(errorLog, "\n"),
+		),
+	)
+}
+
+func ContinueTxV(ctx Ctx, fn func(tx *Transaction)) {
+	ContinueTx(ctx, func(tx *Transaction) util.Empty {
+		fn(tx)
+		return util.Empty{}
+	})
+}
+
+func ContinueTx2[A, B any](ctx Ctx, fn func(tx *Transaction) (A, B)) (A, B) {
+	t := ContinueTx(ctx, func(tx *Transaction) util.Tuple2[A, B] {
+		a, b := fn(tx)
+		return util.Tuple2[A, B]{a, b}
+	})
+	return t.First, t.Second
+}
+
+func ContinueTx3[A, B, C any](ctx Ctx, fn func(tx *Transaction) (A, B, C)) (A, B, C) {
+	t := ContinueTx(ctx, func(tx *Transaction) util.Tuple3[A, B, C] {
+		a, b, c := fn(tx)
+		return util.Tuple3[A, B, C]{a, b, c}
+	})
+	return t.First, t.Second, t.Third
 }
 
 type Transaction struct {
@@ -62,50 +159,10 @@ func (ctx *Transaction) ConsumeError() error {
 	return ctx.error
 }
 
-func (ctx *Transaction) Open() *Transaction {
+func (ctx *Transaction) open() *Transaction {
 	ctx.depth++
 	ctx.Ok = true
 	return ctx
-}
-
-func (ctx *Transaction) CloseAndReturnErr() error {
-	ctx.close(false, false)
-	return ctx.ConsumeError()
-}
-
-func (ctx *Transaction) CloseOrLog() bool {
-	ctx.close(false, true)
-	return ctx.Ok
-}
-
-func (ctx *Transaction) CloseOrPanic() {
-	ctx.close(true, true)
-}
-
-func (ctx *Transaction) close(doPanic bool, doLog bool) {
-	ctx.depth--
-
-	if ctx.depth == 0 {
-		var err error = nil
-		if ctx.Ok {
-			err = ctx.tx.Commit()
-		} else {
-			err = ctx.tx.Rollback()
-			if !ctx.didConsumeError {
-				if doLog {
-					log.Warn("Error from database: %v", ctx.error.Error())
-				}
-
-				if doPanic {
-					panic(fmt.Sprintf("Error from database was never consumed! %v", ctx.error.Error()))
-				}
-			}
-		}
-
-		if err != nil {
-			log.Error("Failed to close transaction: %v", err)
-		}
-	}
 }
 
 func Connect(username, password, host string, port int, database string, ssl bool) *Pool {

@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"os/user"
-	"strings"
 	"time"
 	"ucloud.dk/pkg/apm"
+	db "ucloud.dk/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	slurmcli "ucloud.dk/pkg/im/slurm"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -133,7 +132,23 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 			accountName = resp.AccountName
 		}
 
-		kvdb.Set(accMapKey(owner, category), accountName)
+		db.NewTxV(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into slurm.accounts(owner_username, owner_project, category, account_name) 
+					values (:owner_username, :owner_project, :category, :account_name)
+					on conflict (owner_username, owner_project, category) do update set
+						account_name = excluded.account_name
+			    `,
+				db.Params{
+					"owner_username": owner.Username,
+					"owner_project":  owner.ProjectId,
+					"category":       category,
+					"account_name":   accountName,
+				},
+			)
+		})
 		return accountName, nil
 	})
 }
@@ -241,66 +256,61 @@ func getAllocTres(job *slurmcli.Job, key string, defaultValue int) int {
 	return result
 }
 
-const kvPrefix = "slurm-account-mapper-"
-
 func (a *defaultAccountMapper) ServerListAccountsForWorkspace(workspace apm.WalletOwner) map[string]string {
-	prefix := accMapKey(workspace, "")
-	keys := kvdb.ListKeysWithPrefix(prefix)
-	result := make(map[string]string)
-	for _, key := range keys {
-		category := strings.TrimPrefix(key, prefix)
-		accountName, ok := kvdb.Get[string](key)
-		if !ok {
-			continue
-		}
+	return db.NewTx(func(tx *db.Transaction) map[string]string {
+		rows := db.Select[struct {
+			Category    string
+			AccountName string
+		}](
+			tx,
+			`
+				select category, account_name
+				from slurm.accounts
+				where
+				    owner_username = :owner_username
+					and owner_project = :owner_project
+		    `,
+			db.Params{
+				"owner_username": workspace.Username,
+				"owner_project":  workspace.ProjectId,
+			},
+		)
 
-		result[category] = accountName
-	}
-	return result
+		result := make(map[string]string)
+		for _, row := range rows {
+			result[row.Category] = row.AccountName
+		}
+		return result
+	})
 }
 
 func (a *defaultAccountMapper) ServerLookupOwnerOfAccount(account string) []SlurmAccountOwner {
-	var result []SlurmAccountOwner
-	keys := kvdb.ListKeysWithPrefix(kvPrefix)
-	for _, key := range keys {
-		accountName, ok := kvdb.Get[string](key)
-		if ok && accountName == account {
-			owner, category, ok := reverseAccMapKey(key)
-			if ok {
-				result = append(result, SlurmAccountOwner{
-					AssociatedWithCategory: category,
-					Owner:                  owner,
-				})
-			}
+	return db.NewTx(func(tx *db.Transaction) []SlurmAccountOwner {
+		rows := db.Select[struct {
+			OwnerUsername string
+			OwnerProject  string
+			Category      string
+		}](
+			tx,
+			`
+				select owner_username, owner_project, category
+				from slurm.accounts
+				where account_name = :account
+		    `,
+			db.Params{
+				"account": account,
+			},
+		)
+
+		var result []SlurmAccountOwner
+		for _, row := range rows {
+			result = append(result, SlurmAccountOwner{
+				AssociatedWithCategory: row.Category,
+				Owner:                  apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
+			})
 		}
-	}
-
-	return result
-}
-
-func accMapKey(owner apm.WalletOwner, category string) string {
-	return kvPrefix + owner.Username + "/" + owner.ProjectId + "/" + category
-}
-
-func reverseAccMapKey(input string) (owner apm.WalletOwner, category string, ok bool) {
-	withoutPrefix := strings.TrimPrefix(input, kvPrefix)
-	split := strings.Split(withoutPrefix, "/")
-	if len(split) != 3 {
-		ok = false
-		return
-	}
-
-	username := split[0]
-	projectId := split[1]
-	category = split[2]
-	if username != "" {
-		owner = apm.WalletOwnerUser(username)
-	} else {
-		owner = apm.WalletOwnerProject(projectId)
-	}
-
-	ok = true
-	return
+		return result
+	})
 }
 
 type evaluateMapperRequest struct {

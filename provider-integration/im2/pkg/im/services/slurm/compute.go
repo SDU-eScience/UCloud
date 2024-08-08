@@ -428,7 +428,7 @@ type trackedLogFile struct {
 func follow(session *ctrl.FollowJobSession) {
 	var logFiles []trackedLogFile
 
-	// Open relevant files (might take multiple loops to achieve this)
+	// open relevant files (might take multiple loops to achieve this)
 	for util.IsAlive && session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {

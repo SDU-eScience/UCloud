@@ -7,9 +7,9 @@ import (
 func apmEventsV1() migrationScript {
 	return migrationScript{
 		Id: "apmEventsV1",
-		Execute: func(ctx *db.Transaction) {
+		Execute: func(tx *db.Transaction) {
 			db.Exec(
-				ctx,
+				tx,
 				`
 					create table apm_events_replay_from(
 					    provider_id text not null primary key,
@@ -20,7 +20,7 @@ func apmEventsV1() migrationScript {
 			)
 
 			db.Exec(
-				ctx,
+				tx,
 				`
 					create table tracked_allocations(
 						owner_username text not null default '',
@@ -36,7 +36,7 @@ func apmEventsV1() migrationScript {
 			)
 
 			db.Exec(
-				ctx,
+				tx,
 				`
 					create table tracked_projects(
 						project_id text primary key,

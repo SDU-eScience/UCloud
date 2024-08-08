@@ -484,6 +484,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 },
                                 onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                                    console.log("Target is:", target, "Path ref", pathRef.current, "res.id", res.id);
                                     try {
                                         await cb.invokeCommand(
                                             this.copy({
