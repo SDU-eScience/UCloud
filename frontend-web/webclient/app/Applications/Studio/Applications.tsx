@@ -167,7 +167,6 @@ export const App: React.FunctionComponent = () => {
             value: appGroup.metadata.id
         })).sort((a, b) => a.text > b.text ? 1 : -1)
     }, [allGroups]);
-    console.log("groupOptions " + groupOptions.length);
 
 
     if (Client.userRole !== "ADMIN") return null;
