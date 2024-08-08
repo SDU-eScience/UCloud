@@ -2,6 +2,8 @@ package controller
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
@@ -376,6 +378,7 @@ func controllerConnection(mux *http.ServeMux) {
 						sendStatusCode(w, http.StatusInternalServerError)
 						return
 					}
+					userInstancesLaunched.Inc()
 
 					go func() {
 						err = child.Wait()
@@ -429,3 +432,10 @@ func allocatePortIfNeeded(uid uint32) (port int, valid bool) {
 		return allocatedPort, true
 	}
 }
+
+var (
+	userInstancesLaunched = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ucloud_im_launched_user_instances",
+		Help: "The total number of UCloud/IM (User) instances launched",
+	})
+)

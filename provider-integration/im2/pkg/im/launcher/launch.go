@@ -119,6 +119,7 @@ func Launch() {
 		GatewayConfigChannel: gatewayConfigChannel,
 		ConfigDir:            *configDir,
 		UserModeSecret:       userModeSecret,
+		MetricsHandler:       &metricsServerHandler,
 	}
 
 	if dbPool != nil {
@@ -148,6 +149,10 @@ func Launch() {
 		}
 
 		im.ReloadModule(&module, &moduleArgs)
+	}
+
+	if mode == cfg.ServerModeServer {
+		launchMetricsServer()
 	}
 
 	log.Info("UCloud is ready!")
@@ -198,4 +203,22 @@ func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 	}
 
 	return hijacker.Hijack()
+}
+
+var metricsServerHandler func(writer http.ResponseWriter, request *http.Request) = nil
+
+func launchMetricsServer() {
+	go func() {
+		http.HandleFunc("/metrics", func(writer http.ResponseWriter, request *http.Request) {
+			if metricsServerHandler != nil {
+				metricsServerHandler(writer, request)
+			} else {
+				writer.WriteHeader(http.StatusNotFound)
+			}
+		})
+		err := http.ListenAndServe(":7867", nil)
+		if err != nil {
+			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
+		}
+	}()
 }

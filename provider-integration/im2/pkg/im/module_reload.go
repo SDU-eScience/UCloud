@@ -31,6 +31,7 @@ type ModuleArgs struct {
 	UserModeSecret       string
 	ServerMultiplexer    *http.ServeMux
 	IpcMultiplexer       *http.ServeMux
+	MetricsHandler       *func(writer http.ResponseWriter, request *http.Request)
 }
 
 var Args *ModuleArgs // Only valid after ModuleMain has finished initialization
@@ -61,6 +62,7 @@ func ReloadModule(
 	args["ConfigDir"] = moduleArgs.ConfigDir
 	args["UserModeSecret"] = moduleArgs.UserModeSecret
 	args["IpcMultiplexer"] = moduleArgs.IpcMultiplexer
+	args["MetricsHandler"] = moduleArgs.MetricsHandler
 
 	newModule.ModuleMain(oldPluginData, args)
 	_currentModule = newModule

@@ -57,6 +57,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 	}
 
 	if args.Mode == cfg.ServerModeServer {
+		*args.MetricsHandler = ctrl.InitMetrics()
+
 		args.Database.MapperFunc(util.ToSnakeCase)
 		db.Database = &db.Pool{Connection: args.Database}
 		migrations.Migrate()
@@ -82,6 +84,7 @@ func ModuleMainStub(oldData []byte, args map[string]any) {
 	dbPool := args["Database"].(*sqlx.DB)                              // can be nil
 	gatewayConfigChannel := args["GatewayConfigChannel"].(chan []byte) // can be nil
 	ipcMux := args["IpcMultiplexer"].(*http.ServeMux)
+	metricsHandler := args["MetricsHandler"].(*func(writer http.ResponseWriter, request *http.Request))
 
 	newArgs := im.ModuleArgs{
 		Mode:                 mode,
@@ -91,6 +94,7 @@ func ModuleMainStub(oldData []byte, args map[string]any) {
 		UserModeSecret:       userModeSecret,
 		ServerMultiplexer:    mux,
 		IpcMultiplexer:       ipcMux,
+		MetricsHandler:       metricsHandler,
 	}
 
 	ModuleMain(oldData, &newArgs)
