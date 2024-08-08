@@ -1571,11 +1571,14 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val appVersions =
             applicationVersions[appName] ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
+
+        val newFlavor = if (newFlavorName != "") { newFlavorName } else { null }
+
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("appName", appName)
-                    setParameter("flavor", newFlavorName)
+                    setParameter("flavor", newFlavor)
                 },
                 """
                     update app_store.applications
