@@ -86,7 +86,7 @@ export const App: React.FunctionComponent = () => {
     );
 
     const allGroups = allGroupsPage.data.items;
-    const [selectedGroup, setSelectedGroup] = useState<number | undefined>(undefined);
+    const [selectedGroup, setSelectedGroup] = useState<number>(0);
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
         AppStore.retrieveAcl({name: name}),
@@ -116,20 +116,25 @@ export const App: React.FunctionComponent = () => {
     useEffect(() => {
         const [firstApp] = apps.data.items;
         if (!firstApp) return;
-        if (!selectedGroup) return;
         if (selectedGroup === firstApp.metadata.group?.metadata.id) return;
 
-        invokeCommand(AppStore.assignApplicationToGroup({
-            group: selectedGroup,
-            name: firstApp.metadata.name
-        }));
+        if (selectedGroup == 0) {
+            invokeCommand(AppStore.assignApplicationToGroup({
+                name: firstApp.metadata.name
+            }));
+        } else {
+            invokeCommand(AppStore.assignApplicationToGroup({
+                group: selectedGroup,
+                name: firstApp.metadata.name
+            }));
+        }
     }, [selectedGroup]);
 
     useEffect(() => {
         if (!allGroups) return;
         if (!apps.data.items[0]) return;
 
-        setSelectedGroup(apps.data.items[0].metadata.group?.metadata.id ?? undefined);
+        setSelectedGroup(apps.data.items[0].metadata.group?.metadata.id ?? 0);
     }, [allGroups, apps]);
 
     // Loading of application versions
@@ -184,64 +189,50 @@ export const App: React.FunctionComponent = () => {
             main={(<>
                 <Flex flexDirection="column">
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
-                        <form
-                            onSubmit={async e => {
-                                e.preventDefault();
-                                if (commandLoading) return;
-
-                                if (!selectedGroup) return;
-
-                                await invokeCommand(AppStore.assignApplicationToGroup({
-                                    group: selectedGroup,
-                                    name,
-                                }));
-
-                                snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
-
-                                refresh();
-                            }}
-                        >
-                            <Label>Group</Label>
-                            <Box mb="20px" textAlign="right">
-                                    <Select
-                                        name="group" 
-                                        value={selectedGroup}
-                                        onChange={(event) => setSelectedGroup(event.target.value)}
-                                    >
-                                        {groupOptions.map(it => (
-                                            <option value={it.value}>{it.text}</option>
-                                        ))}
-                                    </Select>
-                                {selectedGroup ? (
-                                    <Link to={`/applications/studio/g/${selectedGroup}`}>Go to group management page</Link>
-                                ) : <></>}
-                            </Box>
-
-                            <Label>Flavor (name)</Label>
-                            <Flex>
-                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
-                                <Button
-                                    attached
-                                    onClick={async () => {
-                                        if (commandLoading) return;
-
-                                        const flavorFieldCurrent = flavorField.current;
-                                        if (flavorFieldCurrent === null) return;
-
-                                        const flavorFieldValue = flavorFieldCurrent.value;
-                                        if (flavorFieldValue === "") return;
-
-                                        await invokeCommand(AppStore.updateApplicationFlavor({
-                                            applicationName: name,
-                                            flavorName: flavorFieldValue
-                                        }));
-                                        refresh();
-                                    }}
+                        <Label>Group</Label>
+                        <Box mb="20px" textAlign="right">
+                                <Select
+                                    name="group" 
+                                    value={selectedGroup}
+                                    onChange={(event) => setSelectedGroup(event.target.value)}
                                 >
-                                    Save
-                                </Button>
-                            </Flex>
-                        </form>
+                                    <option value="0"></option>
+                                    {groupOptions.map(it => (
+                                        <option value={it.value}>{it.text}</option>
+                                    ))}
+                                </Select>
+                            {selectedGroup > 0 ? (
+                                <Link to={`/applications/studio/g/${selectedGroup}`}>Go to group management page</Link>
+                            ) : <></>}
+                        </Box>
+
+                        <Label>Flavor (name)</Label>
+                        <Flex>
+                            <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
+                            <Button
+                                attached
+                                onClick={async () => {
+                                    if (commandLoading) return;
+
+                                    const flavorFieldCurrent = flavorField.current;
+                                    if (flavorFieldCurrent === null) return;
+
+                                    const flavorFieldValue = flavorFieldCurrent.value;
+                                    const res = await invokeCommand(AppStore.updateApplicationFlavor({
+                                        applicationName: name,
+                                        flavorName: flavorFieldValue != "" ? flavorFieldValue : null
+                                    }));
+
+                                    if (res) {
+                                        snackbarStore.addSuccess("Saved flavor", false);
+                                    }
+
+                                    refresh();
+                                }}
+                            >
+                                Save
+                            </Button>
+                        </Flex>
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
