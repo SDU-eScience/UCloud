@@ -139,21 +139,21 @@ export const AppGroup: React.FunctionComponent = () => {
 
                     {!uniqueApps? <>No apps found</> : (
                         <List width="100%" height="calc(80vh - 75px)" minHeight="325px" overflow="auto">
-                            {uniqueApps.map(app => (
-                                group.data?.status?.applications?.map(app => app.metadata.name).includes(app) ? null : (
+                            {uniqueApps.map(appName => (
+                                group.data?.status?.applications?.map(app => app.metadata.name).includes(appName) ? null : (
                                     <ListRow
-                                        key={app}
+                                        key={appName}
                                         left={
                                             <Flex gap="10px">
-                                                <SafeLogo name={app} type="APPLICATION" size="30px"/>
-                                                {app}
+                                                <SafeLogo name={appName} type="APPLICATION" size="30px"/>
+                                                {appName}
                                             </Flex>
                                         }
                                         right={
                                             <Button
                                                 onClick={async () => {
                                                     await invokeCommand(AppStore.assignApplicationToGroup({
-                                                        name: app,
+                                                        name: appName,
                                                         group: group.data!.metadata.id,
                                                     }));
                                                     setAddApplicationOpen(false);
@@ -210,7 +210,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                         const newDescription = descriptionField.value;
 
                                         const success = await invokeCommand(AppStore.updateGroup({
-                                            id: group.data?.metadata.id,
+                                            id: group.data.metadata.id,
                                             newTitle: newTitle,
                                             newDescription: newDescription,
                                             newDefaultFlavor: defaultApplication,

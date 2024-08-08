@@ -373,12 +373,6 @@ export const App: React.FunctionComponent = () => {
                                                     <Flex justifyContent="right">
                                                         <ConfirmationButton
                                                             icon="heroTrash"
-                                                            actionKey={
-                                                                permissionEntry.entity.user ?? "" +
-                                                                permissionEntry.entity.project?.id ?? "" +
-                                                                permissionEntry.entity.group?.id ?? "" +
-                                                                permissionEntry.permission
-                                                            }
                                                             onAction={async () => {
                                                                 await invokeCommand(AppStore.updateAcl({
                                                                     name: name,
