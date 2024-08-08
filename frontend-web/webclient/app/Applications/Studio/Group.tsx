@@ -171,39 +171,6 @@ export const AppGroup: React.FunctionComponent = () => {
                     header={
                         <Flex justifyContent="space-between" maxWidth="800px" ml="auto" mr="auto">
                             <h3 className="title">Edit group</h3>
-                            <Flex justifyContent="right" mr="10px">
-                                <Button type="button" onClick={async () => {
-                                    if (!group.data) return;
-
-                                    const titleField = groupTitleField.current;
-                                    if (titleField === null) return;
-
-                                    const newTitle = titleField.value;
-                                    if (newTitle === "") {
-                                        snackbarStore.addFailure("Title cannot be empty", false);
-                                        return
-                                    }
-
-                                    const descriptionField = groupDescriptionField.current;
-                                    if (descriptionField === null) return;
-
-                                    const newDescription = descriptionField.value;
-
-                                    const success = await invokeCommand(AppStore.updateGroup({
-                                        id: group.data?.metadata.id,
-                                        newTitle: newTitle,
-                                        newDescription: newDescription,
-                                        newDefaultFlavor: defaultApplication,
-                                        newLogoHasText: logoHasText
-                                        // tags
-                                    }));
-                                    refresh();
-
-                                    if (success) {
-                                        snackbarStore.addSuccess("Changes saved", false);
-                                    }
-                                }}>Save changes</Button>
-                            </Flex>
                         </Flex>
                     }
                     main={
@@ -218,6 +185,40 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <TextArea mb="20px" inputRef={groupDescriptionField}
                                               defaultValue={group.data?.specification.description}/>
                                 </Label>
+
+                                <Flex justifyContent="right" mb="30px">
+                                    <Button type="button" onClick={async () => {
+                                        if (!group.data) return;
+
+                                        const titleField = groupTitleField.current;
+                                        if (titleField === null) return;
+
+                                        const newTitle = titleField.value;
+                                        if (newTitle === "") {
+                                            snackbarStore.addFailure("Title cannot be empty", false);
+                                            return
+                                        }
+
+                                        const descriptionField = groupDescriptionField.current;
+                                        if (descriptionField === null) return;
+
+                                        const newDescription = descriptionField.value;
+
+                                        const success = await invokeCommand(AppStore.updateGroup({
+                                            id: group.data?.metadata.id,
+                                            newTitle: newTitle,
+                                            newDescription: newDescription,
+                                            newDefaultFlavor: defaultApplication,
+                                            newLogoHasText: logoHasText
+                                            // tags
+                                        }));
+                                        refresh();
+
+                                        if (success) {
+                                            snackbarStore.addSuccess("Changes saved", false);
+                                        }
+                                    }}>Save changes</Button>
+                                </Flex>
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">

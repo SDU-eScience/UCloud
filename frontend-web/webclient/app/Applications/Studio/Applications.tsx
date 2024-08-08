@@ -6,17 +6,16 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, Flex, Icon, Label, Text} from "@/ui-components";
+import {Button, Checkbox, Flex, Label, Select, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
 import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {
@@ -44,71 +43,6 @@ const entityTypes = [
 ];
 
 type ApplicationAccessRight = PropType<DetailedEntityWithPermission, "permission">;
-
-interface GroupSelectorProps {
-    applicationName: string;
-    selectedGroup?: ApplicationGroup;
-    options: ApplicationGroup[];
-    onSelect: (group: ApplicationGroup) => void;
-}
-
-const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
-    ${k} {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: pointer;
-        font-family: inherit;
-        color: var(--textPrimary);
-        margin: 0;
-        border-width: 0px;
-        
-        width: 100%;
-        border-radius: 5px;
-        padding: 7px 12px;
-        height: 35px;
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
-
-        border: 1px solid var(--borderColor);
-    }
-    
-    ${k}:hover {
-        border-color: var(--borderColorHover);
-    }
-`);
-
-const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
-    const [commandLoading, invokeCommand] = useCloudCommand();
-
-    useEffect(() => {
-        if (!props.selectedGroup) return;
-        invokeCommand(AppStore.assignApplicationToGroup({
-            group: props.selectedGroup.metadata.id,
-            name: props.applicationName
-        }));
-    }, [props.selectedGroup]);
-
-    const options = React.useMemo(() => {
-        return props.options.map((appGroup) => ({
-            text: appGroup.specification.title,
-            value: appGroup
-        })).sort((a, b) => a.text > b.text ? 1 : -1)
-    }, [props.options]);
-
-    return (
-        <ClickableDropdown
-            fullWidth
-            trigger={
-                <div className={GroupSelectorTriggerClass}>
-                    <Text>{props.selectedGroup ? props.selectedGroup.specification.title : "No group selected"}</Text>
-                    <Icon name="chevronDownLight" ml="-32px" size={14}/>
-                </div>
-            }
-            options={options}
-            onChange={props.onSelect}
-        />
-    );
-}
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight): "Can launch" {
     switch (accessRight) {
@@ -152,7 +86,7 @@ export const App: React.FunctionComponent = () => {
     );
 
     const allGroups = allGroupsPage.data.items;
-    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
+    const [selectedGroup, setSelectedGroup] = useState<number | undefined>(undefined);
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
         AppStore.retrieveAcl({name: name}),
@@ -173,15 +107,29 @@ export const App: React.FunctionComponent = () => {
     // Loading of permission entries
     useEffectSkipMount(() => {
         fetchPermissionEntries(AppStore.retrieveAcl({name: name}));
-        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
 
     useEffect(() => {
-        if (!allGroups) return;
+        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
+    }, [name]);
 
-        if (apps.data.items[0]) {
-            setSelectedGroup(apps.data.items[0].metadata.group ?? undefined);
-        }
+    useEffect(() => {
+        console.log(selectedGroup);
+        if (!apps.data.items[0]) return;
+        if (!selectedGroup) return;
+        if (selectedGroup === apps.data.items[0].metadata.group?.metadata.id) return;
+
+        invokeCommand(AppStore.assignApplicationToGroup({
+            group: selectedGroup,
+            name: apps.data.items[0].metadata.name
+        }));
+    }, [selectedGroup]);
+
+    useEffect(() => {
+        if (!allGroups) return;
+        if (!apps.data.items[0]) return;
+
+        setSelectedGroup(apps.data.items[0].metadata.group?.metadata.id ?? undefined);
     }, [allGroups, apps]);
 
     // Loading of application versions
@@ -213,6 +161,15 @@ export const App: React.FunctionComponent = () => {
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
+    const groupOptions = React.useMemo(() => {
+        return allGroups.map((appGroup) => ({
+            text: appGroup.specification.title,
+            value: appGroup.metadata.id
+        })).sort((a, b) => a.text > b.text ? 1 : -1)
+    }, [allGroups]);
+    console.log("groupOptions " + groupOptions.length);
+
+
     if (Client.userRole !== "ADMIN") return null;
     return (
         <MainContainer
@@ -236,7 +193,7 @@ export const App: React.FunctionComponent = () => {
                                 if (!selectedGroup) return;
 
                                 await invokeCommand(AppStore.assignApplicationToGroup({
-                                    group: selectedGroup.metadata.id,
+                                    group: selectedGroup,
                                     name,
                                 }));
 
@@ -247,12 +204,15 @@ export const App: React.FunctionComponent = () => {
                         >
                             <Label>Group</Label>
                             <Flex mb="20px">
-                                <GroupSelector
-                                    selectedGroup={selectedGroup}
-                                    applicationName={name}
-                                    options={allGroups}
-                                    onSelect={item => setSelectedGroup(item)}
-                                />
+                                <Select
+                                    name="group" 
+                                    value={selectedGroup}
+                                    onChange={(event) => setSelectedGroup(event.target.value)}
+                                >
+                                    {groupOptions.map(it => (
+                                        <option value={it.value}>{it.text}</option>
+                                    ))}
+                                </Select>
                             </Flex>
 
                             <Label>Flavor (name)</Label>
