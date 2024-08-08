@@ -162,13 +162,14 @@ function ClickableDropdown<T>({
 
     let children: React.ReactNode[] = [];
     if (props.options !== undefined && onChange) {
+        const onChangeFunc = onChange;
         children = props.options.map((opt, i) => (
             <Box
                 cursor="pointer"
                 width="auto"
                 key={i}
                 data-active={""}
-                onClick={() => onChange!(opt.value)}
+                onClick={() => onChangeFunc(opt.value)}
             >
                 {opt.text}
             </Box>
@@ -214,7 +215,7 @@ function ClickableDropdown<T>({
         visible={open}
         onClick={e => {
             e.stopPropagation();
-            !keepOpenOnClick ? close() : null;
+            if (!keepOpenOnClick) close();
         }}
     >
         {children}
