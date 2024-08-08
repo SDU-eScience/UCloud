@@ -142,6 +142,7 @@ export const AppGroup: React.FunctionComponent = () => {
                             {uniqueApps.map(app => (
                                 group.data?.status?.applications?.map(app => app.metadata.name).includes(app) ? null : (
                                     <ListRow
+                                        key={app}
                                         left={
                                             <Flex gap="10px">
                                                 <SafeLogo name={app} type="APPLICATION" size="30px"/>
@@ -309,6 +310,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <List width="100%">
                                         {group.data.status?.applications?.map(app => (
                                             <ListRow
+                                                key={app.metadata.name}
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
                                                     <Flex justifyContent="left" gap="15px">
