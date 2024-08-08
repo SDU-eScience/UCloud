@@ -114,14 +114,14 @@ export const App: React.FunctionComponent = () => {
     }, [name]);
 
     useEffect(() => {
-        console.log(selectedGroup);
-        if (!apps.data.items[0]) return;
+        const [firstApp] = apps.data.items;
+        if (!firstApp) return;
         if (!selectedGroup) return;
-        if (selectedGroup === apps.data.items[0].metadata.group?.metadata.id) return;
+        if (selectedGroup === firstApp.metadata.group?.metadata.id) return;
 
         invokeCommand(AppStore.assignApplicationToGroup({
             group: selectedGroup,
-            name: apps.data.items[0].metadata.name
+            name: firstApp.metadata.name
         }));
     }, [selectedGroup]);
 
