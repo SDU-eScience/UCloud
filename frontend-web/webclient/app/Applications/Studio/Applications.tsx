@@ -165,7 +165,7 @@ export const App: React.FunctionComponent = () => {
         return allGroups.map((appGroup) => ({
             text: appGroup.specification.title,
             value: appGroup.metadata.id
-        })).sort((a, b) => a.text > b.text ? 1 : -1)
+        })).sort((a, b) => a.localeCompare(b))
     }, [allGroups]);
 
 
