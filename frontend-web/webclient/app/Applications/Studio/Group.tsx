@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, Flex, Icon, Input, Label, Relative, Select, TextArea} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Select, TextArea} from "@/ui-components";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
@@ -169,10 +169,14 @@ export const AppGroup: React.FunctionComponent = () => {
                 </ReactModal>
                 <MainContainer
                     header={
-                        <Flex justifyContent="space-between" maxWidth="800px" ml="auto" mr="auto">
+                        <Box maxWidth="800px" ml="auto" mr="auto">
+                            <Box mb="10px">
+                                <Link to="/applications/studio/groups"><Icon name="heroArrowLeft" /> Back to application groups</Link>
+                            </Box>
                             <h3 className="title">Edit group</h3>
-                        </Flex>
+                        </Box>
                     }
+                    headerSize={80}
                     main={
                         !group.data ? <>Not found</> :
                             <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
@@ -307,15 +311,14 @@ export const AppGroup: React.FunctionComponent = () => {
                                             <ListRow
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
-                                                    <Flex justifyContent="left" gap="20px">
-                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION"
-                                                                          size="30px"/></Box>
-                                                        <Box>{app.metadata.title}</Box>
+                                                    <Flex justifyContent="left" gap="15px">
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px"/></Box>
+                                                        <Box mt="6px">{app.metadata.title}</Box>
                                                     </Flex>
                                                 }
                                                 right={
-                                                    <Flex justifyContent="right">
-                                                        <Box>
+                                                    <Flex justifyContent="right" gap="7px">
+                                                        <Box mt="3px">
                                                             <Label>
                                                                 <Checkbox
                                                                     checked={app.metadata.name === defaultApplication}

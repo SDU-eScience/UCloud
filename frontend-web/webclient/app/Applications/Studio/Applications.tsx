@@ -6,7 +6,7 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, Flex, Label, Select, Text} from "@/ui-components";
+import {Button, Checkbox, Flex, Label, Link, Select, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
@@ -175,10 +175,10 @@ export const App: React.FunctionComponent = () => {
         <MainContainer
             header={(
                 <Flex justifyContent="left" verticalAlign="center" maxWidth="800px" ml="auto" mr="auto">
-                    <SafeLogo name={name} type={"APPLICATION"} size={"64px"}/>
-                    <Heading.h2 pt="20px">
+                    <SafeLogo name={name} type={"APPLICATION"} size={"48px"}/>
+                    <Heading.h3 pt="15px" pl="15px">
                         {appTitle}
-                    </Heading.h2>
+                    </Heading.h3>
                 </Flex>
             )}
             headerSize={70}
@@ -203,17 +203,20 @@ export const App: React.FunctionComponent = () => {
                             }}
                         >
                             <Label>Group</Label>
-                            <Flex mb="20px">
-                                <Select
-                                    name="group" 
-                                    value={selectedGroup}
-                                    onChange={(event) => setSelectedGroup(event.target.value)}
-                                >
-                                    {groupOptions.map(it => (
-                                        <option value={it.value}>{it.text}</option>
-                                    ))}
-                                </Select>
-                            </Flex>
+                            <Box mb="20px" textAlign="right">
+                                    <Select
+                                        name="group" 
+                                        value={selectedGroup}
+                                        onChange={(event) => setSelectedGroup(event.target.value)}
+                                    >
+                                        {groupOptions.map(it => (
+                                            <option value={it.value}>{it.text}</option>
+                                        ))}
+                                    </Select>
+                                {selectedGroup ? (
+                                    <Link to={`/applications/studio/g/${selectedGroup}`}>Go to group management page</Link>
+                                ) : <></>}
+                            </Box>
 
                             <Label>Flavor (name)</Label>
                             <Flex>
