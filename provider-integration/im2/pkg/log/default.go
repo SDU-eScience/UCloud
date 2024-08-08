@@ -31,6 +31,10 @@ func SetFlags(flags uint) {
 	logger.SetFlags(flags)
 }
 
+func SetLogConsole(flag bool) {
+	logger.logConsole = flag
+}
+
 func Fatal(format string, args ...any) {
 	logger.Fatal(format, args...)
 }

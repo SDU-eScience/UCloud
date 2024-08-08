@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"ucloud.dk/pkg/util"
 )
 
 const (
@@ -100,7 +101,7 @@ func (log *Logger) SetFlags(flags uint) {
 func (log *Logger) Fatal(format string, args ...any) {
 	log.write(LevelFatal, format, args...)
 	if log.file != nil {
-		log.file.Close()
+		util.SilentClose(log.file)
 	}
 	os.Exit(1)
 }

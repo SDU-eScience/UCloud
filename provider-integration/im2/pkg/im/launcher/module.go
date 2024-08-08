@@ -4,22 +4,56 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"net/http"
+	"os"
+	"os/user"
+	"path/filepath"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	svc "ucloud.dk/pkg/im/services"
+	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/migrations"
 	"ucloud.dk/pkg/util"
 )
 
 func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
-	fmt.Printf("Running module launcher with mode=%v\n", args.Mode)
 	im.Args = args
 
 	if !cfg.Parse(args.Mode, args.ConfigDir) {
 		// TODO Double parsing in this case
 		return
+	}
+
+	{
+		logCfg := &cfg.Provider.Logs
+
+		var logFileName string
+		switch cfg.Mode {
+		case cfg.ServerModeServer:
+			logFileName = "server"
+		case cfg.ServerModeProxy:
+			logFileName = "proxy"
+		case cfg.ServerModePlugin:
+			logFileName = ""
+		case cfg.ServerModeUser:
+			uinfo, err := user.Current()
+			if err == nil {
+				logFileName = uinfo.Username
+			} else {
+				logFileName = fmt.Sprintf("uid-%d", os.Getuid())
+			}
+		}
+
+		log.SetLogConsole(false)
+		err := log.SetLogFile(filepath.Join(logCfg.Directory, logFileName+".log"))
+		if err != nil {
+			panic("Unable to open log file: " + err.Error())
+		}
+
+		if logCfg.Rotation.Enabled {
+			log.SetRotation(log.RotateDaily, logCfg.Rotation.RetentionPeriodInDays, true)
+		}
 	}
 
 	if args.Mode == cfg.ServerModeServer {

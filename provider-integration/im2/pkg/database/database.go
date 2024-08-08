@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
-	"os"
 	"strings"
 	"time"
 	"ucloud.dk/pkg/log"
@@ -27,17 +26,22 @@ type Pool struct {
 var Database *Pool = nil
 
 func (ctx *Pool) open() *Transaction {
-	tx, err := ctx.Connection.Beginx()
-	if err != nil {
-		log.Error("Failed to open transaction: %v", err)
-		os.Exit(1) // TODO worried about this
+	for i := 0; i < 10; i++ {
+		tx, err := ctx.Connection.Beginx()
+		if err != nil {
+			log.Warn("Failed to open transaction: %v", err)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		return &Transaction{
+			tx:    tx,
+			depth: 1,
+			Ok:    true,
+		}
 	}
 
-	return &Transaction{
-		tx:    tx,
-		depth: 1,
-		Ok:    true,
-	}
+	panic("Failed to open transaction after 10 retries. Fatal error!")
 }
 
 func NewTxV(fn func(tx *Transaction)) {
