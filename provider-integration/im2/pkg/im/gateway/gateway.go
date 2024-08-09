@@ -329,7 +329,6 @@ layered_runtime:
               envoy_grpc:
                 cluster_name: xds_cluster
         name: runtime-0
-
 `
 
 type EnvoyCluster struct {
