@@ -1,4 +1,4 @@
-import {BottomProps, BoxShadowProps, LeftProps, RightProps, TopProps, HeightProps} from "styled-system";
+import {BottomProps, LeftProps, RightProps, TopProps} from "styled-system";
 import {Cursor} from "./Types";
 import {extractSize, injectStyle} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
@@ -112,7 +112,6 @@ export function DropdownContent({
     disabled = false,
     cursor = "pointer",
     minWidth = "138px",
-    boxShadow = "md",
     visible = false,
     ...props
 }: React.PropsWithChildren<DropdownContentProps>): React.ReactNode {
@@ -145,7 +144,7 @@ export function DropdownContent({
 
 Dropdown.displayName = "Dropdown";
 
-interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps, HeightProps {
+interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps {
     hover?: boolean;
     width?: string | number;
     disabled?: boolean;

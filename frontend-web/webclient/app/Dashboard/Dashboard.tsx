@@ -209,7 +209,6 @@ function DashboardResources({wallets}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    const now = timestampUnixMs();
     const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
 
     mapped.sort((a, b) => {
@@ -240,8 +239,7 @@ function DashboardResources({wallets}: {
                     <ApplyLinkButton />
                 </NoResultsCardBody>
             ) :
-                /* height is 100% - height of Heading 55px */
-                <Flex flexDirection="column" height={"calc(100% - 55px)"}>
+                <Flex flexDirection="column" maxHeight="600px" overflowY={"scroll"}>
                     <Table>
                         <tbody>
                             {mapped.map((n, i) => (
