@@ -227,6 +227,7 @@ class AccountingSystem(
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
+                                        is AccountingRequest.SetExpire -> setExpire(msg)
                                         is AccountingRequest.DebugState -> {
                                             if (msg.idCard != IdCard.System) {
                                                 Response.error(HttpStatusCode.Forbidden, "Forbidden")
@@ -326,6 +327,13 @@ class AccountingSystem(
 
         val wallet = walletsById[msg.walletId] ?: return Response.error(HttpStatusCode.NotFound, "Not found")
         return Response.ok(defaultMapper.encodeToJsonElement(InternalWallet.serializer(), wallet) as JsonObject)
+    }
+
+    private fun setExpire(msg: AccountingRequest.SetExpire): Response<Boolean> {
+        val allocation = allocations[msg.allocationId] ?: return Response.ok(false)
+        allocation.end = msg.end
+        allocation.isDirty = true
+        return Response.ok(true)
     }
 
     private suspend fun processPeriodicTasks() {
@@ -974,6 +982,7 @@ class AccountingSystem(
             var error: String? = null
             if (overSpendingWallets.isNotEmpty()) {
                 error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+                log.warn("Overspending: $error")
             }
 
             debug {
@@ -1475,10 +1484,7 @@ class AccountingSystem(
         val walletOwnerId = ownersByReference[request.owner.reference()]?.id
             ?: return Response.error(HttpStatusCode.NotFound, "Failed to lookup owner")
         val key =  scopeKey(walletOwnerId, request.chargeId)
-        log.info("Scopedkey: $key")
-        log.info("In scope ${scopedUsage.contains(key)}")
         val usage = scopedUsage[key] ?: 0L
-        log.info("FOUND: $usage")
         return Response.ok(usage)
     }
 

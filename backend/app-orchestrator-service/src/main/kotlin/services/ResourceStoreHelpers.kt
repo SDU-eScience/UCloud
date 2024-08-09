@@ -125,7 +125,6 @@ suspend fun PaymentService.chargeOrCheckCredits(
 
     ResourceOutputPool.withInstance { pool ->
         val count = documents.retrieveBulk(card, ids, pool, Permission.PROVIDER)
-        PaymentService.log.info("Count: $count, pool: $pool")
         for (i in 0 until count) {
             val doc = pool[i]
             for (reqItem in request.items) {
@@ -154,7 +153,7 @@ suspend fun PaymentService.chargeOrCheckCredits(
 
                 paymentRequests.add(
                     Payment(
-                        reqItem.chargeId,
+                        "${reqItem.id}-${reqItem.chargeId}",
                         reqItem.periods,
                         units,
                         resolvedProduct.pricePerUnit,
@@ -167,7 +166,7 @@ suspend fun PaymentService.chargeOrCheckCredits(
                         },
                         resolvedProduct.toReference(),
                         reqItem.description,
-                        reqItem.chargeId
+                        "${reqItem.id}-${reqItem.chargeId}",
                     )
                 )
 
@@ -176,7 +175,6 @@ suspend fun PaymentService.chargeOrCheckCredits(
         }
     }
 
-    PaymentService.log.info("Paymentrequests: $paymentRequests")
     if (paymentRequests.isEmpty()) return ResourceChargeCreditsResponse(emptyList(), emptyList())
 
     val chargeResult =

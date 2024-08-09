@@ -154,6 +154,12 @@ sealed class AccountingRequest<Resp> {
         val walletId: Int
     ) : AccountingRequest<JsonObject>()
 
+    data class SetExpire(
+        override val idCard: IdCard,
+        val allocationId: Int,
+        val end: Long
+    ) : AccountingRequest<Boolean>()
+
     data class DebugCharge(
         override val idCard: IdCard,
         val walletId: Int,

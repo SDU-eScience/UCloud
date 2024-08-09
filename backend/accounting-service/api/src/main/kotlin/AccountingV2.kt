@@ -285,6 +285,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val retrieveDescendants = RetrieveDescendants.call
     val adminDebug = AdminDebug.call
     val adminCharge = AdminCharge.call
+    val adminSetExpire = AdminSetExpire.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -434,6 +435,32 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "adminCharge", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminSetExpire {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val allocationId: Int,
+            //Timestamp in millisec
+            val endDate: Long
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val changed: Boolean
+        )
+
+        val call = call(
+            "adminSetExpire",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminSetExpire", roles = Roles.ADMIN)
             }
         )
     }

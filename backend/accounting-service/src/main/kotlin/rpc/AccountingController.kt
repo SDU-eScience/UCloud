@@ -276,6 +276,14 @@ class AccountingController(
             ok(AccountingV2.AdminCharge.Response(error))
         }
 
+        implementOrDispatch(AccountingV2.adminSetExpire) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+
+            ok(AccountingV2.AdminSetExpire.Response(accounting.sendRequest(
+                AccountingRequest.SetExpire(idCard, request.allocationId, request.endDate)
+            )))
+        }
+
         return@with
     }
 
