@@ -473,7 +473,7 @@ export function browseOpenWithRecommendations(request: {
 // =================================================================================================================
 export function updateApplicationFlavor(request: {
     applicationName: string;
-    flavorName: string;
+    flavorName: string | null;
 }): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "updateApplicationFlavor");
 }

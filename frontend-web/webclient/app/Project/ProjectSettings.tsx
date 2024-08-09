@@ -23,7 +23,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -244,6 +244,20 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectTitle={project.specification.title}
                         onSuccess={() => projectOps.reload()}
                     />
+
+                    { Client.userIsAdmin ? <>
+                        <Label>Project ID (only visible to UCloud Admins)</Label>
+                        <Flex>
+                            <Text color={"textSecondary"}>{projectId}</Text>
+                            <Icon
+                                name="heroDocumentDuplicate"
+                                ml="10px"
+                                onClick={() =>
+                                    copyToClipboard({value: projectId, message: "Copied project ID to clipboard"})
+                                }
+                            />
+                        </Flex>
+                    </> : <></> }
 
                     <SubprojectSettings
                         projectId={projectId}

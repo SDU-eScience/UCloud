@@ -695,7 +695,7 @@ invocation of the application, but is used solely to visually group applications
         @Serializable
         data class Request(
             val applicationName: String,
-            val flavorName: String,
+            val flavorName: String?,
         )
 
         val call = call(

@@ -1,5 +1,5 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, Flex, Icon, Input, Label, Relative, Select, TextArea} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Select, TextArea} from "@/ui-components";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
@@ -139,20 +139,21 @@ export const AppGroup: React.FunctionComponent = () => {
 
                     {!uniqueApps? <>No apps found</> : (
                         <List width="100%" height="calc(80vh - 75px)" minHeight="325px" overflow="auto">
-                            {uniqueApps.map(app => (
-                                group.data?.status?.applications?.map(app => app.metadata.name).includes(app) ? null : (
+                            {uniqueApps.map(appName => (
+                                group.data?.status?.applications?.map(app => app.metadata.name).includes(appName) ? null : (
                                     <ListRow
+                                        key={appName}
                                         left={
                                             <Flex gap="10px">
-                                                <SafeLogo name={app} type="APPLICATION" size="30px"/>
-                                                {app}
+                                                <SafeLogo name={appName} type="APPLICATION" size="30px"/>
+                                                {appName}
                                             </Flex>
                                         }
                                         right={
                                             <Button
                                                 onClick={async () => {
                                                     await invokeCommand(AppStore.assignApplicationToGroup({
-                                                        name: app,
+                                                        name: appName,
                                                         group: group.data!.metadata.id,
                                                     }));
                                                     setAddApplicationOpen(false);
@@ -169,39 +170,14 @@ export const AppGroup: React.FunctionComponent = () => {
                 </ReactModal>
                 <MainContainer
                     header={
-                        <Flex justifyContent="space-between">
+                        <Box maxWidth="800px" ml="auto" mr="auto">
+                            <Box mb="10px">
+                                <Link to="/applications/studio/groups"><Icon name="heroArrowLeft" /> Back to application groups</Link>
+                            </Box>
                             <h3 className="title">Edit group</h3>
-                            <Flex justifyContent="right" mr="10px">
-                                <Button type="button" onClick={async () => {
-                                    if (!group.data) return;
-
-                                    const titleField = groupTitleField.current;
-                                    if (titleField === null) return;
-
-                                    const newTitle = titleField.value;
-                                    if (newTitle === "") {
-                                        snackbarStore.addFailure("Title cannot be empty", false);
-                                        return
-                                    }
-
-                                    const descriptionField = groupDescriptionField.current;
-                                    if (descriptionField === null) return;
-
-                                    const newDescription = descriptionField.value;
-
-                                    await invokeCommand(AppStore.updateGroup({
-                                        id: group.data?.metadata.id,
-                                        newTitle: newTitle,
-                                        newDescription: newDescription,
-                                        newDefaultFlavor: defaultApplication,
-                                        newLogoHasText: logoHasText
-                                        // tags
-                                    }));
-                                    refresh();
-                                }}>Save changes</Button>
-                            </Flex>
-                        </Flex>
+                        </Box>
                     }
+                    headerSize={80}
                     main={
                         !group.data ? <>Not found</> :
                             <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
@@ -214,6 +190,40 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <TextArea mb="20px" inputRef={groupDescriptionField}
                                               defaultValue={group.data?.specification.description}/>
                                 </Label>
+
+                                <Flex justifyContent="right" mb="30px">
+                                    <Button type="button" onClick={async () => {
+                                        if (!group.data) return;
+
+                                        const titleField = groupTitleField.current;
+                                        if (titleField === null) return;
+
+                                        const newTitle = titleField.value;
+                                        if (newTitle === "") {
+                                            snackbarStore.addFailure("Title cannot be empty", false);
+                                            return;
+                                        }
+
+                                        const descriptionField = groupDescriptionField.current;
+                                        if (descriptionField === null) return;
+
+                                        const newDescription = descriptionField.value;
+
+                                        const success = await invokeCommand(AppStore.updateGroup({
+                                            id: group.data.metadata.id,
+                                            newTitle: newTitle,
+                                            newDescription: newDescription,
+                                            newDefaultFlavor: defaultApplication,
+                                            newLogoHasText: logoHasText
+                                            // tags
+                                        }));
+                                        refresh();
+
+                                        if (success) {
+                                            snackbarStore.addSuccess("Changes saved", false);
+                                        }
+                                    }}>Save changes</Button>
+                                </Flex>
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
@@ -240,19 +250,13 @@ export const AppGroup: React.FunctionComponent = () => {
                                             />
                                         </label>
 
-                                        <Button
-                                            ml="5px"
-                                            type="button"
-                                            color="errorMain"
-                                            disabled={commandLoading}
-                                            onClick={async () => {
+                                        <ConfirmationButton
+                                            icon="heroTrash"
+                                            onAction={async () => {
                                                 await invokeCommand(AppStore.removeLogoFromGroup({id}));
                                                 refresh();
                                             }}
-                                        >
-                                            <Icon name="trash"/>
-                                        </Button>
-
+                                        />
                                     </Flex>
                                 </Flex>
 
@@ -306,17 +310,17 @@ export const AppGroup: React.FunctionComponent = () => {
                                     <List width="100%">
                                         {group.data.status?.applications?.map(app => (
                                             <ListRow
+                                                key={app.metadata.name}
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
-                                                    <Flex justifyContent="left" gap="20px">
-                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION"
-                                                                          size="30px"/></Box>
-                                                        <Box>{app.metadata.title}</Box>
+                                                    <Flex justifyContent="left" gap="15px">
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px"/></Box>
+                                                        <Box mt="6px">{app.metadata.title}</Box>
                                                     </Flex>
                                                 }
                                                 right={
-                                                    <Flex justifyContent="right">
-                                                        <Box>
+                                                    <Flex justifyContent="right" gap="7px">
+                                                        <Box mt="3px">
                                                             <Label>
                                                                 <Checkbox
                                                                     checked={app.metadata.name === defaultApplication}
@@ -331,20 +335,16 @@ export const AppGroup: React.FunctionComponent = () => {
                                                             </Label>
                                                         </Box>
                                                         <Box>
-                                                            <Button
-                                                                mt="2px"
-                                                                color="errorMain"
-                                                                type="button"
-                                                                onClick={async () => {
+                                                            <ConfirmationButton
+                                                                icon="heroTrash"
+                                                                onAction={async () => {
                                                                     await invokeCommand(AppStore.assignApplicationToGroup({
                                                                         name: app.metadata.name,
                                                                         group: undefined
                                                                     }))
                                                                     refresh();
                                                                 }}
-                                                            >
-                                                                <Icon name="trash"/>
-                                                            </Button>
+                                                            />
                                                         </Box>
                                                     </Flex>
                                                 }

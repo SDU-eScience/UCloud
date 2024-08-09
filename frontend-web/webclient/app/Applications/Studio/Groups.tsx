@@ -17,12 +17,14 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import AppRoutes from "@/Routes";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const navigate = useNavigate();
 
+    const createRef = React.useRef<HTMLInputElement>(null);
     const filterRef = React.useRef<HTMLInputElement>(null);
 
     const [allGroups, setGroups] = useCloudAPI(
@@ -45,7 +47,11 @@ export const ApplicationGroups: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<h3 className="title">Application groups</h3>}
+            header={
+                <Box maxWidth="800px" ml="auto" mr="auto">
+                    <h3 className="title">Application groups</h3>
+                </Box>
+            }
             main={
                 <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
@@ -154,31 +160,43 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                     <form onSubmit={async e => {
                         e.preventDefault();
 
-                        const filterField = filterRef.current;
-                        if (filterField === null) return;
+                        const createField = createRef.current;
+                        if (createField === null) return;
 
-                        const filterValue = filterField.value;
-                        if (filterValue === "") return;
+                        const createValue = createField.value;
+                        if (createValue === "") return;
 
-                        await invokeCommand(AppStore.createGroup({title: filterValue, description: "", categories: []}))
-                        filterField.value = "";
-                        setTitleFilter("");
-                        refresh();
+                        const res = await invokeCommand(AppStore.createGroup({title: createValue, description: "", categories: []}))
+                        createField.value = "";
+                        if (!res) {
+                            return;
+                        }
+                        if (!res.id) {
+                            return;
+                        }
+                        navigate(`/applications/studio/g/${res.id}`)
                     }}>
                         <Flex>
                             <Input
-                                placeholder="Filter or create group.."
-                                defaultValue={filter}
-                                inputRef={filterRef}
+                                placeholder="Create group"
+                                inputRef={createRef}
                                 type="text"
-                                autoFocus
-                                onChange={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")}
                                 mb="20px"
                                 rightLabel
                             />
                             <Button type="submit" attached>Create</Button>
                         </Flex>
                     </form>
+
+                    <Input
+                        placeholder="Filter groups"
+                        defaultValue={filter}
+                        inputRef={filterRef}
+                        type="text"
+                        autoFocus
+                        onChange={e => setTitleFilter("value" in (e.target) ? e.target.value as string : "")}
+                        mb="20px"
+                    />
 
                     <List width="100%">
                         {results.map(group => (
@@ -188,15 +206,15 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 left={
                                     <Flex justifyContent="left">
                                         <SafeLogo name={group.metadata.id.toString()} type="GROUP" size="25px"/>
-                                        <Box ml="10px">
+                                        <Box ml="10px" mt="5px">
                                             {group.specification.title}
                                         </Box>
                                     </Flex>
                                 } right={
-                                <Button onClick={() => {
-                                    invokeCommand(AppStore.deleteGroup({id: group.id})).then(doNothing);
+                                <ConfirmationButton onAction={() => {
+                                    invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
                                     refresh();
-                                }} height="25px" color="errorMain"><Icon name="trash"/></Button>
+                                }} icon="heroTrash" />
                             }
                             />
                         ))}

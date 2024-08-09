@@ -160,8 +160,6 @@ const InputLabelClass = injectStyle("input-label", k => `
     }
     
     ${k}[data-left-label="true"] {
-        border-top-left-radius: 5px;
-        border-bottom-left-radius: 5px;
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
         border-right: 0;
@@ -169,8 +167,6 @@ const InputLabelClass = injectStyle("input-label", k => `
     }
     
     ${k}[data-right-label="true"] {
-        border-top-right-radius: 5px;
-        border-bottom-right-radius: 5px;
         border-top-left-radius: 0;
         border-bottom-left-radius: 0;
         border-left: 0;
