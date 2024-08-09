@@ -5,15 +5,12 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strings"
 	"sync/atomic"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
@@ -22,8 +19,6 @@ import (
 	"unicode"
 )
 
-const fileClusters = "clusters.yaml"
-const fileRds = "rds.yaml"
 const fileConfig = "config.yaml"
 const fileBadGateway = "bad-gateway.html"
 
@@ -49,7 +44,7 @@ type Config struct {
 }
 
 var configChannel chan []byte
-var isLaunchingUserInstances bool = false
+var isLaunchingUserInstances = false
 
 func Initialize(config Config, channel chan []byte) {
 	Pause()
@@ -67,41 +62,28 @@ func Initialize(config Config, channel chan []byte) {
 
 	{
 		var err error
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
-				badGatewayHtml,
-				0o600,
-			)
-		}
+		err = os.WriteFile(
+			fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
+			badGatewayHtml,
+			0o600,
+		)
 
 		if err == nil {
+			adminSection := ""
+			if util.DevelopmentModeEnabled() {
+				adminSection = adminSectionDev
+			} else {
+				adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
+			}
+
 			err = os.WriteFile(
 				fmt.Sprintf("%v/%v", stateDir, fileConfig),
-				[]byte(fmt.Sprintf(
-					envoyConfigTemplate,
-					fmt.Sprintf("%v/%v", stateDir, fileClusters),
-					config.ListenAddress,
-					config.Port,
-					fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
-					fmt.Sprintf("%v/%v", stateDir, fileRds),
-				)),
-				0o600,
-			)
-		}
-
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", stateDir, fileRds),
-				[]byte("{}"),
-				0o600,
-			)
-		}
-
-		if err == nil {
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", stateDir, fileClusters),
-				[]byte("{}"),
+				[]byte(
+					fmt.Sprintf(
+						envoyConfigTemplate,
+						adminSection,
+						filepath.Join(stateDir, "xds.sock"),
+					)),
 				0o600,
 			)
 		}
@@ -139,6 +121,8 @@ func Initialize(config Config, channel chan []byte) {
 			UseDNS:  !unicode.IsDigit([]rune(internalAddress)[0]),
 		}
 	}
+
+	go startConfigurationServer()
 
 	go func() {
 		for binMessage := range configChannel {
@@ -184,38 +168,9 @@ func Initialize(config Config, channel chan []byte) {
 			// resynchronizing by simply sending an empty configuration message.
 
 			if !paused.Load() {
-				version := fmt.Sprintf("%x%x%x", rand.Int63(), rand.Int63(), rand.Int63())
-				err := os.WriteFile(
-					fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
-					[]byte(formatRoutes(version, routes)),
-					0o600,
-				)
-
-				if err == nil {
-					err = os.WriteFile(
-						fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
-						[]byte(formatClusters(version, clusters)),
-						0o600,
-					)
-				}
-
-				if err == nil {
-					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", stateDir, version, fileRds),
-						fmt.Sprintf("%v/%v", stateDir, fileRds),
-					)
-				}
-
-				if err == nil {
-					err = os.Rename(
-						fmt.Sprintf("%v/%v%v", stateDir, version, fileClusters),
-						fmt.Sprintf("%v/%v", stateDir, fileClusters),
-					)
-				}
-
-				if err != nil {
-					log.Warn("Failed to write configuration files for the gateway: %v", err)
-				}
+				sortedRoutes := sortRoutes(routes)
+				snapshot := createConfigurationSnapshot(config.ListenAddress, config.Port, sortedRoutes, clusters)
+				setActiveSnapshot(snapshot)
 			}
 		}
 	}()
@@ -243,7 +198,10 @@ func Initialize(config Config, channel chan []byte) {
 
 					cmd := exec.Command(executable, args...)
 
-					cmd.Env = append(cmd.Env, "ENVOY_VERSION=1.23.0")
+					// NOTE(Dan, 09/08/2024): Most of the systems this will run on runs older versions of glibc
+					// (and gcc). The newest version of Envoy this can run is 1.23.12 but the newest version in
+					// func-e is 1.23.4.
+					cmd.Env = append(cmd.Env, "ENVOY_VERSION=1.23.4")
 					cmd.Stdout = logFile
 					cmd.Stderr = logFile
 
@@ -287,15 +245,6 @@ func Pause() {
 	paused.Store(true)
 }
 
-func jsonify(value any) string {
-	d, _ := json.Marshal(value)
-	if d == nil {
-		return ""
-	} else {
-		return string(d)
-	}
-}
-
 func b64(value string) string {
 	data := base64.StdEncoding.EncodeToString([]byte(value))
 	return data
@@ -307,66 +256,80 @@ func urlEncode(value string) string {
 
 // NOTE(Dan): This assumes that the configuration can be trusted, which doesn't seem like an unreasonable assumption
 // given that it must be owned by the service user on the file-system (and that this is verified).
+// NOTE(Dan): xDS server must run on a unix domain socket if other users can access the system
+// NOTE(Dan): Admin server must only be accessible via socket/dev mode only
+
+const adminSectionDev = `
+admin:
+  access_log_path: /dev/null
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 41493
+`
+
+const adminSectionProd = `
+admin:
+  access_log_path: /dev/null
+  address:
+    pipe:
+      path: %v
+      mode: 448
+`
+
 const envoyConfigTemplate = `
+%v
+
 dynamic_resources:
   cds_config:
-    path: %v
-
+    resource_api_version: V3
+    api_config_source:
+      api_type: GRPC
+      transport_api_version: V3
+      grpc_services:
+      - envoy_grpc:
+          cluster_name: xds_cluster
+      set_node_on_first_message_only: true
+  lds_config:
+    resource_api_version: V3
+    api_config_source:
+      api_type: GRPC
+      transport_api_version: V3
+      grpc_services:
+      - envoy_grpc:
+          cluster_name: xds_cluster
+      set_node_on_first_message_only: true
 node:
-  cluster: ucloudim_cluster
   id: ucloudim_stack
-
-admin:
-  access_log_path: "/dev/stdout"
-  
+  cluster: ucloudim_cluster
+static_resources:
+  clusters:
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              pipe:
+                path: %v
+                mode: 448
+    http2_protocol_options: {}
+    name: xds_cluster
 layered_runtime:
   layers:
-  - name: static_layer_0
-    static_layer:
-      envoy:
-        resource_limits:
-          listener:
-            example_listener_name:
-              connection_limit: 10000
-      overload:
-        global_downstream_max_connections: 50000
+    - name: runtime-0
+      rtds_layer:
+        rtds_config:
+          resource_api_version: V3
+          api_config_source:
+            transport_api_version: V3
+            api_type: GRPC
+            grpc_services:
+              envoy_grpc:
+                cluster_name: xds_cluster
+        name: runtime-0
 
-static_resources:
-  listeners:
-    - address:
-        socket_address:
-          address: %v
-          port_value: %v
-      filter_chains:
-        - filters:
-            - name: envoy.filters.network.http_connection_manager
-              typed_config:
-                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
-                codec_type: auto
-                local_reply_config:
-                  mappers:
-                    - filter:
-                        status_code_filter:
-                          comparison:
-                            op: EQ
-                            value:
-                              default_value: 503
-                              runtime_key: key_bad_gateway
-                      body:
-                        filename: %v
-                      body_format_override:
-                        text_format: "%%LOCAL_REPLY_BODY%%"
-                        content_type: "text/html; charset=UTF-8"
-
-                http_filters:
-                - name: envoy.filters.http.router
-                  typed_config:
-                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
-                stat_prefix: ingress_http
-                rds:
-                  route_config_name: local_route
-                  config_source:
-                    path: %v
 `
 
 type EnvoyCluster struct {
@@ -374,68 +337,6 @@ type EnvoyCluster struct {
 	Address string
 	Port    int
 	UseDNS  bool
-}
-
-const envoyClusterTemplate = `
-{
-    "name": %v,
-    "connect_timeout": "0.25s",
-    "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
-    "lb_policy": "ROUND_ROBIN",
-    "type": %v ,
-    "upstream_connection_options": {
-        "tcp_keepalive": {}
-    },
-    "load_assignment": {
-        "cluster_name": %v,
-        "endpoints": [
-            {
-                "lb_endpoints": [
-                    {
-                        "endpoint": {
-                            "address": {
-                                "socket_address": {
-                                    "address": %v,
-                                    "port_value": %v
-                                }
-                            }
-                        }
-                    }
-                ]
-            }
-        ]
-    }
-}
-`
-
-func (c *EnvoyCluster) formatCluster() string {
-	dnsType := "STATIC"
-	if c.UseDNS {
-		dnsType = "STRICT_DNS"
-	}
-
-	return fmt.Sprintf(
-		envoyClusterTemplate,
-		jsonify(c.Name),
-		jsonify(dnsType),
-		jsonify(c.Name),
-		jsonify(c.Address),
-		jsonify(c.Port),
-	)
-}
-
-const clustersTemplate = `{
-	"version_info": %v,
-	"resources": [%v]
-}`
-
-func formatClusters(version string, clusters map[string]*EnvoyCluster) string {
-	var mappedClusters []string = nil
-	for _, cluster := range clusters {
-		mappedClusters = append(mappedClusters, cluster.formatCluster())
-	}
-
-	return fmt.Sprintf(clustersTemplate, jsonify(version), strings.Join(mappedClusters, ","))
 }
 
 type RouteType int
@@ -453,184 +354,6 @@ type EnvoyRoute struct {
 	CustomDomain string
 	AuthTokens   []string
 	Type         RouteType
-}
-
-const standardRouteTemplate = `{
-	"cluster": %v,
-	"timeout": { "seconds": 0 },
-	"upgrade_configs": [{ "upgrade_type": "websocket", "enabled": true }]
-}`
-
-const envoyRouteTemplateServiceOnly = `{
-	"route": %v,
-	"match": { "prefix": "/" }
-}`
-
-const envoyRouteTemplateRealUserService = `{
-	"route": %v,
-	"match": {
-		"prefix": "/",
-		"headers": [{
-			"name": "UCloud-Username",
-			"invert_match": true,
-			"present_match": true
-		}]
-	}
-}`
-
-const envoyRouteTemplateRealUserHeader = `{
-	"route": %v,
-	"match": {
-		"prefix": "/",
-		"headers": [{
-			"name": "UCloud-Username",
-			"exact_match": "%v"
-		}]
-	}
-}`
-
-const envoyRouteTemplateRealUserQueryParam = `{
-	"route": %v,
-	"match": {
-		"prefix": "/",
-		"query_parameters": [{
-			"name": "usernameHint",
-			"string_match": { "exact": "%v" }
-		}]
-	}
-}`
-
-const envoyRouteTemplateVnc = `{
-	"route": %v,
-	"match": {
-		"path": %v,
-		"query_parameters": [{
-			"name": "token",
-			"string_match": { "exact": "%v" }
-		}]
-	}
-}`
-
-const envoyRouteTemplateAuthorize = `{
-	"route": %v,
-	"match": { "prefix": %v }
-}`
-
-const envoyRouteTemplateIngress = `{
-	"route": %v,
-	"match": {
-		"prefix": "/",
-		"headers": [
-			{ "name": ":authority", "exact_match": "%v" }
-			%v
-		]
-	}
-}`
-
-const envoyRouteTemplateIngressCookieEntry = `, {
-	"name": "cookie",
-	"string_match": {
-		"safe_regex": { "regex": %v }
-	}
-}`
-
-func (c *EnvoyRoute) formatRoute() []string {
-	var result []string = nil
-
-	route := fmt.Sprintf(standardRouteTemplate, jsonify(c.Cluster))
-
-	switch c.Type {
-	case RouteTypeUser:
-		if isLaunchingUserInstances {
-			if len(c.Identifier) == 0 {
-				// Service instance
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserService,
-						route,
-					),
-				)
-			} else {
-				// User instance
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserHeader,
-						route,
-						b64(c.Identifier),
-					),
-				)
-
-				result = append(
-					result,
-					fmt.Sprintf(
-						envoyRouteTemplateRealUserQueryParam,
-						route,
-						b64(c.Identifier),
-					),
-				)
-			}
-		} else {
-			result = append(
-				result,
-				fmt.Sprintf(
-					envoyRouteTemplateServiceOnly,
-					route,
-				),
-			)
-		}
-	case RouteTypeVnc:
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateVnc,
-				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id)),
-				jsonify(c.Identifier),
-			),
-		)
-	case RouteTypeAuthorize:
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateAuthorize,
-				route,
-				jsonify(fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id)),
-			),
-		)
-	case RouteTypeIngress:
-		var cookieMatcher = ""
-		if len(c.AuthTokens) > 0 {
-			var regexBuilder strings.Builder
-			regexBuilder.WriteString(".*ucloud-compute-session-.*=(")
-			for i, elem := range c.AuthTokens {
-				if i > 0 {
-					regexBuilder.WriteString("|")
-				}
-
-				regexBuilder.WriteString(urlEncode(elem))
-			}
-			regexBuilder.WriteString(").*")
-
-			cookieMatcher = fmt.Sprintf(
-				envoyRouteTemplateIngressCookieEntry,
-				jsonify(regexBuilder.String()),
-			)
-		}
-
-		result = append(
-			result,
-			fmt.Sprintf(
-				envoyRouteTemplateIngress,
-				route,
-				c.CustomDomain,
-				cookieMatcher,
-			),
-		)
-	}
-
-	return result
 }
 
 func (r *EnvoyRoute) weight() int {
@@ -651,32 +374,7 @@ func (r *EnvoyRoute) weight() int {
 	return 1000
 }
 
-const routesTemplate = `{
-	"version_info": %v,
-	"resources": [
-		{
-			"@type": "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
-			"name": "local_route",
-			"virtual_hosts": [
-				{
-					"name": "local_route",
-					"domains": ["*"],
-					"routes": [
-						%v,
-						{
-							"match": { "prefix": "" },
-							"direct_response": { "status": 449 }
-						}
-					]
-				}
-			]
-		}
-	]
-}`
-
-func formatRoutes(version string, routes map[*EnvoyRoute]bool) string {
-	// NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the traffic will
-	//always go to the wrong route.
+func sortRoutes(routes map[*EnvoyRoute]bool) []*EnvoyRoute {
 	var sortedRoutes []*EnvoyRoute
 	for route, _ := range routes {
 		sortedRoutes = append(sortedRoutes, route)
@@ -688,14 +386,5 @@ func formatRoutes(version string, routes map[*EnvoyRoute]bool) string {
 
 		return leftWeight < rightWeight
 	})
-
-	var mappedRoutes []string = nil
-	for _, route := range sortedRoutes {
-		res := route.formatRoute()
-		for _, s := range res {
-			mappedRoutes = append(mappedRoutes, s)
-		}
-	}
-
-	return fmt.Sprintf(routesTemplate, jsonify(version), strings.Join(mappedRoutes, ","))
+	return sortedRoutes
 }
