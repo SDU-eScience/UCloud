@@ -103,7 +103,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 `);
 
-export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<DropdownContentProps>> = ({
+export function DropdownContent({
     squareTop = false,
     hover = true,
     width = "auto",
@@ -115,7 +115,7 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
     boxShadow = "md",
     visible = false,
     ...props
-}) => {
+}: React.PropsWithChildren<DropdownContentProps>): React.ReactNode {
     const style: CSSProperties = {};
     if (width) style.width = extractSize(width);
     if (minWidth) style.minWidth = extractSize(minWidth);
@@ -138,6 +138,7 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
         data-no-y-padding={props.noYPadding === true}
         data-visible={visible === true}
         style={style}
+        onClick={props.onClick}
         children={props.children}
     />;
 };
@@ -161,4 +162,5 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     color?: string;
     onKeyDown?: React.KeyboardEventHandler;
     dropdownRef?: React.Ref<HTMLDivElement>
+    onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
