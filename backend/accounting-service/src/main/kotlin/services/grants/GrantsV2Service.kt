@@ -1179,6 +1179,10 @@ class GrantsV2Service(
 
                         req.copy(grantGiver = command.targetProjectId)
                     }
+                    if (requestsAfterMove.isEmpty()) throw RPCException.fromStatusCode(
+                        HttpStatusCode.UnprocessableEntity,
+                        "Receiving grant giver does not have any of the applied resources"
+                    )
                     val newBreakdown = application.status.stateBreakdown.filter {
                         it.projectId != command.sourceProjectId
                     } + GrantApplication.GrantGiverApprovalState(
