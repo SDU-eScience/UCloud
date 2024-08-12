@@ -574,7 +574,7 @@ function stateReducer(state: State, action: UIAction): State {
                         category: wallet.paysFor
                     }]);
                     let totalRetired = 0;
-                    wallet.allocationGroups.forEach( ({group}) =>
+                    wallet.allocationGroups.forEach(({group}) =>
                         group.allocations.forEach(alloc => (
                             totalRetired += alloc.retiredUsage ?? 0
                         ))
@@ -646,7 +646,7 @@ function stateReducer(state: State, action: UIAction): State {
                 const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
 
                 let combinedQuota = 0;
-                childGroup.group.allocations.forEach( alloc => {
+                childGroup.group.allocations.forEach(alloc => {
                     if (allocationIsActive(alloc, new Date().getTime())) {
                         combinedQuota += alloc.quota;
                     }
@@ -655,10 +655,11 @@ function stateReducer(state: State, action: UIAction): State {
                 // Need to have total usage in case retired should be included in final result
                 let combinedUsage = childGroup.group.usage;
                 if (!shouldUseRetired) {
-                     combinedUsage += combinedRetired;
+                    combinedUsage += combinedRetired;
                 }
 
-                const localUsage = childGroup.group.usage;
+
+                const localUsage = Accounting.combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
 
                 const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
                 const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
@@ -678,7 +679,7 @@ function stateReducer(state: State, action: UIAction): State {
                 };
 
                 const uq = newGroup.usageAndQuota;
-                uq.maxUsable = uq.quota - localUsage;
+                uq.maxUsable = uq.quota - (localUsage[0]?.normalizedBalance ?? 0);
 
                 for (const alloc of childGroup.group.allocations.reverse()) {
                     newGroup.allocations.push({
@@ -1952,7 +1953,7 @@ export function totalUsageExcludingRetiredIfNeeded(wallet: WalletV2): number {
         totalusage = wallet.totalUsage
     } else {
         wallet.allocationGroups.forEach(group =>
-            group.group.allocations.forEach( alloc =>
+            group.group.allocations.forEach(alloc =>
                 retired += alloc.retiredUsage ?? 0
             )
         )
