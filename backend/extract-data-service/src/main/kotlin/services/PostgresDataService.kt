@@ -124,11 +124,10 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
             session
                 .sendPreparedStatement(
                     """
-                                select (initial_balance - local_balance) as usage, wo.username, wo.project_id
-                                from accounting.wallets wa
-                                    join accounting.wallet_allocations wall on wa.id = wall.associated_wallet
-                                    join accounting.wallet_owner wo on wa.owned_by = wo.id
-                                    join accounting.product_categories pc on wa.category = pc.id
+                                select local_usage as usage, wo.username, wo.project_id
+                                from accounting.wallets_v2 wa
+                                    join accounting.wallet_owner wo on wa.wallet_owner = wo.id
+                                    join accounting.product_categories pc on wa.product_category = pc.id
                                     left join project.projects pr on wo.project_id = pr.id
                                 where pc.category like '%ceph%'
                             """
@@ -269,15 +268,21 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             setParameter("projectid", projectId)
                         },
                         """
-                            SELECT wo.project_id, sum(walloc.initial_balance::bigint)::bigint,
-                                (sum(walloc.initial_balance)::bigint - sum(walloc.local_balance)::bigint)::bigint,  p.price_per_unit,  pc.category
-                            FROM accounting.wallets wa join
-                                accounting.product_categories pc on pc.id = wa.category join
-                                accounting.wallet_owner wo on wo.id = wa.owned_by join
-                                accounting.wallet_allocations walloc on walloc.associated_wallet = wa.id join 
-                                accounting.products p on pc.id = p.category
+                            with lookup as (
+                                SELECT distinct (pc.id), pc.category, (p.gpu is not null and p.gpu != 0) as is_gpu
+                                from accounting.products p
+                                    join accounting.product_categories pc on p.category = pc.id
+                            )
+                            SELECT wo.project_id, sum(walloc.quota)::bigint,
+                                wa.local_usage, pc.product_type, is_gpu
+                            FROM accounting.wallets_v2 wa join
+                                accounting.allocation_groups ag on wa.id = ag.associated_wallet join
+                                accounting.wallet_allocations_v2 walloc on ag.id = walloc.associated_allocation_group join
+                                accounting.wallet_owner wo on wo.id = wa.wallet_owner join
+                                accounting.product_categories pc on pc.id = wa.product_category join
+                                lookup l on l.id = pc.id
                             WHERE wo.project_id = :projectid
-                            group by wo.project_id, pc.category, p.price_per_unit
+                            group by wo.project_id, pc.product_type, wa.local_usage, is_gpu;
                         """
                     ).rows
                     .map {
@@ -285,8 +290,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             it.getString(0)!!,
                             it.getLong(1)!!,
                             it.getLong(2)!!,
-                            it.getLong(3)!!,
-                            ProductType.createFromCatagory(it.getString(4)!!)
+                            ProductType.createFromType(it.getString(3)!!, it.getBoolean(4)!!)
                         )
                     }
             }

@@ -21,38 +21,22 @@ const val TYPE_3_HPC_CENTER_ID = "a498f984-e864-43ec-95b0-e46ab0b13e33"
 const val TYPE_3_HPC_SUB_CENTER_ID_SDU = "849c4cfb-b6b7-4766-a48d-281e8276b399"
 
 const val TYPE_1_CPU_CORES = 2048L
-const val TYPE_1_CPU_CORE_PRICE_PER_MINUTE = 1434.0
-
 
 const val TYPE_1_GPU_CORES = 76L
-const val TYPE_1_GPU_CORE_PRICE_PER_MINUTE = 175800.0
 
-const val TYPE_1_CEPH_GB_PRICE_PER_DAY = 0.001667
+enum class ProductType {
+    CPU,
+    GPU,
+    STORAGE,
+    OTHER;
 
-enum class ProductType(val catagoryId: String) {
-    CPU("u1-standard") {
-        override fun getPricing() = TYPE_1_CPU_CORE_PRICE_PER_MINUTE
-                       },
-    GPU("u1-gpu") {
-        override fun getPricing() = TYPE_1_CPU_CORE_PRICE_PER_MINUTE
-                  },
-    STORAGE("u1-cephfs") {
-        override fun getPricing() = TYPE_1_CEPH_GB_PRICE_PER_DAY
-    },
-    LICENSE_OR_AAU("other") {
-        override fun getPricing() = 0.0
-    };
-
-
-
-    abstract fun getPricing():Double
     companion object {
-        fun createFromCatagory(catagoryId: String): ProductType{
+        fun createFromType(productType: String, isGPU: Boolean): ProductType{
             return when {
-                catagoryId == CPU.catagoryId -> CPU;
-                catagoryId == GPU.catagoryId -> GPU;
-                catagoryId == STORAGE.catagoryId -> STORAGE
-                else -> LICENSE_OR_AAU
+                productType == "COMPUTE" && !isGPU -> CPU;
+                productType == "COMPUTE" && isGPU -> GPU;
+                productType == "STORAGE" -> STORAGE
+                else -> OTHER
             }
         }
     }

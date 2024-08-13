@@ -89,6 +89,13 @@ class Server(override val micro: Micro) : CommonServer {
             if (args.contains("--data-collection")) {
                 try {
                     when {
+                        args.contains("--report-all") -> {
+                            getDates(args)
+                            deicReportService.reportAll(start, end)
+                            println("All reporting done")
+                            exitProcess(0)
+                        }
+
                         args.contains("--center") -> {
                             getDates(args)
                             deicReportService.reportCenter(start, end, false)
@@ -108,13 +115,15 @@ class Server(override val micro: Micro) : CommonServer {
                         }
 
                         args.contains("--center-daily-deic") -> {
+                            val file = File("/tmp/centerDaily.json")
                             getDates(args)
-                            deicReportService.reportCenterDailyDeic(start, end)
+                            deicReportService.reportCenterDailyDeic(start, end, file)
                             exitProcess(0)
                         }
 
                         args.contains("--person") -> {
-                            deicReportService.reportPerson()
+                            val file = File("/tmp/person.json")
+                            deicReportService.reportPerson(file)
                             exitProcess(0)
                         }
 

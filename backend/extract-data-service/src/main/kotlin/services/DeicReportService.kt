@@ -2,17 +2,90 @@ package dk.sdu.cloud.extract.data.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.extract.data.api.*
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.io.File
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.LocalDateTime
 import kotlin.math.min
 
-class DeicReportService(val postgresDataService: PostgresDataService) {
+class DeicReportService(private val postgresDataService: PostgresDataService) {
 
     private fun hashUsernameInSHA256(username: String): String {
         return MessageDigest.getInstance("SHA-256").digest(username.toByteArray()).fold("",{ str, it -> str + "%02x".format(it) })
+    }
+
+    suspend fun reportAll(startDate: LocalDateTime, endDate: LocalDateTime) {
+
+        val centerFile = File("/tmp/Center.json")
+        val centerDailyFile = File("/tmp/CenterDaily.json")
+        val personFile = File("/tmp/Person.json")
+
+        coroutineScope {
+            val center = launch {
+                reportCenter(startDate, endDate, centerFile)
+            }
+            val centerDaily = launch {
+                reportCenterDailyDeic(startDate, endDate, centerDailyFile)
+            }
+            val person = launch {
+                reportPerson(personFile)
+            }
+        }
+    }
+
+    private suspend fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, file: File) {
+        val daysInPeriod = Duration.between(startDate, endDate).toDays()
+        val hoursInPeriod = daysInPeriod * 24L
+        val usedCPUInPeriodSDU = postgresDataService.getCPUUsage(startDate, endDate, false).values.sum()
+        val numberOfGPUCoresSDU = 0L
+        val usedGPUHoursInPeriodSDU = postgresDataService.getGPUUsage(startDate, endDate, false).values.sum()
+
+        val storageUsedSDU = postgresDataService.getSDUCeph().values.sum()
+
+        file.writeText("[\n")
+        val centerReportSDU = Center(
+            TYPE_1_HPC_CENTER_ID,
+            TYPE_1_HPC_SUB_CENTER_ID_SDU,
+            startDate.toString().substringBefore("T"),
+            endDate.toString().substringBefore("T"),
+            //for aau just use used
+            TYPE_1_CPU_CORES * hoursInPeriod,
+            usedCPUInPeriodSDU,
+            numberOfGPUCoresSDU,
+            usedGPUHoursInPeriodSDU,
+            storageUsedSDU,
+            //networkUsed.toLong(),
+            //((networkUsed*8)/daysInPeriod/24/3600)
+        )
+        var json = jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerReportSDU)
+        file.appendText("\t$json,\n")
+
+        val usedCPUInPeriodAAU = postgresDataService.getCPUUsage(startDate, endDate, true).values.sum()
+        val numberOfGPUCoresAAU = TYPE_1_GPU_CORES * hoursInPeriod
+        val usedGPUHoursInPeriodAAU = postgresDataService.getGPUUsage(startDate, endDate, true).values.sum()
+
+        val storageUsedAAU = 17000000L
+
+        val centerReportAAU = Center(
+            TYPE_1_HPC_CENTER_ID,
+            TYPE_1_HPC_SUB_CENTER_ID_AAU ,
+            startDate.toString().substringBefore("T"),
+            endDate.toString().substringBefore("T"),
+            //for aau just use used
+            usedCPUInPeriodAAU,
+            usedCPUInPeriodAAU,
+            numberOfGPUCoresAAU,
+            usedGPUHoursInPeriodAAU,
+            storageUsedAAU,
+            //networkUsed.toLong(),
+            //((networkUsed*8)/daysInPeriod/24/3600)
+        )
+        json = jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerReportAAU)
+        file.appendText("\t$json\n")
+        file.appendText("]")
+        println("center done. Located: ${file.absolutePath}")
     }
 
     suspend fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, aau:Boolean) {
@@ -72,10 +145,8 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val project: String?
     )
 
-    suspend fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime) {
+    suspend fun reportCenterDailyDeic(startDate: LocalDateTime, endDate: LocalDateTime, file: File) {
         //TODO() NOT correct format - currently a center report for each day. Should perhaps be user specific
-        val fileName = "/tmp/CenterDaily.json"
-        val file = File(fileName)
         val daysInPeriod = Duration.between(startDate, endDate).toDays()
         file.writeText("[\n")
         for (day in 0..daysInPeriod) {
@@ -225,15 +296,11 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             }
         }
         file.appendText("]\n")
-        println(file.absolutePath)
-        println(file.canonicalPath)
-        while(true){}
+        println("CenterDaily Done. Located: ${file.absolutePath}")
     }
 
-    suspend fun reportPerson() {
+    suspend fun reportPerson(file: File) {
         val endDate = LocalDateTime.now()
-        val fileName = "/tmp/Person.json"
-        val file = File(fileName)
         file.writeText("[\n")
 
         val cpuUsed = postgresDataService.retrieveUsageSDU(
@@ -273,7 +340,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 } else {
                     null
                 }
-            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+            }.sumOf { it.allocated }
 
             val gpuAssigned = wallets.mapNotNull {
                 if (it.productType == ProductType.GPU) {
@@ -281,7 +348,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 } else {
                     null
                 }
-            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+            }.sumOf { (it.allocated ) }
 
             val storageAssignedInMB = wallets.mapNotNull {
                 if (it.productType == ProductType.STORAGE) {
@@ -289,7 +356,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                 } else {
                     null
                 }
-            }.sumOf { (it.allocated / it.pricePerUnit).toLong() }
+            }.sumOf { (it.allocated ) }
 
             postgresDataService.findProjectMembers(deicProject).forEach { projectMember ->
                 val uip = project.id
@@ -360,9 +427,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             }
         }
         file.appendText("]")
-        println(file.absolutePath)
-        println(file.canonicalPath)
-        while (true){}
+        println("Person report done. Located: ${file.absolutePath}")
     }
 }
 
