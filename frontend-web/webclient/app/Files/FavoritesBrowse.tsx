@@ -42,7 +42,7 @@ const FEATURES: ResourceBrowseFeatures = {
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name"}, {name: "", columnWidth: 32}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}];
 
-function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path: string) => void; selection: Selection<FileMetadataAttached | UFile>}): React.ReactNode {
+function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path: string, projectId?: string) => void; selection: Selection<FileMetadataAttached | UFile>}): React.ReactNode {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<FileMetadataAttached> | null>(null);
@@ -211,7 +211,8 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
 
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource) {
-                        navigateToFolder(newPath);
+                        const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(newPath);
+                        navigateToFolder(newPath, fileInfo?.owner.project);
                     }
                 });
 
