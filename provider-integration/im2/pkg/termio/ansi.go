@@ -93,3 +93,11 @@ func moveCursorUp(lines int) {
 func clearLine() {
 	fmt.Printf("\033[2K")
 }
+
+func hideCursor() {
+	fmt.Printf("\033[?25l")
+}
+
+func showCursor() {
+	fmt.Printf("\033[?25h")
+}

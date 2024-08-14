@@ -1,6 +1,7 @@
 module ucloud.dk
 
 require (
+	atomicgo.dev/keyboard v0.2.9
 	github.com/anyascii/go v0.3.2
 	github.com/fergusstrange/embedded-postgres v1.27.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -18,6 +19,7 @@ replace ucloud.dk/gonja/v2 => ../gonja
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/containerd/console v1.0.3 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -30,7 +32,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0 // indirect
-	golang.org/x/sys v0.19.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 )

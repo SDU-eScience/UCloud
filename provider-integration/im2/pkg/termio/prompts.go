@@ -6,7 +6,91 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"atomicgo.dev/keyboard"
+	"atomicgo.dev/keyboard/keys"
+	"ucloud.dk/pkg/log"
 )
+
+type MenuItem struct {
+	Value   string
+	Message string
+}
+
+type Menu struct {
+	Prompt string
+	Items  []MenuItem
+}
+
+func NewMenu(prompt string) Menu {
+	menu := Menu{
+		Prompt: prompt,
+	}
+	return menu
+}
+
+func (menu *Menu) Item(value string, message string) {
+	menu.Items = append(menu.Items, MenuItem{value, message})
+}
+
+func (menu *Menu) Display() MenuItem {
+	selected := 0
+	done := false
+
+	hideCursor()
+	fmt.Printf("%s\n\n", menu.Prompt)
+
+	iteration := 0
+
+	for {
+		if done {
+			break
+		}
+
+		if iteration > 0 {
+			moveCursorUp(len(menu.Items))
+		}
+
+		for itemKey, item := range menu.Items {
+			clearLine()
+			if selected == itemKey {
+				WriteStyledLine(NoStyle, Green, 0, " [*] %s", item.Message)
+			} else {
+				WriteLine(" [ ] %s", item.Message)
+			}
+		}
+
+		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+			if key.Code == keys.Down {
+				if selected == len(menu.Items)-1 {
+					selected = 0
+				} else {
+					selected++
+				}
+			} else if key.Code == keys.Up {
+				if selected == 0 {
+					selected = len(menu.Items) - 1
+				} else {
+					selected--
+				}
+			} else if key.Code == keys.Enter {
+				done = true
+			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
+				log.Fatal("No option selected")
+			}
+
+			return true, nil
+		})
+
+		time.Sleep(50 * time.Millisecond)
+		iteration++
+	}
+
+	fmt.Printf("\n")
+	showCursor()
+
+	return menu.Items[selected]
+}
 
 type LoadingState string
 
@@ -125,7 +209,7 @@ func LoadingIndicator(title string, code func()) {
 			}
 
 			time.Sleep(50 * time.Millisecond)
-			iteration += 1
+			iteration++
 		}
 	}()
 
