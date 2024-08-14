@@ -18,12 +18,39 @@ func main() {
 	}
 
 	if true {
-		menu := termio.NewMenu("Test menu, please select an item:")
-		menu.Item("first", "This is an item")
-		menu.Item("second", "This is another item")
-		result := menu.Display()
 
-		fmt.Printf("Result was: %v\n", result)
+		menu := termio.NewMenu("Test menu, please select one or more items:")
+		menu.Item("one", "One")
+		menu.Item("two", "Two")
+		menu.Item("three", "Three")
+		menu.Item("four", "Four")
+		menu.Item("five", "Five")
+		menu.Item("six", "Six")
+		menu.Item("seven", "Seven")
+		menu.Item("eight", "Eight")
+		result, err := menu.SelectMultiple()
+
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+
+		fmt.Printf("Elements selected: %d\n", len(result))
+
+		textQuery := termio.QueryText("Please enter some text:")
+		fmt.Printf("You entered the following text: %s\n\n", textQuery)
+
+		singleMenu := termio.NewMenu("Test menu, please select an item:")
+		singleMenu.Item("first", "This is an item")
+		singleMenu.Item("second", "This is another item")
+		singleResult, err := singleMenu.SelectSingle()
+
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+
+		fmt.Printf("Result was: %v\n", singleResult)
 
 		termio.LoadingIndicator("Testing", func() {
 			fmt.Printf("Testing 1 Really long\n")

@@ -9,7 +9,6 @@ import (
 
 	"atomicgo.dev/keyboard"
 	"atomicgo.dev/keyboard/keys"
-	"ucloud.dk/pkg/log"
 )
 
 type MenuItem struct {
@@ -33,9 +32,114 @@ func (menu *Menu) Item(value string, message string) {
 	menu.Items = append(menu.Items, MenuItem{value, message})
 }
 
-func (menu *Menu) Display() MenuItem {
+func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
+	selected := []*MenuItem{}
+	hoveredItem := 0
+	done := false
+	var err error
+
+	hideCursor()
+	fmt.Printf("%s\n\n", menu.Prompt)
+
+	iteration := 0
+
+	for {
+		if done {
+			break
+		}
+
+		if iteration > 0 {
+			moveCursorUp(len(menu.Items))
+		}
+
+		for itemKey, item := range menu.Items {
+			clearLine()
+
+			exists := false
+
+			for _, selectedItem := range selected {
+				if item.Value == selectedItem.Value {
+					exists = true
+				}
+			}
+
+			color := DefaultColor
+			if hoveredItem == itemKey {
+				color = Green
+			}
+
+			if exists {
+				WriteStyledLine(NoStyle, color, 0, " [*] %s", item.Message)
+			} else {
+				WriteStyledLine(NoStyle, color, 0, " [ ] %s", item.Message)
+			}
+		}
+
+		err = keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+			if key.Code == keys.Down {
+				if hoveredItem == len(menu.Items)-1 {
+					hoveredItem = 0
+				} else {
+					hoveredItem++
+				}
+			} else if key.Code == keys.Up {
+				if hoveredItem == 0 {
+					hoveredItem = len(menu.Items) - 1
+				} else {
+					hoveredItem--
+				}
+			} else if key.Code == keys.Enter {
+				done = true
+			} else if key.Code == keys.Space {
+				hovered := &menu.Items[hoveredItem]
+
+				newSelected := []*MenuItem{}
+				found := false
+
+				for _, alreadySelected := range selected {
+					if hovered == alreadySelected {
+						found = true
+					} else {
+						newSelected = append(newSelected, alreadySelected)
+					}
+				}
+
+				if !found {
+					newSelected = append(newSelected, hovered)
+				}
+
+				selected = newSelected
+			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
+				return false, fmt.Errorf("No option chosen")
+			}
+
+			return true, nil
+		})
+
+		if err != nil {
+			break
+		}
+
+		time.Sleep(50 * time.Millisecond)
+		iteration++
+	}
+
+	fmt.Printf("\n")
+	showCursor()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return selected, nil
+}
+
+// NOTE(Brian): There's a weird bug which breaks the QueryText function if a menu item is not selected (i.e. cancelled).
+// icrnl option.
+func (menu *Menu) SelectSingle() (*MenuItem, error) {
 	selected := 0
 	done := false
+	var err error
 
 	hideCursor()
 	fmt.Printf("%s\n\n", menu.Prompt)
@@ -60,7 +164,7 @@ func (menu *Menu) Display() MenuItem {
 			}
 		}
 
-		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+		err = keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Down {
 				if selected == len(menu.Items)-1 {
 					selected = 0
@@ -76,11 +180,15 @@ func (menu *Menu) Display() MenuItem {
 			} else if key.Code == keys.Enter {
 				done = true
 			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
-				log.Fatal("No option selected")
+				return false, fmt.Errorf("No option chosen")
 			}
 
 			return true, nil
 		})
+
+		if err != nil {
+			break
+		}
 
 		time.Sleep(50 * time.Millisecond)
 		iteration++
@@ -89,7 +197,11 @@ func (menu *Menu) Display() MenuItem {
 	fmt.Printf("\n")
 	showCursor()
 
-	return menu.Items[selected]
+	if err != nil {
+		return nil, err
+	}
+
+	return &menu.Items[selected], nil
 }
 
 type LoadingState string
@@ -222,4 +334,11 @@ func LoadingIndicator(title string, code func()) {
 
 	outputWriter.Close()
 	os.Stdout = oldStdout
+}
+
+func QueryText(question string) string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Printf("%s ", question)
+	text, _ := reader.ReadString('\n')
+	return text
 }
