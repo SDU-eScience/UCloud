@@ -386,12 +386,28 @@ export class ResourceBrowser<T> {
     private searchQueryTimeout = -1;
 
     // Clipboard
-    clipboard: T[] = [];
-    clipboardIsCut: boolean = false;
+    static clipboard: Record<string, unknown[]> = {};
+    static clipboardIsCut: Record<string, boolean> = {};
 
     // Undo and redo
-    undoStack: (() => void)[] = [];
-    redoStack: (() => void)[] = [];
+    private static undoStack: Record<string, (() => void)[]> = {};
+    public static addUndoAction(namespace: string, action: () => void): void {
+        const actions = this.redoStack[namespace] ?? [];
+        actions.unshift(action);
+    }
+    public static undoShift(namespace: string): undefined | (() => void) {
+        return this.undoStack[namespace].shift();
+    }
+    
+    private static redoStack: Record<string, (() => void)[]> = {};
+    public static addRedoAction(namespace: string, action: () => void): void {
+        const actions = this.redoStack[namespace] ?? [];
+        actions.unshift(action);
+    }
+
+    public static redoShift(namespace: string): undefined | (() => void) {
+        return this.undoStack[namespace].shift();
+    }
 
     // Empty pages
     defaultEmptyGraphic: DocumentFragment | null = null;
@@ -2616,8 +2632,8 @@ export class ResourceBrowser<T> {
                         if (this.contextMenuHandlers.length) return;
 
                         const newClipboard = this.findSelectedEntries();
-                        this.clipboard = newClipboard;
-                        this.clipboardIsCut = ev.code === "KeyX";
+                        ResourceBrowser.clipboard[this.resourceName] = newClipboard;
+                        ResourceBrowser.clipboardIsCut[this.resourceName] = ev.code === "KeyX";
                         if (newClipboard.length) {
                             const key = isLikelyMac ? "⌘" : "Ctrl + ";
                             snackbarStore.addInformation(
@@ -2634,13 +2650,13 @@ export class ResourceBrowser<T> {
                         didHandle = false;
                     } else {
                         if (this.contextMenuHandlers.length) return;
-                        if (this.clipboard.length) {
+                        if (ResourceBrowser.clipboard[this.resourceName]?.length) {
                             this.dispatchMessage(
-                                this.clipboardIsCut ? "move" : "copy",
-                                fn => fn(this.clipboard, this.currentPath)
+                                ResourceBrowser.clipboardIsCut[this.resourceName] ? "move" : "copy",
+                                fn => fn(ResourceBrowser.clipboard[this.resourceName] as T[], this.currentPath)
                             );
 
-                            if (this.clipboardIsCut) this.clipboard = [];
+                            if (ResourceBrowser.clipboardIsCut[this.resourceName]) ResourceBrowser.clipboard[this.resourceName] = [];
                         }
                     }
                     break;
@@ -2658,14 +2674,14 @@ export class ResourceBrowser<T> {
 
                 case "KeyZ": {
                     if (this.contextMenuHandlers.length) return;
-                    const fn = this.undoStack.shift();
+                    const fn = ResourceBrowser.undoShift(this.resourceName);
                     if (fn !== undefined) fn();
                     break;
                 }
 
                 case "KeyY": {
                     if (this.contextMenuHandlers.length) return;
-                    const fn = this.redoStack.shift();
+                    const fn = ResourceBrowser.redoShift(this.resourceName);
                     if (fn !== undefined) fn();
                     break;
                 }

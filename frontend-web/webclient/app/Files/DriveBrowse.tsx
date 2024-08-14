@@ -64,6 +64,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
+const RESOURCE_NAME = "Drive";
 const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -96,7 +97,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
+            new ResourceBrowser<FileCollection>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "/", browser => {
                 addProjectListener("drive-browse", p => {
                     browser.features.filters = !!p;
                     if (p) {
@@ -219,7 +220,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     browser.refresh();
                                 });
 
-                                browser.undoStack.unshift(() => {
+                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
                                     callAPI(FileCollectionsApi.rename(bulkRequestOf({
                                         id: drive.id,
                                         newTitle: oldTitle
