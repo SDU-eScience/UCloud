@@ -23,11 +23,7 @@ var spinnerFrames [16]string = [16]string{
 	" ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 }
 
-/*type LoadingIndicatorData struct {
-	State LoadingState // Should be atomic?
-	Title string
-}*/
-
+// Note(Brian): Does not handle errors yet
 func LoadingIndicator(title string, code func()) {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
