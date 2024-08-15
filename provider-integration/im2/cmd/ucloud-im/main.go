@@ -31,14 +31,21 @@ func main() {
 		result, err := menu.SelectMultiple()
 
 		if err != nil {
-			fmt.Printf("%v\n", err)
 			return
 		}
 
-		fmt.Printf("Elements selected: %d\n", len(result))
+		fmt.Printf("Elements selected: %d\n\n", len(result))
 
-		textQuery := termio.QueryText("Please enter some text:")
+		textQuery := termio.TextPrompt("Please enter some text:")
 		fmt.Printf("You entered the following text: %s\n\n", textQuery)
+
+		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue)
+
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("Selected: %v\n\n", confirm)
 
 		singleMenu := termio.NewMenu("Test menu, please select an item:")
 		singleMenu.Item("first", "This is an item")
@@ -46,11 +53,10 @@ func main() {
 		singleResult, err := singleMenu.SelectSingle()
 
 		if err != nil {
-			fmt.Printf("%v\n", err)
 			return
 		}
 
-		fmt.Printf("Result was: %v\n", singleResult)
+		fmt.Printf("Result was: %v\n\n", singleResult)
 
 		termio.LoadingIndicator("Testing", func() {
 			fmt.Printf("Testing 1 Really long\n")

@@ -36,15 +36,15 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	selected := []*MenuItem{}
 	hoveredItem := 0
 	done := false
-	var err error
+	cancelled := false
 
 	hideCursor()
-	fmt.Printf("%s\n\n", menu.Prompt)
+	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
 
 	iteration := 0
 
 	for {
-		if done {
+		if done || cancelled {
 			break
 		}
 
@@ -75,7 +75,9 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 			}
 		}
 
-		err = keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+		// NOTE(Brian): There seems to be a problem with the error handling for keyboard.Listen, thus we set the
+		// `cancelled` variable instead of throwing an error in the callback function.
+		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Down {
 				if hoveredItem == len(menu.Items)-1 {
 					hoveredItem = 0
@@ -110,44 +112,37 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 
 				selected = newSelected
 			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
-				return false, fmt.Errorf("No option chosen")
+				cancelled = true
 			}
 
 			return true, nil
 		})
 
-		if err != nil {
-			break
-		}
-
-		time.Sleep(50 * time.Millisecond)
 		iteration++
 	}
 
 	fmt.Printf("\n")
 	showCursor()
 
-	if err != nil {
-		return nil, err
+	if cancelled {
+		return nil, fmt.Errorf("Cancelled")
 	}
 
 	return selected, nil
 }
 
-// NOTE(Brian): There's a weird bug which breaks the QueryText function if a menu item is not selected (i.e. cancelled).
-// icrnl option.
 func (menu *Menu) SelectSingle() (*MenuItem, error) {
 	selected := 0
 	done := false
-	var err error
+	cancelled := false
 
 	hideCursor()
-	fmt.Printf("%s\n\n", menu.Prompt)
+	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
 
 	iteration := 0
 
 	for {
-		if done {
+		if done || cancelled {
 			break
 		}
 
@@ -158,13 +153,15 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 		for itemKey, item := range menu.Items {
 			clearLine()
 			if selected == itemKey {
-				WriteStyledLine(NoStyle, Green, 0, " [*] %s", item.Message)
+				WriteStyledLine(NoStyle, Green, 0, " ❯ %s", item.Message)
 			} else {
-				WriteLine(" [ ] %s", item.Message)
+				WriteLine(" ❯ %s", item.Message)
 			}
 		}
 
-		err = keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+		// NOTE(Brian): There seems to be a problem with the error handling for keyboard.Listen, thus we set the
+		// `cancelled` variable instead of throwing an error in the callback function.
+		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Down {
 				if selected == len(menu.Items)-1 {
 					selected = 0
@@ -180,25 +177,20 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 			} else if key.Code == keys.Enter {
 				done = true
 			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
-				return false, fmt.Errorf("No option chosen")
+				cancelled = true
 			}
 
 			return true, nil
 		})
 
-		if err != nil {
-			break
-		}
-
-		time.Sleep(50 * time.Millisecond)
 		iteration++
 	}
 
 	fmt.Printf("\n")
 	showCursor()
 
-	if err != nil {
-		return nil, err
+	if cancelled {
+		return nil, fmt.Errorf("Cancelled")
 	}
 
 	return &menu.Items[selected], nil
@@ -336,9 +328,84 @@ func LoadingIndicator(title string, code func()) {
 	os.Stdout = oldStdout
 }
 
-func QueryText(question string) string {
+func TextPrompt(question string) string {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Printf("%s ", question)
+	WriteStyled(Bold, DefaultColor, DefaultColor, question+" ")
 	text, _ := reader.ReadString('\n')
 	return text
+}
+
+type ConfirmValue int
+
+const (
+	ConfirmValueNone  ConfirmValue = 0
+	ConfirmValueTrue  ConfirmValue = 1
+	ConfirmValueFalse ConfirmValue = 2
+)
+
+func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
+	choice := defaultValue
+	cancelled := false
+	done := false
+	yesNo := "(y/n)"
+
+	if defaultValue == ConfirmValueTrue {
+		yesNo = "(Y/n)"
+	} else if defaultValue == ConfirmValueFalse {
+		yesNo = "(y/N)"
+	}
+
+	iteration := 0
+
+	for {
+		if done || cancelled {
+			break
+		}
+
+		chosen := ""
+
+		if iteration > 0 {
+			if choice == ConfirmValueTrue {
+				chosen = "yes"
+			} else if choice == ConfirmValueFalse {
+				chosen = "no"
+			}
+		}
+
+		moveCursorUp(1)
+		clearLine()
+		WriteStyled(Bold, DefaultColor, DefaultColor, question)
+		WriteStyled(NoStyle, DefaultColor, DefaultColor, " "+yesNo+" "+chosen)
+
+		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
+			if key.Code == keys.Enter {
+				done = true
+			} else if key.String() == "y" || key.String() == "Y" {
+				choice = ConfirmValueTrue
+			} else if key.String() == "n" || key.String() == "N" {
+				choice = ConfirmValueFalse
+			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
+				cancelled = true
+			} else {
+				return false, nil
+			}
+
+			return true, nil
+		})
+
+		fmt.Printf("\n")
+		iteration++
+	}
+
+	if cancelled {
+		return false, fmt.Errorf("Cancelled")
+	}
+
+	if choice == ConfirmValueTrue {
+		return true, nil
+	} else if choice == ConfirmValueFalse {
+		return false, nil
+	}
+
+	return false, fmt.Errorf("Unexpected result")
 }
