@@ -280,7 +280,6 @@ var spinnerFrames [16]string = [16]string{
 	" ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 }
 
-// NOTE(Brian): Does not handle errors yet
 func LoadingIndicator(title string, code func() error) {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
