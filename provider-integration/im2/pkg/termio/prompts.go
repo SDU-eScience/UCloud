@@ -12,8 +12,9 @@ import (
 )
 
 type MenuItem struct {
-	Value   string
-	Message string
+	Value     string
+	Message   string
+	separator bool
 }
 
 type Menu struct {
@@ -29,14 +30,67 @@ func NewMenu(prompt string) Menu {
 }
 
 func (menu *Menu) Item(value string, message string) {
-	menu.Items = append(menu.Items, MenuItem{value, message})
+	menu.Items = append(menu.Items, MenuItem{value, message, false})
+}
+
+func (menu *Menu) Separator(message string) {
+	menu.Items = append(menu.Items, MenuItem{"", message, true})
+}
+
+// Control functions for moving up and down the menu
+func (menu *Menu) nextNonSeparatorItemKey(key int) int {
+	for {
+		key++
+		if key == len(menu.Items) {
+			key = 0
+		}
+
+		if !menu.Items[key].separator {
+			return key
+		}
+	}
+}
+
+func (menu *Menu) previousNonSeparatorItemKey(key int) int {
+	for {
+		key--
+		if key == -1 {
+			key = len(menu.Items) - 1
+		}
+
+		if !menu.Items[key].separator {
+			return key
+		}
+	}
+}
+
+func (menu *Menu) lineHeight() int {
+	height := 0
+	for key, item := range menu.Items {
+		if item.separator && key != 0 {
+			height++
+		}
+		height++
+	}
+	return height
+}
+
+func (menu *Menu) firstNonSeparatorItemKey() int {
+	for key, item := range menu.Items {
+		if !item.separator {
+			return key
+		}
+	}
+	return 0
 }
 
 func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	selected := []*MenuItem{}
-	hoveredItem := 0
 	done := false
 	cancelled := false
+
+	menuHeight := menu.lineHeight()
+	hoveredItem := menu.firstNonSeparatorItemKey()
 
 	hideCursor()
 	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
@@ -49,7 +103,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 		}
 
 		if iteration > 0 {
-			moveCursorUp(len(menu.Items))
+			moveCursorUp(menuHeight)
 		}
 
 		for itemKey, item := range menu.Items {
@@ -64,14 +118,24 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 			}
 
 			color := DefaultColor
+			hoveredArrow := " "
 			if hoveredItem == itemKey {
 				color = Green
+				hoveredArrow = "❯"
 			}
 
+			selectedIcon := "◯"
 			if exists {
-				WriteStyledLine(NoStyle, color, 0, " [*] %s", item.Message)
+				selectedIcon = "◉" 
+			}
+
+			if item.separator {
+				if itemKey > 0 {
+					fmt.Printf("\n")
+				}
+				WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
 			} else {
-				WriteStyledLine(NoStyle, color, 0, " [ ] %s", item.Message)
+				WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
 			}
 		}
 
@@ -79,17 +143,9 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 		// `cancelled` variable instead of throwing an error in the callback function.
 		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Down {
-				if hoveredItem == len(menu.Items)-1 {
-					hoveredItem = 0
-				} else {
-					hoveredItem++
-				}
+				hoveredItem = menu.nextNonSeparatorItemKey(hoveredItem)
 			} else if key.Code == keys.Up {
-				if hoveredItem == 0 {
-					hoveredItem = len(menu.Items) - 1
-				} else {
-					hoveredItem--
-				}
+				hoveredItem = menu.previousNonSeparatorItemKey(hoveredItem)
 			} else if key.Code == keys.Enter {
 				done = true
 			} else if key.Code == keys.Space {
@@ -132,9 +188,11 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 }
 
 func (menu *Menu) SelectSingle() (*MenuItem, error) {
-	selected := 0
 	done := false
 	cancelled := false
+
+	selected := menu.firstNonSeparatorItemKey()
+	menuHeight := menu.lineHeight()
 
 	hideCursor()
 	WriteStyledLine(Bold, DefaultColor, DefaultColor, menu.Prompt)
@@ -147,15 +205,27 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 		}
 
 		if iteration > 0 {
-			moveCursorUp(len(menu.Items))
+			moveCursorUp(menuHeight)
 		}
 
 		for itemKey, item := range menu.Items {
 			clearLine()
-			if selected == itemKey {
-				WriteStyledLine(NoStyle, Green, 0, " ❯ %s", item.Message)
+
+			if item.separator {
+				if itemKey > 0 {
+					clearLine()
+					fmt.Printf("\n")
+				}
+				WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
 			} else {
-				WriteLine(" ❯ %s", item.Message)
+				color := DefaultColor
+				hoveredArrow := " "
+				if selected == itemKey {
+					color = Green
+					hoveredArrow = "❯"
+				}
+
+				WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s", hoveredArrow, item.Message)
 			}
 		}
 
@@ -163,17 +233,9 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 		// `cancelled` variable instead of throwing an error in the callback function.
 		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Down {
-				if selected == len(menu.Items)-1 {
-					selected = 0
-				} else {
-					selected++
-				}
+				selected = menu.nextNonSeparatorItemKey(selected)
 			} else if key.Code == keys.Up {
-				if selected == 0 {
-					selected = len(menu.Items) - 1
-				} else {
-					selected--
-				}
+				selected = menu.previousNonSeparatorItemKey(selected)
 			} else if key.Code == keys.Enter {
 				done = true
 			} else if key.Code == keys.Esc || key.Code == keys.CtrlC {
@@ -211,8 +273,8 @@ var spinnerFrames [16]string = [16]string{
 	" ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 }
 
-// Note(Brian): Does not handle errors yet
-func LoadingIndicator(title string, code func()) {
+// NOTE(Brian): Does not handle errors yet
+func LoadingIndicator(title string, code func() error) {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
 
@@ -299,7 +361,7 @@ func LoadingIndicator(title string, code func()) {
 			}
 
 			clearLine()
-			fmt.Printf("[%s] %s\n", symbol, title)
+			WriteStyledLine(Bold, DefaultColor, DefaultColor, "[%s] %s", symbol, title)
 
 			for _, msg := range logOutput {
 				clearLine()
@@ -317,15 +379,29 @@ func LoadingIndicator(title string, code func()) {
 		}
 	}()
 
-	code()
+	err = code()
 
-	state = LoadingStateSuccess
+	if err != nil {
+		state = LoadingStateFailure
+	} else {
+		state = LoadingStateSuccess
+	}
 
 	// Give output writer time to finish
 	time.Sleep(50 * time.Millisecond)
 
 	outputWriter.Close()
 	os.Stdout = oldStdout
+
+	if err != nil {
+		fmt.Printf("%v\n", err)
+	} else {
+		// Hide log if successful
+		for i := 0; i < logOutputMax; i++ {
+			moveCursorUp(1)
+			clearLine()
+		}
+	}
 }
 
 func TextPrompt(question string) string {
@@ -358,10 +434,6 @@ func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
 	iteration := 0
 
 	for {
-		if done || cancelled {
-			break
-		}
-
 		chosen := ""
 
 		if iteration > 0 {
@@ -372,10 +444,21 @@ func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
 			}
 		}
 
+		chosenColor := DefaultColor
+		if done {
+			chosenColor = Green
+		}
+
 		moveCursorUp(1)
 		clearLine()
 		WriteStyled(Bold, DefaultColor, DefaultColor, question)
-		WriteStyled(NoStyle, DefaultColor, DefaultColor, " "+yesNo+" "+chosen)
+		WriteStyled(NoStyle, DefaultColor, DefaultColor, " "+yesNo+" ")
+		WriteStyled(NoStyle, chosenColor, DefaultColor, chosen)
+
+		if done || cancelled {
+			fmt.Printf("\n")
+			break
+		}
 
 		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Enter {

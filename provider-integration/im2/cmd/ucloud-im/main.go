@@ -18,11 +18,20 @@ func main() {
 	}
 
 	if true {
+		termio.LoadingIndicator("Loading some stuff", func() error {
+			fmt.Printf("Testing 1\n")
+			fmt.Printf("Testing 2\n")
+			time.Sleep(1 * time.Second)
+			fmt.Printf("Done\n")
+			return nil
+		})
 
-		menu := termio.NewMenu("Test menu, please select one or more items:")
+		menu := termio.NewMenu("Test menu, please select one or more items (space to select):")
+		menu.Separator("The primary options")
 		menu.Item("one", "One")
 		menu.Item("two", "Two")
 		menu.Item("three", "Three")
+		menu.Separator("Some other options")
 		menu.Item("four", "Four")
 		menu.Item("five", "Five")
 		menu.Item("six", "Six")
@@ -34,7 +43,7 @@ func main() {
 			return
 		}
 
-		fmt.Printf("Elements selected: %d\n\n", len(result))
+		fmt.Printf("Elements selected: %v\n\n", result)
 
 		textQuery := termio.TextPrompt("Please enter some text:")
 		fmt.Printf("You entered the following text: %s\n\n", textQuery)
@@ -58,19 +67,31 @@ func main() {
 
 		fmt.Printf("Result was: %v\n\n", singleResult)
 
-		termio.LoadingIndicator("Testing", func() {
-			fmt.Printf("Testing 1 Really long\n")
+		termio.LoadingIndicator("This one will succeed", func() error {
+			fmt.Printf("Testing 1 Really long really really really long\n")
 			fmt.Printf("Testing 2\n")
 			fmt.Printf("Testing 3\n")
 			time.Sleep(1 * time.Second)
-			fmt.Printf("Testing 4\n")
-			fmt.Printf("Testing 5\n")
+			fmt.Printf("Testing 4 Really long really really really long\n")
+			fmt.Printf("Testing 5 Really long really really really long\n")
 			time.Sleep(1 * time.Second)
 			fmt.Printf("Testing 6\n")
 			time.Sleep(1 * time.Second)
 			fmt.Printf("Testing 7\n")
 			fmt.Printf("Testing 8\n")
 			time.Sleep(1 * time.Second)
+			fmt.Printf("Done\n")
+			return nil
+		})
+
+		termio.LoadingIndicator("This one will fail", func() error {
+			fmt.Printf("Testing 1 Really long\n")
+			fmt.Printf("Testing 2\n")
+			fmt.Printf("Testing 3\n")
+			fmt.Printf("Testing 4\n")
+			fmt.Printf("Testing 5\n")
+			time.Sleep(1 * time.Second)
+			return fmt.Errorf("Oh no, this is bad..")
 		})
 		return
 	}
