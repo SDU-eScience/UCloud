@@ -93,7 +93,7 @@ func (menu *Menu) displaySelectSingle(selected int) {
 				clearLine()
 				fmt.Printf("\n")
 			}
-			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
+			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------------------------------- %s ----------------------------------", item.Message)
 		} else {
 			color := DefaultColor
 			hoveredArrow := " "
@@ -111,11 +111,10 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 	for itemKey, item := range menu.Items {
 		clearLine()
 
-		exists := false
-
+		alreadySelected := false
 		for _, selectedItem := range selected {
 			if item.Value == selectedItem.Value {
-				exists = true
+				alreadySelected = true
 			}
 		}
 
@@ -127,7 +126,7 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 		}
 
 		selectedIcon := "◯"
-		if exists {
+		if alreadySelected {
 			selectedIcon = "◉" 
 		}
 
@@ -135,7 +134,7 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 			if itemKey > 0 {
 				fmt.Printf("\n")
 			}
-			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
+			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------------------------------- %s ----------------------------------", item.Message)
 		} else {
 			WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
 		}
@@ -414,16 +413,31 @@ func LoadingIndicator(title string, code func() error) {
 
 func TextPrompt(question string, defaultValue string) string {
 	reader := bufio.NewReader(os.Stdin)
+
 	WriteStyled(Bold, DefaultColor, DefaultColor, "%s ", question)
+
 	if defaultValue != "" {
 		WriteStyled(NoStyle, DefaultColor, DefaultColor, "[%s] ", defaultValue)
 	}
 	text, _ := reader.ReadString('\n')
 
-	if text == "\n" {
-		return defaultValue
+	result := defaultValue
+	if text != "\n" {
+		result = strings.TrimSuffix(text, "\n")
 	}
-	return strings.TrimSuffix(text, "\n")
+
+	// When result is found, overwrite the line, including the result
+	moveCursorUp(1)
+	clearLine()
+	WriteStyled(Bold, DefaultColor, DefaultColor, "%s ", question)
+
+	if defaultValue != "" {
+		WriteStyled(NoStyle, DefaultColor, DefaultColor, "[%s] ", defaultValue)
+	}
+
+	WriteStyled(NoStyle, Green, DefaultColor, "%s\n", result)
+
+	return result
 }
 
 type ConfirmValue int
