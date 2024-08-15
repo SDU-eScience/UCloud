@@ -29,14 +29,6 @@ func NewMenu(prompt string) Menu {
 	return menu
 }
 
-func (menu *Menu) Item(value string, message string) {
-	menu.Items = append(menu.Items, MenuItem{value, message, false})
-}
-
-func (menu *Menu) Separator(message string) {
-	menu.Items = append(menu.Items, MenuItem{"", message, true})
-}
-
 // Control functions for moving up and down the menu
 func (menu *Menu) nextNonSeparatorItemKey(key int) int {
 	for {
@@ -61,6 +53,22 @@ func (menu *Menu) previousNonSeparatorItemKey(key int) int {
 		if !menu.Items[key].separator {
 			return key
 		}
+	}
+}
+
+func (item *MenuItem) displaySeparator() {
+	separatorWidth := 80
+	if len(item.Message) > separatorWidth-2 {
+		separatorWidth = len(item.Message)
+	}
+
+	if item.Message == "" {
+		WriteStyledLine(Bold, DefaultColor, DefaultColor, "    "+strings.Repeat("-", separatorWidth))
+	} else {
+		numDashes := (separatorWidth - len(item.Message) - 2) / 2
+		dashes := strings.Repeat("-", int(numDashes))
+
+		WriteStyledLine(Bold, DefaultColor, DefaultColor, "    %s %s %s", dashes, item.Message, dashes)
 	}
 }
 
@@ -93,7 +101,7 @@ func (menu *Menu) displaySelectSingle(selected int) {
 				clearLine()
 				fmt.Printf("\n")
 			}
-			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------------------------------- %s ----------------------------------", item.Message)
+			item.displaySeparator()
 		} else {
 			color := DefaultColor
 			hoveredArrow := " "
@@ -111,36 +119,47 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 	for itemKey, item := range menu.Items {
 		clearLine()
 
-		alreadySelected := false
-		for _, selectedItem := range selected {
-			if item.Value == selectedItem.Value {
-				alreadySelected = true
-			}
-		}
-
-		color := DefaultColor
-		hoveredArrow := " "
-		if hoveredItem == itemKey {
-			color = Green
-			hoveredArrow = "❯"
-		}
-
-		selectedIcon := "◯"
-		if alreadySelected {
-			selectedIcon = "◉" 
-		}
-
 		if item.separator {
 			if itemKey > 0 {
 				fmt.Printf("\n")
 			}
-			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------------------------------- %s ----------------------------------", item.Message)
+			item.displaySeparator()
 		} else {
+			alreadySelected := false
+			for _, selectedItem := range selected {
+				if item.Value == selectedItem.Value {
+					alreadySelected = true
+				}
+			}
+
+			color := DefaultColor
+			hoveredArrow := " "
+			if hoveredItem == itemKey {
+				color = Green
+				hoveredArrow = "❯"
+			}
+
+			selectedIcon := "◯"
+			if alreadySelected {
+				selectedIcon = "◉" 
+			}
 			WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
 		}
 	}
 }
 
+// Add item to menu
+func (menu *Menu) Item(value string, message string) {
+	menu.Items = append(menu.Items, MenuItem{value, message, false})
+}
+
+// Add seperator to menu. `title` can be empty.
+func (menu *Menu) Separator(title string) {
+	menu.Items = append(menu.Items, MenuItem{"", title, true})
+}
+
+// Prompt the user for selecting one or more options from the menu.
+// Returns an array of references to the selected options (may be empty), or error if the user cancelled (Ctrl-C or ESC).
 func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	selected := []*MenuItem{}
 	done := false
@@ -213,6 +232,8 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	return selected, nil
 }
 
+// Prompt the user for selecting one item from the menu.
+// Returns a reference to the selected option, or error if the user cancelled (Ctrl-C or ESC).
 func (menu *Menu) SelectSingle() (*MenuItem, error) {
 	done := false
 	cancelled := false
@@ -280,6 +301,9 @@ var spinnerFrames [16]string = [16]string{
 	" ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 }
 
+// Creates a spinning/loading indicator with a given `title` and `code`.
+// The `code` function will be run by the LoadingIndicator, and anything written to `stdout` will be piped to
+// and displayed by the LoadingIndicator.
 func LoadingIndicator(title string, code func() error) {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
@@ -410,6 +434,7 @@ func LoadingIndicator(title string, code func() error) {
 	}
 }
 
+// Prompt for text
 func TextPrompt(question string, defaultValue string) string {
 	reader := bufio.NewReader(os.Stdin)
 
@@ -447,6 +472,7 @@ const (
 	ConfirmValueFalse ConfirmValue = 2
 )
 
+// Prompt for yes/no answer, returns error if user cancels using Ctrl+C or ESC.
 func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
 	choice := defaultValue
 	cancelled := false
