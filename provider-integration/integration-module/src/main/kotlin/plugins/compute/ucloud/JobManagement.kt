@@ -89,7 +89,26 @@ class JobManagement(
         project: String? = null,
         providerId: String? = null,
     ): Job {
-        val id = JobsControl.register.call(
+        // Note (HENRIK) Checking for suspended on syncthing makes sure
+        // that a new job is not created and put in queue every time it fails due to
+        // locked wallet. Insufficient funds error is shown on frontend.
+        // When folder is added after new funds the suspended job will be started instead of new.
+        // Using maxBy in case multiple suspended synchting instances in DB, then we use the newest.
+        val suspend = if (specification.application.name.contains("syncthing")) {
+            JobsControl.browse.call(
+                ResourceBrowseRequest(
+                    flags = JobIncludeFlags(
+                        filterApplication = specification.application.name,
+                        filterState = JobState.SUSPENDED,
+                    )
+                ),
+                k8.serviceClient
+            ).orThrow().items.maxByOrNull { it.createdAt }
+        } else {
+            null
+        }
+
+        val id = suspend?.id ?: JobsControl.register.call(
             bulkRequestOf(
                 ProviderRegisteredResource(
                     specification,
