@@ -84,6 +84,64 @@ func (menu *Menu) firstNonSeparatorItemKey() int {
 	return 0
 }
 
+func (menu *Menu) displaySelectSingle(selected int) {
+	for itemKey, item := range menu.Items {
+		clearLine()
+
+		if item.separator {
+			if itemKey > 0 {
+				clearLine()
+				fmt.Printf("\n")
+			}
+			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
+		} else {
+			color := DefaultColor
+			hoveredArrow := " "
+			if selected == itemKey {
+				color = Green
+				hoveredArrow = "❯"
+			}
+
+			WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s", hoveredArrow, item.Message)
+		}
+	}
+}
+
+func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
+	for itemKey, item := range menu.Items {
+		clearLine()
+
+		exists := false
+
+		for _, selectedItem := range selected {
+			if item.Value == selectedItem.Value {
+				exists = true
+			}
+		}
+
+		color := DefaultColor
+		hoveredArrow := " "
+		if hoveredItem == itemKey {
+			color = Green
+			hoveredArrow = "❯"
+		}
+
+		selectedIcon := "◯"
+		if exists {
+			selectedIcon = "◉" 
+		}
+
+		if item.separator {
+			if itemKey > 0 {
+				fmt.Printf("\n")
+			}
+			WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
+		} else {
+			WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
+		}
+	}
+}
+
 func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 	selected := []*MenuItem{}
 	done := false
@@ -106,38 +164,7 @@ func (menu *Menu) SelectMultiple() ([]*MenuItem, error) {
 			moveCursorUp(menuHeight)
 		}
 
-		for itemKey, item := range menu.Items {
-			clearLine()
-
-			exists := false
-
-			for _, selectedItem := range selected {
-				if item.Value == selectedItem.Value {
-					exists = true
-				}
-			}
-
-			color := DefaultColor
-			hoveredArrow := " "
-			if hoveredItem == itemKey {
-				color = Green
-				hoveredArrow = "❯"
-			}
-
-			selectedIcon := "◯"
-			if exists {
-				selectedIcon = "◉" 
-			}
-
-			if item.separator {
-				if itemKey > 0 {
-					fmt.Printf("\n")
-				}
-				WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
-			} else {
-				WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
-			}
-		}
+		menu.displaySelectMultiple(hoveredItem, selected)
 
 		// NOTE(Brian): There seems to be a problem with the error handling for keyboard.Listen, thus we set the
 		// `cancelled` variable instead of throwing an error in the callback function.
@@ -208,26 +235,7 @@ func (menu *Menu) SelectSingle() (*MenuItem, error) {
 			moveCursorUp(menuHeight)
 		}
 
-		for itemKey, item := range menu.Items {
-			clearLine()
-
-			if item.separator {
-				if itemKey > 0 {
-					clearLine()
-					fmt.Printf("\n")
-				}
-				WriteStyledLine(Bold, DefaultColor, DefaultColor, "    ---------- %s ----------", item.Message)
-			} else {
-				color := DefaultColor
-				hoveredArrow := " "
-				if selected == itemKey {
-					color = Green
-					hoveredArrow = "❯"
-				}
-
-				WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s", hoveredArrow, item.Message)
-			}
-		}
+		menu.displaySelectSingle(selected)
 
 		// NOTE(Brian): There seems to be a problem with the error handling for keyboard.Listen, thus we set the
 		// `cancelled` variable instead of throwing an error in the callback function.
@@ -404,11 +412,18 @@ func LoadingIndicator(title string, code func() error) {
 	}
 }
 
-func TextPrompt(question string) string {
+func TextPrompt(question string, defaultValue string) string {
 	reader := bufio.NewReader(os.Stdin)
-	WriteStyled(Bold, DefaultColor, DefaultColor, question+" ")
+	WriteStyled(Bold, DefaultColor, DefaultColor, "%s ", question)
+	if defaultValue != "" {
+		WriteStyled(NoStyle, DefaultColor, DefaultColor, "[%s] ", defaultValue)
+	}
 	text, _ := reader.ReadString('\n')
-	return text
+
+	if text == "\n" {
+		return defaultValue
+	}
+	return strings.TrimSuffix(text, "\n")
 }
 
 type ConfirmValue int

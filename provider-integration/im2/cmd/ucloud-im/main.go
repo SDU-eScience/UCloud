@@ -45,7 +45,7 @@ func main() {
 
 		fmt.Printf("Elements selected: %v\n\n", result)
 
-		textQuery := termio.TextPrompt("Please enter some text:")
+		textQuery := termio.TextPrompt("Please enter some text", "")
 		fmt.Printf("You entered the following text: %s\n\n", textQuery)
 
 		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue)
