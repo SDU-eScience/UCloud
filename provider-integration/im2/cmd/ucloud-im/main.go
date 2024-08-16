@@ -17,7 +17,8 @@ func main() {
 		return
 	}
 
-	if true {
+	// NOTE(Brian): Prompt examples
+	if false {
 		termio.LoadingIndicator("Loading some stuff", func() error {
 			fmt.Printf("Testing 1\n")
 			fmt.Printf("Testing 2\n")
