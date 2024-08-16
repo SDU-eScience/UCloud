@@ -45,6 +45,7 @@ import Flex, {FlexClass} from "./Flex";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
+import {noopCall} from "@/Authentication/DataHook";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
@@ -291,6 +292,7 @@ export interface ResourceBrowseFeatures {
     breadcrumbsSeparatedBySlashes?: boolean;
     search?: boolean;
     filters?: boolean;
+    breadcrumbTitles?: boolean;
 
     // Enables sorting. Only works if `showColumnTitles = true`.
     // In addition, you must also set `sortById` on the appropriate columns.
@@ -418,6 +420,7 @@ export class ResourceBrowser<T> {
         sorting: false,
         contextSwitcher: false,
         showColumnTitles: false,
+        breadcrumbTitles: false,
     };
 
     public static isAnyModalOpen = false;
@@ -445,6 +448,7 @@ export class ResourceBrowser<T> {
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
+
     constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
         this.root = root;
         this.resourceName = resourceName;
@@ -455,7 +459,10 @@ export class ResourceBrowser<T> {
             embedded: !!opts?.embedded,
             selector: !!opts?.selection,
             disabledKeyhandlers: !!opts?.disabledKeyhandlers,
-            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}]
+            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
+                name: "",
+                columnWidth: 20
+            }]
         }
     };
 
@@ -619,8 +626,7 @@ export class ResourceBrowser<T> {
                 color2: UTILITY_COLOR,
                 width: 64,
                 height: 64
-            })
-                .then(url => searchIcon.src = url);
+            }).then(url => searchIcon.src = url);
 
             const input = this.header.querySelector<HTMLInputElement>(".header-first-row .search-field")!;
             input.placeholder = "Search...";
@@ -692,8 +698,7 @@ export class ResourceBrowser<T> {
                 color2: UTILITY_COLOR,
                 width: 64,
                 height: 64
-            })
-                .then(url => icon.src = url);
+            }).then(url => icon.src = url);
             icon.addEventListener("click", () => {
                 this.refresh();
 
@@ -890,8 +895,9 @@ export class ResourceBrowser<T> {
             const evaluateProjectStatus = (projectId?: string | null) => {
                 this.canConsumeResources = checkCanConsumeResources(
                     projectId ?? null,
-                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {api: {isCoreResource: boolean}},
-
+                    this.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as null | {
+                        api: {isCoreResource: boolean}
+                    },
                 );
                 if (!this.canConsumeResources) {
                     this.renderCantConsumeResources();
@@ -1260,12 +1266,22 @@ export class ResourceBrowser<T> {
 
     rerenderUtilityIcons() {
         const icon = this.header.querySelector<HTMLImageElement>(".header-first-row .refresh-icon")!;
-        ResourceBrowser.icons.renderIcon({name: "heroArrowPath", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
-            .then(url => icon.src = url);
+        ResourceBrowser.icons.renderIcon({
+            name: "heroArrowPath",
+            color: UTILITY_COLOR,
+            color2: UTILITY_COLOR,
+            width: 64,
+            height: 64
+        }).then(url => icon.src = url);
         if (this.features.search) {
             const searchIcon = this.header.querySelector<HTMLImageElement>(".header-first-row .search-icon")!;
-            ResourceBrowser.icons.renderIcon({name: "heroMagnifyingGlass", color: UTILITY_COLOR, color2: UTILITY_COLOR, width: 64, height: 64})
-                .then(url => searchIcon.src = url);
+            ResourceBrowser.icons.renderIcon({
+                name: "heroMagnifyingGlass",
+                color: UTILITY_COLOR,
+                color2: UTILITY_COLOR,
+                width: 64,
+                height: 64
+            }).then(url => searchIcon.src = url);
         }
     }
 
@@ -1340,6 +1356,9 @@ export class ResourceBrowser<T> {
                         this.entryBelowCursorTemporary = myPath;
                     }
                 });
+                if (this.features.breadcrumbTitles) {
+                    listItem.title = component.title;
+                }
 
                 fragment.append(listItem);
             }
@@ -1603,7 +1622,12 @@ export class ResourceBrowser<T> {
                         op.onClick(selected, callbacks);
                         if (useContextMenu) this.closeContextMenu();
                     },
-                    {asSquare: inContextMenu, color: op.color ?? "errorMain", hoverColor: undefined, disabled: !opEnabled}
+                    {
+                        asSquare: inContextMenu,
+                        color: op.color ?? "errorMain",
+                        hoverColor: undefined,
+                        disabled: !opEnabled
+                    }
                 );
 
                 // HACK(Jonas): Very hacky way to solve styling for confirmation button in the two different contexts.
@@ -1763,7 +1787,7 @@ export class ResourceBrowser<T> {
         };
 
         let opCount = 0;
-        
+
         const renderOperation = (
             op: OperationOrGroup<T, unknown>
         ): HTMLElement => {
@@ -1826,7 +1850,7 @@ export class ResourceBrowser<T> {
                     opCount++;
                 }
             }
-            
+
             return element;
         }
 
@@ -3028,6 +3052,7 @@ export class ResourceBrowser<T> {
     }
 
     public CONTEXT_MENU_ITEM_SIZE = 40;
+
     public prepareContextMenu(posX: number, posY: number, entryCount: number, maxHeight?: number) {
         let actualPosX = posX;
         let actualPosY = posY;
@@ -3126,6 +3151,7 @@ export class ResourceBrowser<T> {
     static maxRows = (Math.max(1080, window.screen.height) / ResourceBrowser.rowSize) + ResourceBrowser.extraRowsToPreRender;
 
     static styleInjected = false;
+
     static injectStyle() {
         if (ResourceBrowser.styleInjected) return;
         ResourceBrowser.styleInjected = true;
@@ -3858,7 +3884,13 @@ export class ResourceBrowser<T> {
         c.width = 12;
         c.height = 12;
         c.style.marginTop = "7px";
-        ResourceBrowser.icons.renderIcon({color: "textPrimary", color2: "textPrimary", height: 32, width: 32, name: icon}).then(it => c.src = it);
+        ResourceBrowser.icons.renderIcon({
+            color: "textPrimary",
+            color2: "textPrimary",
+            height: 32,
+            width: 32,
+            name: icon
+        }).then(it => c.src = it);
         return c;
     }
 
@@ -4184,7 +4216,10 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
         if (isOperation(it)) {
             return ({shortcut: it.shortcut, text: it.text.toString()})
         } else {
-            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({shortcut: it.shortcut, text: it.text.toString()}))]
+            return [{shortcut: it.shortcut, text: it.text.toString()}, it.operations.map(it => ({
+                shortcut: it.shortcut,
+                text: it.text.toString()
+            }))]
         }
     }).flat(5);
     const entries: Record<string, string> = {};
@@ -4298,7 +4333,8 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
         <Heading.h4>Controls and keyboard shortcuts</Heading.h4>
         <table>
             <tbody>
-                <Shortcut name={"Move selection up/down (Movement keys)"} keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
+                <Shortcut name={"Move selection up/down (Movement keys)"}
+                    keys={[ARROW_UP, "Home", "PgUp", ARROW_DOWN, "End", "PgDown"]} />
                 <Shortcut name={"Select multiple (in a row)"} shift keys={["Movement key", "Left click"]} />
                 <Shortcut name={"Select/deselect multiple (individual)"} ctrl keys={["Left click"]} />
                 <tr>
@@ -4329,11 +4365,13 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
-export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {isModal?: boolean}> & {hackNotInTheContextMenu: true} {
+export function controlsOperation(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<unknown, {
+    isModal?: boolean
+}> & {hackNotInTheContextMenu: true} {
     return {
         text: "",
         icon: "keyboardSolid",
-        onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, () => {}),
+        onClick: () => dialogStore.addDialog(<ControlsDialog features={features} custom={custom} />, noopCall),
         enabled: (selected, cb) => !cb.isModal,
         shortcut: ShortcutKey.Z,
         hackNotInTheContextMenu: true

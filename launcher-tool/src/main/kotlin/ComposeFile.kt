@@ -982,7 +982,8 @@ sealed class ComposeService {
                           "${portAllocator.allocate(51235)}:51235",
                           "${portAllocator.allocate(51236)}:51236",
                           "${portAllocator.allocate(51237)}:51237",
-                          "${portAllocator.allocate(51238)}:51238"
+                          "${portAllocator.allocate(51238)}:51238",
+                          "${portAllocator.allocate(41493)}:41493"
                         ],
                         "volumes": [
                           "${imGradle.absolutePath}:/root/.gradle",

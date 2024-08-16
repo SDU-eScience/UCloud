@@ -1,4 +1,4 @@
-import {BottomProps, BoxShadowProps, LeftProps, RightProps, TopProps, HeightProps} from "styled-system";
+import {BottomProps, LeftProps, RightProps, TopProps} from "styled-system";
 import {Cursor} from "./Types";
 import {extractSize, injectStyle} from "@/Unstyled";
 import {ButtonClass} from "@/ui-components/Button";
@@ -103,7 +103,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 `);
 
-export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<DropdownContentProps>> = ({
+export function DropdownContent({
     squareTop = false,
     hover = true,
     width = "auto",
@@ -112,10 +112,9 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
     disabled = false,
     cursor = "pointer",
     minWidth = "138px",
-    boxShadow = "md",
     visible = false,
     ...props
-}) => {
+}: React.PropsWithChildren<DropdownContentProps>): React.ReactNode {
     const style: CSSProperties = {};
     if (width) style.width = extractSize(width);
     if (minWidth) style.minWidth = extractSize(minWidth);
@@ -138,13 +137,14 @@ export const DropdownContent: React.FunctionComponent<React.PropsWithChildren<Dr
         data-no-y-padding={props.noYPadding === true}
         data-visible={visible === true}
         style={style}
+        onClick={props.onClick}
         children={props.children}
     />;
 };
 
 Dropdown.displayName = "Dropdown";
 
-interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps, HeightProps {
+interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps {
     hover?: boolean;
     width?: string | number;
     disabled?: boolean;
@@ -161,4 +161,5 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     color?: string;
     onKeyDown?: React.KeyboardEventHandler;
     dropdownRef?: React.Ref<HTMLDivElement>
+    onClick?: React.MouseEventHandler<HTMLDivElement>;
 }

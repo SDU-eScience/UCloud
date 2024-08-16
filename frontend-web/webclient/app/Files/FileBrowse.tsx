@@ -110,6 +110,7 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
+    breadcrumbTitles: true,
 }
 
 interface AdditionalResourceBrowserOpts {
