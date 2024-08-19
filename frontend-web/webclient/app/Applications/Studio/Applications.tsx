@@ -6,17 +6,16 @@ import {useCallback, useEffect} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Button, Checkbox, Flex, Icon, Label, Text} from "@/ui-components";
+import {Button, Checkbox, Flex, Label, Link, Select, Text} from "@/ui-components";
 import Box from "@/ui-components/Box";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import * as Heading from "@/ui-components/Heading";
 import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
-import {addStandardDialog} from "@/UtilityComponents";
 import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {
@@ -26,6 +25,7 @@ import {
 } from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 interface AppVersion {
     version: string;
@@ -43,71 +43,6 @@ const entityTypes = [
 ];
 
 type ApplicationAccessRight = PropType<DetailedEntityWithPermission, "permission">;
-
-interface GroupSelectorProps {
-    applicationName: string;
-    selectedGroup?: ApplicationGroup;
-    options: ApplicationGroup[];
-    onSelect: (group: ApplicationGroup) => void;
-}
-
-const GroupSelectorTriggerClass = injectStyle("group-selector-trigger", k => `
-    ${k} {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        cursor: pointer;
-        font-family: inherit;
-        color: var(--textPrimary);
-        margin: 0;
-        border-width: 0px;
-        
-        width: 100%;
-        border-radius: 5px;
-        padding: 7px 12px;
-        height: 35px;
-        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);         
-
-        border: 1px solid var(--borderColor);
-    }
-    
-    ${k}:hover {
-        border-color: var(--borderColorHover);
-    }
-`);
-
-const GroupSelector: React.FunctionComponent<GroupSelectorProps> = (props) => {
-    const [commandLoading, invokeCommand] = useCloudCommand();
-
-    useEffect(() => {
-        if (!props.selectedGroup) return;
-        invokeCommand(AppStore.assignApplicationToGroup({
-            group: props.selectedGroup.metadata.id,
-            name: props.applicationName
-        }));
-    }, [props.selectedGroup]);
-
-    const options = React.useMemo(() => {
-        return props.options.map((appGroup) => ({
-            text: appGroup.specification.title,
-            value: appGroup
-        })).sort((a, b) => a.text > b.text ? 1 : -1)
-    }, [props.options]);
-
-    return (
-        <ClickableDropdown
-            fullWidth
-            trigger={
-                <div className={GroupSelectorTriggerClass}>
-                    <Text>{props.selectedGroup ? props.selectedGroup.specification.title : "No group selected"}</Text>
-                    <Icon name="chevronDownLight" ml="-32px" size={14}/>
-                </div>
-            }
-            options={options}
-            onChange={props.onSelect}
-        />
-    );
-}
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight): "Can launch" {
     switch (accessRight) {
@@ -151,7 +86,7 @@ export const App: React.FunctionComponent = () => {
     );
 
     const allGroups = allGroupsPage.data.items;
-    const [selectedGroup, setSelectedGroup] = useState<ApplicationGroup | undefined>(undefined);
+    const [selectedGroup, setSelectedGroup] = useState<number>(0);
 
     const [permissionEntries, fetchPermissionEntries] = useCloudAPI(
         AppStore.retrieveAcl({name: name}),
@@ -172,15 +107,34 @@ export const App: React.FunctionComponent = () => {
     // Loading of permission entries
     useEffectSkipMount(() => {
         fetchPermissionEntries(AppStore.retrieveAcl({name: name}));
-        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
 
     useEffect(() => {
-        if (!allGroups) return;
+        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
+    }, [name]);
 
-        if (apps.data.items[0]) {
-            setSelectedGroup(apps.data.items[0].metadata.group ?? undefined);
+    useEffect(() => {
+        const [firstApp] = apps.data.items;
+        if (!firstApp) return;
+        if (selectedGroup === firstApp.metadata.group?.metadata.id) return;
+
+        if (selectedGroup == 0) {
+            invokeCommand(AppStore.assignApplicationToGroup({
+                name: firstApp.metadata.name
+            }));
+        } else {
+            invokeCommand(AppStore.assignApplicationToGroup({
+                group: selectedGroup,
+                name: firstApp.metadata.name
+            }));
         }
+    }, [selectedGroup]);
+
+    useEffect(() => {
+        if (!allGroups) return;
+        if (!apps.data.items[0]) return;
+
+        setSelectedGroup(apps.data.items[0].metadata.group?.metadata.id ?? 0);
     }, [allGroups, apps]);
 
     // Loading of application versions
@@ -212,73 +166,73 @@ export const App: React.FunctionComponent = () => {
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
+    const groupOptions = React.useMemo(() => {
+        return allGroups.map((appGroup) => ({
+            text: appGroup.specification.title,
+            value: appGroup.metadata.id
+        })).sort((a, b) => a.text.localeCompare(b.text))
+    }, [allGroups]);
+
+
     if (Client.userRole !== "ADMIN") return null;
     return (
         <MainContainer
             header={(
-                <Flex justifyContent="space-between">
-                    <Heading.h2 style={{margin: 0}}>
-                        <SafeLogo name={name} type={"APPLICATION"} size={"64px"}/>
-                        {" "}
+                <Flex justifyContent="left" verticalAlign="center" maxWidth="800px" ml="auto" mr="auto">
+                    <SafeLogo name={name} type={"APPLICATION"} size={"48px"}/>
+                    <Heading.h3 pt="15px" pl="15px">
                         {appTitle}
-                    </Heading.h2>
+                    </Heading.h3>
                 </Flex>
             )}
+            headerSize={70}
             main={(<>
                 <Flex flexDirection="column">
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
-                        <form
-                            onSubmit={async e => {
-                                e.preventDefault();
-                                if (commandLoading) return;
-
-                                if (!selectedGroup) return;
-
-                                await invokeCommand(AppStore.assignApplicationToGroup({
-                                    group: selectedGroup.metadata.id,
-                                    name,
-                                }));
-
-                                snackbarStore.addSuccess(`Added to group ${selectedGroup}`, false);
-
-                                refresh();
-                            }}
-                        >
-                            <Heading.h2>Group</Heading.h2>
-                            <Flex>
-                                <GroupSelector
-                                    selectedGroup={selectedGroup}
-                                    applicationName={name}
-                                    options={allGroups}
-                                    onSelect={item => setSelectedGroup(item)}
-                                />
-                            </Flex>
-
-                            <Heading.h2>Flavor (name)</Heading.h2>
-                            <Flex>
-                                <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
-                                <Button
-                                    attached
-                                    onClick={async () => {
-                                        if (commandLoading) return;
-
-                                        const flavorFieldCurrent = flavorField.current;
-                                        if (flavorFieldCurrent === null) return;
-
-                                        const flavorFieldValue = flavorFieldCurrent.value;
-                                        if (flavorFieldValue === "") return;
-
-                                        await invokeCommand(AppStore.updateApplicationFlavor({
-                                            applicationName: name,
-                                            flavorName: flavorFieldValue
-                                        }));
-                                        refresh();
-                                    }}
+                        <Label>Group</Label>
+                        <Box mb="20px" textAlign="right">
+                                <Select
+                                    name="group" 
+                                    value={selectedGroup}
+                                    onChange={(event) => setSelectedGroup(event.target.value)}
                                 >
-                                    Save
-                                </Button>
-                            </Flex>
-                        </form>
+                                    <option value="0"></option>
+                                    {groupOptions.map(it => (
+                                        <option value={it.value}>{it.text}</option>
+                                    ))}
+                                </Select>
+                            {selectedGroup > 0 ? (
+                                <Link to={`/applications/studio/g/${selectedGroup}`}>Go to group management page</Link>
+                            ) : <></>}
+                        </Box>
+
+                        <Label>Flavor (name)</Label>
+                        <Flex>
+                            <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
+                            <Button
+                                attached
+                                onClick={async () => {
+                                    if (commandLoading) return;
+
+                                    const flavorFieldCurrent = flavorField.current;
+                                    if (flavorFieldCurrent === null) return;
+
+                                    const flavorFieldValue = flavorFieldCurrent.value;
+                                    const res = await invokeCommand(AppStore.updateApplicationFlavor({
+                                        applicationName: name,
+                                        flavorName: flavorFieldValue != "" ? flavorFieldValue : null
+                                    }));
+
+                                    if (res) {
+                                        snackbarStore.addSuccess("Saved flavor", false);
+                                    }
+
+                                    refresh();
+                                }}
+                            >
+                                Save
+                            </Button>
+                        </Flex>
                     </Box>
                     <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
@@ -341,7 +295,7 @@ export const App: React.FunctionComponent = () => {
                                             width="180px"
                                             onChange={(val: AccessEntityType) => setSelectedEntityType(val)}
                                             trigger={
-                                                <span style={{minWidth: "200px"}}>
+                                                <span style={{minWidth: "100px"}}>
                                                     {prettifyEntityType(selectedEntityType)}
                                                 </span>
                                             }
@@ -366,7 +320,7 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={projectEntityField}
-                                                placeholder="Project name"
+                                                placeholder="Project path or ID"
                                             />
                                             <Input
                                                 leftLabel
@@ -375,17 +329,17 @@ export const App: React.FunctionComponent = () => {
                                                 width={180}
                                                 type="text"
                                                 inputRef={groupEntityField}
-                                                placeholder="Group name"
+                                                placeholder="Group name or ID"
                                             />
                                         </>
                                     )}
-                                    <InputLabel width={300} rightLabel leftLabel>
+                                    <InputLabel width={200} rightLabel leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
                                             onChange={(val: ApplicationAccessRight) => setAccess(val)}
                                             trigger={<span
-                                                style={{minWidth: "250px"}}>{prettifyAccessRight(access)}</span>}
+                                                style={{minWidth: "100px"}}>{prettifyAccessRight(access)}</span>}
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
@@ -400,9 +354,9 @@ export const App: React.FunctionComponent = () => {
                                     <Table>
                                         <LeftAlignedTableHeader>
                                             <TableRow>
-                                                <TableHeaderCell width="300px">Name</TableHeaderCell>
-                                                <TableHeaderCell>Permission</TableHeaderCell>
-                                                <TableHeaderCell width={50}>Delete</TableHeaderCell>
+                                                <TableHeaderCell minWidth="300px">Name</TableHeaderCell>
+                                                <TableHeaderCell width="100px">Permission</TableHeaderCell>
+                                                <TableHeaderCell textAlign="right">Delete</TableHeaderCell>
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
@@ -415,25 +369,11 @@ export const App: React.FunctionComponent = () => {
                                                         `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
                                                     )}</TableCell>
                                                 <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    <Button
-                                                        color={"errorMain"}
-                                                        type={"button"}
-                                                        onClick={() => addStandardDialog({
-                                                            title: `Are you sure?`,
-                                                            message: (
-                                                                <Box>
-                                                                    <Text>
-                                                                        Remove permission
-                                                                        for {(permissionEntry.entity.user) ? (
-                                                                        permissionEntry.entity.user
-                                                                    ) : (
-                                                                        `${permissionEntry.entity.project?.title} / ${permissionEntry.entity.group?.title}`
-                                                                    )}
-                                                                    </Text>
-                                                                </Box>
-                                                            ),
-                                                            onConfirm: async () => {
+                                                <TableCell>
+                                                    <Flex justifyContent="right">
+                                                        <ConfirmationButton
+                                                            icon="heroTrash"
+                                                            onAction={async () => {
                                                                 await invokeCommand(AppStore.updateAcl({
                                                                     name: name,
                                                                     changes: [
@@ -449,11 +389,9 @@ export const App: React.FunctionComponent = () => {
                                                                     ]
                                                                 }));
                                                                 fetchPermissionEntries(AppStore.retrieveAcl({name}));
-                                                            }
-                                                        })}
-                                                    >
-                                                        <Icon size={16} name="trash"/>
-                                                    </Button>
+                                                            }}
+                                                        />
+                                                    </Flex>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
