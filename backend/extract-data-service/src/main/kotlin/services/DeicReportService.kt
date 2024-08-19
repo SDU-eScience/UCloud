@@ -38,11 +38,13 @@ class DeicReportService(private val postgresDataService: PostgresDataService) {
     private suspend fun reportCenter(startDate: LocalDateTime, endDate: LocalDateTime, file: File) {
         val daysInPeriod = Duration.between(startDate, endDate).toDays()
         val hoursInPeriod = daysInPeriod * 24L
-        val usedCPUInPeriodSDU = postgresDataService.getCPUUsage(startDate, endDate, false).values.sum()
-        val numberOfGPUCoresSDU = 0L
-        val usedGPUHoursInPeriodSDU = postgresDataService.getGPUUsage(startDate, endDate, false).values.sum()
+        val projectsNotToCount = postgresDataService.listExcludedProjects().map { it.id }
 
-        val storageUsedSDU = postgresDataService.getSDUCeph().values.sum()
+        val usedCPUInPeriodSDU = postgresDataService.getCPUUsage(startDate, endDate, false).filterNot { projectsNotToCount.contains(it.key) }.values.sum()
+        val numberOfGPUCoresSDU = 0L
+        val usedGPUHoursInPeriodSDU = postgresDataService.getGPUUsage(startDate, endDate, false).filterNot { projectsNotToCount.contains(it.key) }.values.sum()
+        val storageUsedSDU = postgresDataService.getSDUCeph().filterNot { projectsNotToCount.contains(it.key) }.values.sum()
+
 
         file.writeText("[\n")
         val centerReportSDU = Center(
@@ -62,9 +64,9 @@ class DeicReportService(private val postgresDataService: PostgresDataService) {
         var json = jacksonObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(centerReportSDU)
         file.appendText("\t$json,\n")
 
-        val usedCPUInPeriodAAU = postgresDataService.getCPUUsage(startDate, endDate, true).values.sum()
+        val usedCPUInPeriodAAU = postgresDataService.getCPUUsage(startDate, endDate, true).filterNot { projectsNotToCount.contains(it.key) }.values.sum()
         val numberOfGPUCoresAAU = TYPE_1_GPU_CORES * hoursInPeriod
-        val usedGPUHoursInPeriodAAU = postgresDataService.getGPUUsage(startDate, endDate, true).values.sum()
+        val usedGPUHoursInPeriodAAU = postgresDataService.getGPUUsage(startDate, endDate, true).filterNot { projectsNotToCount.contains(it.key) }.values.sum()
 
         val storageUsedAAU = 17000000L
 

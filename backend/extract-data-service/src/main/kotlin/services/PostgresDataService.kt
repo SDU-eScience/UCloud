@@ -351,6 +351,79 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
         }
     }
 
+    fun listExcludedProjects(): List<Project> {
+        val excludedProjects = ArrayList<Project>()
+
+        runBlocking {
+            db.withSession { session ->
+                val id = session.sendPreparedStatement(
+                    """
+                    select id
+                    from project.projects
+                    where title = 'UCloud' and parent is null
+                """
+                ).rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(
+                    HttpStatusCode.NotFound,
+                    "UCloud project not found"
+                )
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                    with recursive ptree as (
+                        select
+                            id,
+                            title,
+                            parent
+                        from project.projects
+                        where id = :id
+                        union
+                        select
+                            p.id,
+                            p.title,
+                            p.parent
+                        from project.projects p
+                        inner join ptree pt on pt.id = p.parent
+                    )
+                    select * from ptree;
+                """
+                ).rows.forEach {
+                    excludedProjects.add(
+                        Project(
+                            it.getString(0)!!,
+                            it.getString(1)!!,
+                            it.getString(2),
+                            false,
+                            null
+                        )
+                    )
+                }
+            }
+
+            db.withSession { session ->
+                val id = session.sendPreparedStatement(
+                    """
+                    select id, title, parent
+                    from project.projects
+                    where can_consume_resources = false
+                """
+                ).rows.forEach {
+                    excludedProjects.add(
+                        Project(
+                            it.getString(0)!!,
+                            it.getString(1)!!,
+                            it.getString(2),
+                            false,
+                            null
+                        )
+                    )
+                }
+            }
+        }
+        return excludedProjects.toSet().toList()
+    }
+
     fun viewAncestors(
         projectId: String
     ): List<Project> {
