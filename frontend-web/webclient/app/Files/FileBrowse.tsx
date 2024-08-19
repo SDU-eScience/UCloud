@@ -115,7 +115,8 @@ const FEATURES: ResourceBrowseFeatures = {
 
 interface AdditionalResourceBrowserOpts {
     initialPath?: string;
-    managesLocalProject?: boolean;
+    managesLocalProject?: boolean; // TODO(Jonas): Having both managesLocalProject and initialProject might not be for the best.
+    initialProject?: string;
     additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
@@ -151,7 +152,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
-    const activeProject = useRef(Client.projectId);
+    const activeProject = useRef(opts?.initialProject ?? Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
@@ -1461,7 +1462,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
             b.renameField.style.left = "74px";
         }
 
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {

@@ -66,14 +66,14 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 `);
 
 export function ContextSwitcher({managed}: {
-    managed?: {setLocalProject: (project?: string) => void}
+    managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
 }): React.ReactNode {
     const refresh = useRefresh();
 
     const project = useProject();
     const projectId = useProjectId();
     // Note(Jonas): Only for use if the context switcher data is managed elsewhere.
-    const [controlledProject, setControlledProject] = React.useState(projectId);
+    const [controlledProject, setControlledProject] = React.useState(managed?.initialProject ?? projectId);
     const [error, setError] = React.useState("");
 
     const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
