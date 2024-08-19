@@ -3,6 +3,7 @@ package termio
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -302,21 +303,18 @@ var spinnerFrames [16]string = [16]string{
 }
 
 // Creates a spinning/loading indicator with a given `title` and `code`.
-// The `code` function will be run by the LoadingIndicator, and anything written to `stdout` will be piped to
+// The `code` function will be run by the LoadingIndicator, and anything written to `output` will be piped to
 // and displayed by the LoadingIndicator.
-func LoadingIndicator(title string, code func() error) {
+func LoadingIndicator(title string, code func(output *os.File) error) error {
 	state := LoadingStateInProgress
 	const logOutputMax int = 5
 
-	oldStdout := os.Stdout
 	outputReader, outputWriter, err := os.Pipe()
 	reader := bufio.NewReader(outputReader)
 
 	if err != nil {
 		fmt.Printf("Problems creating pipe: %v\n", err)
 	}
-
-	os.Stdout = outputWriter
 
 	logOutput := [logOutputMax]string{}
 	bufferSize := 0
@@ -333,9 +331,8 @@ func LoadingIndicator(title string, code func() error) {
 			bufioReader := bufio.NewReader(reader)
 			output, err := bufioReader.ReadString('\n')
 
-			if err != nil {
-				os.Stdout = oldStdout
-				fmt.Printf("%v\n", err)
+			if err != nil && err != io.EOF {
+				fmt.Printf("Unexpected error: %v\n", err)
 			}
 
 			if len(output) > 0 {
@@ -384,8 +381,6 @@ func LoadingIndicator(title string, code func() error) {
 			default:
 			}
 
-			os.Stdout = oldStdout
-
 			if iteration > 0 {
 				moveCursorUp(logOutputMax + 1)
 			}
@@ -398,8 +393,6 @@ func LoadingIndicator(title string, code func() error) {
 				fmt.Printf("%s\n", msg)
 			}
 
-			os.Stdout = outputWriter
-
 			if state != LoadingStateInProgress {
 				break
 			}
@@ -409,7 +402,7 @@ func LoadingIndicator(title string, code func() error) {
 		}
 	}()
 
-	err = code()
+	err = code(outputWriter)
 
 	if err != nil {
 		state = LoadingStateFailure
@@ -421,10 +414,10 @@ func LoadingIndicator(title string, code func() error) {
 	time.Sleep(50 * time.Millisecond)
 
 	outputWriter.Close()
-	os.Stdout = oldStdout
 
 	if err != nil {
 		fmt.Printf("%v\n", err)
+		return err
 	} else {
 		// Hide log if successful
 		for i := 0; i < logOutputMax; i++ {
@@ -432,6 +425,8 @@ func LoadingIndicator(title string, code func() error) {
 			clearLine()
 		}
 	}
+
+	return nil
 }
 
 // Prompt for text
@@ -514,6 +509,8 @@ func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
 			break
 		}
 
+		// NOTE(Brian): There seems to be a problem with the error handling for keyboard.Listen, thus we set the
+		// `cancelled` variable instead of throwing an error in the callback function.
 		keyboard.Listen(func(key keys.Key) (stop bool, err error) {
 			if key.Code == keys.Enter {
 				done = true

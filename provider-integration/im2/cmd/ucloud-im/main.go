@@ -19,12 +19,39 @@ func main() {
 
 	// NOTE(Brian): Prompt examples
 	if false {
-		termio.LoadingIndicator("Loading some stuff", func() error {
-			fmt.Printf("Testing 1\n")
-			fmt.Printf("Testing 2\n")
+		termio.LoadingIndicator("Loading some stuff", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1\n")
+			fmt.Fprintf(output, "Testing 2\n")
 			time.Sleep(1 * time.Second)
-			fmt.Printf("Done\n")
+			fmt.Fprintf(output, "Done\n")
 			return nil
+		})
+
+		termio.LoadingIndicator("This one will succeed", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1 Really long really really really long\n")
+			fmt.Fprintf(output, "Testing 2\n")
+			fmt.Fprintf(output, "Testing 3\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 4 Really long really really really long\n")
+			fmt.Fprintf(output, "Testing 5 Really long really really really long\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 6\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 7\n")
+			fmt.Fprintf(output, "Testing 8\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Done\n")
+			return nil
+		})
+
+		termio.LoadingIndicator("This one will fail", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1 Really long\n")
+			fmt.Fprintf(output, "Testing 2\n")
+			fmt.Fprintf(output, "Testing 3\n")
+			fmt.Fprintf(output, "Testing 4\n")
+			fmt.Fprintf(output, "Testing 5\n")
+			time.Sleep(1 * time.Second)
+			return fmt.Errorf("Oh no, this is bad..")
 		})
 
 		menu := termio.NewMenu("Test menu, please select one or more items (space to select):")
@@ -69,32 +96,6 @@ func main() {
 
 		fmt.Printf("Result was: %v\n\n", singleResult)
 
-		termio.LoadingIndicator("This one will succeed", func() error {
-			fmt.Printf("Testing 1 Really long really really really long\n")
-			fmt.Printf("Testing 2\n")
-			fmt.Printf("Testing 3\n")
-			time.Sleep(1 * time.Second)
-			fmt.Printf("Testing 4 Really long really really really long\n")
-			fmt.Printf("Testing 5 Really long really really really long\n")
-			time.Sleep(1 * time.Second)
-			fmt.Printf("Testing 6\n")
-			time.Sleep(1 * time.Second)
-			fmt.Printf("Testing 7\n")
-			fmt.Printf("Testing 8\n")
-			time.Sleep(1 * time.Second)
-			fmt.Printf("Done\n")
-			return nil
-		})
-
-		termio.LoadingIndicator("This one will fail", func() error {
-			fmt.Printf("Testing 1 Really long\n")
-			fmt.Printf("Testing 2\n")
-			fmt.Printf("Testing 3\n")
-			fmt.Printf("Testing 4\n")
-			fmt.Printf("Testing 5\n")
-			time.Sleep(1 * time.Second)
-			return fmt.Errorf("Oh no, this is bad..")
-		})
 		return
 	}
 
