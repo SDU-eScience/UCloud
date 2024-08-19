@@ -108,379 +108,356 @@ func controllerJobs(mux *http.ServeMux) {
 		WriteBufferSize: 1024 * 4,
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
-
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
 
-	creationUrl, _ := strings.CutSuffix(jobContext, "/")
-	mux.HandleFunc(creationUrl, HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
-		0,
-		func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
-			var errors []error
-			var providerIds []*fnd.FindByStringId
+	if cfg.Mode == cfg.ServerModeUser {
+		creationUrl, _ := strings.CutSuffix(jobContext, "/")
+		mux.HandleFunc(creationUrl, HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
+				var errors []error
+				var providerIds []*fnd.FindByStringId
 
-			for _, item := range request.Items {
-				providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
-					JobToSubmit: item,
-				})
+				for _, item := range request.Items {
+					providerGeneratedId, err := Jobs.Submit(JobSubmitRequest{
+						JobToSubmit: item,
+					})
 
-				if providerGeneratedId.IsSet() && err == nil {
-					providerIds = append(providerIds, &fnd.FindByStringId{Id: providerGeneratedId.Get()})
-				} else {
-					providerIds = append(providerIds, nil)
-				}
+					if providerGeneratedId.IsSet() && err == nil {
+						providerIds = append(providerIds, &fnd.FindByStringId{Id: providerGeneratedId.Get()})
+					} else {
+						providerIds = append(providerIds, nil)
+					}
 
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-
-			if len(errors) == 1 && len(request.Items) == 1 {
-				sendError(w, errors[0])
-			} else {
-				var response fnd.BulkResponse[*fnd.FindByStringId]
-				response.Responses = providerIds
-				sendResponseOrError(w, response, nil)
-			}
-		}),
-	)
-
-	mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
-		0,
-		func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
-			var errors []error
-
-			for _, item := range request.Items {
-				err := Jobs.Terminate(JobTerminateRequest{
-					Job: item,
-				})
-
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-
-			if len(errors) > 0 {
-				sendError(w, errors[0])
-			} else {
-				var response fnd.BulkResponse[util.Empty]
-				for i := 0; i < len(request.Items); i++ {
-					response.Responses = append(response.Responses, util.Empty{})
-				}
-
-				sendResponseOrError(w, response, nil)
-			}
-		}),
-	)
-
-	type extendRequest struct {
-		Job           *orc.Job           `json:"jobId"`
-		RequestedTime orc.SimpleDuration `json:"requestedTime"`
-	}
-
-	mux.HandleFunc(jobContext+"extend", HttpUpdateHandler[fnd.BulkRequest[extendRequest]](
-		0,
-		func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[extendRequest]) {
-			var errors []error
-
-			for _, item := range request.Items {
-				err := Jobs.Extend(JobExtendRequest{
-					Job:           item.Job,
-					RequestedTime: item.RequestedTime,
-				})
-
-				if err != nil {
-					errors = append(errors, err)
-				}
-			}
-
-			if len(errors) > 0 {
-				sendError(w, errors[0])
-			} else {
-				var response fnd.BulkResponse[util.Empty]
-				for i := 0; i < len(request.Items); i++ {
-					response.Responses = append(response.Responses, util.Empty{})
-				}
-
-				sendResponseOrError(w, response, nil)
-			}
-		}),
-	)
-
-	mux.HandleFunc(jobContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
-		0,
-		func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
-			products := Jobs.RetrieveProducts()
-			sendResponseOrError(
-				w,
-				fnd.BulkResponse[orc.JobSupport]{
-					Responses: products,
-				},
-				nil,
-			)
-		}),
-	)
-
-	type openInteractiveSessionRequest struct {
-		Job         *orc.Job                   `json:"job"`
-		Rank        int                        `json:"rank"`
-		SessionType orc.InteractiveSessionType `json:"sessionType"`
-	}
-
-	mux.HandleFunc(jobContext+"interactiveSession", HttpUpdateHandler[fnd.BulkRequest[openInteractiveSessionRequest]](
-		0,
-		func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openInteractiveSessionRequest]) {
-			var errors []error
-			var responses []orc.OpenSession
-
-			for _, item := range request.Items {
-				switch item.SessionType {
-				case orc.InteractiveSessionTypeShell:
-					cleanupShellSessions()
-
-					shellSessionsMutex.Lock()
-					tok := util.RandomToken(32)
-					shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank}
-					shellSessionsMutex.Unlock()
-					responses = append(
-						responses,
-						orc.OpenSessionShell(item.Job.Id, item.Rank, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
-					)
-
-				case orc.InteractiveSessionTypeWeb:
-					target, err := Jobs.OpenWebSession(item.Job, item.Rank)
 					if err != nil {
 						errors = append(errors, err)
-					} else {
-						redirect, err := RegisterWebIngress(item.Job, item.Rank, target)
+					}
+				}
+
+				if len(errors) == 1 && len(request.Items) == 1 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[*fnd.FindByStringId]
+					response.Responses = providerIds
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		mux.HandleFunc(jobContext+"terminate", HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[*orc.Job]) {
+				var errors []error
+
+				for _, item := range request.Items {
+					err := Jobs.Terminate(JobTerminateRequest{
+						Job: item,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Empty]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, util.Empty{})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		type extendRequest struct {
+			Job           *orc.Job           `json:"jobId"`
+			RequestedTime orc.SimpleDuration `json:"requestedTime"`
+		}
+
+		mux.HandleFunc(jobContext+"extend", HttpUpdateHandler[fnd.BulkRequest[extendRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[extendRequest]) {
+				var errors []error
+
+				for _, item := range request.Items {
+					err := Jobs.Extend(JobExtendRequest{
+						Job:           item.Job,
+						RequestedTime: item.RequestedTime,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Empty]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, util.Empty{})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		type openInteractiveSessionRequest struct {
+			Job         *orc.Job                   `json:"job"`
+			Rank        int                        `json:"rank"`
+			SessionType orc.InteractiveSessionType `json:"sessionType"`
+		}
+
+		mux.HandleFunc(jobContext+"interactiveSession", HttpUpdateHandler[fnd.BulkRequest[openInteractiveSessionRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openInteractiveSessionRequest]) {
+				var errors []error
+				var responses []orc.OpenSession
+
+				for _, item := range request.Items {
+					switch item.SessionType {
+					case orc.InteractiveSessionTypeShell:
+						cleanupShellSessions()
+
+						shellSessionsMutex.Lock()
+						tok := util.RandomToken(32)
+						shellSessions[tok] = &ShellSession{Alive: true, Job: item.Job, Rank: item.Rank}
+						shellSessionsMutex.Unlock()
+						responses = append(
+							responses,
+							orc.OpenSessionShell(item.Job.Id, item.Rank, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
+						)
+
+					case orc.InteractiveSessionTypeWeb:
+						target, err := Jobs.OpenWebSession(item.Job, item.Rank)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
-							responses = append(
-								responses,
-								orc.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
-							)
+							redirect, err := RegisterWebIngress(item.Job, item.Rank, target)
+							if err != nil {
+								errors = append(errors, err)
+							} else {
+								responses = append(
+									responses,
+									orc.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
+								)
+							}
 						}
+
+					default:
+						errors = append(errors, &util.HttpError{
+							StatusCode: http.StatusBadRequest,
+							Why:        "Not implemented",
+						})
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[orc.OpenSession]
+					response.Responses = responses
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		type shellRequest struct {
+			Type              string `json:"type"`
+			SessionIdentifier string `json:"sessionIdentifier,omitempty"`
+			Cols              int    `json:"cols,omitempty"`
+			Rows              int    `json:"rows,omitempty"`
+			Data              string `json:"data,omitempty"`
+		}
+		mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
+			func(writer http.ResponseWriter, request *http.Request) {
+				conn, err := wsUpgrader.Upgrade(writer, request, nil)
+				defer util.SilentCloseIfOk(conn, err)
+				if err != nil {
+					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					return
+				}
+
+				var session *ShellSession = nil
+				for util.IsAlive {
+					if session != nil && !session.Alive {
+						break
 					}
 
-				default:
-					errors = append(errors, &util.HttpError{
-						StatusCode: http.StatusBadRequest,
-						Why:        "Not implemented",
-					})
-				}
-			}
+					messageType, data, err := conn.ReadMessage()
 
-			if len(errors) > 0 {
-				sendError(w, errors[0])
-			} else {
-				var response fnd.BulkResponse[orc.OpenSession]
-				response.Responses = responses
+					if err != nil {
+						break
+					}
 
-				sendResponseOrError(w, response, nil)
-			}
-		}),
-	)
+					if messageType != ws.TextMessage {
+						log.Debug("Only handling text messages but got a %v", messageType)
+						continue
+					}
 
-	type shellRequest struct {
-		Type              string `json:"type"`
-		SessionIdentifier string `json:"sessionIdentifier,omitempty"`
-		Cols              int    `json:"cols,omitempty"`
-		Rows              int    `json:"rows,omitempty"`
-		Data              string `json:"data,omitempty"`
-	}
-	mux.HandleFunc(
-		fmt.Sprintf("/ucloud/%v/websocket", cfg.Provider.Id),
-		func(writer http.ResponseWriter, request *http.Request) {
-			conn, err := wsUpgrader.Upgrade(writer, request, nil)
-			defer util.SilentCloseIfOk(conn, err)
-			if err != nil {
-				log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
-				return
-			}
+					requestMessage := WebSocketRequest{}
+					err = json.Unmarshal(data, &requestMessage)
+					if err != nil {
+						log.Info("Failed to unmarshal websocket message: %v", err)
+						break
+					}
 
-			var session *ShellSession = nil
-			for util.IsAlive {
-				if session != nil && !session.Alive {
-					break
-				}
+					req := shellRequest{}
+					err = json.Unmarshal(requestMessage.Payload, &req)
+					if err != nil {
+						log.Info("Failed to unmarshal follow message: %v", err)
+						break
+					}
 
-				messageType, data, err := conn.ReadMessage()
+					if session == nil {
+						if req.Type == "initialize" {
+							shellSessionsMutex.Lock()
+							s, ok := shellSessions[req.SessionIdentifier]
+							session = s
+							shellSessionsMutex.Unlock()
 
-				if err != nil {
-					break
-				}
+							session.InputEvents = make(chan ShellEvent)
+							session.EmitData = func(data []byte) {
+								msg := map[string]string{
+									"type": "data",
+									"data": string(data),
+								}
+								asJson, _ := json.Marshal(msg)
 
-				if messageType != ws.TextMessage {
-					log.Debug("Only handling text messages but got a %v", messageType)
-					continue
-				}
-
-				requestMessage := WebSocketRequest{}
-				err = json.Unmarshal(data, &requestMessage)
-				if err != nil {
-					log.Info("Failed to unmarshal websocket message: %v", err)
-					break
-				}
-
-				req := shellRequest{}
-				err = json.Unmarshal(requestMessage.Payload, &req)
-				if err != nil {
-					log.Info("Failed to unmarshal follow message: %v", err)
-					break
-				}
-
-				if session == nil {
-					if req.Type == "initialize" {
-						shellSessionsMutex.Lock()
-						s, ok := shellSessions[req.SessionIdentifier]
-						session = s
-						shellSessionsMutex.Unlock()
-
-						session.InputEvents = make(chan ShellEvent)
-						session.EmitData = func(data []byte) {
-							msg := map[string]string{
-								"type": "data",
-								"data": string(data),
+								_ = conn.WriteJSON(WebSocketResponseMessage{
+									Type:     "message",
+									StreamId: requestMessage.StreamId,
+									Payload:  asJson,
+								})
 							}
-							asJson, _ := json.Marshal(msg)
+
+							go func() {
+								Jobs.HandleShell(session, req.Cols, req.Rows)
+								session.Alive = false
+							}()
 
 							_ = conn.WriteJSON(WebSocketResponseMessage{
 								Type:     "message",
 								StreamId: requestMessage.StreamId,
-								Payload:  asJson,
+								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
+							if !ok {
+								break
+							}
 						}
+						continue
+					} else {
+						switch req.Type {
+						case "initialize":
+							fallthrough
+						case "resize":
+							session.InputEvents <- ShellEvent{
+								Type: ShellEventTypeResize,
+								ShellEventResize: ShellEventResize{
+									Cols: req.Cols,
+									Rows: req.Rows,
+								},
+							}
 
-						go func() {
-							Jobs.HandleShell(session, req.Cols, req.Rows)
-							session.Alive = false
-						}()
+						case "input":
+							session.InputEvents <- ShellEvent{
+								Type: ShellEventTypeInput,
+								ShellEventInput: ShellEventInput{
+									Data: req.Data,
+								},
+							}
+						}
 
 						_ = conn.WriteJSON(WebSocketResponseMessage{
 							Type:     "message",
 							StreamId: requestMessage.StreamId,
-							Payload:  json.RawMessage(`{"type":"initialize"}`),
+							Payload:  json.RawMessage(`{"type":"ack"}`),
 						})
-						if !ok {
-							break
-						}
 					}
-					continue
-				} else {
-					switch req.Type {
-					case "initialize":
-						fallthrough
-					case "resize":
-						session.InputEvents <- ShellEvent{
-							Type: ShellEventTypeResize,
-							ShellEventResize: ShellEventResize{
-								Cols: req.Cols,
-								Rows: req.Rows,
-							},
-						}
+				}
+			},
+		)
 
-					case "input":
-						session.InputEvents <- ShellEvent{
-							Type: ShellEventTypeInput,
-							ShellEventInput: ShellEventInput{
-								Data: req.Data,
-							},
-						}
+		followCall := fmt.Sprintf("jobs.provider.%v.follow", cfg.Provider.Id)
+		mux.HandleFunc(
+			fmt.Sprintf("/ucloud/jobs.provider.%v/websocket", cfg.Provider.Id),
+			func(writer http.ResponseWriter, request *http.Request) {
+				conn, err := HttpUpgradeToWebSocketAuthenticated(writer, request)
+				defer util.SilentCloseIfOk(conn, err)
+				if err != nil {
+					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					return
+				}
+
+				log.Info("We are now listening for logs (probably)")
+
+				for util.IsAlive {
+					messageType, data, err := conn.ReadMessage()
+					log.Info("Entire message %v", string(data))
+
+					if err != nil {
+						break
 					}
 
-					_ = conn.WriteJSON(WebSocketResponseMessage{
-						Type:     "message",
-						StreamId: requestMessage.StreamId,
-						Payload:  json.RawMessage(`{"type":"ack"}`),
-					})
-				}
-			}
-		},
-	)
-
-	mux.HandleFunc(
-		fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
-		func(writer http.ResponseWriter, request *http.Request) {
-			token := request.URL.Query().Get("token")
-			webSessionsMutex.Lock()
-			found := false
-			for _, session := range webSessions {
-				if slices.Contains(session.AuthToken, token) {
-					authCookie := http.Cookie{
-						Name:     "ucloud-compute-session-" + session.Ingress,
-						Value:    token,
-						Secure:   request.URL.Scheme == "https",
-						HttpOnly: true,
-						MaxAge:   1000 * 60 * 60 * 24 * 30,
-						Path:     "/",
-						Domain:   request.URL.Host,
+					if messageType != ws.TextMessage {
+						log.Debug("Only handling text messages but got a %v", messageType)
+						continue
 					}
-					http.SetCookie(writer, &authCookie)
-					writer.Header().Set("Location", "/")
-					writer.WriteHeader(http.StatusFound)
-					found = true
-					break
-				}
-			}
-			webSessionsMutex.Unlock()
 
-			if !found {
-				writer.WriteHeader(http.StatusNotFound)
-				_, _ = writer.Write([]byte("Unknown application requested. Please try again!"))
-			}
-		},
-	)
+					requestMessage := WebSocketRequest{}
+					err = json.Unmarshal(data, &requestMessage)
+					if err != nil {
+						log.Info("Failed to unmarshal websocket message: %v", err)
+						break
+					}
 
-	followCall := fmt.Sprintf("jobs.provider.%v.follow", cfg.Provider.Id)
-	mux.HandleFunc(
-		fmt.Sprintf("/ucloud/jobs.provider.%v/websocket", cfg.Provider.Id),
-		func(writer http.ResponseWriter, request *http.Request) {
-			conn, err := wsUpgrader.Upgrade(writer, request, nil)
-			defer util.SilentCloseIfOk(conn, err)
-			if err != nil {
-				log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
-				return
-			}
+					if requestMessage.Call != followCall {
+						log.Info("Unexpected call on stream: %v", requestMessage.Call)
+						break
+					}
 
-			log.Info("We are now listening for logs (probably)")
+					followRequest := jobsProviderFollowRequest{}
+					err = json.Unmarshal(requestMessage.Payload, &followRequest)
+					if err != nil {
+						log.Info("Failed to unmarshal follow message: %v", err)
+						break
+					}
 
-			for util.IsAlive {
-				messageType, data, err := conn.ReadMessage()
+					switch followRequest.Type {
+					case jobsProviderFollowRequestTypeInit:
+						session := createFollowSession(requestMessage.StreamId, conn, followRequest.Job)
+						go func() {
+							Jobs.Follow(session)
+							session.Alive = false
 
-				if err != nil {
-					break
-				}
+							dummy := jobsProviderFollowResponse{
+								StreamId: session.Id,
+								Rank:     0,
+								Stdout:   util.Option[string]{},
+								Stderr:   util.Option[string]{},
+							}
+							dummyData, _ := json.Marshal(dummy)
+							_ = conn.WriteJSON(WebSocketResponseFin{
+								Type:     "response",
+								Status:   http.StatusOK,
+								StreamId: requestMessage.StreamId,
+								Payload:  dummyData,
+							})
+						}()
 
-				if messageType != ws.TextMessage {
-					log.Debug("Only handling text messages but got a %v", messageType)
-					continue
-				}
-
-				requestMessage := WebSocketRequest{}
-				err = json.Unmarshal(data, &requestMessage)
-				if err != nil {
-					log.Info("Failed to unmarshal websocket message: %v", err)
-					break
-				}
-
-				if requestMessage.Call != followCall {
-					log.Info("Unexpected call on stream: %v", requestMessage.Call)
-					break
-				}
-
-				followRequest := jobsProviderFollowRequest{}
-				err = json.Unmarshal(requestMessage.Payload, &followRequest)
-				if err != nil {
-					log.Info("Failed to unmarshal follow message: %v", err)
-					break
-				}
-
-				switch followRequest.Type {
-				case jobsProviderFollowRequestTypeInit:
-					session := createFollowSession(requestMessage.StreamId, conn, followRequest.Job)
-					go func() {
-						Jobs.Follow(session)
-						session.Alive = false
+					case jobsProviderFollowRequestTypeCancel:
+						followSessionsMutex.Lock()
+						session, ok := followSessions[followRequest.StreamId]
+						if ok {
+							session.Alive = false
+						}
+						followSessionsMutex.Unlock()
 
 						dummy := jobsProviderFollowResponse{
 							StreamId: session.Id,
@@ -495,33 +472,58 @@ func controllerJobs(mux *http.ServeMux) {
 							StreamId: requestMessage.StreamId,
 							Payload:  dummyData,
 						})
-					}()
-
-				case jobsProviderFollowRequestTypeCancel:
-					followSessionsMutex.Lock()
-					session, ok := followSessions[followRequest.StreamId]
-					if ok {
-						session.Alive = false
 					}
-					followSessionsMutex.Unlock()
-
-					dummy := jobsProviderFollowResponse{
-						StreamId: session.Id,
-						Rank:     0,
-						Stdout:   util.Option[string]{},
-						Stderr:   util.Option[string]{},
-					}
-					dummyData, _ := json.Marshal(dummy)
-					_ = conn.WriteJSON(WebSocketResponseFin{
-						Type:     "response",
-						Status:   http.StatusOK,
-						StreamId: requestMessage.StreamId,
-						Payload:  dummyData,
-					})
 				}
-			}
-		},
-	)
+			},
+		)
+	} else if cfg.Mode == cfg.ServerModeServer {
+		mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
+			func(writer http.ResponseWriter, request *http.Request) {
+				token := request.URL.Query().Get("token")
+				webSessionsMutex.Lock()
+				found := false
+				for _, session := range webSessions {
+					if slices.Contains(session.AuthToken, token) {
+						authCookie := http.Cookie{
+							Name:     "ucloud-compute-session-" + session.Ingress,
+							Value:    token,
+							Secure:   request.URL.Scheme == "https",
+							HttpOnly: true,
+							MaxAge:   1000 * 60 * 60 * 24 * 30,
+							Path:     "/",
+							Domain:   request.URL.Host,
+						}
+						http.SetCookie(writer, &authCookie)
+						writer.Header().Set("Location", "/")
+						writer.WriteHeader(http.StatusFound)
+						found = true
+						break
+					}
+				}
+				webSessionsMutex.Unlock()
+
+				if !found {
+					writer.WriteHeader(http.StatusNotFound)
+					_, _ = writer.Write([]byte("Unknown application requested. Please try again!"))
+				}
+			},
+		)
+
+		mux.HandleFunc(jobContext+"retrieveProducts", HttpRetrieveHandler[util.Empty](
+			0,
+			func(w http.ResponseWriter, r *http.Request, _ util.Empty) {
+				products := Jobs.RetrieveProducts()
+				sendResponseOrError(
+					w,
+					fnd.BulkResponse[orc.JobSupport]{
+						Responses: products,
+					},
+					nil,
+				)
+			}),
+		)
+	}
 }
 
 type WebSocketRequest struct {

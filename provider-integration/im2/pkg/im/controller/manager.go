@@ -1,8 +1,11 @@
 package controller
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
+	ws "github.com/gorilla/websocket"
 	"io"
 	"net/http"
 
@@ -38,13 +41,13 @@ type commonErrorMessage struct {
 }
 
 func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
-	if flags&HttpApiFlagNoAuth == 0 {
-		// TODO Auth
-	}
-
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			sendStatusCode(w, http.StatusMethodNotAllowed)
+			return
+		}
+
+		if !handleAuth(flags, w, r) {
 			return
 		}
 
@@ -54,12 +57,50 @@ func HttpRetrieveHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w
 	}
 }
 
-func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
-	if flags&HttpApiFlagNoAuth == 0 {
-		// TODO Auth
+type jwtPayload struct {
+	Sub  string `json:"sub"`
+	Role string `json:"role"`
+}
+
+func handleAuth(flags HttpApiFlag, w http.ResponseWriter, r *http.Request) bool {
+	if flags&HttpApiFlagNoAuth != 0 {
+		return true
 	}
 
+	if r.Header.Get("ucloud-secret") != cfg.OwnEnvoySecret {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+
+	payloadHeader := r.Header.Get("x-jwt-payload")
+	payloadDecoded, err := base64.RawURLEncoding.DecodeString(payloadHeader)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	var payload jwtPayload
+	err = json.Unmarshal([]byte(payloadDecoded), &payload)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	if payload.Sub != "_UCloud" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	if payload.Role != "SERVICE" {
+		w.WriteHeader(http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
+func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !handleAuth(flags, w, r) {
+			return
+		}
+
 		if r.Body == nil {
 			sendStatusCode(w, http.StatusBadRequest)
 			return
@@ -82,6 +123,20 @@ func HttpUpdateHandler[T any](flags HttpApiFlag, handler ApiHandler[T]) func(w h
 
 		handler(w, r, request)
 	}
+}
+
+func HttpUpgradeToWebSocketAuthenticated(w http.ResponseWriter, r *http.Request) (*ws.Conn, error) {
+	if !handleAuth(0, w, r) {
+		return nil, fmt.Errorf("failed authentication")
+	}
+	wsUpgrader := ws.Upgrader{
+		ReadBufferSize:  1024 * 4,
+		WriteBufferSize: 1024 * 4,
+	}
+
+	header := http.Header{}
+	header.Set("ucloud-no-bearer", "true")
+	return wsUpgrader.Upgrade(w, r, header)
 }
 
 func sendStatusCode(w http.ResponseWriter, status int) {

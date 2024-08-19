@@ -23,7 +23,6 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlin.random.Random
 
@@ -34,6 +33,7 @@ class OutgoingWSCall : OutgoingCall {
         override val klass = OutgoingWSCall::class
         override val attributes = AttributeContainer()
 
+        internal val BEARER_IN_HEADER_KEY = AttributeKey<Boolean>("ws-bearer-in-header")
         internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
         val proxyAttribute = AttributeKey<String>("ucloud-username")
         val signedIntentAttribute = AttributeKey<String>("ucloud-signed-intent")
@@ -92,12 +92,19 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             else log.debug(requestDebug)
         }
 
-        val session = connectionPool.retrieveConnection(url, ctx.attributes.getOrNull(OutgoingWSCall.proxyAttribute))
+        val bearerInHeader = ctx.attributes.getOrNull(OutgoingWSCall.BEARER_IN_HEADER_KEY)
+        val bearer = if (bearerInHeader == true) {
+            ctx.attributes.outgoingAuthToken
+        } else {
+            null
+        }
+
+        val session = connectionPool.retrieveConnection(url, ctx.attributes.getOrNull(OutgoingWSCall.proxyAttribute), bearer)
         val wsRequest = WSRequest(
             call.fullName,
             streamId,
             request,
-            bearer = ctx.attributes.outgoingAuthToken,
+            bearer = ctx.attributes.outgoingAuthToken.takeIf { !session.noBearerInMessages },
             project = ctx.project,
             signedIntent = ctx.attributes.getOrNull(OutgoingWSCall.signedIntentAttribute),
         )
@@ -255,7 +262,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class WSClientSession constructor(
-    val underlyingSession: ClientWebSocketSession
+    val underlyingSession: ClientWebSocketSession,
+    val noBearerInMessages: Boolean,
 ) {
     private val channels = HashMap<String, Channel<WSRawMessage>>()
     private val mutex = Mutex()
@@ -345,7 +353,8 @@ class WSConnectionPool {
 
     suspend fun retrieveConnection(
         location: String,
-        proxiedTo: String?
+        proxiedTo: String?,
+        bearer: String?,
     ): WSClientSession {
         val key = "$location/$proxiedTo"
         val existing = connectionPool[key]
@@ -370,9 +379,16 @@ class WSConnectionPool {
                 if (proxiedTo != null) {
                     header("UCloud-Username", base64Encode(proxiedTo.encodeToByteArray()))
                 }
+
+                if (bearer != null) {
+                    header("Authorization", "Bearer $bearer")
+                }
             }
 
-            val wrappedSession = WSClientSession(session)
+            val respHeaders = session.call.response.headers
+            val noBearerInMessages = respHeaders["ucloud-no-bearer"] != null
+
+            val wrappedSession = WSClientSession(session, noBearerInMessages)
             connectionPool[key] = wrappedSession
             wrappedSession.startProcessing(GlobalScope)
             return wrappedSession
@@ -387,6 +403,7 @@ class WSConnectionPool {
 suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
     request: R,
     authenticatedClient: AuthenticatedClient,
+    bearerInHeader: Boolean = false,
     handler: suspend (S) -> Unit
 ): IngoingCallResponse<S, E> {
     require(authenticatedClient.backend == OutgoingWSCall) {
@@ -401,6 +418,7 @@ suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
         beforeHook = { ctx ->
             authenticatedClient.authenticator(ctx)
 
+            ctx.attributes[OutgoingWSCall.BEARER_IN_HEADER_KEY] = bearerInHeader
             ctx.attributes[OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY] = {
                 handler(it as S)
             }

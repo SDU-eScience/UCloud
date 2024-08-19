@@ -401,9 +401,10 @@ func controllerConnection(mux *http.ServeMux) {
 							UseDNS:  false,
 						},
 						RouteUp: &gateway.EnvoyRoute{
-							Cluster:    request.Username,
-							Identifier: request.Username,
-							Type:       gateway.RouteTypeUser,
+							Cluster:        request.Username,
+							Identifier:     request.Username,
+							Type:           gateway.RouteTypeUser,
+							EnvoySecretKey: secret,
 						},
 					})
 				}

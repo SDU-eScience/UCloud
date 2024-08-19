@@ -23,8 +23,6 @@ type ApmService struct {
 	HandleNotification func(update *NotificationWalletUpdated)
 }
 
-const replayFromKey = "events-replay-from"
-
 var userReplayChannel chan string
 
 func initEvents() {

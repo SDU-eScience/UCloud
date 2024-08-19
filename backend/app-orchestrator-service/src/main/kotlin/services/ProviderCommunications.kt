@@ -450,6 +450,7 @@ class ProviderCommunications(
                 } else {
                     baseClient
                 },
+                bearerInHeader = true,
                 handler
             )
 

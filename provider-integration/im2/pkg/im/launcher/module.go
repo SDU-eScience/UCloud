@@ -25,6 +25,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 		return
 	}
 
+	cfg.OwnEnvoySecret = args.UserModeSecret
+
 	{
 		logCfg := &cfg.Provider.Logs
 
