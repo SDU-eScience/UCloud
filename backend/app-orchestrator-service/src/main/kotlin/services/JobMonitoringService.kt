@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.backgroundScope
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.db
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices.debug
@@ -57,6 +56,7 @@ class JobMonitoringService {
     private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
         var nextScan = 0L
         var nextVerify = 0L
+        val quotaBlockedRestarts = hashMapOf<String, Long>() //JobID, lastTimeChecked
 
         while (isActive) {
             var currentAction = "Nothing"
@@ -114,7 +114,17 @@ class JobMonitoringService {
                                                 try {
                                                     jobs.performUnsuspension(listOf(job))
                                                 } catch (ex: Throwable) {
-                                                    log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                                    // Note(HENRIK) Simple check to reduce noise of non restarting pods due to quota issues.
+                                                    // Instead of writing every $TIME_BETWEEN_SCANS it does it every $QUOTA_BLOCKED_SCAN_LIMIT
+                                                    if (ex.message?.contains("Quota has been exceeded") == true) {
+                                                        val lastCheck = quotaBlockedRestarts[job.id] ?: 0L
+                                                        if (lastCheck < now) {
+                                                            log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                                        }
+                                                        quotaBlockedRestarts[job.id] = now + QUOTA_BLOCKED_SCAN_LIMIT
+                                                    } else {
+                                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                                    }
                                                 }
                                             }
                                         }
@@ -332,5 +342,7 @@ class JobMonitoringService {
     companion object : Loggable {
         override val log = logger()
         private const val TIME_BETWEEN_SCANS = 10_000
+        private const val QUOTA_BLOCKED_SCAN_LIMIT = 1000L * 60 * 60
+
     }
 }
