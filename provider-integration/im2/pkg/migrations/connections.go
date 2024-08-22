@@ -24,3 +24,21 @@ func connectionsV1() migrationScript {
 		},
 	}
 }
+
+func connectionsV2() migrationScript {
+	return migrationScript{
+		Id: "connectionsV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table reverse_connections(
+						uid int not null,
+						token text not null primary key
+					)
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

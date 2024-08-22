@@ -14,6 +14,7 @@ import (
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/util"
 
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -46,11 +47,21 @@ func Launch() {
 		mode = cfg.ServerModeProxy
 	default:
 		mode = cfg.ServerModePlugin
-		pluginName = flag.Arg(1)
+		pluginName = flag.Arg(0)
 	}
 
 	if !cfg.Parse(mode, *configDir) {
 		fmt.Printf("Failed to parse configuration!\n")
+		return
+	}
+
+	if pluginName != "" {
+		cfg.Mode = mode
+		switch cfg.Services.Type {
+		case cfg.ServicesSlurm:
+			slurm.HandlePlugin(pluginName)
+		}
+
 		return
 	}
 
@@ -79,8 +90,6 @@ func Launch() {
 		envoySecret = util.RandomToken(16)
 	}
 	cfg.OwnEnvoySecret = envoySecret
-
-	_ = pluginName
 
 	var dbPool *db.Pool = nil
 

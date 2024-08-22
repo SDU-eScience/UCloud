@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -112,7 +113,9 @@ type cachedDirEntry struct {
 }
 
 func compareFileByPath(a, b cachedDirEntry) int {
-	return strings.Compare(a.absPath, b.absPath)
+	aLower := strings.ToLower(a.absPath)
+	bLower := strings.ToLower(b.absPath)
+	return strings.Compare(aLower, bLower)
 }
 
 func compareFileBySize(a, b cachedDirEntry) int {
@@ -250,6 +253,11 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		item := &items[itemIdx]
 		entry := &fileList[i]
 		i++
+
+		base := filepath.Base(entry.absPath)
+		if request.Flags.FilterHiddenFiles && strings.HasPrefix(base, ".") {
+			continue
+		}
 
 		if !entry.hasInfo && !entry.skip {
 			stat, err := os.Stat(entry.absPath)
@@ -599,8 +607,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 	file.Status.ModifiedAt = FileModTime(stat)
 	file.Status.AccessedAt = FileAccessTime(stat)
 
-	file.Status.SizeInBytes = stat.Size()
-	file.Status.SizeIncludingChildrenInBytes = stat.Size()
+	file.Status.SizeInBytes = util.OptValue(stat.Size())
 
 	file.Status.UnixOwner = FileUid(stat)
 	file.Status.UnixGroup = FileGid(stat)

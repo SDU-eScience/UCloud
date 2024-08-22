@@ -14,7 +14,7 @@ func Init() {
 				return ctrl.ConnectionError(err.Error())
 			}
 
-			err = ctrl.RegisterConnectionComplete(username, uid)
+			err = ctrl.RegisterConnectionComplete(username, uid, true)
 			if err != nil {
 				return ctrl.ConnectionError(err.Error())
 			}

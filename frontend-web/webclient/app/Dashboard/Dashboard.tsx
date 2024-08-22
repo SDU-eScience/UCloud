@@ -239,39 +239,41 @@ function DashboardResources({wallets}: {
                     <ApplyLinkButton />
                 </NoResultsCardBody>
             ) :
-                <Flex flexDirection="column" maxHeight="600px" overflowY={"scroll"}>
-                    <Table>
-                        <tbody>
-                            {mapped.map((n, i) => (
-                                <TableRow height="55px" key={i}>
-                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
-                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.paysFor.provider} size={30} />
-                                            <code>{n.paysFor.name}</code>
-                                        </Flex>
-                                    </TableCell>
-                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        <Flex justifyContent="end">
-                                            {!showWarning(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
-                                                <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                    <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                </TooltipV2>
-                                            </OverallocationLink>}
-                                            {Accounting.balanceToString(n.paysFor, totalUsageExcludingRetiredIfNeeded(n), {
-                                                precision: 0,
-                                                removeUnitIfPossible: true
-                                            })}
-                                            {" "}/{" "}
-                                            {Accounting.balanceToString(n.paysFor, n.quota, {
-                                                precision: 0,
-                                                removeUnitIfPossible: false
-                                            })}
-                                        </Flex>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </tbody>
-                    </Table>
+                <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
+                    <Box maxHeight={"600px"} overflowY={"auto"}>
+                        <Table>
+                            <tbody>
+                                {mapped.map((n, i) => (
+                                    <TableRow height="55px" key={i}>
+                                        <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
+                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                                <ProviderLogo providerId={n.paysFor.provider} size={30} />
+                                                <code>{n.paysFor.name}</code>
+                                            </Flex>
+                                        </TableCell>
+                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                            <Flex justifyContent="end">
+                                                {!showWarning(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
+                                                    <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                        <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+                                                    </TooltipV2>
+                                                </OverallocationLink>}
+                                                {Accounting.balanceToString(n.paysFor, totalUsageExcludingRetiredIfNeeded(n), {
+                                                    precision: 0,
+                                                    removeUnitIfPossible: true
+                                                })}
+                                                {" "}/{" "}
+                                                {Accounting.balanceToString(n.paysFor, n.quota, {
+                                                    precision: 0,
+                                                    removeUnitIfPossible: false
+                                                })}
+                                            </Flex>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Box>
                     <Box flexGrow={1} />
                     <Flex mx="auto"><ApplyLinkButton /></Flex>
                 </Flex>

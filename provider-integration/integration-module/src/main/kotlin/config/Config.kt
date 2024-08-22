@@ -135,7 +135,7 @@ data class ConfigSchema(
                 val port: Int? = null,
                 val username: String,
                 val password: String,
-                val database: String
+                val database: String,
             ) : Database()
         }
 

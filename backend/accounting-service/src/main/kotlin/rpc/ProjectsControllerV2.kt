@@ -148,5 +148,13 @@ class ProjectsControllerV2(
                 })
             )
         }
+
+        implement(Projects.createPersonalProviderProject) {
+            ok(projects.createPersonalProviderProject(actorAndProject, request))
+        }
+
+        implement(Projects.deletePersonalProviderProject) {
+            ok(projects.deletePersonalProviderProject(actorAndProject, request))
+        }
     }
 }

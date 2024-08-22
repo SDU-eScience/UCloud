@@ -40,7 +40,8 @@ interface IIdCardService {
         val title: String,
         val canConsumeResources: Boolean,
         val parentProject: String? = null,
-        val pi: String
+        val pi: String,
+        val personalProviderProjectFor: String? = null,
     )
 
     suspend fun lookupUidFromUsernameOrFail(username: String?): Int {
@@ -81,7 +82,7 @@ class IdCardService(
             session.sendPreparedStatement(
                 { setParameter("pid", pid) },
                 """
-                    select id, title, can_consume_resources, parent, username
+                    select id, title, can_consume_resources, parent, username, provider_project_for
                     from project.projects p join project.project_members pm on p.id = pm.project_id
                     where
                         pm.role = 'PI' and
@@ -93,8 +94,9 @@ class IdCardService(
                 val canConsumeResources = row.getBoolean(2)!!
                 val parentId = row.getString(3)
                 val pi = row.getString(4)!!
+                val providerProjectFor = row.getString(5)
 
-                IIdCardService.ProjectInfo(id, pid, title, canConsumeResources, parentId, pi)
+                IIdCardService.ProjectInfo(id, pid, title, canConsumeResources, parentId, pi, providerProjectFor)
             }
         }
     }

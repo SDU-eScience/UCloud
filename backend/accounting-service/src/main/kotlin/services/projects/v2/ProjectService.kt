@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.auth.api.AuthProviders
+import dk.sdu.cloud.auth.api.providerIdOrNull
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -32,7 +33,8 @@ import java.time.OffsetDateTime
 import java.util.*
 import kotlin.collections.ArrayList
 
-private typealias OnProjectUpdatedHandler = suspend (projects: Collection<Project>) -> Unit
+private typealias OnProjectUpdatedHandler = suspend (projects: Collection<Project>, session: AsyncDBConnection) -> Unit
+private typealias OnPersonalProjectCreated = suspend (projects: Collection<Project>) -> Unit
 
 class ProjectService(
     private val db: DBContext,
@@ -41,10 +43,18 @@ class ProjectService(
     private val developmentMode: Boolean,
     private val backgroundScope: BackgroundScope,
 ) {
+    // Runs before commit
     private val updateHandlers = ArrayList<OnProjectUpdatedHandler>()
 
     fun addUpdateHandler(handler: OnProjectUpdatedHandler) {
         updateHandlers.add(handler)
+    }
+
+    // Runs after commit
+    private val onPersonalProjectCreated = ArrayList<OnPersonalProjectCreated>()
+
+    fun addOnPersonalProjectCreated(handler: OnPersonalProjectCreated) {
+        onPersonalProjectCreated.add(handler)
     }
 
     suspend fun notifyChanges(session: AsyncDBConnection, ids: List<String>) {
@@ -62,7 +72,33 @@ class ProjectService(
             )
         }
 
-        updateHandlers.forEach { it(mapped) }
+        updateHandlers.forEach { it(mapped, session) }
+    }
+
+    private suspend fun notifyPersonalProjectCreated(ids: List<String>) {
+        val mapped = db.withSession { session ->
+            ids.map { id ->
+                retrieve(
+                    ActorAndProject.System,
+                    ProjectsRetrieveRequest(
+                        id,
+                        includeMembers = true,
+                        includeGroups = true,
+                        includeSettings = true,
+                        includePath = true
+                    ),
+                    ctx = session,
+                )
+            }
+        }
+
+        onPersonalProjectCreated.forEach {
+            try {
+                it(mapped)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while processing onProjectCreated handler: ${ex.toReadableStacktrace()}")
+            }
+        }
     }
 
     suspend fun findProjectsUpdatedSince(
@@ -634,6 +670,11 @@ class ProjectService(
         piOverride: String? = null,
         addSelfWithPiOverride: Boolean = false,
     ): BulkResponse<FindByStringId> {
+        // NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
+        if (request.items.any { it.title.startsWith("%") } && actorAndProject.actor != Actor.System) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
         return ctx.withSession(remapExceptions = true) { session ->
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
             // actor is, as always, allowed to create any project. Otherwise, you can create a project if you are an
@@ -691,6 +732,16 @@ class ProjectService(
                     // Check admin status of parent project
                     val parents = request.items.mapNotNull { it.parent }
                     requireAdmin(actor, parents, session)
+
+                    for (parent in parents) {
+                        val resolvedProject = retrieve(actorAndProject, ProjectsRetrieveRequest(parent), session)
+                        if (resolvedProject.status.personalProviderProjectFor != null) {
+                            throw RPCException(
+                                "You cannot create a sub-project from this project!",
+                                HttpStatusCode.Forbidden,
+                            )
+                        }
+                    }
 
                     // If we have a root-level project as part of the request, then we must verify that they are a UCloud
                     // administrator.
@@ -877,11 +928,15 @@ class ProjectService(
             ctx = ctx
         ).specification.parent ?: return false
 
-        return retrieve(
+        val retrieve = retrieve(
             ActorAndProject(Actor.System, null),
             ProjectsRetrieveRequest(parent, includeSettings = true),
             ctx = ctx
-        ).status.settings!!.subprojects!!.allowRenaming
+        )
+
+        if (retrieve.status.personalProviderProjectFor != null) return false
+
+        return retrieve.status.settings!!.subprojects!!.allowRenaming
     }
 
     suspend fun unarchive(
@@ -1109,6 +1164,10 @@ class ProjectService(
             // the project early, just in case it fails. It is extremely unlikely (impossible?) that the project does
             // not resolve, since we have just verified admin privileges in the project.
             val resolvedProject = retrieve(actorAndProject, ProjectsRetrieveRequest(project), session)
+
+            if (resolvedProject.status.personalProviderProjectFor != null) {
+                throw RPCException("You cannot invite people to this project!", HttpStatusCode.Forbidden)
+            }
 
             // NOTE(Dan): Inviting a user is just a simple insertion into the `project.invites` table. Note that we
             // verify that the user exists and are not already a member/invited to the project. Invalid requests are
@@ -1364,6 +1423,11 @@ class ProjectService(
                     "Unable to create more invitation links for this project",
                     HttpStatusCode.BadRequest
                 )
+            }
+
+            val resolvedProject = retrieve(actorAndProject, ProjectsRetrieveRequest(project), session)
+            if (resolvedProject.status.personalProviderProjectFor != null) {
+                throw RPCException("You cannot invite people to this project!", HttpStatusCode.Forbidden)
             }
 
             session.sendPreparedStatement(
@@ -2291,6 +2355,103 @@ class ProjectService(
             }
         }
         return list
+    }
+
+    // See issue #4328 for more information
+    suspend fun createPersonalProviderProject(
+        actorAndProject: ActorAndProject,
+        request: CreateProviderProjectRequest
+    ): CreateProviderProjectResponse {
+        val providerId = actorAndProject.actor.providerIdOrNull
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        val id = db.withSession { session ->
+            val existingProject = session.sendPreparedStatement(
+                {
+                    setParameter("provider_id", providerId)
+                    setParameter("username", request.username)
+                },
+                """
+                    select p.id
+                    from
+                        project.projects p
+                        join project.project_members pi on
+                            p.id = pi.project_id
+                            and pi.role = 'PI'
+                    where
+                        p.provider_project_for = :provider_id
+                        and pi.username = :username
+                """
+            ).rows.map { it.getString(0)!! }.singleOrNull()
+
+            if (existingProject != null) {
+                return@withSession existingProject
+            }
+
+            val id = create(
+                ActorAndProject(Actor.System, null),
+                bulkRequestOf(
+                    Project.Specification(null, "%ppp%-$providerId-${request.username}")
+                ),
+                session,
+                request.username,
+            ).responses.single().id
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                    setParameter("provider_id", providerId)
+                },
+                """
+                    update project.projects p 
+                    set provider_project_for = :provider_id
+                    where
+                        p.id = :id
+                """
+            )
+
+            id
+        }
+
+        notifyPersonalProjectCreated(listOf(id))
+        return CreateProviderProjectResponse(id)
+    }
+
+    // See issue #4328 for more information
+    suspend fun deletePersonalProviderProject(
+        actorAndProject: ActorAndProject,
+        request: DeleteProviderProjectRequest
+    ): DeleteProviderProjectResponse {
+        val providerId = actorAndProject.actor.providerIdOrNull
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        TODO("Not yet implemented")
+    }
+
+    // See issue #4328 for more information
+    data class PersonalProviderProject(val provider: String, val username: String, val projectId: String)
+    suspend fun findPersonalProviderProjects(
+        providerId: String,
+        ctx: DBContext = db,
+    ): List<PersonalProviderProject> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("provider_id", providerId)
+                },
+                """
+                    select p.id, pi.username
+                    from
+                        project.projects p
+                        join project.project_members pi
+                            on p.id = pi.project_id
+                            and pi.role = 'PI'
+                    where
+                        p.provider_project_for = :provider_id
+                """
+            ).rows.map {
+                PersonalProviderProject(providerId, it.getString(0)!!, it.getString(1)!!)
+            }
+        }
     }
 
     companion object : Loggable {

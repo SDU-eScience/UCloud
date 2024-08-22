@@ -57,6 +57,7 @@ type FilesBrowseFlags struct {
 	IncludeSizes       bool `json:"includeSizes,omitempty"`
 	IncludeUnixInfo    bool `json:"includeUnixInfo,omitempty"`
 	IncludeMetadata    bool `json:"includeMetadata,omitempty"`
+	FilterHiddenFiles  bool `json:"filterHiddenFiles,omitempty"`
 
 	FilterByFileExtension string `json:"filterByFileExtension,omitempty"`
 }

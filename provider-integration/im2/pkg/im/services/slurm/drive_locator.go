@@ -75,7 +75,7 @@ func RegisterDriveInfo(info LocatedDrive) error {
 			},
 		},
 
-		// NOTE(Dan): @migration need to double-check that these are identical
+		// TODO(Dan): @migration need to double-check that these are identical
 		ProviderGeneratedId: util.OptValue(
 			fmt.Sprintf(
 				"%v-%v",

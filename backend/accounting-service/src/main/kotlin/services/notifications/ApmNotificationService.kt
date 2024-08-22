@@ -38,7 +38,7 @@ class ApmNotificationService(
     private val projectsUpdated = MutableSharedFlow<Project>()
 
     init {
-        projects.addUpdateHandler { projects ->
+        projects.addUpdateHandler { projects, _ ->
             projects.forEach { project ->
                 projectsUpdated.emit(project)
             }
