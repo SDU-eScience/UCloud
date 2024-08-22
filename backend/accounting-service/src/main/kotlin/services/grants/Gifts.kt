@@ -102,9 +102,9 @@ class GiftService(
                     )
                 )
             }
-            val projectPi = projectService.getPIAndAdminsOfProject(db, sourceProject).first
+
             grantsV2Service.submitRevision(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(projectPi), null),
+                ActorAndProject(Actor.SystemOnBehalfOfUser(actorAndProject.actor.safeUsername()), null),
                 GrantsV2.SubmitRevision.Request(
                     revision = GrantApplication.Document(
                         GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername()),

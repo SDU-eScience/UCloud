@@ -940,7 +940,7 @@ class GrantsV2Service(
         private suspend fun isGrantGiver(approverId: String? = null, withCache: Boolean = true): Boolean {
             return when (val idCard = idCard) {
                 is IdCard.Provider -> false
-                IdCard.System -> true
+                is IdCard.System -> true
                 is IdCard.User -> {
                     val projects =
                         if (approverId != null) setOf(ctx.idCardService.lookupPidFromProjectIdOrFail(approverId))
@@ -1058,7 +1058,8 @@ class GrantsV2Service(
                         val grantGivers = command.doc.allocationRequests.map { it.grantGiver }.toSet()
                         if (grantGivers.size != 1) genericForbidden()
                         val grantGiver = grantGivers.single()
-                        if (!isGrantGiver(grantGiver)) genericForbidden()
+                        //Always a Grant Giver Initiated so it should always be made on the behalf of the user recieving
+                        if (actorAndProject.actor !is Actor.SystemOnBehalfOfUser) genericForbidden()
 
                         insertRevision(
                             command.comment,
