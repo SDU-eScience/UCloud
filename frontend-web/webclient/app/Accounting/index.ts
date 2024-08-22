@@ -2,13 +2,16 @@ import {IconName} from "@/ui-components/Icon";
 import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {groupBy} from "@/Utilities/CollectionUtilities";
+import {ThemeColor} from "@/ui-components/theme";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {projectCache} from "@/Project/ContextSwitcher";
 
 export const UCLOUD_PROVIDER = "ucloud";
-export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE = 
-`You will not be able to use the full amount of your allocated quota due to over-allocation from your grant giver.
+export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
+    `You will not be able to use the full amount of your allocated quota due to over-allocation from your grant giver.
 Contact your grant giver for more information.
 Click to read more.`;
-
 
 /* @deprecated */
 export type ProductArea = ProductType;
@@ -47,7 +50,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
+export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -190,6 +193,7 @@ export interface AccountingUnit {
 }
 
 export type AccountingFrequency = "ONCE" | "PERIODIC_MINUTE" | "PERIODIC_HOUR" | "PERIODIC_DAY";
+
 export function frequencyToMillis(frequency: AccountingFrequency): number {
     switch (frequency) {
         case "ONCE":
@@ -229,11 +233,16 @@ export interface ProductCategoryV2 {
 export function categoryComparator(a: ProductCategoryV2, b: ProductCategoryV2): number {
     function typeToOrdinal(type: ProductType): number {
         switch (type) {
-            case "COMPUTE": return 0;
-            case "STORAGE": return 1;
-            case "NETWORK_IP": return 2;
-            case "INGRESS": return 3;
-            case "LICENSE": return 4;
+            case "COMPUTE":
+                return 0;
+            case "STORAGE":
+                return 1;
+            case "NETWORK_IP":
+                return 2;
+            case "INGRESS":
+                return 3;
+            case "LICENSE":
+                return 4;
         }
     }
 
@@ -356,12 +365,12 @@ export function guestimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
+type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
+type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
+
 export function combineBalances(
-    balances: {
-        balance: number,
-        category: ProductCategoryV2
-    }[]
-): {productType: ProductType, normalizedBalance: number, unit: string}[] {
+    balances: BalanceAndCategory[]
+): CombinedBalance[] {
     const result: ReturnType<typeof combineBalances> = [];
 
     // This function combines many balances from (potentially) different categories and combines them into a unified
@@ -440,7 +449,9 @@ export function explainUnit(category: ProductCategoryV2): FrontendAccountingUnit
     };
 }
 
-export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: {showSuffix: boolean}): string {
+export function priceToString(product: ProductV2, numberOfUnits: number, durationInMinutes?: number, opts?: {
+    showSuffix: boolean
+}): string {
     const unit = explainUnit(product.category);
     const pricePerUnitPerFrequency = product.price * (1 / unit.frequencyFactor);
     const durationInMinutesOrDefault = durationInMinutes ?? frequencyToMillis(unit.desiredFrequency) / frequencyToMillis("PERIODIC_MINUTE");
@@ -468,10 +479,568 @@ const standardStorageUnits = ["KiB", "MiB", "GiB", "TiB", "PiB", "EiB"];
 const defaultUnits = ["K", "M", "B", "T"];
 const probablyCurrencies = ["DKK", "kr", "EUR", "€", "USD", "$"];
 
+interface UsageAndQuotaRaw {
+    usage: number;
+    quota: number;
+    unit: string;
+    maxUsable: number;
+    retiredAmount: number;
+    retiredAmountStillCounts: boolean;
+    type: ProductType;
+    ownedByPersonalProviderProject: boolean;
+}
+
+export interface UsageAndQuotaDisplay {
+    usageAndQuotaPercent: string;
+    usageAndQuota: string;
+    onlyUsage: string;
+    onlyQuota: string;
+    percentageUsed: number; // 0-100
+    maxUsablePercentage: number; // 0-100
+    maxUsableBalance: string;
+    displayOverallocationWarning: boolean;
+    currentBalance: string;
+}
+
+export class UsageAndQuota {
+    raw: UsageAndQuotaRaw;
+    type: ProductType;
+    display: UsageAndQuotaDisplay;
+
+    constructor(input: UsageAndQuotaRaw) {
+        this.raw = input;
+        this.type = input.type;
+        this.updateDisplay();
+    }
+
+    // Must be called if raw is modified directly
+    updateDisplay() {
+        const uqRaw = this.raw;
+
+        if (uqRaw.ownedByPersonalProviderProject) {
+            this.display = {
+                usageAndQuota: "-",
+                onlyUsage: "-",
+                onlyQuota: "-",
+                percentageUsed: 0,
+                maxUsablePercentage: 100,
+                displayOverallocationWarning: false,
+                usageAndQuotaPercent: "-",
+                maxUsableBalance: "-",
+                currentBalance: "-",
+            };
+            return;
+        }
+
+        let usage: number;
+        if (uqRaw.retiredAmountStillCounts) {
+            usage = uqRaw.usage;
+        } else {
+            usage = uqRaw.usage - uqRaw.retiredAmount;
+        }
+
+        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + uqRaw.usage) / uqRaw.quota) * 100;
+        const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
+        const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, uqRaw.usage);
+        const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
+        const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - uqRaw.usage, {precision: 2});
+
+        let usageAndQuota = "";
+        {
+            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {
+                precision: 2,
+                removeUnitIfPossible: true
+            });
+            usageAndQuota += " / ";
+            usageAndQuota += balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
+        }
+
+        let usageAndQuotaPercent = usageAndQuota;
+        if (uqRaw.quota !== 0) {
+            usageAndQuotaPercent += " (";
+            usageAndQuotaPercent += Math.round((usage / uqRaw.quota) * 100);
+            usageAndQuotaPercent += "%)";
+        }
+
+
+        const onlyUsage = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, usage, {precision: 2});
+        const onlyQuota = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota, {precision: 2});
+
+        this.display = {
+            usageAndQuota,
+            onlyUsage,
+            onlyQuota,
+            percentageUsed,
+            maxUsablePercentage,
+            displayOverallocationWarning,
+            usageAndQuotaPercent,
+            maxUsableBalance,
+            currentBalance,
+        };
+    }
+}
+
+export function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+    if (maxUsable + usage >= quota) return false;
+    if (maxUsable + usage === 0) return false;
+    return usage / (maxUsable + usage) >= 0.95; // Note(Jonas): Also handles usage === 0
+}
+
+export interface AllocationNote {
+    rowShouldBeGreyedOut: boolean;
+    icon: IconName;
+    iconColor: ThemeColor;
+    text: string;
+}
+
+export interface AllocationDisplayTreeRecipientOwner {
+    title: string;
+    primaryUsername: string;
+    reference: WalletOwner;
+}
+
+export const productTypesByPriority: ProductType[] = [
+    "COMPUTE",
+    "STORAGE",
+    "NETWORK_IP",
+    "INGRESS",
+    "LICENSE",
+];
+
+export interface AllocationDisplayWallet {
+    category: ProductCategoryV2;
+    usageAndQuota: UsageAndQuota;
+
+    allocations: {
+        id: number;
+        grantedIn?: number;
+        note?: AllocationNote;
+
+        start: number;
+        end: number;
+
+        raw: {
+            quota: number;
+            retiredAmount: number;
+            shouldShowRetiredAmount: boolean
+        };
+        display: {
+            quota: string;
+        }
+    }[];
+}
+
+export interface AllocationDisplayTree {
+    yourAllocations: {
+        [P in ProductType]?: {
+            usageAndQuota: UsageAndQuota[];
+            wallets: AllocationDisplayWallet[];
+        }
+    };
+
+    subAllocations: {
+        recipients: {
+            owner: AllocationDisplayTreeRecipientOwner;
+
+            usageAndQuota: UsageAndQuota[];
+
+            groups: {
+                category: ProductCategoryV2;
+                usageAndQuota: UsageAndQuota;
+
+                allocations: {
+                    allocationId: number;
+                    quota: number;
+                    note?: AllocationNote;
+                    isEditing: boolean;
+                    grantedIn?: number;
+
+                    start: number;
+                    end: number;
+                }[];
+            }[];
+        }[];
+    };
+}
+
+export const NO_EXPIRATION_FALLBACK = 4102444800353;
+
+export interface Period {
+    start: number;
+    end: number;
+}
+
+export function allocationToPeriod(alloc: Allocation): Period {
+    return {start: alloc.startDate, end: alloc.endDate ?? NO_EXPIRATION_FALLBACK};
+}
+
+export function normalizePeriodForComparison(period: Period): Period {
+    return {start: Math.floor(period.start / 1000) * 1000, end: Math.floor(period.end / 1000) * 1000};
+}
+
+export function allocationIsActive(
+    alloc: Allocation,
+    now: number,
+): boolean {
+    return periodsOverlap(allocationToPeriod(alloc), {start: now, end: now});
+}
+
+function allocationNote(
+    alloc: Allocation
+): AllocationNote | undefined {
+    const now = timestampUnixMs();
+
+    // NOTE(Dan): We color code and potentially grey out rows when the end-user should be aware of something
+    // on the allocation.
+    //
+    // - If a row should be greyed out, then it means that the row is not currently active (and is not counted
+    //   in summaries).
+    // - If the accompanying row has a red calendar, then the note is about something which has happened.
+    // - If the accompanying row has a blue calendar, then the note is about something which will happen.
+    const icon: IconName = "heroCalendarDays";
+    const colorInThePast: ThemeColor = "errorMain";
+    const colorForTheFuture: ThemeColor = "primaryMain";
+
+    const allocPeriod = normalizePeriodForComparison(allocationToPeriod(alloc));
+    if (now > allocPeriod.end) {
+        return {
+            rowShouldBeGreyedOut: true,
+            icon,
+            iconColor: colorInThePast,
+            text: `Already expired (${utcDate(allocPeriod.end)})`,
+        };
+    }
+
+    if (allocPeriod.start > now) {
+        return {
+            rowShouldBeGreyedOut: true,
+            icon,
+            iconColor: colorForTheFuture,
+            text: `Starts in the future (${utcDate(allocPeriod.start)})`,
+        };
+    }
+
+    return undefined;
+}
+
+export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDisplayTree {
+    // NOTE(Dan): This function assumes that allWallets are owned by the same owner.
+
+    const relevantWallets = allWallets.filter(it => !it.paysFor.freeToUse);
+    const tree: AllocationDisplayTree = {
+        yourAllocations: {},
+        subAllocations: {
+            recipients: [],
+        }
+    };
+
+    let ownedByPersonalProviderProject = false;
+    if (allWallets.length > 0) {
+        const owner = allWallets[0].owner;
+        console.log("owner is", owner);
+        if (owner.type === "project") {
+            const projectId = owner.projectId;
+            let items = projectCache.retrieveFromCacheOnly("")?.items;
+            const project = (items ?? []).find(it => it.id === projectId);
+            if (project) {
+                ownedByPersonalProviderProject = project.status.personalProviderProjectFor != null;
+            }
+            console.log("items", items, "project", project, "ownedByPersonalProviderProject", ownedByPersonalProviderProject);
+        }
+    }
+
+    const yourAllocations = tree.yourAllocations;
+    {
+        const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
+        for (const [type, wallets] of Object.entries(walletsByType)) {
+            yourAllocations[type as ProductType] = {
+                usageAndQuota: [],
+                wallets: []
+            };
+            const entry = yourAllocations[type as ProductType]!;
+
+            const quotaBalances = wallets.flatMap(wallet =>
+                ({balance: wallet.quota, category: wallet.paysFor})
+            );
+            const usageBalances = wallets.flatMap(wallet =>
+                ({balance: wallet.totalUsage, category: wallet.paysFor})
+            );
+
+            const maxUsableBalances = wallets.map(wallet =>
+                ({balance: wallet.maxUsable, category: wallet.paysFor})
+            );
+
+            const retired = wallets.map(wallet => {
+                let totalRetired = 0
+                wallet.allocationGroups.forEach(group =>
+                    group?.group?.allocations.forEach(alloc =>
+                        totalRetired += alloc.retiredUsage ?? 0
+                    )
+                )
+                return ({balance: totalRetired, category: wallet.paysFor})
+            })
+
+            const combinedQuotas = combineBalances(quotaBalances);
+            const combinedUsage = combineBalances(usageBalances);
+            const combineMaxUsable = combineBalances(maxUsableBalances);
+            const combineRetire = combineBalances(retired)
+
+            const combineShouldUseRetired = wallets.map(wallet =>
+                wallet.paysFor.accountingFrequency === "ONCE"
+            )
+
+            for (let i = 0; i < combinedQuotas.length; i++) {
+                const usage = combinedUsage[i];
+                const quota = combinedQuotas[i];
+                const maxUsable = combineMaxUsable[i]
+                const retired = combineRetire[i]
+                const shouldUseRetired = combineShouldUseRetired[i]
+
+                entry.usageAndQuota.push(new UsageAndQuota({
+                    usage: usage.normalizedBalance,
+                    quota: quota.normalizedBalance,
+                    unit: usage.unit,
+                    maxUsable: maxUsable.normalizedBalance,
+                    retiredAmount: retired.normalizedBalance,
+                    retiredAmountStillCounts: shouldUseRetired,
+                    type: type as ProductType,
+                    ownedByPersonalProviderProject,
+                }));
+            }
+
+            for (const wallet of wallets) {
+                const usage = combineBalances([{balance: wallet.totalUsage, category: wallet.paysFor}]);
+                const quota = combineBalances([{balance: wallet.quota, category: wallet.paysFor}]);
+                const maxUsable = combineBalances([{
+                    balance: wallet.maxUsable,
+                    category: wallet.paysFor
+                }]);
+                let totalRetired = 0;
+                wallet.allocationGroups.forEach(({group}) =>
+                    group.allocations.forEach(alloc => (
+                        totalRetired += alloc.retiredUsage ?? 0
+                    ))
+                )
+
+                const retiredAmount = combineBalances([{balance: totalRetired, category: wallet.paysFor}])
+                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
+                entry.wallets.push({
+                    category: wallet.paysFor,
+
+                    usageAndQuota: new UsageAndQuota({
+                        usage: usage?.[0]?.normalizedBalance ?? 0,
+                        quota: quota?.[0]?.normalizedBalance ?? 0,
+                        unit: usage?.[0]?.unit ?? "",
+                        maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0,
+                        retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
+                        retiredAmountStillCounts: shouldUseRetired,
+                        type: wallet.paysFor.productType,
+                        ownedByPersonalProviderProject,
+                    }),
+
+                    allocations: wallet.allocationGroups.flatMap(({group}) => {
+                        const shouldShowRetiredAmount = wallet.paysFor.accountingFrequency !== "ONCE";
+
+                        return group.allocations.map(alloc => {
+                            const note = allocationNote(alloc);
+
+                            let quotaString = "";
+                            if (shouldShowRetiredAmount && note !== undefined) {
+                                quotaString += balanceToString(
+                                    wallet.paysFor,
+                                    alloc.retiredUsage ?? 0,
+                                    {precision: 2}
+                                );
+                                quotaString += " / ";
+                                quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                            } else {
+                                quotaString += balanceToString(wallet.paysFor, alloc.quota, {precision: 2});
+                            }
+
+                            return ({
+                                id: alloc.id,
+                                grantedIn: alloc.grantedIn ?? undefined,
+                                note,
+                                start: alloc.startDate,
+                                end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
+                                raw: {
+                                    quota: alloc.quota,
+                                    retiredAmount: alloc.retiredUsage ?? 0,
+                                    shouldShowRetiredAmount,
+                                },
+                                display: {
+                                    quota: quotaString,
+                                },
+                            });
+                        });
+                    }),
+                });
+            }
+        }
+    }
+
+    // Start building the sub-allocations UI
+    const subAllocations = tree.subAllocations;
+
+    const filteredSubAllocations: {
+        wallet: WalletV2,
+        childGroup: AllocationGroupWithChild
+    }[] = [];
+
+    for (const wallet of relevantWallets) {
+        if (wallet.paysFor.freeToUse) continue;
+        const children = wallet.children ?? [];
+        for (const childGroup of children) {
+            filteredSubAllocations.push({wallet, childGroup});
+        }
+    }
+
+    {
+        for (const {childGroup, wallet} of filteredSubAllocations) {
+            let allocOwner: WalletOwner;
+            if (childGroup.child.projectId) {
+                allocOwner = {type: "project", projectId: childGroup.child.projectId};
+            } else {
+                allocOwner = {type: "user", username: childGroup.child.projectTitle};
+            }
+
+            let recipient = subAllocations.recipients
+                .find(it => walletOwnerEquals(it.owner.reference, allocOwner));
+            if (!recipient) {
+                recipient = {
+                    owner: {
+                        reference: allocOwner,
+                        primaryUsername: childGroup.child.pi,
+                        title: childGroup.child.projectTitle,
+                    },
+                    groups: [],
+                    usageAndQuota: []
+                };
+
+                subAllocations.recipients.push(recipient);
+            }
+
+            const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
+
+            let combinedQuota = 0;
+            childGroup.group.allocations.forEach(alloc => {
+                if (allocationIsActive(alloc, new Date().getTime())) {
+                    combinedQuota += alloc.quota;
+                }
+            });
+            const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
+            // Need to have total usage in case retired should be included in final result
+            let combinedUsage = childGroup.group.usage;
+            if (!shouldUseRetired) {
+                combinedUsage += combinedRetired;
+            }
+
+            const localUsage = combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
+            const usage = combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
+            const quota = combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
+            const retiredAmount = combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
+
+            const newGroup: AllocationDisplayTree["subAllocations"]["recipients"][0]["groups"][0] = {
+                category: wallet.paysFor,
+                usageAndQuota: new UsageAndQuota({
+                    usage: usage?.[0]?.normalizedBalance ?? 0,
+                    quota: quota?.[0]?.normalizedBalance ?? 0,
+                    maxUsable: 0,
+                    unit: usage?.[0]?.unit ?? "",
+                    retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
+                    retiredAmountStillCounts: shouldUseRetired,
+                    type: wallet.paysFor.productType,
+                    ownedByPersonalProviderProject,
+                }),
+                allocations: [],
+            };
+
+            const uq = newGroup.usageAndQuota;
+            uq.raw.maxUsable = uq.raw.quota - (localUsage[0]?.normalizedBalance ?? 0);
+
+            for (const alloc of childGroup.group.allocations.reverse()) {
+                newGroup.allocations.push({
+                    allocationId: alloc.id,
+                    quota: alloc.quota,
+                    note: allocationNote(alloc),
+                    isEditing: false,
+                    start: alloc.startDate,
+                    end: alloc.endDate,
+                    grantedIn: alloc.grantedIn ?? undefined,
+                });
+            }
+
+            recipient.groups.push(newGroup);
+        }
+
+        for (const recipient of subAllocations.recipients) {
+            const uqBuilder: UsageAndQuota[] = [];
+            for (const group of recipient.groups) {
+                const existing = uqBuilder.find(it =>
+                    it.type === group.category.productType && it.raw.unit === group.usageAndQuota.raw.unit);
+
+                if (existing) {
+                    existing.raw.usage += group.usageAndQuota.raw.usage;
+                    existing.raw.quota += group.usageAndQuota.raw.quota;
+
+                    existing.updateDisplay();
+                } else {
+                    uqBuilder.push(new UsageAndQuota({
+                        type: group.category.productType,
+                        usage: group.usageAndQuota.raw.usage,
+                        quota: group.usageAndQuota.raw.quota,
+                        unit: group.usageAndQuota.raw.unit,
+                        maxUsable: group.usageAndQuota.raw.maxUsable,
+                        retiredAmount: group.usageAndQuota.raw.retiredAmount,
+                        retiredAmountStillCounts: group.usageAndQuota.raw.retiredAmountStillCounts,
+                        ownedByPersonalProviderProject,
+                    }));
+                }
+            }
+
+            recipient.groups.sort((a, b) => {
+                const providerCmp = a.category.provider.localeCompare(b.category.provider);
+                if (providerCmp !== 0) return providerCmp;
+                const categoryCmp = a.category.name.localeCompare(b.category.name);
+                if (categoryCmp !== 0) return categoryCmp;
+                return 0;
+            });
+
+            for (const b of uqBuilder) {
+                // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
+                // might not be coming from us. The backend doesn't tell us this since it would leak information we do
+                // not have access to.
+                //
+                // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
+                // that we can use the entire quota (even if we cannot).
+                b.raw.maxUsable = b.raw.quota - b.raw.usage;
+
+                b.updateDisplay();
+            }
+
+            recipient.usageAndQuota = uqBuilder;
+        }
+    }
+
+    subAllocations.recipients.sort((a, b) => {
+        return a.owner.title.localeCompare(b.owner.title);
+    });
+
+    return tree;
+}
+
+export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null {
+    const tree = Object.values(buildAllocationDisplayTree([wallet]).yourAllocations);
+    if (tree.length === 0) return null;
+    const wallets = tree[0].wallets;
+    if (wallets.length === 0) return null;
+    return wallets[0];
+}
+
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -482,7 +1051,7 @@ export function balanceToStringFromUnit(
     productType: ProductType,
     unit: string,
     normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: { precision?: number, removeUnitIfPossible?: boolean }
 ): string {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = normalizedBalance;
@@ -586,6 +1155,7 @@ export interface RootAllocateRequestItem {
     start: number;
     end: number;
 }
+
 export function rootAllocate(request: BulkRequest<RootAllocateRequestItem>): APICallParameters {
     return apiUpdate(request, baseContextV2, "rootAllocate");
 }
@@ -665,6 +1235,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
+export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

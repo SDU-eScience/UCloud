@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -41,7 +41,14 @@ import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, balanceToString, priceToString} from "@/Accounting";
+import {
+    ProductV2,
+    UNABLE_TO_USE_FULL_ALLOC_MESSAGE,
+    balanceToString,
+    priceToString,
+    WalletV2,
+    explainWallet
+} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -136,18 +143,25 @@ export const Create: React.FunctionComponent = () => {
 
     const [estimatedCost, setEstimatedCost] = useState<{
         durationInMinutes: number,
-        balance: number,
-        maxUsable: number,
         numberOfNodes: number,
+        wallet: WalletV2 | null,
         product: ProductV2 | null
     }>({
-        durationInMinutes: 0, balance: 0, maxUsable: 0, numberOfNodes: 1, product: null
+        durationInMinutes: 0,
+        wallet: null,
+        numberOfNodes: 1,
+        product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
     const [sshEnabled, setSshEnabled] = useState(false);
     const [sshValid, setSshValid] = useState(true);
+    const displayWallet = useMemo(() => {
+        const wallet = estimatedCost.wallet;
+        if (wallet === null) return null;
+        return explainWallet(wallet);
+    }, [estimatedCost.wallet]);
 
     const provider = getProviderField();
 
@@ -547,30 +561,39 @@ export const Create: React.FunctionComponent = () => {
                                                 <tbody>
                                                     <tr>
                                                         <th>Estimated cost</th>
-                                                        <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, {showSuffix: false})}</td>
+                                                        <td>
+                                                            {!estimatedCost.product ?
+                                                                "-" :
+                                                                priceToString(
+                                                                    estimatedCost.product,
+                                                                    estimatedCost.numberOfNodes,
+                                                                    estimatedCost.durationInMinutes,
+                                                                    {showSuffix: false}
+                                                                )
+                                                            }
+                                                        </td>
                                                     </tr>
                                                     <tr>
                                                         <th>Current balance</th>
-                                                        <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
+                                                        <td>
+                                                            {displayWallet === null ?
+                                                                "-" :
+                                                                displayWallet.usageAndQuota.display.currentBalance
+                                                            }
+                                                        </td>
                                                     </tr>
-                                                    {
-                                                        estimatedCost.maxUsable == estimatedCost.balance ? null : (
-                                                            <tr>
-                                                                <th>Usable balance</th>
-                                                                <td>
-                                                                    <OverallocationLink>
-                                                                        <TooltipV2
-                                                                            tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
-                                                                        >
-                                                                            <Icon name={"heroExclamationTriangle"}
-                                                                                color={"warningMain"} />
-
-                                                                            {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
-                                                                        </TooltipV2>
-                                                                    </OverallocationLink>
-                                                                </td>
-                                                            </tr>
-                                                        )
+                                                    {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                        <tr>
+                                                            <th>Usable balance</th>
+                                                            <td>
+                                                                <OverallocationLink>
+                                                                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                        {displayWallet.usageAndQuota.display.maxUsableBalance}
+                                                                    </TooltipV2>
+                                                                </OverallocationLink>
+                                                            </td>
+                                                        </tr>
                                                     }
                                                 </tbody>
                                             </table>
@@ -583,8 +606,8 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
-                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, maxUsable, product) =>
-                                    setEstimatedCost({durationInMinutes, balance, maxUsable, numberOfNodes, product})}
+                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
+                                    setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                             />
                         </Card>
 

@@ -37,7 +37,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {totalUsageExcludingRetiredIfNeeded, showWarning} from "@/Accounting/Allocations";
+import {AllocationDisplayWallet, UsageAndQuota} from "@/Accounting";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -210,21 +210,16 @@ function DashboardResources({wallets}: {
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
     const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
+    const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
-    mapped.sort((a, b) => {
-        let compare: number = 0;
-
-        compare = a.paysFor.provider.localeCompare(b.paysFor.provider);
-        if (compare !== 0) return compare;
-
-        compare = a.paysFor.productType.localeCompare(b.paysFor.productType);
-        if (compare !== 0) return compare;
-
-        compare = a.paysFor.name.localeCompare(b.paysFor.name);
-        if (compare !== 0) return compare;
-
-        return (a.quota < b.quota) ? 1 : -1;
-    }).slice(0, 7);
+    const displayWallets: AllocationDisplayWallet[] = [];
+    for (const category of Accounting.productTypesByPriority) {
+        const entry = tree[category];
+        if (!entry) continue;
+        for (const wallet of entry.wallets) {
+            displayWallets.push(wallet);
+        }
+    }
 
     return (
         <DashboardCard
@@ -243,30 +238,24 @@ function DashboardResources({wallets}: {
                     <Box maxHeight={"600px"} overflowY={"auto"}>
                         <Table>
                             <tbody>
-                                {mapped.map((n, i) => (
+                                {displayWallets.map((w, i) => (
                                     <TableRow height="55px" key={i}>
                                         <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                             <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={n.paysFor.provider} size={30} />
-                                                <code>{n.paysFor.name}</code>
+                                                <ProviderLogo providerId={w.category.provider} size={30} />
+                                                <code>{w.category.name}</code>
                                             </Flex>
                                         </TableCell>
                                         <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             <Flex justifyContent="end">
-                                                {!showWarning(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
-                                                    <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                        <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                    </TooltipV2>
-                                                </OverallocationLink>}
-                                                {Accounting.balanceToString(n.paysFor, totalUsageExcludingRetiredIfNeeded(n), {
-                                                    precision: 0,
-                                                    removeUnitIfPossible: true
-                                                })}
-                                                {" "}/{" "}
-                                                {Accounting.balanceToString(n.paysFor, n.quota, {
-                                                    precision: 0,
-                                                    removeUnitIfPossible: false
-                                                })}
+                                                {!w.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                    <OverallocationLink>
+                                                        <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                            <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+                                                        </TooltipV2>
+                                                    </OverallocationLink>
+                                                }
+                                                {w.usageAndQuota.display.usageAndQuota}
                                             </Flex>
                                         </TableCell>
                                     </TableRow>

@@ -58,6 +58,7 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
+import {projectTitle} from "@/Project/ContextSwitcher";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -875,7 +876,7 @@ function ProjectID({close}: {close(): void}): React.ReactNode {
     const project = useProject();
 
     const projectPath = joinToString(
-        [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), project.fetch().specification.title],
+        [...(project.fetch().status.path?.split("/")?.filter(it => it.length > 0) ?? []), projectTitle(project.fetch())],
         "/"
     );
 

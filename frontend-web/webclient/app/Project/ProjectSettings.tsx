@@ -217,6 +217,20 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     const {status} = project;
 
+    if (project.status.personalProviderProjectFor != null) {
+        return <MainContainer
+            main={
+                <>
+                    <Heading.h2>Unavailable for this project</Heading.h2>
+                    <p>
+                        This project belongs to a provider which does not support the accounting and project management
+                        features of UCloud. Try again with a different project.
+                    </p>
+                </>
+            }
+        />
+    }
+
     return <MainContainer
         key={project.id}
         header={
