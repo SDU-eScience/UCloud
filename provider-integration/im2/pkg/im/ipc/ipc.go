@@ -18,8 +18,9 @@ type Request[T any] struct {
 }
 
 type Response[T any] struct {
-	StatusCode int
-	Payload    T
+	StatusCode   int
+	ErrorMessage string
+	Payload      T
 }
 
 type Call[Req any, Resp any] struct {
@@ -73,6 +74,9 @@ func RegisterServerHandler[Req any, Resp any](mux *http.ServeMux, operation stri
 		}
 
 		resp := handler(req)
+		if resp.ErrorMessage != "" {
+			w.Header().Add("ucloud-ipc-error", resp.ErrorMessage)
+		}
 		w.WriteHeader(resp.StatusCode)
 		jsonBytes, err := json.Marshal(resp.Payload)
 		if err != nil {
@@ -128,18 +132,11 @@ func Invoke[Resp any](operation string, payload any) (Resp, error) {
 		return value, nil
 	} else {
 		defer util.SilentClose(resp.Body)
-		data, err := io.ReadAll(resp.Body)
-
-		if err != nil {
-			return value, &util.HttpError{
-				StatusCode: resp.StatusCode,
-				Why:        fmt.Sprintf("Failed to read IPC body: %v", err),
-			}
-		}
+		why := resp.Header.Get("ucloud-ipc-error")
 
 		return value, &util.HttpError{
 			StatusCode: resp.StatusCode,
-			Why:        string(data),
+			Why:        why,
 		}
 	}
 }

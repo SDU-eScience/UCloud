@@ -71,7 +71,7 @@ func HandlePlugin(pluginName string) {
 	case "connect":
 		connectionUrl, err := ctrl.InitiateReverseConnectionFromUser.Invoke(util.EmptyValue)
 		if err != nil {
-			termio.WriteLine("Failed to initiate connection: %s", err)
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "%s", err)
 			os.Exit(1)
 		}
 

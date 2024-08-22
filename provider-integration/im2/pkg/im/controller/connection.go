@@ -449,16 +449,16 @@ func controllerConnection(mux *http.ServeMux) {
 			_, exists := MapLocalToUCloud(req.Uid)
 			if exists {
 				return ipc.Response[string]{
-					StatusCode: http.StatusConflict,
-					Payload:    "",
+					StatusCode:   http.StatusConflict,
+					ErrorMessage: "You have already connected to UCloud with this user",
 				}
 			}
 
 			resp, err := apm.InitiateReverseConnection()
 			if err != nil {
 				return ipc.Response[string]{
-					StatusCode: http.StatusInternalServerError,
-					Payload:    "",
+					StatusCode:   http.StatusInternalServerError,
+					ErrorMessage: err.Error(),
 				}
 			}
 
