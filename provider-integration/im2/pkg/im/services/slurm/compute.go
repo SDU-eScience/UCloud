@@ -581,6 +581,18 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 	}
 
 	basePath := drives[0].FilePath
+
+	// NOTE(Dan): This path ensures that the job folder, in the case of unmanaged providers, is placed in a good
+	// place. It is written like this since our development environment usually isn't capable of enforcing file
+	// permissions on the OS. So we read the permission bits instead to make a decision.
+	stat, err := os.Stat(basePath)
+	if err != nil || !probablyHasPermissionToWrite(stat) {
+		dir, err := os.UserHomeDir()
+		if err == nil {
+			basePath = dir
+		}
+	}
+
 	folder := filepath.Join(basePath, JobFolderName)
 	if _, err := os.Stat(folder); err != nil {
 		err = os.MkdirAll(folder, 0770)

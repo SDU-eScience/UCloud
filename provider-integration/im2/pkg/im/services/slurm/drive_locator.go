@@ -65,6 +65,13 @@ func driveIpcServer() {
 func RegisterDriveInfo(info LocatedDrive) error {
 	info.FilePath = filepath.Clean(info.FilePath)
 
+	ownerReference := ""
+	if info.Owner.Type == apm.WalletOwnerTypeUser {
+		ownerReference = info.Owner.Username
+	} else {
+		ownerReference = info.Owner.ProjectId
+	}
+
 	resource := orc.ProviderRegisteredResource[orc.DriveSpecification]{
 		Spec: orc.DriveSpecification{
 			Title: info.Title,
@@ -75,11 +82,12 @@ func RegisterDriveInfo(info LocatedDrive) error {
 			},
 		},
 
-		// TODO(Dan): @migration need to double-check that these are identical
+		// TODO(Dan): @migration these are no longer identical
 		ProviderGeneratedId: util.OptValue(
 			fmt.Sprintf(
-				"%v-%v",
+				"%v-%v\n%v",
 				cfg.Provider.Id,
+				ownerReference,
 				info.FilePath,
 			),
 		),

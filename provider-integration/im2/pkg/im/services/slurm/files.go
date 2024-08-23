@@ -182,7 +182,6 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 	}
 
 	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
-		// Check the owner's read permission.
 		return mode&0400 != 0
 	}
 
@@ -190,6 +189,29 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 		for _, gid := range cachedGroups {
 			if gid == strconv.Itoa(int(sys.Gid)) {
 				return mode&0040 != 0
+			}
+		}
+	}
+
+	return false
+}
+
+func probablyHasPermissionToWrite(stat os.FileInfo) bool {
+	mode := stat.Mode()
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	if mode&0002 != 0 {
+		return true
+	}
+
+	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+		return mode&0200 != 0
+	}
+
+	if cachedGroups != nil {
+		for _, gid := range cachedGroups {
+			if gid == strconv.Itoa(int(sys.Gid)) {
+				return mode&0020 != 0
 			}
 		}
 	}
