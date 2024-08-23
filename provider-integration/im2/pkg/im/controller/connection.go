@@ -140,6 +140,9 @@ func getDebugPort(ucloudUsername string) (int, bool) {
 	if ucloudUsername == "user" {
 		return 51234, true
 	}
+	if ucloudUsername == "user2" {
+		return 51235, true
+	}
 	return 0, false
 }
 
@@ -446,6 +449,13 @@ func controllerConnection(mux *http.ServeMux) {
 		)
 
 		InitiateReverseConnectionFromUser.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			if !cfg.Services.Unmanaged {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusForbidden,
+					ErrorMessage: "This provider does not support the 'ucloud connect' command",
+				}
+			}
+
 			_, exists := MapLocalToUCloud(req.Uid)
 			if exists {
 				return ipc.Response[string]{

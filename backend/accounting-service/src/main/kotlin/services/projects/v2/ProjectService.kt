@@ -2413,6 +2413,7 @@ class ProjectService(
             id
         }
 
+        db.withSession { session -> notifyChanges(session, listOf(id)) }
         notifyPersonalProjectCreated(listOf(id))
         return CreateProviderProjectResponse(id)
     }
@@ -2430,7 +2431,7 @@ class ProjectService(
     // See issue #4328 for more information
     data class PersonalProviderProject(val provider: String, val username: String, val projectId: String)
     suspend fun findPersonalProviderProjects(
-        providerId: String,
+        providerId: String?,
         ctx: DBContext = db,
     ): List<PersonalProviderProject> {
         return ctx.withSession { session ->
@@ -2439,17 +2440,21 @@ class ProjectService(
                     setParameter("provider_id", providerId)
                 },
                 """
-                    select p.id, pi.username
+                    select p.provider_project_for, pi.username, p.id
                     from
                         project.projects p
                         join project.project_members pi
                             on p.id = pi.project_id
                             and pi.role = 'PI'
                     where
-                        p.provider_project_for = :provider_id
+                        (
+                            :provider_id::text is null 
+                            and p.provider_project_for is not null
+                        )
+                        or p.provider_project_for = :provider_id
                 """
             ).rows.map {
-                PersonalProviderProject(providerId, it.getString(0)!!, it.getString(1)!!)
+                PersonalProviderProject(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!)
             }
         }
     }

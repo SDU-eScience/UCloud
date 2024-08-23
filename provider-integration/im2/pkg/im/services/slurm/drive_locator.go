@@ -150,45 +150,44 @@ func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
 	recommendedGroupOwner := ""
 	recommendedPermissions := "0700"
 	params := make(map[string]string)
-	if owner.Type == apm.WalletOwnerTypeUser {
+
+	ownerInformationOk := false
+
+	switch owner.Type {
+	case apm.WalletOwnerTypeUser:
 		localUid, ok := ctrl.MapUCloudToLocal(owner.Username)
-		if !ok {
-			log.Warn("Unknown user: %v", owner.Username)
-			return nil
+		if ok {
+			userInfo, err := user.LookupId(fmt.Sprint(localUid))
+			if err != nil {
+				log.Warn("Local username is unknown: ucloud=%v uid=%v err=%v", owner.Username, localUid, err)
+				return nil
+			}
+			params["localUsername"] = userInfo.Username
+			params["ucloudUsername"] = owner.Username
+			params["uid"] = fmt.Sprint(localUid)
+			recommendedUserOwner = userInfo.Username
+			recommendedGroupOwner = userInfo.Username
+			ownerInformationOk = true
 		}
 
-		userInfo, err := user.LookupId(fmt.Sprint(localUid))
-		if err != nil {
-			log.Warn("Local username is unknown: ucloud=%v uid=%v err=%v", owner.Username, localUid, err)
-			return nil
-		}
-
-		params["localUsername"] = userInfo.Username
-		params["ucloudUsername"] = owner.Username
-		params["uid"] = fmt.Sprint(localUid)
-		recommendedUserOwner = userInfo.Username
-		recommendedGroupOwner = userInfo.Username
-	} else if owner.Type == apm.WalletOwnerTypeProject {
+	case apm.WalletOwnerTypeProject:
 		localGid, ok := ctrl.MapUCloudProjectToLocal(owner.ProjectId)
-		if !ok {
-			log.Warn("Unknown project: %v", owner.ProjectId)
-			return nil
+		if ok {
+			groupInfo, err := user.LookupGroupId(fmt.Sprint(localGid))
+			if err != nil {
+				log.Warn("Local group is unknown: ucloud=%v uid=%v err=%v", owner.ProjectId, localGid, err)
+				return nil
+			}
+			recommendedUserOwner = "root"
+			recommendedPermissions = "0770"
+			params["localGroupName"] = groupInfo.Name
+			params["ucloudProjectId"] = owner.ProjectId
+			params["gid"] = fmt.Sprint(localGid)
+			recommendedGroupOwner = groupInfo.Name
+			ownerInformationOk = true
 		}
 
-		groupInfo, err := user.LookupGroupId(fmt.Sprint(localGid))
-		if err != nil {
-			log.Warn("Local group is unknown: ucloud=%v uid=%v err=%v", owner.ProjectId, localGid, err)
-			return nil
-		}
-
-		recommendedUserOwner = "root"
-		recommendedPermissions = "0770"
-
-		params["localGroupName"] = groupInfo.Name
-		params["ucloudProjectId"] = owner.ProjectId
-		params["gid"] = fmt.Sprint(localGid)
-		recommendedGroupOwner = groupInfo.Name
-	} else {
+	default:
 		log.Warn("Unhandled owner type: %v", owner.Type)
 		return nil
 	}
@@ -202,12 +201,18 @@ func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
 			params["locatorName"] = locatorName
 			params["categoryName"] = categoryName
 
-			if owner.Type == apm.WalletOwnerTypeUser && locator.Entity != cfg.SlurmDriveLocatorEntityTypeUser {
-				continue
-			}
+			if locator.Entity != cfg.SlurmDriveLocatorEntityTypeNone {
+				if !ownerInformationOk {
+					log.Warn("Unable to resolve owner of drive: %v", owner)
+					continue
+				}
+				if owner.Type == apm.WalletOwnerTypeUser && locator.Entity != cfg.SlurmDriveLocatorEntityTypeUser {
+					continue
+				}
 
-			if owner.Type == apm.WalletOwnerTypeProject && locator.Entity != cfg.SlurmDriveLocatorEntityTypeProject {
-				continue
+				if owner.Type == apm.WalletOwnerTypeProject && locator.Entity != cfg.SlurmDriveLocatorEntityTypeProject {
+					continue
+				}
 			}
 
 			path := ""

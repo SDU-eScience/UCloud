@@ -802,7 +802,9 @@ var ServicesTypeOptions = []ServicesType{
 }
 
 type ServicesConfiguration struct {
-	Type          ServicesType
+	Type      ServicesType
+	Unmanaged bool
+
 	Configuration any
 }
 
@@ -924,9 +926,12 @@ func parseServices(serverMode ServerMode, filePath string, services *yaml.Node) 
 	}
 	result.Type = kind
 
+	isUnmanaged, ok := optionalChildBool(filePath, services, "unmanaged")
+	result.Unmanaged = isUnmanaged && ok
+
 	switch kind {
 	case ServicesSlurm:
-		success, slurm := parseSlurmServices(serverMode, filePath, services)
+		success, slurm := parseSlurmServices(result.Unmanaged, serverMode, filePath, services)
 		if !success {
 			return false, result
 		}
@@ -941,6 +946,7 @@ type IdentityManagementType string
 const (
 	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
 	IdentityManagementTypeFreeIpa  IdentityManagementType = "FreeIPA"
+	IdentityManagementTypeNone     IdentityManagementType = "None"
 )
 
 var IdentityManagementTypeOptions = []IdentityManagementType{

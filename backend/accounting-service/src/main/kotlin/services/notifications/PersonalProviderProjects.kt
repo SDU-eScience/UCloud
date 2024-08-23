@@ -5,6 +5,9 @@ import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.products.ProductService
 import dk.sdu.cloud.accounting.services.projects.v2.ProjectService
 import dk.sdu.cloud.accounting.util.IdCard
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // See issue #4328 for more information
 class PersonalProviderProjects(
@@ -35,10 +38,25 @@ class PersonalProviderProjects(
                         AccountingRequest.FillUpPersonalProviderProject(
                             IdCard.System,
                             info.projectId,
-                            provider,
+                            info.provider,
                         )
                     )
                 }
+            }
+        }
+
+        @Suppress("OPT_IN_USAGE")
+        GlobalScope.launch {
+            delay(5000)
+            val providerProjects = projects.findPersonalProviderProjects(null)
+            for (info in providerProjects) {
+                accountingSystem.sendRequest(
+                    AccountingRequest.FillUpPersonalProviderProject(
+                        IdCard.System,
+                        info.projectId,
+                        info.provider,
+                    )
+                )
             }
         }
     }

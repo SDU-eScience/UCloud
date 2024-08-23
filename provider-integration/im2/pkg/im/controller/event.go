@@ -264,6 +264,8 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					}
 
 					handleNotification(NotificationMessageProjectUpdated, &notification)
+				default:
+					log.Warn("Invalid APM opcode received: %v", op)
 				}
 			}
 

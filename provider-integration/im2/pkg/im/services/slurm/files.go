@@ -8,13 +8,16 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+	cfg "ucloud.dk/pkg/im/config"
 
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
@@ -158,6 +161,42 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 	}
 }
 
+var (
+	cachedUser, _ = user.Current()
+	cachedGroups  = (func() []string {
+		if cachedUser == nil {
+			return nil
+		} else {
+			groupIds, _ := cachedUser.GroupIds()
+			return groupIds
+		}
+	})()
+)
+
+func probablyHasPermissionToRead(stat os.FileInfo) bool {
+	mode := stat.Mode()
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	if mode&0004 != 0 {
+		return true
+	}
+
+	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+		// Check the owner's read permission.
+		return mode&0400 != 0
+	}
+
+	if cachedGroups != nil {
+		for _, gid := range cachedGroups {
+			if gid == strconv.Itoa(int(sys.Gid)) {
+				return mode&0040 != 0
+			}
+		}
+	}
+
+	return false
+}
+
 func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
 	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
 	sortBy := request.SortBy
@@ -246,6 +285,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 	}
 
 	items := make([]orc.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
+	shouldFilterByPermissions := request.Flags.FilterHiddenFiles && cfg.Services.Unmanaged && len(util.Components(request.Path)) == 1
 
 	itemIdx := 0
 	i := offset
@@ -262,6 +302,10 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		if !entry.hasInfo && !entry.skip {
 			stat, err := os.Stat(entry.absPath)
 			if err == nil {
+				if shouldFilterByPermissions && !probablyHasPermissionToRead(stat) {
+					continue
+				}
+
 				entry.hasInfo = true
 				entry.info = stat
 			}
