@@ -212,7 +212,15 @@ class JobVerificationService(
         specification: JobSpecification,
     ): Map<String, AppParameterValue> {
         val userParameters = HashMap(specification.parameters)
-
+        val paramKeys = app.invocation.parameters.map { it.name }
+        userParameters.forEach { (k, _) ->
+            if (!paramKeys.contains(k)) {
+                throw RPCException("Unknown parameter given: $k", HttpStatusCode.BadRequest)
+            }
+        }
+        if (userParameters.isNotEmpty() && app.invocation.parameters.isEmpty()) {
+            throw RPCException("Unknown parameter(s) given", HttpStatusCode.BadRequest)
+        }
         for (param in app.invocation.parameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
