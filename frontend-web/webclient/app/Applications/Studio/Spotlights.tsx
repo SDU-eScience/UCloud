@@ -31,18 +31,18 @@ const Spotlights: React.FunctionComponent = () => {
         refresh();
     }, [refresh]);
 
-    usePage("Spotlights", SidebarTabId.APPLICATIONS);
+    usePage("Spotlights", SidebarTabId.APPLICATION_STUDIO);
 
     return <MainContainer
         main={<Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>
             <Heading.h2>Spotlights</Heading.h2>
-            <Link to={AppRoutes.apps.studioSpotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
+            <Link to={AppRoutes.appStudio.spotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
             {spotlights.map(s => (
                 <ListRow
                     left={<>{s.title}</>}
                     right={
                         <Flex gap={"8px"}>
-                            <Link to={AppRoutes.apps.studioSpotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
+                            <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
                             <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
                                 await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
                                 refresh();

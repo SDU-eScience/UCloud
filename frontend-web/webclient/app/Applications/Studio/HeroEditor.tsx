@@ -11,6 +11,8 @@ import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const form: ScaffoldedFormObject = {
     id: "",
@@ -114,6 +116,8 @@ function translateHeroData(data: Partial<HeroData>): [CarrouselItem[], string[]]
 }
 
 const HeroEditor: React.FunctionComponent = () => {
+    usePage("Carrousel editor", SidebarTabId.APPLICATION_STUDIO);
+
     const [rawData, setData] = useState<Record<string, unknown>>({});
     const data = rawData as Partial<HeroData>;
     const errors = useRef<Record<string, string>>({});

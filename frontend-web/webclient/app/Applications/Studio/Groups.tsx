@@ -1,6 +1,6 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, Link, List} from "@/ui-components";
-import React, {useCallback, useState} from "react";
+import {Box, Button, Flex, Icon, Input, Label, Link, List, Select} from "@/ui-components";
+import React, {useCallback, useRef, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
@@ -20,9 +20,17 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
+    // TODO(Brian): Fetch repositories
+    const repositories = [
+        {"id": 1, "title": "Docker apps"},
+        {"id": 2, "title": "Virtual machines"}
+    ];
+
     const [filter, setTitleFilter] = React.useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const navigate = useNavigate();
+    const [repository, setRepository] = React.useState(0);
+    const selectRef = useRef<HTMLSelectElement>(null);
 
     const createRef = React.useRef<HTMLInputElement>(null);
     const filterRef = React.useRef<HTMLInputElement>(null);
@@ -31,8 +39,8 @@ export const ApplicationGroups: React.FunctionComponent = () => {
         AppStore.browseGroups({itemsPerPage: 250}),
         emptyPageV2,
     );
-    
-    usePage("Application groups", SidebarTabId.ADMIN)
+
+    usePage("Application groups", SidebarTabId.APPLICATION_STUDIO)
 
     const refresh = useCallback(() => {
         setGroups(AppStore.browseGroups({itemsPerPage: 250})).then(doNothing);
@@ -48,12 +56,27 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     return (
         <MainContainer
             header={
-                <Box maxWidth="800px" ml="auto" mr="auto">
+                <Box maxWidth="900px" ml="auto" mr="auto">
                     <h3 className="title">Application groups</h3>
+                    <Box mt="10px">
+                        <Select selectRef={selectRef} onChange={e => {
+                            if (!selectRef.current) return;
+                            if (selectRef.current.value === "") return;
+                            setRepository(parseInt(selectRef.current.value, 10));
+                        }}>
+                            <option disabled selected value="0">Select a repository</option>
+                            {repositories.map(r =>
+                                <option key={r.id} value={r.id}>
+                                    {r.title}
+                                </option>
+                            )}
+                        </Select>
+                    </Box>
                 </Box>
             }
+            headerSize={100}
             main={
-                <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
+                <Box maxWidth="900px" width="100%" ml="auto" mr="auto">
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
                         <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload application
@@ -107,10 +130,6 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                             />
                         </label>
 
-                        <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
-                        <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
-                        <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
-                        <Link to={AppRoutes.apps.studioCategories()} flexGrow={1}><Button fullWidth>Categories</Button></Link>
                         <Box flexGrow={1}>
                             <Button fullWidth onClick={() => {
                                 AppStore.doExport().then(s => {

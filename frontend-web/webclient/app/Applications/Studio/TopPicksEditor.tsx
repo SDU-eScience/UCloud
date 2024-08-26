@@ -14,6 +14,8 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const form: ScaffoldedFormObject = {
     id: "",
@@ -78,6 +80,8 @@ interface TopPicksData extends Record<string, unknown> {
 }
 
 const TopPicksEditor: React.FunctionComponent = () => {
+    usePage("Top picks editor", SidebarTabId.APPLICATION_STUDIO);
+
     const [rawData, setData] = useState<Record<string, unknown>>({});
     const [topPicksPreview, setTopPicksPreview] = useState<TopPick[]>([]);
     const data = rawData as Partial<TopPicksData>;

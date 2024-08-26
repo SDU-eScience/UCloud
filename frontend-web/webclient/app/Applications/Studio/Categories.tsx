@@ -16,7 +16,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const Categories: React.FunctionComponent = () => {
     const [categories, setCategories] = useState<ApplicationCategory[]>([]);
-    usePage("Application Studio | Categories", SidebarTabId.APPLICATIONS);
+    usePage("Application Studio | Categories", SidebarTabId.APPLICATION_STUDIO);
 
     const refresh = useCallback(() => {
         let didCancel = false;
@@ -76,9 +76,10 @@ const Categories: React.FunctionComponent = () => {
 
     return <MainContainer
         main={<>
-            <Heading.h2>Category Management</Heading.h2>
-
-            <Button onClick={createCategory}>Create category</Button>
+            <Flex justifyContent="space-between" mb="20px">
+                <Heading.h2>Category Management</Heading.h2>
+                <Button onClick={createCategory}>Create category</Button>
+            </Flex>
 
             {categories.map((c, idx) => {
                 return <ListRow

@@ -149,7 +149,7 @@ export const App: React.FunctionComponent = () => {
         }
     }, [apps.data.items]);
 
-    usePage("Application Studio | Applications", SidebarTabId.ADMIN);
+    usePage("Application Studio | Applications", SidebarTabId.APPLICATION_STUDIO);
 
     const refresh = useCallback(() => {
         setAppParameters(AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}));

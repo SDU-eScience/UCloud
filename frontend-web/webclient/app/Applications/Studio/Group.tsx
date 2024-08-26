@@ -33,7 +33,7 @@ export const AppGroup: React.FunctionComponent = () => {
         { items: [] },
     );
     
-    usePage("Edit group", SidebarTabId.ADMIN);
+    usePage("Edit group", SidebarTabId.APPLICATION_STUDIO);
 
     const uniqueAppsSet = new Set<string>();
     appList.data.items.forEach(it => {

@@ -219,7 +219,8 @@ const sideBarMenuElements: [
         },
         {
             items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
+                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
+                {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
             ],
             predicate: () => Client.userIsAdmin
         }
@@ -824,8 +825,6 @@ function SecondarySidebar({
                 <SidebarSectionHeader tab={SidebarTabId.ADMIN}>Tools</SidebarSectionHeader>
                 <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}
                     tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                    icon={"heroBuildingStorefront"} tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
@@ -835,6 +834,23 @@ function SecondarySidebar({
                 <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
                     tab={SidebarTabId.ADMIN} />
             </>}
+
+            {active !== SidebarTabId.APPLICATION_STUDIO ? null : <>
+                <SidebarSectionEmptyHeader />
+                <SidebarEntry to={AppRoutes.appStudio.groups()} text={"Applications"} icon={"heroSquare3Stack3D"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.categories()} text={"Categories"} icon={"heroSquaresPlus"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.hero()} text={"Carrousel"} icon={"heroFilm"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.topPicks()} text={"Top picks"} icon={"heroTrophy"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Spotlights"} icon={"heroCamera"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Subscriptions"} icon={"heroSignal"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+            </>}
+
         </Flex>
     </div>;
 }
