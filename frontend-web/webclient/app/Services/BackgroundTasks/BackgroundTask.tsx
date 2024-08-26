@@ -70,6 +70,8 @@ const MOCKING = {
             destination: "/SomePosition" + MOCKING.id,
             source: "/file" + MOCKING.id,
             expectedEnd: new Date().getTime() + 100_000_000 * Math.random(),
+            canCancel: true,
+            canPause: true,
         }
     },
 
@@ -80,7 +82,9 @@ const MOCKING = {
             createdAt: new Date().getTime(),
             updatedAt: new Date().getTime(),
             kind: "EMPTY_TRASH",
-            path: `/67126/Trash` + MOCKING.id
+            path: `/67126/Trash` + MOCKING.id,
+            canCancel: false,
+            canPause: false,
         }
     },
 
@@ -93,6 +97,8 @@ const MOCKING = {
             kind: "TRANSFER",
             source: "/file" + MOCKING.id,
             destination: "Thing/" + MOCKING.id,
+            canCancel: true,
+            canPause: true,
         }
     },
 
@@ -183,6 +189,10 @@ interface TaskBase {
     fileSizeTotal?: number;
     fileSizeProgress?: number;
     error?: string;
+
+    // Operations for task
+    canPause: boolean;
+    canCancel: boolean;
 }
 
 type Task = CopyFiles | TransferFiles | EmptyTrash; // Upload is handled differently
@@ -262,25 +272,28 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
     }
 
     let operations: React.ReactNode = null;
+    const cancel = task.canCancel ? <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} /> : null;
+    const pause = task.canPause ? <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" /> : null
+    
     switch (task.status) {
         case TaskState.FAILED:
         case TaskState.CANCELLED:
         case TaskState.SUCCEEDED:
             break;
         case TaskState.PENDING:
-            operations = <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />;
+            operations = cancel;
             break;
         case TaskState.IN_PROGRESS: {
             operations = <>
-                <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" />
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />
+                {pause}
+                {cancel}
             </>
             break;
         }
         case TaskState.PAUSED: {
             operations = <>
                 <Icon cursor="pointer" onClick={() => MOCKING.mockResume(task)} name="play" color="primaryMain" />
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} />
+                {cancel}
             </>
             break;
         }
