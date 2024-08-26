@@ -145,6 +145,8 @@ class AsyncCache<K, V>(
                 }
             } catch (ex: Throwable) {
                 entryToCreate.didFail = true
+                log.info("invalidating ($key) due to ${ex.message}")
+                invalidate(key)
                 if (fetchEagerly) {
                     log.warn("Caught exception while resolving cache entry: ${ex.toReadableStacktrace()}")
                 }
