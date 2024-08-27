@@ -590,7 +590,17 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                         browser.renderRows();
                                     });
                                 } else {
+                                    browser._undoStack.unshift(() => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
 
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
                                 }
                             }
                         },
