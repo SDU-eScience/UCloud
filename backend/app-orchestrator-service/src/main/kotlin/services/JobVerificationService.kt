@@ -348,10 +348,36 @@ class JobVerificationService(
             }
         }
 
+        for (param in userParameters) {
+            if (param.key.startsWith(injectedPrefix)) {
+                when (param.value) {
+                    // No resource parameters should be allowed to pass through here
+                    is AppParameterValue.File,
+                    is AppParameterValue.License,
+                    is AppParameterValue.Network,
+                    is AppParameterValue.Ingress,
+                    is AppParameterValue.BlockStorage -> {
+                        throw RPCException("Bad injected parameter", HttpStatusCode.BadGateway)
+                    }
+
+                    is AppParameterValue.Bool,
+                    is AppParameterValue.FloatingPoint,
+                    is AppParameterValue.Integer,
+                    is AppParameterValue.Peer,
+                    is AppParameterValue.Text,
+                    is AppParameterValue.TextArea -> {
+                        // OK
+                    }
+                }
+            }
+        }
+
         return userParameters
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        const val injectedPrefix = "_injected_"
     }
 }

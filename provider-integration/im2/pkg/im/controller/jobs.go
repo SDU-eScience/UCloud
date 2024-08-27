@@ -22,14 +22,15 @@ import (
 var Jobs JobsService
 
 type JobsService struct {
-	Submit            func(request JobSubmitRequest) (util.Option[string], error)
-	Terminate         func(request JobTerminateRequest) error
-	Extend            func(request JobExtendRequest) error
-	RetrieveProducts  func() []orc.JobSupport
-	Follow            func(session *FollowJobSession)
-	HandleShell       func(session *ShellSession, cols, rows int)
-	ServerFindIngress func(job *orc.Job) ConfiguredWebIngress
-	OpenWebSession    func(job *orc.Job, rank int) (cfg.HostInfo, error)
+	Submit                   func(request JobSubmitRequest) (util.Option[string], error)
+	Terminate                func(request JobTerminateRequest) error
+	Extend                   func(request JobExtendRequest) error
+	RetrieveProducts         func() []orc.JobSupport
+	Follow                   func(session *FollowJobSession)
+	HandleShell              func(session *ShellSession, cols, rows int)
+	ServerFindIngress        func(job *orc.Job) ConfiguredWebIngress
+	OpenWebSession           func(job *orc.Job, rank int) (cfg.HostInfo, error)
+	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
 }
 
 type ConfiguredWebIngress struct {
@@ -475,6 +476,27 @@ func controllerJobs(mux *http.ServeMux) {
 					}
 				}
 			},
+		)
+
+		type dynamicParametersRequest struct {
+			Owner       orc.ResourceOwner `json:"owner"`
+			Application *orc.Application  `json:"application"`
+		}
+		type dynamicParametersResponse struct {
+			Parameters []orc.ApplicationParameter `json:"parameters"`
+		}
+		mux.HandleFunc(
+			jobContext+"requestDynamicParameters",
+			HttpUpdateHandler[dynamicParametersRequest](0, func(w http.ResponseWriter, r *http.Request, request dynamicParametersRequest) {
+				fn := Jobs.RequestDynamicParameters
+
+				var resp []orc.ApplicationParameter
+				if fn != nil {
+					resp = fn(request.Owner, request.Application)
+				}
+
+				sendResponseOrError(w, dynamicParametersResponse{Parameters: resp}, nil)
+			}),
 		)
 	} else if cfg.Mode == cfg.ServerModeServer {
 		mux.HandleFunc(

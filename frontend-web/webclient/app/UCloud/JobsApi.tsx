@@ -27,7 +27,11 @@ import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
-import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
+import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+
+export interface DynamicParameters {
+    parametersByProvider: Record<string, ApplicationParameter[]>;
+}
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -330,6 +334,12 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
         return apiUpdate(request, this.baseContext, "interactiveSession");
+    }
+
+    requestDynamicParameters(req: {
+        application: NameAndVersion
+    }): APICallParameters {
+        return apiUpdate(req, this.baseContext, "requestDynamicParameters")
     }
 }
 

@@ -17,27 +17,19 @@ import (
 
 func InitDefaultAccountMapper() AccountMapperService {
 	service := &defaultAccountMapper{
-		ServerCache: util.NewCache[string, string](15 * time.Minute),
+		ServerCache: util.NewCache[string, util.Option[string]](15 * time.Minute),
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
-		evaluateAccountMapper.Handler(func(r *ipc.Request[evaluateMapperRequest]) ipc.Response[string] {
+		findSlurmAccount.Handler(func(r *ipc.Request[SlurmJobConfiguration]) ipc.Response[[]string] {
 			if !ctrl.BelongsToWorkspace(r.Payload.Owner, r.Uid) {
-				return ipc.Response[string]{
+				return ipc.Response[[]string]{
 					StatusCode: http.StatusForbidden,
-					Payload:    "",
 				}
 			}
 
-			result, ok := service.ServerEvaluateAccountMapper(r.Payload.Category, r.Payload.Owner)
-			if !ok {
-				return ipc.Response[string]{
-					StatusCode: http.StatusInternalServerError,
-					Payload:    "",
-				}
-			}
-
-			return ipc.Response[string]{
+			result := service.UCloudConfigurationFindSlurmAccount(r.Payload)
+			return ipc.Response[[]string]{
 				StatusCode: http.StatusOK,
 				Payload:    result,
 			}
@@ -48,17 +40,17 @@ func InitDefaultAccountMapper() AccountMapperService {
 }
 
 type defaultAccountMapper struct {
-	ServerCache *util.AsyncCache[string, string]
+	ServerCache *util.AsyncCache[string, util.Option[string]]
 }
 
-func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (string, bool) {
+func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (util.Option[string], error) {
 	// TODO(Dan): This should only run once per (workspace, category). A cache is not good enough for this.
 	//   Technically the account mapper should be allowed to literally generate a random value on every invocation and
 	//   everything else should still work as expected.
-	return a.ServerCache.Get(category+"\n"+owner.Username+"\n"+owner.ProjectId, func() (string, error) {
+	val, ok := a.ServerCache.Get(category+"\n"+owner.Username+"\n"+owner.ProjectId, func() (util.Option[string], error) {
 		_, ok := ServiceConfig.Compute.Machines[category]
 		if !ok {
-			return "", fmt.Errorf("unable to evaluate slurm account due to unknown machine configuration %v", category)
+			return util.OptNone[string](), fmt.Errorf("unable to evaluate slurm account due to unknown machine configuration %v", category)
 		}
 
 		params := make(map[string]string)
@@ -68,12 +60,12 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 		case apm.WalletOwnerTypeUser:
 			localUid, ok := ctrl.MapUCloudToLocal(owner.Username)
 			if !ok {
-				return "", fmt.Errorf("could not map user")
+				return util.OptNone[string](), fmt.Errorf("could not map user")
 			}
 
 			userInfo, err := user.LookupId(fmt.Sprint(localUid))
 			if err != nil {
-				return "", fmt.Errorf("local username is unknown: ucloud=%v uid=%v err=%v", owner.Username, localUid, err)
+				return util.OptNone[string](), fmt.Errorf("local username is unknown: ucloud=%v uid=%v err=%v", owner.Username, localUid, err)
 			}
 
 			params["ucloudUsername"] = userInfo.Username
@@ -83,12 +75,21 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 		case apm.WalletOwnerTypeProject:
 			localGid, ok := ctrl.MapUCloudProjectToLocal(owner.ProjectId)
 			if !ok {
-				return "", fmt.Errorf("could not map project")
+				lastKnown, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+				if !ok {
+					return util.OptNone[string](), fmt.Errorf("could not map project")
+				}
+				if !lastKnown.Status.PersonalProviderProjectFor.Present {
+					return util.OptNone[string](), fmt.Errorf("could not map project")
+				}
+
+				// OK, but there is no known slurm account from the account mapper. Needs to fetch this from the job.
+				return util.OptNone[string](), nil
 			}
 
 			groupInfo, err := user.LookupGroupId(fmt.Sprint(localGid))
 			if err != nil {
-				return "", fmt.Errorf("local group is unknown: ucloud=%v uid=%v err=%v", owner.ProjectId, localGid, err)
+				return util.OptNone[string](), fmt.Errorf("local group is unknown: ucloud=%v uid=%v err=%v", owner.ProjectId, localGid, err)
 			}
 
 			params["localGroupName"] = groupInfo.Name
@@ -96,7 +97,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 			params["gid"] = fmt.Sprint(localGid)
 
 		default:
-			return "", fmt.Errorf("unhandled owner type: %v", owner.Type)
+			return util.OptNone[string](), fmt.Errorf("unhandled owner type: %v", owner.Type)
 		}
 
 		accountName := ""
@@ -126,7 +127,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 
 			resp, ok := ext.Invoke(params)
 			if !ok {
-				return "", fmt.Errorf("failed to invoke account mapper script")
+				return util.OptNone[string](), fmt.Errorf("failed to invoke account mapper script")
 			}
 
 			accountName = resp.AccountName
@@ -149,34 +150,46 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 				},
 			)
 		})
-		return accountName, nil
+		return util.OptValue(accountName), nil
 	})
+
+	if !ok {
+		return util.OptNone[string](), fmt.Errorf("failed to retrieve slurm account")
+	}
+
+	return val, nil
 }
 
 func (a *defaultAccountMapper) UCloudConfigurationFindSlurmAccount(config SlurmJobConfiguration) []string {
-	account := ""
 	if cfg.Mode == cfg.ServerModeUser {
-		result, err := evaluateAccountMapper.Invoke(evaluateMapperRequest{
-			Category: config.EstimatedProduct.Category,
-			Owner:    config.Owner,
-		})
+		result, err := findSlurmAccount.Invoke(config)
 
 		if err != nil {
 			log.Warn("Could not lookup slurm account: %v", err)
 			return nil
 		}
 
-		account = result
+		return result
 	} else {
-		result, ok := a.ServerEvaluateAccountMapper(config.EstimatedProduct.Category, config.Owner)
-		if !ok {
+		result, err := a.ServerEvaluateAccountMapper(config.EstimatedProduct.Category, config.Owner)
+		if err != nil {
+			log.Warn("Could not lookup slurm account: %v", err)
 			return nil
 		}
 
-		account = result
-	}
+		if !result.Present {
+			if config.Job.Present {
+				params := config.Job.Get().Specification.Parameters
+				acc, ok := params[SlurmAccountParameter]
+				if ok {
+					return []string{acc.Value.(string)}
+				}
+			}
+			return nil
+		}
 
-	return []string{account}
+		return []string{result.Get()}
+	}
 }
 
 func (a *defaultAccountMapper) ServerSlurmJobToConfiguration(job *slurmcli.Job) (result util.Option[SlurmJobConfiguration]) {
@@ -313,9 +326,4 @@ func (a *defaultAccountMapper) ServerLookupOwnerOfAccount(account string) []Slur
 	})
 }
 
-type evaluateMapperRequest struct {
-	Category string
-	Owner    apm.WalletOwner
-}
-
-var evaluateAccountMapper = ipc.NewCall[evaluateMapperRequest, string]("slurm.account_mapper.evaluate")
+var findSlurmAccount = ipc.NewCall[SlurmJobConfiguration, []string]("slurm.account_mapper.evaluate")

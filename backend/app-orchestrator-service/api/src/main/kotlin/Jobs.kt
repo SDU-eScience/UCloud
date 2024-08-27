@@ -1667,4 +1667,27 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             summary = "Opens an interactive session (e.g. terminal, web or VNC)"
         }
     }
+
+    val requestDynamicParameters = RequestDynamicParameters.call
+    object RequestDynamicParameters {
+        @Serializable
+        data class Request(
+            val application: NameAndVersion,
+        )
+
+        @Serializable
+        data class Response(
+            val parametersByProvider: Map<String, List<ApplicationParameter>>,
+        )
+
+        val call = call(
+            "requestDynamicParameters",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "requestDynamicParameters", roles = Roles.END_USER)
+            }
+        )
+    }
 }

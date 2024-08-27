@@ -5,6 +5,7 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/slurm"
+	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
@@ -14,7 +15,7 @@ type AccountingService interface {
 }
 
 type AccountMapperService interface {
-	ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (string, bool)
+	ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (util.Option[string], error)
 	ServerSlurmJobToConfiguration(job *slurmcli.Job) util.Option[SlurmJobConfiguration]
 	ServerListAccountsForWorkspace(workspace apm.WalletOwner) map[string]string
 	ServerLookupOwnerOfAccount(account string) []SlurmAccountOwner
@@ -50,6 +51,7 @@ type SlurmJobConfiguration struct {
 	Owner              apm.WalletOwner
 	EstimatedProduct   apm.ProductReference
 	EstimatedNodeCount int
+	Job                util.Option[*orc.Job]
 }
 
 type SlurmAccountOwner struct {

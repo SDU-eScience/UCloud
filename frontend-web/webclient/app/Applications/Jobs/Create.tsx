@@ -39,7 +39,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
+import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {
     ProductV2,
@@ -126,6 +126,10 @@ export const Create: React.FunctionComponent = () => {
     const isInitialMount = !useDidMount();
     const [isLoading, invokeCommand] = useCloudCommand();
     const [applicationResp, fetchApplication] = useCloudAPI<ApplicationWithFavoriteAndTags | null>(
+        {noop: true},
+        null
+    );
+    const [injectedParameters, fetchInjectedParameters] = useCloudAPI<DynamicParameters | null>(
         {noop: true},
         null
     );
@@ -264,9 +268,27 @@ export const Create: React.FunctionComponent = () => {
 
     const application = applicationResp.data;
 
+    useEffect(() => {
+        if (!application) return;
+        fetchInjectedParameters(JobsApi.requestDynamicParameters({
+            application: {name: application.metadata.name, version: application.metadata.version}
+        }));
+    }, [application]);
+
+    const parameters = useMemo(() => {
+        let injected: ApplicationParameter[] = [];
+        const injectedData = injectedParameters.data;
+        if (injectedData && estimatedCost.product) {
+            const provider = estimatedCost.product.category.provider;
+            injected = injectedData.parametersByProvider[provider] ?? [];
+        }
+        const fromApp = application?.invocation?.parameters ?? [];
+        return [...injected, ...fromApp];
+    }, [application, injectedParameters, estimatedCost]);
+
     React.useEffect(() => {
         if (application && provider) {
-            const params = application.invocation.parameters.filter(it =>
+            const params = parameters.filter(it =>
                 PARAMETER_TYPE_FILTER.includes(it.type)
             );
 
@@ -279,7 +301,6 @@ export const Create: React.FunctionComponent = () => {
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
         jobBeingLoaded.current = null;
-        const parameters = application.invocation.parameters;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
@@ -352,12 +373,12 @@ export const Create: React.FunctionComponent = () => {
         peers.setErrors({});
         setErrors({});
         setReservationErrors({});
-    }, [application, activeOptParams, folders, peers, networks, ingress]);
+    }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
 
-        const {errors, values} = validateWidgets(application.invocation.parameters!);
+        const {errors, values} = validateWidgets(parameters!);
         setErrors(errors)
 
         const reservationValidation = validateReservation();
@@ -438,22 +459,22 @@ export const Create: React.FunctionComponent = () => {
         );
     }
 
-    const mandatoryParameters = application.invocation!.parameters.filter(it =>
+    const mandatoryParameters = parameters.filter(it =>
         !it.optional
     );
 
-    const activeParameters = application.invocation.parameters.filter(it =>
+    const activeParameters = parameters.filter(it =>
         it.optional && activeOptParams.indexOf(it.name) !== -1
     )
 
-    const inactiveParameters = application.invocation.parameters.filter(it =>
+    const inactiveParameters = parameters.filter(it =>
         !(!it.optional || activeOptParams.indexOf(it.name) !== -1)
     );
 
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
-    const errorCount = countMandatoryAndOptionalErrors(application.invocation.parameters.filter(it =>
+    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
         PARAMETER_TYPE_FILTER.includes(it.type)
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
