@@ -1085,7 +1085,11 @@ data class ApplicationMetadata(
 data class VncDescription(
     val password: String? = null,
     val port: Int = 5900
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""
@@ -1096,7 +1100,11 @@ data class VncDescription(
 """, importance = 960)
 data class WebDescription(
     val port: Int = 80
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""
