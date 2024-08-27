@@ -107,12 +107,14 @@ export const sidebarFavoriteCache = new class extends ExternalStoreBase {
 const testCases: [string, boolean][] = [[".hidden", true], [".hidden.thing", false], ["visible", true], ["visible.thing", false]];
 for (const [path, expectedResult] of testCases) {
     console.log(path, expectedResult, "did match:", isLikelyFolder(path) === expectedResult);
-} */
-export function isLikelyFolder(path: string): boolean {
+} 
+// false positive: [".vimrc", false]
+*/
+export function isLikelyDirectory(path: string): boolean {
     const dotCount = path.split(".").length - 1;
     if (dotCount === 0) return true;
     const isHidden = path[0] === ".";
-    const isLikelyHiddenFolder = isHidden && dotCount === 1;
-    if (isLikelyHiddenFolder) return true;
+    const isLikelyHiddenDirectory = isHidden && dotCount === 1;
+    if (isLikelyHiddenDirectory) return true;
     return false;
 }
