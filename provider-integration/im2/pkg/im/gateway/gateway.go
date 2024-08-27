@@ -20,7 +20,6 @@ import (
 )
 
 const fileConfig = "config.yaml"
-const fileBadGateway = "bad-gateway.html"
 
 //go:embed bad-gateway.html
 var badGatewayHtml []byte
@@ -61,32 +60,23 @@ func Initialize(config Config, channel chan []byte) {
 	useFunceWrapper := cfg.Provider.Envoy.FunceWrapper
 
 	{
-		var err error
-		err = os.WriteFile(
-			fmt.Sprintf("%v/%v", stateDir, fileBadGateway),
-			badGatewayHtml,
+		adminSection := ""
+		if util.DevelopmentModeEnabled() {
+			adminSection = adminSectionDev
+		} else {
+			adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
+		}
+
+		err := os.WriteFile(
+			fmt.Sprintf("%v/%v", stateDir, fileConfig),
+			[]byte(
+				fmt.Sprintf(
+					envoyConfigTemplate,
+					adminSection,
+					filepath.Join(stateDir, "xds.sock"),
+				)),
 			0o600,
 		)
-
-		if err == nil {
-			adminSection := ""
-			if util.DevelopmentModeEnabled() {
-				adminSection = adminSectionDev
-			} else {
-				adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
-			}
-
-			err = os.WriteFile(
-				fmt.Sprintf("%v/%v", stateDir, fileConfig),
-				[]byte(
-					fmt.Sprintf(
-						envoyConfigTemplate,
-						adminSection,
-						filepath.Join(stateDir, "xds.sock"),
-					)),
-				0o600,
-			)
-		}
 
 		if err != nil {
 			log.Error("Failed to write required configuration files for the gateway: %v", err)
@@ -104,14 +94,16 @@ func Initialize(config Config, channel chan []byte) {
 		}
 	} else {
 		routes[&EnvoyRoute{
-			Type:       RouteTypeUser,
-			Cluster:    ServerClusterName,
-			Identifier: "",
+			Type:           RouteTypeUser,
+			Cluster:        ServerClusterName,
+			Identifier:     "",
+			EnvoySecretKey: cfg.OwnEnvoySecret,
 		}] = true
 
 		routes[&EnvoyRoute{
-			Type:    RouteTypeAuthorize,
-			Cluster: ServerClusterName,
+			Type:           RouteTypeAuthorize,
+			Cluster:        ServerClusterName,
+			EnvoySecretKey: cfg.OwnEnvoySecret,
 		}] = true
 
 		clusters[ServerClusterName] = &EnvoyCluster{
@@ -256,8 +248,6 @@ func urlEncode(value string) string {
 
 // NOTE(Dan): This assumes that the configuration can be trusted, which doesn't seem like an unreasonable assumption
 // given that it must be owned by the service user on the file-system (and that this is verified).
-// NOTE(Dan): xDS server must run on a unix domain socket if other users can access the system
-// NOTE(Dan): Admin server must only be accessible via socket/dev mode only
 
 const adminSectionDev = `
 admin:
@@ -280,9 +270,11 @@ admin:
 const envoyConfigTemplate = `
 %v
 
+# NOTE: Setting the initial_fetch_timeout to a low value since it seems to always be hitting the timeout the first time around.
 dynamic_resources:
   cds_config:
     resource_api_version: V3
+    initial_fetch_timeout: 0.005s
     api_config_source:
       api_type: GRPC
       transport_api_version: V3
@@ -292,6 +284,7 @@ dynamic_resources:
       set_node_on_first_message_only: true
   lds_config:
     resource_api_version: V3
+    initial_fetch_timeout: 0.005s
     api_config_source:
       api_type: GRPC
       transport_api_version: V3
@@ -322,6 +315,7 @@ layered_runtime:
       rtds_layer:
         rtds_config:
           resource_api_version: V3
+          initial_fetch_timeout: 0.005s
           api_config_source:
             transport_api_version: V3
             api_type: GRPC
@@ -348,11 +342,12 @@ const (
 )
 
 type EnvoyRoute struct {
-	Cluster      string
-	Identifier   string
-	CustomDomain string
-	AuthTokens   []string
-	Type         RouteType
+	Cluster        string
+	Identifier     string
+	CustomDomain   string
+	AuthTokens     []string
+	Type           RouteType
+	EnvoySecretKey string
 }
 
 func (r *EnvoyRoute) weight() int {

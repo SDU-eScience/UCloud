@@ -16,7 +16,6 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import * as Accounting from "@/Accounting";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
-import {totalUsageExcludingRetiredIfNeeded} from "@/Accounting/Allocations";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -25,17 +24,15 @@ const reservationReplicas = "reservation-replicas";
 export function ReservationParameter({application, errors, onEstimatedCostChange}: React.PropsWithChildren<{
     application: Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, walletBalance: number, walletMaxUsable: number, product: ProductV2 | null) => void;
+    onEstimatedCostChange?: (durationInMinutes: number, numberOfNodes: number, wallet: Accounting.WalletV2 | null, product: ProductV2 | null) => void;
 }>): React.ReactNode {
     // Estimated cost
     const [selectedMachine, setSelectedMachine] = useState<ProductV2Compute | null>(null);
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Accounting.WalletV2>>({noop: true}, emptyPageV2);
     const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
     const wallet = selectedMachine ?
-        wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category)) :
-        undefined;
-    const balance = wallet ? wallet.quota - totalUsageExcludingRetiredIfNeeded(wallet) : 0;
-    const maxUsable = wallet ? wallet.maxUsable : 0;
+        wallets.data.items.find(it => productCategoryEquals(it.paysFor, selectedMachine.category)) ?? null :
+        null;
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -80,10 +77,14 @@ export function ReservationParameter({application, errors, onEstimatedCostChange
         const {options} = validateReservation();
         if (options != null && options.timeAllocation != null) {
             if (onEstimatedCostChange) {
-                onEstimatedCostChange(options.timeAllocation?.hours * 60 + options.timeAllocation?.minutes, options.replicas, balance, maxUsable, selectedMachine);
+                onEstimatedCostChange(options.timeAllocation?.hours * 60 + options.timeAllocation?.minutes,
+                    options.replicas,
+                    wallet,
+                    selectedMachine
+                );
             }
         }
-    }, [selectedMachine, balance, onEstimatedCostChange]);
+    }, [selectedMachine, wallet, onEstimatedCostChange]);
 
     useEffect(() => {
         recalculateCost();

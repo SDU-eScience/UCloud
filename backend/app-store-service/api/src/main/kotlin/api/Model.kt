@@ -87,6 +87,8 @@ sealed class ApplicationParameter {
     abstract val description: String
     abstract val defaultValue: JsonElement?
 
+    abstract fun referencesResource(): Boolean
+
     @Serializable
     @SerialName(TYPE_INPUT_FILE)
     @UCloudApiDoc("""
@@ -100,7 +102,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = true
+    }
 
     @Serializable
     @SerialName(TYPE_INPUT_DIRECTORY)
@@ -115,7 +119,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = true
+    }
 
     @Serializable
     @SerialName(TYPE_TEXT)
@@ -130,7 +136,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_TEXTAREA)
@@ -140,7 +148,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_INTEGER)
@@ -162,7 +172,9 @@ sealed class ApplicationParameter {
         val max: Long? = null,
         val step: Long? = null,
         val unitName: String? = null
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_FLOATING_POINT)
@@ -184,7 +196,9 @@ sealed class ApplicationParameter {
         val max: Double? = null,
         val step: Double? = null,
         val unitName: String? = null
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_BOOLEAN)
@@ -201,7 +215,9 @@ sealed class ApplicationParameter {
         override val description: String = "",
         val trueValue: String = "true",
         val falseValue: String = "false"
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     data class EnumOption(val name: String, val value: String)
@@ -221,7 +237,9 @@ sealed class ApplicationParameter {
         override val title: String = "",
         override val description: String = "",
         val options: List<EnumOption> = emptyList()
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_PEER)
@@ -253,6 +271,8 @@ sealed class ApplicationParameter {
             }
          */
 
+        override fun referencesResource(): Boolean = true
+
         companion object {
             private val hostNameRegex =
                 Regex(
@@ -275,6 +295,8 @@ sealed class ApplicationParameter {
         override val optional: Boolean = false,
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
+
+        override fun referencesResource(): Boolean = true
     }
 
     @Serializable
@@ -292,6 +314,7 @@ sealed class ApplicationParameter {
         val tagged: List<String>
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
+        override fun referencesResource(): Boolean = true
     }
 
     @Serializable
@@ -308,6 +331,7 @@ sealed class ApplicationParameter {
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
         override val optional = false
+        override fun referencesResource(): Boolean = true
     }
 }
 
@@ -1085,7 +1109,11 @@ data class ApplicationMetadata(
 data class VncDescription(
     val password: String? = null,
     val port: Int = 5900
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""
@@ -1096,7 +1124,11 @@ data class VncDescription(
 """, importance = 960)
 data class WebDescription(
     val port: Int = 80
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""

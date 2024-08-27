@@ -1,8 +1,6 @@
 package dk.sdu.cloud.provider.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -36,6 +34,12 @@ data class IntegrationProviderUnlinkedRequest(val username: String)
 @Deprecated("Use the simpler register endpoint instead")
 data class IntegrationProviderWelcomeRequest(val token: String, val createdProvider: ProviderWelcomeTokens)
 typealias IntegrationProviderWelcomeResponse = Unit
+
+@Serializable
+data class ReverseConnectionClaimedRequest(
+    val token: String,
+    val username: String,
+)
 
 @UCloudApiDoc("Provider interface for the integration module")
 open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$namespace.im") {
@@ -74,6 +78,16 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
             """.trimIndent()
         }
     }
+
+    val reverseConnectionClaimed = call(
+        "reverseConnectionClaimed",
+        ReverseConnectionClaimedRequest.serializer(),
+        Unit.serializer(),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "reverseConnectionClaimed", roles = Roles.PRIVILEGED)
+        }
+    )
 
     companion object {
         const val UCLOUD_USERNAME_HEADER = "UCloud-Username"

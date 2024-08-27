@@ -8,12 +8,16 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/user"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
+	cfg "ucloud.dk/pkg/im/config"
 
 	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
@@ -112,7 +116,9 @@ type cachedDirEntry struct {
 }
 
 func compareFileByPath(a, b cachedDirEntry) int {
-	return strings.Compare(a.absPath, b.absPath)
+	aLower := strings.ToLower(a.absPath)
+	bLower := strings.ToLower(b.absPath)
+	return strings.Compare(aLower, bLower)
 }
 
 func compareFileBySize(a, b cachedDirEntry) int {
@@ -153,6 +159,64 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 	} else {
 		return strings.Compare(a.absPath, b.absPath)
 	}
+}
+
+var (
+	cachedUser, _ = user.Current()
+	cachedGroups  = (func() []string {
+		if cachedUser == nil {
+			return nil
+		} else {
+			groupIds, _ := cachedUser.GroupIds()
+			return groupIds
+		}
+	})()
+)
+
+func probablyHasPermissionToRead(stat os.FileInfo) bool {
+	mode := stat.Mode()
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	if mode&0004 != 0 {
+		return true
+	}
+
+	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+		return mode&0400 != 0
+	}
+
+	if cachedGroups != nil {
+		for _, gid := range cachedGroups {
+			if gid == strconv.Itoa(int(sys.Gid)) {
+				return mode&0040 != 0
+			}
+		}
+	}
+
+	return false
+}
+
+func probablyHasPermissionToWrite(stat os.FileInfo) bool {
+	mode := stat.Mode()
+	sys := stat.Sys().(*syscall.Stat_t)
+
+	if mode&0002 != 0 {
+		return true
+	}
+
+	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+		return mode&0200 != 0
+	}
+
+	if cachedGroups != nil {
+		for _, gid := range cachedGroups {
+			if gid == strconv.Itoa(int(sys.Gid)) {
+				return mode&0020 != 0
+			}
+		}
+	}
+
+	return false
 }
 
 func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
@@ -243,6 +307,7 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 	}
 
 	items := make([]orc.ProviderFile, min(request.ItemsPerPage, len(fileList)-offset))
+	shouldFilterByPermissions := request.Flags.FilterHiddenFiles && cfg.Services.Unmanaged && len(util.Components(request.Path)) == 1
 
 	itemIdx := 0
 	i := offset
@@ -251,9 +316,18 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		entry := &fileList[i]
 		i++
 
+		base := filepath.Base(entry.absPath)
+		if request.Flags.FilterHiddenFiles && strings.HasPrefix(base, ".") {
+			continue
+		}
+
 		if !entry.hasInfo && !entry.skip {
 			stat, err := os.Stat(entry.absPath)
 			if err == nil {
+				if shouldFilterByPermissions && !probablyHasPermissionToRead(stat) {
+					continue
+				}
+
 				entry.hasInfo = true
 				entry.info = stat
 			}
@@ -599,8 +673,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 	file.Status.ModifiedAt = FileModTime(stat)
 	file.Status.AccessedAt = FileAccessTime(stat)
 
-	file.Status.SizeInBytes = stat.Size()
-	file.Status.SizeIncludingChildrenInBytes = stat.Size()
+	file.Status.SizeInBytes = util.OptValue(stat.Size())
 
 	file.Status.UnixOwner = FileUid(stat)
 	file.Status.UnixGroup = FileGid(stat)

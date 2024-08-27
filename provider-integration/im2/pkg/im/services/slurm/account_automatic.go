@@ -129,8 +129,8 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 		return
 	}
 
-	accountName, ok := AccountMapper.ServerEvaluateAccountMapper(update.Category.Name, update.Owner)
-	if !ok {
+	accountName, err := AccountMapper.ServerEvaluateAccountMapper(update.Category.Name, update.Owner)
+	if err != nil || !accountName.Present {
 		return
 	}
 
@@ -151,7 +151,7 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 	}
 
 	// The slurm account should exist now. If not, we will assume that Slurm is unavailable, and we just bail out.
-	account := SlurmClient.AccountQuery(accountName)
+	account := SlurmClient.AccountQuery(accountName.Get())
 	if account == nil {
 		return
 	}

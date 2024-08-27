@@ -14,10 +14,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCreditsResponse
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
-import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.exampleBatchApplication
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -285,6 +282,17 @@ data class ComputeSupport(
         override var web: Boolean? = null,
     ) : UniversalBackendSupport, WithWeb
 }
+
+@Serializable
+data class DynamicParametersProviderRequest(
+    val owner: ResourceOwner,
+    val application: Application,
+)
+
+@Serializable
+data class DynamicParametersProviderResponse(
+    val parameters: List<ApplicationParameter>,
+)
 
 @UCloudApiStable
 open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecification, JobUpdate, JobIncludeFlags,
@@ -999,4 +1007,14 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             )
         }
     }
+
+    val requestDynamicParameters = call(
+        "requestDynamicParameters",
+        DynamicParametersProviderRequest.serializer(),
+        DynamicParametersProviderResponse.serializer(),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "requestDynamicParameters", roles = Roles.PRIVILEGED)
+        }
+    )
 }

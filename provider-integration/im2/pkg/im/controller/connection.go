@@ -9,7 +9,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/im/ipc"
 
 	"ucloud.dk/pkg/client"
 	cfg "ucloud.dk/pkg/im/config"
@@ -53,21 +55,51 @@ func OnProjectNotification(callback func(updated *NotificationProjectUpdated)) {
 	projectNotificationCallbacks = append(projectNotificationCallbacks, callback)
 }
 
-func RegisterConnectionComplete(username string, uid uint32) error {
+func CreatePersonalProviderProject(username string) (string, error) {
+	type Req struct {
+		Username string `json:"username"`
+	}
+	type Resp struct {
+		ProjectId string `json:"projectId"`
+	}
+
+	resp, err := client.ApiUpdate[Resp](
+		"projects.v2.createPersonalProviderProject",
+		"/api/projects/v2",
+		"createPersonalProviderProject",
+		Req{
+			Username: username,
+		},
+	)
+
+	if err != nil {
+		return "", err
+	} else {
+		return resp.ProjectId, err
+	}
+}
+
+func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) error {
 	type Req struct {
 		Username string `json:"username"`
 	}
 	type Resp struct{}
 
-	log.Info("Registering connection complete %v -> %v", username, uid)
-	_, err := client.ApiUpdate[Resp](
-		"providers.im.control.approveConnection",
-		"/api/providers/integration/control",
-		"approveConnection",
-		Req{username},
-	)
+	if notifyUCloud {
+		log.Info("Registering connection complete %v -> %v", username, uid)
+		_, err := client.ApiUpdate[Resp](
+			"providers.im.control.approveConnection",
+			"/api/providers/integration/control",
+			"approveConnection",
+			Req{username},
+		)
 
-	err = db.NewTx[error](func(tx *db.Transaction) error {
+		if err != nil {
+			return err
+		}
+	}
+
+	err := db.NewTx[error](func(tx *db.Transaction) error {
 		db.Exec(
 			tx,
 			`
@@ -80,7 +112,7 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 			},
 		)
 
-		err = tx.ConsumeError()
+		err := tx.ConsumeError()
 		if err != nil {
 			log.Warn("Failed to register connection. Underlying error is: %v", err)
 			return &util.HttpError{
@@ -107,6 +139,9 @@ func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
 	if ucloudUsername == "user" {
 		return 51234, true
+	}
+	if ucloudUsername == "user2" {
+		return 51235, true
 	}
 	return 0, false
 }
@@ -401,9 +436,10 @@ func controllerConnection(mux *http.ServeMux) {
 							UseDNS:  false,
 						},
 						RouteUp: &gateway.EnvoyRoute{
-							Cluster:    request.Username,
-							Identifier: request.Username,
-							Type:       gateway.RouteTypeUser,
+							Cluster:        request.Username,
+							Identifier:     request.Username,
+							Type:           gateway.RouteTypeUser,
+							EnvoySecretKey: secret,
 						},
 					})
 				}
@@ -411,8 +447,114 @@ func controllerConnection(mux *http.ServeMux) {
 				sendStatusCode(w, http.StatusOK)
 			}),
 		)
+
+		InitiateReverseConnectionFromUser.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			if !cfg.Services.Unmanaged {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusForbidden,
+					ErrorMessage: "This provider does not support the 'ucloud connect' command",
+				}
+			}
+
+			_, exists := MapLocalToUCloud(req.Uid)
+			if exists {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusConflict,
+					ErrorMessage: "You have already connected to UCloud with this user",
+				}
+			}
+
+			resp, err := apm.InitiateReverseConnection()
+			if err != nil {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusInternalServerError,
+					ErrorMessage: err.Error(),
+				}
+			}
+
+			db.NewTxV(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into reverse_connections(uid, token)
+						values (:uid, :token)
+					`,
+					db.Params{
+						"uid":   req.Uid,
+						"token": resp.Token,
+					},
+				)
+			})
+
+			ucloudUrl := cfg.Provider.Hosts.UCloudPublic.ToURL()
+			return ipc.Response[string]{
+				StatusCode: http.StatusOK,
+				Payload:    fmt.Sprintf("%s/app/connection?token=%s", ucloudUrl, resp.Token),
+			}
+		})
+
+		Whoami.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			username, exists := MapLocalToUCloud(req.Uid)
+			if exists {
+				return ipc.Response[string]{
+					StatusCode: http.StatusOK,
+					Payload:    username,
+				}
+			} else {
+				return ipc.Response[string]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+		})
+
+		type reverseConnectionClaimedRequest struct {
+			Token    string `json:"token"`
+			Username string `json:"username"`
+		}
+		mux.HandleFunc(
+			baseContext+"reverseConnectionClaimed",
+			HttpUpdateHandler(0, func(w http.ResponseWriter, r *http.Request, req reverseConnectionClaimedRequest) {
+				uid, ok := db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
+					uidWrapper, ok := db.Get[struct {
+						Uid uint32
+					}](
+						tx,
+						`
+							delete from reverse_connections
+							where token = :token
+							returning uid
+					    `,
+						db.Params{
+							"token": req.Token,
+						},
+					)
+
+					return uidWrapper.Uid, ok
+				})
+
+				if !ok {
+					sendError(w, &util.HttpError{
+						StatusCode: http.StatusNotFound,
+						Why:        "Unknown token supplied. Try again.",
+					})
+					return
+				}
+
+				err := RegisterConnectionComplete(req.Username, uid, false)
+				if err != nil {
+					sendError(w, err)
+					return
+				}
+
+				_, err = CreatePersonalProviderProject(req.Username)
+				sendResponseOrError(w, util.EmptyValue, err)
+			}),
+		)
 	}
 }
+
+var InitiateReverseConnectionFromUser = ipc.NewCall[util.Empty, string]("connection.initiateReverseConnectionFromUser")
+var Whoami = ipc.NewCall[util.Empty, string]("connection.whoami")
 
 var runningInstances = map[uint32]bool{}
 var instanceMutex = sync.Mutex{}

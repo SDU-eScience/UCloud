@@ -5,4 +5,5 @@ func loadMigrations() {
 	addScript(connectionsV1())
 	addScript(apmEventsV1())
 	addScript(slurmV1())
+	addScript(connectionsV2())
 }

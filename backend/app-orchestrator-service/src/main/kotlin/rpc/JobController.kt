@@ -108,6 +108,10 @@ class JobController(
         implement(Statistics.retrieveStatistics) {
             ok(statistics.retrieveStatistics(ctx.responseAllocator, actorAndProject, request.start, request.end))
         }
+
+        implement(Jobs.requestDynamicParameters) {
+            ok(jobs.requestDynamicParameters(actorAndProject, request))
+        }
     }
 
     private fun CallHandler<*, *, *>.verifySlaFromPrincipal() {

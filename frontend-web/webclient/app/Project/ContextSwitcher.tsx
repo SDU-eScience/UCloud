@@ -48,9 +48,16 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
-export function projectTitleFromCache(projectId?: string) {
-    if (!projectId) return "My workspace";
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+export function projectTitleFromCache(projectId?: string): string {
+    const project = !projectId ? undefined : projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    return projectTitle(project);
+}
+
+export function projectTitle(project?: Project): string {
+    if (!project) return "My workspace";
+    if (project.status.personalProviderProjectFor) {
+        return project.status.personalProviderProjectFor;
+    }
     return project?.specification.title ?? ""
 }
 
@@ -66,14 +73,14 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 `);
 
 export function ContextSwitcher({managed}: {
-    managed?: {setLocalProject: (project?: string) => void}
+    managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
 }): React.ReactNode {
     const refresh = useRefresh();
 
     const project = useProject();
     const projectId = useProjectId();
     // Note(Jonas): Only for use if the context switcher data is managed elsewhere.
-    const [controlledProject, setControlledProject] = React.useState(projectId);
+    const [controlledProject, setControlledProject] = React.useState(managed?.initialProject ?? projectId);
     const [error, setError] = React.useState("");
 
     const [projectList, setProjectList] = React.useState<PageV2<Project>>(emptyPageV2);
@@ -98,14 +105,7 @@ export function ContextSwitcher({managed}: {
     let activeContext = "My workspace";
     const activeProject = managed ? controlledProject : projectId;
     if (activeProject) {
-        const title = activeProject === project.fetch().id ?
-            project.fetch().specification.title :
-            projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
-        if (title) {
-            activeContext = title;
-        } else {
-            activeContext = shortUUID(activeProject);
-        }
+        activeContext = projectTitle(project.fetch());
     }
 
     useEffect(() => {
@@ -261,7 +261,7 @@ export function ContextSwitcher({managed}: {
                                 onClick={() => setActiveProject(it.id)}
                             >
                                 <Favorite project={it} />
-                                <Text fontSize="var(--breadText)">{it.specification.title}</Text>
+                                <Text fontSize="var(--breadText)">{projectTitle(it)}</Text>
                             </div>
                         )}
 

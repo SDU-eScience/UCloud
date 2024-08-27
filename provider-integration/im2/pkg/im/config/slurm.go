@@ -78,6 +78,7 @@ type SlurmAccountingType string
 const (
 	SlurmAccountingTypeAutomatic SlurmAccountingType = "Automatic"
 	SlurmAccountingTypeScripted  SlurmAccountingType = "Scripted"
+	SlurmAccountingTypeNone      SlurmAccountingType = "None"
 )
 
 var SlurmAccountingTypeOptions = []SlurmAccountingType{
@@ -117,6 +118,7 @@ type SlurmAccountMapperType string
 const (
 	SlurmAccountMapperTypePattern  SlurmAccountMapperType = "Pattern"
 	SlurmAccountMapperTypeScripted SlurmAccountMapperType = "Scripted"
+	SlurmAccountMapperTypeNone     SlurmAccountMapperType = "None"
 )
 
 var SlurmAccountMapperTypeOptions = []SlurmAccountMapperType{
@@ -151,6 +153,7 @@ const (
 	SlurmDriveLocatorEntityTypeUser        SlurmDriveLocatorEntityType = "User"
 	SlurmDriveLocatorEntityTypeProject     SlurmDriveLocatorEntityType = "Project"
 	SlurmDriveLocatorEntityTypeMemberFiles SlurmDriveLocatorEntityType = "MemberFiles"
+	SlurmDriveLocatorEntityTypeNone        SlurmDriveLocatorEntityType = "None"
 )
 
 var SlurmDriveLocatorEntityTypeOptions = []SlurmDriveLocatorEntityType{
@@ -170,6 +173,7 @@ type SlurmFsManagementType string
 const (
 	SlurmFsManagementTypeGpfs     SlurmFsManagementType = "GPFS"
 	SlurmFsManagementTypeScripted SlurmFsManagementType = "Scripted"
+	SlurmFsManagementTypeNone     SlurmFsManagementType = "None"
 )
 
 var SlurmFsManagementTypeOptions = []SlurmFsManagementType{
@@ -217,11 +221,11 @@ type SlurmFsManagementScripted struct {
 	FetchUsage    string
 }
 
-func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationSlurm) {
+func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationSlurm) {
 	cfg := ServicesConfigurationSlurm{}
 	success := true
 
-	{
+	if !unmanaged {
 		// Identity management
 		identityManagement := requireChild(filePath, services, "identityManagement", &success)
 		if !success {
@@ -234,6 +238,13 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		}
 
 		cfg.IdentityManagement = idm
+	} else {
+		idmNode, _ := getChildOrNil(filePath, services, "identityManagement")
+		cfg.IdentityManagement.Type = IdentityManagementTypeNone
+
+		if idmNode != nil {
+			reportError(filePath, idmNode, "identityManagement must be omitted when unmanaged is true")
+		}
 	}
 
 	{
@@ -265,7 +276,7 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			fs := SlurmFs{}
 			fs.DriveLocators = make(map[string]SlurmDriveLocator)
 
-			{
+			if !unmanaged {
 				// Management
 				managementNode := requireChild(filePath, fsValueNode, "management", &success)
 				if !success {
@@ -318,6 +329,13 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 					fs.Management.Configuration = &scripted
 
 				}
+			} else {
+				managementNode, _ := getChildOrNil(filePath, fsValueNode, "management")
+				fs.Management.Type = SlurmFsManagementTypeNone
+				if managementNode != nil {
+					reportError(filePath, managementNode, "management must be omitted when unmanaged is true")
+					success = false
+				}
 			}
 
 			fs.Payment = parsePaymentInfo(filePath, requireChild(filePath, fsValueNode, "payment", &success),
@@ -336,7 +354,16 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				_ = driveLocatorsNode.Content[i].Decode(&locatorName)
 				locatorNode := driveLocatorsNode.Content[i+1]
 
-				locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
+				if !unmanaged {
+					locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
+				} else {
+					entityNode, _ := getChildOrNil(filePath, locatorNode, "entity")
+					if entityNode != nil {
+						reportError(filePath, entityNode, "entity must be omitted when unmanaged is true")
+						success = false
+					}
+					locator.Entity = SlurmDriveLocatorEntityTypeNone
+				}
 				locator.Pattern = optionalChildText(filePath, locatorNode, "pattern", &success)
 				locator.Script = optionalChildText(filePath, locatorNode, "script", &success)
 				locator.Title = optionalChildText(filePath, locatorNode, "title", &success)
@@ -386,8 +413,8 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		// Slurm
 		slurmNode := requireChild(filePath, services, "slurm", &success)
 
-		{
-			management := &cfg.Compute.AccountManagement
+		management := &cfg.Compute.AccountManagement
+		if !unmanaged {
 			managementNode := requireChild(filePath, slurmNode, "accountManagement", &success)
 
 			accountingNode := requireChild(filePath, managementNode, "accounting", &success)
@@ -422,6 +449,14 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			if !success {
 				return false, cfg
 			}
+		} else {
+			entityNode, _ := getChildOrNil(filePath, slurmNode, "accountManagement")
+			if entityNode != nil {
+				reportError(filePath, entityNode, "accountManagement must be omitted when unmanaged is true")
+				success = false
+			}
+			management.Accounting.Type = SlurmAccountingTypeNone
+			management.AccountMapper.Type = SlurmAccountMapperTypeNone
 		}
 
 		fakeResourceAllocation, ok := optionalChildBool(filePath, slurmNode, "fakeResourceAllocation")

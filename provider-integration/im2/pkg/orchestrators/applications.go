@@ -347,8 +347,8 @@ func ApplicationParameterBoolean(name string, optional bool, title string, descr
 }
 
 type EnumOption struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 func ApplicationParameterEnumeration(name string, optional bool, title string, description string, options []EnumOption) ApplicationParameter {

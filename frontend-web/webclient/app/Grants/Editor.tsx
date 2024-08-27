@@ -878,6 +878,7 @@ function useStateReducerMiddleware(
                     projects: [{id: null as (string | null), title: "My workspace"}].concat(
                         projectPage.items
                             .filter(it => isAdminOrPI(it.status.myRole!))
+                            .filter(it => it.status.personalProviderProjectFor == null)
                             .map(it => ({id: it.id, title: it.specification.title}))
                     )
                 });
@@ -891,8 +892,6 @@ function useStateReducerMiddleware(
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
 
                 try {
-
-
                     dispatch({
                         type: "AllocatorsLoaded",
                         allocators: [{

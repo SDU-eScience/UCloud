@@ -22,6 +22,8 @@ func InitFileManagers() {
 		case cfg.SlurmFsManagementTypeScripted:
 		case cfg.SlurmFsManagementTypeGpfs:
 			fileManagers[name] = InitGpfsManager(name, fsConfig.Management.GPFS())
+		case cfg.SlurmFsManagementTypeNone:
+			fileManagers[name] = InitUnmanagedDrives(name)
 		}
 	}
 

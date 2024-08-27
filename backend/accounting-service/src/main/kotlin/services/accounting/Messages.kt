@@ -163,5 +163,11 @@ sealed class AccountingRequest<Resp> {
     data class DebugUsable(
         override val idCard: IdCard,
     ) : AccountingRequest<Unit>()
+
+    data class FillUpPersonalProviderProject(
+        override val idCard: IdCard,
+        val projectId: String,
+        val provider: String,
+    ) : AccountingRequest<Unit>()
 }
 

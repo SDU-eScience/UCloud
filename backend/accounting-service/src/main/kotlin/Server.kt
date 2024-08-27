@@ -1,6 +1,5 @@
 package dk.sdu.cloud.accounting
 
-import dk.sdu.cloud.accounting.api.ApmNotifications
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
@@ -8,6 +7,7 @@ import dk.sdu.cloud.accounting.services.accounting.DataVisualization
 import dk.sdu.cloud.accounting.services.accounting.RealAccountingPersistence
 import dk.sdu.cloud.accounting.services.grants.*
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
+import dk.sdu.cloud.accounting.services.notifications.PersonalProviderProjects
 import dk.sdu.cloud.accounting.services.products.ProductService
 import dk.sdu.cloud.accounting.services.projects.FavoriteProjectService
 import dk.sdu.cloud.accounting.services.projects.ProjectGroupService
@@ -79,6 +79,8 @@ class Server(
         val dataVisualization = DataVisualization(db, accountingSystem)
         val apmNotifications = ApmNotificationService(accountingSystem, projectsV2, micro.tokenValidation, idCardService, micro.developmentModeEnabled)
 
+        PersonalProviderProjects(projectsV2, productService, accountingSystem).init()
+
         accountingSystem.start(micro.backgroundScope)
         micro.backgroundScope.launch {
             grants.init()
@@ -99,7 +101,7 @@ class Server(
         )
 
         configureControllers(
-            AccountingController(micro, accountingSystem, dataVisualization, idCardService, client, apmNotifications).also { accountingController = it},
+            AccountingController(micro, accountingSystem, dataVisualization, idCardService, apmNotifications).also { accountingController = it},
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

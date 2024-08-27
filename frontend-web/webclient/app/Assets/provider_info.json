@@ -40,7 +40,7 @@
         },
         {
             "id": "k8",
-            "title": "DeiC Interactive HPC (SDU)",
+            "title": "K8s Dev Provider",
             "logo": "sdu.png",
             "shortTitle": "SDU/K8",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -59,7 +59,7 @@
         },
         {
             "id": "K8",
-            "title": "DeiC Interactive HPC (SDU)",
+            "title": "K8s Dev Provider",
             "logo": "sdu.png",
             "shortTitle": "SDU/K8",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -116,7 +116,7 @@
         },
         {
             "id": "slurm",
-            "title": "DeiC Large Memory HPC (SDU)",
+            "title": "Slurm Dev Provider",
             "logo": "hippo.png",
             "shortTitle": "Hippo",
             "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",

@@ -13,7 +13,6 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.Micro
@@ -29,7 +28,6 @@ class AccountingController(
     private val accounting: AccountingSystem,
     private val dataVisualization: DataVisualization,
     private val idCards: IdCardService,
-    private val client: AuthenticatedClient,
     private val apmNotifications: ApmNotificationService,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
@@ -41,12 +39,9 @@ class AccountingController(
             if (activeProcessor == null) {
                 handler()
             } else {
-                ok(
-                    call.call(
-                        request,
-                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
-                    ).orThrow()
-                )
+                // TODO(Dan): There is no current way of doing this correctly. Please keep in mind that
+                //  PersonalProviderProjects currently also depends on a single APM instance.
+                error("not yet implemented")
             }
         }
     }

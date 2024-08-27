@@ -90,6 +90,10 @@ sealed class ApplicationYaml(val application: String) {
 
             // Verify default values
             for (param in parameters.values) {
+                if (param.name.startsWith("_injected_")) {
+                    throw ApplicationVerificationException.BadValue(param.name, "Parameters must not start with _injected_")
+                }
+
                 if (param.defaultValue == null) continue
 
                 when (param) {

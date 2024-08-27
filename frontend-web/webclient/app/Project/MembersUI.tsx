@@ -21,7 +21,7 @@ import {injectStyle} from "@/Unstyled";
 import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
-import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
@@ -614,6 +614,14 @@ const GroupCard: React.FunctionComponent<{
                         enabled: () => true,
                         onClick: () => props.onDuplicate(props.group.id),
                         shortcut: ShortcutKey.I
+                    },
+                    {
+                        confirm: false,
+                        text: "Copy ID",
+                        icon: "id",
+                        enabled: () => Client.userIsAdmin,
+                        onClick: () => copyToClipboard({ value: props.group.id, message: "Copied group ID to clipboard" }),
+                        shortcut: ShortcutKey.C
                     },
                     {
                         confirm: true,

@@ -981,6 +981,57 @@ class JobResourceService(
         }
     }
 
+    suspend fun requestDynamicParameters(
+        actorAndProject: ActorAndProject,
+        request: Jobs.RequestDynamicParameters.Request
+    ): Jobs.RequestDynamicParameters.Response {
+        idCards.fetchIdCard(actorAndProject)
+
+        val actualProviders = providers.findRelevantProviders(actorAndProject, filterProductType = ProductType.COMPUTE)
+        val application = appCache.resolveApplication(request.application.name, request.application.version)
+            ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
+
+        val parametersByProvider = coroutineScope {
+            val allParameters = actualProviders.map { provider ->
+                async {
+                    try {
+                        val parameters = providers.call(
+                            provider,
+                            actorAndProject,
+                            { JobsProvider(it).requestDynamicParameters },
+                            DynamicParametersProviderRequest(
+                                ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project),
+                                application,
+                            ),
+                            useHttpClient = true,
+                        ).parameters
+
+                        provider to parameters
+                    } catch (ex: RPCException) {
+                        if (ex.httpStatusCode.value in 500..599) {
+                            throw ex
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+
+            allParameters.awaitAll().filterNotNull().toMap().mapValues { (_, params) ->
+                params
+                    .asSequence()
+                    .filter { !it.referencesResource() }
+                    .onEach {
+                        it.name = JobVerificationService.injectedPrefix + it.name.removePrefix(JobVerificationService.injectedPrefix)
+                    }
+                    .toList()
+            }
+        }
+
+        return Jobs.RequestDynamicParameters.Response(parametersByProvider)
+    }
+
+
     // Job specific write operations
     // =================================================================================================================
     // The following section contains write operations that are specific to jobs.

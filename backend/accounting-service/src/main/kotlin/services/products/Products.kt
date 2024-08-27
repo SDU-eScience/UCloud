@@ -15,13 +15,29 @@ import dk.sdu.cloud.provider.api.translateToAccountingFrequency
 import dk.sdu.cloud.provider.api.translateToChargeType
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
+
+typealias OnProductCreated = suspend (products: List<ProductV2>, session: AsyncDBConnection) -> Unit
 
 class ProductService(
     private val db: DBContext,
     private val accountingSystem: AccountingSystem,
     private val idCards: IdCardService,
 ) {
+    private val productCreatedHandlers = ArrayList<OnProductCreated>()
+
+    fun addProductCreatedHandler(handler: OnProductCreated) {
+        productCreatedHandlers.add(handler)
+    }
+
+    private suspend fun notifyProductsCreated(products: List<ProductV2>, session: AsyncDBConnection) {
+        for (handler in productCreatedHandlers) {
+            handler(products, session)
+        }
+    }
+
     suspend fun productV1toV2(product: Product): ProductV2 {
         val category = ProductCategory(
             product.category.name,
@@ -257,6 +273,8 @@ class ProductService(
                         memory_model = excluded.memory_model
                 """
             )
+
+            notifyProductsCreated(request.items, session)
         }
     }
 
