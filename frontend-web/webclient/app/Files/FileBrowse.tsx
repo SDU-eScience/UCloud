@@ -69,6 +69,7 @@ import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {Feature, hasFeature} from "@/Features";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -438,24 +439,45 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
 
                     if (shouldMove) {
-                        ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                            if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
-                                for (const file of files) {
-                                    insertFakeEntry(
-                                        fileName(file.id),
-                                        {
-                                            type: file.status.type,
-                                            hint: file.status.icon,
-                                            modifiedAt: file.status.modifiedAt,
-                                            size: file.status.sizeInBytes
-                                        }
-                                    );
+                        if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                            ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
                                 }
-                                browser.renderRows();
-                            }
 
-                            callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
-                        });
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        } else {
+                            browser._undoStack.unshift(() => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
+                                }
+
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        }
                     }
                 };
 
@@ -555,17 +577,21 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                     browser.refresh();
                                 });
 
-                                ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
-                                    callAPI(FilesApi.move(bulkRequestOf({
-                                        oldId: actualFile.id,
-                                        newId: oldId,
-                                        conflictPolicy: "REJECT"
-                                    })));
+                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
 
-                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
-                                    actualFile.id = oldId;
-                                    browser.renderRows();
-                                });
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
+                                } else {
+
+                                }
                             }
                         },
                         doNothing,
