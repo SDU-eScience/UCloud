@@ -696,7 +696,7 @@ class AppService(
     }
 
     suspend fun retrieveLandingPage(actorAndProject: ActorAndProject, storeFrontId: Int): AppStore.RetrieveLandingPage.Response {
-        val subscriptions = listRepositorySubscriptions(storeFrontId)
+        val subscriptions = listRepositorySubscriptions(actorAndProject, storeFrontId)
         val subscriptionIds = subscriptions.map { it.metadata.id }
 
         val picks = topPicks.get().filter { it.storeFront == storeFrontId }.map { it.prepare() }
@@ -778,11 +778,32 @@ class AppService(
         }
     }
 
+    suspend fun listStoreFronts(actorAndProject: ActorAndProject): List<StoreFront> {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                """
+                    select id, title from app_store.store_fronts
+                """
+            )
+        }.rows.map { row ->
+            StoreFront(
+                StoreFront.Metadata(
+                    row.getInt("id")!!
+                ),
+                StoreFront.Specification(
+                    row.getString("title")!!
+                )
+            )
+        }
+    }
+
     fun retrieveCarrouselImage(index: Int): ByteArray {
         return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
     }
 
-    suspend fun listRepositorySubscriptions(storeFrontId: Int): List<ApplicationRepository> {
+    suspend fun listRepositorySubscriptions(actorAndProject: ActorAndProject, storeFrontId: Int): List<ApplicationRepository> {
+        // TODO(Brian) Check permissions
+
         return db.withSession { session ->
             session.sendPreparedStatement(
                 {

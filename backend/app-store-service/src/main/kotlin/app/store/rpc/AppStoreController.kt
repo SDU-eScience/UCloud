@@ -404,8 +404,16 @@ class AppStoreController(
             ok(service.retrieveLandingPage(actorAndProject, request.storeFront))
         }
 
-        implement(AppStore.createRepositorySubscription) {
+        implement(AppStore.updateRepositorySubscription) {
             ok(service.updateRepositorySubscription(actorAndProject, request.storeFront, request.repository))
+        }
+
+        implement(AppStore.browseRepositorySubscriptions) {
+            ok(PageV2.of(service.listRepositorySubscriptions(actorAndProject, request.storeFrontId)))
+        }
+
+        implement(AppStore.browseStoreFronts) {
+            ok(PageV2.of(service.listStoreFronts(actorAndProject)))
         }
 
         implement(AppStore.retrieveCarrouselImage) {

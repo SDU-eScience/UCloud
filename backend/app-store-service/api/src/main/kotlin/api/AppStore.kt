@@ -334,7 +334,9 @@ invocation of the application, but is used solely to visually group applications
 
     // Store front management
     // =================================================================================================================
-    val createRepositorySubscription = CreateRepositorySubscription.call
+    val updateRepositorySubscription = UpdateRepositorySubscription.call
+    val browseRepositorySubscriptions = BrowseRepositorySubscriptions.call
+    val browseStoreFronts = BrowseStoreFronts.call
 
     // Spotlight management
     // =================================================================================================================
@@ -1014,7 +1016,7 @@ invocation of the application, but is used solely to visually group applications
         )
     }
 
-    object CreateRepositorySubscription {
+    object UpdateRepositorySubscription {
         @Serializable
         data class Request(
             val storeFront: Int,
@@ -1022,12 +1024,53 @@ invocation of the application, but is used solely to visually group applications
         )
 
         val call = call(
-            "createRepositorySubscription",
+            "updateRepositorySubscription",
             Request.serializer(),
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "subscription")
+                httpUpdate(baseContext, "updateRepositorySubscription")
+            }
+        )
+    }
+
+    object BrowseRepositorySubscriptions {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+            val storeFrontId: Int
+        ): WithPaginationRequestV2
+
+        val call = call(
+            "browseSubscriptions",
+            Request.serializer(),
+            PageV2.serializer(ApplicationRepository.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "subscriptions", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object BrowseStoreFronts {
+        @Serializable
+        data class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ): WithPaginationRequestV2
+
+        val call = call(
+            "browseStoreFronts",
+            Request.serializer(),
+            PageV2.serializer(StoreFront.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "storeFronts", roles = Roles.END_USER)
             }
         )
     }
@@ -1345,6 +1388,22 @@ data class ApplicationCategory(
 
 @Serializable
 data class ApplicationRepository(
+    val metadata: Metadata,
+    val specification: Specification,
+) {
+    @Serializable
+    data class Metadata(
+        val id: Int
+    )
+
+    @Serializable
+    data class Specification(
+        val title: String
+    )
+}
+
+@Serializable
+data class StoreFront(
     val metadata: Metadata,
     val specification: Specification,
 ) {

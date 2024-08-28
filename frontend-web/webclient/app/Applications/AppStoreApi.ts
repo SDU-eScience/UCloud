@@ -563,6 +563,14 @@ export function browseStoreFronts(request: PaginationRequestV2): APICallParamete
     return apiBrowse(request, baseContext, "storeFronts");
 }
 
+export function browseRepositorySubscriptions(request: {storeFrontId: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationRepository>> {
+    return apiBrowse(request, baseContext, "subscriptions");
+}
+
+export function updateRepositorySubscription(request: {storeFront: number, repository: number}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateRepositorySubscription");
+}
+
 // Group management
 // =================================================================================================================
 export function createGroup(request: ApplicationGroupSpecification): APICallParameters<unknown, { id: number }> {
