@@ -275,7 +275,7 @@ export function ResourceProperties<Res extends Resource>(
     const support = ownResource?.data?.status.resolvedSupport?.support;
     const editPermissionsAllowed = canEditPermission(support, props.api.getNamespace());
 
-    const main = resource ? <>
+    return resource ? <>
         <div className={classConcat(Container, "RUNNING active")}>
             {!renderer.Icon ? null : <div className={`logo-wrapper`}>
                 <div className="logo-scale">
@@ -358,8 +358,6 @@ export function ResourceProperties<Res extends Resource>(
             </div>
         </div>
     </> : null;
-
-    return main;
 }
 
 const Messages: React.FunctionComponent<{ resource: Resource }> = ({resource}) => {

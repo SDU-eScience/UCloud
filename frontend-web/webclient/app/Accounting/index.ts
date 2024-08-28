@@ -357,7 +357,7 @@ function removeSuffix(text: string, suffix: string): string {
     return text;
 }
 
-export function guestimateProductCategoryDescription(
+export function guesstimateProductCategoryDescription(
     category: string,
     provider: string
 ): string {

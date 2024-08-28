@@ -2000,7 +2000,7 @@ export function Editor(): React.ReactNode {
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={Accounting.guestimateProductCategoryDescription(category.category.name, providerId)}
+                                                description={Accounting.guesstimateProductCategoryDescription(category.category.name, providerId)}
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={false}
                                             >

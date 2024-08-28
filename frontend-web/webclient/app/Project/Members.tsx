@@ -23,10 +23,6 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 
-export function ProjectPageTitle(props: React.PropsWithChildren): React.ReactNode {
-    return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
-}
-
 // UI state management
 // ================================================================================
 type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup | InviteMember | ReloadInvites |

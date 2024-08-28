@@ -775,7 +775,7 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     expiresAt: number;
 }> = props => {
     const now = timestampUnixMs();
-    const description = Accounting.guestimateProductCategoryDescription(props.category.name, props.category.provider);
+    const description = Accounting.guesstimateProductCategoryDescription(props.category.name, props.category.provider);
     return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, props.category.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
         <div className={"figure-and-title"}>
             <figure>

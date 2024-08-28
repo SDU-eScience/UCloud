@@ -26,7 +26,7 @@ export const Dropdown: React.FunctionComponent<DropdownProps & {
 }> = ({hover = true, ...props}) => {
     return <div
         className={DropdownClass}
-        data-hover={hover === true}
+        data-hover={hover}
         data-full-width={props.fullWidth === true}
         ref={props.divRef}
         children={props.children}

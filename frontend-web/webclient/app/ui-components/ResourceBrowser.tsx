@@ -647,7 +647,6 @@ export class ResourceBrowser<T> {
         if (this.features.showColumnTitles) {
             const titleRow = this.root.querySelector(".row.rows-title")!;
             titleRow["style"].display = "flex";
-            // titleRow["style"].height = titleRow["style"].maxHeight = "28px";
             titleRow["style"].paddingBottom = "6px";
             if (!this.features.showStar) {
                 const star = titleRow.querySelector<HTMLDivElement>(".favorite")!;
@@ -807,8 +806,6 @@ export class ResourceBrowser<T> {
             const myIndex = i;
             row.addEventListener("pointerdown", e => {
                 e.stopPropagation();
-                // Attempt to allow deselecting by clicking outside table
-                // Attempt to allow deselecting by clicking outside table
                 this.onRowPointerDown(myIndex, e);
             });
             row.addEventListener("click", e => {

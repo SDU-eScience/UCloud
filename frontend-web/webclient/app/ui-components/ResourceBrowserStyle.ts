@@ -1,6 +1,6 @@
 import {injectStyle, makeClassName} from "@/Unstyled";
 
-var didInject = false;
+let didInject = false;
 
 export function injectResourceBrowserStyle(rowSize: number) {
     const browserClass = makeClassName("browser");
