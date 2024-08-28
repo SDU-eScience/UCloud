@@ -48,95 +48,10 @@ import {isAdminOrPI} from "@/Project";
 import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {Feature, hasFeature} from "@/Features";
+import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 
 const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
-
-export type Filter = FilterWithOptions | FilterCheckbox | FilterInput | MultiOptionFilter;
-
-
-export interface Selection<T> {
-    onClick(res: T): void;
-    show(res: T): boolean | string;
-    text: string;
-}
-
-export interface ResourceBrowserOpts<T> {
-    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    omitFilters?: boolean;
-
-    // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
-    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like:
-    // type ResourceBrowser.embedded = {
-    //      disableKeyhandlers?: boolean;
-    //      omitFilters?: boolean;
-    //      disableShortcuts?: boolean;
-    // }
-    // And if `embedded == null`, then we know these things are not relevant.
-    // But will keyhandlers only be disabled when it is embedded?
-    overrideDisabledKeyhandlers?: boolean;
-    disabledKeyhandlers?: boolean;
-    reloadRef?: React.MutableRefObject<() => void>;
-
-    // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
-    // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
-    embedded?: boolean;
-    // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
-    // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
-    isModal?: boolean;
-    selection?: Selection<T>;
-}
-
-interface FilterInput {
-    type: "input",
-    key: string;
-    text: string;
-    icon: IconName;
-}
-
-interface FilterWithOptions {
-    type: "options";
-    key: string;
-    text: string;
-    clearable: boolean;
-    options: FilterOption[];
-    icon: IconName;
-}
-
-interface FilterCheckbox {
-    type: "checkbox";
-    key: string;
-    text: string;
-    icon: IconName;
-}
-
-interface FilterOption {
-    text: string;
-    icon: IconName;
-    color: ThemeColor;
-    value: string;
-}
-
-interface MultiOptionFilter {
-    type: "multi-option";
-    keys: [string, string];
-    text: string;
-    clearable: boolean;
-    options: MultiOption[];
-    icon: IconName;
-}
-
-interface MultiOption {
-    text: string;
-    icon: IconName;
-    color: ThemeColor;
-    values: [string, string];
-}
-
-const SORT_BY = "sortBy";
-const SORT_DIRECTION = "sortDirection";
-const ASC = "ascending";
-const DESC = "descending";
 
 export function dateRangeFilters(text: string): MultiOptionFilter {
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
@@ -175,6 +90,39 @@ export function dateRangeFilters(text: string): MultiOptionFilter {
             values: [pastMonthStart.toString(), pastMonthEnd.toString()]
         }]
     }
+}
+
+
+export interface Selection<T> {
+    onClick(res: T): void;
+    show(res: T): boolean | string;
+    text: string;
+}
+
+export interface ResourceBrowserOpts<T> {
+    additionalFilters?: Record<string, string> & ResourceIncludeFlags;
+    omitFilters?: boolean;
+
+    // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
+    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like:
+    // type ResourceBrowser.embedded = {
+    //      disableKeyhandlers?: boolean;
+    //      omitFilters?: boolean;
+    //      disableShortcuts?: boolean;
+    // }
+    // And if `embedded == null`, then we know these things are not relevant.
+    // But will keyhandlers only be disabled when it is embedded?
+    overrideDisabledKeyhandlers?: boolean;
+    disabledKeyhandlers?: boolean;
+    reloadRef?: React.MutableRefObject<() => void>;
+
+    // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
+    // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
+    embedded?: boolean;
+    // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
+    // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
+    isModal?: boolean;
+    selection?: Selection<T>;
 }
 
 export type OperationOrGroup<T, R> = Operation<T, R> | OperationGroup<T, R>;
