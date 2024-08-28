@@ -49,7 +49,7 @@ const landingStyle = injectStyle("landing-page", k => `
 const LandingPage: React.FunctionComponent = () => {
     usePage("Applications", SidebarTabId.APPLICATIONS);
     const [landingPageState, fetchLandingPage] = useCloudAPI(
-        AppStore.retrieveLandingPage({}),
+        AppStore.retrieveLandingPage({storeFront: 1}),
         null
     );
 
@@ -61,7 +61,7 @@ const LandingPage: React.FunctionComponent = () => {
     const landingPage = landingPageState.data;
 
     const refresh = useCallback(() => {
-        fetchLandingPage(AppStore.retrieveLandingPage({})).then(doNothing);
+        fetchLandingPage(AppStore.retrieveLandingPage({storeFront: 1})).then(doNothing);
         fetchStarred(AppStore.retrieveStars({})).then(doNothing);
     }, []);
     useSetRefreshFunction(refresh);

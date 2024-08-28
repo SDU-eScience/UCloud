@@ -54,6 +54,7 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     group?: ApplicationGroup
+    repository: number;
 }
 
 export interface ApplicationInvocationDescription {
@@ -322,6 +323,42 @@ export interface ApplicationSummaryWithFavorite {
     tags: string[];
 }
 
+export interface ApplicationRepository {
+    metadata: ApplicationRepositoryMetadata;
+    specification: ApplicationRepositorySpecification;
+    status: ApplicationRepositoryStatus;
+}
+
+export interface ApplicationRepositoryMetadata {
+    id: number;
+}
+
+export interface ApplicationRepositorySpecification {
+    title: string;
+}
+
+export interface ApplicationRepositoryStatus {
+
+}
+
+export interface StoreFront {
+    metadata: StoreFrontMetadata;
+    specification: StoreFrontSpecification;
+    status: StoreFrontStatus;
+}
+
+export interface StoreFrontMetadata {
+    id: number;
+}
+
+export interface StoreFrontSpecification {
+    title: string;
+}
+
+export interface StoreFrontStatus {
+
+}
+
 export interface ApplicationGroup {
     metadata: ApplicationGroupMetadata;
     specification: ApplicationGroupSpecification;
@@ -338,6 +375,7 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
+    repository: number;
 }
 
 export interface ApplicationGroupStatus {
@@ -423,8 +461,8 @@ export function findByNameAndVersion(request: {
     };
 }
 
-export function create(file: File): Promise<{ error?: string }> {
-    return uploadFile("PUT", baseContext, file);
+export function create(file: File, repository: number): Promise<{ error?: string }> {
+    return uploadFile("PUT", buildQueryString(baseContext, {repository: repository}), file);
 }
 
 async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{
@@ -513,6 +551,18 @@ export function retrieveStars(request: {}): APICallParameters<unknown, { items: 
     return apiRetrieve(request, baseContext, "stars");
 }
 
+// Repository management
+// =================================================================================================================
+export function browseRepositories(request: {includePrivate: boolean;} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationRepository>> {
+    return apiBrowse(request, baseContext, "repositories");
+}
+
+// Store front management
+// =================================================================================================================
+export function browseStoreFronts(request: PaginationRequestV2): APICallParameters<unknown, PageV2<StoreFront>> {
+    return apiBrowse(request, baseContext, "storeFronts");
+}
+
 // Group management
 // =================================================================================================================
 export function createGroup(request: ApplicationGroupSpecification): APICallParameters<unknown, { id: number }> {
@@ -523,7 +573,7 @@ export function retrieveGroup(request: { id: number }): APICallParameters<unknow
     return apiRetrieve(request, baseContext, "groups");
 }
 
-export function browseGroups(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
+export function browseGroups(request: { repository: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }
 
@@ -741,7 +791,7 @@ export interface Spotlight {
     id?: number | null;
 }
 
-export function retrieveLandingPage(request: {}): APICallParameters<unknown, LandingPage> {
+export function retrieveLandingPage(request: {storeFront: number}): APICallParameters<unknown, LandingPage> {
     return apiRetrieve(request, baseContext, "landingPage");
 }
 

@@ -68,6 +68,7 @@ const appStudio = {
     hero: () => "/applications/studio/hero",
     spotlights: () => "/applications/studio/spotlights",
     spotlightsEditor: (id?: number) => buildQueryString("/applications/studio/spotlights/editor", {id}),
+    repositorySubscriptions: () => "/applications/studio/repositories/subscriptions",
     categories: () => "/applications/studio/categories",
     app: (app: string) => `/applications/studio/a/${app}`,
     group: (group: string) => `/applications/studio/g/${group}`,

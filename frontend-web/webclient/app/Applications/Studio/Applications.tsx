@@ -110,10 +110,6 @@ export const App: React.FunctionComponent = () => {
     }, [name]);
 
     useEffect(() => {
-        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
-    }, [name]);
-
-    useEffect(() => {
         const [firstApp] = apps.data.items;
         if (!firstApp) return;
         if (selectedGroup === firstApp.metadata.group?.metadata.id) return;
@@ -153,8 +149,13 @@ export const App: React.FunctionComponent = () => {
 
     const refresh = useCallback(() => {
         setAppParameters(AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}));
-        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
     }, [name]);
+
+    useEffect(() => {
+        if (apps.data.items.length < 1) return;
+
+        setGroups(AppStore.browseGroups({itemsPerPage: 1000, repository: apps.data.items[0].metadata.repository}));
+    }, [apps.data.items]);
 
     useSetRefreshFunction(refresh);
     useLoading(commandLoading || apps.loading);

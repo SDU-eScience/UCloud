@@ -85,6 +85,7 @@ import LicenseRouter from "./Applications/Licenses";
 import PublicLinksRouter from "./Applications/PublicLinks/Router";
 import SharesApi from "./UCloud/SharesApi";
 import {findCustomThemeColorOnLaunch} from "./UserSettings/CustomTheme";
+import RepositorySubscriptions from "./Applications/Studio/RepositorySubscriptions";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -147,6 +148,7 @@ const Core = (): React.ReactNode => (
                         <Route path={AppRoutes.appStudio.hero()} element={React.createElement(requireAuth(StudioHero))} />
                         <Route path={AppRoutes.appStudio.spotlights()} element={React.createElement(requireAuth(StudioSpotlights))} />
                         <Route path={AppRoutes.appStudio.spotlightsEditor()} element={React.createElement(requireAuth(StudioSpotlightsEditor))} />
+                        <Route path={AppRoutes.appStudio.repositorySubscriptions()} element={React.createElement(requireAuth(RepositorySubscriptions))} />
                         <Route path={AppRoutes.appStudio.categories()} element={React.createElement(requireAuth(StudioCategories))} />
                         <Route path={AppRoutes.appStudio.groups()} element={React.createElement(requireAuth(StudioGroups))} />
                         <Route path={AppRoutes.appStudio.app(":name")}
