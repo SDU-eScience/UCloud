@@ -241,7 +241,6 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		directives["time"] = formattedTimeAllocation
 		directives["nodes"] = fmt.Sprint(job.Specification.Replicas)
 		directives["job-name"] = orc.EscapeBash(job.Id)
-		directives["parsable"] = ""
 		directives["output"] = orc.EscapeBash("stdout.txt")
 		directives["error"] = orc.EscapeBash("stderr.txt")
 		if machineConfig.Qos.IsSet() {
@@ -263,6 +262,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		// -------------------------------------------------------------------------------------------------------------
 		directives["account"] = orc.EscapeBash(accountName)
 		directives["partition"] = orc.EscapeBash(machineConfig.Partition)
+		directives["parsable"] = ""
 	}
 
 	var modulesToLoad []string
