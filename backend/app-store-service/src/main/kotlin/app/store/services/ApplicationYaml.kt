@@ -12,10 +12,11 @@ import kotlin.reflect.KProperty0
     property = "application"
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = ApplicationYaml.V1::class, name = "v1")
+    JsonSubTypes.Type(value = ApplicationYaml.V1::class, name = "v1"),
+    JsonSubTypes.Type(value = ApplicationYamlV2::class, name = "v2"),
 )
 sealed class ApplicationYaml(val application: String) {
-    abstract fun normalize(): Application
+    abstract fun normalizeToAppAndTool(): Pair<Application, Tool?>
 
     class V1(
         val name: String,
@@ -90,7 +91,7 @@ sealed class ApplicationYaml(val application: String) {
 
             // Verify default values
             for (param in parameters.values) {
-                if (param.name.startsWith("_injected_")) {
+                if (param.name.startsWith(injectedPrefix)) {
                     throw ApplicationVerificationException.BadValue(param.name, "Parameters must not start with _injected_")
                 }
 
@@ -340,7 +341,7 @@ sealed class ApplicationYaml(val application: String) {
             )
         }
 
-        override fun normalize(): Application {
+        override fun normalizeToAppAndTool(): Pair<Application, Tool?> {
             val metadata = ApplicationMetadata(
                 name,
                 version,
@@ -628,7 +629,7 @@ sealed class ApplicationYaml(val application: String) {
                 modules = modules,
             )
 
-            return Application(metadata, invocation)
+            return Pair(Application(metadata, invocation), null)
         }
     }
 }

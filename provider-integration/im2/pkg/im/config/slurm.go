@@ -2,6 +2,7 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"math"
 	"ucloud.dk/pkg/util"
 )
 
@@ -18,6 +19,12 @@ type SlurmCompute struct {
 	Machines               map[string]SlurmMachineCategory
 	Web                    SlurmWebConfiguration
 	FakeResourceAllocation bool
+	Applications           SlurmApplications
+}
+
+type SlurmApplications struct {
+	Variables map[string]any // Primitive types only. Used in variable injection for apps.
+	Templates map[string]string
 }
 
 type SlurmWebConfiguration struct {
@@ -470,6 +477,90 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			if cfg.Compute.Web.Enabled {
 				cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
 				cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+			}
+		}
+
+		cfg.Compute.Applications.Templates = map[string]string{}
+		cfg.Compute.Applications.Variables = map[string]any{}
+
+		appNode, _ := getChildOrNil(filePath, slurmNode, "applications")
+		if appNode != nil {
+			variablesNode, _ := getChildOrNil(filePath, appNode, "variables")
+			if variablesNode != nil {
+				if variablesNode.Kind != yaml.MappingNode {
+					reportError(filePath, variablesNode, "expected variables to be a dictionary")
+					success = false
+				}
+
+				vars := cfg.Compute.Applications.Variables
+
+				for i := 0; i < len(variablesNode.Content); i += 2 {
+					varName := ""
+					_ = variablesNode.Content[i].Decode(&varName)
+					varNode := variablesNode.Content[i+1]
+					if varNode.Kind != yaml.ScalarNode {
+						reportError(filePath, varNode, "expected variable '%s' to be a scalar (boolean, number or text)", varName)
+						success = false
+					}
+
+					// NOTE(Dan): YAML is weird in that the type of some scalar really depends on what we expect the
+					// scalar to be. In this case, we are trying to pick the best fit. I am sure that the YAML
+					// specification probably defines some correct way of doing this, I didn't bother to look it up
+					// though. If that turns out to be a problem some day, then I am sorry.
+
+					var asInt int64
+					var asFloat float64
+					var asBool bool
+					var asString string
+
+					err1 := varNode.Decode(&asFloat)
+					err2 := varNode.Decode(&asInt)
+
+					if err1 == nil || err2 == nil {
+						const epsilon = 1e-9
+						if _, frac := math.Modf(math.Abs(asFloat)); frac < epsilon || frac > 1.0-epsilon {
+							vars[varName] = asInt
+							continue
+						} else {
+							vars[varName] = asFloat
+							continue
+						}
+					}
+
+					err1 = varNode.Decode(&asBool)
+					if err1 == nil {
+						vars[varName] = asBool
+						continue
+					}
+
+					_ = varNode.Decode(&asString)
+					vars[varName] = asString
+				}
+			}
+
+			templatesNode, _ := getChildOrNil(filePath, appNode, "templates")
+			if templatesNode != nil {
+				if templatesNode.Kind != yaml.MappingNode {
+					reportError(filePath, variablesNode, "expected templates to be a dictionary")
+					success = false
+				}
+
+				templates := cfg.Compute.Applications.Templates
+
+				for i := 0; i < len(templatesNode.Content); i += 2 {
+					templateName := ""
+					_ = templatesNode.Content[i].Decode(&templateName)
+					templateNode := templatesNode.Content[i+1]
+					if templateNode.Kind != yaml.ScalarNode {
+						reportError(filePath, templateNode, "expected variable '%s' to be a scalar (boolean, number or text)", templateName)
+						success = false
+					}
+
+					var asString string
+					_ = templateNode.Decode(&asString)
+
+					templates[templateName] = asString
+				}
 			}
 		}
 

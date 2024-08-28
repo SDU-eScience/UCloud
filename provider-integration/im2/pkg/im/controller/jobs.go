@@ -400,8 +400,6 @@ func controllerJobs(mux *http.ServeMux) {
 
 				for util.IsAlive {
 					messageType, data, err := conn.ReadMessage()
-					log.Info("Entire message %v", string(data))
-
 					if err != nil {
 						break
 					}
@@ -493,6 +491,10 @@ func controllerJobs(mux *http.ServeMux) {
 				var resp []orc.ApplicationParameter
 				if fn != nil {
 					resp = fn(request.Owner, request.Application)
+				}
+
+				if resp == nil {
+					resp = []orc.ApplicationParameter{}
 				}
 
 				sendResponseOrError(w, dynamicParametersResponse{Parameters: resp}, nil)
