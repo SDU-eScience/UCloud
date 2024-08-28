@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import co.elastic.clients.elasticsearch.snapshot.Repository
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.util.CyclicArray
@@ -98,6 +99,7 @@ class AppService(
     // Lookup tables for the hierarchical structuring of applications in the catalog
     private val groups = NonBlockingHashMapLong<InternalGroup>()
     private val categories = NonBlockingHashMapLong<InternalCategory>()
+    private val repositories = NonBlockingHashMapLong<InternalRepository>()
 
     // Access control lists allow ordinary users to access non-public applications
     private val accessControlLists = NonBlockingHashMap<String, InternalAcl>()
@@ -155,6 +157,21 @@ class AppService(
                 registerTool(tool, flush = false)
             }
 
+            val repositoryRows = session.sendPreparedStatement(
+                """
+                    select id, title from app_store.repositories
+                """
+            )
+
+            repositoryRows.rows.forEach { repo ->
+                val id = repo.getInt("id")!!
+                val title = repo.getString("title")!!
+
+                repositories.computeIfAbsent(id.toLong()) {
+                    InternalRepository(id, title)
+                }
+            }
+
             val appRows = session.sendPreparedStatement(
                 {
                     setParameter("name", id?.name)
@@ -169,7 +186,8 @@ class AppService(
                         ag.default_name as default_name,
                         ag.logo as group_logo,
                         ag.logo_has_text as group_logo_has_text,
-                        ag.color_remapping as color_remapping
+                        ag.color_remapping as color_remapping,
+                        ag.repository_id as repository_id 
                     from
                         app_store.applications a
                         left join app_store.application_groups ag
@@ -196,7 +214,8 @@ class AppService(
                     default_name,
                     logo_has_text,
                     logo,
-                    color_remapping
+                    color_remapping,
+                    repository_id
                 from app_store.application_groups
             """).rows
 
@@ -214,6 +233,7 @@ class AppService(
 
                 val darkRemapping = colorRemapping?.get("dark")
                 val lightRemapping = colorRemapping?.get("light")
+                val groupRepository = row.getInt("repository_id") ?: 0
 
                 val group = ApplicationGroup(
                     ApplicationGroup.Metadata(id),
@@ -222,7 +242,8 @@ class AppService(
                         description,
                         defaultFlavor,
                         colorReplacement = ApplicationGroup.ColorReplacements(lightRemapping, darkRemapping),
-                        logoHasText = logoHasText
+                        logoHasText = logoHasText,
+                        repository = groupRepository
                     ),
                 )
 
@@ -334,7 +355,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select id, title, description, active
+                        select id, title, description, active, store_front_id
                         from app_store.spotlights
                     """
                 ).rows.forEach { row ->
@@ -342,7 +363,8 @@ class AppService(
                     val title = row.getString(1)!!
                     val description = row.getString(2)!!
                     val active = row.getBoolean(3)!!
-                    spotlights[spotlightId.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, spotlightId))
+                    val storeFront = row.getInt(4)!!
+                    spotlights[spotlightId.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, spotlightId, storeFront))
                 }
 
                 session.sendPreparedStatement(
@@ -367,7 +389,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select application_name, group_id, description
+                        select application_name, group_id, description, store_front_id
                         from app_store.top_picks
                         order by priority
                     """
@@ -375,7 +397,9 @@ class AppService(
                     val appName = row.getString(0)
                     val groupId = row.getInt(1)
                     val description = row.getString(2)!!
-                    loadedPicks.add(TopPick("", appName, groupId, description))
+                    val storeFront = row.getInt(3)!!
+
+                    loadedPicks.add(TopPick("", appName, groupId, description, storeFront = storeFront))
                 }
                 topPicks.update { loadedPicks }
 
@@ -384,7 +408,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select title, body, image_credit, linked_application, linked_web_page, linked_group, image
+                        select title, body, image_credit, linked_application, linked_web_page, linked_group, image, store_front_id
                         from app_store.carrousel_items
                         order by priority
                     """
@@ -396,11 +420,12 @@ class AppService(
                     val linkedWebPage = row.getString(4)
                     val linkedGroup = row.getInt(5)
                     val image = row.getAs(6) ?: ByteArray(0)
+                    val storeFrontId = row.getInt(7) ?: 0
 
                     loadedCarrousel.add(
                         CarrouselItem(
                             title, body, imageCredit, linkedApplication,
-                            linkedWebPage, linkedGroup
+                            linkedWebPage, linkedGroup, storeFrontId
                         )
                     )
                     images.add(image)
@@ -440,6 +465,7 @@ class AppService(
             this.getBoolean("is_public")!!,
             this.getString("flavor_name"),
             group,
+            this.getInt("repository"),
             this.getDate("created_at")!!.toTimestamp(),
         )
     }
@@ -571,6 +597,7 @@ class AppService(
                 group.specification.logoHasText,
                 group.specification.colorReplacement.light,
                 group.specification.colorReplacement.dark,
+                group.specification.repository
             )
         }
     }
@@ -668,11 +695,15 @@ class AppService(
         return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
     }
 
-    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
-        val picks = topPicks.get().map { it.prepare() }
+    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject, storeFrontId: Int): AppStore.RetrieveLandingPage.Response {
+        val subscriptions = listRepositorySubscriptions(storeFrontId)
+        val subscriptionIds = subscriptions.map { it.metadata.id }
+
+        val picks = topPicks.get().filter { it.storeFront == storeFrontId }.map { it.prepare() }
+        // TODO(Brian)
         val categories = listCategories()
-        val carrousel = carrousel.get().map { it.prepare() }
-        val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+        val carrousel = carrousel.get().filter { it.storeFront == storeFrontId }.map { it.prepare() }
+        val spotlight = spotlights.values.filter { it.get()?.storeFront == storeFrontId }.find { it.get().active }?.get()?.prepare()
 
         val newlyCreated = ArrayList<String>()
         val updated = ArrayList<NameAndVersion>()
@@ -690,21 +721,89 @@ class AppService(
             categories,
             spotlight,
             newlyCreated.mapNotNull {
-                retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
+                val result = retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
+                if (subscriptionIds.contains(result?.metadata?.repository)) { result } else { null }
             },
             updated.mapNotNull {
-                retrieveApplication(
+                val result = retrieveApplication(
                     actorAndProject,
                     it.name,
                     it.version,
                     loadGroupApplications = false
                 )?.withoutInvocation()
+
+                if (subscriptionIds.contains(result?.metadata?.repository)) { result} else { null }
             }
         )
     }
 
+    suspend fun updateRepositorySubscription(actorAndProject: ActorAndProject, storeFrontId: Int, repository: Int) {
+        // TODO(Brian) Check for permissions
+
+        db.withSession { session ->
+            val exists = session.sendPreparedStatement(
+                {
+                    setParameter("store_front", storeFrontId)
+                    setParameter("repository", repository)
+                },
+                """
+                    select repository_id from app_store.repository_subscriptions
+                    where store_front_id = :store_front and repository_id = :repository
+                """
+            ).rows.size > 0
+
+            if (exists) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("store_front", storeFrontId)
+                        setParameter("repository", repository)
+                    },
+                    """
+                        delete from app_store.repository_subscriptions
+                        where store_front_id = :store_front and repository_id = :repository
+                    """
+                )
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("store_front", storeFrontId)
+                        setParameter("repository", repository)
+                    },
+                    """
+                        insert into app_store.repository_subscriptions (store_front_id, repository_id)
+                        values (:store_front, :repository)
+                    """
+                )
+            }
+        }
+    }
+
     fun retrieveCarrouselImage(index: Int): ByteArray {
         return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
+    }
+
+    suspend fun listRepositorySubscriptions(storeFrontId: Int): List<ApplicationRepository> {
+        return db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("store_front_id", storeFrontId)
+                },
+                """
+                    select r.id, r.title from app_store.repository_subscriptions s
+                    join app_store.repositories r on s.repository_id = r.id
+                    where s.store_front_id = :store_front_id
+                """
+            ).rows.map { row ->
+                ApplicationRepository(
+                    metadata = ApplicationRepository.Metadata(
+                        row.getInt(0)!!
+                    ),
+                    specification = ApplicationRepository.Specification(
+                        row.getString(1)!!
+                    )
+                )
+            }
+        }
     }
 
     fun listCategories(): List<ApplicationCategory> {
@@ -743,6 +842,19 @@ class AppService(
         )
     }
 
+    fun listRepositories(): List<ApplicationRepository> {
+        return repositories.toList().sortedBy { it.second.title }.map { (k, v) ->
+            ApplicationRepository(
+                ApplicationRepository.Metadata(
+                    k.toInt(),
+                ),
+                ApplicationRepository.Specification(
+                    v.title,
+                )
+            )
+        }
+    }
+
     suspend fun retrieveGroup(
         actorAndProject: ActorAndProject,
         groupId: Int,
@@ -760,6 +872,7 @@ class AppService(
                 info.categories,
                 ApplicationGroup.ColorReplacements(info.colorRemappingLight, info.colorRemappingDark),
                 info.logoHasText,
+                info.repository
             ),
             ApplicationGroup.Status(
                 if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
@@ -1036,9 +1149,9 @@ class AppService(
         }
     }
 
-    suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
+    suspend fun listGroups(actorAndProject: ActorAndProject, repository: Int): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        return groups.mapNotNull { (groupId, _) ->
+        return groups.filter { repository == it.value.get().repository }.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
         }.sortedBy { it.specification.title }
     }
@@ -1316,6 +1429,7 @@ class AppService(
     suspend fun createGroup(
         actorAndProject: ActorAndProject,
         title: String,
+        repository: Int
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val id = if (db == DiscardingDBContext) {
@@ -1333,12 +1447,26 @@ class AppService(
                     throw RPCException("Group with name $title already exists", HttpStatusCode.Conflict)
                 }
 
+                val repositoryExists = session.sendPreparedStatement(
+                    { setParameter("id", repository) },
+                    """
+                       select id from app_store.repositories where id = :id 
+                    """
+                ).rows.size
+
+                if (repositoryExists < 1) {
+                    throw RPCException("Repository not found", HttpStatusCode.NotFound)
+                }
+
                 try {
                     session.sendPreparedStatement(
-                        { setParameter("title", title) },
+                        {
+                            setParameter("title", title)
+                            setParameter("repository", repository)
+                        },
                          """
-                        insert into app_store.application_groups (title)
-                        values (:title)
+                        insert into app_store.application_groups (title, repository_id)
+                        values (:title, :repository)
                         returning id
                     """
                     ).rows.single().getInt(0)!!
@@ -1348,7 +1476,18 @@ class AppService(
             }
         }
 
-        groups[id.toLong()] = InternalGroup(title, "", null, null, emptySet(), emptySet(), false, null, null)
+        groups[id.toLong()] = InternalGroup(
+            title,
+            "",
+            null,
+            null,
+            emptySet(),
+            emptySet(),
+            false,
+            null,
+            null,
+            repository
+        )
         return id
     }
 
@@ -1798,6 +1937,7 @@ class AppService(
         description: String,
         active: Boolean,
         applications: List<TopPick>,
+        storeFrontId: Int
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val spotlightId = db.withSession { session ->
@@ -1857,7 +1997,7 @@ class AppService(
                 """
             )
 
-            val newSpotlight = Spotlight(title, description, applications, false, allocatedId)
+            val newSpotlight = Spotlight(title, description, applications, false, allocatedId, storeFrontId)
             val spotlight = spotlights.computeIfAbsent(allocatedId.toLong()) {
                 InternalSpotlight(newSpotlight)
             }
@@ -2187,6 +2327,7 @@ class AppService(
         logoHasText: Boolean,
         colorRemappingLight: Map<Int, Int>?,
         colorRemappingDark: Map<Int, Int>?,
+        repository: Int
     ) {
         data class GroupDescription(
             val title: String,
@@ -2198,6 +2339,7 @@ class AppService(
             val logoHasText: Boolean,
             val colorRemappingLight: Map<Int, Int>?,
             val colorRemappingDark: Map<Int, Int>?,
+            val repository: Int
         )
 
         private val ref = AtomicReference(
@@ -2211,6 +2353,7 @@ class AppService(
                 logoHasText,
                 colorRemappingLight,
                 colorRemappingDark,
+                repository
             )
         )
 
@@ -2342,6 +2485,11 @@ class AppService(
         fun groups() = groups.get()
         fun priority() = priority.get()
     }
+
+    data class InternalRepository(
+        val id: Int,
+        val title: String
+    )
 
     private class InternalSpotlight(spotlight: Spotlight) {
         private val ref = AtomicReference(spotlight)

@@ -323,10 +323,18 @@ invocation of the application, but is used solely to visually group applications
     val assignPriorityToCategory = AssignPriorityToCategory.call
     val deleteCategory = DeleteCategory.call
 
+    // Repository management
+    // =================================================================================================================
+    val browseRepositories = BrowseRepositories.call
+
     // Landing page management
     // =================================================================================================================
     val retrieveLandingPage = RetrieveLandingPage.call
     val retrieveCarrouselImage = RetrieveCarrouselImage.call
+
+    // Store front management
+    // =================================================================================================================
+    val createRepositorySubscription = CreateRepositorySubscription.call
 
     // Spotlight management
     // =================================================================================================================
@@ -666,6 +674,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
+            val repository: Int
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -957,7 +966,33 @@ invocation of the application, but is used solely to visually group applications
         )
     }
 
+    object BrowseRepositories {
+        @Serializable
+        class Request(
+            override val itemsPerPage: Int? = null,
+            override val next: String? = null,
+            override val consistency: PaginationRequestV2Consistency? = null,
+            override val itemsToSkip: Long? = null,
+        ) : WithPaginationRequestV2
+
+        val call = call(
+            "browseRepositories",
+            Request.serializer(),
+            PageV2.serializer(ApplicationRepository.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpBrowse(baseContext, "repositories", roles = Roles.PRIVILEGED)
+            }
+        )
+    }
+
+
     object RetrieveLandingPage {
+        @Serializable
+        data class Request(
+            val storeFront: Int
+        )
+
         @Serializable
         data class Response(
             val carrousel: List<CarrouselItem>,
@@ -970,11 +1005,29 @@ invocation of the application, but is used solely to visually group applications
 
         val call = call(
             "retrieveLandingPage",
-            Unit.serializer(),
+            Request.serializer(),
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
                 httpRetrieve(baseContext, "landingPage")
+            }
+        )
+    }
+
+    object CreateRepositorySubscription {
+        @Serializable
+        data class Request(
+            val storeFront: Int,
+            val repository: Int
+        )
+
+        val call = call(
+            "createRepositorySubscription",
+            Request.serializer(),
+            Unit.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "subscription")
             }
         )
     }
@@ -1171,6 +1224,7 @@ data class TopPick(
     val description: String,
     val defaultApplicationToRun: String? = null,
     val logoHasText: Boolean = false,
+    val storeFront: Int? = null
 ) {
     init {
         if (applicationName != null && groupId != null) {
@@ -1197,6 +1251,7 @@ data class CarrouselItem(
     val linkedApplication: String? = null,
     val linkedWebPage: String? = null,
     val linkedGroup: Int? = null,
+    val storeFront: Int,
 
     // if linkedGroup != null this will point to the default app. if linkedApplication != null then it will be equal
     // to linkedApplication
@@ -1231,6 +1286,7 @@ data class Spotlight(
     val applications: List<TopPick>,
     val active: Boolean,
     val id: Int? = null,
+    val storeFront: Int
 )
 
 @Serializable
@@ -1252,6 +1308,7 @@ data class ApplicationGroup(
         val categories: Set<Int> = emptySet(),
         val colorReplacement: ColorReplacements = ColorReplacements(),
         val logoHasText: Boolean = false,
+        val repository: Int = 0
     )
 
     @Serializable
@@ -1283,6 +1340,22 @@ data class ApplicationCategory(
     @Serializable
     data class Status(
         val groups: List<ApplicationGroup>? = null,
+    )
+}
+
+@Serializable
+data class ApplicationRepository(
+    val metadata: Metadata,
+    val specification: Specification,
+) {
+    @Serializable
+    data class Metadata(
+        val id: Int
+    )
+
+    @Serializable
+    data class Specification(
+        val title: String
     )
 }
 

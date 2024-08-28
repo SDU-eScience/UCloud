@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.defaultMapper
@@ -31,7 +32,14 @@ class ImportExport(
             service.retrieveTool(ActorAndProject.System, name, version)
         }
 
-        val groups: List<ApplicationGroup> = service.listGroups(ActorAndProject.System)
+        val repositories = service.listRepositories()
+        val repositoryIds = repositories.map { it.metadata.id }
+        val groups: MutableList<ApplicationGroup> = mutableListOf()
+
+        for (repositoryId in repositoryIds) {
+            groups.addAll(service.listGroups(ActorAndProject.System, repositoryId))
+        }
+
         val groupMemberships: Map<Int, List<NameAndVersion>> = groups.associate {
             it.metadata.id to service.listApplicationsInGroup(ActorAndProject.System, it.metadata.id).map {
                 NameAndVersion(it.metadata.name, it.metadata.version)
@@ -53,7 +61,8 @@ class ImportExport(
 
         val spotlights: List<Spotlight> = service.listSpotlights(ActorAndProject.System)
 
-        val currentLanding = service.retrieveLandingPage(ActorAndProject.System)
+        // TODO(Brian)
+        val currentLanding = service.retrieveLandingPage(ActorAndProject.System, 0)
         val carrousel: List<CarrouselItem> = currentLanding.carrousel
         val carrouselImages = carrousel.mapIndexed { index, _ -> service.retrieveCarrouselImage(index) }
         val topPicks: List<TopPick> = currentLanding.topPicks
@@ -175,7 +184,8 @@ class ImportExport(
             }
         }
 
-        val existingGroups = service.listGroups(a)
+        // TODO(Brian)
+        val existingGroups = service.listGroups(a, 0)
         println("These are the existing groups: ${existingGroups.map { it.specification.title }.joinToString("\n")}")
         val groupIdRemapper = groups.mapNotNull { g ->
             val existing = existingGroups.find { it.specification.title == g.specification.title }
@@ -190,7 +200,9 @@ class ImportExport(
             if (existingId != null) continue
 
             println("Creating group: ${group.specification.title}")
-            val newId = service.createGroup(a, group.specification.title)
+
+            // TODO(Brian)
+            val newId = service.createGroup(a, group.specification.title, 0)
             groupIdRemapper[group.metadata.id] = newId
         }
 
@@ -276,7 +288,8 @@ class ImportExport(
                     spotlight.active,
                     spotlight.applications.map { pick ->
                         pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
-                    }
+                    },
+                    spotlight.storeFront
                 )
             } catch (ex: Throwable) {
                 log.info("Could not create spotlight: ${spotlight.title}")

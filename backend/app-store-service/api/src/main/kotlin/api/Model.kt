@@ -1069,6 +1069,9 @@ data class ApplicationMetadata(
     @UCloudApiDoc("The ApplicationGroup of the Application")
     val group: ApplicationGroup? = null,
 
+    @UCloudApiDoc("The repository id of the Application")
+    val repository: Int? = null,
+
     val createdAt: Long = Time.now(),
 ) : WithNameAndVersion {
     @Deprecated("Replaced with public") @Transient

@@ -89,7 +89,7 @@ class AppStoreController(
         }
 
         implement(AppStore.createGroup) {
-            val id = service.createGroup(actorAndProject, request.title)
+            val id = service.createGroup(actorAndProject, request.title, request.repository)
             ok(FindByIntId(id))
         }
 
@@ -112,7 +112,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseGroups) {
-            ok(PageV2.of(service.listGroups(actorAndProject)))
+            ok(PageV2.of(service.listGroups(actorAndProject, request.repository)))
         }
 
         implement(AppStore.retrieveGroup) {
@@ -343,6 +343,10 @@ class AppStoreController(
             )
         }
 
+        implement(AppStore.browseRepositories) {
+            ok(PageV2.of(service.listRepositories()))
+        }
+
         implement(ToolStore.findByName) {
             val items = service.listToolVersions(actorAndProject, request.appName)
             ok(Page(items.size, items.size, 0, items))
@@ -397,7 +401,11 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveLandingPage) {
-            ok(service.retrieveLandingPage(actorAndProject))
+            ok(service.retrieveLandingPage(actorAndProject, request.storeFront))
+        }
+
+        implement(AppStore.createRepositorySubscription) {
+            ok(service.updateRepositorySubscription(actorAndProject, request.storeFront, request.repository))
         }
 
         implement(AppStore.retrieveCarrouselImage) {
@@ -449,7 +457,8 @@ class AppStoreController(
                 request.title,
                 request.body,
                 request.active,
-                request.applications
+                request.applications,
+                request.storeFront
             )
             ok(FindByIntId(id))
         }
@@ -461,7 +470,8 @@ class AppStoreController(
                 request.title,
                 request.body,
                 request.active,
-                request.applications
+                request.applications,
+                request.storeFront
             )
 
             ok(Unit)
