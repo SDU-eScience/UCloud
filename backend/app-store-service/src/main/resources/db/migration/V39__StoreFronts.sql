@@ -5,6 +5,10 @@ create table app_store.repositories(
     managed_by_project_id text not null
 );
 
+insert into app_store.repositories(id, title, is_public, managed_by_project_id)
+values (1, 'Main repository', false, '');
+
+
 create table app_store.store_fronts(
     id serial primary key,
     title text not null
@@ -30,7 +34,7 @@ alter table app_store.carrousel_items add column
     store_front_id int not null references app_store.store_fronts(id);
 
 alter table app_store.application_groups add column
-    repository_id int references app_store.repositories(id);
+    repository_id int not null default 1 references app_store.repositories(id);
 
 alter table app_store.applications add column
-    repository int references app_store.repositories(id);
+    repository int not null default 1 references app_store.repositories(id);
