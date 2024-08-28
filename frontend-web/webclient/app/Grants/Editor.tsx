@@ -1871,6 +1871,12 @@ export function Editor(): React.ReactNode {
                                         <option value="6">6 months</option>
                                         <option value="12">12 months</option>
                                         <option value="24">24 months</option>
+
+                                        {!Client.userIsAdmin ? null : (
+                                            [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
+                                                <option value={`${years * 12}`}>{years} years</option>
+                                            )
+                                        )}
                                     </Select>
                                 </label>
                             </FormField>
@@ -2653,11 +2659,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
 
-    result.sort((a, b) => {
-        if (a.time < b.time) return -1;
-        if (a.time > b.time) return 1;
-        return 0;
-    });
+    result.sort((a, b) => a.time - b.time);
 
     return result;
 }
