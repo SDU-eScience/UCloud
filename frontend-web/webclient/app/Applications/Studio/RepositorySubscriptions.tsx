@@ -14,7 +14,7 @@ const Subscriptions: React.FunctionComponent = () => {
     usePage("Repository subscriptions", SidebarTabId.APPLICATION_STUDIO);
 
     const [storeFront, setStoreFront] = React.useState<number>(0);
-    const [subscriptions, setSubscriptions] = React.useState<number[]>([]);
+    const [subscriptions, setSubscriptions] = React.useState<string[]>([]);
     const selectRef = React.useRef<HTMLSelectElement>(null);
 
     const [storeFronts, setStoreFronts] = useCloudAPI(

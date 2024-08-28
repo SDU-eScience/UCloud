@@ -99,7 +99,7 @@ class AppService(
     // Lookup tables for the hierarchical structuring of applications in the catalog
     private val groups = NonBlockingHashMapLong<InternalGroup>()
     private val categories = NonBlockingHashMapLong<InternalCategory>()
-    private val repositories = NonBlockingHashMapLong<InternalRepository>()
+    private val repositories = NonBlockingHashMap<String, InternalRepository>()
 
     // Access control lists allow ordinary users to access non-public applications
     private val accessControlLists = NonBlockingHashMap<String, InternalAcl>()
@@ -164,10 +164,10 @@ class AppService(
             )
 
             repositoryRows.rows.forEach { repo ->
-                val id = repo.getInt("id")!!
+                val id = repo.getString("id")!!
                 val title = repo.getString("title")!!
 
-                repositories.computeIfAbsent(id.toLong()) {
+                repositories.computeIfAbsent(id) {
                     InternalRepository(id, title)
                 }
             }
@@ -187,7 +187,7 @@ class AppService(
                         ag.logo as group_logo,
                         ag.logo_has_text as group_logo_has_text,
                         ag.color_remapping as color_remapping,
-                        ag.repository_id as repository_id 
+                        ag.repository as repository_id 
                     from
                         app_store.applications a
                         left join app_store.application_groups ag
@@ -215,7 +215,7 @@ class AppService(
                     logo_has_text,
                     logo,
                     color_remapping,
-                    repository_id
+                    repository
                 from app_store.application_groups
             """).rows
 
@@ -231,9 +231,9 @@ class AppService(
                     defaultMapper.decodeFromString<Map<String, Map<Int, Int>?>>(it)
                 }
 
+                val groupRepository = row.getString("repository")!!
                 val darkRemapping = colorRemapping?.get("dark")
                 val lightRemapping = colorRemapping?.get("light")
-                val groupRepository = row.getInt("repository_id") ?: 0
 
                 val group = ApplicationGroup(
                     ApplicationGroup.Metadata(id),
@@ -355,7 +355,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select id, title, description, active, store_front_id
+                        select id, title, description, active, store_front
                         from app_store.spotlights
                     """
                 ).rows.forEach { row ->
@@ -389,7 +389,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select application_name, group_id, description, store_front_id
+                        select application_name, group_id, description, store_front
                         from app_store.top_picks
                         order by priority
                     """
@@ -408,7 +408,7 @@ class AppService(
                 session.sendPreparedStatement(
                     {},
                     """
-                        select title, body, image_credit, linked_application, linked_web_page, linked_group, image, store_front_id
+                        select title, body, image_credit, linked_application, linked_web_page, linked_group, image, store_front
                         from app_store.carrousel_items
                         order by priority
                     """
@@ -465,7 +465,7 @@ class AppService(
             this.getBoolean("is_public")!!,
             this.getString("flavor_name"),
             group,
-            this.getInt("repository"),
+            this.getString("repository")!!,
             this.getDate("created_at")!!.toTimestamp(),
         )
     }
@@ -514,6 +514,12 @@ class AppService(
         )
         applications[key] = app
 
+        val repository = if (!app.metadata.repository.isNullOrEmpty()) {
+            app.metadata.repository
+        } else {
+            "main"
+        }
+
         if (flush) {
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -534,12 +540,13 @@ class AppService(
                         setParameter("original_document", "{}")
                         setParameter("group", group?.metadata?.id)
                         setParameter("flavor", app.metadata.flavorName ?: previousApp?.metadata?.flavorName)
+                        setParameter("repository", repository)
                     },
                     """
                         insert into app_store.applications
-                            (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public) 
+                            (name, version, application, created_at, modified_at, original_document, owner, tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public, repository) 
                         values 
-                            (:id_name, :id_version, :application, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor, :is_public)
+                            (:id_name, :id_version, :application, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool_name, :tool_version, :authors, :title, :description, :website, :group, :flavor, :is_public, :repository)
                     """
                 )
             }
@@ -562,6 +569,12 @@ class AppService(
         tools[key] = tool
         toolVersions.computeIfAbsent(key.name) { InternalVersions() }.add(key.version)
 
+        val repository = if (!tool.description.repository.isNullOrEmpty()) {
+            tool.description.repository
+        } else {
+            "main"
+        }
+
         if (flush) {
             db.withSession { session ->
                 session.sendPreparedStatement(
@@ -573,12 +586,13 @@ class AppService(
                         setParameter("original_document", "{}")
                         setParameter("name", key.name)
                         setParameter("version", key.version)
+                        setParameter("repository", repository)
                     },
                     """
                         insert into app_store.tools
-                            (name, version, created_at, modified_at, original_document, owner, tool) 
+                            (name, version, created_at, modified_at, original_document, owner, tool, repository) 
                         values 
-                            (:name, :version, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool)
+                            (:name, :version, to_timestamp(:created_at / 1000.0), to_timestamp(:modified_at / 1000.0), :original_document, :owner, :tool, :repository)
                     """
                 )
             }
@@ -747,8 +761,8 @@ class AppService(
                     setParameter("repository", repository)
                 },
                 """
-                    select repository_id from app_store.repository_subscriptions
-                    where store_front_id = :store_front and repository_id = :repository
+                    select repository from app_store.repository_subscriptions
+                    where store_front = :store_front and repository = :repository
                 """
             ).rows.size > 0
 
@@ -760,7 +774,7 @@ class AppService(
                     },
                     """
                         delete from app_store.repository_subscriptions
-                        where store_front_id = :store_front and repository_id = :repository
+                        where store_front = :store_front and repository = :repository
                     """
                 )
             } else {
@@ -770,7 +784,7 @@ class AppService(
                         setParameter("repository", repository)
                     },
                     """
-                        insert into app_store.repository_subscriptions (store_front_id, repository_id)
+                        insert into app_store.repository_subscriptions (store_front, repository)
                         values (:store_front, :repository)
                     """
                 )
@@ -811,13 +825,13 @@ class AppService(
                 },
                 """
                     select r.id, r.title from app_store.repository_subscriptions s
-                    join app_store.repositories r on s.repository_id = r.id
-                    where s.store_front_id = :store_front_id
+                    join app_store.repositories r on s.repository = r.id
+                    where s.store_front = :store_front_id
                 """
             ).rows.map { row ->
                 ApplicationRepository(
                     metadata = ApplicationRepository.Metadata(
-                        row.getInt(0)!!
+                        row.getString(0)!!
                     ),
                     specification = ApplicationRepository.Specification(
                         row.getString(1)!!
@@ -867,7 +881,7 @@ class AppService(
         return repositories.toList().sortedBy { it.second.title }.map { (k, v) ->
             ApplicationRepository(
                 ApplicationRepository.Metadata(
-                    k.toInt(),
+                    v.id
                 ),
                 ApplicationRepository.Specification(
                     v.title,
@@ -1170,7 +1184,7 @@ class AppService(
         }
     }
 
-    suspend fun listGroups(actorAndProject: ActorAndProject, repository: Int): List<ApplicationGroup> {
+    suspend fun listGroups(actorAndProject: ActorAndProject, repository: String): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         return groups.filter { repository == it.value.get().repository }.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
@@ -1450,7 +1464,7 @@ class AppService(
     suspend fun createGroup(
         actorAndProject: ActorAndProject,
         title: String,
-        repository: Int
+        repository: String
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val id = if (db == DiscardingDBContext) {
@@ -1486,7 +1500,7 @@ class AppService(
                             setParameter("repository", repository)
                         },
                          """
-                        insert into app_store.application_groups (title, repository_id)
+                        insert into app_store.application_groups (title, repository)
                         values (:title, :repository)
                         returning id
                     """
@@ -1958,7 +1972,7 @@ class AppService(
         description: String,
         active: Boolean,
         applications: List<TopPick>,
-        storeFrontId: Int
+        storeFrontId: Int? = null
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val spotlightId = db.withSession { session ->
@@ -2348,7 +2362,7 @@ class AppService(
         logoHasText: Boolean,
         colorRemappingLight: Map<Int, Int>?,
         colorRemappingDark: Map<Int, Int>?,
-        repository: Int
+        repository: String
     ) {
         data class GroupDescription(
             val title: String,
@@ -2360,7 +2374,7 @@ class AppService(
             val logoHasText: Boolean,
             val colorRemappingLight: Map<Int, Int>?,
             val colorRemappingDark: Map<Int, Int>?,
-            val repository: Int
+            val repository: String
         )
 
         private val ref = AtomicReference(
@@ -2508,7 +2522,7 @@ class AppService(
     }
 
     data class InternalRepository(
-        val id: Int,
+        val id: String,
         val title: String
     )
 

@@ -54,7 +54,7 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     group?: ApplicationGroup
-    repository: number;
+    repository: string;
 }
 
 export interface ApplicationInvocationDescription {
@@ -330,7 +330,7 @@ export interface ApplicationRepository {
 }
 
 export interface ApplicationRepositoryMetadata {
-    id: number;
+    id: string;
 }
 
 export interface ApplicationRepositorySpecification {
@@ -375,7 +375,7 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
-    repository: number;
+    repository: string;
 }
 
 export interface ApplicationGroupStatus {
@@ -430,8 +430,8 @@ export function findToolByNameAndVersion(request: {
     }
 }
 
-export function createTool(file: File): Promise<{ error?: string }> {
-    return uploadFile("PUT", toolContext, file);
+export function createTool(file: File, repository: string): Promise<{ error?: string }> {
+    return uploadFile("PUT", buildQueryString(toolContext, {"repository": repository}), file);
 }
 
 // Core API
@@ -461,7 +461,7 @@ export function findByNameAndVersion(request: {
     };
 }
 
-export function create(file: File, repository: number): Promise<{ error?: string }> {
+export function create(file: File, repository: string): Promise<{ error?: string }> {
     return uploadFile("PUT", buildQueryString(baseContext, {repository: repository}), file);
 }
 
@@ -581,7 +581,7 @@ export function retrieveGroup(request: { id: number }): APICallParameters<unknow
     return apiRetrieve(request, baseContext, "groups");
 }
 
-export function browseGroups(request: { repository: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
+export function browseGroups(request: { repository: string } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }
 

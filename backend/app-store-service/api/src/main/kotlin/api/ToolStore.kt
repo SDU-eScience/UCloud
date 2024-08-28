@@ -58,7 +58,8 @@ ${ApiConventions.nonConformingApiWarning}
                             description = "A batch tool",
                             backend = ToolBackend.DOCKER,
                             license = "None",
-                            image = "acme/batch:1.0.0"
+                            image = "acme/batch:1.0.0",
+                            repository = "main"
                         )
                     ),
                     user
@@ -97,7 +98,8 @@ ${ApiConventions.nonConformingApiWarning}
                             backend = ToolBackend.VIRTUAL_MACHINE,
                             license = "None",
                             image = "acme-operating-system",
-                            supportedProviders = listOf("example")
+                            supportedProviders = listOf("example"),
+                            repository = "main"
                         )
                     ),
                     user

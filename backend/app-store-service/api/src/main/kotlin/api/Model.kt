@@ -1070,7 +1070,7 @@ data class ApplicationMetadata(
     val group: ApplicationGroup? = null,
 
     @UCloudApiDoc("The repository id of the Application")
-    val repository: Int? = null,
+    val repository: String? = null,
 
     val createdAt: Long = Time.now(),
 ) : WithNameAndVersion {
@@ -1380,6 +1380,8 @@ data class NormalizedToolDescription(
         If no providers are supplied, then this Tool will implicitly support all Providers.
     """)
     val supportedProviders: List<String>? = null,
+
+    val repository: String? = null
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"

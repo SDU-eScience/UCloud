@@ -185,7 +185,7 @@ class ImportExport(
         }
 
         // TODO(Brian)
-        val existingGroups = service.listGroups(a, 0)
+        val existingGroups = service.listGroups(a, "main")
         println("These are the existing groups: ${existingGroups.map { it.specification.title }.joinToString("\n")}")
         val groupIdRemapper = groups.mapNotNull { g ->
             val existing = existingGroups.find { it.specification.title == g.specification.title }
@@ -202,7 +202,7 @@ class ImportExport(
             println("Creating group: ${group.specification.title}")
 
             // TODO(Brian)
-            val newId = service.createGroup(a, group.specification.title, 0)
+            val newId = service.createGroup(a, group.specification.title, "main")
             groupIdRemapper[group.metadata.id] = newId
         }
 

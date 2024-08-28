@@ -676,7 +676,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
-            val repository: Int
+            val repository: String
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -1294,7 +1294,7 @@ data class CarrouselItem(
     val linkedApplication: String? = null,
     val linkedWebPage: String? = null,
     val linkedGroup: Int? = null,
-    val storeFront: Int,
+    val storeFront: Int? = null,
 
     // if linkedGroup != null this will point to the default app. if linkedApplication != null then it will be equal
     // to linkedApplication
@@ -1329,7 +1329,7 @@ data class Spotlight(
     val applications: List<TopPick>,
     val active: Boolean,
     val id: Int? = null,
-    val storeFront: Int
+    val storeFront: Int? = null
 )
 
 @Serializable
@@ -1351,7 +1351,7 @@ data class ApplicationGroup(
         val categories: Set<Int> = emptySet(),
         val colorReplacement: ColorReplacements = ColorReplacements(),
         val logoHasText: Boolean = false,
-        val repository: Int = 0
+        val repository: String = ""
     )
 
     @Serializable
@@ -1393,7 +1393,7 @@ data class ApplicationRepository(
 ) {
     @Serializable
     data class Metadata(
-        val id: Int
+        val id: String
     )
 
     @Serializable
@@ -1507,8 +1507,9 @@ fun exampleApplication(
             public = true,
             group = ApplicationGroup(
                 ApplicationGroup.Metadata(0),
-                ApplicationGroup.Specification("Test Group", "", null, emptySet())
-            )
+                ApplicationGroup.Specification("Test Group", "", null, emptySet(), repository = "main")
+            ),
+            repository = "main"
         ),
         ApplicationInvocationDescription(
             ToolReference(
@@ -1526,7 +1527,8 @@ fun exampleApplication(
                         description = "An example tool",
                         backend = toolBackend,
                         license = "None",
-                        image = image
+                        image = image,
+                        repository = "main"
                     )
                 )
             ),

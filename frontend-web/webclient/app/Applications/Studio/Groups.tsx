@@ -23,7 +23,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     const [filter, setTitleFilter] = React.useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const navigate = useNavigate();
-    const [repository, setRepository] = React.useState(0);
+    const [repository, setRepository] = React.useState<string|null>(null);
     const selectRef = useRef<HTMLSelectElement>(null);
 
     const createRef = React.useRef<HTMLInputElement>(null);
@@ -37,7 +37,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     const [allGroups, setGroups] = React.useState<AppStore.ApplicationGroup[]>([]);
     
     React.useEffect(() => {
-        if (repository === 0) return;
+        if (!repository) return;
 
         fetchAll(next => callAPI(AppStore.browseGroups({ repository: repository, itemsPerPage: 250, next}))).then(groups => {
             setGroups(groups);
@@ -47,8 +47,8 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     usePage("Application groups", SidebarTabId.APPLICATION_STUDIO)
 
     const refresh = useCallback(async () => {
+        if (!repository) return;
         const groups = await fetchAll(next => callAPI(AppStore.browseGroups({ repository: repository, itemsPerPage: 250, next})));
-
         setGroups(groups);
 
         setRepositories(AppStore.browseRepositories({includePrivate: true, itemsPerPage: 250})).then(doNothing);
@@ -75,7 +75,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         <Select selectRef={selectRef} onChange={e => {
                             if (!selectRef.current) return;
                             if (selectRef.current.value === "") return;
-                            setRepository(parseInt(selectRef.current.value, 10));
+                            setRepository(selectRef.current.value);
                         }}>
                             <option disabled selected value="0">Select a repository</option>
                             {repositories.data.items.map(r =>
@@ -86,14 +86,14 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         </Select>
                     </Box>
 
-                    {repository === 0 ? null : <>
+                    {!repository ? null : <>
                         <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
                             <label className={ButtonClass} style={{flexGrow: 1}}>
                                 Upload application
                                 <HiddenInputField
                                     type="file"
                                     onChange={async e => {
-                                        if (repository < 1) {
+                                        if (!repository) {
                                             snackbarStore.addFailure("Please select a repository to upload an application", false);
                                             return;
                                         }
@@ -131,7 +131,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                             if (file.size > 1024 * 512) {
                                                 snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                             } else {
-                                                const error = (await AppStore.createTool(file)).error;
+                                                const error = (await AppStore.createTool(file, repository)).error;
                                                 if (error != null) {
                                                     setErrorMessage(error);
                                                 } else {
