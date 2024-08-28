@@ -177,6 +177,35 @@ export function ContextSwitcher({managed}: {
         };
     }, []);
 
+    const sortAndScroll = React.useCallback((projectId: string) => {
+        setProjectList(page => {
+            const clickedProject = page.items.find(it => it.id === projectId);
+            if (clickedProject) {
+                clickedProject.status.isFavorite = !clickedProject.status.isFavorite;
+                if (clickedProject.status.isFavorite) {
+                    // Note(Jonas): Allow re-render, THEN scroll
+                    window.setTimeout(() => {
+                        const switcher = document.querySelector(`[data-component="project-switcher"]`);
+                        const projectRow = switcher?.querySelector(`[data-project="${projectId}"]`);
+                        if (switcher && projectRow) {
+                            projectRow.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
+                        }
+                    }, 1);
+                }
+            }
+
+            page.items = [...page.items.sort((a, b) => {
+                if (a.status.isFavorite && b.status.isFavorite) return a.specification.title.localeCompare(b.specification.title);
+                if (a.status.isFavorite) return -1;
+                if (b.status.isFavorite) return 1;
+                return a.specification.title.localeCompare(b.specification.title);
+            })];
+
+            return {...page};
+        });
+    }, []);
+
+
     const showMyWorkspace =
         activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
 
@@ -260,7 +289,7 @@ export function ContextSwitcher({managed}: {
                                 className={BottomBorderedRow}
                                 onClick={() => setActiveProject(it.id)}
                             >
-                                <Favorite project={it} />
+                                <Favorite project={it} onClickedFavorite={sortAndScroll} />
                                 <Text fontSize="var(--breadText)">{projectTitle(it)}</Text>
                             </div>
                         )}
@@ -275,7 +304,7 @@ export function ContextSwitcher({managed}: {
     );
 }
 
-function Favorite({project}: {project: Project}): React.ReactNode {
+function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavorite(id: string): void;}): React.ReactNode {
     const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -287,6 +316,7 @@ function Favorite({project}: {project: Project}): React.ReactNode {
             invokeCommand(Api.toggleFavorite(
                 bulkRequestOf({id: p.id})
             ), {defaultErrorHandler: false});
+            onClickedFavorite(p.id);
         } catch (e) {
             setIsFavorite(f => !f);
             displayErrorMessageOrDefault(e, "Failed to toggle favorite");
