@@ -52,7 +52,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -69,6 +69,7 @@ import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {Feature, hasFeature} from "@/Features";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -123,6 +124,7 @@ let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 
+const RESOURCE_NAME = "File";
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
@@ -176,7 +178,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
 
                 // Syncthing data
@@ -437,24 +439,45 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
 
                     if (shouldMove) {
-                        browser.undoStack.unshift(() => {
-                            if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
-                                for (const file of files) {
-                                    insertFakeEntry(
-                                        fileName(file.id),
-                                        {
-                                            type: file.status.type,
-                                            hint: file.status.icon,
-                                            modifiedAt: file.status.modifiedAt,
-                                            size: file.status.sizeInBytes
-                                        }
-                                    );
+                        if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                            ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
                                 }
-                                browser.renderRows();
-                            }
 
-                            callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
-                        });
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        } else {
+                            browser._undoStack.unshift(() => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
+                                }
+
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        }
                     }
                 };
 
@@ -554,17 +577,31 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                     browser.refresh();
                                 });
 
-                                browser.undoStack.unshift(() => {
-                                    callAPI(FilesApi.move(bulkRequestOf({
-                                        oldId: actualFile.id,
-                                        newId: oldId,
-                                        conflictPolicy: "REJECT"
-                                    })));
+                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
 
-                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
-                                    actualFile.id = oldId;
-                                    browser.renderRows();
-                                });
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
+                                } else {
+                                    browser._undoStack.unshift(() => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
+
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
+                                }
                             }
                         },
                         doNothing,

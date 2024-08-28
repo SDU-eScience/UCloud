@@ -530,6 +530,9 @@ and a $TYPE_REF AppParameterValue:
 
 For each of the $TYPE_REF InvocationParameter types, we will describe the value(s) they produce. We will also highlight 
 notable differences between CLI args and environment variables.
+
+Version 2 of the application format will always have exactly one invocation parameters which will be of type
+JinjaInvocationParameter.
 """, importance = 920
 )
 sealed class InvocationParameter {
@@ -538,6 +541,18 @@ sealed class InvocationParameter {
         context: InvocationParameterContext = InvocationParameterContext.COMMAND,
         builder: ArgumentBuilder = ArgumentBuilder.Default,
     ): List<String>
+}
+
+@Serializable
+@SerialName("jinja")
+data class JinjaInvocationParameter(
+    val template: String,
+) : InvocationParameter() {
+    override suspend fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder
+    ): List<String> = error("not implemented in Kotlin")
 }
 
 @Serializable
@@ -1259,6 +1274,9 @@ data class ApplicationInvocationDescription(
     @UCloudApiDoc("A section describing integration with a module system. " +
             "Currently only valid for `CONTAINER` based applications.")
     val modules: ModulesSection? = null,
+
+    @UCloudApiDoc("Directives for sbatch which can be consumed by Slurm-based providers")
+    val sbatch: Map<String, InvocationParameter>? = null,
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {
@@ -1369,6 +1387,8 @@ data class NormalizedToolDescription(
         
         The provider decides how to interpret this value. It is intended to be used with a module system of traditional 
         HPC systems.
+        
+        This is being replaced by loadInstructions, but may still be present for older applications.
     """)
     val requiredModules: List<String>,
 
@@ -1409,10 +1429,41 @@ data class NormalizedToolDescription(
         If no providers are supplied, then this Tool will implicitly support all Providers.
     """)
     val supportedProviders: List<String>? = null,
+
+    val buildInstructions: ToolBuildInstructions? = null,
+    val loadInstructions: ToolLoadInstructions? = null,
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"
     }
+}
+
+@Serializable
+sealed class ToolBuildInstructions {
+    @Serializable
+    @SerialName("NativeEasyBuild")
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    data class NativeEasyBuild(
+        val repository: String,
+        val files: List<String>,
+    ) : ToolBuildInstructions()
+
+    @Serializable
+    @SerialName("NativeSpack")
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    data class NativeSpack(
+        val repository: String,
+        val packages: List<String>,
+    ) : ToolBuildInstructions()
+}
+
+@Serializable
+sealed class ToolLoadInstructions {
+    @Serializable
+    @SerialName("NativeModuleWithJinja")
+    data class NativeModuleWithJinja(
+        val modules: List<String>,
+    ) : ToolLoadInstructions()
 }
 
 @Serializable

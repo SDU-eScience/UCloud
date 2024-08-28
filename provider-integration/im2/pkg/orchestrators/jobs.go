@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"ucloud.dk/gonja/v2/exec"
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
@@ -281,8 +282,28 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 	}
 }
 
-func BuildParameter(param InvocationParameter, values map[string]ParamAndValue, environmentVariable bool, builder ArgBuilder) []string {
+func BuildParameter(
+	param InvocationParameter,
+	values map[string]ParamAndValue,
+	environmentVariable bool,
+	builder ArgBuilder,
+	templates map[string]string,
+	jinjaCtx *exec.Context,
+) []string {
 	switch param.Type {
+	case InvocationParameterTypeJinja:
+		flags := JinjaFlags(0)
+		if environmentVariable {
+			flags |= JinjaFlagsNoEscape
+		}
+
+		output, ok := ExecuteJinjaTemplate(param.InvocationParameterJinja.Template, templates, jinjaCtx, flags)
+		if !ok {
+			return nil
+		} else {
+			return []string{output}
+		}
+
 	case InvocationParameterTypeWord:
 		return []string{param.InvocationParameterWord.Word}
 

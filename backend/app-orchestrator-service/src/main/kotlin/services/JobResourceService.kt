@@ -1022,7 +1022,7 @@ class JobResourceService(
                     .asSequence()
                     .filter { !it.referencesResource() }
                     .onEach {
-                        it.name = JobVerificationService.injectedPrefix + it.name.removePrefix(JobVerificationService.injectedPrefix)
+                        it.name = injectedPrefix + it.name.removePrefix(injectedPrefix)
                     }
                     .toList()
             }

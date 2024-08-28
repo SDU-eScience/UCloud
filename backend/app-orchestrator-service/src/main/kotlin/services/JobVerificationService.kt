@@ -377,7 +377,5 @@ class JobVerificationService(
 
     companion object : Loggable {
         override val log = logger()
-
-        const val injectedPrefix = "_injected_"
     }
 }

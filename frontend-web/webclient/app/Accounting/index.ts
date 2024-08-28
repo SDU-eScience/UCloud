@@ -737,7 +737,6 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
     let ownedByPersonalProviderProject = false;
     if (allWallets.length > 0) {
         const owner = allWallets[0].owner;
-        console.log("owner is", owner);
         if (owner.type === "project") {
             const projectId = owner.projectId;
             let items = projectCache.retrieveFromCacheOnly("")?.items;
@@ -745,7 +744,6 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
             if (project) {
                 ownedByPersonalProviderProject = project.status.personalProviderProjectFor != null;
             }
-            console.log("items", items, "project", project, "ownedByPersonalProviderProject", ownedByPersonalProviderProject);
         }
     }
 

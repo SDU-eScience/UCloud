@@ -36,6 +36,7 @@ import {addProjectListener} from "@/Project/ReduxState";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
+import {Feature, hasFeature} from "@/Features";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -64,6 +65,7 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
+const RESOURCE_NAME = "Drive";
 const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileCollection>}> = ({opts}) => {
     const navigate = useNavigate();
     const mountRef = useRef<HTMLDivElement | null>(null);
@@ -96,7 +98,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, "drive", opts).init(browserRef, FEATURES, "/", browser => {
+            new ResourceBrowser<FileCollection>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "/", browser => {
                 addProjectListener("drive-browse", p => {
                     browser.features.filters = !!p;
                     if (p) {
@@ -219,17 +221,31 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                                     browser.refresh();
                                 });
 
-                                browser.undoStack.unshift(() => {
-                                    callAPI(FileCollectionsApi.rename(bulkRequestOf({
-                                        id: drive.id,
-                                        newTitle: oldTitle
-                                    })));
+                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                        callAPI(FileCollectionsApi.rename(bulkRequestOf({
+                                            id: drive.id,
+                                            newTitle: oldTitle
+                                        })));
 
-                                    drive.specification.title = oldTitle;
-                                    browser.dispatchMessage("sort", fn => fn(page));
-                                    browser.renderRows();
-                                    browser.selectAndShow(it => it.id === drive.id);
-                                });
+                                        drive.specification.title = oldTitle;
+                                        browser.dispatchMessage("sort", fn => fn(page));
+                                        browser.renderRows();
+                                        browser.selectAndShow(it => it.id === drive.id);
+                                    });
+                                } else {
+                                    browser._undoStack.unshift(() => {
+                                        callAPI(FileCollectionsApi.rename(bulkRequestOf({
+                                            id: drive.id,
+                                            newTitle: oldTitle
+                                        })));
+
+                                        drive.specification.title = oldTitle;
+                                        browser.dispatchMessage("sort", fn => fn(page));
+                                        browser.renderRows();
+                                        browser.selectAndShow(it => it.id === drive.id);
+                                    });
+                                }
                             }
                         },
                         doNothing,
