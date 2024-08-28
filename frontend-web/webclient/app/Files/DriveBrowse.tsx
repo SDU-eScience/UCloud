@@ -362,11 +362,11 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         }
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, dims, row)
+                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
                     row.title.append(title);
                     row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
-                        const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, dims, row);
+                        const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, row);
                         createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
                         row.stat2.append(createdByElement);
                     }

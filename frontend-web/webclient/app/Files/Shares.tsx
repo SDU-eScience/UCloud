@@ -446,7 +446,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
                                 share.specification.sharedWith ?? share.id,
-                            dims,
                             row
                         )
                     );

@@ -786,7 +786,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {

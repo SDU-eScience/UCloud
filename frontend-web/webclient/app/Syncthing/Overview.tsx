@@ -1012,7 +1012,7 @@ function ServerBrowse({servers, opts, callbacks}: {
 
                     const rawTitle = server.specification.name ?? `Server (${server.id})`;
                     const title = removePrefixFrom("Syncthing ", rawTitle);
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
 
                     const flexWrapper = createHTMLElements({
                         tagType: "div",
@@ -1147,7 +1147,7 @@ function DeviceBrowse({devices, dispatch, opts}: {dispatch(action: UIAction): vo
                         color: "textPrimary",
                         color2: "textPrimary",
                     }).then(setDeviceIcon);
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(device.label, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(device.label, row));
 
                     const trigger = createHTMLElements({
                         tagType: "div",
@@ -1274,7 +1274,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                         width: 64
                     }).then(setIcon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, row);
                     row.title.append(title);
                     prettyFilePath(folder.ucloudPath).then(it => {
                         title.innerText = it;

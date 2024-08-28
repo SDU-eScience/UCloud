@@ -159,7 +159,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
                     if (!simpleView) {
                         if (job.owner.createdBy === "_ucloud") {
                             row.stat1.innerHTML = "";
@@ -167,7 +167,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             elem.innerText = "Unknown";
                             row.stat1.append(elem);
                         } else {
-                            const createdByElement = ResourceBrowser.defaultTitleRenderer(job.owner.createdBy, dims, row);
+                            const createdByElement = ResourceBrowser.defaultTitleRenderer(job.owner.createdBy, row);
                             createdByElement.style.maxWidth = `calc(var(--stat1Width) - 20px)`;
                             row.stat1.append(createdByElement);
                         }

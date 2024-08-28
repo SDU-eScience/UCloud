@@ -116,7 +116,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
 
                     const avatarWrapper = document.createElement("div");
                     row.stat3.append(avatarWrapper);

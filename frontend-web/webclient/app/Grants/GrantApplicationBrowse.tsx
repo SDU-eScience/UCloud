@@ -130,7 +130,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     let combinedTitle = grantTitle;
                     if (subtitle) combinedTitle = `[${subtitle}] ${combinedTitle}`;
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(combinedTitle, row));
 
                     if (opts?.both) {
                         const currentRevision = app.status.revisions.at(0);

@@ -84,7 +84,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, dimensions, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, row));
 
                     setIcon(AppStore.retrieveAppLogo({
                         name: entry.metadata.name,

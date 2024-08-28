@@ -203,7 +203,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
                         const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
                     }
 
                     if (opts?.selection) {
