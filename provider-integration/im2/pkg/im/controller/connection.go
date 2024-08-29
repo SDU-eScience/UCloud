@@ -192,7 +192,7 @@ func MapLocalToUCloud(uid uint32) (string, bool) {
 }
 
 func RegisterProjectMapping(projectId string, gid uint32) {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -209,7 +209,7 @@ func RegisterProjectMapping(projectId string, gid uint32) {
 
 func MapLocalProjectToUCloud(gid uint32) (string, bool) {
 	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
-		val, ok := db.Get[struct{ ProjectId string }](
+		val, ok := db.Get[struct{ UCloudProjectId string }](
 			tx,
 			`
 				select ucloud_project_id
@@ -221,7 +221,7 @@ func MapLocalProjectToUCloud(gid uint32) (string, bool) {
 				"gid": gid,
 			},
 		)
-		return val.ProjectId, ok
+		return val.UCloudProjectId, ok
 	})
 }
 
@@ -472,7 +472,7 @@ func controllerConnection(mux *http.ServeMux) {
 				}
 			}
 
-			db.NewTxV(func(tx *db.Transaction) {
+			db.NewTx0(func(tx *db.Transaction) {
 				db.Exec(
 					tx,
 					`

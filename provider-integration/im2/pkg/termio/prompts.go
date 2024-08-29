@@ -142,7 +142,7 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 
 			selectedIcon := "◯"
 			if alreadySelected {
-				selectedIcon = "◉" 
+				selectedIcon = "◉"
 			}
 			WriteStyledLine(NoStyle, color, DefaultColor, "  %s %s %s", hoveredArrow, selectedIcon, item.Message)
 		}
@@ -467,8 +467,14 @@ const (
 	ConfirmValueFalse ConfirmValue = 2
 )
 
+type ConfirmPromptFlags int
+
+const (
+	ConfirmPromptExitOnCancel ConfirmPromptFlags = 1 << iota
+)
+
 // Prompt for yes/no answer, returns error if user cancels using Ctrl+C or ESC.
-func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
+func ConfirmPrompt(question string, defaultValue ConfirmValue, flags ConfirmPromptFlags) (bool, error) {
 	choice := defaultValue
 	cancelled := false
 	done := false
@@ -532,6 +538,9 @@ func ConfirmPrompt(question string, defaultValue ConfirmValue) (bool, error) {
 	}
 
 	if cancelled {
+		if flags&ConfirmPromptExitOnCancel != 0 {
+			os.Exit(1)
+		}
 		return false, fmt.Errorf("Cancelled")
 	}
 

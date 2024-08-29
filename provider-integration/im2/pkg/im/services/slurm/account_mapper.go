@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os/user"
+	"regexp"
+	"strconv"
 	"time"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
@@ -32,6 +34,297 @@ func InitDefaultAccountMapper() AccountMapperService {
 			return ipc.Response[[]string]{
 				StatusCode: http.StatusOK,
 				Payload:    result,
+			}
+		})
+
+		accountMapperCliList.Handler(func(r *ipc.Request[accountMapperCliQuery]) ipc.Response[[]accountMapperRow] {
+			if r.Uid != 0 {
+				return ipc.Response[[]accountMapperRow]{
+					StatusCode: http.StatusForbidden,
+				}
+			}
+
+			if r.Payload.Account != "" {
+				_, err := regexp.CompilePOSIX(r.Payload.Account)
+				if err != nil {
+					return ipc.Response[[]accountMapperRow]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("account-name: %s", err),
+					}
+				}
+			}
+
+			if r.Payload.Account != "" {
+				_, err := regexp.CompilePOSIX(r.Payload.UCloudName)
+				if err != nil {
+					return ipc.Response[[]accountMapperRow]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("ucloud-name: %s", err),
+					}
+				}
+			}
+
+			if r.Payload.Category != "" {
+				_, err := regexp.CompilePOSIX(r.Payload.Category)
+				if err != nil {
+					return ipc.Response[[]accountMapperRow]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("category: %s", err),
+					}
+				}
+			}
+
+			result, err := db.NewTx2(func(tx *db.Transaction) ([]accountMapperRow, error) {
+				rows := db.Select[struct {
+					Title       string
+					Username    string
+					Project     string
+					AccountName string
+					Category    string
+				}](
+					tx,
+					`
+						select
+							coalesce(p.ucloud_project#>>'{specification,title}', a.owner_username) as title,
+							a.owner_username as username,
+							a.owner_project as project,
+							a.account_name,
+							a.category
+						from
+							slurm.accounts a
+							left join tracked_projects p on p.project_id = a.owner_project
+						where
+							(
+								:ucloud_name = ''
+								or coalesce(p.ucloud_project#>>'{specification,title}', a.owner_username) ~ :ucloud_name
+							)
+							and (
+								:slurm_account = ''
+								or a.account_name ~ :slurm_account
+							)
+							and (
+								:category = ''
+								or a.category ~ :category
+							)
+						order by title
+						limit 250
+					`,
+					db.Params{
+						"ucloud_name":   r.Payload.UCloudName,
+						"slurm_account": r.Payload.Account,
+						"category":      r.Payload.Category,
+					},
+				)
+
+				if tx.ConsumeError() != nil {
+					// NOTE(Dan): This can happen since the two POSIX regexes don't fully agree on each other here.
+					// The easiest way to reproduce it through something like '.*substring**' (note double *)
+					return nil, fmt.Errorf("invalid regex supplied")
+				}
+
+				var localNameRegex *regexp.Regexp
+				if r.Payload.LocalName != "" {
+					reg, err := regexp.CompilePOSIX(r.Payload.LocalName)
+					if err != nil {
+						return nil, fmt.Errorf("invalid local-name regex: %s", err)
+					}
+
+					localNameRegex = reg
+				}
+
+				var result []accountMapperRow
+				for _, row := range rows {
+					localName := ""
+
+					if row.Username != "" {
+						local, ok := ctrl.MapUCloudToLocal(row.Username)
+						if !ok {
+							continue
+						}
+
+						u, err := user.LookupId(fmt.Sprint(local))
+						if err != nil {
+							continue
+						}
+
+						localName = u.Username
+					} else if row.Project != "" {
+						local, ok := ctrl.MapUCloudProjectToLocal(row.Project)
+						if !ok {
+							continue
+						}
+
+						g, err := user.LookupGroupId(fmt.Sprint(local))
+						if err != nil {
+							continue
+						}
+
+						localName = g.Name
+					}
+
+					if localNameRegex != nil {
+						if !localNameRegex.MatchString(localName) {
+							continue
+						}
+					}
+
+					result = append(result, accountMapperRow{
+						UCloudName:   row.Title,
+						LocalName:    localName,
+						Category:     row.Category,
+						SlurmAccount: row.AccountName,
+					})
+				}
+
+				return result, nil
+			})
+
+			if err != nil {
+				return ipc.Response[[]accountMapperRow]{
+					StatusCode:   http.StatusBadRequest,
+					ErrorMessage: err.Error(),
+				}
+			}
+
+			return ipc.Response[[]accountMapperRow]{
+				StatusCode: http.StatusOK,
+				Payload:    result,
+			}
+		})
+
+		accountMapperCliAdd.Handler(func(r *ipc.Request[accountMappingRequest]) ipc.Response[util.Empty] {
+			if r.Uid != 0 {
+				return ipc.Response[util.Empty]{
+					StatusCode: http.StatusForbidden,
+				}
+			}
+
+			_, ok := ServiceConfig.Compute.Machines[r.Payload.Category]
+			if !ok {
+				return ipc.Response[util.Empty]{
+					StatusCode: http.StatusForbidden,
+					ErrorMessage: fmt.Sprintf(
+						"unknown category specified, make sure it is in the machine type configuration: %s",
+						r.Payload.Category,
+					),
+				}
+			}
+
+			isProject := false
+			workspaceRef := ""
+
+			{
+				userName, asUserErr := user.Lookup(r.Payload.LocalName)
+				_, asUserUidErr := user.LookupId(r.Payload.LocalName)
+				groupName, asGroupErr := user.LookupGroup(r.Payload.LocalName)
+				_, asGroupGidErr := user.LookupGroupId(r.Payload.LocalName)
+
+				isGroup := false
+				numericId := uint32(0)
+
+				switch {
+				case asUserUidErr == nil:
+					numeric, _ := strconv.Atoi(r.Payload.LocalName)
+					numericId = uint32(numeric)
+					isGroup = false
+
+				case asUserErr == nil:
+					numeric, _ := strconv.Atoi(userName.Uid)
+					numericId = uint32(numeric)
+					isGroup = false
+
+				case asGroupGidErr == nil:
+					numeric, _ := strconv.Atoi(r.Payload.LocalName)
+					numericId = uint32(numeric)
+					isGroup = true
+
+				case asGroupErr == nil:
+					numeric, _ := strconv.Atoi(groupName.Gid)
+					numericId = uint32(numeric)
+					isGroup = true
+
+				default:
+					return ipc.Response[util.Empty]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("could not resolve local user/group with name: %s", r.Payload.LocalName),
+					}
+				}
+
+				if isGroup {
+					projectId, found := ctrl.MapLocalProjectToUCloud(numericId)
+					ok = found
+					isProject = true
+					workspaceRef = projectId
+				} else {
+					ucloudUsername, found := ctrl.MapLocalToUCloud(numericId)
+					ok = found
+					isProject = false
+					workspaceRef = ucloudUsername
+				}
+
+				if !ok {
+					return ipc.Response[util.Empty]{
+						StatusCode:   http.StatusBadRequest,
+						ErrorMessage: fmt.Sprintf("local user/group is not connected with UCloud: %s (%v)", r.Payload.LocalName, numericId),
+					}
+				}
+			}
+
+			ownerUsername := ""
+			ownerProject := ""
+
+			if isProject {
+				ownerProject = workspaceRef
+			} else {
+				ownerUsername = workspaceRef
+			}
+
+			log.Info("acc %s", r.Payload.SlurmAccount)
+
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into slurm.accounts(owner_username, owner_project, category, account_name) 
+						values (:owner_username, :owner_project, :category, :account_name)
+				    `,
+					db.Params{
+						"owner_username": ownerUsername,
+						"owner_project":  ownerProject,
+						"category":       r.Payload.Category,
+						"account_name":   r.Payload.SlurmAccount,
+					},
+				)
+			})
+
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+			}
+		})
+
+		accountMapperCliDelete.Handler(func(r *ipc.Request[accountMapperCliDeleteRequest]) ipc.Response[util.Empty] {
+			if r.Uid != 0 {
+				return ipc.Response[util.Empty]{
+					StatusCode: http.StatusForbidden,
+				}
+			}
+
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						delete from slurm.accounts a
+						where
+							a.account_name = some(:names)
+				    `,
+					db.Params{
+						"names": r.Payload.AccountNames,
+					},
+				)
+			})
+
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
 			}
 		})
 	}
@@ -159,7 +452,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 			accountName = resp.AccountName
 		}
 
-		db.NewTxV(func(tx *db.Transaction) {
+		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
 				`
@@ -353,3 +646,31 @@ func (a *defaultAccountMapper) ServerLookupOwnerOfAccount(account string) []Slur
 }
 
 var findSlurmAccount = ipc.NewCall[SlurmJobConfiguration, []string]("slurm.account_mapper.evaluate")
+
+type accountMapperCliQuery struct {
+	UCloudName string
+	Account    string
+	LocalName  string
+	Category   string
+}
+
+type accountMappingRequest struct {
+	LocalName    string
+	Category     string
+	SlurmAccount string
+}
+
+type accountMapperRow struct {
+	UCloudName   string
+	LocalName    string
+	Category     string
+	SlurmAccount string
+}
+
+type accountMapperCliDeleteRequest struct {
+	AccountNames []string
+}
+
+var accountMapperCliList = ipc.NewCall[accountMapperCliQuery, []accountMapperRow]("slurm.account_mapper.list")
+var accountMapperCliDelete = ipc.NewCall[accountMapperCliDeleteRequest, util.Empty]("slurm.account_mapper.delete")
+var accountMapperCliAdd = ipc.NewCall[accountMappingRequest, util.Empty]("slurm.account_mapper.add")
