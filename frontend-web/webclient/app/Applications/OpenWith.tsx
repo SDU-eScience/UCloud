@@ -1,7 +1,6 @@
 import * as React from "react";
 import {BulkResponse, compute, FindByStringId} from "@/UCloud";
 import {useState} from "react";
-import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";

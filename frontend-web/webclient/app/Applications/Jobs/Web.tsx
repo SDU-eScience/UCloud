@@ -1,5 +1,3 @@
-import * as UCloud from "@/UCloud";
-
 interface SessionType {
     jobId: string;
     rank: number;

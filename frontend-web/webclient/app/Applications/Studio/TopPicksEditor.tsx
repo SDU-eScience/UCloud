@@ -4,10 +4,10 @@ import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedFo
 import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
 import {doNothing} from "@/UtilityFunctions";
-import {ApplicationGroup, Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {ApplicationGroup, TopPick} from "@/Applications/AppStoreApi";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {SpotlightCard, TopPicksCard} from "@/Applications/Landing";
+import {TopPicksCard} from "@/Applications/Landing";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {fetchAll} from "@/Utilities/PageUtilities";

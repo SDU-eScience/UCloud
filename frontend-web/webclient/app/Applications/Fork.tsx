@@ -12,7 +12,7 @@ import {SafeLogo} from "@/Applications/AppToolLogo";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import Text from "../ui-components/Text";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {extensionFromPath, isLightThemeStored, languageFromExtension} from "@/UtilityFunctions";
+import {isLightThemeStored} from "@/UtilityFunctions";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {useSelector} from "react-redux";
 import {Feature, hasFeature} from "@/Features";

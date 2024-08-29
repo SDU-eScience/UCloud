@@ -3103,7 +3103,10 @@ export class ResourceBrowser<T> {
 
         search.placeholder = "Search drives...";
 
-        search.addEventListener("click", e => (e.stopImmediatePropagation(), stopPropagationAndPreventDefault(e)));
+        search.addEventListener("click", e => {
+            e.stopImmediatePropagation();
+            stopPropagationAndPreventDefault(e)
+        });
 
         search.addEventListener("keydown", e => {
             if (!["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {

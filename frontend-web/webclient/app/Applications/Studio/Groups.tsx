@@ -1,15 +1,14 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Input, Label, Link, List} from "@/ui-components";
+import {Box, Button, Flex, Input, Link, List} from "@/ui-components";
 import React, {useCallback, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
-import {AppToolLogo, SafeLogo} from "../AppToolLogo";
+import {SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {doNothing, onDevSite} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";

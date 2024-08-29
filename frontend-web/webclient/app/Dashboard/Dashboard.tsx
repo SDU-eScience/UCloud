@@ -28,7 +28,6 @@ import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
-import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
@@ -37,7 +36,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {AllocationDisplayWallet, UsageAndQuota} from "@/Accounting";
+import {AllocationDisplayWallet} from "@/Accounting";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;

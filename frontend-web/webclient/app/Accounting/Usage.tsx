@@ -137,7 +137,9 @@ function stateReducer(state: State, action: UIAction): State {
                 }
 
                 summary.usage += Number(group.group.usage);
-                var quota = 0
+                // This could be replaced by this, right?
+                // summary.quota += group.group.allocations.reduce((acc, alloc) => acc + alloc.quota, 0);
+                let quota = 0;
                 group.group.allocations.forEach(alloc => quota += alloc.quota)
                 summary.quota += Number(quota);
             }

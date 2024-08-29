@@ -6,7 +6,7 @@ import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import Grid from "@/ui-components/Grid";
 import {AppCard, AppCardType} from "@/Applications/Card";
-import {Box, Flex, Icon, Input} from "@/ui-components";
+import {Box, Flex} from "@/ui-components";
 import * as Pages from "./Pages";
 import {injectStyle} from "@/Unstyled";
 import AppRoutes from "@/Routes";

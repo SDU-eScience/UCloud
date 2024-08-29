@@ -4,7 +4,6 @@ import {useLayoutEffect, useRef} from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     EmptyReasonTag,
-    placeholderImage,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ColumnTitleList,

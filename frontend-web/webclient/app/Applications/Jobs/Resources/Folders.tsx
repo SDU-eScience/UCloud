@@ -1,5 +1,4 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud"
 import {Box, Button, Card, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import Link from "@/ui-components/Link";
