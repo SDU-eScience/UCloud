@@ -47,7 +47,12 @@ class ImportExport(
         }
         val groupLogos = groups.map { it.metadata.id to service.retrieveRawGroupLogo(it.metadata.id) }.toMap()
 
-        val categories: List<ApplicationCategory> = service.listCategories()
+        val categories: MutableList<ApplicationCategory> = mutableListOf()
+
+        for (repositoryId in repositoryIds) {
+            categories.addAll(service.listCategories(ActorAndProject.System, repositoryId))
+        }
+
         val categoryMemberships: Map<Int, List<Int>> = categories.associate { category ->
             val categoryId = category.metadata.id
             val membership = service.retrieveCategory(ActorAndProject.System, categoryId, loadGroups = true)
@@ -244,7 +249,8 @@ class ImportExport(
             }
         }
 
-        val existingCategories = service.listCategories()
+        // TODO(Brian)
+        val existingCategories = service.listCategories(ActorAndProject.System, "main")
         val categoryIdRemapper = categories.mapNotNull { c ->
             val existing = existingCategories.find { it.specification.title.equals(c.specification.title, ignoreCase = true) }
             if (existing == null) return@mapNotNull null

@@ -60,15 +60,21 @@ export const AppGroup: React.FunctionComponent = () => {
 
     const didCancel = useDidUnmount();
 
+    const fetchCategories = () => {
+        if (!group.data) return;
+        fetchAll(next => {
+            const categories = callAPI(AppStore.browseCategories({repository: group.data!!.specification.repository, itemsPerPage: 250, next}));
+            
+            if (!didCancel.current) {
+                categories.then(fetched => setCategories(fetched.items));
+            };
+            return categories;
+        });
+    };
+
     const refresh = useCallback(async () => {
         fetchGroup(AppStore.retrieveGroup({id})).then(doNothing);
-        const categories = await fetchAll(next => {
-            return callAPI(AppStore.browseCategories({itemsPerPage: 250, next}));
-        });
-
-        if (!didCancel.current) {
-            setCategories(categories);
-        }
+        fetchCategories();
     }, [id]);
 
     useEffect(() => {
@@ -79,6 +85,7 @@ export const AppGroup: React.FunctionComponent = () => {
         if (group.data) {
             setDefaultApplication(group.data?.specification?.defaultFlavor ?? undefined);
             setLogoHasText(group.data?.specification?.logoHasText ?? false);
+            fetchCategories();
         }
     }, [group.data]);
 

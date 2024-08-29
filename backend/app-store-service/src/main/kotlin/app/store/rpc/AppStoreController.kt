@@ -333,12 +333,13 @@ class AppStoreController(
         }
 
         implement(AppStore.browseCategories) {
-            ok(PageV2.of(service.listCategories()))
+            ok(PageV2.of(service.listCategories(actorAndProject, request.repository, request.storeFront)))
         }
 
         implement(AppStore.retrieveCategory) {
             ok(
                 service.retrieveCategory(actorAndProject, request.id, loadGroups = true)
+
                     ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
             )
         }

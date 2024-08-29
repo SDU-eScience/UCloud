@@ -798,6 +798,8 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
+            val repository: String? = null,
+            val storeFront: Int? = null
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -1379,6 +1381,7 @@ data class ApplicationCategory(
     data class Specification(
         val title: String,
         val description: String? = null,
+        val repository: String
     )
 
     @Serializable

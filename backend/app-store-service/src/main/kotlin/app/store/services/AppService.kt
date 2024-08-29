@@ -305,7 +305,7 @@ class AppService(
                 val rawTagInfo = session.sendPreparedStatement(
                     {},
                     """
-                        select t.id, t.tag, t.priority
+                        select t.id, t.tag, t.priority, t.repository
                         from app_store.categories t
                     """
                 ).rows
@@ -313,7 +313,8 @@ class AppService(
                     val tagId = row.getInt(0)!!
                     val tag = row.getString(1)!!
                     val priority = row.getInt(2)!!
-                    categories.computeIfAbsent(tagId.toLong()) { InternalCategory(tag, emptySet(), priority) }
+                    val repository = row.getString(3)!!
+                    categories.computeIfAbsent(tagId.toLong()) { InternalCategory(tag, emptySet(), priority, repository) }
                 }
 
                 val tagRows = session.sendPreparedStatement(
@@ -714,8 +715,7 @@ class AppService(
         val subscriptionIds = subscriptions.map { it.metadata.id }
 
         val picks = topPicks.get().filter { it.storeFront == storeFrontId }.map { it.prepare() }
-        // TODO(Brian)
-        val categories = listCategories()
+        val categories = listCategories(actorAndProject, storeFront = storeFrontId)
         val carrousel = carrousel.get().filter { it.storeFront == storeFrontId }.map { it.prepare() }
         val spotlight = spotlights.values.filter { it.get()?.storeFront == storeFrontId }.find { it.get().active }?.get()?.prepare()
 
@@ -841,8 +841,17 @@ class AppService(
         }
     }
 
-    fun listCategories(): List<ApplicationCategory> {
-        return categories.toList().sortedBy { it.second.priority() }.map { (k, v) ->
+    suspend fun listCategories(actorAndProject: ActorAndProject, repository: String? = null, storeFront: Int? = null): List<ApplicationCategory> {
+        val result = if (!repository.isNullOrEmpty()) {
+            categories.filter { it.value.repository() == repository }
+        } else if (storeFront != null) {
+            val listSubscriptions = listRepositorySubscriptions(actorAndProject, storeFront).map { it.metadata.id }
+            categories.filter { listSubscriptions.contains(it.value.repository()) }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+
+        return result.toList().sortedBy { it.second.priority() }.map { (k, v) ->
             ApplicationCategory(
                 ApplicationCategory.Metadata(
                     k.toInt(),
@@ -850,6 +859,7 @@ class AppService(
                 ApplicationCategory.Specification(
                     v.title(),
                     "",
+                    v.repository()
                 )
             )
         }
@@ -872,7 +882,7 @@ class AppService(
 
         return ApplicationCategory(
             ApplicationCategory.Metadata(categoryId),
-            ApplicationCategory.Specification(title),
+            ApplicationCategory.Specification(title, repository = internal.repository()),
             status
         )
     }
@@ -2176,17 +2186,18 @@ class AppService(
                     {
                         setParameter("title", specification.title)
                         setParameter("priority", priority)
+                        setParameter("repository", specification.repository)
                     },
                     """
-                        insert into app_store.categories (tag, priority) 
-                        values (:title, :priority)
+                        insert into app_store.categories (tag, priority, repository) 
+                        values (:title, :priority, :repository)
                         returning id
                     """
                 ).rows.single().getInt(0)!!
             }
         }
 
-        val category = InternalCategory(specification.title, emptySet(), priority)
+        val category = InternalCategory(specification.title, emptySet(), priority, specification.repository)
         categories[id.toLong()] = category
         return id
     }
@@ -2503,10 +2514,12 @@ class AppService(
         title: String,
         groups: Set<Int>,
         priority: Int,
+        repository: String
     ) {
         private val title = AtomicReference(title)
         private val groups = AtomicReference(groups)
         private val priority = AtomicInteger(priority)
+        private val repository = AtomicReference(repository)
 
         fun updateTitle(newTitle: String) {
             title.set(newTitle)
@@ -2535,6 +2548,7 @@ class AppService(
         fun title() = title.get()
         fun groups() = groups.get()
         fun priority() = priority.get()
+        fun repository() = repository.get()
     }
 
     data class InternalRepository(

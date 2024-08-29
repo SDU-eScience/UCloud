@@ -665,7 +665,7 @@ export function createCategory(request: ApplicationCategorySpecification): APICa
     return apiUpdate(request, baseContext, "createCategory");
 }
 
-export function browseCategories(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
+export function browseCategories(request: {repository: string} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
     return apiBrowse(request, baseContext, "categories");
 }
 
