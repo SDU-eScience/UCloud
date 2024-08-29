@@ -15,83 +15,85 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-const form: ScaffoldedFormObject = {
-    id: "",
-    type: "Form",
-    repeated: false,
-    elements: [
-        {
-            id: "slides",
-            type: "Form",
-            title: "Slide",
-            minItems: 1,
-            maxItems: 6,
-            repeated: true,
-            elements: [
-                {
-                    type: "Text",
-                    id: "title",
-                    label: "Title",
-                    help: "The title of the slide.",
-                    placeholder: "New application on UCloud!"
-                },
-                {
-                    type: "TextArea",
-                    id: "body",
-                    label: "Body",
-                    help: "The text on the slide.",
-                    placeholder: "Lorem ipsum dolar sit amet...",
-                    rows: 12,
-                },
-                {
-                    type: "Text",
-                    id: "imageCredit",
-                    label: "Image credit",
-                    help: "Attribution for the image",
-                    placeholder: "Lorem ipsum dolar sit amet..."
-                },
-                {
-                    type: "Image",
-                    id: "image",
-                    label: "Image",
-                    help: "Image",
-                },
-                {
-                    type: "Text",
-                    id: "linkedWebPage",
-                    label: "Link (webpage)",
-                    placeholder: "https://example.com",
-                    help: "A link to a web page (cannot be used with other link options)"
-                },
-                {
-                    id: "linkedGroup",
-                    type: "Selector",
-                    label: "Link (application)",
-                    placeholder: "Click to select an application",
-                    help: "A link to an application (cannot be used with other link options)",
-                    onShow: () => {
-                        return new Promise((resolve) => {
-                            dialogStore.addDialog(
-                                <GroupSelector
-                                    storeFront={storeFront}
-                                    onSelect={g => {
-                                        resolve(g);
-                                        dialogStore.success();
-                                    }}
-                                />,
-                                doNothing,
-                                true
-                            );
-                        })
+const form: (storeFront: number) => ScaffoldedFormObject = (storeFront: number) => {
+    return {
+        id: "",
+        type: "Form",
+        repeated: false,
+        elements: [
+            {
+                id: "slides",
+                type: "Form",
+                title: "Slide",
+                minItems: 1,
+                maxItems: 6,
+                repeated: true,
+                elements: [
+                    {
+                        type: "Text",
+                        id: "title",
+                        label: "Title",
+                        help: "The title of the slide.",
+                        placeholder: "New application on UCloud!"
                     },
-                    displayValue: (value: ApplicationGroup | null) => {
-                        if (value) return value.specification.title;
-                        return "";
-                    }
-                },
-            ]
-        }
-    ]
+                    {
+                        type: "TextArea",
+                        id: "body",
+                        label: "Body",
+                        help: "The text on the slide.",
+                        placeholder: "Lorem ipsum dolar sit amet...",
+                        rows: 12,
+                    },
+                    {
+                        type: "Text",
+                        id: "imageCredit",
+                        label: "Image credit",
+                        help: "Attribution for the image",
+                        placeholder: "Lorem ipsum dolar sit amet..."
+                    },
+                    {
+                        type: "Image",
+                        id: "image",
+                        label: "Image",
+                        help: "Image",
+                    },
+                    {
+                        type: "Text",
+                        id: "linkedWebPage",
+                        label: "Link (webpage)",
+                        placeholder: "https://example.com",
+                        help: "A link to a web page (cannot be used with other link options)"
+                    },
+                    {
+                        id: "linkedGroup",
+                        type: "Selector",
+                        label: "Link (application)",
+                        placeholder: "Click to select an application",
+                        help: "A link to an application (cannot be used with other link options)",
+                        onShow: () => {
+                            return new Promise((resolve) => {
+                                dialogStore.addDialog(
+                                    <GroupSelector
+                                        storeFront={storeFront}
+                                        onSelect={g => {
+                                            resolve(g);
+                                            dialogStore.success();
+                                        }}
+                                    />,
+                                    doNothing,
+                                    true
+                                );
+                            })
+                        },
+                        displayValue: (value: ApplicationGroup | null) => {
+                            if (value) return value.specification.title;
+                            return "";
+                        }
+                    },
+                ]
+            }
+        ]
+    };
 };
 
 interface HeroData extends Record<string, unknown> {
@@ -210,7 +212,6 @@ const HeroEditor: React.FunctionComponent = () => {
                     )}
                 </Select>
             </Flex>
-
         }
         main={<>
             {storeFront < 1 ? null : <>
@@ -224,7 +225,7 @@ const HeroEditor: React.FunctionComponent = () => {
                             <div>Save</div>
                         </Button>
                     </TooltipV2>
-                    <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form}/>
+                    <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form(storeFront)}/>
                 </Box>
             </>}
         </>}

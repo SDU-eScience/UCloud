@@ -1230,9 +1230,11 @@ class AppService(
 
     fun listSpotlights(
         actorAndProject: ActorAndProject,
+        storeFront: Int
     ): List<Spotlight> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        return spotlights.values.map { it.get() }
+
+        return spotlights.filter { it.value.get().storeFront == storeFront }.values.map { it.get() }
     }
 
     // Starred applications

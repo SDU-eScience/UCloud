@@ -1,10 +1,10 @@
 import * as React from "react";
-import {Button, Flex, Link, MainContainer} from "@/ui-components";
+import {Button, Flex, Link, MainContainer, Select} from "@/ui-components";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {useCallback, useEffect, useState} from "react";
 import {Spotlight} from "@/Applications/AppStoreApi";
-import {fetchAll} from "@/Utilities/PageUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {ListRow} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
@@ -15,9 +15,17 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 const Spotlights: React.FunctionComponent = () => {
     const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
 
-    const refresh = useCallback(() => {
+    const selectRef = React.useRef<HTMLSelectElement>(null);
+    const [storeFront, setStoreFront] = React.useState<number>(0);
+    const [storeFronts, setStoreFronts] = useCloudAPI(
+        AppStore.browseStoreFronts({itemsPerPage: 250}),
+        emptyPageV2
+    );
+
+    const fetchSpotlights = useCallback(() => {
+        if (storeFront < 1) return;
         let didCancel = false;
-        fetchAll(next => callAPI(AppStore.browseSpotlights({itemsPerPage: 250, next}))).then(d => {
+        fetchAll(next => callAPI(AppStore.browseSpotlights({storeFront, itemsPerPage: 250, next}))).then(d => {
             if (didCancel) return;
             setSpotlights(d);
         });
@@ -25,33 +33,51 @@ const Spotlights: React.FunctionComponent = () => {
         return () => {
             didCancel = true;
         };
-    }, []);
+    }, [storeFront]);
 
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        fetchSpotlights();
+    }, [storeFront]);
 
     usePage("Spotlights", SidebarTabId.APPLICATION_STUDIO);
 
     return <MainContainer
-        main={<Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>
-            <Heading.h2>Spotlights</Heading.h2>
-            <Link to={AppRoutes.appStudio.spotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
-            {spotlights.map(s => (
-                <ListRow
-                    left={<>{s.title}</>}
-                    right={
-                        <Flex gap={"8px"}>
-                            <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
-                            <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
-                                await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
-                                refresh();
-                            }}/>
-                        </Flex>
-                    }
-                />
-            ))}
-        </Flex>}
+        header={
+            <Flex justifyContent="space-between" mb="20px">
+                <Heading.h2>Spotlights</Heading.h2>
+                <Select selectRef={selectRef} width={500} onChange={() => {
+                    if (!selectRef.current) return;
+                    if (selectRef.current.value === "") return;
+                    setStoreFront(parseInt(selectRef.current.value, 10));
+                }}>
+                    <option disabled selected>Select store front...</option>
+                    {storeFronts.data.items.map(front => 
+                        <option value={front.metadata.id}>{front.specification.title}</option>
+                    )}
+                </Select>
+            </Flex>
+        }
+        main={<>
+            {storeFront < 1 ? null : <>
+                <Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>
+                    <Link to={AppRoutes.appStudio.spotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
+                    {spotlights.map(s => (
+                        <ListRow
+                            left={<>{s.title}</>}
+                            right={
+                                <Flex gap={"8px"}>
+                                    <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
+                                    <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
+                                        await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
+                                        fetchSpotlights();
+                                    }}/>
+                                </Flex>
+                            }
+                        />
+                    ))}
+                </Flex>
+            </>}
+        </>}
     />;
 };
 

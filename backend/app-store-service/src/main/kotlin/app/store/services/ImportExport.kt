@@ -32,6 +32,9 @@ class ImportExport(
             service.retrieveTool(ActorAndProject.System, name, version)
         }
 
+        val storeFronts = service.listStoreFronts(ActorAndProject.System)
+        val storeFrontIds = storeFronts.map { it.metadata.id }
+
         val repositories = service.listRepositories()
         val repositoryIds = repositories.map { it.metadata.id }
         val groups: MutableList<ApplicationGroup> = mutableListOf()
@@ -64,7 +67,11 @@ class ImportExport(
             categoryId to membership
         }
 
-        val spotlights: List<Spotlight> = service.listSpotlights(ActorAndProject.System)
+        val spotlights: MutableList<Spotlight> = mutableListOf()
+
+        for (storeFrontId in storeFrontIds) {
+            spotlights.addAll(service.listSpotlights(ActorAndProject.System, storeFrontId))
+        }
 
         // TODO(Brian)
         val currentLanding = service.retrieveLandingPage(ActorAndProject.System, 0)
@@ -282,7 +289,7 @@ class ImportExport(
         }
 
         println("Creating spotlights...")
-        val existingSpotlights = service.listSpotlights(a)
+        val existingSpotlights = service.listSpotlights(a, 1) // TODO(Brian)
         for (spotlight in spotlights) {
             val existingId = existingSpotlights.find { it.title == spotlight.title }?.id
             try {

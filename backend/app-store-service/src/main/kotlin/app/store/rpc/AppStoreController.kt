@@ -492,7 +492,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseSpotlights) {
-            ok(PageV2.of(service.listSpotlights(actorAndProject)))
+            ok(PageV2.of(service.listSpotlights(actorAndProject, request.storeFront)))
         }
 
         implement(AppStore.retrieveSpotlight) {

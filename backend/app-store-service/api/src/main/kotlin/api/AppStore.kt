@@ -1169,6 +1169,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
+            val storeFront: Int
         ): WithPaginationRequestV2
 
         val call = call(

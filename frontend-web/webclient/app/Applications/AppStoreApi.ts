@@ -716,7 +716,7 @@ export function retrieveSpotlight(request: { id: number }): APICallParameters<un
     return apiRetrieve(request, baseContext, "spotlight");
 }
 
-export function browseSpotlights(request: PaginationRequestV2): APICallParameters<unknown, PageV2<Spotlight>> {
+export function browseSpotlights(request: {storeFront: number} & PaginationRequestV2): APICallParameters<unknown, PageV2<Spotlight>> {
     return apiBrowse(request, baseContext, "spotlight");
 }
 
@@ -797,6 +797,7 @@ export interface Spotlight {
     applications: TopPick[];
     active: boolean;
     id?: number | null;
+    storeFront: number;
 }
 
 export function retrieveLandingPage(request: {storeFront: number}): APICallParameters<unknown, LandingPage> {
