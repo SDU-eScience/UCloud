@@ -44,13 +44,39 @@ type defaultAccountMapper struct {
 }
 
 func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owner apm.WalletOwner) (util.Option[string], error) {
-	// TODO(Dan): This should only run once per (workspace, category). A cache is not good enough for this.
-	//   Technically the account mapper should be allowed to literally generate a random value on every invocation and
-	//   everything else should still work as expected.
 	val, ok := a.ServerCache.Get(category+"\n"+owner.Username+"\n"+owner.ProjectId, func() (util.Option[string], error) {
 		_, ok := ServiceConfig.Compute.Machines[category]
 		if !ok {
 			return util.OptNone[string](), fmt.Errorf("unable to evaluate slurm account due to unknown machine configuration %v", category)
+		}
+
+		existing := db.NewTx(func(tx *db.Transaction) util.Option[string] {
+			row, ok := db.Get[struct{ AccountName string }](
+				tx,
+				`
+					select a.account_name
+					from slurm.accounts a
+					where
+						a.category = :category
+						and a.owner_username = :username
+						and a.owner_project = :project
+			    `,
+				db.Params{
+					"category": category,
+					"username": owner.Username,
+					"project":  owner.ProjectId,
+				},
+			)
+
+			if ok {
+				return util.OptValue(row.AccountName)
+			} else {
+				return util.OptNone[string]()
+			}
+		})
+
+		if existing.Present {
+			return existing, nil
 		}
 
 		params := make(map[string]string)
