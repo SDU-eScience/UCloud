@@ -1,20 +1,17 @@
 import MainContainer from "@/ui-components/MainContainer";
 import {Box, Button, Flex, Icon, Input, Label, Link, List, Select} from "@/ui-components";
-import React, {useCallback, useRef, useState} from "react";
+import React, {useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import * as Heading from "@/ui-components/Heading";
 import {useNavigate} from "react-router";
-import {AppToolLogo, SafeLogo} from "../AppToolLogo";
+import {SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
-import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {doNothing, onDevSite} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
-import AppRoutes from "@/Routes";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
@@ -37,28 +34,21 @@ export const ApplicationGroups: React.FunctionComponent = () => {
     const [allGroups, setGroups] = React.useState<AppStore.ApplicationGroup[]>([]);
     
     React.useEffect(() => {
-        if (!repository) return;
-
-        fetchAll(next => callAPI(AppStore.browseGroups({ repository: repository, itemsPerPage: 250, next}))).then(groups => {
-            setGroups(groups);
-        });
+        fetchGroups();
     }, [repository]);
 
     usePage("Application groups", SidebarTabId.APPLICATION_STUDIO)
 
-    const refresh = useCallback(async () => {
+    const fetchGroups = () => {
         if (!repository) return;
-        const groups = await fetchAll(next => callAPI(AppStore.browseGroups({ repository: repository, itemsPerPage: 250, next})));
-        setGroups(groups);
-
-        setRepositories(AppStore.browseRepositories({includePrivate: true, itemsPerPage: 250})).then(doNothing);
-    }, []);
+        fetchAll(next => callAPI(AppStore.browseGroups({ repository: repository, itemsPerPage: 250, next})))
+            .then(groups => setGroups(groups));
+    };
 
     const results = React.useMemo(() => {
         return allGroups.filter(it => it.specification.title.toLowerCase().includes(filter.toLowerCase()))
     }, [allGroups, filter]);
 
-    useSetRefreshFunction(refresh);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     return (
@@ -247,7 +237,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                     } right={
                                     <ConfirmationButton onAction={() => {
                                         invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
-                                        refresh();
+                                        fetchGroups();
                                     }} icon="heroTrash" />
                                 }
                                 />

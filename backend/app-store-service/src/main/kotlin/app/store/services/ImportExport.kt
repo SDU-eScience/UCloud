@@ -289,7 +289,7 @@ class ImportExport(
                     spotlight.applications.map { pick ->
                         pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
                     },
-                    spotlight.storeFront
+                    1 // TODO(Brian)
                 )
             } catch (ex: Throwable) {
                 log.info("Could not create spotlight: ${spotlight.title}")
@@ -300,11 +300,12 @@ class ImportExport(
         try {
             service.updateCarrousel(a, carrousel.map { s ->
                 s.copy(
-                    linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) }
+                    linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) },
+                    storeFront = 1 // TODO(Brian)
                 )
             })
         } catch (ex: Throwable) {
-            log.info("Could not update carrousel")
+            log.info("Could not update carrousel. ${ex.stackTraceToString()}")
         }
         for ((index, image) in carrouselImages.withIndex()) {
             try {
@@ -315,13 +316,13 @@ class ImportExport(
         }
 
         val newTopPicks = topPicks.map { pick ->
-            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
+            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] }, storeFront = 1) // TODO (Brian)
         }
         println("These are the picks! $newTopPicks")
         try {
             service.updateTopPicks(a, newTopPicks)
         } catch (ex: Throwable) {
-            log.info("Could not update top picks!")
+            log.info("Could not update top picks! ${ex.stackTraceToString()}")
         }
 
         for (group in groups) {

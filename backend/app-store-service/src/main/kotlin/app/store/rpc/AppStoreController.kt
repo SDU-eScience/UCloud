@@ -112,7 +112,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseGroups) {
-            ok(PageV2.of(service.listGroups(actorAndProject, request.repository)))
+            ok(PageV2.of(service.listGroups(actorAndProject, request.repository, request.storeFront)))
         }
 
         implement(AppStore.retrieveGroup) {

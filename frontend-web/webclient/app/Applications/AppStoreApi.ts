@@ -581,7 +581,7 @@ export function retrieveGroup(request: { id: number }): APICallParameters<unknow
     return apiRetrieve(request, baseContext, "groups");
 }
 
-export function browseGroups(request: { repository: string } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
+export function browseGroups(request: { repository?: string; storeFront?: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }
 

@@ -4,12 +4,13 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
 import {doNothing} from "@/UtilityFunctions";
 import {ApplicationGroup, CarrouselItem, updateCarrousel} from "@/Applications/AppStoreApi";
-import {Box, Button, Icon, MainContainer} from "@/ui-components";
+import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Hero} from "@/Applications/Landing";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {fetchAll} from "@/Utilities/PageUtilities";
+import * as Heading from "@/ui-components/Heading";
+import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -71,10 +72,13 @@ const form: ScaffoldedFormObject = {
                     onShow: () => {
                         return new Promise((resolve) => {
                             dialogStore.addDialog(
-                                <GroupSelector onSelect={g => {
-                                    resolve(g);
-                                    dialogStore.success();
-                                }}/>,
+                                <GroupSelector
+                                    storeFront={storeFront}
+                                    onSelect={g => {
+                                        resolve(g);
+                                        dialogStore.success();
+                                    }}
+                                />,
                                 doNothing,
                                 true
                             );
@@ -122,57 +126,57 @@ const HeroEditor: React.FunctionComponent = () => {
     const data = rawData as Partial<HeroData>;
     const errors = useRef<Record<string, string>>({});
     const [slides, imageLinks] = translateHeroData(data);
+    const selectRef = React.useRef<HTMLSelectElement>(null);
+
+    const [storeFront, setStoreFront] = React.useState<number>(0);
+    const [storeFronts, setStoreFronts] = useCloudAPI(
+        AppStore.browseStoreFronts({itemsPerPage: 250}),
+        emptyPageV2
+    );
+
+    useEffect(() => {
+        if (storeFront < 1) return;
+        callAPI(AppStore.retrieveLandingPage({storeFront: storeFront})).then(landingPage => {
+            let didCancel = false;
+
+            fetchAll(next => callAPI(AppStore.browseGroups({storeFront: storeFront, itemsPerPage: 250, next}))).then(groups => {
+                const newData: HeroData = {
+                    slides: landingPage.carrousel.map((slide, idx) => ({
+                    title: slide.title,
+                    body: slide.body,
+                    imageCredit: slide.imageCredit,
+                    image: new File([""], loadedFilename + "/" + idx),
+                    linkedGroup: slide.linkedGroup ? groups.find(it => it.metadata.id === slide.linkedGroup) : undefined,
+                    linkedWebPage: slide.linkedWebPage ?? undefined
+                }))};
+
+                setData(newData);
+
+                const imagePromises = newData.slides.map((it, idx) => {
+                    return fetch(AppStore.retrieveCarrouselImage({
+                        index: idx,
+                        slideTitle: it.title
+                    })).then(it => it.blob())
+                });
+
+                Promise.all(imagePromises).then(images => {
+                    if (didCancel) return;
+
+                    const newDataWithImages: HeroData = {
+                        slides: newData.slides.map((s, index) => ({
+                            ...s,
+                            image: new File([images[index]], loadedFilename + "/" + index)
+                        }))
+                    };
+                    setData(newDataWithImages);
+                });
+            });
+        });
+    }, [storeFront]);
+
 
     const allErrors = Object.values(errors.current);
     const firstError = allErrors.length > 0 ? allErrors[0] : null;
-
-    const refresh = useCallback(async () => {
-        let didCancel = false;
-        const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})));
-        const landingPromise = callAPI(AppStore.retrieveLandingPage({}))
-
-        const groups = await groupPromise;
-        const carrousel = (await landingPromise).carrousel;
-        if (didCancel) return;
-
-        const newData: HeroData = {
-            slides: carrousel.map((slide, idx) => ({
-                title: slide.title,
-                body: slide.body,
-                imageCredit: slide.imageCredit,
-                image: new File([""], loadedFilename + "/" + idx),
-                linkedGroup: slide.linkedGroup ? groups.find(it => it.metadata.id === slide.linkedGroup) : undefined,
-                linkedWebPage: slide.linkedWebPage ?? undefined
-            }))
-        };
-        setData(newData);
-
-        const imagePromises = newData.slides.map((it, idx) => {
-            return fetch(AppStore.retrieveCarrouselImage({
-                index: idx,
-                slideTitle: it.title
-            })).then(it => it.blob())
-        });
-
-        const images = await Promise.all(imagePromises);
-        if (didCancel) return;
-
-        const newDataWithImages: HeroData = {
-            slides: newData.slides.map((s, index) => ({
-                ...s,
-                image: new File([images[index]], loadedFilename + "/" + index)
-            }))
-        };
-        setData(newDataWithImages);
-
-        return () => {
-            didCancel = true;
-        };
-    }, []);
-
-    useEffect(() => {
-        refresh();
-    }, [refresh]);
 
     const onSave = useCallback(async () => {
         const [normalized] = translateHeroData(data);
@@ -189,23 +193,40 @@ const HeroEditor: React.FunctionComponent = () => {
         }
 
         await Promise.all(promises);
-        await refresh();
     }, [data]);
 
     return <MainContainer
+        header={
+            <Flex justifyContent="space-between" mb="20px">
+                <Heading.h2>Carrousel</Heading.h2>
+                <Select selectRef={selectRef} width={500} onChange={() => {
+                    if (!selectRef.current) return;
+                    if (selectRef.current.value === "") return;
+                    setStoreFront(parseInt(selectRef.current.value, 10));
+                }}>
+                    <option disabled selected>Select store front...</option>
+                    {storeFronts.data.items.map(front => 
+                        <option value={front.metadata.id}>{front.specification.title}</option>
+                    )}
+                </Select>
+            </Flex>
+
+        }
         main={<>
-            <Box width={"1100px"} margin={"30px auto"}>
-                <Hero slides={slides} imageLinks={imageLinks} isPreview={true}/>
-            </Box>
-            <Box height={"calc(100vh - 16px - 30px - 420px)"} overflowY={"auto"}>
-                <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
-                    <Button fullWidth disabled={firstError !== null} color={"successMain"} onClick={onSave} mb={"16px"}>
-                        <Icon name={"heroCheck"}/>
-                        <div>Save</div>
-                    </Button>
-                </TooltipV2>
-                <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form}/>
-            </Box>
+            {storeFront < 1 ? null : <>
+                <Box width={"1100px"} margin={"30px auto"}>
+                    <Hero slides={slides} imageLinks={imageLinks} isPreview={true}/>
+                </Box>
+                <Box height={"calc(100vh - 16px - 30px - 420px)"} overflowY={"auto"}>
+                    <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
+                        <Button fullWidth disabled={firstError !== null} color={"successMain"} onClick={onSave} mb={"16px"}>
+                            <Icon name={"heroCheck"}/>
+                            <div>Save</div>
+                        </Button>
+                    </TooltipV2>
+                    <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form}/>
+                </Box>
+            </>}
         </>}
     />;
 };

@@ -8,7 +8,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
 import {Toggle} from "@/ui-components/Toggle";
-import {store, useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 
 const Subscriptions: React.FunctionComponent = () => {
     usePage("Repository subscriptions", SidebarTabId.APPLICATION_STUDIO);

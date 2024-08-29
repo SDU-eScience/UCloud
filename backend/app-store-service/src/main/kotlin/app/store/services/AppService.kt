@@ -751,7 +751,7 @@ class AppService(
         )
     }
 
-    suspend fun updateRepositorySubscription(actorAndProject: ActorAndProject, storeFrontId: Int, repository: Int) {
+    suspend fun updateRepositorySubscription(actorAndProject: ActorAndProject, storeFrontId: Int, repository: String) {
         // TODO(Brian) Check for permissions
 
         db.withSession { session ->
@@ -1184,9 +1184,20 @@ class AppService(
         }
     }
 
-    suspend fun listGroups(actorAndProject: ActorAndProject, repository: String): List<ApplicationGroup> {
+    suspend fun listGroups(actorAndProject: ActorAndProject, repository: String? = null, storeFront: Int? = null): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        return groups.filter { repository == it.value.get().repository }.mapNotNull { (groupId, _) ->
+        if (repository.isNullOrEmpty() && storeFront == null) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+        val results = if (!repository.isNullOrEmpty()) {
+            groups.filter { repository == it.value.get().repository }
+        } else if (storeFront != null) {
+            val storeFrontRepositories = listRepositorySubscriptions(actorAndProject, storeFront).map { it.metadata.id }
+            groups.filter { storeFrontRepositories.contains(it.value.get().repository) }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        }
+
+        return results.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
         }.sortedBy { it.specification.title }
     }
@@ -1946,6 +1957,7 @@ class AppService(
                         into("app_names") { it.applicationName }
                         into("groups") { it.groupId }
                         into("descriptions") { it.description }
+                        into("store_fronts") { it.storeFront }
                     }
                     setParameter("priorities", List(newPicks.size) { it })
                 },
@@ -1955,10 +1967,11 @@ class AppService(
                             unnest(:app_names::text[]) app_name,
                             unnest(:groups::int[]) group_id,
                             unnest(:descriptions::text[]) description,
-                            unnest(:priorities::int[]) priority
+                            unnest(:priorities::int[]) priority,
+                            unnest(:store_fronts::int[]) store_front
                     )
-                    insert into app_store.top_picks (application_name, group_id, description, priority) 
-                    select app_name, group_id, description, priority
+                    insert into app_store.top_picks (application_name, group_id, description, priority, store_front) 
+                    select app_name, group_id, description, priority, store_front
                     from data
                 """
             )
@@ -1985,10 +1998,11 @@ class AppService(
                         setParameter("id", id)
                         setParameter("description", description)
                         setParameter("active", active)
+                        setParameter("store_front", storeFrontId)
                     },
                     """
-                        insert into app_store.spotlights (id, title, description, active)
-                        values (coalesce(:id::int, nextval('app_store.spotlights_id_seq')), :title, :description, :active)
+                        insert into app_store.spotlights (id, title, description, active, store_front)
+                        values (coalesce(:id::int, nextval('app_store.spotlights_id_seq')), :title, :description, :active, :store_front)
                         on conflict (id) do update set
                             title = excluded.title,
                             description = excluded.description,
@@ -2276,6 +2290,7 @@ class AppService(
                         into("linked_web_pages") { it.linkedWebPage }
                         into("linked_groups") { it.linkedGroup }
                         into("linked_applications") { it.linkedApplication }
+                        into("store_fronts") { it.storeFront }
                     }
                     setParameter("priorities", IntArray(newSlides.size) { it }.toList())
                 },
@@ -2288,11 +2303,12 @@ class AppService(
                             unnest(:linked_applications::text[]) linked_app,
                             unnest(:linked_web_pages::text[]) linked_web,
                             unnest(:priorities::int[]) priority,
-                            unnest(:linked_groups::int[]) linked_group
+                            unnest(:linked_groups::int[]) linked_group,
+                            unnest(:store_fronts::int[]) store_front
                     )
                     insert into app_store.carrousel_items
-                        (title, body, image_credit, linked_application, linked_web_page, priority, linked_group, image) 
-                    select title, body, image_credit, linked_app, linked_web, priority, linked_group, ''::bytea
+                        (title, body, image_credit, linked_application, linked_web_page, priority, linked_group, image, store_front) 
+                    select title, body, image_credit, linked_app, linked_web, priority, linked_group, ''::bytea, store_front
                     from data
                     on conflict (priority) do update set
                         title = excluded.title,

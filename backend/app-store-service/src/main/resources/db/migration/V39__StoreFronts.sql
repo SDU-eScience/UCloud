@@ -13,6 +13,9 @@ create table app_store.store_fronts(
     title text not null
 );
 
+insert into app_store.store_fronts(id, title) VALUES (1, 'Type 1');
+select setval(pg_get_serial_sequence('app_store.store_fronts', 'id'), 2, false);
+
 create table app_store.provider_store_fronts(
     project text not null,
     store_front int not null references app_store.store_fronts(id)
