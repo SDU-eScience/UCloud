@@ -166,7 +166,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         search: !opts?.isModal,
-        filters: !opts?.omitFilters,
+        filters: !opts?.embedded?.hideFilters,
     }
 
 
@@ -669,7 +669,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         collection: collection,
                         directory: folder,
                         dispatch: dispatch,
-                        embedded: opts?.embedded ?? false,
+                        embedded: opts?.embedded,
                         isModal: opts?.isModal ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),

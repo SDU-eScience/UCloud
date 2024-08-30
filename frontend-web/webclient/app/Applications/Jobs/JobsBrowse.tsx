@@ -38,7 +38,7 @@ const FEATURES: ResourceBrowseFeatures = {
 const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "State", columnWidth: 75}];
 const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "State", columnWidth: 28}];
 
-function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; omitFilters?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
+function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job>>[]}}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job> | null>(null);
     const navigate = useNavigate();
@@ -58,13 +58,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         });
     }
 
-    const omitFilters = !!opts?.omitFilters;
+    const hideFilters = !!opts?.embedded?.hideFilters;
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        filters: !omitFilters,
+        filters: !hideFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sorting: !omitFilters,
+        sorting: !hideFilters,
         dragToSelect: !opts?.embedded,
         search: !opts?.embedded,
         showColumnTitles: !opts?.embedded,
@@ -218,7 +218,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         invokeCommand: call => callAPI(call),
                         onSelect: opts?.selection?.onClick,
                         isModal: !!opts?.isModal,
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,
@@ -295,7 +294,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
         {switcher}
     </>;
 
-    if (opts?.embedded === true) return <div>{main}</div>;
+    if (opts?.embedded) return <div>{main}</div>;
     return <MainContainer main={main} />;
 }
 

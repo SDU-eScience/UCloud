@@ -49,16 +49,16 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         usePage("Project invites", SidebarTabId.PROJECT);
     }
 
-    const omitFilters = !!opts?.omitFilters;
+    const hideFilters = opts?.embedded?.hideFilters;
     const avatars = useAvatars();
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        filters: !omitFilters,
+        filters: !hideFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sorting: !omitFilters,
-        dragToSelect: !opts?.embedded,
-        search: !opts?.embedded,
+        sorting: !hideFilters,
+        dragToSelect: opts?.embedded == null,
+        search: !opts?.embedded == null,
     };
 
     avatars.subscribe(() => {

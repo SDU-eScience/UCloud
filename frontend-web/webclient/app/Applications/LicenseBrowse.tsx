@@ -250,7 +250,6 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     const callbacks: ResourceBrowseCallbacks<License> = {
                         supportByProvider: supportByProvider.retrieveFromCacheOnly("") ?? {productsByProvider: {}},
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),

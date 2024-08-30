@@ -269,6 +269,6 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
         <div ref={mountRef} />
         {switcher}
     </>;
-    if (opts?.embedded === true) return <div>{main}</div>;
+    if (opts?.embedded) return <div>{main}</div>;
     return <MainContainer main={main} />
 }

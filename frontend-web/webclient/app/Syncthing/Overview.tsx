@@ -466,7 +466,7 @@ export const Overview: React.FunctionComponent = () => {
                     </Text>
 
                     <List mt="16px">
-                        <DeviceBrowse devices={devices} dispatch={dispatch} opts={{embedded: true}} />
+                        <DeviceBrowse devices={devices} dispatch={dispatch} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                     </List>
                 </TitledCard>
 
@@ -485,7 +485,7 @@ export const Overview: React.FunctionComponent = () => {
                                 <b>We are currently starting a Syncthing server for you. </b><br />
                                 If nothing happens, then you should try reloading this page.
                             </Box> :
-                            <ServerBrowse servers={servers} opts={{embedded: true}} callbacks={operationCb} />
+                            <ServerBrowse servers={servers} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} callbacks={operationCb} />
                         }
                     </TitledCard>
                 }
@@ -504,7 +504,7 @@ export const Overview: React.FunctionComponent = () => {
 
                 {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: true}} />
+                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                 }
             </TitledCard>
         </div>;

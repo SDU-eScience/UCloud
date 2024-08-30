@@ -32,6 +32,7 @@ import {LogOutput} from "@/UtilityComponents";
 import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 
 const enterAnimation = makeKeyframe("enter-animation", `
   from {
@@ -166,7 +167,7 @@ const ContentWrapper = injectStyleSimple("content-wrapper", `
 
 interface PropertiesProps<Res extends Resource> {
     api: ResourceApi<Res, never>;
-    embedded?: boolean;
+    embedded?: EmbeddedSettings;
     classname?: string;
 
     resource?: Res | string;
@@ -257,7 +258,7 @@ export function ResourceProperties<Res extends Resource>(
         commandLoading,
         reload,
         isWorkspaceAdmin,
-        embedded: props.embedded == true,
+        embedded: props.embedded,
         closeProperties: props.closeProperties,
         dispatch,
         supportByProvider,
@@ -265,7 +266,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const operations = useMemo(() => api.retrieveOperations(), [api]);
 
-    if (props.embedded != true) {
+    if (!props.embedded) {
         usePage(props.api.title, SidebarTabId.NONE); // Note(Jonas): Do something different here? 
         useLoading(ownResource.loading);
         useSetRefreshFunction(reload);

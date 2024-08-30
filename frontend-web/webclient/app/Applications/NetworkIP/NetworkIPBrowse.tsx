@@ -249,7 +249,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),

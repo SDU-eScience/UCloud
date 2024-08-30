@@ -41,13 +41,13 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
         usePage("Providers", SidebarTabId.ADMIN);
     }
 
-    const omitFilters = !!opts?.omitFilters;
+    const hideFilters = !!opts?.embedded?.hideFilters;
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        filters: !omitFilters,
+        filters: !hideFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sorting: !omitFilters,
+        sorting: !hideFilters,
         dragToSelect: !opts?.embedded,
         search: !opts?.embedded,
         showColumnTitles: !opts?.embedded,
@@ -139,7 +139,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
                         onSelect: opts?.selection?.onClick,
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,
@@ -182,7 +181,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
         <div ref={mountRef} />
         {switcher}
     </>;
-    if (opts?.embedded === true) return <div>{main}</div>;
+    if (opts?.embedded) return <div>{main}</div>;
     return <MainContainer main={main} />;
 }
 

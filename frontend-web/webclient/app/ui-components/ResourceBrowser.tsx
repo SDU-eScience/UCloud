@@ -99,28 +99,21 @@ export interface Selection<T> {
     text: string;
 }
 
+export interface EmbeddedSettings {
+    hideFilters: boolean;
+    disableKeyhandlers: boolean;
+}
+
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
-    omitFilters?: boolean;
-
-    // Note(Jonas)/Hack(Jonas): This is a hack for the work-around when browser components are embedded, but the only key-input accepting component.
-    // Ideally, embedded should not disable keyinputs, but maybe embedded should instead be an object like:
-    // type ResourceBrowser.embedded = {
-    //      disableKeyhandlers?: boolean;
-    //      omitFilters?: boolean;
-    //      disableShortcuts?: boolean;
-    // }
-    // And if `embedded == null`, then we know these things are not relevant.
-    // But will keyhandlers only be disabled when it is embedded?
-    overrideDisabledKeyhandlers?: boolean;
-    disabledKeyhandlers?: boolean;
     reloadRef?: React.MutableRefObject<() => void>;
-
-    // Note(Jonas): Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
-    // are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
-    embedded?: boolean;
-    // Note(Jonas): Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
-    // to ensure that some keyhandler are only done for the active modal, and not a potential parent ResBrowser-comp. 
+    // Note(Jonas): 
+    //        Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
+    //        are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
+    embedded?: EmbeddedSettings;
+    // Note(Jonas):
+    //        Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
+    //        to ensure that some keyhandler are only done for the active modal, and not a potential parent ResourceBrowser-component. 
     isModal?: boolean;
     selection?: Selection<T>;
 }
@@ -401,15 +394,12 @@ export class ResourceBrowser<T> {
 
     public static isAnyModalOpen = false;
     private readonly isModal: boolean;
-    // Note(Jonas): Having both `overrideDisabledKeyhandlers` AND `disabledKeyhandlers` seems like a waste.
-    private readonly overrideDisabledKeyhandlers: boolean;
 
     static hideShortcuts = localStorage.getItem("hide-shortcuts") === "true";
 
     private allowEventListenerAction(): boolean {
-        if (this.overrideDisabledKeyhandlers) return true;
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
-        if (this.opts.embedded) return false;
+        if (this.opts.embedded?.disableKeyhandlers) return false;
         return true;
     }
 
@@ -417,9 +407,8 @@ export class ResourceBrowser<T> {
     private listeners: Record<string, any[]> = {};
 
     public opts: {
-        embedded: boolean;
+        embedded?: EmbeddedSettings;
         selector: boolean;
-        disabledKeyhandlers: boolean;
         columnTitles: ColumnTitleList;
     };
     // Note(Jonas): To use for project change listening.
@@ -429,12 +418,10 @@ export class ResourceBrowser<T> {
         this.root = root;
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
-        this.overrideDisabledKeyhandlers = !!opts?.overrideDisabledKeyhandlers;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
-            embedded: !!opts?.embedded,
+            embedded: opts?.embedded,
             selector: !!opts?.selection,
-            disabledKeyhandlers: !!opts?.disabledKeyhandlers,
             columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
                 name: "",
                 columnWidth: 20
@@ -690,7 +677,7 @@ export class ResourceBrowser<T> {
             });
         }
 
-        if (!this.opts.disabledKeyhandlers) {
+        if (!this.opts.embedded?.disableKeyhandlers) {
             // Event handlers not related to rows
             this.renameField.addEventListener("keydown", ev => {
                 if (this.allowEventListenerAction()) {
@@ -1320,7 +1307,7 @@ export class ResourceBrowser<T> {
                 const listItem = document.createElement("li");
                 listItem.innerText = visualizeWhitespaces(truncatedComponents[idx]);
                 listItem.addEventListener("click", e => {
-                    if (myPath) this.open(myPath, this.opts.embedded);
+                    if (myPath) this.open(myPath, this.opts.embedded != null);
                     stopPropagation(e);
                 });
                 listItem.addEventListener("mousemove", () => {

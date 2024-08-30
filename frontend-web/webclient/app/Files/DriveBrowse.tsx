@@ -270,7 +270,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     const callbacks: ResourceBrowseCallbacks<FileCollection> = {
                         supportByProvider: support,
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: isWorkspaceAdmin.current,
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
