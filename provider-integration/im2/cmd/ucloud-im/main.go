@@ -77,7 +77,7 @@ func main() {
 		textQuery := termio.TextPrompt("Please enter some text", "")
 		fmt.Printf("You entered the following text: %s\n\n", textQuery)
 
-		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue)
+		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue, 0)
 
 		if err != nil {
 			return

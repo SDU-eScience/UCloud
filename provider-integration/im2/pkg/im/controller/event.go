@@ -151,7 +151,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 }
 
 func setReplayFrom() {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -453,7 +453,7 @@ func (b *buf) GetString() string {
 func saveLastKnownProject(project apm.Project) {
 	data, _ := json.Marshal(project)
 
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -591,7 +591,7 @@ type TrackedAllocation struct {
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`

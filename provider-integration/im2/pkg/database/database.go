@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"reflect"
 	"strings"
 	"time"
 	"ucloud.dk/pkg/log"
@@ -44,7 +45,7 @@ func (ctx *Pool) open() *Transaction {
 	panic("Failed to open transaction after 10 retries. Fatal error!")
 }
 
-func NewTxV(fn func(tx *Transaction)) {
+func NewTx0(fn func(tx *Transaction)) {
 	NewTx(func(tx *Transaction) util.Empty {
 		fn(tx)
 		return util.Empty{}
@@ -115,7 +116,7 @@ func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
 	)
 }
 
-func ContinueTxV(ctx Ctx, fn func(tx *Transaction)) {
+func ContinueTx0(ctx Ctx, fn func(tx *Transaction)) {
 	ContinueTx(ctx, func(tx *Transaction) util.Empty {
 		fn(tx)
 		return util.Empty{}
@@ -194,7 +195,7 @@ func Connect(username, password, host string, port int, database string, ssl boo
 }
 
 func Exec(ctx *Transaction, query string, args Params) {
-	_, err := ctx.tx.NamedExec(query, args)
+	_, err := ctx.tx.NamedExec(query, transformParameters(args))
 	if err != nil {
 		ctx.Ok = false
 		ctx.error = fmt.Errorf("Database exec failed: %v\nquery: %v\n", err.Error(), query)
@@ -212,7 +213,7 @@ func Get[T any](ctx *Transaction, query string, args Params) (T, bool) {
 
 func Select[T any](ctx *Transaction, query string, args Params) []T {
 	var result []T
-	res, err := ctx.tx.NamedQuery(query, args)
+	res, err := ctx.tx.NamedQuery(query, transformParameters(args))
 	if err != nil {
 		ctx.Ok = false
 		ctx.error = fmt.Errorf("Database select failed: %v\nquery: %v\n", err.Error(), query)
@@ -233,4 +234,38 @@ func Select[T any](ctx *Transaction, query string, args Params) []T {
 	}
 
 	return result
+}
+
+func transformParameters(args Params) Params {
+	result := Params{}
+	for k, v := range args {
+		result[k] = transformParameter(v)
+	}
+	return result
+}
+
+func transformParameter(param any) any {
+	// NOTE(Dan): Transform slices into Postgres' array literal syntax. We could try and use the sqlx.In function, but
+	// it seems like that would require us to use a different binding syntax which I would like to avoid. Either way,
+	// this is the type of transformation that needs to take place at some point. We might as well do it here, since
+	// it is not exactly a complicated transform. There should be no risk involved in doing this since we are still
+	// binding everything into a prepared query.
+	if reflect.TypeOf(param).Kind() == reflect.Slice {
+		builder := strings.Builder{}
+		builder.WriteString("{")
+
+		v := reflect.ValueOf(param)
+		l := v.Len()
+		for i := 0; i < l; i++ {
+			elem := v.Index(i)
+			if i > 0 {
+				builder.WriteString(",")
+			}
+
+			builder.WriteString(fmt.Sprint(elem))
+		}
+		builder.WriteString("}")
+		return builder.String()
+	}
+	return param
 }

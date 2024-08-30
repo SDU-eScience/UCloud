@@ -20,7 +20,7 @@ func Migrate() {
 	scriptsToRun := findMissingMigrations()
 
 	for _, migration := range scriptsToRun {
-		db.NewTxV(func(tx *db.Transaction) {
+		db.NewTx0(func(tx *db.Transaction) {
 			migration.Execute(tx)
 
 			db.Exec(
@@ -42,7 +42,7 @@ func Migrate() {
 }
 
 func createMigrationTables() {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(tx, `
 			create table if not exists migrations(
 				id text primary key
