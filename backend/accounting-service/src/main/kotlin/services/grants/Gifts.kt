@@ -24,7 +24,6 @@ class GiftService(
         giftId: Long,
     ) {
         val giftIds = findAvailableGifts(actorAndProject, giftId).gifts.map { it.id }
-
         db.withSession(remapExceptions = true) { session ->
             val rows = session.sendPreparedStatement(
                 {
@@ -102,9 +101,9 @@ class GiftService(
                     )
                 )
             }
-
+            val projectPi = projectService.getPIAndAdminsOfProject(db, sourceProject).first
             grantsV2Service.submitRevision(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(actorAndProject.actor.safeUsername()), null),
+                ActorAndProject(Actor.SystemOnBehalfOfUser(projectPi), null),
                 GrantsV2.SubmitRevision.Request(
                     revision = GrantApplication.Document(
                         GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername()),
@@ -113,7 +112,8 @@ class GiftService(
                         parentProjectId = sourceProject,
                         revisionComment = "Gifted automatically"
                     ),
-                    comment = "Gift"
+                    comment = "Gift",
+                    alternativeRecipient = GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername())
                 )
             )
         }

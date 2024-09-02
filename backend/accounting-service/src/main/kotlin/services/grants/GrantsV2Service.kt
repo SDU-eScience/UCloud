@@ -65,7 +65,7 @@ class GrantsV2Service(
     // `GrantApplication`. For example, a user may command the system to insert a new revision of the application by
     // using `Command.InsertRevision`.
     private sealed class Command {
-        data class InsertRevision(val comment: String, val doc: GrantApplication.Document) : Command()
+        data class InsertRevision(val comment: String, val doc: GrantApplication.Document, val alternativeRecipient: GrantApplication.Recipient? = null) : Command()
         data class UpdateApprovalState(val projectId: String, val newState: GrantApplication.State) : Command()
         data class Transfer(val comment: String, val sourceProjectId: String, val targetProjectId: String) : Command()
         data object Withdraw : Command()
@@ -254,7 +254,7 @@ class GrantsV2Service(
             id = applicationId,
             initialDocument = request.revision.takeIf { applicationId == null },
             block = {
-                runCommand(Command.InsertRevision(request.comment, request.revision))
+                runCommand(Command.InsertRevision(request.comment, request.revision, alternativeRecipient = request.alternativeRecipient))
             }
         ).applicationId.let(::FindByStringId)
     }
@@ -1058,12 +1058,11 @@ class GrantsV2Service(
                         val grantGivers = command.doc.allocationRequests.map { it.grantGiver }.toSet()
                         if (grantGivers.size != 1) genericForbidden()
                         val grantGiver = grantGivers.single()
-                        //Always a Grant Giver Initiated so it should always be made on the behalf of the user recieving
-                        if (actorAndProject.actor !is Actor.SystemOnBehalfOfUser) genericForbidden()
+                        if (!isGrantGiver(grantGiver)) genericForbidden()
 
                         insertRevision(
                             command.comment,
-                            command.doc.copy(parentProjectId = grantGiver)
+                            command.doc.copy(parentProjectId = grantGiver, recipient = command.alternativeRecipient ?: command.doc.recipient)
                         )
 
                         application = application.copy(

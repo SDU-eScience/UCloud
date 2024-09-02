@@ -82,6 +82,7 @@ object GrantsV2 : CallDescriptionContainer("grants.v2") {
             val revision: GrantApplication.Document,
             val comment: String,
             val applicationId: String? = null,
+            val alternativeRecipient: GrantApplication.Recipient? = null
         )
 
         val call = call(
