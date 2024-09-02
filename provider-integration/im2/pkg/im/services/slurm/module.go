@@ -53,6 +53,8 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 		case cfg.IdentityManagementTypeFreeIpa:
 			idfreeipa.Init(config.IdentityManagement.FreeIPA())
 		}
+
+		InitCliServer()
 	}
 
 	// APM
@@ -97,20 +99,14 @@ func HandlePlugin(pluginName string) {
 		}
 	}
 
-	if pluginName != "slurm" {
-		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown sub-command: %s", pluginName)
-		printSubcommandsAndExit()
-	}
-
-	if len(os.Args) < 3 {
-		printSubcommandsAndExit()
-	}
-	subcommand := os.Args[2]
-	switch subcommand {
-	case "accounts":
+	switch pluginName {
+	case "slurm-accounts":
 		handleSlurmAccountsCommand()
+	case "users":
+		HandleUsersCommand()
+	case "projects":
+		HandleProjectsCommand()
 	}
-
 }
 
 func handleSlurmAccountsCommand() {
@@ -133,13 +129,13 @@ func handleSlurmAccountsCommand() {
 	fs.StringVar(&category, "category", "", "Query by machine type name, supports regex")
 
 	command := ""
-	if len(os.Args) >= 4 {
-		command = os.Args[3]
-		_ = fs.Parse(os.Args[4:])
+	if len(os.Args) >= 3 {
+		command = os.Args[2]
+		_ = fs.Parse(os.Args[3:])
 	}
 
 	listAccounts := func() []accountMapperRow {
-		rows, err := accountMapperCliList.Invoke(accountMapperCliQuery{
+		rows, err := cliSlurmAccountList.Invoke(accountMapperCliQuery{
 			UCloudName: ucloudName,
 			Account:    account,
 			LocalName:  localName,
@@ -208,7 +204,7 @@ func handleSlurmAccountsCommand() {
 			accounts = append(accounts, row.SlurmAccount)
 		}
 
-		_, err := accountMapperCliDelete.Invoke(accountMapperCliDeleteRequest{accounts})
+		_, err := cliSlurmAccountDelete.Invoke(accountMapperCliDeleteRequest{accounts})
 		if err != nil {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to delete account mapping: %s", err)
 			os.Exit(1)
@@ -235,7 +231,7 @@ func handleSlurmAccountsCommand() {
 			os.Exit(1)
 		}
 
-		_, err := accountMapperCliAdd.Invoke(accountMappingRequest{
+		_, err := cliSlurmAccountAdd.Invoke(accountMappingRequest{
 			LocalName:    localName,
 			Category:     category,
 			SlurmAccount: account,

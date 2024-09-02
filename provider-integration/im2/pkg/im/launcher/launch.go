@@ -15,6 +15,7 @@ import (
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/services/slurm"
+	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/util"
 
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -68,7 +69,8 @@ func Launch() {
 	envoySecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
 	if mode == cfg.ServerModeUser {
 		if !userModeSecretOk || envoySecret == "" {
-			fmt.Printf("No user-Mode secret specified!\n")
+			termio.WriteLine("This command is used by IM/Server to spawn user instances. This is not intended for CLI use!")
+			termio.WriteLine("The program is terminating because no user-mode secret was specified!")
 			os.Exit(1)
 		}
 

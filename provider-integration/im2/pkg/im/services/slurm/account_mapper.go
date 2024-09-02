@@ -37,7 +37,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 			}
 		})
 
-		accountMapperCliList.Handler(func(r *ipc.Request[accountMapperCliQuery]) ipc.Response[[]accountMapperRow] {
+		cliSlurmAccountList.Handler(func(r *ipc.Request[accountMapperCliQuery]) ipc.Response[[]accountMapperRow] {
 			if r.Uid != 0 {
 				return ipc.Response[[]accountMapperRow]{
 					StatusCode: http.StatusForbidden,
@@ -192,7 +192,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 			}
 		})
 
-		accountMapperCliAdd.Handler(func(r *ipc.Request[accountMappingRequest]) ipc.Response[util.Empty] {
+		cliSlurmAccountAdd.Handler(func(r *ipc.Request[accountMappingRequest]) ipc.Response[util.Empty] {
 			if r.Uid != 0 {
 				return ipc.Response[util.Empty]{
 					StatusCode: http.StatusForbidden,
@@ -279,8 +279,6 @@ func InitDefaultAccountMapper() AccountMapperService {
 				ownerUsername = workspaceRef
 			}
 
-			log.Info("acc %s", r.Payload.SlurmAccount)
-
 			db.NewTx0(func(tx *db.Transaction) {
 				db.Exec(
 					tx,
@@ -302,7 +300,7 @@ func InitDefaultAccountMapper() AccountMapperService {
 			}
 		})
 
-		accountMapperCliDelete.Handler(func(r *ipc.Request[accountMapperCliDeleteRequest]) ipc.Response[util.Empty] {
+		cliSlurmAccountDelete.Handler(func(r *ipc.Request[accountMapperCliDeleteRequest]) ipc.Response[util.Empty] {
 			if r.Uid != 0 {
 				return ipc.Response[util.Empty]{
 					StatusCode: http.StatusForbidden,
@@ -671,6 +669,6 @@ type accountMapperCliDeleteRequest struct {
 	AccountNames []string
 }
 
-var accountMapperCliList = ipc.NewCall[accountMapperCliQuery, []accountMapperRow]("slurm.account_mapper.list")
-var accountMapperCliDelete = ipc.NewCall[accountMapperCliDeleteRequest, util.Empty]("slurm.account_mapper.delete")
-var accountMapperCliAdd = ipc.NewCall[accountMappingRequest, util.Empty]("slurm.account_mapper.add")
+var cliSlurmAccountList = ipc.NewCall[accountMapperCliQuery, []accountMapperRow]("slurm.account_mapper.list")
+var cliSlurmAccountDelete = ipc.NewCall[accountMapperCliDeleteRequest, util.Empty]("slurm.account_mapper.delete")
+var cliSlurmAccountAdd = ipc.NewCall[accountMappingRequest, util.Empty]("slurm.account_mapper.add")

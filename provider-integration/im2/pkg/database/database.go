@@ -73,6 +73,8 @@ func NewTx[T any](fn func(tx *Transaction) T) T {
 }
 
 func ContinueTx[T any](ctx Ctx, fn func(tx *Transaction) T) T {
+	// TODO(Dan): Not sure this works if ctx is not Database
+
 	var errorLog []string
 	devMode := util.DevelopmentModeEnabled()
 	for i := 0; i < 10; i++ {

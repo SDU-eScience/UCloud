@@ -135,6 +135,43 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 	return err
 }
 
+func RemoveConnection(uid uint32) error {
+	ucloud, ok := MapLocalToUCloud(uid)
+	if !ok {
+		return fmt.Errorf("unknown user supplied: %v", uid)
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from connections
+				where uid = :uid
+		    `,
+			db.Params{
+				"uid": uid,
+			},
+		)
+	})
+
+	type Req struct {
+		Username string `json:"username"`
+	}
+	_, err := client.ApiUpdate[util.Empty](
+		"providers.im.control.clearConnection",
+		"/api/providers/integration/control",
+		"clearConnection",
+		Req{Username: ucloud},
+	)
+
+	if err != nil {
+		_ = RegisterConnectionComplete(ucloud, uid, false)
+		return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+	}
+
+	return nil
+}
+
 func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
 	if ucloudUsername == "user" {
