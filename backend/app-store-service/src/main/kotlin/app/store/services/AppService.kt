@@ -100,6 +100,7 @@ class AppService(
     private val groups = NonBlockingHashMapLong<InternalGroup>()
     private val categories = NonBlockingHashMapLong<InternalCategory>()
     private val repositories = NonBlockingHashMap<String, InternalRepository>()
+    private val storeFronts = NonBlockingHashMapLong<StoreFront>()
 
     // Access control lists allow ordinary users to access non-public applications
     private val accessControlLists = NonBlockingHashMap<String, InternalAcl>()
@@ -125,6 +126,25 @@ class AppService(
     //  We should add functionality which allows us to reload parts of the database as needed.
     suspend fun reloadData(id: NameAndVersion? = null) {
         db.withSession { session ->
+            session.sendPreparedStatement(
+                """
+                    select id, title from app_store.store_fronts
+                """
+            ).rows.forEach { row ->
+                val storeFront = StoreFront(
+                    StoreFront.Metadata(
+                        row.getInt("id")!!
+                    ),
+                    StoreFront.Specification(
+                        row.getString("title")!!
+                    )
+                )
+
+                storeFronts.computeIfAbsent(storeFront.metadata.id.toLong()) {
+                    storeFront
+                }
+            }
+
             val toolRows = session.sendPreparedStatement(
                 {
                     setParameter("name", id?.name)
@@ -793,22 +813,8 @@ class AppService(
     }
 
     suspend fun listStoreFronts(actorAndProject: ActorAndProject): List<StoreFront> {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                """
-                    select id, title from app_store.store_fronts
-                """
-            )
-        }.rows.map { row ->
-            StoreFront(
-                StoreFront.Metadata(
-                    row.getInt("id")!!
-                ),
-                StoreFront.Specification(
-                    row.getString("title")!!
-                )
-            )
-        }
+        // TODO(Brian) Check permissions
+        return storeFronts.values.toList().sortedBy { it.specification.title }
     }
 
     fun retrieveCarrouselImage(index: Int): ByteArray {
