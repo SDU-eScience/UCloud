@@ -2,7 +2,6 @@ import {IconName} from "@/ui-components/Icon";
 import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {groupBy} from "@/Utilities/CollectionUtilities";
 import {ThemeColor} from "@/ui-components/theme";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {projectCache} from "@/Project/ContextSwitcher";
@@ -749,7 +748,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
     const yourAllocations = tree.yourAllocations;
     {
-        const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
+        const walletsByType = Object.groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
             yourAllocations[type as ProductType] = {
                 usageAndQuota: [],
