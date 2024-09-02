@@ -4,7 +4,6 @@ import {useLayoutEffect, useRef} from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     EmptyReasonTag,
-    placeholderImage,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ColumnTitleList,
@@ -135,7 +134,7 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
                     renderFileIcon(fav.path).then(setIcon)
                     row.title.append(icon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), containerWidth, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
                     row.title.append(title);
 
                     const favoriteIcon = favoriteRowIcon(row);

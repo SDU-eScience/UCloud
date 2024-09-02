@@ -203,7 +203,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, row));
                     }
 
                     if (opts?.selection) {
@@ -249,7 +249,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     const callbacks: ResourceBrowseCallbacks<NetworkIP> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),

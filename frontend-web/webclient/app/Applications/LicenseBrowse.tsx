@@ -203,7 +203,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     if (license.id !== DUMMY_ENTRY_ID) {
                         const {product} = license.specification;
                         const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
                     }
 
                     if (opts?.selection) {
@@ -250,7 +250,6 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     const callbacks: ResourceBrowseCallbacks<License> = {
                         supportByProvider: supportByProvider.retrieveFromCacheOnly("") ?? {productsByProvider: {}},
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),

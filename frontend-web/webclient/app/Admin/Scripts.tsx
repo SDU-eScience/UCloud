@@ -102,7 +102,7 @@ function Scripts(): React.ReactNode {
                         width: 32,
                     }).then(setIcon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, dim, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(script.metadata.title, row));
 
                     const lastRun = script.lastRun === 0 ? "Never" : format(script.lastRun, DATE_FORMAT)
                     const textNode = document.createTextNode(lastRun);

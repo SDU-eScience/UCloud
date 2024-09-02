@@ -446,7 +446,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
                                 share.specification.sharedWith ?? share.id,
-                            dims,
                             row
                         )
                     );
@@ -589,7 +588,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,

@@ -1,4 +1,4 @@
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import bgImage from "@/Assets/Images/background_polygons.png";
 import bgImageInverted from "@/Assets/Images/background_polygons_inv.png";
 

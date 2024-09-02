@@ -166,7 +166,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         search: !opts?.isModal,
-        filters: !opts?.omitFilters,
+        filters: !opts?.embedded?.hideFilters,
     }
 
 
@@ -669,7 +669,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         collection: collection,
                         directory: folder,
                         dispatch: dispatch,
-                        embedded: opts?.embedded ?? false,
+                        embedded: opts?.embedded,
                         isModal: opts?.isModal ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
@@ -823,7 +823,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {

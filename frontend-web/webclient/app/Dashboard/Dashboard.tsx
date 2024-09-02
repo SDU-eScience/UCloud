@@ -28,7 +28,6 @@ import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
-import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
@@ -37,7 +36,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {AllocationDisplayWallet, UsageAndQuota} from "@/Accounting";
+import {AllocationDisplayWallet} from "@/Accounting";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -152,10 +151,10 @@ function Invites({projectReloadRef, inviteReloadRef}: {
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+                opts={{reloadRef: projectReloadRef, embedded: {disableKeyhandlers: true, hideFilters: false}, setShowBrowser: setShowProjectInvites}} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
-                embedded: true,
+                embedded: {disableKeyhandlers: true, hideFilters: false},
                 setShowBrowser: setShowShareInvites,
                 filterState: "PENDING"
             }} /></div>
@@ -187,8 +186,7 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
         icon="heroServer"
     >
         <JobsBrowse opts={{
-            embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
-            additionalFilters: {"itemsPerPage": "10"}, reloadRef
+            embedded: {hideFilters: true, disableKeyhandlers: true}, omitBreadcrumbs: true, additionalFilters: {itemsPerPage: "10"}, reloadRef
         }} />
     </DashboardCard>;
 }
@@ -284,9 +282,10 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
     >
         <GrantApplicationBrowse opts={{
             reloadRef,
-            embedded: true,
-            omitFilters: true,
-            disabledKeyhandlers: true,
+            embedded: {
+                hideFilters: true,
+                disableKeyhandlers: true,
+            },
             both: true,
             additionalFilters: {itemsPerPage: "10"}
         }} />

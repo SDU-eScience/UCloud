@@ -1,5 +1,4 @@
 import * as React from "react";
-import * as UCloud from "@/UCloud"
 import {
     Box,
     Button,

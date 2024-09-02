@@ -1,6 +1,5 @@
 import * as React from "react";
 import {BoolParameter, BoolSetter, BoolValidator} from "@/Applications/Jobs/Widgets/Bool";
-import * as UCloud from "@/UCloud";
 import * as Heading from "@/ui-components/Heading";
 import {Box, Button, Flex, Icon, Input, Label, Markdown, Relative, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";

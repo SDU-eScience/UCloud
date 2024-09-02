@@ -9,8 +9,8 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {showWarning} from "@/Accounting/Allocations";
 import {ConfirmationButton, ConfirmationButtonPlainHTML} from "@/ui-components/ConfirmationAction";
+import {showWarning} from "@/Accounting";
 
 const iconsNames = Object.keys(icons) as IconName[];
 

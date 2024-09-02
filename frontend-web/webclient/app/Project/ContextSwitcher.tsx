@@ -1,7 +1,7 @@
 import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";

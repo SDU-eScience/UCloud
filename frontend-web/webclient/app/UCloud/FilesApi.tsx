@@ -477,7 +477,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
+                            isModal: true, managesLocalProject: true, selection: {
                                 text: "Copy to",
                                 show(res) {
                                     return res.status.type === "DIRECTORY"
@@ -534,7 +534,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, overrideDisabledKeyhandlers: true, selection: {
+                            isModal: true, managesLocalProject: true, selection: {
                                 text: "Move to",
                                 show(res) {
                                     return res.status.type === "DIRECTORY"
@@ -610,9 +610,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    support as FileCollectionSupport
-
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
