@@ -9,7 +9,7 @@ import {useCallback, useEffect, useState} from "react";
 import {ApplicationCategory} from "@/Applications/AppStoreApi";
 import {ListRow} from "@/ui-components/List";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -36,6 +36,12 @@ const Categories: React.FunctionComponent = () => {
     useEffect(() => {
         fetchCategories();
     }, [repository]);
+
+    React.useEffect(() => {
+        if (repositories.data.items.length === 1) {
+            setRepository(repositories.data.items[0].metadata.id);
+        }
+    }, [repositories]);
 
     const createCategory = useCallback(async () => {
         const categoryName = (await addStandardInputDialog({
@@ -78,14 +84,17 @@ const Categories: React.FunctionComponent = () => {
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Category Management</Heading.h2>
                 <Box mb="20px">
-                    <Select selectRef={selectRef} width="500px" onChange={e => {
-                        if (!selectRef.current) return;
-                        if (selectRef.current.value === "") return;
-                        setRepository(selectRef.current.value);
-                    }}>
+                    <Select selectRef={selectRef} width="500px"
+                        onChange={e => {
+                            if (!selectRef.current) return;
+                            if (selectRef.current.value === "") return;
+                            setRepository(selectRef.current.value);
+                        }}
+                        disabled={!inDevEnvironment()}
+                    >
                         <option disabled selected value="0">Select a repository...</option>
                         {repositories.data.items.map(r =>
-                            <option key={r.metadata.id} value={r.metadata.id}>
+                            <option key={r.metadata.id} value={r.metadata.id} selected={repositories.data.items.length === 1}>
                                 {r.specification.title}
                             </option>
                         )}

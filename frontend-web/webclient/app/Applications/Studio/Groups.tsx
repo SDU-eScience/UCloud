@@ -8,7 +8,7 @@ import {ListRow} from "@/ui-components/List";
 import * as AppStore from "@/Applications/AppStoreApi";
 import * as Heading from "@/ui-components/Heading";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -46,6 +46,12 @@ export const ApplicationGroups: React.FunctionComponent = () => {
             .then(groups => setGroups(groups));
     };
 
+    React.useEffect(() => {
+        if (repositories.data.items.length === 1) {
+            setRepository(repositories.data.items[0].metadata.id);
+        }
+    }, [repositories]);
+
     const results = React.useMemo(() => {
         return allGroups.filter(it => it.specification.title.toLowerCase().includes(filter.toLowerCase()))
     }, [allGroups, filter]);
@@ -57,14 +63,17 @@ export const ApplicationGroups: React.FunctionComponent = () => {
             header={
                 <Flex justifyContent="space-between">
                     <Heading.h2>Application groups</Heading.h2>
-                    <Select width="500px" selectRef={selectRef} onChange={e => {
-                        if (!selectRef.current) return;
-                        if (selectRef.current.value === "") return;
-                        setRepository(selectRef.current.value);
-                    }}>
-                        <option disabled selected value="0">Select a repository</option>
+                    <Select width="500px" selectRef={selectRef}
+                        onChange={e => {
+                            if (!selectRef.current) return;
+                            if (selectRef.current.value === "") return;
+                            setRepository(selectRef.current.value);
+                        }}
+                        disabled={!inDevEnvironment()}
+                    >
+                        <option disabled selected value="0">Select a repository...</option>
                         {repositories.data.items.map(r =>
-                            <option key={r.metadata.id} value={r.metadata.id}>
+                            <option key={r.metadata.id} value={r.metadata.id} selected={repositories.data.items.length === 1}>
                                 {r.specification.title}
                             </option>
                         )}

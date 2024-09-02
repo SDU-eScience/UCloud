@@ -11,6 +11,7 @@ import AppRoutes from "@/Routes";
 import * as Heading from "@/ui-components/Heading";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {inDevEnvironment} from "@/UtilityFunctions";
 
 const Spotlights: React.FunctionComponent = () => {
     const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
@@ -39,20 +40,31 @@ const Spotlights: React.FunctionComponent = () => {
         fetchSpotlights();
     }, [storeFront]);
 
+    useEffect(() => {
+        if (storeFronts.data.items.length === 1) {
+            setStoreFront(storeFronts.data.items[0].metadata.id);
+        }
+    }, [storeFronts]);
+
     usePage("Spotlights", SidebarTabId.APPLICATION_STUDIO);
 
     return <MainContainer
         header={
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Spotlights</Heading.h2>
-                <Select selectRef={selectRef} width={500} onChange={() => {
-                    if (!selectRef.current) return;
-                    if (selectRef.current.value === "") return;
-                    setStoreFront(parseInt(selectRef.current.value, 10));
-                }}>
+                <Select selectRef={selectRef} width={500}
+                    onChange={() => {
+                        if (!selectRef.current) return;
+                        if (selectRef.current.value === "") return;
+                        setStoreFront(parseInt(selectRef.current.value, 10));
+                    }}
+                    disabled={!inDevEnvironment()}
+                >
                     <option disabled selected>Select store front...</option>
                     {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id}>{front.specification.title}</option>
+                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
+                            {front.specification.title}
+                        </option>
                     )}
                 </Select>
             </Flex>

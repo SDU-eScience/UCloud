@@ -8,6 +8,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
 import {Toggle} from "@/ui-components/Toggle";
+import {inDevEnvironment} from "@/UtilityFunctions";
 
 const Subscriptions: React.FunctionComponent = () => {
     usePage("Repository subscriptions", SidebarTabId.APPLICATION_STUDIO);
@@ -37,18 +38,29 @@ const Subscriptions: React.FunctionComponent = () => {
         fetchSubscriptions();
     }, [storeFront]);
 
+    React.useEffect(() => {
+        if (storeFronts.data.items.length === 1) {
+            setStoreFront(storeFronts.data.items[0].metadata.id);
+        }
+    }, [storeFronts]);
+
     return <MainContainer
         header={<>
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Repository subscriptions</Heading.h2>
-                <Select selectRef={selectRef} width={500} onChange={() => {
-                    if (!selectRef.current) return;
-                    if (selectRef.current.value === "") return;
-                    setStoreFront(parseInt(selectRef.current.value, 10));
-                }}>
+                <Select selectRef={selectRef} width={500}
+                    onChange={() => {
+                        if (!selectRef.current) return;
+                        if (selectRef.current.value === "") return;
+                        setStoreFront(parseInt(selectRef.current.value, 10));
+                    }}
+                    disabled={!inDevEnvironment()}
+                >
                     <option disabled selected>Select store front...</option>
                     {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id}>{front.specification.title}</option>
+                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
+                            {front.specification.title}
+                        </option>
                     )}
                 </Select>
             </Flex>

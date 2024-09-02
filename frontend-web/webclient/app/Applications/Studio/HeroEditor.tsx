@@ -2,7 +2,7 @@ import * as React from "react";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {ApplicationGroup, CarrouselItem, updateCarrousel} from "@/Applications/AppStoreApi";
 import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import {useCallback, useEffect, useRef, useState} from "react";
@@ -176,6 +176,11 @@ const HeroEditor: React.FunctionComponent = () => {
         });
     }, [storeFront]);
 
+    useEffect(() => {
+        if (storeFronts.data.items.length === 1) {
+            setStoreFront(storeFronts.data.items[0].metadata.id);
+        }
+    }, [storeFronts]);
 
     const allErrors = Object.values(errors.current);
     const firstError = allErrors.length > 0 ? allErrors[0] : null;
@@ -201,14 +206,19 @@ const HeroEditor: React.FunctionComponent = () => {
         header={
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Carrousel</Heading.h2>
-                <Select selectRef={selectRef} width={500} onChange={() => {
-                    if (!selectRef.current) return;
-                    if (selectRef.current.value === "") return;
-                    setStoreFront(parseInt(selectRef.current.value, 10));
-                }}>
+                <Select selectRef={selectRef} width={500}
+                    onChange={() => {
+                        if (!selectRef.current) return;
+                        if (selectRef.current.value === "") return;
+                        setStoreFront(parseInt(selectRef.current.value, 10));
+                    }}
+                    disabled={!inDevEnvironment()}
+                >
                     <option disabled selected>Select store front...</option>
                     {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id}>{front.specification.title}</option>
+                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
+                            {front.specification.title}
+                        </option>
                     )}
                 </Select>
             </Flex>

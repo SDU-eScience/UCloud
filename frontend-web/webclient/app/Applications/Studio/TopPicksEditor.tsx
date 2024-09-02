@@ -3,7 +3,7 @@ import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
 import {ApplicationGroup, TopPick} from "@/Applications/AppStoreApi";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -153,6 +153,12 @@ const TopPicksEditor: React.FunctionComponent = () => {
         if (didUpdate) setData(dcopy);
     }, [data]);
 
+    useEffect(() => {
+        if (storeFronts.data.items.length === 1) {
+            setStoreFront(storeFronts.data.items[0].metadata.id);
+        }
+    }, [storeFronts]);
+
     const onSave = useCallback(() => {
         callAPI(AppStore.updateTopPicks({ newTopPicks: topPicksPreview })).then(fetchTopPicks);
     }, [topPicksPreview]);
@@ -179,14 +185,19 @@ const TopPicksEditor: React.FunctionComponent = () => {
         header={
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Top picks</Heading.h2>
-                <Select selectRef={selectRef} width={500} onChange={() => {
-                    if (!selectRef.current) return;
-                    if (selectRef.current.value === "") return;
-                    setStoreFront(parseInt(selectRef.current.value, 10));
-                }}>
+                <Select selectRef={selectRef} width={500}
+                    onChange={() => {
+                        if (!selectRef.current) return;
+                        if (selectRef.current.value === "") return;
+                        setStoreFront(parseInt(selectRef.current.value, 10));
+                    }}
+                    disabled={!inDevEnvironment()}
+                >
                     <option disabled selected>Select store front...</option>
                     {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id}>{front.specification.title}</option>
+                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
+                            {front.specification.title}
+                        </option>
                     )}
                 </Select>
             </Flex>
