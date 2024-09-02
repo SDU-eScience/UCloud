@@ -34,6 +34,14 @@ class IntegrationController(
             ok(integrationService.connect(actorAndProject, request.provider))
         }
 
+        implement(IntegrationControl.reverseConnection) {
+            ok(integrationService.createReverseConnection(actorAndProject, request))
+        }
+
+        implement(Integration.claimReverseConnection) {
+            ok(integrationService.claimReverseConnection(actorAndProject, request))
+        }
+
         return@with
     }
 }

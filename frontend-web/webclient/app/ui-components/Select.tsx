@@ -1,5 +1,4 @@
 import * as React from "react";
-import {SpaceProps, WidthProps} from "styled-system";
 import Flex from "./Flex";
 import Icon, {IconClass} from "./Icon";
 import {injectStyle, unbox} from "@/Unstyled";

@@ -4,7 +4,7 @@ import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "rea
 import {usePage} from "@/Navigation/Redux";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {Label, Input, Image, Box, Flex, Tooltip, Icon, Text, Button, ExternalLink, List} from "@/ui-components";
+import {Label, Input, Image, Box, Flex, Icon, Text, Button, ExternalLink, List} from "@/ui-components";
 import MainContainer from "@/ui-components/MainContainer";
 import TitledCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
@@ -466,7 +466,7 @@ export const Overview: React.FunctionComponent = () => {
                     </Text>
 
                     <List mt="16px">
-                        <DeviceBrowse devices={devices} dispatch={dispatch} opts={{embedded: true}} />
+                        <DeviceBrowse devices={devices} dispatch={dispatch} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                     </List>
                 </TitledCard>
 
@@ -485,7 +485,7 @@ export const Overview: React.FunctionComponent = () => {
                                 <b>We are currently starting a Syncthing server for you. </b><br />
                                 If nothing happens, then you should try reloading this page.
                             </Box> :
-                            <ServerBrowse servers={servers} opts={{embedded: true}} callbacks={operationCb} />
+                            <ServerBrowse servers={servers} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} callbacks={operationCb} />
                         }
                     </TitledCard>
                 }
@@ -504,7 +504,7 @@ export const Overview: React.FunctionComponent = () => {
 
                 {uiState.folders?.length === 0 ?
                     <EmptyFolders onAddFolder={openFileSelector} /> :
-                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: true}} />
+                    <SyncedFolders folders={uiState.folders} dispatch={dispatch} opts={{embedded: {disableKeyhandlers: true, hideFilters: false}}} />
                 }
             </TitledCard>
         </div>;
@@ -969,7 +969,6 @@ function ServerBrowse({servers, opts, callbacks}: {
 }): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Job>>(null);
-    const navigate = useNavigate();
 
     const features: ResourceBrowseFeatures = {
         dragToSelect: true,
@@ -987,7 +986,7 @@ function ServerBrowse({servers, opts, callbacks}: {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Job>(mount, "Servers", opts).init(browserRef, features, "/", browser => {
-                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 50}]);
+                browser.setColumns([{name: "Folder"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 150}, {name: "", columnWidth: 100}]);
 
                 browser.on("skipOpen", () => true);
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -1013,7 +1012,7 @@ function ServerBrowse({servers, opts, callbacks}: {
 
                     const rawTitle = server.specification.name ?? `Server (${server.id})`;
                     const title = removePrefixFrom("Syncthing ", rawTitle);
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
 
                     const flexWrapper = createHTMLElements({
                         tagType: "div",
@@ -1023,7 +1022,7 @@ function ServerBrowse({servers, opts, callbacks}: {
                     row.stat3.append(flexWrapper);
 
                     const status = server.status.state;
-                    
+
                     let iconName: IconName | null = null;
                     let iconColor: ThemeColor | null = null;
                     let innerText = "";
@@ -1056,7 +1055,7 @@ function ServerBrowse({servers, opts, callbacks}: {
                     if (iconName && iconColor) {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                         flexWrapper.append(icon);
-                        
+
                         ResourceBrowser.icons.renderIcon({
                             name: iconName,
                             color: iconColor,
@@ -1148,21 +1147,24 @@ function DeviceBrowse({devices, dispatch, opts}: {dispatch(action: UIAction): vo
                         color: "textPrimary",
                         color2: "textPrimary",
                     }).then(setDeviceIcon);
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(device.label, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(device.label, row));
 
-
-                    /* TODO */
-                    ImportantStats: ({resource}) => {
-                        if (!resource) return null;
-
-                        const doCopyId = useCallback((e: React.SyntheticEvent) => {
-                            e.stopPropagation();
-                            copyToClipboard({value: resource.deviceId, message: "Device ID copied to clipboard!"});
-                        }, [resource.deviceId]);
-
-                        const trigger = <div className={DeviceBox} onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></div>;
-                        return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
-                    }
+                    const trigger = createHTMLElements({
+                        tagType: "div",
+                        className: DeviceBox,
+                        handlers: {
+                            onClick: e => {
+                                e.stopPropagation();
+                                copyToClipboard({value: device.deviceId, message: "Device ID copied to clipboard!"});
+                            }
+                        },
+                        children: [{
+                            tagType: "code",
+                            innerText: device.deviceId.split("-")[0]
+                        }]
+                    });
+                    row.stat3.append(trigger);
+                    HTMLTooltip(trigger, div(`Copy device ID to clipboard`), {tooltipContentWidth: 200});
                 });
 
                 browser.setEmptyIcon("cubeSolid");
@@ -1272,7 +1274,7 @@ function SyncedFolders({folders, dispatch, opts}: {dispatch(action: UIAction): v
                         width: 64
                     }).then(setIcon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, dims, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(folder.ucloudPath, row);
                     row.title.append(title);
                     prettyFilePath(folder.ucloudPath).then(it => {
                         title.innerText = it;

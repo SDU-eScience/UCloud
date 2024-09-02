@@ -1,6 +1,9 @@
 package apm
 
-import c "ucloud.dk/pkg/client"
+import (
+	c "ucloud.dk/pkg/client"
+	"ucloud.dk/pkg/util"
+)
 import fnd "ucloud.dk/pkg/foundation"
 
 const projectsContext = "/api/projects/v2"
@@ -21,13 +24,14 @@ type ProjectSpecification struct {
 }
 
 type ProjectStatus struct {
-	Archived   bool            `json:"archived,omitempty"`
-	IsFavorite bool            `json:"isFavorite,omitempty"`
-	Members    []ProjectMember `json:"members,omitempty"`
-	Groups     []ProjectGroup  `json:"groups,omitempty"`
-	Settings   ProjectSettings `json:"settings"`
-	MyRole     ProjectRole     `json:"myRole,omitempty"`
-	Path       string          `json:"path,omitempty"`
+	Archived                   bool                `json:"archived,omitempty"`
+	IsFavorite                 bool                `json:"isFavorite,omitempty"`
+	Members                    []ProjectMember     `json:"members,omitempty"`
+	Groups                     []ProjectGroup      `json:"groups,omitempty"`
+	Settings                   ProjectSettings     `json:"settings"`
+	MyRole                     ProjectRole         `json:"myRole,omitempty"`
+	Path                       string              `json:"path,omitempty"`
+	PersonalProviderProjectFor util.Option[string] `json:"personalProviderProjectFor"`
 }
 
 type ProjectSettings struct {

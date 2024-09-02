@@ -9,6 +9,7 @@ import dk.sdu.cloud.accounting.util.invokeCall
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.providerIdOrNull
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
@@ -20,6 +21,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import java.security.cert.CertPathValidatorException
+import java.util.*
 
 class ProviderIntegrationService(
     private val db: DBContext,
@@ -293,6 +295,93 @@ class ProviderIntegrationService(
                         on conflict (username, provider_id) do update set expires_at = excluded.expires_at 
                     """
                 )
+        }
+    }
+
+    suspend fun createReverseConnection(
+        actorAndProject: ActorAndProject,
+        request: IntegrationControl.ReverseConnection.Request,
+        ctx: DBContext = db,
+    ): IntegrationControl.ReverseConnection.Response {
+        val providerId = actorAndProject.actor.providerIdOrNull
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        val token = UUID.randomUUID().toString()
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("token", token)
+                    setParameter("provider_id", providerId)
+                },
+                """
+                    insert into provider.reverse_connections(token, provider_id) 
+                    values (:token, :provider_id)
+                """
+            )
+        }
+
+        return IntegrationControl.ReverseConnection.Response(token)
+    }
+
+    suspend fun claimReverseConnection(
+        actorAndProject: ActorAndProject,
+        request: Integration.ClaimReverseConnection.Request,
+        ctx: DBContext = db,
+    ) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    delete from provider.reverse_connections
+                    where
+                        now() - created_at > '12 hours'::interval
+                """
+            )
+
+            val providerId = session.sendPreparedStatement(
+                {
+                    setParameter("token", request.token)
+                },
+                """
+                    delete from provider.reverse_connections
+                    where token = :token
+                    returning provider_id
+                """
+            ).rows.singleOrNull()?.getString(0)
+
+            if (providerId == null) {
+                throw RPCException("Invalid or bad link supplied, try again.", HttpStatusCode.NotFound)
+            }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("provider_id", providerId)
+                },
+                """
+                    with mapped_id as (
+                        select p.resource as provider_id
+                        from provider.providers p
+                        where unique_name = :provider_id
+                    )
+                    insert into provider.connected_with(username, provider_id, expires_at) 
+                    select :username, provider_id, null
+                    from mapped_id
+                """
+            )
+
+            val provider = providers.browse(
+                ActorAndProject(Actor.System, null),
+                ResourceBrowseRequest(ProviderIncludeFlags(filterName = providerId)),
+                useProject = false,
+                ctx = session
+            ).items.singleOrNull() ?: return@withSession
+
+            val comms = communicationCache.get(provider.id) ?: return@withSession
+            comms.api.reverseConnectionClaimed.call(
+                ReverseConnectionClaimedRequest(request.token, actorAndProject.actor.safeUsername()),
+                comms.client
+            ).orThrow()
         }
     }
 }

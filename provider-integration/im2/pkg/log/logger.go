@@ -100,7 +100,7 @@ func (log *Logger) SetFlags(flags uint) {
 func (log *Logger) Fatal(format string, args ...any) {
 	log.write(LevelFatal, format, args...)
 	if log.file != nil {
-		log.file.Close()
+		_ = log.file.Close()
 	}
 	os.Exit(1)
 }

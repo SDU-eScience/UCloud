@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLocation, useNavigate} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
@@ -39,9 +39,15 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
+import {default as JobsApi, DynamicParameters, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
-import {ProductV2, UNABLE_TO_USE_FULL_ALLOC_MESSAGE, balanceToString, priceToString} from "@/Accounting";
+import {
+    ProductV2,
+    UNABLE_TO_USE_FULL_ALLOC_MESSAGE,
+    priceToString,
+    WalletV2,
+    explainWallet
+} from "@/Accounting";
 import {SshWidget} from "@/Applications/Jobs/Widgets/Ssh";
 import {connectionState} from "@/Providers/ConnectionState";
 import {Feature, hasFeature} from "@/Features";
@@ -65,6 +71,7 @@ import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmail
 import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
+import AppRoutes from "@/Routes";
 
 interface InsufficientFunds {
     why?: string;
@@ -121,6 +128,10 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [injectedParameters, fetchInjectedParameters] = useCloudAPI<DynamicParameters | null>(
+        {noop: true},
+        null
+    );
 
     if (applicationResp) {
         usePage(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
@@ -135,18 +146,25 @@ export const Create: React.FunctionComponent = () => {
 
     const [estimatedCost, setEstimatedCost] = useState<{
         durationInMinutes: number,
-        balance: number,
-        maxUsable: number,
         numberOfNodes: number,
+        wallet: WalletV2 | null,
         product: ProductV2 | null
     }>({
-        durationInMinutes: 0, balance: 0, maxUsable: 0, numberOfNodes: 1, product: null
+        durationInMinutes: 0,
+        wallet: null,
+        numberOfNodes: 1,
+        product: null
     });
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
     const [sshEnabled, setSshEnabled] = useState(false);
     const [sshValid, setSshValid] = useState(true);
+    const displayWallet = useMemo(() => {
+        const wallet = estimatedCost.wallet;
+        if (wallet === null) return null;
+        return explainWallet(wallet);
+    }, [estimatedCost.wallet]);
 
     const provider = getProviderField();
 
@@ -249,9 +267,27 @@ export const Create: React.FunctionComponent = () => {
 
     const application = applicationResp.data;
 
+    useEffect(() => {
+        if (!application) return;
+        fetchInjectedParameters(JobsApi.requestDynamicParameters({
+            application: {name: application.metadata.name, version: application.metadata.version}
+        }));
+    }, [application]);
+
+    const parameters = useMemo(() => {
+        let injected: ApplicationParameter[] = [];
+        const injectedData = injectedParameters.data;
+        if (injectedData && estimatedCost.product) {
+            const provider = estimatedCost.product.category.provider;
+            injected = injectedData.parametersByProvider[provider] ?? [];
+        }
+        const fromApp = application?.invocation?.parameters ?? [];
+        return [...injected, ...fromApp];
+    }, [application, injectedParameters, estimatedCost]);
+
     React.useEffect(() => {
         if (application && provider) {
-            const params = application.invocation.parameters.filter(it =>
+            const params = parameters.filter(it =>
                 PARAMETER_TYPE_FILTER.includes(it.type)
             );
 
@@ -264,7 +300,6 @@ export const Create: React.FunctionComponent = () => {
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
         jobBeingLoaded.current = null;
-        const parameters = application.invocation.parameters;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
@@ -337,12 +372,12 @@ export const Create: React.FunctionComponent = () => {
         peers.setErrors({});
         setErrors({});
         setReservationErrors({});
-    }, [application, activeOptParams, folders, peers, networks, ingress]);
+    }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
 
-        const {errors, values} = validateWidgets(application.invocation.parameters!);
+        const {errors, values} = validateWidgets(parameters!);
         setErrors(errors)
 
         const reservationValidation = validateReservation();
@@ -423,22 +458,22 @@ export const Create: React.FunctionComponent = () => {
         );
     }
 
-    const mandatoryParameters = application.invocation!.parameters.filter(it =>
+    const mandatoryParameters = parameters.filter(it =>
         !it.optional
     );
 
-    const activeParameters = application.invocation.parameters.filter(it =>
+    const activeParameters = parameters.filter(it =>
         it.optional && activeOptParams.indexOf(it.name) !== -1
     )
 
-    const inactiveParameters = application.invocation.parameters.filter(it =>
+    const inactiveParameters = parameters.filter(it =>
         !(!it.optional || activeOptParams.indexOf(it.name) !== -1)
     );
 
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
         connectionState.canConnectToProvider(estimatedCost.product.category.provider);
 
-    const errorCount = countMandatoryAndOptionalErrors(application.invocation.parameters.filter(it =>
+    const errorCount = countMandatoryAndOptionalErrors(parameters.filter(it =>
         PARAMETER_TYPE_FILTER.includes(it.type)
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
@@ -458,18 +493,18 @@ export const Create: React.FunctionComponent = () => {
                     />
                     <Box flexGrow={1} />
 
-                    <Flex height={"35px"}>
+                    <Flex height={"35px"} alignItems={"center"} gap={"18px"}>
                         {!application.metadata.website ? null : (
-                            <Box mr={"18px"}>
-                                <ExternalLink href={application.metadata.website}>
-                                    <Button>
-                                        <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
-                                        <div>Documentation</div>
-                                    </Button>
-                                </ExternalLink>
-                            </Box>
+                            <ExternalLink href={application.metadata.website}>
+                                <Button>
+                                    <Icon name="heroArrowTopRightOnSquare" color="primaryContrast" />
+                                    <div>Documentation</div>
+                                </Button>
+                            </ExternalLink>
                         )}
-                        {license ? <Box my="auto"><TooltipV2 tooltip={`License: ${license}`}><Icon size="24" mr="18px" name="fileSignatureSolid" /></TooltipV2></Box> : null}
+                        {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
+
+                        <ForkButton name={application.metadata.name} version={application.metadata.version} />
                         <UtilityBar />
                     </Flex>
                 </Flex>
@@ -520,7 +555,7 @@ export const Create: React.FunctionComponent = () => {
                                             {anyError ?
                                                 <Tooltip trigger={
                                                     <Button ml={"10px"} type="button" color={"successMain"} disabled>
-                                                        <Icon name="heroPlay" />
+                                                        <Icon name="heroPlay" mr={8} />
                                                         Submit
                                                     </Button>
                                                 }>
@@ -535,7 +570,7 @@ export const Create: React.FunctionComponent = () => {
                                                     disabled={isLoading || !sshValid || isMissingConnection}
                                                     onClick={() => submitJob(false)}
                                                 >
-                                                    <Icon name="heroPlay" />
+                                                    <Icon name="heroPlay" mr={8} />
                                                     Submit
                                                 </Button>
                                             }
@@ -546,30 +581,39 @@ export const Create: React.FunctionComponent = () => {
                                                 <tbody>
                                                     <tr>
                                                         <th>Estimated cost</th>
-                                                        <td>{!estimatedCost.product ? "-" : priceToString(estimatedCost.product, estimatedCost.numberOfNodes, estimatedCost.durationInMinutes, {showSuffix: false})}</td>
+                                                        <td>
+                                                            {!estimatedCost.product ?
+                                                                "-" :
+                                                                priceToString(
+                                                                    estimatedCost.product,
+                                                                    estimatedCost.numberOfNodes,
+                                                                    estimatedCost.durationInMinutes,
+                                                                    {showSuffix: false}
+                                                                )
+                                                            }
+                                                        </td>
                                                     </tr>
                                                     <tr>
                                                         <th>Current balance</th>
-                                                        <td>{!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.balance)}</td>
+                                                        <td>
+                                                            {displayWallet === null ?
+                                                                "-" :
+                                                                displayWallet.usageAndQuota.display.currentBalance
+                                                            }
+                                                        </td>
                                                     </tr>
-                                                    {
-                                                        estimatedCost.maxUsable == estimatedCost.balance ? null : (
-                                                            <tr>
-                                                                <th>Usable balance</th>
-                                                                <td>
-                                                                    <OverallocationLink>
-                                                                        <TooltipV2
-                                                                            tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}
-                                                                        >
-                                                                            <Icon name={"heroExclamationTriangle"}
-                                                                                color={"warningMain"} />
-
-                                                                            {!estimatedCost.product ? "-" : balanceToString(estimatedCost.product.category, estimatedCost.maxUsable)}
-                                                                        </TooltipV2>
-                                                                    </OverallocationLink>
-                                                                </td>
-                                                            </tr>
-                                                        )
+                                                    {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                        <tr>
+                                                            <th>Usable balance</th>
+                                                            <td>
+                                                                <OverallocationLink>
+                                                                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                        {displayWallet.usageAndQuota.display.maxUsableBalance}
+                                                                    </TooltipV2>
+                                                                </OverallocationLink>
+                                                            </td>
+                                                        </tr>
                                                     }
                                                 </tbody>
                                             </table>
@@ -582,8 +626,8 @@ export const Create: React.FunctionComponent = () => {
                             <ReservationParameter
                                 application={application}
                                 errors={reservationErrors}
-                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, balance, maxUsable, product) =>
-                                    setEstimatedCost({durationInMinutes, balance, maxUsable, numberOfNodes, product})}
+                                onEstimatedCostChange={(durationInMinutes, numberOfNodes, wallet, product) =>
+                                    setEstimatedCost({durationInMinutes, wallet, numberOfNodes, product})}
                             />
                         </Card>
 
@@ -764,6 +808,22 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
 
     ${k} p:last-child {
         margin-bottom: 0;
+    }
+`);
+
+const ForkButton: React.FunctionComponent<{ name: string, version: string }> = ({name, version}) => {
+    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
+    return <TooltipV2 tooltip={`Create a fork of this application to customize it`}>
+        <Link to={AppRoutes.apps.fork(name, version)} color={"textPrimary"} hoverColor={"textPrimary"} className={ForkButtonStyle}>
+            <Icon size="24" name="fork" />
+        </Link>
+    </TooltipV2>
+}
+
+const ForkButtonStyle = injectStyle("fork-button", k => `
+    ${k}:hover svg {
+        transition: transform 0.2s ease;
+        transform: translateY(-15%);
     }
 `);
 

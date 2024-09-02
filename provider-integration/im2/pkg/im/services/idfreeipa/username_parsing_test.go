@@ -9,6 +9,13 @@ func TestAsciiNormalization(t *testing.T) {
 	assertEquals(t, "dt", parsed.SuggestedUsername)
 }
 
+func TestAsciiNormalization2(t *testing.T) {
+	parsed := parseUCloudUsername("JensHågensen#5128")
+	assertEquals(t, "Jens", parsed.FirstName)
+	assertEquals(t, "Haagensen", parsed.LastName)
+	assertEquals(t, "jhagensen", parsed.SuggestedUsername)
+}
+
 func TestUppercaseEdge(t *testing.T) {
 	parsed := parseUCloudUsername("DANTHRANE")
 	assertEquals(t, "Danthrane", parsed.FirstName)

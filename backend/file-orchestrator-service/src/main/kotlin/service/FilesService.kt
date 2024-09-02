@@ -796,6 +796,8 @@ class FilesService(
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesMoveRequestItem,
                     BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
+                val oldCollectionsByRequest =
+                    HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
                     HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
                 override val isUserRequest = true
@@ -811,6 +813,7 @@ class FilesService(
                     val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.EDIT) {
                         extractPathMetadata(it.newId).collection
                     }
+                    for (item in oldCollections) oldCollectionsByRequest[item.first] = item
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
 
                     val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
@@ -846,7 +849,8 @@ class FilesService(
                     resources: List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>
                 ): BulkRequest<FilesProviderMoveRequestItem> {
                     return BulkRequest(resources.map { (req, res) ->
-                        val oldCollection = (res as ProductRefOrResource.SomeResource).resource
+                        val oldCollection =
+                            (oldCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
                         val newCollection =
                             (newCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
 
@@ -895,6 +899,8 @@ class FilesService(
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesCopyRequestItem,
                     BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
+                val oldCollectionsByRequest =
+                    HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
                     HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
                 override val isUserRequest = true
@@ -910,6 +916,7 @@ class FilesService(
                     val newCollections = verifyAndFetchByIdable(actorAndProject, request, Permission.EDIT) {
                         extractPathMetadata(it.newId).collection
                     }
+                    for (item in oldCollections) oldCollectionsByRequest[item.first] = item
                     for (item in newCollections) newCollectionsByRequest[item.first] = item
 
                     val oldProviders = oldCollections.map { it.second.resource.specification.product.provider }
@@ -945,7 +952,8 @@ class FilesService(
                     resources: List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>
                 ): BulkRequest<FilesProviderCopyRequestItem> {
                     return BulkRequest(resources.map { (req, res) ->
-                        val oldCollection = (res as ProductRefOrResource.SomeResource).resource
+                        val oldCollection =
+                            (oldCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
                         val newCollection =
                             (newCollectionsByRequest[req]!!.second as ProductRefOrResource.SomeResource).resource
 

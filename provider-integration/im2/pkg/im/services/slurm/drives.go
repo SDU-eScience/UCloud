@@ -32,8 +32,12 @@ func RetrieveDrive(driveId string) (orc.Drive, bool) {
 }
 
 func DriveToLocalPath(drive orc.Drive) string {
-	localPath, _ := strings.CutPrefix(drive.ProviderGeneratedId, cfg.Provider.Id+"-")
-	return localPath
+	idx := strings.Index(drive.ProviderGeneratedId, "\n")
+	if idx <= 0 || idx+1 >= len(drive.ProviderGeneratedId) {
+		localPath, _ := strings.CutPrefix(drive.ProviderGeneratedId, cfg.Provider.Id+"-")
+		return localPath
+	}
+	return drive.ProviderGeneratedId[idx+1:]
 }
 
 func ResolveDriveByPath(path string) (orc.Drive, bool) {
@@ -138,5 +142,9 @@ func InternalToUCloudWithDrive(drive orc.Drive, path string) string {
 	cleanPath := filepath.Clean(path)
 	basePath := DriveToLocalPath(drive) + "/"
 	withoutBasePath, _ := strings.CutPrefix(cleanPath, basePath)
-	return "/" + drive.Id + "/" + withoutBasePath
+	if cleanPath+"/" == basePath {
+		return "/" + drive.Id
+	} else {
+		return "/" + drive.Id + "/" + withoutBasePath
+	}
 }

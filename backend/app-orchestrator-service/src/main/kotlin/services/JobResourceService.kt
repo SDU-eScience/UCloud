@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorServices
@@ -984,6 +981,57 @@ class JobResourceService(
         }
     }
 
+    suspend fun requestDynamicParameters(
+        actorAndProject: ActorAndProject,
+        request: Jobs.RequestDynamicParameters.Request
+    ): Jobs.RequestDynamicParameters.Response {
+        idCards.fetchIdCard(actorAndProject)
+
+        val actualProviders = providers.findRelevantProviders(actorAndProject, filterProductType = ProductType.COMPUTE)
+        val application = appCache.resolveApplication(request.application.name, request.application.version)
+            ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
+
+        val parametersByProvider = coroutineScope {
+            val allParameters = actualProviders.map { provider ->
+                async {
+                    try {
+                        val parameters = providers.call(
+                            provider,
+                            actorAndProject,
+                            { JobsProvider(it).requestDynamicParameters },
+                            DynamicParametersProviderRequest(
+                                ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project),
+                                application,
+                            ),
+                            useHttpClient = true,
+                        ).parameters
+
+                        provider to parameters
+                    } catch (ex: RPCException) {
+                        if (ex.httpStatusCode.value in 500..599) {
+                            throw ex
+                        } else {
+                            null
+                        }
+                    }
+                }
+            }
+
+            allParameters.awaitAll().filterNotNull().toMap().mapValues { (_, params) ->
+                params
+                    .asSequence()
+                    .filter { !it.referencesResource() }
+                    .onEach {
+                        it.name = injectedPrefix + it.name.removePrefix(injectedPrefix)
+                    }
+                    .toList()
+            }
+        }
+
+        return Jobs.RequestDynamicParameters.Response(parametersByProvider)
+    }
+
+
     // Job specific write operations
     // =================================================================================================================
     // The following section contains write operations that are specific to jobs.
@@ -1002,7 +1050,15 @@ class JobResourceService(
         request: BulkRequest<ResourceChargeCredits>,
         checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
-        return payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
+        log.info("Charge or check: checkOnly: $checkOnly")
+        val result =  payment.chargeOrCheckCredits(idCards, productCache, documents, actorAndProject, request, checkOnly)
+        result.insufficientFunds.forEach {
+            log.info("insufficient: $it")
+        }
+        result.duplicateCharges.forEach {
+            log.info("duplicate: $it")
+        }
+        return result
     }
 
     // The openInteractiveSession call establishes some kind of interactive session between the end-user and the job

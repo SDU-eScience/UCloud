@@ -1,0 +1,36 @@
+application: v2
+
+name: dynamic-loading
+version: v1.32
+
+software:
+  type: Native
+
+  build:
+    type: Spack
+    repository: MyRepository
+    packages:
+    - package-cpu
+    - package-gpu
+
+  load:
+    type: Module
+    modules:
+    - |
+      {% if ucloud.machine.gpu == 0 %}
+      package-cpu
+      {% else %}
+      package-gpu
+      {% endif %}
+    - |
+      {% if ucloud.machine.gpu == 0 %}
+      partition/cpu
+      {% else %}
+      partition/gpu
+      {% endif %}
+
+sbatch:
+  exclusive: "" # This package requires the node to be used exclusively
+
+invocation: |
+  my-package

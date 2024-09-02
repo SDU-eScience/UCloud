@@ -3,6 +3,8 @@ package config
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -26,6 +28,7 @@ const (
 	ServerModePlugin
 )
 
+var OwnEnvoySecret = "invalidkeymustneverbeused" + util.RandomToken(16)
 var Mode ServerMode
 var Provider *ProviderConfiguration
 var Services *ServicesConfiguration
@@ -35,6 +38,20 @@ var secretsPath string
 var secrets *yaml.Node
 
 var enableErrorReporting = true
+
+type Jwk struct {
+	Kty string `json:"kty"`
+	N   string `json:"n"`
+	E   string `json:"e"`
+	Alg string `json:"alg"`
+	Use string `json:"use"`
+}
+
+type JwkSet struct {
+	Keys []Jwk `json:"keys"`
+}
+
+var Jwks JwkSet
 
 func reportError(path string, node *yaml.Node, format string, args ...any) {
 	if !enableErrorReporting {
@@ -445,6 +462,23 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	Provider = &providerConfig
 	Services = &servicesConfig
 
+	key := readPublicKey(configDir)
+	if key == nil {
+		reportError(configDir, nil, "Failed to parse/locate public key in %v", configDir)
+		return false
+	}
+	eBytes := make([]byte, 4)
+	binary.LittleEndian.PutUint32(eBytes, uint32(key.E))
+	jwkKey := Jwk{
+		Kty: "RSA",
+		Alg: "RS256",
+		Use: "sig",
+		N:   base64.URLEncoding.EncodeToString(key.N.Bytes()),
+		E:   base64.URLEncoding.EncodeToString(eBytes[0:3]),
+	}
+
+	Jwks = JwkSet{Keys: []Jwk{jwkKey}}
+
 	return true
 }
 
@@ -499,7 +533,12 @@ func (h HostInfo) ToURL() string {
 		}
 	}
 
-	return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
+	portIsDefault := (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
+	if portIsDefault {
+		return fmt.Sprintf("%v://%v", scheme, h.Address)
+	} else {
+		return fmt.Sprintf("%v://%v:%v", scheme, h.Address, port)
+	}
 }
 
 func (h HostInfo) ToWebSocketUrl() string {
@@ -511,12 +550,102 @@ func (h HostInfo) ToWebSocketUrl() string {
 
 type ServerConfiguration struct {
 	RefreshToken string
+
+	Database struct {
+		Embedded              bool
+		EmbeddedDataDirectory string
+
+		Host     HostInfo
+		Username string
+		Password string
+		Database string
+		Ssl      bool
+	}
 }
 
 func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguration) {
 	success := true
 	cfg := ServerConfiguration{}
+
+	// Parse simple properties
 	cfg.RefreshToken = requireChildText(filePath, provider, "refreshToken", &success)
+
+	// Parse the database section
+	dbNode, _ := getChildOrNil(filePath, provider, "database")
+	if dbNode != nil {
+		cfg.Database.Embedded = requireChildBool(filePath, dbNode, "embedded", &success)
+	} else {
+		cfg.Database.Embedded = true
+	}
+
+	if !cfg.Database.Embedded {
+		hostNode := requireChild(filePath, dbNode, "host", &success)
+		decode(filePath, hostNode, &cfg.Database.Host, &success)
+		if cfg.Database.Host.Port == 0 {
+			cfg.Database.Host.Port = 5432
+		}
+
+		cfg.Database.Username = requireChildText(filePath, dbNode, "username", &success)
+		cfg.Database.Password = requireChildText(filePath, dbNode, "password", &success)
+		cfg.Database.Database = requireChildText(filePath, dbNode, "database", &success)
+		cfg.Database.Ssl = requireChildBool(filePath, dbNode, "ssl", &success)
+	} else {
+		db := &cfg.Database
+		if dbNode != nil {
+			db.EmbeddedDataDirectory = optionalChildText(filePath, dbNode, "directory", &success)
+		}
+
+		if db.EmbeddedDataDirectory == "" {
+			db.EmbeddedDataDirectory = "/etc/ucloud/postgres"
+		}
+
+		if success {
+			_, err := os.Stat(db.EmbeddedDataDirectory)
+			if err != nil {
+				if os.IsNotExist(err) {
+					err = os.Mkdir(db.EmbeddedDataDirectory, 0700)
+					if err != nil {
+						reportError(filePath, dbNode, "Could not create postgres data directory at %v: %v", db.EmbeddedDataDirectory, err)
+						success = false
+					}
+				}
+			}
+		}
+
+		if success {
+			// NOTE(Dan): This cannot go in the data dir since the file will be deleted by the embedded postgres instance
+			passwordFile := filepath.Join(filepath.Dir(filePath), ".psql-password")
+			password, err := os.ReadFile(passwordFile)
+			if err != nil {
+				password = []byte(util.RandomToken(32))
+				err = os.WriteFile(passwordFile, password, 0600)
+				if err != nil {
+					reportError(filePath, dbNode, "Could not write postgres password file to disk: %v", err)
+					success = false
+				}
+			}
+
+			db.Host = HostInfo{
+				Address: "127.0.0.1",
+				Port:    5432,
+			}
+
+			db.Username = "ucloud"
+			db.Password = string(password)
+			db.Database = "ucloud"
+			db.Ssl = false
+		}
+	}
+
+	{
+		node := dbNode
+		if node == nil {
+			node = provider
+		}
+
+		cfg.Database.Host.validate(filePath, node)
+	}
+
 	return success, cfg
 }
 
@@ -673,7 +802,9 @@ var ServicesTypeOptions = []ServicesType{
 }
 
 type ServicesConfiguration struct {
-	Type          ServicesType
+	Type      ServicesType
+	Unmanaged bool
+
 	Configuration any
 }
 
@@ -795,9 +926,12 @@ func parseServices(serverMode ServerMode, filePath string, services *yaml.Node) 
 	}
 	result.Type = kind
 
+	isUnmanaged, ok := optionalChildBool(filePath, services, "unmanaged")
+	result.Unmanaged = isUnmanaged && ok
+
 	switch kind {
 	case ServicesSlurm:
-		success, slurm := parseSlurmServices(serverMode, filePath, services)
+		success, slurm := parseSlurmServices(result.Unmanaged, serverMode, filePath, services)
 		if !success {
 			return false, result
 		}
@@ -812,6 +946,7 @@ type IdentityManagementType string
 const (
 	IdentityManagementTypeScripted IdentityManagementType = "Scripted"
 	IdentityManagementTypeFreeIpa  IdentityManagementType = "FreeIPA"
+	IdentityManagementTypeNone     IdentityManagementType = "None"
 )
 
 var IdentityManagementTypeOptions = []IdentityManagementType{
@@ -930,31 +1065,35 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 	return success, result
 }
 
-func ReadPublicKey(configDir string) *rsa.PublicKey {
-	content, _ := os.ReadFile(configDir + "/ucloud_key.pub")
-	if content == nil {
-		return nil
+func readPublicKey(configDir string) *rsa.PublicKey {
+	keyFiles := []string{"ucloud_key.pub", "ucloud_crt.pem"}
+	for _, key := range keyFiles {
+		content, _ := os.ReadFile(filepath.Join(configDir, key))
+		if content == nil {
+			continue
+		}
+
+		var keyBuilder strings.Builder
+		keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
+		keyBuilder.WriteString(chunkString(string(content), 64))
+		keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
+
+		key := keyBuilder.String()
+
+		block, _ := pem.Decode([]byte(key))
+		if block == nil {
+			return nil
+		}
+
+		pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
+		if pubKey == nil {
+			return nil
+		}
+
+		rsaKey, _ := pubKey.(*rsa.PublicKey)
+		return rsaKey
 	}
-
-	var keyBuilder strings.Builder
-	keyBuilder.WriteString("-----BEGIN PUBLIC KEY-----\n")
-	keyBuilder.WriteString(chunkString(string(content), 64))
-	keyBuilder.WriteString("\n-----END PUBLIC KEY-----\n")
-
-	key := keyBuilder.String()
-
-	block, _ := pem.Decode([]byte(key))
-	if block == nil {
-		return nil
-	}
-
-	pubKey, _ := x509.ParsePKIXPublicKey(block.Bytes)
-	if pubKey == nil {
-		return nil
-	}
-
-	rsaKey, _ := pubKey.(*rsa.PublicKey)
-	return rsaKey
+	return nil
 }
 
 func chunkString(input string, chunkSize int) string {

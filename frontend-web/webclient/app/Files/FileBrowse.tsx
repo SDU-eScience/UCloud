@@ -23,7 +23,7 @@ import FilesApi, {
     addFileSensitivityDialog,
     ExtraFileCallbacks,
     FileSensitivityNamespace,
-    FileSensitivityVersion,
+    FileSensitivityVersion, isReadonly,
     isSensitivitySupported,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
@@ -52,7 +52,7 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Permission, ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
 import {Operation} from "@/ui-components/Operation";
@@ -69,6 +69,7 @@ import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {Feature, hasFeature} from "@/Features";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -110,17 +111,20 @@ const FEATURES: ResourceBrowseFeatures = {
     contextSwitcher: true,
     showHeaderInEmbedded: true,
     showColumnTitles: true,
+    breadcrumbTitles: true,
 }
 
 interface AdditionalResourceBrowserOpts {
     initialPath?: string;
-    managesLocalProject?: boolean;
+    managesLocalProject?: boolean; // TODO(Jonas): Having both managesLocalProject and initialProject might not be for the best.
+    initialProject?: string;
     additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
 
+const RESOURCE_NAME = "File";
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
@@ -150,7 +154,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
     const isSelector = !!opts?.selection;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
-    const activeProject = useRef(Client.projectId);
+    const activeProject = useRef(opts?.initialProject ?? Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
         return baseCallAPI({
@@ -162,7 +166,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         search: !opts?.isModal,
-        filters: !opts?.omitFilters,
+        filters: !opts?.embedded?.hideFilters,
     }
 
 
@@ -174,7 +178,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
         const mount = mountRef.current;
         let searching = "";
         if (mount && !browserRef.current) {
-            new ResourceBrowser<UFile>(mount, "File", opts).init(browserRef, features, undefined, browser => {
+            new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
 
                 // Syncthing data
@@ -435,24 +439,45 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     });
 
                     if (shouldMove) {
-                        browser.undoStack.unshift(() => {
-                            if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
-                                for (const file of files) {
-                                    insertFakeEntry(
-                                        fileName(file.id),
-                                        {
-                                            type: file.status.type,
-                                            hint: file.status.icon,
-                                            modifiedAt: file.status.modifiedAt,
-                                            size: file.status.sizeInBytes
-                                        }
-                                    );
+                        if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                            ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
                                 }
-                                browser.renderRows();
-                            }
 
-                            callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
-                        });
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        } else {
+                            browser._undoStack.unshift(() => {
+                                if (browser.currentPath === initialPath && isMovingFromCurrentDirectory) {
+                                    for (const file of files) {
+                                        insertFakeEntry(
+                                            fileName(file.id),
+                                            {
+                                                type: file.status.type,
+                                                hint: file.status.icon,
+                                                modifiedAt: file.status.modifiedAt,
+                                                size: file.status.sizeInBytes
+                                            }
+                                        );
+                                    }
+                                    browser.renderRows();
+                                }
+
+                                callAPI(FilesApi.move(bulkRequestOf(...undoRequests)));
+                            });
+                        }
                     }
                 };
 
@@ -475,7 +500,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
                         snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch (e) {
+                    } catch {
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
                         browser.refresh();
                     }
@@ -552,17 +577,31 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                     browser.refresh();
                                 });
 
-                                browser.undoStack.unshift(() => {
-                                    callAPI(FilesApi.move(bulkRequestOf({
-                                        oldId: actualFile.id,
-                                        newId: oldId,
-                                        conflictPolicy: "REJECT"
-                                    })));
+                                if (hasFeature(Feature.COMPONENT_STORED_CUT_COPY)) {
+                                    ResourceBrowser.addUndoAction(RESOURCE_NAME, () => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
 
-                                    sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
-                                    actualFile.id = oldId;
-                                    browser.renderRows();
-                                });
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
+                                } else {
+                                    browser._undoStack.unshift(() => {
+                                        callAPI(FilesApi.move(bulkRequestOf({
+                                            oldId: actualFile.id,
+                                            newId: oldId,
+                                            conflictPolicy: "REJECT"
+                                        })));
+
+                                        sidebarFavoriteCache.renameInCached(actualFile.id, oldId); // Revert on undo
+                                        actualFile.id = oldId;
+                                        browser.renderRows();
+                                    });
+                                }
                             }
                         },
                         doNothing,
@@ -605,7 +644,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
                     const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
                         opts.additionalOperations.forEach(op => {
@@ -630,7 +669,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         collection: collection,
                         directory: folder,
                         dispatch: dispatch,
-                        embedded: opts?.embedded ?? false,
+                        embedded: opts?.embedded,
                         isModal: opts?.isModal ?? false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
@@ -672,7 +711,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             showCreateDirectory();
                         },
                         cancelCreation: doNothing,
-                        startRenaming(resource: UFile, defaultValue: string): void {
+                        startRenaming(resource: UFile): void {
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
@@ -784,7 +823,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), containerWidth, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
                     row.title.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
@@ -873,7 +912,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         badge.classList.add(sensitivity.toString().toUpperCase());
                         badge.innerText = sensitivity.toString()[0];
                         badge.style.cursor = "pointer";
-                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), value => {
+                        badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), () => {
                             browserRef.current?.refresh();
                         });
 
@@ -968,7 +1007,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         result.push({title: i === 0 ? collectionName : component, absolutePath: builder});
                     }
 
-                    var pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
+                    let pIcon = browser.header.querySelector("div.header-first-row > div.provider-icon");
                     if (!pIcon) {
                         const disallowNavigation = opts?.isModal || opts?.embedded;
                         const providerIconWrapper = createHTMLElements({
@@ -1004,6 +1043,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             driveIcon.className = "drive-icon-dropdown";
                             driveIcon.style.cursor = "pointer";
                             driveIcon.style.minWidth = "18px";
+                            driveIcon.style.width = "18px";
                             const url = browser.header.querySelector("div.header-first-row");
                             url?.prepend(driveIcon);
                             browser.header.setAttribute("shows-dropdown", "");
@@ -1034,8 +1074,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const currentComponents = pathComponents(browser.currentPath);
                         if (currentComponents.length > 0) collectionId = currentComponents[0];
                     } else {
-                        let parenthesisStart = firstComponent.indexOf("(");
-                        let parenthesisEnd = firstComponent.indexOf(")");
+                        const parenthesisStart = firstComponent.indexOf("(");
+                        const parenthesisEnd = firstComponent.indexOf(")");
                         if (parenthesisStart !== -1 && parenthesisEnd !== -1 && parenthesisStart < parenthesisEnd) {
                             const parsedNumber = parseInt(firstComponent.substring(parenthesisStart + 1, parenthesisEnd));
                             if (!isNaN(parsedNumber) && parsedNumber > 0) {
@@ -1459,7 +1499,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
             b.renameField.style.left = "74px";
         }
 
-        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
+        addContextSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? (projectId?: string) => {
@@ -1529,13 +1569,6 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     }
 }
 
-function isReadonly(entries: Permission[]): boolean {
-    const isAdmin = entries.includes("ADMIN");
-    const isEdit = entries.includes("EDIT");
-    const isRead = entries.includes("READ");
-    return isRead && !isEdit;
-}
-
 export default FileBrowse;
 
 function matchesFilter(filter: string, collection: FileCollection): boolean {
@@ -1551,7 +1584,7 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
     const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
 
     function generateElements(filter?: string): HTMLLIElement[] {
-        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map((collection, index) => {
+        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map(collection => {
             const wrapper = document.createElement("li");
             const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
             wrapper.append(pIcon);

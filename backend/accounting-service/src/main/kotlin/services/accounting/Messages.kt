@@ -3,11 +3,9 @@ package dk.sdu.cloud.accounting.services.accounting
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.accounting.api.AccountingV2
-import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.WalletV2
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.IdCard
+import kotlinx.serialization.json.JsonObject
 
 sealed class AccountingRequest<Resp> {
     abstract val idCard: IdCard
@@ -125,6 +123,12 @@ sealed class AccountingRequest<Resp> {
         val owner: String,
     ) : AccountingRequest<Long>()
 
+    data class RetrieveScopedUsage(
+        override val idCard: IdCard,
+        val owner: WalletOwner,
+        val chargeId: String
+    ) : AccountingRequest<Long>()
+
     data class RetrieveDescendants(
         override val idCard: IdCard,
         val projectId: String
@@ -145,8 +149,25 @@ sealed class AccountingRequest<Resp> {
         val roots: List<Int>? = null,
     ) : AccountingRequest<String>()
 
+    data class DebugWallet(
+        override val idCard: IdCard,
+        val walletId: Int
+    ) : AccountingRequest<JsonObject>()
+
+    data class DebugCharge(
+        override val idCard: IdCard,
+        val walletId: Int,
+        val charge: Long,
+    ) : AccountingRequest<Unit>()
+
     data class DebugUsable(
         override val idCard: IdCard,
+    ) : AccountingRequest<Unit>()
+
+    data class FillUpPersonalProviderProject(
+        override val idCard: IdCard,
+        val projectId: String,
+        val provider: String,
     ) : AccountingRequest<Unit>()
 }
 

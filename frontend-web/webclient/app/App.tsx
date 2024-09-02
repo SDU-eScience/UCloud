@@ -1,6 +1,6 @@
 import MainApp from "@/Core";
 import * as React from "react";
-import {createRoot} from 'react-dom/client';
+import {createRoot} from "react-dom/client";
 
 const container = document.getElementById("app");
 

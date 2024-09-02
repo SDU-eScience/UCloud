@@ -1,0 +1,41 @@
+application: v2
+
+name: jupyter-lab
+version: v3.1.6
+
+parameters:
+  working_dir:
+    type: Directory
+    optional: false
+    title: "Working directory"
+    description: >
+      This is a directory used for holding notebooks.
+
+software:
+  type: Native
+
+  build:
+    type: EasyBuild
+    repository: MyRepository
+    file: jupyter-lab-3-1-6.eb
+
+  load:
+    type: Module
+    modules:
+      - "JupyterLab/3.1.6"
+
+web:
+  enabled: true
+
+invocation: |
+  tok=`uuidgen`
+  echo "c.ServerApp.token='$tok'" > nb.py
+  echo "Use the following token to access JupyterLab:"
+  echo "$tok"
+  echo
+  jupyter lab \
+    --ip=0.0.0.0 \
+    --port=$UCLOUD_WEB_PORT \
+    --no-browser \
+    {{ working_dir | option("--notebook-dir=") }} \
+    --config=nb.py

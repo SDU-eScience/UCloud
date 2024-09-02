@@ -6,14 +6,15 @@ import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.accounting.util.IProjectCache
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Project
+import dk.sdu.cloud.app.store.api.ProjectGroup
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.checkSingleLine
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
-import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -31,6 +32,7 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import javax.imageio.ImageIO
+import kotlin.Pair
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.collections.HashSet
@@ -186,11 +188,26 @@ class AppService(
                 """
             ).rows
 
-            appRows.forEach { row ->
-                val app = row.toApplication()
-                registerApplication(app, flush = false)
-                val groupLogo = row.getAs<ByteArray?>("group_logo")
-                val logoHasText = row.getBoolean("group_logo_has_text") ?: false
+            val appGroups = session.sendPreparedStatement("""
+                select 
+                    id,
+                    title,
+                    description,
+                    default_name,
+                    logo_has_text,
+                    logo,
+                    color_remapping
+                from app_store.application_groups
+            """).rows
+
+            for (row in appGroups) {
+                val id = row.getInt("id") ?: continue
+                val title = row.getString("title") ?: continue
+                val defaultFlavor = row.getString("default_name")
+                val description = row.getString("description") ?: ""
+                val logo = row.getAs<ByteArray?>("logo")
+                val logoHasText = row.getBoolean("logo_has_text") ?: false
+
                 val colorRemapping = row.getString("color_remapping")?.let {
                     defaultMapper.decodeFromString<Map<String, Map<Int, Int>?>>(it)
                 }
@@ -198,15 +215,29 @@ class AppService(
                 val darkRemapping = colorRemapping?.get("dark")
                 val lightRemapping = colorRemapping?.get("light")
 
-                val g = app.metadata.group
-                if (g != null) {
-                    groups[g.metadata.id.toLong()]?.updateMetadata(
-                        logo = groupLogo,
-                        newLogoHasText = logoHasText,
-                        colorRemappingLight = lightRemapping,
-                        colorRemappingDark = darkRemapping,
-                    )
-                }
+                val group = ApplicationGroup(
+                    ApplicationGroup.Metadata(id),
+                    ApplicationGroup.Specification(
+                        title,
+                        description,
+                        defaultFlavor,
+                        colorReplacement = ApplicationGroup.ColorReplacements(lightRemapping, darkRemapping),
+                        logoHasText = logoHasText
+                    ),
+                )
+
+                registerGroup(group)
+
+                groups[id.toLong()]?.updateMetadata(
+                    logo = logo,
+                    colorRemappingLight = lightRemapping,
+                    colorRemappingDark = darkRemapping
+                )
+            }
+
+            appRows.forEach { row ->
+                val app = row.toApplication()
+                registerApplication(app, flush = false)
             }
 
             val acls = session
@@ -1009,7 +1040,7 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         return groups.mapNotNull { (groupId, _) ->
             retrieveGroup(actorAndProject, groupId.toInt())
-        }
+        }.sortedBy { it.specification.title }
     }
 
     fun listAllApplications(): List<NameAndVersion> {
@@ -1144,6 +1175,11 @@ class AppService(
     ) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
         val g = groups[id.toLong()] ?: throw RPCException("Unknown group: $id", HttpStatusCode.NotFound)
+        val lookupByTitle = groups.filter { it.value.get().title == newTitle }
+
+        if (lookupByTitle.isNotEmpty() && !lookupByTitle.keys.contains(id.toLong())) {
+            throw RPCException("Group with title already exists", HttpStatusCode.Conflict)
+        }
 
         val normalizedNewDescription = newDescription?.trim()
         if (newTitle != null) checkSingleLine("title", newTitle, maximumSize = 64)
@@ -1286,14 +1322,29 @@ class AppService(
             groupIdAllocatorForTestsOnly.getAndIncrement()
         } else {
             db.withSession { session ->
-                session.sendPreparedStatement(
+                val existing = session.sendPreparedStatement(
                     { setParameter("title", title) },
                     """
+                        select id from app_store.application_groups where title = :title
+                    """
+                ).rows.size
+
+                if (existing > 0) {
+                    throw RPCException("Group with name $title already exists", HttpStatusCode.Conflict)
+                }
+
+                try {
+                    session.sendPreparedStatement(
+                        { setParameter("title", title) },
+                         """
                         insert into app_store.application_groups (title)
                         values (:title)
                         returning id
                     """
-                ).rows.single().getInt(0)!!
+                    ).rows.single().getInt(0)!!
+                } catch (e: Exception) {
+                    throw RPCException("Error creating group.", HttpStatusCode.BadRequest)
+                }
             }
         }
 
@@ -1388,11 +1439,60 @@ class AppService(
         val acl = accessControlLists.computeIfAbsent(name) { InternalAcl(emptySet()) }
         val additions = HashSet<EntityWithPermission>()
         val revoked = HashSet<AccessEntity>()
+
         for (change in changes) {
             if (change.revoke) {
                 revoked.add(change.entity)
             } else {
-                additions.add(EntityWithPermission(change.entity, change.rights))
+                val newEntity = if (!change.entity.project.isNullOrEmpty() && !change.entity.group.isNullOrEmpty()) {
+                    val projectById = Projects.lookupById.call(
+                        LookupByIdRequest(change.entity.project!!),
+                        serviceClient
+                    ).orNull()
+
+                    val foundProject = projectById ?:
+                        Projects.lookupByPath.call(
+                            LookupByTitleRequest(change.entity.project!!),
+                            serviceClient
+                        ).orRethrowAs {
+                            throw RPCException("Project not found", HttpStatusCode.NotFound)
+                        }
+
+                    val groupByTitle = ProjectGroups.lookupByTitle.call(
+                        LookupByGroupTitleRequest(
+                            foundProject.id,
+                            change.entity.group!!
+                        ),
+                        serviceClient
+                    ).orNull()
+
+                    val foundGroupId = groupByTitle?.groupId
+                        ?: ProjectGroups.lookupProjectAndGroup.call(
+                            LookupProjectAndGroupRequest(foundProject.id, change.entity.group!!), serviceClient
+                        ).orRethrowAs {
+                            throw RPCException("Group not found", HttpStatusCode.NotFound)
+                        }.group.id
+
+                    AccessEntity(null, foundProject.id, foundGroupId)
+                } else if (!change.entity.user.isNullOrEmpty()) {
+                    val foundUser = UserDescriptions.lookupUsers.call(
+                        LookupUsersRequest(listOf(change.entity.user!!)),
+                        serviceClient
+                    ).orRethrowAs {
+                        throw RPCException("User not found", HttpStatusCode.NotFound)
+                    }.results
+
+                    if (foundUser[change.entity.user] == null) {
+                        throw RPCException("User not found", HttpStatusCode.NotFound)
+                    }
+
+                    change.entity
+                } else {
+                    throw RPCException("Invalid permission entry", HttpStatusCode.BadRequest)
+                }
+
+
+                additions.add(EntityWithPermission(newEntity, change.rights))
             }
         }
 
@@ -1471,11 +1571,14 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val appVersions =
             applicationVersions[appName] ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
+
+        val newFlavor = if (newFlavorName != "") { newFlavorName } else { null }
+
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("appName", appName)
-                    setParameter("flavor", newFlavorName)
+                    setParameter("flavor", newFlavor)
                 },
                 """
                     update app_store.applications
@@ -1575,41 +1678,43 @@ class AppService(
         name: String
     ): Collection<DetailedEntityWithPermission> {
         val list = retrieveAcl(actorAndProject, name)
-        return list.map { e ->
+        return list.mapNotNull { e ->
             val projectAndGroupLookup =
                 if (!e.entity.project.isNullOrBlank() && !e.entity.group.isNullOrBlank()) {
                     ProjectGroups.lookupProjectAndGroup.call(
                         LookupProjectAndGroupRequest(e.entity.project!!, e.entity.group!!),
                         serviceClient,
-                    ).orRethrowAs {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                    }
+                    ).orNull()
                 } else {
                     null
                 }
 
-            DetailedEntityWithPermission(
-                if (projectAndGroupLookup != null) {
-                    DetailedAccessEntity(
-                        null,
-                        Project(
-                            projectAndGroupLookup.project.id,
-                            projectAndGroupLookup.project.title
-                        ),
-                        ProjectGroup(
-                            projectAndGroupLookup.group.id,
-                            projectAndGroupLookup.group.title
+            if (projectAndGroupLookup == null && e.entity.user == null) {
+                null
+            } else {
+                DetailedEntityWithPermission(
+                    if (projectAndGroupLookup != null) {
+                        DetailedAccessEntity(
+                            null,
+                            Project(
+                                projectAndGroupLookup.project.id,
+                                projectAndGroupLookup.project.title
+                            ),
+                            ProjectGroup(
+                                projectAndGroupLookup.group.id,
+                                projectAndGroupLookup.group.title
+                            )
                         )
-                    )
-                } else {
-                    DetailedAccessEntity(
-                        e.entity.user,
-                        null,
-                        null
-                    )
-                },
-                e.permission
-            )
+                    } else {
+                        DetailedAccessEntity(
+                            e.entity.user,
+                            null,
+                            null
+                        )
+                    },
+                    e.permission
+                )
+            }
         }
     }
 

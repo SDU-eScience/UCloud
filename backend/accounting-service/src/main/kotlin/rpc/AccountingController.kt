@@ -13,7 +13,6 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.Micro
@@ -29,7 +28,6 @@ class AccountingController(
     private val accounting: AccountingSystem,
     private val dataVisualization: DataVisualization,
     private val idCards: IdCardService,
-    private val client: AuthenticatedClient,
     private val apmNotifications: ApmNotificationService,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
@@ -41,12 +39,9 @@ class AccountingController(
             if (activeProcessor == null) {
                 handler()
             } else {
-                ok(
-                    call.call(
-                        request,
-                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
-                    ).orThrow()
-                )
+                // TODO(Dan): There is no current way of doing this correctly. Please keep in mind that
+                //  PersonalProviderProjects currently also depends on a single APM instance.
+                error("not yet implemented")
             }
         }
     }
@@ -104,6 +99,26 @@ class AccountingController(
                                 idCard,
                                 req.category,
                                 req.owner.reference(),
+                            )
+                        )
+                    )
+                )
+            }
+            ok(BulkResponse(response))
+        }
+
+        implementOrDispatch(AccountingV2.retrieveScopedUsage) {
+            val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
+            val idCard = if (isService) IdCard.System else throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+            val response = ArrayList<AccountingV2.RetrieveScopedUsage.ResponseItem>()
+            for (req in request.items) {
+                response.add(
+                    AccountingV2.RetrieveScopedUsage.ResponseItem(
+                        accounting.sendRequest(
+                            AccountingRequest.RetrieveScopedUsage(
+                                idCard,
+                                req.owner,
+                                req.chargeId,
                             )
                         )
                     )
@@ -224,6 +239,36 @@ class AccountingController(
                     )
                 )
             )
+        }
+
+        implementOrDispatch(AccountingV2.adminDebug) {
+            val graph = accounting.sendRequest(
+                AccountingRequest.DebugState(
+                    IdCard.System,
+                    listOf(request.walletId)
+                )
+            )
+
+            val internalState = accounting.sendRequest(
+                AccountingRequest.DebugWallet(
+                    IdCard.System,
+                    request.walletId
+                )
+            )
+
+            ok(AccountingV2.AdminDebug.Response(graph, internalState))
+        }
+
+        implementOrDispatch(AccountingV2.adminCharge) {
+            val error = accounting.sendRequestNoUnwrap(
+                AccountingRequest.DebugCharge(
+                    IdCard.System,
+                    request.walletId,
+                    request.amount,
+                )
+            )
+
+            ok(AccountingV2.AdminCharge.Response(error))
         }
 
         return@with

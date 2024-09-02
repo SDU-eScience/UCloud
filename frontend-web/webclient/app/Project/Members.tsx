@@ -20,10 +20,8 @@ import AppRoutes from "@/Routes";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./ReduxState";
 import {addStandardDialog} from "@/UtilityComponents";
-
-export function ProjectPageTitle(props: React.PropsWithChildren): React.ReactNode {
-    return <span style={{fontSize: "25px", marginLeft: "8px"}}>{props.children}</span>
-}
+import {MainContainer} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 
 // UI state management
 // ================================================================================
@@ -551,7 +549,22 @@ export const ProjectMembers2: React.FunctionComponent = () => {
         });
     }
 
+
     if (!modifiedProject) return null;
+
+    if (modifiedProject.status.personalProviderProjectFor != null) {
+        return <MainContainer
+            main={
+                <>
+                    <Heading.h2>Unavailable for this project</Heading.h2>
+                    <p>
+                        This project belongs to a provider which does not support the accounting and project management
+                        features of UCloud. Try again with a different project.
+                    </p>
+                </>
+            }
+        />
+    }
 
     const activeGroup = (modifiedProject.status.groups ?? [])
         .find(it => it.id === groupIdParam) ?? null;

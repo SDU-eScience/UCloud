@@ -4,7 +4,7 @@ import {FileType} from ".";
 import {UFile} from "@/UCloud/UFile";
 import FilesApi, {ExtraFileCallbacks} from "@/UCloud/FilesApi";
 import {callAPIWithErrorHandler} from "@/Authentication/DataHook";
-import FavoriteBrowse from "./FavoritesBrowse";
+import FavoritesBrowse from "./FavoritesBrowse";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
@@ -13,7 +13,7 @@ import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
 
 type FileOperation = Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>
 export function addFavoriteSelect(onSelect: (file: UFile) => void, isFileAllowed: (file: UFile) => boolean | string, allowedTypes: FileType[], text: string, navigateToFolder: (path: string) => void) {
-    dialogStore.addDialog(<FavoriteBrowse navigateToFolder={navigateToFolder} selection={{
+    dialogStore.addDialog(<FavoritesBrowse navigateToFolder={navigateToFolder} selection={{
         text,
         async onClick(res) {
             const result = "path" in res ? await callAPIWithErrorHandler(FilesApi.retrieve({id: res.path})) : res;
@@ -41,7 +41,7 @@ export function addFavoriteSelect(onSelect: (file: UFile) => void, isFileAllowed
 export function folderFavoriteSelection(
     onSelect: (file: UFile) => void,
     isFileAllowed: (file: UFile) => boolean | string,
-    navigateToFolder: (path: string) => void
+    navigateToFolder: (path: string, projectId?: string) => void
 ): FileOperation {
     return {
         text: "Favorites",
@@ -58,7 +58,7 @@ export function folderFavoriteSelection(
 export function fileFavoriteSelection(
     onSelect: (file: UFile) => void,
     isFileAllowed: (file: UFile) => boolean | string,
-    navigateToFolder: (path: string) => void
+    navigateToFolder: (path: string, projectId?: string) => void
 ): FileOperation {
     return {
         text: "Favorites",

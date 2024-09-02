@@ -1,91 +1,105 @@
 package migrations
 
 import (
-	"log"
-
 	_ "github.com/lib/pq"
-	"ucloud.dk/pkg/database"
+	"os"
+	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/log"
 )
 
-var scripts []MigrationScript
+var scripts []migrationScript
 
-type MigrationScript struct {
+type migrationScript struct {
 	Id      string
-	Execute func(ctx *database.Transaction)
+	Execute func(tx *db.Transaction)
 }
 
-func Migrate(ctx *database.Transaction) {
-	database.Exec(ctx, `
-		create table if not exists migrations(
-			id text primary key
-		);
-	`, map[string]any{})
+func Migrate() {
+	loadMigrations()
+	createMigrationTables()
+	scriptsToRun := findMissingMigrations()
 
-	database.Exec(ctx, `
-		create table if not exists completed_migrations(
-			id text primary key references migrations,
-			completed_at timestamp
-		);
-	`, map[string]any{})
+	for _, migration := range scriptsToRun {
+		db.NewTx0(func(tx *db.Transaction) {
+			migration.Execute(tx)
 
-	if !ctx.Ok {
-		log.Fatalf("Failed to create migrations table")
-	}
+			db.Exec(
+				tx,
+				`
+					insert into completed_migrations (id, completed_at) values (:id, now())
+				`,
+				db.Params{
+					"id": migration.Id,
+				},
+			)
 
-	for _, script := range scripts {
-		database.Exec(ctx, `
-			insert into migrations(id) values (:id) on conflict (id) do nothing
-		`, map[string]any{"id": script.Id})
-
-		if !ctx.Ok {
-			log.Fatalf("Failed to register migration: %s\n%v\n", script.Id, ctx.Error.Message)
-		}
-
-	}
-
-	type CompletedMigrationsRow struct {
-		Id string
-	}
-
-	var missingMigrations = database.Select[CompletedMigrationsRow](ctx, `
-		select m.id
-		from migrations m left join completed_migrations cm on m.id = cm.id
-		where cm.id is null
-	`, map[string]any{})
-
-	if !ctx.Ok {
-		log.Fatalf("Failed to fetch missing migrations")
-	}
-
-	groupedScripts := make(map[string]MigrationScript)
-
-	for _, script := range scripts {
-		groupedScripts[script.Id] = script
-	}
-
-	for _, migrationId := range missingMigrations {
-		migration := groupedScripts[migrationId.Id]
-
-		migration.Execute(ctx)
-
-		// NOTE(Dan): This needs to be prepared everytime because of schema changes made by the migrations.
-		database.Exec(ctx, `
-			insert into completed_migrations (id, completed_at) values (:id, now())
-		`, map[string]any{"id": migrationId.Id})
-
-		if !ctx.Ok {
-			log.Fatalf("Failed to run migration: %s", migrationId)
-		}
+			if !tx.Ok {
+				log.Error("Failed to run migration: %s. %s", migration.Id, tx.ConsumeError().Error())
+				os.Exit(1)
+			}
+		})
 	}
 }
 
-func addScript(script MigrationScript) {
+func createMigrationTables() {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `
+			create table if not exists migrations(
+				id text primary key
+			);
+		`, map[string]any{})
+
+		db.Exec(tx, `
+			create table if not exists completed_migrations(
+				id text primary key references migrations,
+				completed_at timestamp
+			);
+		`, map[string]any{})
+	})
+}
+
+func findMissingMigrations() []migrationScript {
+	return db.NewTx[[]migrationScript](func(tx *db.Transaction) []migrationScript {
+		for _, script := range scripts {
+			db.Exec(tx, `
+				insert into migrations(id) values (:id) on conflict (id) do nothing
+			`, map[string]any{"id": script.Id})
+		}
+
+		type CompletedMigrationsRow struct {
+			Id string
+		}
+
+		missingScriptIds := db.Select[CompletedMigrationsRow](tx, `
+			select m.id
+			from
+				migrations m
+				left join completed_migrations cm on m.id = cm.id
+			where
+				cm.id is null
+		`, map[string]any{})
+
+		var missingScripts []migrationScript
+		for _, script := range scripts {
+			for _, id := range missingScriptIds {
+				if script.Id == id.Id {
+					missingScripts = append(missingScripts, script)
+					break
+				}
+			}
+		}
+		return missingScripts
+	})
+}
+
+func addScript(newScript migrationScript) {
 	for _, thisScript := range scripts {
-		if thisScript.Id == script.Id {
-			log.Fatalf("Failed to add migration script %s: Already exists", script.Id)
+		if thisScript.Id == newScript.Id {
+			log.Error("Failed to add migration migration script %s: Already exists", newScript.Id)
+			os.Exit(1)
 			return
 		}
 	}
 
-	scripts = append(scripts, script)
+	scripts = append(scripts, newScript)
 }

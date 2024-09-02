@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
 
 @UCloudApiInternal(InternalLevel.BETA)
 object AccountingV2 : CallDescriptionContainer("accounting.v2") {
@@ -215,6 +216,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // =================================================================================================================
     val reportUsage = ReportUsage.call
     val checkProviderUsable = CheckProviderUsable.call
+    val retrieveScopedUsage = RetrieveScopedUsage.call
 
     private fun StringBuilder.documentationReportingFromProvider() {}
 
@@ -226,6 +228,29 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "reportUsage", roles = Roles.PROVIDER)
+            }
+        )
+    }
+
+    object RetrieveScopedUsage {
+        @Serializable
+        data class RequestItem(
+            val owner: WalletOwner,
+            val chargeId : String
+        )
+
+        @Serializable
+        data class ResponseItem(
+            val alreadyChargedAmount: Long
+        )
+
+        val call = call(
+            "retrieveScopedUsage",
+            BulkRequest.serializer(RequestItem.serializer()),
+            BulkResponse.serializer(ResponseItem.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "retrieveScopedUsage", roles = Roles.SERVICE)
             }
         )
     }
@@ -258,6 +283,8 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val findRelevantProviders = FindRelevantProviders.call
     val browseProviderAllocations = BrowseProviderAllocations.call
     val retrieveDescendants = RetrieveDescendants.call
+    val adminDebug = AdminDebug.call
+    val adminCharge = AdminCharge.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -356,6 +383,57 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
                         This endpoint is only usable by providers. The endpoint will return a stable results. 
                     """.trimIndent()
                 }
+            }
+        )
+    }
+
+    object AdminDebug {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val mermaidGraph: String,
+            val stateDump: JsonObject,
+        )
+
+        @UCloudApiInternal(InternalLevel.BETA)
+        val call = call(
+            "adminDebug",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminDebug", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminCharge {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val walletId: Int,
+            val amount: Long,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val errorIfAny: String?
+        )
+
+        val call = call(
+            "adminCharge",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminCharge", roles = Roles.ADMIN)
             }
         )
     }

@@ -1,0 +1,13 @@
+application: v2
+
+name: minimal
+version: v1.32
+
+software:
+  type: Native
+
+  # NOTE: In this case both the load and build sections are omitted. In such a
+  # case, the software is simply assumed to be present directly on the host.
+
+invocation: |
+  echo "Hello World!"

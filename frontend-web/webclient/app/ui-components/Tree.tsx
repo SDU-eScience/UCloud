@@ -119,13 +119,11 @@ export const Tree: React.FunctionComponent<{
             if (rowIdx !== initialRowIdx) {
                 const [initialRow] = getRow(initialRowIdx);
                 if (initialRow) initialRow.removeAttribute("data-selected");
-                const [newRow, newRowIdx] = getRow(rowIdx);
+                const [newRow] = getRow(rowIdx);
                 if (newRow) {
                     newRow.setAttribute("data-selected", "");
                     newRow.scrollIntoView({ block: "nearest" });
                 }
-                // Unused expression?
-                rowIdx = newRowIdx;
             }
         };
 

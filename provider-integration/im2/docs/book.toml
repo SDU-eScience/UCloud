@@ -7,6 +7,10 @@ title = "UCloud/IM"
 
 [preprocessor.external-links]
 
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "dark"
+
 [output.html.print]
 enable = false
 

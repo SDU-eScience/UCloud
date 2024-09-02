@@ -49,16 +49,16 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
         usePage("Project invites", SidebarTabId.PROJECT);
     }
 
-    const omitFilters = !!opts?.omitFilters;
+    const hideFilters = opts?.embedded?.hideFilters;
     const avatars = useAvatars();
 
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
-        filters: !omitFilters,
+        filters: !hideFilters,
         showHeaderInEmbedded: !!opts?.selection,
-        sorting: !omitFilters,
-        dragToSelect: !opts?.embedded,
-        search: !opts?.embedded,
+        sorting: !hideFilters,
+        dragToSelect: opts?.embedded == null,
+        search: !opts?.embedded == null,
     };
 
     avatars.subscribe(() => {
@@ -116,7 +116,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 browser.on("fetchFilters", () => []);
 
                 browser.on("renderRow", (invite, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, dims, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(invite.projectTitle, row));
 
                     const avatarWrapper = document.createElement("div");
                     row.stat3.append(avatarWrapper);

@@ -1,0 +1,10 @@
+.42
+<style>@media{#foobar...
+{{ test }}
+{% test %}
+42.
+
+.42{{ test }}42.
+
+
+{{ Fixing: https://github.com/noirbizarre/gonja/issues/9 }}

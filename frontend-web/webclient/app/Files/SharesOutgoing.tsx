@@ -269,7 +269,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         for (const it of page.items) {
                             browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, true)
                             if (shareValidationCache[it.sourceFilePath] == null) {
-                                shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                                shareValidationCache[it.sourceFilePath] = ShareValidateState.NOT_VALIDATED;
                                 promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
                                     shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
                                 }).catch(error => {
@@ -315,7 +315,7 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                     for (const it of page.items) {
                         browser.registerPage({items: it.sharePreview, itemsPerPage: it.sharePreview.length}, it.sourceFilePath, false);
                         if (shareValidationCache[it.sourceFilePath] == null) {
-                            shareValidationCache[it.sourceFilePath] === ShareValidateState.NOT_VALIDATED;
+                            shareValidationCache[it.sourceFilePath] = ShareValidateState.NOT_VALIDATED;
                             promises.push(callAPI(FilesApi.retrieve({id: it.sourceFilePath})).then(() => {
                                 shareValidationCache[it.sourceFilePath] = ShareValidateState.VALIDATED
                             }).catch(error => {
@@ -394,9 +394,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, row));
                     } else {
-                        const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, dims, row);
+                        const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, row);
                         row.title.append(node);
                         prettyFilePath(share.sourceFilePath).then(title => {
                             node.innerText = title;
@@ -628,7 +628,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,

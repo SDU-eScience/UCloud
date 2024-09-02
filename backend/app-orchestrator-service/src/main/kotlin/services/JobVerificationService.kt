@@ -212,7 +212,15 @@ class JobVerificationService(
         specification: JobSpecification,
     ): Map<String, AppParameterValue> {
         val userParameters = HashMap(specification.parameters)
-
+        val paramKeys = app.invocation.parameters.map { it.name }
+        userParameters.forEach { (k, _) ->
+            if (!paramKeys.contains(k)) {
+                throw RPCException("Unknown parameter given: $k", HttpStatusCode.BadRequest)
+            }
+        }
+        if (userParameters.isNotEmpty() && app.invocation.parameters.isEmpty()) {
+            throw RPCException("Unknown parameter(s) given", HttpStatusCode.BadRequest)
+        }
         for (param in app.invocation.parameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
@@ -336,6 +344,30 @@ class JobVerificationService(
 
                 is ApplicationParameter.NetworkIP -> {
                     if (providedValue !is AppParameterValue.Network) badValue(param)
+                }
+            }
+        }
+
+        for (param in userParameters) {
+            if (param.key.startsWith(injectedPrefix)) {
+                when (param.value) {
+                    // No resource parameters should be allowed to pass through here
+                    is AppParameterValue.File,
+                    is AppParameterValue.License,
+                    is AppParameterValue.Network,
+                    is AppParameterValue.Ingress,
+                    is AppParameterValue.BlockStorage -> {
+                        throw RPCException("Bad injected parameter", HttpStatusCode.BadGateway)
+                    }
+
+                    is AppParameterValue.Bool,
+                    is AppParameterValue.FloatingPoint,
+                    is AppParameterValue.Integer,
+                    is AppParameterValue.Peer,
+                    is AppParameterValue.Text,
+                    is AppParameterValue.TextArea -> {
+                        // OK
+                    }
                 }
             }
         }

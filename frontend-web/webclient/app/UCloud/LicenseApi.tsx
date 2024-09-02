@@ -9,7 +9,6 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {Icon} from "@/ui-components";
-import {EnumFilter} from "@/Resource/Filter";
 import {JobBinding} from "@/UCloud/JobsApi";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductLicense, productTypeToIcon} from "@/Accounting";

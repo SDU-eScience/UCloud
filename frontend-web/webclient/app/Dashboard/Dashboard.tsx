@@ -28,7 +28,6 @@ import ProjectInviteBrowse from "@/Project/ProjectInviteBrowse";
 import {IngoingSharesBrowse} from "@/Files/Shares";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as Accounting from "@/Accounting";
-import {timestampUnixMs} from "@/UtilityFunctions";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
@@ -37,7 +36,7 @@ import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {totalUsageExcludingRetiredIfNeeded, showWarning} from "@/Accounting/Allocations";
+import {AllocationDisplayWallet} from "@/Accounting";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -152,10 +151,10 @@ function Invites({projectReloadRef, inviteReloadRef}: {
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{reloadRef: projectReloadRef, embedded: true, setShowBrowser: setShowProjectInvites}} /></div>
+                opts={{reloadRef: projectReloadRef, embedded: {disableKeyhandlers: true, hideFilters: false}, setShowBrowser: setShowProjectInvites}} /></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
-                embedded: true,
+                embedded: {disableKeyhandlers: true, hideFilters: false},
                 setShowBrowser: setShowShareInvites,
                 filterState: "PENDING"
             }} /></div>
@@ -187,8 +186,7 @@ function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => voi
         icon="heroServer"
     >
         <JobsBrowse opts={{
-            embedded: true, omitBreadcrumbs: true, omitFilters: true, disabledKeyhandlers: true,
-            additionalFilters: {"itemsPerPage": "10"}, reloadRef
+            embedded: {hideFilters: true, disableKeyhandlers: true}, omitBreadcrumbs: true, additionalFilters: {itemsPerPage: "10"}, reloadRef
         }} />
     </DashboardCard>;
 }
@@ -209,23 +207,17 @@ function DashboardResources({wallets}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    const now = timestampUnixMs();
     const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
+    const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
-    mapped.sort((a, b) => {
-        let compare: number = 0;
-
-        compare = a.paysFor.provider.localeCompare(b.paysFor.provider);
-        if (compare !== 0) return compare;
-
-        compare = a.paysFor.productType.localeCompare(b.paysFor.productType);
-        if (compare !== 0) return compare;
-
-        compare = a.paysFor.name.localeCompare(b.paysFor.name);
-        if (compare !== 0) return compare;
-
-        return (a.quota < b.quota) ? 1 : -1;
-    }).slice(0, 7);
+    const displayWallets: AllocationDisplayWallet[] = [];
+    for (const category of Accounting.productTypesByPriority) {
+        const entry = tree[category];
+        if (!entry) continue;
+        for (const wallet of entry.wallets) {
+            displayWallets.push(wallet);
+        }
+    }
 
     return (
         <DashboardCard
@@ -240,40 +232,35 @@ function DashboardResources({wallets}: {
                     <ApplyLinkButton />
                 </NoResultsCardBody>
             ) :
-                /* height is 100% - height of Heading 55px */
-                <Flex flexDirection="column" height={"calc(100% - 55px)"}>
-                    <Table>
-                        <tbody>
-                            {mapped.map((n, i) => (
-                                <TableRow height="55px" key={i}>
-                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
-                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                            <ProviderLogo providerId={n.paysFor.provider} size={30} />
-                                            <code>{n.paysFor.name}</code>
-                                        </Flex>
-                                    </TableCell>
-                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                        <Flex justifyContent="end">
-                                            {!showWarning(n.quota, n.maxUsable, totalUsageExcludingRetiredIfNeeded(n)) ? null : <OverallocationLink>
-                                                <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                    <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                </TooltipV2>
-                                            </OverallocationLink>}
-                                            {Accounting.balanceToString(n.paysFor, totalUsageExcludingRetiredIfNeeded(n), {
-                                                precision: 0,
-                                                removeUnitIfPossible: true
-                                            })}
-                                            {" "}/{" "}
-                                            {Accounting.balanceToString(n.paysFor, n.quota, {
-                                                precision: 0,
-                                                removeUnitIfPossible: false
-                                            })}
-                                        </Flex>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </tbody>
-                    </Table>
+                <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
+                    <Box maxHeight={"600px"} overflowY={"auto"}>
+                        <Table>
+                            <tbody>
+                                {displayWallets.map((w, i) => (
+                                    <TableRow height="55px" key={i}>
+                                        <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
+                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                                <ProviderLogo providerId={w.category.provider} size={30} />
+                                                <code>{w.category.name}</code>
+                                            </Flex>
+                                        </TableCell>
+                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                            <Flex justifyContent="end">
+                                                {!w.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                    <OverallocationLink>
+                                                        <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                            <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
+                                                        </TooltipV2>
+                                                    </OverallocationLink>
+                                                }
+                                                {w.usageAndQuota.display.usageAndQuota}
+                                            </Flex>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Box>
                     <Box flexGrow={1} />
                     <Flex mx="auto"><ApplyLinkButton /></Flex>
                 </Flex>
@@ -295,9 +282,10 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
     >
         <GrantApplicationBrowse opts={{
             reloadRef,
-            embedded: true,
-            omitFilters: true,
-            disabledKeyhandlers: true,
+            embedded: {
+                hideFilters: true,
+                disableKeyhandlers: true,
+            },
             both: true,
             additionalFilters: {itemsPerPage: "10"}
         }} />

@@ -14,24 +14,8 @@ class TrashService(
             throw RPCException("Bad username", HttpStatusCode.BadRequest)
         }
 
-        val (targetDrive) = pathConverter.locator.resolveDriveByInternalFile(targetPath)
-        val project = pathConverter.findProjectOwner(targetDrive.ucloudId.toString())
-
-        val systemAndDrive = try {
-            pathConverter.locator.resolveDriveByProviderId(
-                if (project == null) {
-                    UCloudDrive.PersonalWorkspace(UCloudDrive.PLACEHOLDER_ID, username)
-                } else {
-                    UCloudDrive.ProjectMemberFiles(UCloudDrive.PLACEHOLDER_ID, project, username)
-                }
-            )
-        } catch (ex: RPCException) {
-            if (ex.httpStatusCode == HttpStatusCode.NotFound) {
-                null
-            } else {
-                throw ex
-            }
-        }
+        var systemAndDrive = pathConverter.locator.resolveDriveByInternalFile(targetPath)
+        val targetDrive = systemAndDrive.drive
 
         val homeDrive = systemAndDrive?.drive
         return if (homeDrive != null && !systemAndDrive.inMaintenanceMode) {

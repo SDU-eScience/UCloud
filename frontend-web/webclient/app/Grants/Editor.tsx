@@ -138,7 +138,7 @@ const defaultState: EditorState = {
 // State reducer
 // =====================================================================================================================
 type EditorAction =
-    {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
+    | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
         type: "GrantGiverInitiatedLoaded",
         wallets: Accounting.WalletV2[],
@@ -148,7 +148,7 @@ type EditorAction =
         projectId?: string,
         piUsernameHint: string
     }
-    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[]}
+    | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
@@ -232,9 +232,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     templateKey = "personalProject";
                 }
             } else {
-                const recipient = state.stateDuringEdit?.recipient;
+                const recipient = action.recipientType ?? state.stateDuringEdit?.recipient.type;
                 if (recipient) {
-                    switch (recipient.type) {
+                    switch (recipient) {
                         case "personalWorkspace":
                             templateKey = "personalProject";
                             break;
@@ -244,6 +244,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         case "existingProject":
                             templateKey = "existingProject";
                             break;
+                        default:
+                            console.warn("Unhandled recipient!");
                     }
                 }
             }
@@ -690,7 +692,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         newAllocators.forEach(it => it.checked = true);
 
         const newResources: EditorState["resources"] = {};
-        let entries = Object.entries(state.resources);
+        const entries = Object.entries(state.resources);
         for (const [provider, categories] of entries) {
             newResources[provider] = categories.map(it => ({
                 ...it,
@@ -726,7 +728,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             } else {
                 otherSection += section.title;
                 otherSection += ":\n\n";
-                otherSection += section.description
+                otherSection += section.description;
                 otherSection += "\n\n";
             }
         }
@@ -835,9 +837,9 @@ function useStateReducerMiddleware(
                         const pApp = callAPI(Grants.retrieve({id: event.grantId}));
 
                         const affiliations = await pAffiliations;
-                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers});
-
                         const application = await pApp;
+                        dispatch({type: "AllocatorsLoaded", allocators: affiliations.grantGivers, recipientType: application.currentRevision.document.recipient.type});
+
 
                         const projectPage = await projectPromise;
                         const allRelevantAllocators = new Set(application.status.revisions.flatMap(rev =>
@@ -876,6 +878,7 @@ function useStateReducerMiddleware(
                     projects: [{id: null as (string | null), title: "My workspace"}].concat(
                         projectPage.items
                             .filter(it => isAdminOrPI(it.status.myRole!))
+                            .filter(it => it.status.personalProviderProjectFor == null)
                             .map(it => ({id: it.id, title: it.specification.title}))
                     )
                 });
@@ -889,8 +892,6 @@ function useStateReducerMiddleware(
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
 
                 try {
-
-
                     dispatch({
                         type: "AllocatorsLoaded",
                         allocators: [{
@@ -1870,6 +1871,12 @@ export function Editor(): React.ReactNode {
                                         <option value="6">6 months</option>
                                         <option value="12">12 months</option>
                                         <option value="24">24 months</option>
+
+                                        {!Client.userIsAdmin ? null : (
+                                            [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
+                                                <option value={`${years * 12}`}>{years} years</option>
+                                            )
+                                        )}
                                     </Select>
                                 </label>
                             </FormField>
@@ -1993,7 +2000,7 @@ export function Editor(): React.ReactNode {
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={Accounting.guestimateProductCategoryDescription(category.category.name, providerId)}
+                                                description={Accounting.guesstimateProductCategoryDescription(category.category.name, providerId)}
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={false}
                                             >
@@ -2638,7 +2645,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
 
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
@@ -2647,16 +2654,12 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     date.setUTCMonth(date.getUTCMonth() - 6);
     for (let i = 0; i < 12; i++) {
         insertIfUnique(date);
-        let currentMonth = date.getMonth();
+        const currentMonth = date.getMonth();
         date.setMonth((currentMonth + 1) % 12);
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
 
-    result.sort((a, b) => {
-        if (a.time < b.time) return -1;
-        if (a.time > b.time) return 1;
-        return 0;
-    });
+    result.sort((a, b) => a.time - b.time);
 
     return result;
 }

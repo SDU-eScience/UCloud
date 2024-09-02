@@ -96,6 +96,7 @@ stopsvc() {
         rm -f /var/log/ucloud/*.log
     fi
 
+    pkill postgres || true
     pkill ucloud || true
     pkill envoy || true
     pkill dlv || true

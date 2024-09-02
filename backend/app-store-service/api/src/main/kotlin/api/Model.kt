@@ -87,6 +87,8 @@ sealed class ApplicationParameter {
     abstract val description: String
     abstract val defaultValue: JsonElement?
 
+    abstract fun referencesResource(): Boolean
+
     @Serializable
     @SerialName(TYPE_INPUT_FILE)
     @UCloudApiDoc("""
@@ -100,7 +102,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = true
+    }
 
     @Serializable
     @SerialName(TYPE_INPUT_DIRECTORY)
@@ -115,7 +119,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = true
+    }
 
     @Serializable
     @SerialName(TYPE_TEXT)
@@ -130,7 +136,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_TEXTAREA)
@@ -140,7 +148,9 @@ sealed class ApplicationParameter {
         override val defaultValue: JsonElement? = null,
         override val title: String = "",
         override val description: String = ""
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_INTEGER)
@@ -162,7 +172,9 @@ sealed class ApplicationParameter {
         val max: Long? = null,
         val step: Long? = null,
         val unitName: String? = null
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_FLOATING_POINT)
@@ -184,7 +196,9 @@ sealed class ApplicationParameter {
         val max: Double? = null,
         val step: Double? = null,
         val unitName: String? = null
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_BOOLEAN)
@@ -201,7 +215,9 @@ sealed class ApplicationParameter {
         override val description: String = "",
         val trueValue: String = "true",
         val falseValue: String = "false"
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     data class EnumOption(val name: String, val value: String)
@@ -221,7 +237,9 @@ sealed class ApplicationParameter {
         override val title: String = "",
         override val description: String = "",
         val options: List<EnumOption> = emptyList()
-    ) : ApplicationParameter()
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 
     @Serializable
     @SerialName(TYPE_PEER)
@@ -253,6 +271,8 @@ sealed class ApplicationParameter {
             }
          */
 
+        override fun referencesResource(): Boolean = true
+
         companion object {
             private val hostNameRegex =
                 Regex(
@@ -275,6 +295,8 @@ sealed class ApplicationParameter {
         override val optional: Boolean = false,
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
+
+        override fun referencesResource(): Boolean = true
     }
 
     @Serializable
@@ -292,6 +314,7 @@ sealed class ApplicationParameter {
         val tagged: List<String>
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
+        override fun referencesResource(): Boolean = true
     }
 
     @Serializable
@@ -308,6 +331,7 @@ sealed class ApplicationParameter {
     ) : ApplicationParameter() {
         override val defaultValue: JsonElement? = null
         override val optional = false
+        override fun referencesResource(): Boolean = true
     }
 }
 
@@ -506,6 +530,9 @@ and a $TYPE_REF AppParameterValue:
 
 For each of the $TYPE_REF InvocationParameter types, we will describe the value(s) they produce. We will also highlight 
 notable differences between CLI args and environment variables.
+
+Version 2 of the application format will always have exactly one invocation parameters which will be of type
+JinjaInvocationParameter.
 """, importance = 920
 )
 sealed class InvocationParameter {
@@ -514,6 +541,18 @@ sealed class InvocationParameter {
         context: InvocationParameterContext = InvocationParameterContext.COMMAND,
         builder: ArgumentBuilder = ArgumentBuilder.Default,
     ): List<String>
+}
+
+@Serializable
+@SerialName("jinja")
+data class JinjaInvocationParameter(
+    val template: String,
+) : InvocationParameter() {
+    override suspend fun buildInvocationList(
+        parameters: AppParametersWithValues,
+        context: InvocationParameterContext,
+        builder: ArgumentBuilder
+    ): List<String> = error("not implemented in Kotlin")
 }
 
 @Serializable
@@ -1085,7 +1124,11 @@ data class ApplicationMetadata(
 data class VncDescription(
     val password: String? = null,
     val port: Int = 5900
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""
@@ -1096,7 +1139,11 @@ data class VncDescription(
 """, importance = 960)
 data class WebDescription(
     val port: Int = 80
-)
+) {
+    init {
+        if ( port < 1 || port > 65535) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Port must be between 1 and 65535. Port given: $port")
+    }
+}
 
 @Serializable
 @UCloudApiDoc("""
@@ -1227,6 +1274,9 @@ data class ApplicationInvocationDescription(
     @UCloudApiDoc("A section describing integration with a module system. " +
             "Currently only valid for `CONTAINER` based applications.")
     val modules: ModulesSection? = null,
+
+    @UCloudApiDoc("Directives for sbatch which can be consumed by Slurm-based providers")
+    val sbatch: Map<String, InvocationParameter>? = null,
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {
@@ -1337,6 +1387,8 @@ data class NormalizedToolDescription(
         
         The provider decides how to interpret this value. It is intended to be used with a module system of traditional 
         HPC systems.
+        
+        This is being replaced by loadInstructions, but may still be present for older applications.
     """)
     val requiredModules: List<String>,
 
@@ -1377,10 +1429,41 @@ data class NormalizedToolDescription(
         If no providers are supplied, then this Tool will implicitly support all Providers.
     """)
     val supportedProviders: List<String>? = null,
+
+    val buildInstructions: ToolBuildInstructions? = null,
+    val loadInstructions: ToolLoadInstructions? = null,
 ) {
     override fun toString(): String {
         return "NormalizedToolDescription(info=$info, container='$container')"
     }
+}
+
+@Serializable
+sealed class ToolBuildInstructions {
+    @Serializable
+    @SerialName("NativeEasyBuild")
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    data class NativeEasyBuild(
+        val repository: String,
+        val files: List<String>,
+    ) : ToolBuildInstructions()
+
+    @Serializable
+    @SerialName("NativeSpack")
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    data class NativeSpack(
+        val repository: String,
+        val packages: List<String>,
+    ) : ToolBuildInstructions()
+}
+
+@Serializable
+sealed class ToolLoadInstructions {
+    @Serializable
+    @SerialName("NativeModuleWithJinja")
+    data class NativeModuleWithJinja(
+        val modules: List<String>,
+    ) : ToolLoadInstructions()
 }
 
 @Serializable

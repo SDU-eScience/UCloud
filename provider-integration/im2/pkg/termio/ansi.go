@@ -85,3 +85,19 @@ func Write(formatString string, args ...any) {
 func WriteLine(formatString string, args ...any) {
 	Write(formatString+"\n", args...)
 }
+
+func moveCursorUp(lines int) {
+	fmt.Printf("\033[%dA", lines)
+}
+
+func clearLine() {
+	fmt.Printf("\033[2K")
+}
+
+func hideCursor() {
+	fmt.Printf("\033[?25l")
+}
+
+func showCursor() {
+	fmt.Printf("\033[?25h")
+}

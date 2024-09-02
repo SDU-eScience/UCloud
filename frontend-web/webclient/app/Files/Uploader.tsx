@@ -647,7 +647,7 @@ const Uploader: React.FunctionComponent = () => {
         e.preventDefault();
         e.stopPropagation();
 
-        let allUploads: Upload[] = uploads;
+        const allUploads: Upload[] = uploads;
         const events = await filesFromDropOrSelectEvent(e);
         for (const u of events) {
             switch (u.type) {

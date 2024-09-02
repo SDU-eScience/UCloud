@@ -22,6 +22,7 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.provider.api.checkDeicReferenceFormat
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
@@ -163,7 +164,7 @@ class GrantsV2Service(
                 var projectPi = username
                 when (val r = doc.recipient) {
                     is GrantApplication.Recipient.ExistingProject -> {
-                        val (title, pi) = session.sendPreparedStatement(
+                        val row = session.sendPreparedStatement(
                             {
                                 // Grant giver initiated will check for permissions later
                                 val isGrantGiverInitiated = doc.form is GrantApplication.Form.GrantGiverInitiated
@@ -172,7 +173,7 @@ class GrantsV2Service(
                                 setParameter("project_id", r.id)
                             },
                             """
-                                select distinct p.title, pi.username
+                                select distinct p.title, pi.username, p.provider_project_for
                                 from
                                     project.projects p,
                                     project.project_members pm,
@@ -192,11 +193,17 @@ class GrantsV2Service(
                                     and pi.project_id = p.id
                                     and pi.role = 'PI'
                             """
-                        ).rows.singleOrNull()?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
-                            ?: throw RPCException("Unknown recipient project", HttpStatusCode.BadRequest)
+                        ).rows.singleOrNull() ?: throw RPCException(
+                            "Unknown recipient project",
+                            HttpStatusCode.BadRequest
+                        )
 
-                        projectTitle = title
-                        projectPi = pi
+                        projectTitle = row.getString(0)!!
+                        projectPi = row.getString(1)!!
+
+                        if (row.getString(2) != null) {
+                            throw RPCException("This project cannot apply for grants", HttpStatusCode.Forbidden)
+                        }
                     }
 
                     is GrantApplication.Recipient.NewProject -> {
@@ -244,6 +251,14 @@ class GrantsV2Service(
         actorAndProject: ActorAndProject,
         request: GrantsV2.SubmitRevision.Request,
     ): FindByStringId {
+        val recipient = request.revision.recipient
+        if (recipient is GrantApplication.Recipient.NewProject) {
+            // NOTE(Dan): Used as a hint to the frontend about special projects. Not used for anything backend related.
+            if (recipient.title.startsWith("%")) {
+                throw RPCException("Projects cannot start with '%'", HttpStatusCode.Forbidden)
+            }
+        }
+
         if (request.revision.allocationRequests.none { (it.balanceRequested ?: 0L) > 0 }) {
             throw RPCException("No resources requested", HttpStatusCode.BadRequest)
         }
@@ -1179,6 +1194,10 @@ class GrantsV2Service(
 
                         req.copy(grantGiver = command.targetProjectId)
                     }
+                    if (requestsAfterMove.isEmpty()) throw RPCException.fromStatusCode(
+                        HttpStatusCode.UnprocessableEntity,
+                        "Receiving grant giver does not have any of the applied resources"
+                    )
                     val newBreakdown = application.status.stateBreakdown.filter {
                         it.projectId != command.sourceProjectId
                     } + GrantApplication.GrantGiverApprovalState(
@@ -1597,26 +1616,22 @@ class GrantsV2Service(
                                 )
                             } catch (e: Throwable) {
                                 failed = true
-                                if (e is RPCException) {
-                                    if (e.httpStatusCode == HttpStatusCode.UnprocessableEntity) {
-                                        SlackDescriptions.sendAlert.call(
-                                            Alert(
-                                                "Error in Accounting hierarchy while processing GrantId ${application.id}: ${e.message}"
-                                            ),
-                                            ctx.serviceClient
-                                        )
-                                        println(e)
-
-                                    }
-                                } else {
-                                    println(e.toReadableStacktrace())
+                                if (e is RPCException && e.httpStatusCode == HttpStatusCode.UnprocessableEntity) {
+                                    SlackDescriptions.sendAlert.call(
+                                        Alert(
+                                            "Error in Accounting hierarchy while processing GrantId ${application.id}: ${e.message}"
+                                        ),
+                                        ctx.serviceClient
+                                    )
                                 }
+
+                                log.warn(e.toReadableStacktrace().toString())
                             }
                         }
 
                         if (failed) {
                             val grantedIn = application.id.toLong()
-                            println("Rolling back the allocations granted in $grantedIn due to error")
+                            log.warn("Rolling back the allocations granted in $grantedIn due to error")
                             ctx.accountingService.sendRequest(
                                 AccountingRequest.RollBackGrantAllocations(
                                     IdCard.System,
@@ -1908,7 +1923,8 @@ class GrantsV2Service(
         }
     }
 
-    companion object {
+    companion object : Loggable {
         const val LOGO_MAX_SIZE = 1024 * 512
+        override val log = logger()
     }
 }

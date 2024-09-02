@@ -1,6 +1,6 @@
-import {AppToolLogo, SafeLogo} from "@/Applications/AppToolLogo";
+import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Flex, Icon, Relative} from "@/ui-components";
+import {Icon, Relative} from "@/ui-components";
 import Link from "@/ui-components/Link";
 import Markdown from "@/ui-components/Markdown";
 import {ThemeColor} from "@/ui-components/theme";

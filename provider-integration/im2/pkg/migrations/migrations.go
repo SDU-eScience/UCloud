@@ -1,5 +1,9 @@
 package migrations
 
-func LoadMigrations() {
-	addScript(GenericLicensesV1())
+func loadMigrations() {
+	addScript(genericLicensesV1())
+	addScript(connectionsV1())
+	addScript(apmEventsV1())
+	addScript(slurmV1())
+	addScript(connectionsV2())
 }

@@ -367,4 +367,14 @@ func (c *Client) AccountBillingList() map[string]int64 {
 	return result
 }
 
+func (c *Client) UserListAccounts(user string) []string {
+	stdout, ok := util.RunCommand([]string{"sacctmgr", "show", "user", user, "--associations", "format=account", "--parsable2", "--noheader"})
+	if !ok {
+		return nil
+	}
+
+	lines := strings.Split(stdout, "\n")
+	return lines
+}
+
 var billingRegex = regexp.MustCompile("billing=(\\d+)")

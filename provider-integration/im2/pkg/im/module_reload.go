@@ -1,8 +1,8 @@
 package im
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"io"
 	"log"
 	"net/http"
@@ -26,11 +26,12 @@ var _currentModule *ReloadableModule = nil
 type ModuleArgs struct {
 	Mode                 cfg.ServerMode
 	GatewayConfigChannel chan []byte
-	Database             *sql.DB
+	Database             *sqlx.DB
 	ConfigDir            string
 	UserModeSecret       string
 	ServerMultiplexer    *http.ServeMux
 	IpcMultiplexer       *http.ServeMux
+	MetricsHandler       *func(writer http.ResponseWriter, request *http.Request)
 }
 
 var Args *ModuleArgs // Only valid after ModuleMain has finished initialization
@@ -61,6 +62,7 @@ func ReloadModule(
 	args["ConfigDir"] = moduleArgs.ConfigDir
 	args["UserModeSecret"] = moduleArgs.UserModeSecret
 	args["IpcMultiplexer"] = moduleArgs.IpcMultiplexer
+	args["MetricsHandler"] = moduleArgs.MetricsHandler
 
 	newModule.ModuleMain(oldPluginData, args)
 	_currentModule = newModule

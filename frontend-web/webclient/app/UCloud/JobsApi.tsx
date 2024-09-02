@@ -12,7 +12,6 @@ import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {EnumFilter} from "@/Resource/Filter";
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
@@ -27,7 +26,11 @@ import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
-import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
+import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+
+export interface DynamicParameters {
+    parametersByProvider: Record<string, ApplicationParameter[]>;
+}
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -263,20 +266,6 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     constructor() {
         super("jobs");
-
-        this.registerFilter(EnumFilter(
-            "radioEmpty",
-            "filterState",
-            "Status",
-            [
-                {title: "In queue", value: "IN_QUEUE", icon: "hashtag"},
-                {title: "Running", value: "RUNNING", icon: "hashtag"},
-                {title: "Success", value: "SUCCESS", icon: "check"},
-                {title: "Failure", value: "FAILURE", icon: "close"},
-                {title: "Expired", value: "EXPIRED", icon: "chrono"},
-                {title: "Suspended", value: "SUSPENDED", icon: "pauseSolid"},
-            ]
-        ));
     }
 
     retrieveOperations(): Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] {
@@ -300,7 +289,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
         const ourOps: Operation<Job, ResourceBrowseCallbacks<Job> & {isModal: boolean}>[] = [{
             // Re-run app
-            enabled: (selected, cb) => !cb.isModal && selected.length === 1,
+            enabled: (selected, cb) => {
+                const isSyncthing = isSyncthingApp(selected[0]);
+                return !cb.isModal && selected.length === 1 && !isSyncthing;
+            },
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
@@ -342,6 +334,16 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
         return apiUpdate(request, this.baseContext, "interactiveSession");
     }
+
+    requestDynamicParameters(req: {
+        application: NameAndVersion
+    }): APICallParameters {
+        return apiUpdate(req, this.baseContext, "requestDynamicParameters")
+    }
+}
+
+export function isSyncthingApp(app?: Job) {
+    return app?.specification.application.name === "syncthing"
 }
 
 export const api = new JobApi()

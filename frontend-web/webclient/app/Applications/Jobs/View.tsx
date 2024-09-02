@@ -28,7 +28,8 @@ import {
     ComputeSupport,
     DockerSupport,
     NativeSupport,
-    VirtualMachineSupport
+    VirtualMachineSupport,
+    isSyncthingApp
 } from "@/UCloud/JobsApi";
 import {PageV2, compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
@@ -65,7 +66,7 @@ export const jobCache = new class extends ExternalStoreBase {
         for (const job of runningJobs) {
             const duplicate = this.cache.items.find(it => it.id === job.id);
             if (duplicate) {
-                duplicate.status === job.status;
+                duplicate.status = job.status;
             } else {
                 this.cache.items.unshift(job);
             }
@@ -1252,7 +1253,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
         <Box flexGrow={1} />
-        {isUnknownApp ? null :
+        {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
                 <Button>Run application again</Button>
             </Link>
@@ -1268,7 +1269,7 @@ function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNod
     }
     return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
-            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: true, omitFilters: true, disabledKeyhandlers: false, overrideDisabledKeyhandlers: true}}
+            opts={{initialPath: pathRef.current, managesLocalProject: true, embedded: {hideFilters: true, disableKeyhandlers: false}}}
         />
     </Card>;
 }

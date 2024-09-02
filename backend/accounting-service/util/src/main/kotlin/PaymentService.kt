@@ -53,17 +53,33 @@ class PaymentService(
             )
         }
 
-        val call = AccountingV2.reportUsage.call(
-            BulkRequest(items),
-            serviceClient
-        )
+        try {
+            val call = AccountingV2.reportUsage.call(
+                BulkRequest(items),
+                serviceClient
+            ).orThrow()
 
-        val results = call.orNull()?.responses ?: Array(payments.size) { false }.toList()
+            val results = call.responses
 
-        return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+            return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+        } catch (ex: Throwable) {
+            log.info("Credit report failed: ${ex.toReadableStacktrace()} $items")
+
+            val results = Array(payments.size) { false }.toList()
+            return results.map { if (it) ChargeResult.Charged else ChargeResult.InsufficientFunds }
+        }
     }
 
     suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
+        val scopedUsage = AccountingV2.retrieveScopedUsage.call(
+            BulkRequest(
+                payments.map { payment ->
+                    AccountingV2.RetrieveScopedUsage.RequestItem(
+                        payment.owner, payment.chargeId
+                    )
+                }
+            ), serviceClient
+        ).orThrow().responses
         try {
             return AccountingV2.checkProviderUsable.call(
                 BulkRequest(
@@ -77,9 +93,11 @@ class PaymentService(
                 serviceClient,
             ).orThrow().responses.mapIndexed { index, response ->
                 val payment = payments[index]
-                val balanceUsed = payment.units * payment.pricePerUnit * payment.periods
-
-                if (response.maxUsable >= balanceUsed) ChargeResult.Charged
+                val paymentRequired = payment.units * payment.pricePerUnit * payment.periods
+                val alreadyPrepaid = scopedUsage[index].alreadyChargedAmount
+                val balanceNeeded = paymentRequired - alreadyPrepaid
+                log.info("chargeId: ${payment.chargeId}, paymentRequired: $paymentRequired, already paid: $alreadyPrepaid, needs: $balanceNeeded, maxUsable: ${response.maxUsable}")
+                if (response.maxUsable >= balanceNeeded) ChargeResult.Charged
                 else ChargeResult.InsufficientFunds
             }
         } catch (ex: Throwable) {

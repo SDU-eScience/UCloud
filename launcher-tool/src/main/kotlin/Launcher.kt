@@ -135,7 +135,7 @@ fun main(args: Array<String>) {
         if (shouldInitializeTestEnvironment) {
             val providers = ComposeService.allProviders()
             for (provider in providers) {
-                if(provider.name == "go-slurm") {
+                if(provider.name.contains("slurm")) {
                     //skip
                 } else {
                     Commands.createProvider(provider.name)

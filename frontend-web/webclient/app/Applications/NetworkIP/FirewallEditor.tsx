@@ -7,7 +7,6 @@ import {useCallback, useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
 import {blankOrUndefined} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import TitledCard from "@/ui-components/HighlightedCard";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {classConcat} from "@/Unstyled";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";

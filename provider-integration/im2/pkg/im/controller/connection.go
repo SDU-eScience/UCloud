@@ -2,15 +2,20 @@ package controller
 
 import (
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"ucloud.dk/pkg/apm"
+	db "ucloud.dk/pkg/database"
+	"ucloud.dk/pkg/im/ipc"
+
 	"ucloud.dk/pkg/client"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/gateway"
-	"ucloud.dk/pkg/kvdb"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -39,12 +44,6 @@ func ConnectionError(error string) string {
 	return "TODO" // TODO
 }
 
-const uidMapPrefix = "uid-map-"
-const uidInvMapPrefix = "uid-inv-map-"
-
-const gidMapPrefix = "gid-map-"
-const gidInvMapPrefix = "gid-inv-map-"
-
 var connectionCompleteCallbacks []func(username string, uid uint32)
 var projectNotificationCallbacks []func(updated *NotificationProjectUpdated)
 
@@ -56,22 +55,77 @@ func OnProjectNotification(callback func(updated *NotificationProjectUpdated)) {
 	projectNotificationCallbacks = append(projectNotificationCallbacks, callback)
 }
 
-func RegisterConnectionComplete(username string, uid uint32) error {
+func CreatePersonalProviderProject(username string) (string, error) {
+	type Req struct {
+		Username string `json:"username"`
+	}
+	type Resp struct {
+		ProjectId string `json:"projectId"`
+	}
+
+	resp, err := client.ApiUpdate[Resp](
+		"projects.v2.createPersonalProviderProject",
+		"/api/projects/v2",
+		"createPersonalProviderProject",
+		Req{
+			Username: username,
+		},
+	)
+
+	if err != nil {
+		return "", err
+	} else {
+		return resp.ProjectId, err
+	}
+}
+
+func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) error {
 	type Req struct {
 		Username string `json:"username"`
 	}
 	type Resp struct{}
 
-	log.Info("Registering connection complete %v -> %v", username, uid)
-	_, err := client.ApiUpdate[Resp](
-		"providers.im.control.approveConnection",
-		"/api/providers/integration/control",
-		"approveConnection",
-		Req{username},
-	)
+	if notifyUCloud {
+		log.Info("Registering connection complete %v -> %v", username, uid)
+		_, err := client.ApiUpdate[Resp](
+			"providers.im.control.approveConnection",
+			"/api/providers/integration/control",
+			"approveConnection",
+			Req{username},
+		)
 
-	kvdb.Set(fmt.Sprintf("%v%v", uidInvMapPrefix, uid), username)
-	kvdb.Set(fmt.Sprintf("%v%v", uidMapPrefix, username), uid)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := db.NewTx[error](func(tx *db.Transaction) error {
+		db.Exec(
+			tx,
+			`
+				insert into connections(ucloud_username, uid)
+				values (:username, :uid)
+			`,
+			db.Params{
+				"username": username,
+				"uid":      uid,
+			},
+		)
+
+		err := tx.ConsumeError()
+		if err != nil {
+			log.Warn("Failed to register connection. Underlying error is: %v", err)
+			return &util.HttpError{
+				StatusCode: http.StatusInternalServerError,
+				Why:        "Failed to register connection.",
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
 
 	userReplayChannel <- username
 
@@ -81,53 +135,153 @@ func RegisterConnectionComplete(username string, uid uint32) error {
 	return err
 }
 
+func RemoveConnection(uid uint32) error {
+	ucloud, ok := MapLocalToUCloud(uid)
+	if !ok {
+		return fmt.Errorf("unknown user supplied: %v", uid)
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from connections
+				where uid = :uid
+		    `,
+			db.Params{
+				"uid": uid,
+			},
+		)
+	})
+
+	type Req struct {
+		Username string `json:"username"`
+	}
+	_, err := client.ApiUpdate[util.Empty](
+		"providers.im.control.clearConnection",
+		"/api/providers/integration/control",
+		"clearConnection",
+		Req{Username: ucloud},
+	)
+
+	if err != nil {
+		_ = RegisterConnectionComplete(ucloud, uid, false)
+		return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+	}
+
+	return nil
+}
+
 func getDebugPort(ucloudUsername string) (int, bool) {
 	// TODO add this to config make it clear that this is insecure and for development _only_
 	if ucloudUsername == "user" {
 		return 51234, true
 	}
+	if ucloudUsername == "user2" {
+		return 51235, true
+	}
 	return 0, false
 }
 
 func MapUCloudToLocal(username string) (uint32, bool) {
-	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", uidMapPrefix, username))
-	if !ok {
-		return 11400, false
-	}
+	return db.NewTx2[uint32, bool](func(tx *db.Transaction) (uint32, bool) {
+		val, ok := db.Get[struct{ Uid uint32 }](
+			tx,
+			`
+				select uid
+				from connections
+				where
+					ucloud_username = :username
+			`,
+			db.Params{
+				"username": username,
+			},
+		)
+		if !ok {
+			return 11400, false
+		}
 
-	return val, true
+		return val.Uid, true
+	})
 }
 
 func MapLocalToUCloud(uid uint32) (string, bool) {
-	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", uidInvMapPrefix, uid))
-	if !ok {
-		return "_guest", false
-	}
+	return db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+		val, ok := db.Get[struct{ UCloudUsername string }](
+			tx,
+			`
+				select ucloud_username
+				from connections
+				where
+					uid = :uid
+			`,
+			db.Params{
+				"uid": uid,
+			},
+		)
 
-	return val, true
+		if !ok {
+			return "_guest", false
+		}
+
+		return val.UCloudUsername, true
+	})
 }
 
 func RegisterProjectMapping(projectId string, gid uint32) {
-	kvdb.Set(fmt.Sprintf("%v%v", gidInvMapPrefix, gid), projectId)
-	kvdb.Set(fmt.Sprintf("%v%v", gidMapPrefix, projectId), gid)
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into project_connections(ucloud_project_id, gid)
+				values (:project_id, :group_id)
+			`,
+			db.Params{
+				"project_id": projectId,
+				"group_id":   gid,
+			},
+		)
+	})
 }
 
 func MapLocalProjectToUCloud(gid uint32) (string, bool) {
-	val, ok := kvdb.Get[string](fmt.Sprintf("%v%v", gidInvMapPrefix, gid))
-	if !ok {
-		return "", false
-	}
-
-	return val, true
+	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
+		val, ok := db.Get[struct{ UCloudProjectId string }](
+			tx,
+			`
+				select ucloud_project_id
+				from project_connections
+				where
+					gid = :gid
+			`,
+			db.Params{
+				"gid": gid,
+			},
+		)
+		return val.UCloudProjectId, ok
+	})
 }
 
 func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
-	val, ok := kvdb.Get[uint32](fmt.Sprintf("%v%v", gidMapPrefix, projectId))
-	if !ok {
-		return 11400, false
-	}
+	return db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
+		val, ok := db.Get[struct{ Gid uint32 }](
+			tx,
+			`
+				select gid
+				from project_connections
+				where
+					ucloud_project_id = :project_id
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+		if !ok {
+			return 11400, false
+		}
 
-	return val, true
+		return val.Gid, true
+	})
 }
 
 func RegisterSigningKey(username string, key string) int {
@@ -282,6 +436,7 @@ func controllerConnection(mux *http.ServeMux) {
 					}
 					args = append(args, "user")
 					args = append(args, fmt.Sprint(port))
+					args = append(args, request.Username)
 
 					child := exec.Command("sudo", args...)
 					child.Stdout = logFile
@@ -295,6 +450,7 @@ func controllerConnection(mux *http.ServeMux) {
 						sendStatusCode(w, http.StatusInternalServerError)
 						return
 					}
+					userInstancesLaunched.Inc()
 
 					go func() {
 						err = child.Wait()
@@ -317,9 +473,10 @@ func controllerConnection(mux *http.ServeMux) {
 							UseDNS:  false,
 						},
 						RouteUp: &gateway.EnvoyRoute{
-							Cluster:    request.Username,
-							Identifier: request.Username,
-							Type:       gateway.RouteTypeUser,
+							Cluster:        request.Username,
+							Identifier:     request.Username,
+							Type:           gateway.RouteTypeUser,
+							EnvoySecretKey: secret,
 						},
 					})
 				}
@@ -327,8 +484,114 @@ func controllerConnection(mux *http.ServeMux) {
 				sendStatusCode(w, http.StatusOK)
 			}),
 		)
+
+		InitiateReverseConnectionFromUser.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			if !cfg.Services.Unmanaged {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusForbidden,
+					ErrorMessage: "This provider does not support the 'ucloud connect' command",
+				}
+			}
+
+			_, exists := MapLocalToUCloud(req.Uid)
+			if exists {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusConflict,
+					ErrorMessage: "You have already connected to UCloud with this user",
+				}
+			}
+
+			resp, err := apm.InitiateReverseConnection()
+			if err != nil {
+				return ipc.Response[string]{
+					StatusCode:   http.StatusInternalServerError,
+					ErrorMessage: err.Error(),
+				}
+			}
+
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into reverse_connections(uid, token)
+						values (:uid, :token)
+					`,
+					db.Params{
+						"uid":   req.Uid,
+						"token": resp.Token,
+					},
+				)
+			})
+
+			ucloudUrl := cfg.Provider.Hosts.UCloudPublic.ToURL()
+			return ipc.Response[string]{
+				StatusCode: http.StatusOK,
+				Payload:    fmt.Sprintf("%s/app/connection?token=%s", ucloudUrl, resp.Token),
+			}
+		})
+
+		Whoami.Handler(func(req *ipc.Request[util.Empty]) ipc.Response[string] {
+			username, exists := MapLocalToUCloud(req.Uid)
+			if exists {
+				return ipc.Response[string]{
+					StatusCode: http.StatusOK,
+					Payload:    username,
+				}
+			} else {
+				return ipc.Response[string]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+		})
+
+		type reverseConnectionClaimedRequest struct {
+			Token    string `json:"token"`
+			Username string `json:"username"`
+		}
+		mux.HandleFunc(
+			baseContext+"reverseConnectionClaimed",
+			HttpUpdateHandler(0, func(w http.ResponseWriter, r *http.Request, req reverseConnectionClaimedRequest) {
+				uid, ok := db.NewTx2(func(tx *db.Transaction) (uint32, bool) {
+					uidWrapper, ok := db.Get[struct {
+						Uid uint32
+					}](
+						tx,
+						`
+							delete from reverse_connections
+							where token = :token
+							returning uid
+					    `,
+						db.Params{
+							"token": req.Token,
+						},
+					)
+
+					return uidWrapper.Uid, ok
+				})
+
+				if !ok {
+					sendError(w, &util.HttpError{
+						StatusCode: http.StatusNotFound,
+						Why:        "Unknown token supplied. Try again.",
+					})
+					return
+				}
+
+				err := RegisterConnectionComplete(req.Username, uid, false)
+				if err != nil {
+					sendError(w, err)
+					return
+				}
+
+				_, err = CreatePersonalProviderProject(req.Username)
+				sendResponseOrError(w, util.EmptyValue, err)
+			}),
+		)
 	}
 }
+
+var InitiateReverseConnectionFromUser = ipc.NewCall[util.Empty, string]("connection.initiateReverseConnectionFromUser")
+var Whoami = ipc.NewCall[util.Empty, string]("connection.whoami")
 
 var runningInstances = map[uint32]bool{}
 var instanceMutex = sync.Mutex{}
@@ -348,3 +611,10 @@ func allocatePortIfNeeded(uid uint32) (port int, valid bool) {
 		return allocatedPort, true
 	}
 }
+
+var (
+	userInstancesLaunched = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "ucloud_im_launched_user_instances",
+		Help: "The total number of UCloud/IM (User) instances launched",
+	})
+)

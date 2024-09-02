@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
+	"net/http"
 	"strings"
 	"time"
 	"ucloud.dk/pkg/apm"
 	"ucloud.dk/pkg/client"
+	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
-	"ucloud.dk/pkg/kvdb"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -23,16 +25,43 @@ type ApmService struct {
 	HandleNotification func(update *NotificationWalletUpdated)
 }
 
-const replayFromKey = "events-replay-from"
-
 var userReplayChannel chan string
 
 func initEvents() {
+	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[apm.Project] {
+		projectId := r.Payload
+		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
+			project, ok := GetLastKnownProject(projectId)
+			if ok {
+				return ipc.Response[apm.Project]{
+					StatusCode: http.StatusOK,
+					Payload:    project,
+				}
+			}
+		}
+		return ipc.Response[apm.Project]{
+			StatusCode: http.StatusNotFound,
+		}
+	})
+
 	userReplayChannel = make(chan string)
 
 	go func() {
 		for util.IsAlive {
-			replayFrom, _ := kvdb.Get[uint64](replayFromKey)
+			replayFromTime := db.NewTx[time.Time](func(tx *db.Transaction) time.Time {
+				r, _ := db.Get[struct{ LastUpdate time.Time }](
+					tx,
+					`
+						select last_update from apm_events_replay_from where provider_id = :provider_id
+				    `,
+					db.Params{
+						"provider_id": cfg.Provider.Id,
+					},
+				)
+				return r.LastUpdate
+			})
+
+			replayFrom := replayFromTime.UnixMilli()
 
 			url := cfg.Provider.Hosts.UCloud.ToURL()
 			url = strings.ReplaceAll(url, "http://", "ws://")
@@ -100,7 +129,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 		}
 
 		if success {
-			kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+			setReplayFrom()
 		}
 
 	case NotificationMessageProjectUpdated:
@@ -117,8 +146,25 @@ func handleNotification(nType NotificationMessageType, notification any) {
 			callback(update)
 		}
 
-		kvdb.Set(replayFromKey, uint64(update.LastUpdate.UnixMilli()))
+		setReplayFrom()
 	}
+}
+
+func setReplayFrom() {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into apm_events_replay_from(provider_id, last_update) 
+				values (:provider_id, now())
+				on conflict (provider_id) do update set
+					last_update = excluded.last_update
+		    `,
+			db.Params{
+				"provider_id": cfg.Provider.Id,
+			},
+		)
+	})
 }
 
 const (
@@ -130,7 +176,7 @@ const (
 	OpReplayUser   uint8 = 5
 )
 
-func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom uint64) {
+func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom int64) {
 	defer util.SilentClose(session)
 
 	projects := make(map[uint32]apm.Project)
@@ -139,7 +185,7 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom u
 
 	writeBuf := buf{}
 	writeBuf.PutU8(OpAuth)
-	writeBuf.PutU64(replayFrom)
+	writeBuf.PutU64(uint64(replayFrom))
 	writeBuf.PutU64(0) // flags (unused)
 	writeBuf.PutString(client.DefaultClient.RetrieveAccessTokenOrRefresh())
 
@@ -236,6 +282,8 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom u
 					}
 
 					handleNotification(NotificationMessageProjectUpdated, &notification)
+				default:
+					log.Warn("Invalid APM opcode received: %v", op)
 				}
 			}
 
@@ -402,26 +450,64 @@ func (b *buf) GetString() string {
 	return string(result)
 }
 
-const kvdbProjectPrefix = "project-"
-
 func saveLastKnownProject(project apm.Project) {
 	data, _ := json.Marshal(project)
-	kvdb.Set(fmt.Sprintf("%v%v", kvdbProjectPrefix, project.Id), data)
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_projects(project_id, ucloud_project, last_update) 
+				values (:project_id, :ucloud_project, now())
+				on conflict(project_id) do update set
+					ucloud_project = excluded.ucloud_project,
+					last_update = excluded.last_update
+			`,
+			db.Params{
+				"project_id":     project.Id,
+				"ucloud_project": data,
+			},
+		)
+	})
 }
 
-func GetLastKnownProject(projectId string) (apm.Project, bool) {
-	jsonData, ok := kvdb.Get[[]byte](kvdbProjectPrefix + projectId)
-	if !ok {
-		return apm.Project{}, false
-	}
+var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
 
-	var result apm.Project
-	err := json.Unmarshal(jsonData, &result)
-	if err != nil {
-		log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-		return apm.Project{}, false
+func GetLastKnownProject(projectId string) (apm.Project, bool) {
+	if cfg.Mode == cfg.ServerModeServer {
+		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+			jsonData, ok := db.Get[struct{ UCloudProject string }](
+				tx,
+				`
+				select ucloud_project
+				from tracked_projects
+				where project_id = :project_id
+			`,
+				db.Params{
+					"project_id": projectId,
+				},
+			)
+			return jsonData.UCloudProject, ok
+		})
+
+		if !ok {
+			return apm.Project{}, false
+		}
+
+		var result apm.Project
+		err := json.Unmarshal([]byte(jsonData), &result)
+		if err != nil {
+			log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
+			return apm.Project{}, false
+		}
+		return result, true
+	} else {
+		project, err := getLastKnownProjectIpc.Invoke(projectId)
+		if err != nil {
+			return apm.Project{}, false
+		}
+		return project, true
 	}
-	return result, true
 }
 
 func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
@@ -496,8 +582,6 @@ func compareProjects(before apm.Project, after apm.Project) ProjectComparison {
 	}
 }
 
-const kvdbAllocationPrefix = "allocation-"
-
 type TrackedAllocation struct {
 	Owner         apm.WalletOwner
 	Category      string
@@ -506,32 +590,63 @@ type TrackedAllocation struct {
 	LastUpdate    fnd.Timestamp
 }
 
-func trackAllocationKey(owner apm.WalletOwner, categoryName string) string {
-	return fmt.Sprintf("%v%v/%v/%v", kvdbAllocationPrefix, categoryName, owner.Username, owner.ProjectId)
-}
-
 func trackAllocation(update *NotificationWalletUpdated) {
-	key := trackAllocationKey(update.Owner, update.Category.Name)
-	kvdb.Set(key, TrackedAllocation{
-		Owner:         update.Owner,
-		Category:      update.Category.Name,
-		CombinedQuota: update.CombinedQuota,
-		Locked:        update.Locked,
-		LastUpdate:    update.LastUpdate,
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_allocations(owner_username, owner_project, category, combined_quota,
+					locked, last_update)
+				values (:owner_username, :owner_project, :category, :combined_quota, :locked, now())
+				on conflict(category, owner_username, owner_project) do update set
+					combined_quota = excluded.combined_quota,
+					locked = excluded.locked,
+					last_update = excluded.last_update
+			`,
+			db.Params{
+				"owner_username": update.Owner.Username,
+				"owner_project":  update.Owner.ProjectId,
+				"category":       update.Category.Name,
+				"combined_quota": update.CombinedQuota,
+				"locked":         update.Locked,
+			},
+		)
 	})
 }
 
 func FindAllAllocations(categoryName string) []TrackedAllocation {
-	var result []TrackedAllocation
+	return db.NewTx[[]TrackedAllocation](func(tx *db.Transaction) []TrackedAllocation {
+		var result []TrackedAllocation
+		rows := db.Select[struct {
+			OwnerUsername string
+			OwnerProject  string
+			Category      string
+			CombinedQuota uint64
+			LastUpdate    time.Time
+			Locked        bool
+		}](
+			tx,
+			`
+				select *
+				from tracked_allocations
+				where
+					category = :category
+			`,
+			db.Params{
+				"category": categoryName,
+			},
+		)
 
-	prefix := kvdbAllocationPrefix + categoryName + "/"
-	keys := kvdb.ListKeysWithPrefix(prefix)
-	for _, key := range keys {
-		alloc, ok := kvdb.Get[TrackedAllocation](key)
-		if ok {
-			result = append(result, alloc)
+		for _, row := range rows {
+			result = append(result, TrackedAllocation{
+				Owner:         apm.WalletOwnerFromIds(row.OwnerUsername, row.OwnerProject),
+				Category:      row.Category,
+				CombinedQuota: row.CombinedQuota,
+				Locked:        row.Locked,
+				LastUpdate:    fnd.Timestamp(row.LastUpdate),
+			})
 		}
-	}
 
-	return result
+		return result
+	})
 }

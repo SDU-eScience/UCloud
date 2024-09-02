@@ -17,7 +17,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {doNothing} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/UtilityFunctions";
-import {DateRangeFilter, FilterWidgetProps, PillProps, SortEntry, SortFlags, TextFilter} from "@/Resource/Filter";
+import {FilterWidgetProps, PillProps, SortEntry, SortFlags} from "@/Resource/Filter";
 import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
@@ -25,6 +25,7 @@ import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
+import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -164,7 +165,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
     onSelectRestriction?: (resource: Res) => boolean | string;
-    embedded: boolean;
+    embedded?: EmbeddedSettings;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
@@ -207,9 +208,7 @@ export abstract class ResourceApi<Res extends Resource,
     ];
 
     public registerFilter([w, p]: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]): void {
-        this.filterWidgets.push(w);
-        this.filterPills.push(p);
-    }
+     }
 
     public idIsUriEncoded = false;
 
@@ -223,15 +222,12 @@ export abstract class ResourceApi<Res extends Resource,
         reload?: () => void;
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
-        embedded?: boolean;
+        embedded?: EmbeddedSettings;
     }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {
         this.namespace = namespace;
         this.baseContext = "/api/" + namespace.replace(".", "/") + "/";
-
-        this.registerFilter(TextFilter("user", "filterCreatedBy", "Created by"));
-        this.registerFilter(DateRangeFilter("calendar", "Date created", "filterCreatedBefore", "filterCreatedAfter"));
     }
 
     public retrieveOperations(): Operation<Res, ResourceBrowseCallbacks<Res>>[] {

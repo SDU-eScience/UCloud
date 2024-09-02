@@ -228,7 +228,7 @@ function playground_text(playground, hidden = true) {
                 clipButton.className = 'fa fa-copy clip-button';
                 clipButton.title = 'Copy to clipboard';
                 clipButton.setAttribute('aria-label', clipButton.title);
-                clipButton.innerHTML = '<i class=\"tooltiptext\"></i>';
+                clipButton.innerHTML = '<span class=\"tooltiptext\"></span>';
 
                 buttons.insertBefore(clipButton, buttons.firstChild);
             }
@@ -288,9 +288,8 @@ function playground_text(playground, hidden = true) {
     var html = document.querySelector('html');
     var themeColorMetaTag = document.querySelector('meta[name="theme-color"]');
     var stylesheets = {
-        ayuHighlight: document.querySelector("[href$='ayu-highlight.css']"),
-        tomorrowNight: document.querySelector("[href$='tomorrow-night.css']"),
-        highlight: document.querySelector("[href$='highlight.css']"),
+        dark: document.querySelector("[href$='atom-one-dark.css']"),
+        light: document.querySelector("[href$='atom-one-light.css']"),
     };
 
     function get_theme() {
@@ -307,14 +306,12 @@ function playground_text(playground, hidden = true) {
         let ace_theme;
 
         if (theme === 'dark') {
-            stylesheets.ayuHighlight.disabled = false;
-            stylesheets.tomorrowNight.disabled = true;
-            stylesheets.highlight.disabled = true;
+            stylesheets.dark.disabled = false;
+            stylesheets.light.disabled = true;
             ace_theme = "ace/theme/tomorrow_night";
         } else {
-            stylesheets.ayuHighlight.disabled = true;
-            stylesheets.tomorrowNight.disabled = true;
-            stylesheets.highlight.disabled = false;
+            stylesheets.dark.disabled = true;
+            stylesheets.light.disabled = false;
             ace_theme = "ace/theme/dawn";
         }
 
@@ -324,6 +321,7 @@ function playground_text(playground, hidden = true) {
 
         if (window.ace && window.editors) {
             window.editors.forEach(function (editor) {
+                console.log("Setting theme to", ace_theme);
                 editor.setTheme(ace_theme);
             });
         }

@@ -2,6 +2,7 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"math"
 	"ucloud.dk/pkg/util"
 )
 
@@ -18,6 +19,12 @@ type SlurmCompute struct {
 	Machines               map[string]SlurmMachineCategory
 	Web                    SlurmWebConfiguration
 	FakeResourceAllocation bool
+	Applications           SlurmApplications
+}
+
+type SlurmApplications struct {
+	Variables map[string]any // Primitive types only. Used in variable injection for apps.
+	Templates map[string]string
 }
 
 type SlurmWebConfiguration struct {
@@ -78,6 +85,7 @@ type SlurmAccountingType string
 const (
 	SlurmAccountingTypeAutomatic SlurmAccountingType = "Automatic"
 	SlurmAccountingTypeScripted  SlurmAccountingType = "Scripted"
+	SlurmAccountingTypeNone      SlurmAccountingType = "None"
 )
 
 var SlurmAccountingTypeOptions = []SlurmAccountingType{
@@ -117,6 +125,7 @@ type SlurmAccountMapperType string
 const (
 	SlurmAccountMapperTypePattern  SlurmAccountMapperType = "Pattern"
 	SlurmAccountMapperTypeScripted SlurmAccountMapperType = "Scripted"
+	SlurmAccountMapperTypeNone     SlurmAccountMapperType = "None"
 )
 
 var SlurmAccountMapperTypeOptions = []SlurmAccountMapperType{
@@ -151,6 +160,7 @@ const (
 	SlurmDriveLocatorEntityTypeUser        SlurmDriveLocatorEntityType = "User"
 	SlurmDriveLocatorEntityTypeProject     SlurmDriveLocatorEntityType = "Project"
 	SlurmDriveLocatorEntityTypeMemberFiles SlurmDriveLocatorEntityType = "MemberFiles"
+	SlurmDriveLocatorEntityTypeNone        SlurmDriveLocatorEntityType = "None"
 )
 
 var SlurmDriveLocatorEntityTypeOptions = []SlurmDriveLocatorEntityType{
@@ -170,6 +180,7 @@ type SlurmFsManagementType string
 const (
 	SlurmFsManagementTypeGpfs     SlurmFsManagementType = "GPFS"
 	SlurmFsManagementTypeScripted SlurmFsManagementType = "Scripted"
+	SlurmFsManagementTypeNone     SlurmFsManagementType = "None"
 )
 
 var SlurmFsManagementTypeOptions = []SlurmFsManagementType{
@@ -217,11 +228,11 @@ type SlurmFsManagementScripted struct {
 	FetchUsage    string
 }
 
-func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationSlurm) {
+func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationSlurm) {
 	cfg := ServicesConfigurationSlurm{}
 	success := true
 
-	{
+	if !unmanaged {
 		// Identity management
 		identityManagement := requireChild(filePath, services, "identityManagement", &success)
 		if !success {
@@ -234,6 +245,13 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		}
 
 		cfg.IdentityManagement = idm
+	} else {
+		idmNode, _ := getChildOrNil(filePath, services, "identityManagement")
+		cfg.IdentityManagement.Type = IdentityManagementTypeNone
+
+		if idmNode != nil {
+			reportError(filePath, idmNode, "identityManagement must be omitted when unmanaged is true")
+		}
 	}
 
 	{
@@ -265,7 +283,7 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			fs := SlurmFs{}
 			fs.DriveLocators = make(map[string]SlurmDriveLocator)
 
-			{
+			if !unmanaged {
 				// Management
 				managementNode := requireChild(filePath, fsValueNode, "management", &success)
 				if !success {
@@ -318,6 +336,13 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 					fs.Management.Configuration = &scripted
 
 				}
+			} else {
+				managementNode, _ := getChildOrNil(filePath, fsValueNode, "management")
+				fs.Management.Type = SlurmFsManagementTypeNone
+				if managementNode != nil {
+					reportError(filePath, managementNode, "management must be omitted when unmanaged is true")
+					success = false
+				}
 			}
 
 			fs.Payment = parsePaymentInfo(filePath, requireChild(filePath, fsValueNode, "payment", &success),
@@ -336,7 +361,16 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 				_ = driveLocatorsNode.Content[i].Decode(&locatorName)
 				locatorNode := driveLocatorsNode.Content[i+1]
 
-				locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
+				if !unmanaged {
+					locator.Entity = requireChildEnum(filePath, locatorNode, "entity", SlurmDriveLocatorEntityTypeOptions, &success)
+				} else {
+					entityNode, _ := getChildOrNil(filePath, locatorNode, "entity")
+					if entityNode != nil {
+						reportError(filePath, entityNode, "entity must be omitted when unmanaged is true")
+						success = false
+					}
+					locator.Entity = SlurmDriveLocatorEntityTypeNone
+				}
 				locator.Pattern = optionalChildText(filePath, locatorNode, "pattern", &success)
 				locator.Script = optionalChildText(filePath, locatorNode, "script", &success)
 				locator.Title = optionalChildText(filePath, locatorNode, "title", &success)
@@ -386,8 +420,8 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 		// Slurm
 		slurmNode := requireChild(filePath, services, "slurm", &success)
 
-		{
-			management := &cfg.Compute.AccountManagement
+		management := &cfg.Compute.AccountManagement
+		if !unmanaged {
 			managementNode := requireChild(filePath, slurmNode, "accountManagement", &success)
 
 			accountingNode := requireChild(filePath, managementNode, "accounting", &success)
@@ -422,6 +456,14 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			if !success {
 				return false, cfg
 			}
+		} else {
+			entityNode, _ := getChildOrNil(filePath, slurmNode, "accountManagement")
+			if entityNode != nil {
+				reportError(filePath, entityNode, "accountManagement must be omitted when unmanaged is true")
+				success = false
+			}
+			management.Accounting.Type = SlurmAccountingTypeNone
+			management.AccountMapper.Type = SlurmAccountMapperTypeNone
 		}
 
 		fakeResourceAllocation, ok := optionalChildBool(filePath, slurmNode, "fakeResourceAllocation")
@@ -435,6 +477,90 @@ func parseSlurmServices(serverMode ServerMode, filePath string, services *yaml.N
 			if cfg.Compute.Web.Enabled {
 				cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
 				cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+			}
+		}
+
+		cfg.Compute.Applications.Templates = map[string]string{}
+		cfg.Compute.Applications.Variables = map[string]any{}
+
+		appNode, _ := getChildOrNil(filePath, slurmNode, "applications")
+		if appNode != nil {
+			variablesNode, _ := getChildOrNil(filePath, appNode, "variables")
+			if variablesNode != nil {
+				if variablesNode.Kind != yaml.MappingNode {
+					reportError(filePath, variablesNode, "expected variables to be a dictionary")
+					success = false
+				}
+
+				vars := cfg.Compute.Applications.Variables
+
+				for i := 0; i < len(variablesNode.Content); i += 2 {
+					varName := ""
+					_ = variablesNode.Content[i].Decode(&varName)
+					varNode := variablesNode.Content[i+1]
+					if varNode.Kind != yaml.ScalarNode {
+						reportError(filePath, varNode, "expected variable '%s' to be a scalar (boolean, number or text)", varName)
+						success = false
+					}
+
+					// NOTE(Dan): YAML is weird in that the type of some scalar really depends on what we expect the
+					// scalar to be. In this case, we are trying to pick the best fit. I am sure that the YAML
+					// specification probably defines some correct way of doing this, I didn't bother to look it up
+					// though. If that turns out to be a problem some day, then I am sorry.
+
+					var asInt int64
+					var asFloat float64
+					var asBool bool
+					var asString string
+
+					err1 := varNode.Decode(&asFloat)
+					err2 := varNode.Decode(&asInt)
+
+					if err1 == nil || err2 == nil {
+						const epsilon = 1e-9
+						if _, frac := math.Modf(math.Abs(asFloat)); frac < epsilon || frac > 1.0-epsilon {
+							vars[varName] = asInt
+							continue
+						} else {
+							vars[varName] = asFloat
+							continue
+						}
+					}
+
+					err1 = varNode.Decode(&asBool)
+					if err1 == nil {
+						vars[varName] = asBool
+						continue
+					}
+
+					_ = varNode.Decode(&asString)
+					vars[varName] = asString
+				}
+			}
+
+			templatesNode, _ := getChildOrNil(filePath, appNode, "templates")
+			if templatesNode != nil {
+				if templatesNode.Kind != yaml.MappingNode {
+					reportError(filePath, variablesNode, "expected templates to be a dictionary")
+					success = false
+				}
+
+				templates := cfg.Compute.Applications.Templates
+
+				for i := 0; i < len(templatesNode.Content); i += 2 {
+					templateName := ""
+					_ = templatesNode.Content[i].Decode(&templateName)
+					templateNode := templatesNode.Content[i+1]
+					if templateNode.Kind != yaml.ScalarNode {
+						reportError(filePath, templateNode, "expected variable '%s' to be a scalar (boolean, number or text)", templateName)
+						success = false
+					}
+
+					var asString string
+					_ = templateNode.Decode(&asString)
+
+					templates[templateName] = asString
+				}
 			}
 		}
 

@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="{{ language }}" class="{{ default_theme }}" dir="{{ text_direction }}">
+<html lang="{{ language }}" class="" dir="{{ text_direction }}">
 <head>
     <!-- Book generated using mdBook -->
     <meta charset="UTF-8">
@@ -33,15 +33,13 @@
     {{/if}}
 
     <!-- Fonts -->
-    <link rel="stylesheet" href="{{ path_to_root }}FontAwesome/css/font-awesome.css">
-    {{#if copy_fonts}}
-        <link rel="stylesheet" href="{{ path_to_root }}fonts/fonts.css">
-    {{/if}}
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/fontawesome.css">
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/brands.css">
+    <link rel="stylesheet" href="{{ path_to_root }}fontawesome-6.5.2/css/solid.css">
 
     <!-- Highlight.js Stylesheets -->
-    <link rel="stylesheet" href="{{ path_to_root }}highlight.css">
-    <link rel="stylesheet" href="{{ path_to_root }}tomorrow-night.css">
-    <link rel="stylesheet" href="{{ path_to_root }}ayu-highlight.css">
+    <link rel="stylesheet" href="{{ path_to_root }}atom-one-dark.css">
+    <link rel="stylesheet" href="{{ path_to_root }}atom-one-light.css">
 
     <!-- Custom theme stylesheets -->
     {{#each additional_css}}
@@ -106,7 +104,8 @@
         {{> header}}
         <div id="menu-bar" class="menu-bar">
             <a id="logo" href="{{ path_to_root }}">
-                <img src="{{ path_to_root }}ucloud-blue.png" alt="UCloud logo"/>
+                <img class="light" src="{{ path_to_root }}ucloud-blue.png" alt="UCloud logo"/>
+                <img class="dark" src="{{ path_to_root }}ucloud-white.png" alt="UCloud logo"/>
                 {{ book_title }}
 
                 <aside>v2024.1.0</aside>
@@ -178,7 +177,7 @@
 
                     <nav class="nav-chapters">
                         {{#previous}}
-                            <a rel="prev" href="{{ path_to_root }}{{link}}?paginated" class="nav-chapter previous"
+                            <a rel="prev" href="{{ path_to_root }}{{link}}" class="nav-chapter previous"
                                title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                                 <div>
@@ -189,7 +188,7 @@
                         {{/previous}}
 
                         {{#next}}
-                            <a rel="next prefetch" href="{{ path_to_root }}{{link}}?paginated" class="nav-chapter next"
+                            <a rel="next prefetch" href="{{ path_to_root }}{{link}}" class="nav-chapter next"
                                title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <div>
                                     <span class="direction">Next</span>
@@ -213,7 +212,17 @@
             socket.onmessage = function (event) {
                 if (event.data === "reload") {
                     socket.close();
-                    location.reload();
+
+                    const content = document.querySelector("#page-wrapper");
+                    let search = location.search;
+                    if (search === "") {
+                        search = "?"
+                    } else {
+                        search += "&";
+                    }
+
+                    search += `scroll=${content.scrollTop}`;
+                    location.href = `${location.protocol}//${location.host}${location.pathname}${search}`;
                 }
             };
 
@@ -222,6 +231,7 @@
             }
         </script>
     {{/if}}
+
 
     {{#if playground_line_numbers}}
         <script>
@@ -249,8 +259,68 @@
         <script src="{{ path_to_root }}searcher.js"></script>
     {{/if}}
 
+
     <script src="{{ path_to_root }}clipboard.min.js"></script>
+
     <script src="{{ path_to_root }}highlight.js"></script>
+    <script>
+        hljs.registerLanguage("terminal", () => ({
+            case_insensitive: false,
+            keywords: "",
+            contains: [
+                {
+                    className: "terminal-start",
+                    begin: "^\\$ "
+                },
+                {
+                    className: "comment",
+                    begin: "^#",
+                    end: "$"
+                },
+                {
+                    className: "escape-sequence",
+                    begin: "\\[cyan\\]",
+                    end: "🖌️",
+                    contains: [
+                        { className: "cyan", begin: "[^🖌️]+" },
+                    ]
+                },
+                {
+                    className: "escape-sequence",
+                    begin: "\\[blue\\]",
+                    end: "🖌️",
+                    contains: [
+                        { className: "blue", begin: "[^🖌️]+" },
+                    ]
+                },
+                {
+                    className: "escape-sequence",
+                    begin: "\\[green\\]",
+                    end: "🖌️",
+                    contains: [
+                        { className: "green", begin: "[^🖌️]+" }
+                    ]
+                },
+                {
+                    className: "escape-sequence",
+                    begin: "\\[red\\]",
+                    end: "🖌️",
+                    contains: [
+                        { className: "red", begin: "[^🖌️]+" }
+                    ]
+                },
+                {
+                    className: "escape-sequence",
+                    begin: "\\[magenta\\]",
+                    end: "🖌️",
+                    contains: [
+                        { className: "magenta", begin: "[^🖌️]+" }
+                    ]
+                }
+            ]
+        }));
+    </script>
+
     <script src="{{ path_to_root }}book.js"></script>
 
     <!-- Custom JS scripts -->
@@ -277,31 +347,70 @@
     {{/if}}
 
     <script>
-        const path = document.location.pathname;
-        const isPaginated = document.location.search.indexOf("paginated") !== -1;
-        const scrollKey = "scrollPosition/" + path;
-        const content = document.querySelector("#page-wrapper");
-        let scrollThrottle = -1;
-        content.addEventListener("scroll", (ev) => {
-            window.clearTimeout(scrollThrottle);
-            scrollThrottle = window.setTimeout(() => {
-                sessionStorage.setItem(scrollKey, content.scrollTop);
-            }, 100);
-        });
+        const tabbedCards = document.querySelectorAll(".tabbed-card");
 
-        let newScrollPos = 0;
-        if (!isPaginated) {
-            const savedPos = sessionStorage.getItem(scrollKey);
-            if (savedPos) {
-                const parsedPos = parseInt(savedPos);
-                if (!isNaN(parsedPos)) {
-                    newScrollPos = parsedPos;
+        for (const card of tabbedCards) {
+            const tabs = card.querySelectorAll("& > div");
+
+            const navElement = document.createElement("nav");
+            const navUl = document.createElement("ul");
+            navElement.append(navUl);
+            card.prepend(navElement);
+
+            const activateTab = (idx) => {
+                for (const child of navUl.children) child.classList.remove("active");
+                for (const tab of tabs) tab.classList.remove("visible");
+
+                navUl.children[idx].classList.add("active");
+                tabs[idx].classList.add("visible");
+            };
+
+            let tabIndex = 0;
+            for (const tab of tabs) {
+                const myIndex = tabIndex;
+                const li = document.createElement("li");
+                const iconName = tab.getAttribute("data-icon") ?? "";
+                const title = tab.getAttribute("data-title") ?? "";
+
+                if (iconName) {
+                    const icon = document.createElement("i");
+                    icon.className = iconName;
+                    li.append(icon);
                 }
-            }
-        }
-        content.scrollTop = newScrollPos;
+                li.append(title);
+                navUl.append(li);
 
-        history.replaceState(null, "", document.location.pathname);
+                li.addEventListener("click", () => {
+                    activateTab(myIndex);
+                });
+
+                tabIndex++;
+            }
+
+            activateTab(0);
+
+            card.classList.add("visible");
+            console.log("These are the tabs", tabs);
+        }
+    </script>
+
+    <script>
+        window.setTimeout(() => {
+            // Keep this at the bottom such that all other content has had a chance to load in.
+            const content = document.querySelector("#page-wrapper");
+
+            const params = new URLSearchParams(location.search);
+            const savedPos = params.get("scroll");
+            const parsedPos = parseInt(savedPos);
+            let newScrollPos = 0;
+            if (!isNaN(parsedPos)) {
+                newScrollPos = parsedPos;
+            }
+            if (savedPos !== null) {
+                content.scrollTop = newScrollPos;
+                history.replaceState(null, "", document.location.pathname);
+            }
+        }, 0);
     </script>
 </div>
 </body>

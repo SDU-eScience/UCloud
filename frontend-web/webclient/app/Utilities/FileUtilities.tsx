@@ -39,11 +39,6 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-const goUpDirectory = (
-    count: number,
-    path: string
-): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
-
 export function fileName(path: string): string {
     const lastSlash = path.lastIndexOf("/");
     if (lastSlash !== -1 && path.length > lastSlash + 1) {

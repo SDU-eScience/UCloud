@@ -150,7 +150,9 @@ class ImportExport(
         // NOTE(Dan): We skip tool and app creation in production mode (needed specifically for 2024.1.0, you may
         // turn it off if you need it now).
         if (developmentMode) {
+            println("Creating tools!")
             for (tool in tools) {
+                println("Creating a tool! ${tool.description.info}")
                 if (service.retrieveTool(a, tool.description.info.name, tool.description.info.version) == null) {
                     try {
                         service.createTool(a, tool)
@@ -160,7 +162,9 @@ class ImportExport(
                 }
             }
 
+            println("Creating apps!")
             for (app in apps) {
+                println("Creating an app! ${app.metadata.name}")
                 if (service.retrieveApplication(a, app.metadata.name, app.metadata.version) == null) {
                     try {
                         service.createApplication(a, Application(app.metadata.copy(group = null), app.invocation))
@@ -172,19 +176,25 @@ class ImportExport(
         }
 
         val existingGroups = service.listGroups(a)
+        println("These are the existing groups: ${existingGroups.map { it.specification.title }.joinToString("\n")}")
         val groupIdRemapper = groups.mapNotNull { g ->
             val existing = existingGroups.find { it.specification.title == g.specification.title }
             if (existing == null) return@mapNotNull null
             g.metadata.id to existing.metadata.id
         }.toMap().toMutableMap()
 
+        println("Groups: ${groups.map { it.specification.title }.joinToString("\n")}")
+
         for (group in groups) {
             val existingId = groupIdRemapper[group.metadata.id]
             if (existingId != null) continue
 
+            println("Creating group: ${group.specification.title}")
             val newId = service.createGroup(a, group.specification.title)
             groupIdRemapper[group.metadata.id] = newId
         }
+
+        println("Groups are remapped like this: ${groupIdRemapper.entries.joinToString("\n") { "${it.key} -> ${it.value}" }}")
 
         for (group in groups) {
             val mappedId = groupIdRemapper.getValue(group.metadata.id)
@@ -193,12 +203,11 @@ class ImportExport(
                     a,
                     mappedId,
                     newDescription = group.specification.description,
-                    newDefaultFlavor = group.specification.defaultFlavor,
                     newLogoHasText = group.specification.logoHasText,
                     newColorRemapping = group.specification.colorReplacement.also { println("Color replacement: ${group} $it") },
                 )
             } catch (ex: Throwable) {
-                log.info("Could not update group: ${group.specification.title}")
+                log.info("Could not update group: ${group.specification.title} (${ex.stackTraceToString()})")
             }
         }
 
@@ -218,14 +227,14 @@ class ImportExport(
                 try {
                     service.assignApplicationToGroup(a, member.name, mappedId)
                 } catch (ex: Throwable) {
-                    log.info("Could not assign application to group: ${member.name}")
+                    log.info("Could not assign application to group: ${member.name} $rawId $mappedId\n\t${ex.toReadableStacktrace()}")
                 }
             }
         }
 
         val existingCategories = service.listCategories()
         val categoryIdRemapper = categories.mapNotNull { c ->
-            val existing = existingCategories.find { it.specification.title == c.specification.title }
+            val existing = existingCategories.find { it.specification.title.equals(c.specification.title, ignoreCase = true) }
             if (existing == null) return@mapNotNull null
             c.metadata.id to existing.metadata.id
         }.toMap().toMutableMap()
@@ -300,6 +309,19 @@ class ImportExport(
             service.updateTopPicks(a, newTopPicks)
         } catch (ex: Throwable) {
             log.info("Could not update top picks!")
+        }
+
+        for (group in groups) {
+            val mappedId = groupIdRemapper.getValue(group.metadata.id)
+            try {
+                service.updateGroup(
+                    a,
+                    mappedId,
+                    newDefaultFlavor = group.specification.defaultFlavor,
+                )
+            } catch (ex: Throwable) {
+                log.info("Could not update group: ${group.specification.title} (${ex.stackTraceToString()})")
+            }
         }
     }
 

@@ -280,7 +280,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         const icon = providerIcon(link.specification.product.provider);
                         icon.style.marginRight = "8px";
                         row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(link.specification.domain, row));
                     }
 
                     if (link.status.boundTo.length === 1) {
@@ -330,7 +330,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     const callbacks: ResourceBrowseCallbacks<PublicLink> = {
                         supportByProvider: {productsByProvider: {}},
                         dispatch,
-                        embedded: false,
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),

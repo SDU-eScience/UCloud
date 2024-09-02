@@ -79,6 +79,13 @@ data class Project(
             this project. The path does not start or end with a '/'. If the project is a root, then "" will be returned.
         """)
         var path: String? = null,
+
+        @UCloudApiDoc("""
+            The provider this project is a personal provider project for.
+            
+            This is `null` if this project is not a personal provider project.
+        """)
+        val personalProviderProjectFor: String? = null,
     )
 
     @Serializable
@@ -396,7 +403,45 @@ implement(Descriptions.call) {
     val retrieveProviderProjectInternal = call("retrieveProviderProjectInternal", FindByStringId.serializer(), FindByStringId.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "providerProjectInternal", roles = Roles.PRIVILEGED)
     }
+
+    val createPersonalProviderProject = call(
+        "createPersonalProviderProject",
+        CreateProviderProjectRequest.serializer(),
+        CreateProviderProjectResponse.serializer(),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "createPersonalProviderProject", roles = Roles.PROVIDER)
+        }
+    )
+
+    val deletePersonalProviderProject = call(
+        "deletePersonalProviderProject",
+        DeleteProviderProjectRequest.serializer(),
+        DeleteProviderProjectResponse.serializer(),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "deletePersonalProviderProject", roles = Roles.PROVIDER)
+        }
+    )
 }
+
+@Serializable
+data class CreateProviderProjectRequest(
+    val username: String,
+)
+
+@Serializable
+data class CreateProviderProjectResponse(
+    val projectId: String,
+)
+
+@Serializable
+data class DeleteProviderProjectRequest(
+    val username: String
+)
+
+@Serializable
+class DeleteProviderProjectResponse
 
 interface ProjectFlags {
     val includeMembers: Boolean?

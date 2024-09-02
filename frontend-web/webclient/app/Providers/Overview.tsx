@@ -21,7 +21,7 @@ interface ProviderType {
     description: string;
 }
 
-const devProviders = ["k8", "slurm", "K8"];
+const devProviders = ["k8", "slurm", "K8", "go-slurm"];
 
 export function ProviderEntry(props: {provider: ProviderType}): React.ReactNode {
     if (devProviders.indexOf(props.provider.id) !== -1) return null;

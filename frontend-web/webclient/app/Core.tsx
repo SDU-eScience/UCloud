@@ -9,6 +9,7 @@ const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"))
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
 const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
+const ApplicationFork = React.lazy((() => import("@/Applications/Fork")));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
 const Dashboard = React.lazy(() => import("@/Dashboard/Dashboard"));
 const DetailedNews = React.lazy(() => import("@/NewsPost/DetailedNews"));
@@ -55,6 +56,7 @@ const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
 const ResourceUsage = React.lazy(() => import("@/Accounting/Usage"));
 const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"));
+const Connection = React.lazy(() => import("@/Providers/Connection"));
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -66,7 +68,7 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {Flex, UIGlobalStyle} from "@/ui-components";
 import {findAvatar} from "@/UserSettings/Redux";
-import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT, store} from "@/Utilities/ReduxUtilities";
+import {USER_LOGIN, UserActionType, store} from "@/Utilities/ReduxUtilities";
 import {removeExpiredFileUploads} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {OutgoingSharesBrowse} from "@/Files/SharesOutgoing";
@@ -125,6 +127,7 @@ const Core = (): React.ReactNode => (
                         <Route path={AppRoutes.apps.category()}
                                element={React.createElement(requireAuth(ApplicationsOverview))} />
                         <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
+                        <Route path={AppRoutes.apps.fork()} element={React.createElement(requireAuth(ApplicationFork))} />
 
                         <Route path="/jobs/*" element={React.createElement(requireAuth(JobsRouter))} />
 
@@ -170,6 +173,7 @@ const Core = (): React.ReactNode => (
                         <Route path="/admin/providers/register"
                             element={React.createElement(requireAuth(RegisterProvider))} />
 
+                        <Route path={"/connection"} element={React.createElement(requireAuth(Connection))} />
                         <Route path="/providers/connect"
                             element={React.createElement(requireAuth(ProviderConnection))} />
                         <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />
@@ -284,7 +288,7 @@ function LoginSuccess(): React.ReactNode {
     return <Navigate to={path} />;
 }
 
-function dispatchUserAction(dispatch: Dispatch, type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
+function dispatchUserAction(dispatch: Dispatch, type: UserActionType): void {
     dispatch({type});
 }
 

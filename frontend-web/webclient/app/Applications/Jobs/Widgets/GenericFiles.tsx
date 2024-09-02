@@ -91,7 +91,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             show: providerRestriction
         };
         
-        const navigateToFolder = (path: string) => {
+        const navigateToFolder = (path: string, projectId?: string) => {
             dialogStore.failure();
             dialogStore.addDialog(
                 <FileBrowse
@@ -100,6 +100,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                         isModal: true,
                         managesLocalProject: true,
                         initialPath: path,
+                        initialProject: projectId, 
                         additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
                         selection,
                     }} />,

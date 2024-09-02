@@ -5,10 +5,13 @@ export enum Feature {
     PROVIDER_CONNECTION,
     INLINE_TERMINAL,
     NEW_IDPS,
+    COMPONENT_STORED_CUT_COPY,
 
     // NOTE(Dan, 27/06/23): Waiting for clarification if we are allowed to ask for this optional info under our
     // current policies.
-    ADDITIONAL_USER_INFO
+    ADDITIONAL_USER_INFO,
+
+    COPY_APP_MOCKUP,
 }
 
 export function hasFeature(feature: Feature): boolean {
@@ -26,6 +29,13 @@ export function hasFeature(feature: Feature): boolean {
 
         case Feature.INLINE_TERMINAL:
             return localStorage.getItem("inline-terminal") != null && inDevEnvironment();
+
+        case Feature.COPY_APP_MOCKUP:
+            return localStorage.getItem("copy-app") != null
+                || (inDevEnvironment() && window.location.hostname === "ucloud.localhost.direct");
+
+        case Feature.COMPONENT_STORED_CUT_COPY:
+            return localStorage.getItem("component-stored-cut-copy") != null || inDevEnvironment();
 
         default:
             if (inDevEnvironment() || onDevSite()) return true;

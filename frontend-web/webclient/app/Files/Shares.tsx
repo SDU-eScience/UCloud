@@ -7,7 +7,7 @@ import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {LinkInfo, SidebarTabId} from "@/ui-components/SidebarComponents";
-import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip, Truncate} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, RadioTile, RadioTilesContainer, Text, Tooltip} from "@/ui-components";
 import {accounting, BulkResponse, PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler, InvokeCommand, noopCall, useCloudAPI} from "@/Authentication/DataHook";
 import {FindById, ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
@@ -419,8 +419,8 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     text: "Created by"
                 }, dateRangeFilters("Date created")]);
 
-                let currentAvatars = new Set<string>();
-                let fetchedAvatars = new Set<string>();
+                const currentAvatars = new Set<string>();
+                const fetchedAvatars = new Set<string>();
                 browser.on("endRenderPage", () => {
                     if (currentAvatars.size > 0) {
                         avatars.updateCache([...currentAvatars]);
@@ -446,7 +446,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
                                 share.specification.sharedWith ?? share.id,
-                            dims,
                             row
                         )
                     );
@@ -482,7 +481,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
                                 browser.refresh();
                             },
-                            show(res) {
+                            show() {
                                 return true;
                             },
                             text: "Accept"
@@ -492,7 +491,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
                                 browser.refresh();
                             },
-                            show(res) {
+                            show() {
                                 return true;
                             },
                             text: "Decline"
@@ -589,7 +588,6 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,
@@ -603,7 +601,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 });
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as any;
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<Share>;
                     return SharesApi.retrieveOperations().filter(op => op.enabled(entries, callbacks, entries));
                 });
                 browser.on("generateBreadcrumbs", () => [{title: "Shared with me", absolutePath: ""}]);

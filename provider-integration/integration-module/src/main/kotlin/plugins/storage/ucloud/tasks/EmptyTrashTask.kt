@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.storage.ucloud.tasks
 
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.Prometheus
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
@@ -89,7 +90,12 @@ class EmptyTrashTask(
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.path))
+
                 val driveInfo = pathConverter.locator.resolveDriveByInternalFile(internalFile)
+                val info = pathConverter.locator.fetchMetadataForDrive(driveInfo.drive.ucloudId) ?: return@doWork
+
+                val drives = pathConverter.locator.listDrivesByWorkspace(workspace = info.workspace)
+
                 try {
                     if (stagingFolder == null) {
                         nativeFs.delete(internalFile)
@@ -110,7 +116,9 @@ class EmptyTrashTask(
                         }
                     }
 
-                    usageScan.requestScan(driveInfo.drive.ucloudId)
+                    for (drive in drives) {
+                        usageScan.requestScan(drive.drive.ucloudId)
+                    }
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while deleting files during emptying of trash: ${ex.stackTraceToString()}")

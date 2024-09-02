@@ -557,7 +557,7 @@ export function clamp(val: number, lower: number, upper: number): number {
 }
 
 // Note(Jonas): Intended to be some HTML friendly replacement to React where needed.
-// Not really tested, so attempt at own risk.
+// ~Not really tested, so attempt at own risk.~ somewhat tested now
 interface HTMLElementContent {
     tagType: keyof HTMLElementTagNameMap;
     style?: Partial<CSSStyleDeclaration>;
@@ -594,7 +594,7 @@ export function createHTMLElements<T extends HTMLElement>({children = [], ...roo
     }
 }
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
-    return {"type": "bulk", items};
+    return {type: "bulk", items};
 }
 export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
     return {responses: items};
@@ -619,7 +619,7 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
     if (leftToRight) {
         let cur = "";
         let i = 0;
-        let textLength = text.length;
+        const textLength = text.length;
         while (i < textLength) {
             cur += text[i];
             i++;
@@ -632,7 +632,7 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
         return result;
     } else {
         let cur = "";
-        let textLength = text.length;
+        const textLength = text.length;
         let i = textLength - 1;
         while (i >= 0) {
             cur += text[i];

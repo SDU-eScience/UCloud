@@ -4,13 +4,21 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
 	"net"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 	"ucloud.dk/pkg/client"
+	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/slurm"
+	"ucloud.dk/pkg/termio"
+	"ucloud.dk/pkg/util"
+
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gateway"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
@@ -27,15 +35,6 @@ func Launch() {
 		os.Exit(1)
 	}
 
-	/*
-	   database, err := sql.Open("postgres", "postgres://postgres:postgrespassword@localhost/postgres")
-	   if err != nil {
-	       log.Fatalf("Could not open database %v", err)
-	   }
-	   _ = Database
-	*/
-	_ = cfg.ReadPublicKey(*configDir)
-
 	mode := cfg.ServerModePlugin
 	pluginName := ""
 	switch flag.Arg(0) {
@@ -49,7 +48,7 @@ func Launch() {
 		mode = cfg.ServerModeProxy
 	default:
 		mode = cfg.ServerModePlugin
-		pluginName = flag.Arg(1)
+		pluginName = flag.Arg(0)
 	}
 
 	if !cfg.Parse(mode, *configDir) {
@@ -57,24 +56,47 @@ func Launch() {
 		return
 	}
 
-	userModeSecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
-	fmt.Printf("env=%v\n", os.Environ())
-	if mode == cfg.ServerModeUser && (!userModeSecretOk || userModeSecret == "") {
-		fmt.Printf("No user-Mode secret specified!\n")
-		os.Exit(1)
+	if pluginName != "" {
+		cfg.Mode = mode
+		switch cfg.Services.Type {
+		case cfg.ServicesSlurm:
+			slurm.HandlePlugin(pluginName)
+		}
+
+		return
 	}
 
-	_ = pluginName
+	envoySecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
+	if mode == cfg.ServerModeUser {
+		if !userModeSecretOk || envoySecret == "" {
+			termio.WriteLine("This command is used by IM/Server to spawn user instances. This is not intended for CLI use!")
+			termio.WriteLine("The program is terminating because no user-mode secret was specified!")
+			os.Exit(1)
+		}
+
+		// NOTE(Dan): Not security related, it just looks weird in the output of `env` on a user job. This is mostly
+		// done to avoid tickets.
+		envKeysToRemove := []string{
+			"SUDO_COMMAND",
+			"SUDO_GID",
+			"SUDO_USER",
+			"SUDO_UID",
+			"UCLOUD_USER_SECRET",
+		}
+		for _, key := range envKeysToRemove {
+			_ = os.Unsetenv(key)
+		}
+	}
+
+	if mode == cfg.ServerModeServer {
+		envoySecret = util.RandomToken(16)
+	}
+	cfg.OwnEnvoySecret = envoySecret
+
+	var dbPool *db.Pool = nil
 
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
-		// TODO(Dan): Update the gateway to perform JWT validation. This should not (and must not) pass the JWT to the
-		//   upstreams. Gateway must be configured to send the user secret to all user instances. For the server
-		//  instance it must select a secret at random and use it for all subsequent requests. The secret must be
-		//  captured by all relevant requests and validated. The secret is used as a signal that Envoy has successfully
-		//  validated a JWT without passing on the JWT.
-		// TODO(Dan): Websockets are problematic here since they pass the bearer in the request message and not the
-		//   header.
 		gateway.Initialize(gateway.Config{
 			ListenAddress:   "0.0.0.0",
 			Port:            8889,
@@ -83,6 +105,34 @@ func Launch() {
 		}, gatewayConfigChannel)
 
 		gateway.Resume()
+
+		dbConfig := &cfg.Server.Database
+		if dbConfig.Embedded {
+			embeddedDb := embeddedpostgres.NewDatabase(
+				embeddedpostgres.
+					DefaultConfig().
+					StartTimeout(30 * time.Second).
+					Username(dbConfig.Username).
+					Password(dbConfig.Password).
+					Database(dbConfig.Database).
+					DataPath(dbConfig.EmbeddedDataDirectory),
+			)
+
+			err := embeddedDb.Start()
+			if err != nil {
+				fmt.Printf("Failed to start embedded database! %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		dbPool = db.Connect(
+			dbConfig.Username,
+			dbConfig.Password,
+			dbConfig.Host.Address,
+			dbConfig.Host.Port,
+			dbConfig.Database,
+			dbConfig.Ssl,
+		)
 	} else if mode == cfg.ServerModeUser {
 
 	}
@@ -90,9 +140,13 @@ func Launch() {
 	moduleArgs := im.ModuleArgs{
 		Mode:                 mode,
 		GatewayConfigChannel: gatewayConfigChannel,
-		Database:             nil,
 		ConfigDir:            *configDir,
-		UserModeSecret:       userModeSecret,
+		UserModeSecret:       envoySecret,
+		MetricsHandler:       &metricsServerHandler,
+	}
+
+	if dbPool != nil {
+		moduleArgs.Database = dbPool.Connection
 	}
 
 	if mode == cfg.ServerModeServer {
@@ -120,6 +174,10 @@ func Launch() {
 		im.ReloadModule(&module, &moduleArgs)
 	}
 
+	if mode == cfg.ServerModeServer {
+		launchMetricsServer()
+	}
+
 	log.Info("UCloud is ready!")
 
 	if mode == cfg.ServerModeServer || mode == cfg.ServerModeUser {
@@ -127,6 +185,7 @@ func Launch() {
 		if mode == cfg.ServerModeUser {
 			port, _ := strconv.Atoi(flag.Arg(1))
 			serverPort = port
+			ctrl.UCloudUsername = flag.Arg(2)
 		}
 
 		err := http.ListenAndServe(
@@ -167,4 +226,22 @@ func (lrw *loggingResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) 
 	}
 
 	return hijacker.Hijack()
+}
+
+var metricsServerHandler func(writer http.ResponseWriter, request *http.Request) = nil
+
+func launchMetricsServer() {
+	go func() {
+		http.HandleFunc("/metrics", func(writer http.ResponseWriter, request *http.Request) {
+			if metricsServerHandler != nil {
+				metricsServerHandler(writer, request)
+			} else {
+				writer.WriteHeader(http.StatusNotFound)
+			}
+		})
+		err := http.ListenAndServe(":7867", nil)
+		if err != nil {
+			log.Warn("Prometheus metrics server has failed unexpectedly! %v", err)
+		}
+	}()
 }

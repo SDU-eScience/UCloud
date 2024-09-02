@@ -9,7 +9,6 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 
-
 const iconsNames = Object.keys(icons) as IconName[];
 
 

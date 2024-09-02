@@ -2,6 +2,7 @@ package orchestrators
 
 import (
 	"fmt"
+
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
 	fnd "ucloud.dk/pkg/foundation"
@@ -61,11 +62,8 @@ type UFileStatus struct {
 	Type FileType     `json:"type"`
 	Icon FileIconHint `json:"icon,omitempty"`
 
-	// TODO This technically breaks with UCloud's current API because we are sending 0 instead of null.
-	//   I think we should change the core/frontend to consider FSSupport when reading 0 values here.
-
-	SizeInBytes                  int64 `json:"sizeInBytes"`
-	SizeIncludingChildrenInBytes int64 `json:"sizeIncludingChildrenInBytes"`
+	SizeInBytes                  util.Option[int64] `json:"sizeInBytes"`
+	SizeIncludingChildrenInBytes util.Option[int64] `json:"sizeIncludingChildrenInBytes"`
 
 	ModifiedAt fnd.Timestamp `json:"modifiedAt"`
 	AccessedAt fnd.Timestamp `json:"accessedAt"`
@@ -99,6 +97,13 @@ const (
 	WriteConflictPolicyReject      WriteConflictPolicy = "REJECT"
 	WriteConflictPolicyReplace     WriteConflictPolicy = "REPLACE"
 	WriteConflictPolicyMergeRename WriteConflictPolicy = "MERGE_RENAME"
+)
+
+type UploadProtocol string
+
+const (
+	UploadProtocolChunked   UploadProtocol = "CHUNKED"
+	UploadProtocolWebSocket UploadProtocol = "WEBSOCKET"
 )
 
 // API

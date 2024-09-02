@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,16 +44,59 @@ func InitCompute() ctrl.JobsService {
 	}
 
 	return ctrl.JobsService{
-		Submit:            submitJob,
-		Terminate:         terminateJob,
-		Extend:            extendJob,
-		RetrieveProducts:  retrieveMachineSupport,
-		Follow:            follow,
-		HandleShell:       handleShell,
-		OpenWebSession:    openWebSession,
-		ServerFindIngress: serverFindIngress,
+		Submit:                   submitJob,
+		Terminate:                terminateJob,
+		Extend:                   extendJob,
+		RetrieveProducts:         retrieveMachineSupport,
+		Follow:                   follow,
+		HandleShell:              handleShell,
+		OpenWebSession:           openWebSession,
+		ServerFindIngress:        serverFindIngress,
+		RequestDynamicParameters: requestDynamicParameters,
 	}
 }
+
+func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+	if owner.Project == "" {
+		return nil
+	}
+
+	project, ok := ctrl.GetLastKnownProject(owner.Project)
+	if !ok {
+		return nil
+	}
+
+	if !project.Status.PersonalProviderProjectFor.Present {
+		return nil
+	}
+
+	accounts := []string{"unknown"}
+	myUser, err := user.Current()
+	if err == nil {
+		accounts = SlurmClient.UserListAccounts(myUser.Username)
+	}
+
+	var opts []orc.EnumOption
+	for _, account := range accounts {
+		opts = append(opts, orc.EnumOption{
+			Name:  account,
+			Value: account,
+		})
+	}
+
+	return []orc.ApplicationParameter{
+		orc.ApplicationParameterEnumeration(
+			SlurmAccountParameter,
+			false,
+			"Slurm account",
+			"The slurm account to use for this job.",
+			opts,
+		),
+	}
+}
+
+const InjectedPrefix = "_injected_"
+const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
 
 var nextComputeAccountingTime = time.Now()
 
@@ -263,11 +307,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 
 	accountName := ""
 	{
-		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(SlurmJobConfiguration{
+		jobCfg := SlurmJobConfiguration{
 			Owner:              orc.ResourceOwnerToWalletOwner(request.JobToSubmit.Resource),
 			EstimatedProduct:   request.JobToSubmit.Specification.Product,
 			EstimatedNodeCount: request.JobToSubmit.Specification.Replicas,
-		})
+			Job:                util.OptValue(request.JobToSubmit),
+		}
+
+		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
 
 		if len(accounts) != 1 {
 			return util.OptNone[string](), &util.HttpError{
@@ -428,7 +475,7 @@ type trackedLogFile struct {
 func follow(session *ctrl.FollowJobSession) {
 	var logFiles []trackedLogFile
 
-	// Open relevant files (might take multiple loops to achieve this)
+	// open relevant files (might take multiple loops to achieve this)
 	for util.IsAlive && session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {
@@ -581,6 +628,20 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 	}
 
 	basePath := drives[0].FilePath
+
+	if owner.ProjectId != "" {
+		dir, err := os.UserHomeDir()
+
+		if err == nil {
+			project, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+			if !ok {
+				basePath = dir
+			} else if project.Status.PersonalProviderProjectFor.Present {
+				basePath = dir
+			}
+		}
+	}
+
 	folder := filepath.Join(basePath, JobFolderName)
 	if _, err := os.Stat(folder); err != nil {
 		err = os.MkdirAll(folder, 0770)

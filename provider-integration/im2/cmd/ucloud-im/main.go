@@ -1,46 +1,101 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"time"
 
-	embeddedpostgres "github.com/fergusstrange/embedded-postgres"
-	"ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/gpfs"
 	"ucloud.dk/pkg/im/launcher"
-	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/migrations"
+	"ucloud.dk/pkg/termio"
 )
 
 func main() {
-
-	// Change to run migrations
-	if false {
-		postgres := embeddedpostgres.NewDatabase(
-			embeddedpostgres.DefaultConfig().
-				Database("ucloud-im"),
-			//DataPath("/home/user/ucloud-data"),
-			// TODO(Brian) Should be set for persistent storage, but not sure it's working?
-		)
-		err := postgres.Start()
-
-		if err != nil {
-			log.Fatal("Postgres failed to start: %v", err)
-		}
-		defer postgres.Stop()
-
-		db := database.Connect()
-		session := db.Open()
-		defer session.Close()
-
-		migrations.LoadMigrations()
-		migrations.Migrate(session)
-
-		return
-	}
-
 	exeName := os.Args[0]
 	if exeName == "gpfs-mock" {
 		gpfs.RunMockServer()
+		return
+	}
+
+	// NOTE(Brian): Prompt examples
+	if false {
+		termio.LoadingIndicator("Loading some stuff", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1\n")
+			fmt.Fprintf(output, "Testing 2\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Done\n")
+			return nil
+		})
+
+		termio.LoadingIndicator("This one will succeed", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1 Really long really really really long\n")
+			fmt.Fprintf(output, "Testing 2\n")
+			fmt.Fprintf(output, "Testing 3\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 4 Really long really really really long\n")
+			fmt.Fprintf(output, "Testing 5 Really long really really really long\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 6\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Testing 7\n")
+			fmt.Fprintf(output, "Testing 8\n")
+			time.Sleep(1 * time.Second)
+			fmt.Fprintf(output, "Done\n")
+			return nil
+		})
+
+		termio.LoadingIndicator("This one will fail", func(output *os.File) error {
+			fmt.Fprintf(output, "Testing 1 Really long\n")
+			fmt.Fprintf(output, "Testing 2\n")
+			fmt.Fprintf(output, "Testing 3\n")
+			fmt.Fprintf(output, "Testing 4\n")
+			fmt.Fprintf(output, "Testing 5\n")
+			time.Sleep(1 * time.Second)
+			return fmt.Errorf("Oh no, this is bad..")
+		})
+
+		menu := termio.NewMenu("Test menu, please select one or more items (space to select):")
+		menu.Separator("Primary")
+		menu.Item("one", "One")
+		menu.Item("two", "Two")
+		menu.Item("three", "Three")
+		menu.Separator("Some secondary options")
+		menu.Item("four", "Four")
+		menu.Item("five", "Five")
+		menu.Separator("")
+		menu.Item("six", "Six")
+		menu.Item("seven", "Seven")
+		menu.Item("eight", "Eight")
+		result, err := menu.SelectMultiple()
+
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("Elements selected: %v\n\n", result)
+
+		textQuery := termio.TextPrompt("Please enter some text", "")
+		fmt.Printf("You entered the following text: %s\n\n", textQuery)
+
+		confirm, err := termio.ConfirmPrompt("Is it raining today?", termio.ConfirmValueTrue, 0)
+
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("Selected: %v\n\n", confirm)
+
+		singleMenu := termio.NewMenu("Test menu, please select an item:")
+		singleMenu.Item("first", "This is an item")
+		singleMenu.Item("second", "This is another item")
+		singleResult, err := singleMenu.SelectSingle()
+
+		if err != nil {
+			return
+		}
+
+		fmt.Printf("Result was: %v\n\n", singleResult)
+
 		return
 	}
 
