@@ -55,7 +55,7 @@ import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCl
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
-import {FlexClass} from "@/ui-components/Flex";
+import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -932,50 +932,18 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         border-radius: 10px;
         border: 1px solid rgba(0, 0, 0, 20%);
         height: 64px;
-        width: 100%;
+        width: 398px;
+        max-width: 400px;
         margin-top: 12px;
         margin-bottom: 12px;
         box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
     
-    ${k} .icon {
-        padding-left: 10px; 
-        padding-top: 14px;
-    }
-    
-    ${k} .text {
-        height: 44px;
-        flex: 1;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    
-    ${k} .text:nth-child(2) {
-        padding-top: 8px;
-        padding-left: 8px;
-        flex: 1;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    
-    ${k} .text:nth-child(2) > div:nth-child(2) {
-        font-size: 10px;
-    }
-
-    ${k} .operations {
-        display: flex;
-        justify-content: end;
-        min-width: 56px;
-        padding-right: 12px;
-        padding-top: 16px;
-    }
-
-    ${k} .task-progress {
-        padding-top: 4px;
-        padding-left: 6px;
-        padding-right: 6px;
+    ${k} > div > .text {
+        margin-top: auto;
+        margin-bottom: auto;
+        margin-left: 8px;
+        font-size: 12px; 
     }
 
     ${k}[data-has-error="true"] {
@@ -1002,12 +970,13 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || !!upload.error;
 
-    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1};
-    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} ${sizeToString(uploadCalculateSpeed(upload))}/s`;
+    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
+    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
+
     const title = upload.folderName ?? upload.name;
     const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
-        <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+        <Icon cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
             callbacks.clearUploads([upload]);
             const fullFilePath = upload.targetPath + "/" + upload.name;
             removeUploadFromStorage(fullFilePath);
@@ -1020,19 +989,21 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         <TaskRow
             error={upload.error}
             icon={icon}
-            left={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
-            right={right}
+            top={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
+            bottom={right}
+            status={right}
             operations={inProgress ? <>
                 {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                <Icon name="close" cursor="pointer" color="errorMain"
                     onClick={() => callbacks.stopUploads([upload])} />
             </> : removeOperation}
             progressInfo={progressInfo}
         /> : <TaskRow
             error={upload.error}
+            top={title}
             icon={icon}
-            left={title}
-            right={right}
+            bottom={right}
+            status={right}
             operations={inProgress ? <>
                 {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
                     onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
@@ -1052,31 +1023,45 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({icon, left, right, progressInfo, operations, error}: {
+export function TaskRow({top, bottom, status, icon, progressInfo, operations, error}: {
     icon: React.ReactNode;
-    left: string;
-    right: string;
+    top: string | React.ReactNode;
+    bottom: string | React.ReactNode;
+    status: string | React.ReactNode;
     operations: React.ReactNode;
     error?: string;
     progressInfo: {
+        indeterminate: boolean;
         stopped: boolean;
         progress: number;
         limit: number;
-    }
+    };
 }): React.ReactNode {
-    return (<div className={TaskRowClass} data-has-error={error != null}>
-        <Flex>
-            <div className="icon">{icon}</div>
+    const hasError = error != null;
+    return (<div className={TaskRowClass} data-has-error={hasError}>
+        <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
+            <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
-                <div>{left}</div>
-                <div>{right}</div>
+                <Truncate>{top}</Truncate>
+                <Truncate>{bottom}</Truncate>
+                <Truncate>{status}</Truncate>
             </div>
-            <Box mr="8px" />
-            <div className="operations">{operations}</div>
+            <Box mr="auto" />
+            <Box my="auto">{operations}</Box>
+            <Box my="auto" mr="4px" height="32px" >
+                <ProgressCircle
+                    indeterminate={!progressInfo.stopped && progressInfo.progress !== progressInfo.limit && progressInfo.indeterminate}
+                    failures={progressInfo.stopped ? progressInfo.limit : 0}
+                    successes={progressInfo.progress}
+                    total={progressInfo.limit}
+                    finishedColor="successLight"
+                    pendingColor="secondaryDark"
+                    size={32}
+                />
+            </Box>
         </Flex>
-        <div className="task-progress"><TaskProgress stopped={progressInfo.stopped} progress={progressInfo.progress} limit={progressInfo.limit} /></div>
         <div className="error-box">
-            {error ? <div className={ErrorSpan}>{error}</div> : null}
+            {hasError ? <div className={ErrorSpan}>{error}</div> : null}
         </div>
     </div>)
 }

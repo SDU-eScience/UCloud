@@ -5,10 +5,10 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {inDevEnvironment, prettierString, stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
-import {WebSocketConnection, WebSocketFactory} from "@/Authentication/ws";
+import {WebSocketConnection} from "@/Authentication/ws";
 import {IconName} from "@/ui-components/Icon";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {sizeToString} from "@/Utilities/FileUtilities";
@@ -16,6 +16,7 @@ import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Up
 import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {ThemeColor} from "@/ui-components/theme";
 
 function onBeforeUnload(): boolean {
     snackbarStore.addInformation(
@@ -25,18 +26,18 @@ function onBeforeUnload(): boolean {
     return false;
 }
 
-const TasksIconBase = injectStyle("task-icon-base", k => `
-    @keyframes spin {
-        0% {
-           transform: rotate(0deg);
-        }
-        100% {
-            transform: rotate(360deg);
-        }
+const SpinAnimation = makeKeyframe("spin", `
+    0% {
+        transform: rotate(0deg);
     }
+    100% {
+        transform: rotate(360deg);
+    }    
+`)
 
+const TasksIconBase = injectStyle("task-icon-base", k => `
     ${k} {
-        animation: spin 2s linear infinite;
+        animation: ${SpinAnimation} 2s linear infinite;
         margin-bottom: 16px;
     }
 `);
@@ -232,11 +233,6 @@ export const taskStore = new class extends ExternalStoreBase {
     }
 }();
 
-function isTaskFinished(task: Task): boolean {
-    const s = task.status;
-    return s === TaskState.FAILED || s === TaskState.SUCCEEDED || s === TaskState.CANCELLED;
-}
-
 function didTaskNotFinish(task: Task): boolean {
     return [TaskState.CANCELLED, TaskState.FAILED].includes(task.status);
 }
@@ -253,28 +249,27 @@ function iconNameFromTaskType(task: Task): IconName {
 }
 
 function TaskItem({task}: {task: Task}): React.JSX.Element {
-
     let taskSpecificContent: React.ReactNode = null;
     const errorText = [TaskState.CANCELLED, TaskState.FAILED].includes(task.status) ? <b>[{prettierString(TaskState[task.status])}]</b> : "";
     switch (task.kind) {
         case "COPY": {
-            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Copied" : "Copying"} <b>{task.source}</b> to <b>{task.destination}</b></>
+            taskSpecificContent = <>{errorText} Copy: <b>{task.source}</b> to <b>{task.destination}</b></>
             break;
         }
         case "EMPTY_TRASH": {
-            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Emptied" : "Emptying"} trash <b><PrettyFilePath path={task.path} /></b></>
+            taskSpecificContent = <>{errorText} Empty trash: <b><PrettyFilePath path={task.path} /></b></>
             break;
         }
         case "TRANSFER": {
-            taskSpecificContent = <>{errorText} {isTaskFinished(task) ? "Transferred" : "Transferring"} <b>{task.source}</b> to <b>{task.destination}</b></>;
+            taskSpecificContent = <>{errorText} Transfer: <b>{task.source}</b> to <b>{task.destination}</b></>;
             break;
         }
     }
 
     let operations: React.ReactNode = null;
     const cancel = task.canCancel ? <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} /> : null;
-    const pause = task.canPause ? <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" /> : null
-    
+    const pause = task.canPause ? <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" /> : null;
+
     switch (task.status) {
         case TaskState.FAILED:
         case TaskState.CANCELLED:
@@ -301,18 +296,61 @@ function TaskItem({task}: {task: Task}): React.JSX.Element {
 
     const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : "";
 
+    indeterminate = !indeterminate;
+
     return <TaskRow
-        icon={<Icon name={iconNameFromTaskType(task)} size={24} />}
-        left={taskSpecificContent as unknown as string}
-        right={progressText}
+        icon={<Icon name={iconNameFromTaskType(task)} size={16} />}
+        top={taskSpecificContent}
+        bottom={"So, Some additional task text here"}
+        status={progressText}
         operations={operations}
         error={task.error}
         progressInfo={{
+            indeterminate,
             stopped: didTaskNotFinish(task),
             limit: task.fileSizeTotal ?? 100,
             progress: task.fileSizeProgress ?? 0
         }}
     />
+}
+
+let indeterminate = false;
+
+
+const INDETERMINATE_VALUES = {
+    successes: 1,
+    failures: 0,
+    total: 10
+}
+
+const IndeterminateSpinClass = injectStyleSimple("indeterminate-spinner", `
+    animation: ${SpinAnimation} 2s linear infinite;
+`);
+
+export function ProgressCircle({
+    pendingColor,
+    finishedColor,
+    indeterminate,
+    size,
+    ...stats
+}: {successes: number; failures: number; total: number; size: number; pendingColor: ThemeColor; finishedColor: ThemeColor; indeterminate: boolean;}): React.ReactNode {
+    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
+    const progressValues = indeterminate ? INDETERMINATE_VALUES : stats;
+
+    const successAngle = progressValues.successes / progressValues.total;
+    const failureAngle = (progressValues.failures + progressValues.successes) / progressValues.total;
+    const radius = 61.5;
+    const circumference = 2 * Math.PI * radius;
+    const successDashArray = successAngle * circumference;
+    const failureDashArray = failureAngle * circumference;
+    const successStrokeDasharray = `${successDashArray} ${circumference - successDashArray}`;
+    const failureStrokeDasharray = `${failureDashArray} ${circumference - failureDashArray}`;
+
+    return (<svg className={indeterminate ? IndeterminateSpinClass : undefined} width={size.toString()} height={"auto"} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
+        <circle r={radius} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
+        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
+        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
+    </svg>)
 }
 
 function promptCancel(task: Task) {
