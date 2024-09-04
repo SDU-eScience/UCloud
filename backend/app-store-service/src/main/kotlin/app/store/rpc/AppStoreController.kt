@@ -89,7 +89,7 @@ class AppStoreController(
         }
 
         implement(AppStore.createGroup) {
-            val id = service.createGroup(actorAndProject, request.title, request.repository)
+            val id = service.createGroup(actorAndProject, request.title, request.curator)
             ok(FindByIntId(id))
         }
 
@@ -112,7 +112,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseGroups) {
-            ok(PageV2.of(service.listGroups(actorAndProject, request.repository, request.storeFront)))
+            ok(PageV2.of(service.listGroups(actorAndProject)))
         }
 
         implement(AppStore.retrieveGroup) {
@@ -333,7 +333,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseCategories) {
-            ok(PageV2.of(service.listCategories(actorAndProject, request.repository, request.storeFront)))
+            ok(PageV2.of(service.listCategories(actorAndProject)))
         }
 
         implement(AppStore.retrieveCategory) {
@@ -342,10 +342,6 @@ class AppStoreController(
 
                     ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
             )
-        }
-
-        implement(AppStore.browseRepositories) {
-            ok(PageV2.of(service.listRepositories()))
         }
 
         implement(ToolStore.findByName) {
@@ -402,19 +398,7 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveLandingPage) {
-            ok(service.retrieveLandingPage(actorAndProject, request.storeFront))
-        }
-
-        implement(AppStore.updateRepositorySubscription) {
-            ok(service.updateRepositorySubscription(actorAndProject, request.storeFront, request.repository))
-        }
-
-        implement(AppStore.browseRepositorySubscriptions) {
-            ok(PageV2.of(service.listRepositorySubscriptions(actorAndProject, request.storeFrontId)))
-        }
-
-        implement(AppStore.browseStoreFronts) {
-            ok(PageV2.of(service.listStoreFronts(actorAndProject)))
+            ok(service.retrieveLandingPage(actorAndProject))
         }
 
         implement(AppStore.retrieveCarrouselImage) {
@@ -467,7 +451,6 @@ class AppStoreController(
                 request.body,
                 request.active,
                 request.applications,
-                request.storeFront
             )
             ok(FindByIntId(id))
         }
@@ -480,7 +463,6 @@ class AppStoreController(
                 request.body,
                 request.active,
                 request.applications,
-                request.storeFront
             )
 
             ok(Unit)
@@ -492,7 +474,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseSpotlights) {
-            ok(PageV2.of(service.listSpotlights(actorAndProject, request.storeFront)))
+            ok(PageV2.of(service.listSpotlights(actorAndProject)))
         }
 
         implement(AppStore.retrieveSpotlight) {

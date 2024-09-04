@@ -17,62 +17,60 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-const form: (storeFront: number) => ScaffoldedFormObject = (storeFront: number) => {
-    return {
-        id: "",
-        type: "Form",
-        repeated: false,
-        elements: [
-            {
-                id: "applications",
-                title: "Application",
-                type: "Form",
-                repeated: true,
-                minItems: 3,
-                maxItems: 9,
-                elements: [
-                    {
-                        id: "group",
-                        type: "Selector",
-                        label: "Application",
-                        placeholder: "Click to select an application",
-                        validator: (d) => {
-                            if (!d) return "An application must be selected";
-                            return null;
-                        },
-                        onShow: () => {
-                            return new Promise((resolve) => {
-                                dialogStore.addDialog(
-                                    <GroupSelector onSelect={g => {
-                                        resolve(g);
-                                        dialogStore.success();
-                                    }}/>,
-                                    doNothing,
-                                    true
-                                );
-                            })
-                        },
-                        displayValue: (value: ApplicationGroup | null) => {
-                            if (value) return value.specification.title;
-                            return "";
-                        }
+const form: ScaffoldedFormObject = {
+    id: "",
+    type: "Form",
+    repeated: false,
+    elements: [
+        {
+            id: "applications",
+            title: "Application",
+            type: "Form",
+            repeated: true,
+            minItems: 3,
+            maxItems: 9,
+            elements: [
+                {
+                    id: "group",
+                    type: "Selector",
+                    label: "Application",
+                    placeholder: "Click to select an application",
+                    validator: (d) => {
+                        if (!d) return "An application must be selected";
+                        return null;
                     },
-                    {
-                        id: "description",
-                        label: "Description",
-                        type: "TextArea",
-                        help: "The description shown next to the application row, this can be different from the normal description.",
-                        rows: 2,
-                        validator: data => {
-                            if (!data) return "Description cannot be empty";
-                            return null;
-                        }
+                    onShow: () => {
+                        return new Promise((resolve) => {
+                            dialogStore.addDialog(
+                                <GroupSelector onSelect={g => {
+                                    resolve(g);
+                                    dialogStore.success();
+                                }}/>,
+                                doNothing,
+                                true
+                            );
+                        })
                     },
-                ]
-            }
-        ]
-    };
-}
+                    displayValue: (value: ApplicationGroup | null) => {
+                        if (value) return value.specification.title;
+                        return "";
+                    }
+                },
+                {
+                    id: "description",
+                    label: "Description",
+                    type: "TextArea",
+                    help: "The description shown next to the application row, this can be different from the normal description.",
+                    rows: 2,
+                    validator: data => {
+                        if (!data) return "Description cannot be empty";
+                        return null;
+                    }
+                },
+            ]
+        }
+    ]
+};
 
 interface TopPicksData extends Record<string, unknown> {
     applications: {
@@ -93,18 +91,11 @@ const TopPicksEditor: React.FunctionComponent = () => {
 
     const selectRef = React.useRef<HTMLSelectElement>(null);
 
-    const [storeFront, setStoreFront] = React.useState<number>(0);
-    const [storeFronts, setStoreFronts] = useCloudAPI(
-        AppStore.browseStoreFronts({itemsPerPage: 250}),
-        emptyPageV2
-    );
-
     const fetchTopPicks = () => {
-        if (storeFront < 1) return;
         let didCancel = false;
         (async () => {
-            const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({storeFront: storeFront, itemsPerPage: 250, next})));
-            const landingPromise = callAPI(AppStore.retrieveLandingPage({storeFront: storeFront}));
+            const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})));
+            const landingPromise = callAPI(AppStore.retrieveLandingPage({}));
 
             const groups = await groupPromise;
             const landing = await landingPromise;
@@ -128,7 +119,7 @@ const TopPicksEditor: React.FunctionComponent = () => {
 
     useEffect(() => {
         fetchTopPicks();
-    }, [storeFront]);
+    }, []);
 
     useEffect(() => {
         setTopPicksPreview((data.applications ?? []).map(app => ({
@@ -152,12 +143,6 @@ const TopPicksEditor: React.FunctionComponent = () => {
 
         if (didUpdate) setData(dcopy);
     }, [data]);
-
-    useEffect(() => {
-        if (storeFronts.data.items.length === 1) {
-            setStoreFront(storeFronts.data.items[0].metadata.id);
-        }
-    }, [storeFronts]);
 
     const onSave = useCallback(() => {
         callAPI(AppStore.updateTopPicks({ newTopPicks: topPicksPreview })).then(fetchTopPicks);
@@ -183,58 +168,39 @@ const TopPicksEditor: React.FunctionComponent = () => {
 
     return <MainContainer
         header={
-            <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Top picks</Heading.h2>
-                <Select selectRef={selectRef} width={500}
-                    onChange={() => {
-                        if (!selectRef.current) return;
-                        if (selectRef.current.value === "") return;
-                        setStoreFront(parseInt(selectRef.current.value, 10));
-                    }}
-                    disabled={!inDevEnvironment()}
-                >
-                    <option disabled selected>Select store front...</option>
-                    {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
-                            {front.specification.title}
-                        </option>
-                    )}
-                </Select>
-            </Flex>
         }
         main={<>
-            {storeFront < 1 ? null : <>
-                <Flex gap={"32px"}>
-                    <Flex flexDirection={"column"} gap={"8px"} flexGrow={1} maxHeight={"calc(100vh - 32px)"} overflowY={"auto"}>
-                        <Flex>
-                            <Heading.h3>Editing top picks</Heading.h3>
-                            <Box flexGrow={1}/>
-                            <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
-                                <Button disabled={firstError !== null} color={"successMain"} onClick={onSave}>
-                                    <Icon name={"heroCheck"}/>
-                                    <div>Save</div>
-                                </Button>
-                            </TooltipV2>
-                        </Flex>
-                        <ScaffoldedForm element={form(storeFront)} data={rawData} onUpdate={setData} errors={errors}/>
-                    </Flex>
-                    <div style={{width: "550px"}}>
-                        <Flex gap={"8px"} alignItems={"center"} mb={"16px"}>
-                            <Heading.h3>Preview</Heading.h3>
-                            <Box flexGrow={1}/>
-                            <Button onClick={onShowPreview}>
-                                <Icon name={"heroMagnifyingGlass"}/>
-                                <div>View real size</div>
+            <Flex gap={"32px"}>
+                <Flex flexDirection={"column"} gap={"8px"} flexGrow={1} maxHeight={"calc(100vh - 32px)"} overflowY={"auto"}>
+                    <Flex>
+                        <Heading.h3>Editing top picks</Heading.h3>
+                        <Box flexGrow={1}/>
+                        <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
+                            <Button disabled={firstError !== null} color={"successMain"} onClick={onSave}>
+                                <Icon name={"heroCheck"}/>
+                                <div>Save</div>
                             </Button>
-                        </Flex>
-                        <div style={{transform: "translate(-25%, -25%) scale(0.5)"}}>
-                            <div style={{width: "1100px"}}>
-                                <TopPicksCard topPicks={topPicksPreview} />
-                            </div>
+                        </TooltipV2>
+                    </Flex>
+                    <ScaffoldedForm element={form} data={rawData} onUpdate={setData} errors={errors}/>
+                </Flex>
+                <div style={{width: "550px"}}>
+                    <Flex gap={"8px"} alignItems={"center"} mb={"16px"}>
+                        <Heading.h3>Preview</Heading.h3>
+                        <Box flexGrow={1}/>
+                        <Button onClick={onShowPreview}>
+                            <Icon name={"heroMagnifyingGlass"}/>
+                            <div>View real size</div>
+                        </Button>
+                    </Flex>
+                    <div style={{transform: "translate(-25%, -25%) scale(0.5)"}}>
+                        <div style={{width: "1100px"}}>
+                            <TopPicksCard topPicks={topPicksPreview} />
                         </div>
                     </div>
-                </Flex>
-            </>}
+                </div>
+            </Flex>
         </>}
     />;
 }

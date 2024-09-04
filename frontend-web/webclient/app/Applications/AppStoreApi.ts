@@ -341,24 +341,6 @@ export interface ApplicationRepositoryStatus {
 
 }
 
-export interface StoreFront {
-    metadata: StoreFrontMetadata;
-    specification: StoreFrontSpecification;
-    status: StoreFrontStatus;
-}
-
-export interface StoreFrontMetadata {
-    id: number;
-}
-
-export interface StoreFrontSpecification {
-    title: string;
-}
-
-export interface StoreFrontStatus {
-
-}
-
 export interface ApplicationGroup {
     metadata: ApplicationGroupMetadata;
     specification: ApplicationGroupSpecification;
@@ -557,20 +539,6 @@ export function browseRepositories(request: {includePrivate: boolean;} & Paginat
     return apiBrowse(request, baseContext, "repositories");
 }
 
-// Store front management
-// =================================================================================================================
-export function browseStoreFronts(request: PaginationRequestV2): APICallParameters<unknown, PageV2<StoreFront>> {
-    return apiBrowse(request, baseContext, "storeFronts");
-}
-
-export function browseRepositorySubscriptions(request: {storeFrontId: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationRepository>> {
-    return apiBrowse(request, baseContext, "subscriptions");
-}
-
-export function updateRepositorySubscription(request: {storeFront: number, repository: number}): APICallParameters<unknown, unknown> {
-    return apiUpdate(request, baseContext, "updateRepositorySubscription");
-}
-
 // Group management
 // =================================================================================================================
 export function createGroup(request: ApplicationGroupSpecification): APICallParameters<unknown, { id: number }> {
@@ -581,7 +549,7 @@ export function retrieveGroup(request: { id: number }): APICallParameters<unknow
     return apiRetrieve(request, baseContext, "groups");
 }
 
-export function browseGroups(request: { repository?: string; storeFront?: number } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
+export function browseGroups(request: { repository?: string; } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }
 
@@ -665,7 +633,7 @@ export function createCategory(request: ApplicationCategorySpecification): APICa
     return apiUpdate(request, baseContext, "createCategory");
 }
 
-export function browseCategories(request: {repository: string} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
+export function browseCategories(request: {repository?: string} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
     return apiBrowse(request, baseContext, "categories");
 }
 
@@ -716,7 +684,7 @@ export function retrieveSpotlight(request: { id: number }): APICallParameters<un
     return apiRetrieve(request, baseContext, "spotlight");
 }
 
-export function browseSpotlights(request: {storeFront: number} & PaginationRequestV2): APICallParameters<unknown, PageV2<Spotlight>> {
+export function browseSpotlights(request: PaginationRequestV2): APICallParameters<unknown, PageV2<Spotlight>> {
     return apiBrowse(request, baseContext, "spotlight");
 }
 
@@ -797,10 +765,9 @@ export interface Spotlight {
     applications: TopPick[];
     active: boolean;
     id?: number | null;
-    storeFront: number;
 }
 
-export function retrieveLandingPage(request: {storeFront: number}): APICallParameters<unknown, LandingPage> {
+export function retrieveLandingPage(request: {}): APICallParameters<unknown, LandingPage> {
     return apiRetrieve(request, baseContext, "landingPage");
 }
 

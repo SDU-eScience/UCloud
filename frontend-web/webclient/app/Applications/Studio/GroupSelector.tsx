@@ -9,11 +9,11 @@ import {Button, Flex} from "@/ui-components";
 import {ListRow} from "@/ui-components/List";
 import {SafeLogo} from "@/Applications/AppToolLogo";
 
-export const GroupSelector: React.FunctionComponent<{storeFront?: number; onSelect: (group: ApplicationGroup) => void}> = props => {
+export const GroupSelector: React.FunctionComponent<{onSelect: (group: ApplicationGroup) => void}> = props => {
     const didCancel = useDidUnmount();
     const [groups, setGroups] = useState<ApplicationGroup[]>([]);
     useEffect(() => {
-        fetchAll(next => callAPI(AppStore.browseGroups({storeFront: props.storeFront, itemsPerPage: 250, next})))
+        fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})))
             .then(g => didCancel.current === false && setGroups(g));
     }, [])
     return <Flex flexDirection={"column"} maxHeight={"100%"} overflowY={"auto"}>

@@ -59,7 +59,7 @@ ${ApiConventions.nonConformingApiWarning}
                             backend = ToolBackend.DOCKER,
                             license = "None",
                             image = "acme/batch:1.0.0",
-                            repository = "main"
+                            curator = "main"
                         )
                     ),
                     user
@@ -99,7 +99,7 @@ ${ApiConventions.nonConformingApiWarning}
                             license = "None",
                             image = "acme-operating-system",
                             supportedProviders = listOf("example"),
-                            repository = "main"
+                            curator = "main"
                         )
                     ),
                     user

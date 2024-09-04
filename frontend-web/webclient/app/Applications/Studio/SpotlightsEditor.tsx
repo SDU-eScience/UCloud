@@ -169,8 +169,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
         title: "",
         body: "",
         applications: [],
-        active: true,
-        storeFront: 0
+        active: true
     });
     const data = rawData as Partial<SpotlightData>;
     const errors = useRef<Record<string, string>>({});
@@ -188,7 +187,7 @@ const SpotlightsEditor: React.FunctionComponent = () => {
 
             const spotlight = await spotlightPromise;
 
-            const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({storeFront: spotlight.storeFront, itemsPerPage: 250, next})));
+            const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})));
             const groups = await groupPromise;
 
             if (didCancel) return;

@@ -32,16 +32,7 @@ class ImportExport(
             service.retrieveTool(ActorAndProject.System, name, version)
         }
 
-        val storeFronts = service.listStoreFronts(ActorAndProject.System)
-        val storeFrontIds = storeFronts.map { it.metadata.id }
-
-        val repositories = service.listRepositories()
-        val repositoryIds = repositories.map { it.metadata.id }
-        val groups: MutableList<ApplicationGroup> = mutableListOf()
-
-        for (repositoryId in repositoryIds) {
-            groups.addAll(service.listGroups(ActorAndProject.System, repositoryId))
-        }
+        val groups = service.listGroups(ActorAndProject.System)
 
         val groupMemberships: Map<Int, List<NameAndVersion>> = groups.associate {
             it.metadata.id to service.listApplicationsInGroup(ActorAndProject.System, it.metadata.id).map {
@@ -50,11 +41,7 @@ class ImportExport(
         }
         val groupLogos = groups.map { it.metadata.id to service.retrieveRawGroupLogo(it.metadata.id) }.toMap()
 
-        val categories: MutableList<ApplicationCategory> = mutableListOf()
-
-        for (repositoryId in repositoryIds) {
-            categories.addAll(service.listCategories(ActorAndProject.System, repositoryId))
-        }
+        val categories = service.listCategories(ActorAndProject.System)
 
         val categoryMemberships: Map<Int, List<Int>> = categories.associate { category ->
             val categoryId = category.metadata.id
@@ -69,12 +56,8 @@ class ImportExport(
 
         val spotlights: MutableList<Spotlight> = mutableListOf()
 
-        for (storeFrontId in storeFrontIds) {
-            spotlights.addAll(service.listSpotlights(ActorAndProject.System, storeFrontId))
-        }
-
         // TODO(Brian)
-        val currentLanding = service.retrieveLandingPage(ActorAndProject.System, 0)
+        val currentLanding = service.retrieveLandingPage(ActorAndProject.System)
         val carrousel: List<CarrouselItem> = currentLanding.carrousel
         val carrouselImages = carrousel.mapIndexed { index, _ -> service.retrieveCarrouselImage(index) }
         val topPicks: List<TopPick> = currentLanding.topPicks
@@ -289,7 +272,7 @@ class ImportExport(
         }
 
         println("Creating spotlights...")
-        val existingSpotlights = service.listSpotlights(a, 1) // TODO(Brian)
+        val existingSpotlights = service.listSpotlights(a)
         for (spotlight in spotlights) {
             val existingId = existingSpotlights.find { it.title == spotlight.title }?.id
             try {
@@ -301,8 +284,7 @@ class ImportExport(
                     spotlight.active,
                     spotlight.applications.map { pick ->
                         pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
-                    },
-                    1 // TODO(Brian)
+                    }
                 )
             } catch (ex: Throwable) {
                 log.info("Could not create spotlight: ${spotlight.title}")
@@ -314,7 +296,6 @@ class ImportExport(
             service.updateCarrousel(a, carrousel.map { s ->
                 s.copy(
                     linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) },
-                    storeFront = 1 // TODO(Brian)
                 )
             })
         } catch (ex: Throwable) {
@@ -329,7 +310,7 @@ class ImportExport(
         }
 
         val newTopPicks = topPicks.map { pick ->
-            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] }, storeFront = 1) // TODO (Brian)
+            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
         }
         println("These are the picks! $newTopPicks")
         try {

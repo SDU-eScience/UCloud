@@ -15,85 +15,82 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
-const form: (storeFront: number) => ScaffoldedFormObject = (storeFront: number) => {
-    return {
-        id: "",
-        type: "Form",
-        repeated: false,
-        elements: [
-            {
-                id: "slides",
-                type: "Form",
-                title: "Slide",
-                minItems: 1,
-                maxItems: 6,
-                repeated: true,
-                elements: [
-                    {
-                        type: "Text",
-                        id: "title",
-                        label: "Title",
-                        help: "The title of the slide.",
-                        placeholder: "New application on UCloud!"
+const form: ScaffoldedFormObject = {
+    id: "",
+    type: "Form",
+    repeated: false,
+    elements: [
+        {
+            id: "slides",
+            type: "Form",
+            title: "Slide",
+            minItems: 1,
+            maxItems: 6,
+            repeated: true,
+            elements: [
+                {
+                    type: "Text",
+                    id: "title",
+                    label: "Title",
+                    help: "The title of the slide.",
+                    placeholder: "New application on UCloud!"
+                },
+                {
+                    type: "TextArea",
+                    id: "body",
+                    label: "Body",
+                    help: "The text on the slide.",
+                    placeholder: "Lorem ipsum dolar sit amet...",
+                    rows: 12,
+                },
+                {
+                    type: "Text",
+                    id: "imageCredit",
+                    label: "Image credit",
+                    help: "Attribution for the image",
+                    placeholder: "Lorem ipsum dolar sit amet..."
+                },
+                {
+                    type: "Image",
+                    id: "image",
+                    label: "Image",
+                    help: "Image",
+                },
+                {
+                    type: "Text",
+                    id: "linkedWebPage",
+                    label: "Link (webpage)",
+                    placeholder: "https://example.com",
+                    help: "A link to a web page (cannot be used with other link options)"
+                },
+                {
+                    id: "linkedGroup",
+                    type: "Selector",
+                    label: "Link (application)",
+                    placeholder: "Click to select an application",
+                    help: "A link to an application (cannot be used with other link options)",
+                    onShow: () => {
+                        return new Promise((resolve) => {
+                            dialogStore.addDialog(
+                                <GroupSelector
+                                    onSelect={g => {
+                                        resolve(g);
+                                        dialogStore.success();
+                                    }}
+                                />,
+                                doNothing,
+                                true
+                            );
+                        })
                     },
-                    {
-                        type: "TextArea",
-                        id: "body",
-                        label: "Body",
-                        help: "The text on the slide.",
-                        placeholder: "Lorem ipsum dolar sit amet...",
-                        rows: 12,
-                    },
-                    {
-                        type: "Text",
-                        id: "imageCredit",
-                        label: "Image credit",
-                        help: "Attribution for the image",
-                        placeholder: "Lorem ipsum dolar sit amet..."
-                    },
-                    {
-                        type: "Image",
-                        id: "image",
-                        label: "Image",
-                        help: "Image",
-                    },
-                    {
-                        type: "Text",
-                        id: "linkedWebPage",
-                        label: "Link (webpage)",
-                        placeholder: "https://example.com",
-                        help: "A link to a web page (cannot be used with other link options)"
-                    },
-                    {
-                        id: "linkedGroup",
-                        type: "Selector",
-                        label: "Link (application)",
-                        placeholder: "Click to select an application",
-                        help: "A link to an application (cannot be used with other link options)",
-                        onShow: () => {
-                            return new Promise((resolve) => {
-                                dialogStore.addDialog(
-                                    <GroupSelector
-                                        storeFront={storeFront}
-                                        onSelect={g => {
-                                            resolve(g);
-                                            dialogStore.success();
-                                        }}
-                                    />,
-                                    doNothing,
-                                    true
-                                );
-                            })
-                        },
-                        displayValue: (value: ApplicationGroup | null) => {
-                            if (value) return value.specification.title;
-                            return "";
-                        }
-                    },
-                ]
-            }
-        ]
-    };
+                    displayValue: (value: ApplicationGroup | null) => {
+                        if (value) return value.specification.title;
+                        return "";
+                    }
+                },
+            ]
+        }
+    ]
 };
 
 interface HeroData extends Record<string, unknown> {
@@ -130,18 +127,11 @@ const HeroEditor: React.FunctionComponent = () => {
     const [slides, imageLinks] = translateHeroData(data);
     const selectRef = React.useRef<HTMLSelectElement>(null);
 
-    const [storeFront, setStoreFront] = React.useState<number>(0);
-    const [storeFronts, setStoreFronts] = useCloudAPI(
-        AppStore.browseStoreFronts({itemsPerPage: 250}),
-        emptyPageV2
-    );
-
     useEffect(() => {
-        if (storeFront < 1) return;
-        callAPI(AppStore.retrieveLandingPage({storeFront: storeFront})).then(landingPage => {
+        callAPI(AppStore.retrieveLandingPage({})).then(landingPage => {
             let didCancel = false;
 
-            fetchAll(next => callAPI(AppStore.browseGroups({storeFront: storeFront, itemsPerPage: 250, next}))).then(groups => {
+            fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups => {
                 const newData: HeroData = {
                     slides: landingPage.carrousel.map((slide, idx) => ({
                     title: slide.title,
@@ -174,13 +164,7 @@ const HeroEditor: React.FunctionComponent = () => {
                 });
             });
         });
-    }, [storeFront]);
-
-    useEffect(() => {
-        if (storeFronts.data.items.length === 1) {
-            setStoreFront(storeFronts.data.items[0].metadata.id);
-        }
-    }, [storeFronts]);
+    }, []);
 
     const allErrors = Object.values(errors.current);
     const firstError = allErrors.length > 0 ? allErrors[0] : null;
@@ -204,40 +188,21 @@ const HeroEditor: React.FunctionComponent = () => {
 
     return <MainContainer
         header={
-            <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Carrousel</Heading.h2>
-                <Select selectRef={selectRef} width={500}
-                    onChange={() => {
-                        if (!selectRef.current) return;
-                        if (selectRef.current.value === "") return;
-                        setStoreFront(parseInt(selectRef.current.value, 10));
-                    }}
-                    disabled={!inDevEnvironment()}
-                >
-                    <option disabled selected>Select store front...</option>
-                    {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
-                            {front.specification.title}
-                        </option>
-                    )}
-                </Select>
-            </Flex>
         }
         main={<>
-            {storeFront < 1 ? null : <>
-                <Box width={"1100px"} margin={"30px auto"}>
-                    <Hero slides={slides} imageLinks={imageLinks} isPreview={true}/>
-                </Box>
-                <Box height={"calc(100vh - 16px - 30px - 420px)"} overflowY={"auto"}>
-                    <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
-                        <Button fullWidth disabled={firstError !== null} color={"successMain"} onClick={onSave} mb={"16px"}>
-                            <Icon name={"heroCheck"}/>
-                            <div>Save</div>
-                        </Button>
-                    </TooltipV2>
-                    <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form(storeFront)}/>
-                </Box>
-            </>}
+            <Box width={"1100px"} margin={"30px auto"}>
+                <Hero slides={slides} imageLinks={imageLinks} isPreview={true}/>
+            </Box>
+            <Box height={"calc(100vh - 16px - 30px - 420px)"} overflowY={"auto"}>
+                <TooltipV2 tooltip={!firstError ? undefined : <>Unable to save because of an error in the form: {firstError}</>}>
+                    <Button fullWidth disabled={firstError !== null} color={"successMain"} onClick={onSave} mb={"16px"}>
+                        <Icon name={"heroCheck"}/>
+                        <div>Save</div>
+                    </Button>
+                </TooltipV2>
+                <ScaffoldedForm data={data} errors={errors} onUpdate={setData} element={form}/>
+            </Box>
         </>}
     />;
 };

@@ -17,16 +17,9 @@ const Spotlights: React.FunctionComponent = () => {
     const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
 
     const selectRef = React.useRef<HTMLSelectElement>(null);
-    const [storeFront, setStoreFront] = React.useState<number>(0);
-    const [storeFronts, setStoreFronts] = useCloudAPI(
-        AppStore.browseStoreFronts({itemsPerPage: 250}),
-        emptyPageV2
-    );
-
     const fetchSpotlights = useCallback(() => {
-        if (storeFront < 1) return;
         let didCancel = false;
-        fetchAll(next => callAPI(AppStore.browseSpotlights({storeFront, itemsPerPage: 250, next}))).then(d => {
+        fetchAll(next => callAPI(AppStore.browseSpotlights({itemsPerPage: 250, next}))).then(d => {
             if (didCancel) return;
             setSpotlights(d);
         });
@@ -34,61 +27,36 @@ const Spotlights: React.FunctionComponent = () => {
         return () => {
             didCancel = true;
         };
-    }, [storeFront]);
+    }, []);
 
     useEffect(() => {
         fetchSpotlights();
-    }, [storeFront]);
-
-    useEffect(() => {
-        if (storeFronts.data.items.length === 1) {
-            setStoreFront(storeFronts.data.items[0].metadata.id);
-        }
-    }, [storeFronts]);
+    }, []);
 
     usePage("Spotlights", SidebarTabId.APPLICATION_STUDIO);
 
     return <MainContainer
         header={
-            <Flex justifyContent="space-between" mb="20px">
-                <Heading.h2>Spotlights</Heading.h2>
-                <Select selectRef={selectRef} width={500}
-                    onChange={() => {
-                        if (!selectRef.current) return;
-                        if (selectRef.current.value === "") return;
-                        setStoreFront(parseInt(selectRef.current.value, 10));
-                    }}
-                    disabled={!inDevEnvironment()}
-                >
-                    <option disabled selected>Select store front...</option>
-                    {storeFronts.data.items.map(front => 
-                        <option value={front.metadata.id} selected={storeFronts.data.items.length === 1}>
-                            {front.specification.title}
-                        </option>
-                    )}
-                </Select>
-            </Flex>
+            <Heading.h2>Spotlights</Heading.h2>
         }
         main={<>
-            {storeFront < 1 ? null : <>
-                <Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>
-                    <Link to={AppRoutes.appStudio.spotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
-                    {spotlights.map(s => (
-                        <ListRow
-                            left={<>{s.title}</>}
-                            right={
-                                <Flex gap={"8px"}>
-                                    <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
-                                    <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
-                                        await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
-                                        fetchSpotlights();
-                                    }}/>
-                                </Flex>
-                            }
-                        />
-                    ))}
-                </Flex>
-            </>}
+            <Flex flexDirection={"column"} margin={"0 auto"} maxWidth={"900px"} gap={"16px"}>
+                <Link to={AppRoutes.appStudio.spotlightsEditor()}><Button fullWidth>Create new spotlight</Button></Link>
+                {spotlights.map(s => (
+                    <ListRow
+                        left={<>{s.title}</>}
+                        right={
+                            <Flex gap={"8px"}>
+                                <Link to={AppRoutes.appStudio.spotlightsEditor(s.id ?? 0)}><Button>Edit</Button></Link>
+                                <ConfirmationButton color={"errorMain"} icon={"heroTrash"} onAction={async () => {
+                                    await callAPI(AppStore.deleteSpotlight({id: s.id ?? 0}));
+                                    fetchSpotlights();
+                                }}/>
+                            </Flex>
+                        }
+                    />
+                ))}
+            </Flex>
         </>}
     />;
 };

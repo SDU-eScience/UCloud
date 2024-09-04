@@ -847,8 +847,6 @@ function SecondarySidebar({
                     tab={SidebarTabId.APPLICATION_STUDIO} />
                 <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Spotlights"} icon={"heroCamera"}
                     tab={SidebarTabId.APPLICATION_STUDIO} />
-                <SidebarEntry to={AppRoutes.appStudio.repositorySubscriptions()} text={"Subscriptions"} icon={"heroSignal"}
-                    tab={SidebarTabId.APPLICATION_STUDIO} />
             </>}
 
         </Flex>

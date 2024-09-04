@@ -323,20 +323,10 @@ invocation of the application, but is used solely to visually group applications
     val assignPriorityToCategory = AssignPriorityToCategory.call
     val deleteCategory = DeleteCategory.call
 
-    // Repository management
-    // =================================================================================================================
-    val browseRepositories = BrowseRepositories.call
-
     // Landing page management
     // =================================================================================================================
     val retrieveLandingPage = RetrieveLandingPage.call
     val retrieveCarrouselImage = RetrieveCarrouselImage.call
-
-    // Store front management
-    // =================================================================================================================
-    val updateRepositorySubscription = UpdateRepositorySubscription.call
-    val browseRepositorySubscriptions = BrowseRepositorySubscriptions.call
-    val browseStoreFronts = BrowseStoreFronts.call
 
     // Spotlight management
     // =================================================================================================================
@@ -676,8 +666,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
-            val repository: String? = null,
-            val storeFront: Int? = null
+            val curator: String? = null,
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -798,8 +787,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
-            val repository: String? = null,
-            val storeFront: Int? = null
+            val curator: String? = null,
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -971,33 +959,7 @@ invocation of the application, but is used solely to visually group applications
         )
     }
 
-    object BrowseRepositories {
-        @Serializable
-        class Request(
-            override val itemsPerPage: Int? = null,
-            override val next: String? = null,
-            override val consistency: PaginationRequestV2Consistency? = null,
-            override val itemsToSkip: Long? = null,
-        ) : WithPaginationRequestV2
-
-        val call = call(
-            "browseRepositories",
-            Request.serializer(),
-            PageV2.serializer(ApplicationRepository.serializer()),
-            CommonErrorMessage.serializer(),
-            handler = {
-                httpBrowse(baseContext, "repositories", roles = Roles.PRIVILEGED)
-            }
-        )
-    }
-
-
     object RetrieveLandingPage {
-        @Serializable
-        data class Request(
-            val storeFront: Int
-        )
-
         @Serializable
         data class Response(
             val carrousel: List<CarrouselItem>,
@@ -1010,70 +972,11 @@ invocation of the application, but is used solely to visually group applications
 
         val call = call(
             "retrieveLandingPage",
-            Request.serializer(),
+            Unit.serializer(),
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
                 httpRetrieve(baseContext, "landingPage")
-            }
-        )
-    }
-
-    object UpdateRepositorySubscription {
-        @Serializable
-        data class Request(
-            val storeFront: Int,
-            val repository: String
-        )
-
-        val call = call(
-            "updateRepositorySubscription",
-            Request.serializer(),
-            Unit.serializer(),
-            CommonErrorMessage.serializer(),
-            handler = {
-                httpUpdate(baseContext, "updateRepositorySubscription")
-            }
-        )
-    }
-
-    object BrowseRepositorySubscriptions {
-        @Serializable
-        data class Request(
-            override val itemsPerPage: Int? = null,
-            override val next: String? = null,
-            override val consistency: PaginationRequestV2Consistency? = null,
-            override val itemsToSkip: Long? = null,
-            val storeFrontId: Int
-        ): WithPaginationRequestV2
-
-        val call = call(
-            "browseSubscriptions",
-            Request.serializer(),
-            PageV2.serializer(ApplicationRepository.serializer()),
-            CommonErrorMessage.serializer(),
-            handler = {
-                httpBrowse(baseContext, "subscriptions", roles = Roles.PRIVILEGED)
-            }
-        )
-    }
-
-    object BrowseStoreFronts {
-        @Serializable
-        data class Request(
-            override val itemsPerPage: Int? = null,
-            override val next: String? = null,
-            override val consistency: PaginationRequestV2Consistency? = null,
-            override val itemsToSkip: Long? = null,
-        ): WithPaginationRequestV2
-
-        val call = call(
-            "browseStoreFronts",
-            Request.serializer(),
-            PageV2.serializer(StoreFront.serializer()),
-            CommonErrorMessage.serializer(),
-            handler = {
-                httpBrowse(baseContext, "storeFronts", roles = Roles.END_USER)
             }
         )
     }
@@ -1169,7 +1072,6 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
-            val storeFront: Int
         ): WithPaginationRequestV2
 
         val call = call(
@@ -1271,7 +1173,6 @@ data class TopPick(
     val description: String,
     val defaultApplicationToRun: String? = null,
     val logoHasText: Boolean = false,
-    val storeFront: Int? = null
 ) {
     init {
         if (applicationName != null && groupId != null) {
@@ -1298,7 +1199,6 @@ data class CarrouselItem(
     val linkedApplication: String? = null,
     val linkedWebPage: String? = null,
     val linkedGroup: Int? = null,
-    val storeFront: Int? = null,
 
     // if linkedGroup != null this will point to the default app. if linkedApplication != null then it will be equal
     // to linkedApplication
@@ -1333,7 +1233,6 @@ data class Spotlight(
     val applications: List<TopPick>,
     val active: Boolean,
     val id: Int? = null,
-    val storeFront: Int? = null
 )
 
 @Serializable
@@ -1355,7 +1254,7 @@ data class ApplicationGroup(
         val categories: Set<Int> = emptySet(),
         val colorReplacement: ColorReplacements = ColorReplacements(),
         val logoHasText: Boolean = false,
-        val repository: String = ""
+        val curator: String = ""
     )
 
     @Serializable
@@ -1382,7 +1281,7 @@ data class ApplicationCategory(
     data class Specification(
         val title: String,
         val description: String? = null,
-        val repository: String
+        val curator: String? = null
     )
 
     @Serializable
@@ -1399,22 +1298,6 @@ data class ApplicationRepository(
     @Serializable
     data class Metadata(
         val id: String
-    )
-
-    @Serializable
-    data class Specification(
-        val title: String
-    )
-}
-
-@Serializable
-data class StoreFront(
-    val metadata: Metadata,
-    val specification: Specification,
-) {
-    @Serializable
-    data class Metadata(
-        val id: Int
     )
 
     @Serializable
@@ -1512,9 +1395,9 @@ fun exampleApplication(
             public = true,
             group = ApplicationGroup(
                 ApplicationGroup.Metadata(0),
-                ApplicationGroup.Specification("Test Group", "", null, emptySet(), repository = "main")
+                ApplicationGroup.Specification("Test Group", "", null, emptySet(), curator = "main")
             ),
-            repository = "main"
+            curator = "main"
         ),
         ApplicationInvocationDescription(
             ToolReference(
@@ -1533,7 +1416,7 @@ fun exampleApplication(
                         backend = toolBackend,
                         license = "None",
                         image = image,
-                        repository = "main"
+                        curator = "main"
                     )
                 )
             ),

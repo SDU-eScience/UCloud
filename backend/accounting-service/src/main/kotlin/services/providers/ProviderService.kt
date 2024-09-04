@@ -269,16 +269,6 @@ class ProviderService(
                     }
                     ?: throw RPCException("Unable to approve request", HttpStatusCode.BadRequest)
 
-                session.sendPreparedStatement(
-                    {
-                        setParameter("title", provider.name)
-                    },
-                    """
-                        insert into app_store.store_fronts (title)
-                        values (:title)
-                    """
-                )
-
                 if (predefinedResource == null) {
                     val ip = IntegrationProvider(provider.name)
                     ip.welcome.call(
