@@ -37,7 +37,7 @@ func (t *Table) Print() {
 }
 
 func (t *Table) String() string {
-	ptyCols, _, _ := safeQueryPtySize()
+	ptyCols, _, isPty := safeQueryPtySize()
 
 	var largestColumn []int
 	for _, _ = range t.header {
@@ -70,37 +70,86 @@ func (t *Table) String() string {
 			leftoverSpace -= spaceToAdd
 			spaceAssignment[col] = spaceAssignment[col] + spaceToAdd
 		}
+
+		rem := leftoverSpace % len(t.header)
+		for col := 0; col < len(spaceAssignment); col++ {
+			if rem <= 0 {
+				break
+			}
+
+			rem -= 1
+			spaceAssignment[col] = spaceAssignment[col] + 1
+		}
 	}
 
 	builder := strings.Builder{}
-	builder.WriteString("|")
-	for col, header := range t.header {
-		paddingRequired := spaceAssignment[col] - len(header.Title)
-		builder.WriteString(" ")
-		builder.WriteString(header.Title)
-		if paddingRequired > 0 {
-			builder.WriteString(strings.Repeat(" ", paddingRequired))
-		}
-		builder.WriteString(" |")
-	}
-	builder.WriteString("\n")
 
-	builder.WriteString("|")
-	for col, _ := range t.header {
-		paddingRequired := spaceAssignment[col]
-		builder.WriteString(" ")
-		if paddingRequired > 0 {
-			builder.WriteString(strings.Repeat("-", paddingRequired))
+	// Header top border
+	{
+		builder.WriteString(boxNwCorner)
+		for col, _ := range t.header {
+			paddingRequired := spaceAssignment[col]
+			if paddingRequired > 0 {
+				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))
+			}
+			if col == len(t.header)-1 {
+				builder.WriteString(boxNeCorner)
+			} else {
+				builder.WriteString(boxHorizontalDown)
+			}
 		}
-		builder.WriteString(" |")
+		builder.WriteString("\n")
 	}
-	builder.WriteString("\n")
+
+	// Header content
+	{
+		builder.WriteString(boxVerticalBar)
+		for col, header := range t.header {
+			paddingRequired := spaceAssignment[col] - len(header.Title)
+			builder.WriteString(" ")
+			builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, header.Title))
+			if paddingRequired > 0 {
+				builder.WriteString(strings.Repeat(" ", paddingRequired))
+			}
+			builder.WriteString(" ")
+			builder.WriteString(boxVerticalBar)
+		}
+		builder.WriteString("\n")
+	}
+
+	// Header bottom border
+	{
+		builder.WriteString(boxVerticalRight)
+		for col, _ := range t.header {
+			paddingRequired := spaceAssignment[col]
+			if paddingRequired > 0 {
+				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))
+			}
+			if col == len(t.header)-1 {
+				builder.WriteString(boxVerticalLeft)
+			} else {
+				if len(t.rows) == 0 {
+					builder.WriteString(boxHorizontalUp)
+				} else {
+					builder.WriteString(boxCross)
+				}
+			}
+		}
+		builder.WriteString("\n")
+	}
 
 	if len(t.rows) == 0 {
-		builder.WriteString("No data available\n")
+		message := strings.Builder{}
+		message.WriteString(boxVerticalBar)
+		message.WriteString(" No data available")
+		message.WriteString(strings.Repeat(" ", ptyCols-message.Len()+1))
+		message.WriteString(boxVerticalBar)
+		message.WriteString("\n")
+
+		builder.WriteString(message.String())
 	} else {
 		for _, row := range t.rows {
-			builder.WriteString("|")
+			builder.WriteString(boxVerticalBar)
 			for col, value := range row {
 				paddingRequired := spaceAssignment[col] - len(value)
 				builder.WriteString(" ")
@@ -108,10 +157,32 @@ func (t *Table) String() string {
 				if paddingRequired > 0 {
 					builder.WriteString(strings.Repeat(" ", paddingRequired))
 				}
-				builder.WriteString(" |")
+				builder.WriteString(" ")
+				builder.WriteString(boxVerticalBar)
 			}
 			builder.WriteString("\n")
 		}
+	}
+
+	// Table bottom border
+	{
+		builder.WriteString(boxSwCorner)
+		for col, _ := range t.header {
+			paddingRequired := spaceAssignment[col]
+			if paddingRequired > 0 {
+				builder.WriteString(strings.Repeat(boxHorizontalBar, paddingRequired+2))
+			}
+			if col == len(t.header)-1 {
+				builder.WriteString(boxSeCorner)
+			} else {
+				if len(t.rows) == 0 {
+					builder.WriteString(boxHorizontalBar)
+				} else {
+					builder.WriteString(boxHorizontalUp)
+				}
+			}
+		}
+		builder.WriteString("\n")
 	}
 
 	return builder.String()

@@ -252,7 +252,7 @@ func transformParameter(param any) any {
 	// this is the type of transformation that needs to take place at some point. We might as well do it here, since
 	// it is not exactly a complicated transform. There should be no risk involved in doing this since we are still
 	// binding everything into a prepared query.
-	if reflect.TypeOf(param).Kind() == reflect.Slice {
+	if reflect.TypeOf(param).Kind() == reflect.Slice || reflect.TypeOf(param).Kind() == reflect.Array {
 		builder := strings.Builder{}
 		builder.WriteString("{")
 

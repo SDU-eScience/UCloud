@@ -316,7 +316,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 
 		if allocatedPort.Present {
 			appendLine(builder, "export UCLOUD_PORT=%d", allocatedPort.Get())
-			appendLine(builder, "echo %d > %v", allocatedPort, orc.EscapeBash(filepath.Join(jobFolder, AllocatedPortFile)))
+			appendLine(builder, "echo %d > %v", allocatedPort.Get(), orc.EscapeBash(filepath.Join(jobFolder, AllocatedPortFile)))
 			appendLine(builder, "")
 		}
 

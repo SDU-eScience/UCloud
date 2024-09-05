@@ -11,6 +11,10 @@ func Sgr(n int) string {
 	return "\u001B[" + fmt.Sprint(n) + "m"
 }
 
+func Escape256Color(n int) string {
+	return "\u001B[38;5;" + fmt.Sprint(n) + "m"
+}
+
 type IoStyle = int
 
 const (
@@ -32,6 +36,7 @@ const (
 	Magenta      Color = 6
 	Cyan         Color = 7
 	White        Color = 8
+	Muted        Color = 1244
 )
 
 func WriteStyledStringIfPty(pty bool, style IoStyle, fg, bg Color, formatString string, args ...any) string {
@@ -58,7 +63,11 @@ func WriteStyledString(style IoStyle, fg, bg Color, formatString string, args ..
 
 	// NOTE(Dan): Color values are offset by one to make it possible to use WriteStyled(0, 0, 0, "No styling")
 	if fg != DefaultColor {
-		builder.WriteString(Sgr(29 + fg))
+		if fg >= 1000 {
+			builder.WriteString(Escape256Color(fg - 1000))
+		} else {
+			builder.WriteString(Sgr(29 + fg))
+		}
 	}
 	if bg != DefaultColor {
 		builder.WriteString(Sgr(39 + bg))

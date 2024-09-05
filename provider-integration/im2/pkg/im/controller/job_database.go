@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
+	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
@@ -28,9 +30,10 @@ var trackRequest = ipc.NewCall[trackRequestType, util.Empty]("jobdb.track")
 var retrieveRequest = ipc.NewCall[string, *orc.Job]("jobdb.retrieve")
 
 type JobUpdateBatch struct {
-	entries            []orc.ResourceUpdateAndId[orc.JobUpdate]
-	trackedDirtyStates map[string]orc.JobState
-	failed             bool
+	entries               []orc.ResourceUpdateAndId[orc.JobUpdate]
+	trackedDirtyStates    map[string]orc.JobState
+	trackedNodeAllocation map[string][]string
+	failed                bool
 }
 
 func InitJobDatabase() {
@@ -95,17 +98,49 @@ func InitJobDatabase() {
 }
 
 func TrackNewJob(job orc.Job) {
+	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
+
 	if cfg.Mode == cfg.ServerModeServer {
 		activeJobsMutex.Lock()
-		defer activeJobsMutex.Unlock()
-
-		// NOTE(Dan): A copy is intended here.
 		activeJobs[job.Id] = &job
+		activeJobsMutex.Unlock()
+
+		trackJobUpdateServer(&job)
 	}
 
 	if cfg.Mode == cfg.ServerModeUser {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
 	}
+}
+
+func trackJobUpdateServer(job *orc.Job) {
+	jsonified, _ := json.Marshal(job)
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				insert into tracked_jobs(job_id, created_by, project_id, product_id, product_category, state, resource)
+				values (:job_id, :created_by, :project_id, :product_id, :product_category, :state, :resource)
+				on conflict (job_id) do update set
+					resource = excluded.resource,
+					created_by = excluded.created_by,
+					project_id = excluded.project_id,
+					product_id = excluded.product_id,
+					product_category = excluded.product_category,
+					state = excluded.state
+			`,
+			db.Params{
+				"job_id":           job.Id,
+				"created_by":       job.Owner.CreatedBy,
+				"project_id":       job.Owner.Project,
+				"product_id":       job.Specification.Product.Id,
+				"product_category": job.Specification.Product.Category,
+				"resource":         string(jsonified),
+				"state":            job.Status.State,
+			},
+		)
+	})
 }
 
 func RetrieveJob(jobId string) (*orc.Job, bool) {
@@ -123,7 +158,8 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 func BeginJobUpdates() *JobUpdateBatch {
 	activeJobsMutex.Lock()
 	return &JobUpdateBatch{
-		trackedDirtyStates: make(map[string]orc.JobState),
+		trackedDirtyStates:    make(map[string]orc.JobState),
+		trackedNodeAllocation: make(map[string][]string),
 	}
 }
 
@@ -138,7 +174,7 @@ func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]
 	}
 }
 
-func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status util.Option[string]) {
+func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status util.Option[string]) bool {
 	b.trackedDirtyStates[jobId] = state
 
 	currentJob, ok := activeJobs[jobId]
@@ -157,7 +193,14 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 				Status: util.OptValue(message),
 			},
 		})
+
+		return true
 	}
+	return false
+}
+
+func (b *JobUpdateBatch) TrackAssignedNodes(jobId string, nodes []string) {
+	b.trackedNodeAllocation[jobId] = nodes
 }
 
 func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
@@ -197,6 +240,9 @@ func (b *JobUpdateBatch) flush() {
 		log.Warn("Failed to flush updated jobs: %v", err)
 		return
 	}
+
+	var nodeAllocJobIds []string
+	var nodeAllocNodeIds []string
 
 	for _, entry := range b.entries {
 		u := &entry.Update
@@ -257,9 +303,53 @@ func (b *JobUpdateBatch) flush() {
 
 		job.Updates = append(job.Updates, *u)
 
+		alloc, ok := b.trackedNodeAllocation[job.Id]
+		if ok {
+			for _, node := range alloc {
+				nodeAllocJobIds = append(nodeAllocJobIds, job.Id)
+				nodeAllocNodeIds = append(nodeAllocNodeIds, node)
+			}
+		}
+
+		trackJobUpdateServer(job)
 		if u.State.IsSet() && u.State.Get().IsFinal() {
 			delete(activeJobs, entry.Id)
 		}
+	}
+
+	if len(nodeAllocJobIds) > 0 {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					with
+						node_allocations_data as (
+							select
+								unnest(cast(:job_ids as text[])) as job_id,
+								unnest(cast(:nodes as text[])) as node
+						),
+						node_allocations as (
+							select
+								job_id,
+								array_agg(node) as nodes
+							from
+								node_allocations_data
+							group by job_id
+						)
+					update tracked_jobs j
+					set 
+						allocated_nodes = a.nodes
+					from
+						node_allocations a
+					where
+						j.job_id = a.job_id
+			    `,
+				db.Params{
+					"job_ids": nodeAllocJobIds,
+					"nodes":   nodeAllocNodeIds,
+				},
+			)
+		})
 	}
 
 	b.entries = b.entries[:0]
@@ -334,4 +424,14 @@ func fetchAllJobs(state orc.JobState) {
 			next = page.Next.Get()
 		}
 	}
+}
+
+func JobsListServer() []*orc.Job {
+	var result []*orc.Job
+	activeJobsMutex.Lock()
+	for _, job := range activeJobs {
+		result = append(result, job)
+	}
+	defer activeJobsMutex.Unlock()
+	return result
 }

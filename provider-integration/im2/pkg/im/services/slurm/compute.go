@@ -147,7 +147,7 @@ func loopComputeMonitoring() {
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
-		parsed, ok := parseProviderId(job.ProviderGeneratedId)
+		parsed, ok := parseJobProviderId(job.ProviderGeneratedId)
 		if !ok {
 			continue
 		}
@@ -166,7 +166,13 @@ func loopComputeMonitoring() {
 			continue
 		}
 
-		batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		didUpdate := batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		if didUpdate {
+			nodeList := SlurmClient.JobGetNodeList(job.JobID)
+			if len(nodeList) > 0 {
+				batch.TrackAssignedNodes(ucloudId, nodeList)
+			}
+		}
 	}
 }
 
@@ -222,7 +228,7 @@ func extendJob(_ ctrl.JobExtendRequest) error {
 }
 
 func terminateJob(request ctrl.JobTerminateRequest) error {
-	providerId, ok := parseProviderId(request.Job.ProviderGeneratedId)
+	providerId, ok := parseJobProviderId(request.Job.ProviderGeneratedId)
 	if !ok {
 		// Nothing to do
 		return nil
@@ -261,7 +267,7 @@ func (i parsedProviderJobId) String() string {
 	return fmt.Sprintf("%v/%v/%v", i.BelongsToAccount, i.SlurmId, time.Now().UnixMilli())
 }
 
-func parseProviderId(providerId string) (parsedProviderJobId, bool) {
+func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 	var result parsedProviderJobId
 	if providerId == "" {
 		return result, false
@@ -588,7 +594,7 @@ func serverFindIngress(job *orc.Job) ctrl.ConfiguredWebIngress {
 }
 
 func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
-	parsedId, ok := parseProviderId(job.ProviderGeneratedId)
+	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
 		return cfg.HostInfo{}, errors.New("could not parse provider id")
 	}
