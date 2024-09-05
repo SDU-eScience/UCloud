@@ -85,8 +85,9 @@ class NativeFS(
         with(clib) {
             val sourceFd = openFile(source)
             val parentFile = destination.parent()
-            val destParentFd = openFile(parentFile)
+            var destParentFd: LinuxFileHandle? = null
             try {
+                destParentFd = openFile(parentFile)
                 val sourceStat = nativeStat(sourceFd, autoClose = false)
                 val fileName = destination.fileName()
                 if (sourceStat.fileType == FileType.FILE) {
@@ -129,7 +130,7 @@ class NativeFS(
                 }
             } finally {
                 sourceFd.close()
-                destParentFd.close()
+                destParentFd?.close()
             }
         }
         
