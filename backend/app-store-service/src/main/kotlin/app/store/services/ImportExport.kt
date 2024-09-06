@@ -252,7 +252,7 @@ class ImportExport(
             if (existingId != null) continue
 
             try {
-                val newId = service.createCategory(a, category.specification)
+                val newId = service.createCategory(a, category.specification.copy(curator = "main")) // TODO(Brian)
                 categoryIdRemapper[category.metadata.id] = newId
             } catch (ex: Throwable) {
                 log.info("Could not create category: ${category.specification}")
