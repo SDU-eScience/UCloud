@@ -18,5 +18,8 @@ alter table app_store.applications add column
 alter table app_store.categories add column
     curator text not null default 'main' references app_store.curators(id);
 
+alter table app_store.categories add column
+    public bool not null default false;
+
 alter table app_store.tools add column
     curator text not null default 'main' references app_store.curators(id);

@@ -162,16 +162,19 @@ class AppService(
 
             val curatorRows = session.sendPreparedStatement(
                 """
-                    select id, public_read from app_store.curators
+                    select id, public_read, can_create_categories, can_manage_catalog, managed_by_project_id from app_store.curators
                 """
             )
 
             curatorRows.rows.forEach { row ->
                 val id = row.getString("id")!!
                 val publicRead = row.getBoolean("public_read")!!
+                val canCreateCategories = row.getBoolean("can_create_categories")!!
+                val canManageCatalog = row.getBoolean("can_manage_catalog")!!
+                val projectId = row.getString("managed_by_project_id")!!
 
                 curators.computeIfAbsent(id) {
-                    InternalCurator(id, publicRead)
+                    InternalCurator(id, publicRead, canCreateCategories, canManageCatalog, projectId)
                 }
             }
 
@@ -1080,12 +1083,14 @@ class AppService(
         }
     }
 
-    suspend fun listGroups(actorAndProject: ActorAndProject, curator: String? = null): List<ApplicationGroup> {
+    suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        if (curator.isNullOrEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-        val results = if (!curator.isNullOrEmpty()) {
-            groups.filter { curator == it.value.get().curator }
+        val results = if (!actorAndProject.project.isNullOrEmpty()) {
+            val curatorId = curators.values.first { it.projectId == actorAndProject.project }.id
+            groups.filter { curatorId == it.value.get().curator }
+        } else if (actorAndProject == ActorAndProject.System) {
+            groups
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
@@ -2432,6 +2437,9 @@ class AppService(
     data class InternalCurator(
         val id: String,
         val publicRead: Boolean,
+        val canCreateCategories: Boolean,
+        val canManageCatalog: Boolean,
+        val projectId: String
     )
 
     private class InternalSpotlight(spotlight: Spotlight) {

@@ -54,7 +54,7 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     group?: ApplicationGroup
-    repository: string;
+    curator: string;
 }
 
 export interface ApplicationInvocationDescription {
@@ -323,24 +323,6 @@ export interface ApplicationSummaryWithFavorite {
     tags: string[];
 }
 
-export interface ApplicationRepository {
-    metadata: ApplicationRepositoryMetadata;
-    specification: ApplicationRepositorySpecification;
-    status: ApplicationRepositoryStatus;
-}
-
-export interface ApplicationRepositoryMetadata {
-    id: string;
-}
-
-export interface ApplicationRepositorySpecification {
-    title: string;
-}
-
-export interface ApplicationRepositoryStatus {
-
-}
-
 export interface ApplicationGroup {
     metadata: ApplicationGroupMetadata;
     specification: ApplicationGroupSpecification;
@@ -357,7 +339,7 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
-    repository: string;
+    curator?: string | null;
 }
 
 export interface ApplicationGroupStatus {
@@ -412,8 +394,8 @@ export function findToolByNameAndVersion(request: {
     }
 }
 
-export function createTool(file: File, repository: string): Promise<{ error?: string }> {
-    return uploadFile("PUT", buildQueryString(toolContext, {"repository": repository}), file);
+export function createTool(file: File): Promise<{ error?: string }> {
+    return uploadFile("PUT", toolContext, file);
 }
 
 // Core API
@@ -443,8 +425,8 @@ export function findByNameAndVersion(request: {
     };
 }
 
-export function create(file: File, repository: string): Promise<{ error?: string }> {
-    return uploadFile("PUT", buildQueryString(baseContext, {repository: repository}), file);
+export function create(file: File): Promise<{ error?: string }> {
+    return uploadFile("PUT", baseContext, file);
 }
 
 async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{
@@ -533,12 +515,6 @@ export function retrieveStars(request: {}): APICallParameters<unknown, { items: 
     return apiRetrieve(request, baseContext, "stars");
 }
 
-// Repository management
-// =================================================================================================================
-export function browseRepositories(request: {includePrivate: boolean;} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationRepository>> {
-    return apiBrowse(request, baseContext, "repositories");
-}
-
 // Group management
 // =================================================================================================================
 export function createGroup(request: ApplicationGroupSpecification): APICallParameters<unknown, { id: number }> {
@@ -549,7 +525,7 @@ export function retrieveGroup(request: { id: number }): APICallParameters<unknow
     return apiRetrieve(request, baseContext, "groups");
 }
 
-export function browseGroups(request: { repository?: string; } & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
+export function browseGroups(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }
 
@@ -633,7 +609,7 @@ export function createCategory(request: ApplicationCategorySpecification): APICa
     return apiUpdate(request, baseContext, "createCategory");
 }
 
-export function browseCategories(request: {repository?: string} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
+export function browseCategories(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
     return apiBrowse(request, baseContext, "categories");
 }
 
