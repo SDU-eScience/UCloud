@@ -8,4 +8,5 @@ func loadMigrations() {
 	addScript(connectionsV2())
 	addScript(jobDatabaseV1())
 	addScript(jobDatabaseV2())
+	addScript(driveDatabaseV1())
 }

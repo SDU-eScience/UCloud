@@ -811,7 +811,7 @@ func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
 	errorChannel := make(chan util.HttpError, 5)
 	responseBuffer := bytes.NewBuffer([]byte{})
 
-	drive, _ := ResolveDriveByPath(session.Path)
+	drive, _ := ResolveDriveByLocalPath(session.Path)
 
 	flushResponses := func() {
 		if responseBuffer.Len() > 0 {

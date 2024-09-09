@@ -147,6 +147,8 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(fileContext+"browse", HttpUpdateHandler[filesProviderBrowseRequest](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request filesProviderBrowseRequest) {
+				TrackDrive(&request.ResolvedCollection)
+
 				resp, err := Files.BrowseFiles(
 					BrowseFilesRequest{
 						Path:          request.Browse.Flags.Path,
@@ -173,8 +175,11 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(fileContext+"folder", HttpUpdateHandler[createFolderRequest](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request createFolderRequest) {
+
 				var err error = nil
 				for _, item := range request.Items {
+					TrackDrive(&item.ResolvedCollection)
+
 					err = Files.CreateFolder(CreateFolderRequest{
 						Path:           item.Id,
 						Drive:          item.ResolvedCollection,
@@ -198,6 +203,8 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(fileContext+"retrieve", HttpUpdateHandler[retrieveRequest](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request retrieveRequest) {
+				TrackDrive(&request.ResolvedCollection)
+
 				resp, err := Files.RetrieveFile(
 					RetrieveFileRequest{
 						Path:  request.Retrieve.Id,
@@ -229,6 +236,9 @@ func controllerFiles(mux *http.ServeMux) {
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[moveRequest]) {
 					var errors []error
 					for _, item := range request.Items {
+						TrackDrive(&item.ResolvedOldCollection)
+						TrackDrive(&item.ResolvedNewCollection)
+
 						err := Files.Move(MoveFileRequest{
 							OldDrive: item.ResolvedOldCollection,
 							NewDrive: item.ResolvedNewCollection,
@@ -272,6 +282,8 @@ func controllerFiles(mux *http.ServeMux) {
 					owner, _ := ipc.GetConnectionUid(r)
 
 					for _, item := range request.Items {
+						TrackDrive(&item.ResolvedCollection)
+
 						sessionId := util.RandomToken(32)
 
 						session := DownloadSession{
@@ -308,7 +320,7 @@ func controllerFiles(mux *http.ServeMux) {
 		)
 
 		mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
-			uid, _ := ipc.GetConnectionUid(r)
+			uid, _ := ipc.GetConnectionUid(r) // TODO Is this even an IPC call ???
 
 			token := r.URL.Query().Get("token")
 			session, ok := downloadSessions.GetNow(token)
@@ -351,6 +363,9 @@ func controllerFiles(mux *http.ServeMux) {
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[copyRequest]) {
 					var errors []error
 					for _, item := range request.Items {
+						TrackDrive(&item.OldDrive)
+						TrackDrive(&item.NewDrive)
+
 						err := Files.Copy(CopyFileRequest{
 							OldDrive: item.OldDrive,
 							NewDrive: item.NewDrive,
@@ -389,6 +404,8 @@ func controllerFiles(mux *http.ServeMux) {
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[trashRequest]) {
 					var errors []error
 					for _, item := range request.Items {
+						TrackDrive(&item.Drive)
+
 						err := Files.MoveToTrash(MoveToTrashRequest{
 							Drive: item.Drive,
 							Path:  item.Path,
@@ -461,6 +478,8 @@ func controllerFiles(mux *http.ServeMux) {
 
 					resp := fnd.BulkResponse[createUploadResponse]{}
 					for _, item := range request.Items {
+						TrackDrive(&item.Drive)
+
 						sessionData, err := Files.CreateUploadSession(item)
 						if err != nil {
 							sendError(w, err)
@@ -501,7 +520,7 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
-				uid, _ := ipc.GetConnectionUid(r)
+				uid, _ := ipc.GetConnectionUid(r) // TODO Is this even an IPC endpoint?
 
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)

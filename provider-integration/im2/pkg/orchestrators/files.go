@@ -131,7 +131,7 @@ func BrowseDrives(next string, flags BrowseDrivesFlags) (fnd.PageV2[Drive], erro
 		driveCtrlNamespace+"browse",
 		driveCtrlContext,
 		"",
-		[]string{"next", next},
+		append([]string{"next", next}, c.StructToParameters(flags)...),
 	)
 }
 

@@ -27,7 +27,16 @@ func (f *Frame) AppendSeparator() {
 	f.AppendField(frameSeparator, frameSeparator)
 }
 
+func (f *Frame) AppendTitle(title string) {
+	if f.title == "" {
+		f.Title(title)
+	} else {
+		f.AppendField(titleHint, title)
+	}
+}
+
 const frameSeparator = "SEPSEPSEP"
+const titleHint = "TTLTTLTTL"
 
 func (f *Frame) String() string {
 	ptyCols, _, isPty := safeQueryPtySize()
@@ -91,9 +100,46 @@ func (f *Frame) String() string {
 				continue
 			}
 
+			if i < len(f.fields)-1 && (f.fields[i+1].Title == titleHint || f.fields[i+1].Title == frameSeparator) {
+				continue
+			}
+
 			builder.WriteString(boxVerticalRight)
 			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
 			builder.WriteString(boxCross)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+			builder.WriteString(boxVerticalLeft)
+			builder.WriteString("\n")
+		} else if field.Title == titleHint {
+			builder.WriteString(boxVerticalRight)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+			builder.WriteString(boxHorizontalUp)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+			builder.WriteString(boxVerticalLeft)
+			builder.WriteString("\n")
+
+			{
+				titleLength := len(field.Value)
+				padding := (ptyCols - titleLength - 2) / 2
+				paddingRem := (ptyCols - titleLength - 2) % 2
+
+				titleBuilder := strings.Builder{}
+				titleBuilder.WriteString(boxVerticalBar)
+				if padding > 0 {
+					titleBuilder.WriteString(strings.Repeat(" ", padding))
+				}
+				titleBuilder.WriteString(field.Value)
+				if padding > 0 {
+					titleBuilder.WriteString(strings.Repeat(" ", padding+paddingRem))
+				}
+				titleBuilder.WriteString(boxVerticalBar)
+				titleBuilder.WriteString("\n")
+
+				builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, titleBuilder.String()))
+			}
+			builder.WriteString(boxVerticalRight)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+			builder.WriteString(boxHorizontalDown)
 			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
 			builder.WriteString(boxVerticalLeft)
 			builder.WriteString("\n")

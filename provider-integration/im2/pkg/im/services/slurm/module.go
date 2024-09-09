@@ -17,6 +17,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ctrl.LaunchUserInstances = true
 	if cfg.Mode == cfg.ServerModeServer {
 		ctrl.InitJobDatabase()
+		ctrl.InitDriveDatabase()
 	}
 
 	ctrl.Files = InitializeFiles()

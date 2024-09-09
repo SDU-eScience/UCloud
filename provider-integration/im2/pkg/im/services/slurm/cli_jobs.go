@@ -81,9 +81,9 @@ func HandleJobsCommand() {
 		job := jobs[0]
 		jobSpec := &job.Job.Specification
 
+		f := termio.Frame{}
 		{
-			f := termio.Frame{}
-			f.Title("UCloud metadata")
+			f.AppendTitle("UCloud metadata")
 
 			f.AppendField("ID", job.Job.Id)
 			f.AppendField("Submitted at", cliFormatTime(job.Job.CreatedAt))
@@ -111,8 +111,8 @@ func HandleJobsCommand() {
 			f.AppendSeparator()
 
 			f.AppendField("Nodes", fmt.Sprint(jobSpec.Replicas))
-			f.AppendField("Machine type", jobSpec.Product.Category)
 			f.AppendField("Machine slice", jobSpec.Product.Id)
+			f.AppendField("Machine type", jobSpec.Product.Category)
 			if jobSpec.TimeAllocation.IsSet() {
 				alloc := jobSpec.TimeAllocation.Value
 				duration := time.Duration(0)
@@ -123,57 +123,11 @@ func HandleJobsCommand() {
 				f.AppendField("Time allocation", fmt.Sprint(duration))
 			}
 			f.AppendSeparator()
-			f.Print()
-			termio.WriteLine("")
-		}
-
-		{
-			argBuilder := orc.DefaultArgBuilder(func(ucloudPath string) string {
-				return ucloudPath
-			})
-
-			f := termio.Frame{}
-			f.Title("Application parameters")
-
-			app := &job.Job.Status.ResolvedApplication
-
-			for k, v := range job.Job.Specification.Parameters {
-				ok := false
-				pv := orc.ParamAndValue{Value: v}
-
-				for _, p := range app.Invocation.Parameters {
-					if p.Name == k {
-						pv.Parameter = p
-						ok = true
-						break
-					}
-				}
-
-				if !ok {
-					continue
-				}
-
-				f.AppendField(k, argBuilder(pv))
-			}
-
-			for _, mount := range job.Job.Specification.Resources {
-				if mount.Type == orc.AppParameterValueTypeFile {
-					f.AppendField("Mounted folder", mount.Path)
-				} else if mount.Type == orc.AppParameterValueTypeIngress {
-					f.AppendField("Public link", mount.Id)
-				} else if mount.Type == orc.AppParameterValueTypeNetwork {
-					f.AppendField("Public IP", mount.Id)
-				}
-			}
-			f.Print()
-			termio.WriteLine("")
 		}
 
 		{
 			s := job.SlurmJob
-
-			f := termio.Frame{}
-			f.Title("Slurm metadata")
+			f.AppendTitle("Slurm metadata")
 			f.AppendField("ID", fmt.Sprint(job.SlurmId))
 			if job.SlurmJob != nil {
 				f.AppendField("Name", s.Name)
@@ -219,10 +173,49 @@ func HandleJobsCommand() {
 					f.AppendSeparator()
 				}
 			}
-
-			f.Print()
-			termio.WriteLine("")
 		}
+
+		{
+			argBuilder := orc.DefaultArgBuilder(func(ucloudPath string) string {
+				return ucloudPath
+			})
+
+			f.AppendTitle("Application parameters")
+
+			app := &job.Job.Status.ResolvedApplication
+
+			for k, v := range job.Job.Specification.Parameters {
+				ok := false
+				pv := orc.ParamAndValue{Value: v}
+
+				for _, p := range app.Invocation.Parameters {
+					if p.Name == k {
+						pv.Parameter = p
+						ok = true
+						break
+					}
+				}
+
+				if !ok {
+					continue
+				}
+
+				f.AppendField(k, argBuilder(pv))
+			}
+
+			for _, mount := range job.Job.Specification.Resources {
+				if mount.Type == orc.AppParameterValueTypeFile {
+					f.AppendField("Mounted folder", mount.Path)
+				} else if mount.Type == orc.AppParameterValueTypeIngress {
+					f.AppendField("Public link", mount.Id)
+				} else if mount.Type == orc.AppParameterValueTypeNetwork {
+					f.AppendField("Public IP", mount.Id)
+				}
+			}
+		}
+
+		f.Print()
+		termio.WriteLine("")
 
 	case isAddCommand(command):
 		termio.WriteStyledLine(
@@ -341,7 +334,8 @@ func HandleJobsCommandServer() {
 						    :nodes = ''
 							or array_to_string(j.allocated_nodes, ',') ~ :nodes -- This feels wrong
 						)
-					order by j.resource#>>'{createdAt}' desc
+					order by
+						j.resource#>>'{createdAt}' desc
 			    `,
 				db.Params{
 					"state":             r.Payload.State,
@@ -398,6 +392,10 @@ func HandleJobsCommandServer() {
 
 				machineConfig, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 				if !ok {
+					continue
+				}
+
+				if slurmIdRegex != nil && !slurmIdRegex.MatchString(fmt.Sprint(slurmInfo.SlurmId)) {
 					continue
 				}
 
