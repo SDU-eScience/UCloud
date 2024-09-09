@@ -1087,7 +1087,10 @@ class AppService(
         if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val results = if (!actorAndProject.project.isNullOrEmpty()) {
-            val curatorId = curators.values.first { it.projectId == actorAndProject.project }.id
+            val curatorId = curators.values.first { it.projectId == actorAndProject.project }?.id
+            if (curatorId == null) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
             groups.filter { curatorId == it.value.get().curator }
         } else if (actorAndProject == ActorAndProject.System) {
             groups
