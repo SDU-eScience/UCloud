@@ -367,6 +367,17 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             val notAfter: Long,
 
             val quota: Long,
+
+            val grant: GrantInformation? = null
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class GrantInformation(
+            val grantId: Long,
+            val approvers: List<String> = emptyList(),
+            val approverTitles: List<String> = emptyList(),
+            val referenceIds: List<String> = emptyList(),
         )
 
         val call = call(

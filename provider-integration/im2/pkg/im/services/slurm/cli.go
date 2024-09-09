@@ -30,6 +30,9 @@ func HandleCli(command string) {
 
 	case "drives":
 		HandleDrivesCommand()
+
+	case "allocations":
+		HandleAllocationsCommand()
 	}
 }
 
@@ -43,6 +46,7 @@ func InitCliServer() {
 	HandleUsersCommandServer()
 	HandleJobsCommandServer()
 	HandleDrivesCommandServer()
+	HandleAllocationsCommandServer()
 }
 
 func isListCommand(command string) bool {

@@ -11,12 +11,23 @@ type Table struct {
 	rows   [][]string
 }
 
+type TableHeaderFlags = uint64
+
+const (
+	TableHeaderAlignRight TableHeaderFlags = 1 << iota
+)
+
 type TableHeader struct {
 	Title string
+	Flags TableHeaderFlags
 }
 
 func (t *Table) AppendHeader(title string) {
-	t.header = append(t.header, TableHeader{title})
+	t.header = append(t.header, TableHeader{title, 0})
+}
+
+func (t *Table) AppendHeaderEx(title string, flags TableHeaderFlags) {
+	t.header = append(t.header, TableHeader{title, flags})
 }
 
 func (t *Table) Cell(formatString string, args ...any) {
@@ -151,14 +162,26 @@ func (t *Table) String() string {
 		for _, row := range t.rows {
 			builder.WriteString(boxVerticalBar)
 			for col, value := range row {
+				colFlags := t.header[col].Flags
+
 				paddingRequired := spaceAssignment[col] - len(value)
-				builder.WriteString(" ")
-				builder.WriteString(value)
-				if paddingRequired > 0 {
-					builder.WriteString(strings.Repeat(" ", paddingRequired))
+				if colFlags&TableHeaderAlignRight != 0 {
+					builder.WriteString(" ")
+					if paddingRequired > 0 {
+						builder.WriteString(strings.Repeat(" ", paddingRequired))
+					}
+					builder.WriteString(value)
+					builder.WriteString(" ")
+					builder.WriteString(boxVerticalBar)
+				} else {
+					builder.WriteString(" ")
+					builder.WriteString(value)
+					if paddingRequired > 0 {
+						builder.WriteString(strings.Repeat(" ", paddingRequired))
+					}
+					builder.WriteString(" ")
+					builder.WriteString(boxVerticalBar)
 				}
-				builder.WriteString(" ")
-				builder.WriteString(boxVerticalBar)
 			}
 			builder.WriteString("\n")
 		}
