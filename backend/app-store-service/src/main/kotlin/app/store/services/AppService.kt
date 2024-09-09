@@ -1216,12 +1216,25 @@ class AppService(
     suspend fun createApplication(actorAndProject: ActorAndProject, application: Application) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
 
-        registerApplication(application, flush = true)
+        val curator = curators.values.first { it.projectId == actorAndProject.project }
+        if (curator == null) {
+            throw RPCException("Not allowed to create application", HttpStatusCode.Forbidden)
+        }
+
+        val appWithCurator = application.copy(metadata = application.metadata.copy(curator = curator.id))
+        registerApplication(appWithCurator, flush = true)
     }
 
     suspend fun createTool(actorAndProject: ActorAndProject, tool: Tool) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
-        registerTool(tool, flush = true)
+
+        val curator = curators.values.first { it.projectId == actorAndProject.project }
+        if (curator == null) {
+            throw RPCException("Not allowed to create tool", HttpStatusCode.Forbidden)
+        }
+
+        val toolWithCurator = tool.copy(description = tool.description.copy(curator = curator.id))
+        registerTool(toolWithCurator, flush = true)
     }
 
     suspend fun updateGroup(
@@ -1377,9 +1390,14 @@ class AppService(
     suspend fun createGroup(
         actorAndProject: ActorAndProject,
         title: String,
-        curator: String
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = curators.values.first { it.projectId == actorAndProject.project }
+
+        if (curator == null) {
+            throw RPCException("Curator not found", HttpStatusCode.NotFound)
+        }
+
         val id = if (db == DiscardingDBContext) {
             groupIdAllocatorForTestsOnly.getAndIncrement()
         } else {
@@ -1395,22 +1413,11 @@ class AppService(
                     throw RPCException("Group with name $title already exists", HttpStatusCode.Conflict)
                 }
 
-                val curatorExists = session.sendPreparedStatement(
-                    { setParameter("id", curator) },
-                    """
-                       select id from app_store.curators where id = :id 
-                    """
-                ).rows.size
-
-                if (curatorExists < 1) {
-                    throw RPCException("Curator not found", HttpStatusCode.NotFound)
-                }
-
                 try {
                     session.sendPreparedStatement(
                         {
                             setParameter("title", title)
-                            setParameter("curator", curator)
+                            setParameter("curator", curator.id)
                         },
                          """
                         insert into app_store.application_groups (title, curator)
@@ -1434,7 +1441,7 @@ class AppService(
             false,
             null,
             null,
-            curator
+            curator.id
         )
         return id
     }

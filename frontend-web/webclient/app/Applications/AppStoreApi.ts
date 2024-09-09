@@ -53,8 +53,7 @@ export interface ApplicationMetadata {
     website?: string;
     public: boolean;
     flavorName?: string;
-    group?: ApplicationGroup
-    curator: string;
+    group?: ApplicationGroup;
 }
 
 export interface ApplicationInvocationDescription {
@@ -339,7 +338,6 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
-    curator?: string | null;
 }
 
 export interface ApplicationGroupStatus {
