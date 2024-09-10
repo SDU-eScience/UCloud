@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -48,6 +49,7 @@ type FileService struct {
 	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
 	HandleUploadWs        func(request UploadDataWs) error
 	RetrieveProducts      func() []orc.FSSupport
+	Transfer              func(request FilesTransferRequest) (FilesTransferResponse, error)
 }
 
 type FilesBrowseFlags struct {
@@ -126,6 +128,100 @@ type CreateFolderRequest struct {
 	Path           string
 	Drive          orc.Drive
 	ConflictPolicy orc.WriteConflictPolicy
+}
+
+type FilesTransferRequestType string
+
+const (
+	FilesTransferRequestTypeInitiateSource      FilesTransferRequestType = "InitiateSource"
+	FilesTransferRequestTypeInitiateDestination FilesTransferRequestType = "InitiateDestination"
+	FilesTransferRequestTypeStart               FilesTransferRequestType = "Start"
+)
+
+type FilesTransferRequest struct {
+	Type    FilesTransferRequestType
+	Payload any
+}
+
+func (t *FilesTransferRequest) InitiateSource() *FilesTransferRequestInitiateSource {
+	if t.Type == FilesTransferRequestTypeInitiateSource {
+		return t.Payload.(*FilesTransferRequestInitiateSource)
+	}
+	return nil
+}
+
+func (t *FilesTransferRequest) InitiateDestination() *FilesTransferRequestInitiateDestination {
+	if t.Type == FilesTransferRequestTypeInitiateDestination {
+		return t.Payload.(*FilesTransferRequestInitiateDestination)
+	}
+	return nil
+}
+
+func (t *FilesTransferRequest) Start() *FilesTransferRequestStart {
+	if t.Type == FilesTransferRequestTypeStart {
+		return t.Payload.(*FilesTransferRequestStart)
+	}
+	return nil
+}
+
+type FilesTransferRequestInitiateSource struct {
+	SourcePath          string
+	DestinationProvider string
+}
+
+type FilesTransferRequestInitiateDestination struct {
+	DestinationPath    string
+	SourceProvider     string
+	SupportedProtocols []string
+}
+
+type FilesTransferRequestStart struct {
+	Session            string
+	SelectedProtocol   string
+	ProtocolParameters json.RawMessage
+}
+
+type FilesTransferResponseType string
+
+const (
+	FilesTransferResponseTypeInitiateSource      FilesTransferResponseType = "InitiateSource"
+	FilesTransferResponseTypeInitiateDestination FilesTransferResponseType = "InitiateDestination"
+	FilesTransferResponseTypeStart               FilesTransferResponseType = "Start"
+)
+
+type FilesTransferResponse struct {
+	Type               FilesTransferResponseType `json:"type"`
+	Session            string                    `json:"session,omitempty"`
+	SupportedProtocols []string                  `json:"supportedProtocols,omitempty"`
+	SelectedProtocol   string                    `json:"selectedProtocol,omitempty"`
+	ProtocolParameters json.RawMessage           `json:"protocolParameters,omitempty"`
+}
+
+func FilesTransferResponseInitiateSource(session string, supportedProtocols []string) FilesTransferResponse {
+	return FilesTransferResponse{
+		Type:               FilesTransferResponseTypeInitiateSource,
+		Session:            session,
+		SupportedProtocols: supportedProtocols,
+	}
+}
+
+func FilesTransferResponseInitiateDestination(selectedProtocol string, protocolParameters any) FilesTransferResponse {
+	parameters, _ := json.Marshal(protocolParameters)
+	return FilesTransferResponse{
+		Type:               FilesTransferResponseTypeInitiateDestination,
+		SelectedProtocol:   selectedProtocol,
+		ProtocolParameters: parameters,
+	}
+}
+
+func FilesTransferResponseStart() FilesTransferResponse {
+	return FilesTransferResponse{
+		Type: FilesTransferResponseTypeStart,
+	}
+}
+
+type TransferBuiltInParameters struct {
+	Endpoint string
 }
 
 func controllerFiles(mux *http.ServeMux) {
@@ -549,6 +645,68 @@ func controllerFiles(mux *http.ServeMux) {
 					return
 				}
 			},
+		)
+
+		type transferRequest struct {
+			Type                  FilesTransferRequestType `json:"type"`
+			SourcePath            string                   `json:"sourcePath"`
+			DestinationPath       string                   `json:"destinationPath"`
+			SourceProvider        string                   `json:"sourceProvider"`
+			DestinationProvider   string                   `json:"destinationProvider"`
+			SupportedProtocols    []string                 `json:"supportedProtocols"`
+			Session               string                   `json:"session"`
+			SelectedProtocol      string                   `json:"selectedProtocol"`
+			ProtocolParameters    json.RawMessage          `json:"protocolParameters"`
+			SourceCollection      *orc.Drive               `json:"sourceCollection"`
+			DestinationCollection *orc.Drive               `json:"destinationCollection"`
+		}
+
+		mux.HandleFunc(
+			fileContext+"transfer",
+			HttpUpdateHandler(0, func(w http.ResponseWriter, r *http.Request, request transferRequest) {
+				if Files.Transfer == nil {
+					sendError(w, &util.HttpError{
+						StatusCode: http.StatusBadRequest,
+						Why:        "Bad request",
+					})
+					return
+				}
+
+				transformed := FilesTransferRequest{Type: request.Type}
+				switch request.Type {
+				case FilesTransferRequestTypeInitiateSource:
+					TrackDrive(request.SourceCollection)
+					transformed.Payload = &FilesTransferRequestInitiateSource{
+						SourcePath:          request.SourcePath,
+						DestinationProvider: request.DestinationPath,
+					}
+
+				case FilesTransferRequestTypeInitiateDestination:
+					TrackDrive(request.DestinationCollection)
+					transformed.Payload = &FilesTransferRequestInitiateDestination{
+						DestinationPath:    request.DestinationPath,
+						SourceProvider:     request.SourceProvider,
+						SupportedProtocols: request.SupportedProtocols,
+					}
+
+				case FilesTransferRequestTypeStart:
+					transformed.Payload = &FilesTransferRequestStart{
+						Session:            request.Session,
+						SelectedProtocol:   request.SelectedProtocol,
+						ProtocolParameters: request.ProtocolParameters,
+					}
+
+				default:
+					sendError(w, &util.HttpError{
+						StatusCode: http.StatusBadRequest,
+						Why:        "Bad request",
+					})
+					return
+				}
+
+				resp, err := Files.Transfer(transformed)
+				sendResponseOrError(w, resp, err)
+			}),
 		)
 	} else if cfg.Mode == cfg.ServerModeServer {
 		type retrieveProductsRequest struct{}

@@ -15,6 +15,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 @UCloudApiDoc("A partial UFile returned by providers and made complete by UCloud/Core")
@@ -155,6 +156,55 @@ sealed class FilesProviderStreamingSearchResult {
     class EndOfResults : FilesProviderStreamingSearchResult()
 }
 
+@Serializable
+sealed class FilesProviderTransferRequest {
+    @Serializable
+    @SerialName("InitiateSource")
+    data class InitiateSource(
+        val sourcePath: String,
+        val sourceCollection: FileCollection,
+        val destinationProvider: String,
+    ) : FilesProviderTransferRequest()
+
+    @Serializable
+    @SerialName("InitiateDestination")
+    data class InitiateDestination(
+        val destinationPath: String,
+        val destinationCollection: FileCollection,
+        val sourceProvider: String,
+        val supportedProtocols: List<String>,
+    ) : FilesProviderTransferRequest()
+
+    @Serializable
+    @SerialName("Start")
+    data class Start(
+        val session: String,
+        val selectedProtocol: String,
+        val protocolParameters: JsonObject,
+    ) : FilesProviderTransferRequest()
+}
+
+@Serializable
+sealed class FilesProviderTransferResponse {
+    @Serializable
+    @SerialName("InitiateSource")
+    data class InitiateSource(
+        val session: String,
+        val supportedProtocols: List<String>,
+    ) : FilesProviderTransferResponse()
+
+    @Serializable
+    @SerialName("InitiateDestination")
+    data class InitiateDestination(
+        val selectedProtocol: String,
+        val protocolParameters: JsonObject,
+    ) : FilesProviderTransferResponse()
+
+    @Serializable
+    @SerialName("Start")
+    class Start : FilesProviderTransferResponse()
+}
+
 @UCloudApiStable
 open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
@@ -223,6 +273,10 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
         }
 
         websocket(baseContext)
+    }
+
+    val transfer = call("transfer", FilesProviderTransferRequest.serializer(), FilesProviderTransferResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "transfer", roles = Roles.SERVICE)
     }
 
     override val delete get() = super.delete!!

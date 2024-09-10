@@ -165,7 +165,10 @@ class FilesService(
             listOf(collection),
             listOf(permission),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = false)
-        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException("File not found", HttpStatusCode.NotFound)
+        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException(
+            "File not found",
+            HttpStatusCode.NotFound
+        )
     }
 
 
@@ -1329,6 +1332,98 @@ class FilesService(
             throw RPCException("Request contains unknown task IDs", HttpStatusCode.NotFound)
         }
         return taskIds
+    }
+
+    suspend fun transfer(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesTransferRequest>,
+    ): BulkResponse<FilesTransferResponse> {
+        for (reqItem in request.items) {
+            val sourceDrive = collectionFromPath(actorAndProject, reqItem.sourcePath, Permission.READ)
+            val sourceProvider = sourceDrive.specification.product.provider
+            verifyReadRequest(UFileIncludeFlags(), sourceDrive.status.resolvedSupport!!.support)
+
+            val destinationDrive = collectionFromPath(actorAndProject, reqItem.sourcePath, Permission.EDIT)
+            val destinationProvider = destinationDrive.specification.product.provider
+            verifyReadRequest(UFileIncludeFlags(), destinationDrive.status.resolvedSupport!!.support)
+
+            if (sourceProvider != "go-slurm" && sourceProvider == destinationProvider) {
+                throw RPCException("Cannot transfer files between the same provider", HttpStatusCode.BadRequest)
+            }
+
+            val sourceResp = try {
+                providers.invokeCall(
+                    sourceProvider,
+                    actorAndProject,
+                    { it.filesApi.transfer },
+                    FilesProviderTransferRequest.InitiateSource(reqItem.sourcePath, sourceDrive, destinationProvider),
+                    actorAndProject.signedIntentFromUser,
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    throw RPCException(
+                        "The source provider is unwilling to perform this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                throw ex
+            }
+
+            if (sourceResp !is FilesProviderTransferResponse.InitiateSource) {
+                throw RPCException("Malformed reply from source provider", HttpStatusCode.BadGateway)
+            }
+
+            val destResp = try {
+                providers.invokeCall(
+                    destinationProvider,
+                    actorAndProject,
+                    { it.filesApi.transfer },
+                    FilesProviderTransferRequest.InitiateDestination(
+                        reqItem.destinationPath,
+                        destinationDrive,
+                        sourceProvider,
+                        sourceResp.supportedProtocols
+                    ),
+                    actorAndProject.signedIntentFromUser
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    throw RPCException(
+                        "The destination provider is unwilling to perform this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                throw ex
+            }
+
+            if (destResp !is FilesProviderTransferResponse.InitiateDestination) {
+                throw RPCException("Malformed reply from destination provider", HttpStatusCode.BadGateway)
+            }
+
+            if (destResp.selectedProtocol !in sourceResp.supportedProtocols) {
+                throw RPCException("Malformed reply from destination provider (unknown protocol)", HttpStatusCode.BadGateway)
+            }
+
+            val finalResp = providers.invokeCall(
+                sourceProvider,
+                actorAndProject,
+                { it.filesApi.transfer },
+                FilesProviderTransferRequest.Start(
+                    sourceResp.session,
+                    destResp.selectedProtocol,
+                    destResp.protocolParameters
+                ),
+                actorAndProject.signedIntentFromUser,
+            )
+
+            if (finalResp !is FilesProviderTransferResponse.Start) {
+                throw RPCException("Malformed reply from source provider", HttpStatusCode.BadGateway)
+            }
+        }
+
+        return BulkResponse(request.items.map { FilesTransferResponse() })
     }
 
     companion object : Loggable {

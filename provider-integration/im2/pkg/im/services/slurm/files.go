@@ -2,6 +2,7 @@ package slurm
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -87,6 +88,42 @@ func InitializeFiles() ctrl.FileService {
 		HandleUploadWs:        uploadWs,
 		Download:              download,
 		RetrieveProducts:      retrieveProducts,
+		Transfer:              transfer,
+	}
+}
+
+func transfer(request ctrl.FilesTransferRequest) (ctrl.FilesTransferResponse, error) {
+	switch request.Type {
+	case ctrl.FilesTransferRequestTypeInitiateSource:
+		return ctrl.FilesTransferResponseInitiateSource(util.RandomToken(32), []string{"built-in"}), nil
+
+	case ctrl.FilesTransferRequestTypeInitiateDestination:
+		tok := util.RandomToken(32)
+		username, err := ctrl.Whoami.Invoke(util.EmptyValue)
+		usernameHint := base64.URLEncoding.EncodeToString([]byte(username))
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusInternalServerError,
+				Why:        "Identity crisis - Who are we?",
+			}
+		}
+
+		return ctrl.FilesTransferResponseInitiateDestination(
+			"built-in",
+			ctrl.TransferBuiltInParameters{
+				Endpoint: cfg.Provider.Hosts.SelfPublic.ToURL() +
+					fmt.Sprintf("/transfers/built-in?session=%v&usernameHint=%v", tok, usernameHint),
+			},
+		), nil
+
+	case ctrl.FilesTransferRequestTypeStart:
+		return ctrl.FilesTransferResponseStart(), nil
+
+	default:
+		return ctrl.FilesTransferResponse{}, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Unknown message",
+		}
 	}
 }
 
