@@ -1,11 +1,9 @@
 package idfreeipa
 
 import (
-	anyascii "github.com/anyascii/go"
 	"os/user"
-	"regexp"
 	"strconv"
-	"strings"
+	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/freeipa"
 	"ucloud.dk/pkg/log"
@@ -17,7 +15,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 	if !ok {
 		success := false
 		for ext := 0; ext <= 99; ext++ {
-			suggestedName := generateProjectName(updated.Project.Specification.Title)
+			suggestedName := fnd.GenerateProjectName(updated.Project.Specification.Title)
 			if ext > 0 && ext < 10 {
 				suggestedName += "0" + strconv.Itoa(ext)
 			} else if ext >= 10 {
@@ -107,17 +105,3 @@ func clearSssdCache() {
 		log.Warn("Failed to clear sssd cache (via `sudo /sbin/sss_cache -E`). Is sudo misconfigured? Output: %v", output)
 	}
 }
-
-func generateProjectName(ucloudTitle string) string {
-	cleanedTitle := anyascii.Transliterate(ucloudTitle)
-	cleanedTitle = strings.ToLower(cleanedTitle)
-	cleanedTitle = strings.ReplaceAll(cleanedTitle, " ", "_")
-	cleanedTitle = strings.ToLower(cleaningRegex.ReplaceAllString(cleanedTitle, ""))
-	cleanedTitle = duplicateUnderscores.ReplaceAllString(cleanedTitle, "_")
-	cleanedTitle = cleanedTitle[:min(len(cleanedTitle), 28)]
-	cleanedTitle = strings.TrimSuffix(cleanedTitle, "_")
-	cleanedTitle = strings.TrimPrefix(cleanedTitle, "_")
-	return cleanedTitle
-}
-
-var duplicateUnderscores = regexp.MustCompile("_+")

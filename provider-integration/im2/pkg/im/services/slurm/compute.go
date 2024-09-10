@@ -103,7 +103,8 @@ var nextComputeAccountingTime = time.Now()
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
-		billing := Accounting.FetchUsage()
+		billing := Accounting.FetchUsageInMinutes()
+		// TODO convert this to correct UCloud unit
 
 		var reportItems []apm.UsageReportItem
 		for owner, usage := range billing {

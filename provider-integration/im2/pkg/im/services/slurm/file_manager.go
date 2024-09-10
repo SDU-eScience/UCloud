@@ -20,6 +20,7 @@ func InitFileManagers() {
 	for name, fsConfig := range ServiceConfig.FileSystems {
 		switch fsConfig.Management.Type {
 		case cfg.SlurmFsManagementTypeScripted:
+			fileManagers[name] = InitScriptedManager(name, fsConfig.Management.Scripted())
 		case cfg.SlurmFsManagementTypeGpfs:
 			fileManagers[name] = InitGpfsManager(name, fsConfig.Management.GPFS())
 		case cfg.SlurmFsManagementTypeNone:
