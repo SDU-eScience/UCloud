@@ -47,6 +47,7 @@ type FileService struct {
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
 	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
 	HandleUploadWs        func(request UploadDataWs) error
+	RetrieveProducts      func() []orc.FSSupport
 }
 
 type FilesBrowseFlags struct {
@@ -554,36 +555,11 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			driveContext+"retrieveProducts",
 			HttpRetrieveHandler(0, func(w http.ResponseWriter, r *http.Request, request retrieveProductsRequest) {
-				var support orc.FSSupport
-
-				support.Product.Provider = cfg.Provider.Id
-				support.Product.Id = "storage"
-				support.Product.Category = "storage"
-
-				support.Stats.SizeInBytes = true
-				support.Stats.ModifiedAt = true
-				support.Stats.CreatedAt = true
-				support.Stats.AccessedAt = true
-				support.Stats.UnixPermissions = true
-				support.Stats.UnixOwner = true
-				support.Stats.UnixGroup = true
-
-				support.Collection.AclModifiable = false
-				support.Collection.UsersCanCreate = false
-				support.Collection.UsersCanDelete = false
-				support.Collection.UsersCanRename = false
-
-				support.Files.AclModifiable = false
-				support.Files.TrashSupport = true
-				support.Files.IsReadOnly = false
-				support.Files.SearchSupported = false
-				support.Files.StreamingSearchSupported = true
-				support.Files.SharesSupported = false
-
+				support := Files.RetrieveProducts()
 				sendResponseOrError(
 					w,
 					fnd.BulkResponse[orc.FSSupport]{
-						Responses: []orc.FSSupport{support},
+						Responses: support,
 					},
 					nil,
 				)

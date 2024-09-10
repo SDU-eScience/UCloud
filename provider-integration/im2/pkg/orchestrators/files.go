@@ -21,7 +21,7 @@ type DriveSpecification struct {
 }
 
 type FSSupport struct {
-	ProductSupport
+	Product apm.ProductReference `json:"product"`
 
 	Stats struct {
 		SizeInBytes                  bool `json:"sizeInBytes"`

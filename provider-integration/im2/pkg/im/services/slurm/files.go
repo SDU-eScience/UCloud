@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/user"
@@ -17,6 +18,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 
 	"github.com/gorilla/websocket"
@@ -71,6 +73,7 @@ func (t FolderUploadMessageType) Int() int8 {
 func InitializeFiles() ctrl.FileService {
 	uploadDescriptors.startMonitoringLoop()
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
+	loadStorageProducts()
 	return ctrl.FileService{
 		BrowseFiles:           browse,
 		RetrieveFile:          retrieve,
@@ -83,6 +86,7 @@ func InitializeFiles() ctrl.FileService {
 		CreateUploadSession:   createUpload,
 		HandleUploadWs:        uploadWs,
 		Download:              download,
+		RetrieveProducts:      retrieveProducts,
 	}
 }
 
@@ -1331,4 +1335,101 @@ func UnitToBytes(unit string) uint64 {
 		log.Warn("%v Unknown unit %v", util.GetCaller(), unit)
 		return 1
 	}
+}
+
+var StorageProducts []apm.ProductV2
+var storageSupport []orc.FSSupport
+
+func loadStorageProducts() {
+	for categoryName, category := range ServiceConfig.FileSystems {
+		productCategory := apm.ProductCategory{
+			Name:                categoryName,
+			Provider:            cfg.Provider.Id,
+			ProductType:         apm.ProductTypeCompute,
+			AccountingFrequency: apm.AccountingFrequencyPeriodicMinute,
+			FreeToUse:           false,
+			AllowSubAllocations: true,
+		}
+
+		usePrice := false
+		switch category.Payment.Type {
+		case cfg.PaymentTypeMoney:
+			productCategory.AccountingUnit.Name = category.Payment.Currency
+			productCategory.AccountingUnit.NamePlural = category.Payment.Currency
+			productCategory.AccountingUnit.DisplayFrequencySuffix = false
+			productCategory.AccountingUnit.FloatingPoint = true
+			usePrice = true
+
+		case cfg.PaymentTypeResource:
+			productCategory.AccountingUnit.Name = category.Payment.Unit
+			productCategory.AccountingUnit.NamePlural = productCategory.AccountingUnit.Name
+			productCategory.AccountingUnit.FloatingPoint = false
+			productCategory.AccountingUnit.DisplayFrequencySuffix = true
+		}
+
+		switch category.Payment.Interval {
+		case cfg.PaymentIntervalMinutely:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicMinute
+		case cfg.PaymentIntervalHourly:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicHour
+		case cfg.PaymentIntervalDaily:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicDay
+		default:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyOnce
+			productCategory.AccountingUnit.DisplayFrequencySuffix = false
+		}
+
+		product := apm.ProductV2{
+			Type:        apm.ProductTypeCStorage,
+			Category:    productCategory,
+			Name:        categoryName,
+			Description: "A storage product", // TODO
+
+			ProductType:               apm.ProductTypeStorage,
+			Price:                     int64(math.Floor(category.Payment.Price * 1_000_000)),
+			HiddenInGrantApplications: false,
+		}
+
+		if !usePrice {
+			product.Price = 1
+		}
+
+		StorageProducts = append(StorageProducts, product)
+	}
+
+	for _, p := range StorageProducts {
+		support := orc.FSSupport{
+			Product: apm.ProductReference{
+				Id:       p.Name,
+				Category: p.Category.Name,
+				Provider: cfg.Provider.Id,
+			},
+		}
+
+		support.Stats.SizeInBytes = true
+		support.Stats.ModifiedAt = true
+		support.Stats.CreatedAt = true
+		support.Stats.AccessedAt = true
+		support.Stats.UnixPermissions = true
+		support.Stats.UnixOwner = true
+		support.Stats.UnixGroup = true
+
+		support.Collection.AclModifiable = false
+		support.Collection.UsersCanCreate = false
+		support.Collection.UsersCanDelete = false
+		support.Collection.UsersCanRename = false
+
+		support.Files.AclModifiable = false
+		support.Files.TrashSupport = true
+		support.Files.IsReadOnly = false
+		support.Files.SearchSupported = false
+		support.Files.StreamingSearchSupported = true
+		support.Files.SharesSupported = false
+
+		storageSupport = append(storageSupport, support)
+	}
+}
+
+func retrieveProducts() []orc.FSSupport {
+	return storageSupport
 }

@@ -59,6 +59,12 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	if cfg.Mode == cfg.ServerModeServer {
 		driveIpcServer()
 	}
+
+	// Products
+	if cfg.Mode == cfg.ServerModeServer {
+		ctrl.RegisterProducts(Machines)
+		ctrl.RegisterProducts(StorageProducts)
+	}
 }
 
 func handleApmNotification(update *ctrl.NotificationWalletUpdated) {

@@ -26,7 +26,7 @@ var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
 
 func InitCompute() ctrl.JobsService {
-	loadProducts()
+	loadComputeProducts()
 
 	SlurmClient = slurmcli.NewClient()
 	if SlurmClient == nil {
@@ -363,7 +363,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	return util.OptValue(providerId), nil
 }
 
-func loadProducts() {
+func loadComputeProducts() {
 	for categoryName, category := range ServiceConfig.Compute.Machines {
 		productCategory := apm.ProductCategory{
 			Name:                categoryName,
@@ -411,9 +411,10 @@ func loadProducts() {
 			for _, machineConfig := range group.Configs {
 				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
 				product := apm.ProductV2{
+					Type:        apm.ProductTypeCCompute,
 					Category:    productCategory,
 					Name:        name,
-					Description: "TODO", // TODO
+					Description: "A compute product", // TODO
 
 					ProductType:               apm.ProductTypeCompute,
 					Price:                     int64(math.Floor(machineConfig.Price * 1_000_000)),

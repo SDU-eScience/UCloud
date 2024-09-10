@@ -276,7 +276,7 @@ func callViaParameters(c *Client, name, baseContext, operation string, parameter
 		query = "?" + encodeQueryParameters(parameters)
 	}
 
-	request, err := http.NewRequest("GET", fmt.Sprintf("%v/%v/%v%v", c.BasePath, baseContext, operation, query), nil)
+	request, err := http.NewRequest("GET", fmt.Sprintf("%v%v/%v%v", c.BasePath, baseContext, operation, query), nil)
 	if err != nil || request == nil {
 		// TODO log this?
 		return Response{StatusCode: http.StatusBadGateway, Call: name}
@@ -298,7 +298,14 @@ func callViaJsonBody(c *Client, name, method, baseContext, operation string, pay
 		return Response{StatusCode: http.StatusBadRequest, Call: name}
 	}
 
-	request, err := http.NewRequest(method, fmt.Sprintf("%v/%v/%v", c.BasePath, baseContext, operation),
+	ctx := baseContext
+	if operation == "" {
+		ctx = strings.TrimSuffix(ctx, "/")
+	} else {
+		ctx += "/"
+	}
+
+	request, err := http.NewRequest(method, fmt.Sprintf("%v%v%v", c.BasePath, ctx, operation),
 		bytes.NewReader(payloadBytes))
 	if err != nil || request == nil {
 		return Response{StatusCode: http.StatusBadGateway, Call: name}
