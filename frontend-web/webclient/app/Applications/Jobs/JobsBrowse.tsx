@@ -443,7 +443,9 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
 
 function UserRow({username, setMember, avatar, size = "24px"}: {username: string; setMember(name: string): void; avatar: AvatarType, size?: string}) {
     return <Flex className={HoverClass} pr="8px" data-user={username} onClick={() => setMember(username)} py={"4px"}>
-        <UserAvatar width={size} height={size} avatar={avatar} /> <Truncate title={username} my="auto" fontSize={"16px"}>{username}</Truncate>
+        <UserAvatar width={size} height={size} avatar={avatar} />
+        {" "}
+        <Truncate title={username} my="auto" fontSize={"16px"}>{username}</Truncate>
     </Flex>
 }
 
