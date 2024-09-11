@@ -105,7 +105,11 @@ export function ContextSwitcher({managed}: {
     let activeContext = "My workspace";
     const activeProject = managed ? controlledProject : projectId;
     if (activeProject) {
-        activeContext = projectTitle(project.fetch());
+        if (managed) {
+            activeContext = projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
+        } else {
+            activeContext = projectTitle(project.fetch());
+        }
     }
 
     useEffect(() => {
