@@ -384,10 +384,14 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
         trigger={
             <Flex my="auto">
                 <Icon size="12px" my="auto" mr="10px" name="user" color="textPrimary" />
-                <Text>Created by </Text> {activeUser ? <Flex pr="8px">
-                    <UserAvatar width={"24px"} height={"24px"} avatar={avatars.avatar(activeUser)} /> <Truncate title={activeUser} fontSize={"16px"}>{activeUser}</Truncate>
-                </Flex>
-                    : null}
+                <Text>Created by </Text>
+                {activeUser ?
+                    <Flex pr="8px">
+                        <UserAvatar width={"24px"} height={"24px"} avatar={avatars.avatar(activeUser)} />
+                        <Truncate title={activeUser} fontSize={"16px"}>{activeUser}</Truncate>
+                    </Flex> : 
+                    null
+                }
             </Flex>
         }
     >
