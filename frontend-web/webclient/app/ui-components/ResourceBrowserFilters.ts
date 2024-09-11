@@ -49,6 +49,12 @@ export interface MultiOption {
     values: [string, string];
 }
 
+export function filterOption(text: string, value: string, icon: IconName, color: ThemeColor): FilterOption {
+    return {
+        text, icon, color, value
+    };
+}
+
 export const SORT_BY = "sortBy";
 export const SORT_DIRECTION = "sortDirection";
 export const ASC = "ascending";
