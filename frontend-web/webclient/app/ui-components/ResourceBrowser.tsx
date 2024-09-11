@@ -1430,7 +1430,7 @@ export class ResourceBrowser<T> {
                             else clearFilterStorageValue(this.resourceName, keyTwo);
                         }
                     }
-                    this.open(this.currentPath, true);
+                    this.refresh();
                 });
                 item.addEventListener("mouseover", () => {
                     this.findActiveContextMenuItem(true);
@@ -3240,7 +3240,6 @@ export class ResourceBrowser<T> {
         };
     }
 
-
     private addInputToFilter(filter: FilterInput) {
         const wrapper = document.createElement("div");
         wrapper.style.display = "flex";
@@ -3280,7 +3279,8 @@ export class ResourceBrowser<T> {
         }
         wrapper.append(input);
 
-        this.sessionFilters.append(wrapper);
+        this.addSessionFilter(wrapper);
+
         wrapper.onclick = e => {
             e.stopImmediatePropagation();
             input.value = "";
@@ -3288,6 +3288,10 @@ export class ResourceBrowser<T> {
                 input.style.display = "unset";
             } else input.style.display = "none";
         }
+    }
+
+    public addSessionFilter(el: HTMLDivElement) {
+        this.sessionFilters.append(el);
     }
 
     private prepareEmptyContainer() {
