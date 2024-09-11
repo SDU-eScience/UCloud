@@ -389,7 +389,7 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
                     <Flex pr="8px">
                         <UserAvatar width={"24px"} height={"24px"} avatar={avatars.avatar(activeUser)} />
                         <Truncate title={activeUser} fontSize={"16px"}>{activeUser}</Truncate>
-                    </Flex> : 
+                    </Flex> :
                     null
                 }
             </Flex>
@@ -404,12 +404,10 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
                 onClick={stopPropagationAndPreventDefault}
                 enterKeyHint="enter"
                 onKeyDown={e => {
-                    // Note(Jonas): Not reached for some reason?
                     if (["Escape"].includes(e.code) && e.target["value"]) {
                         setFilter("");
                         e.target["value"] = "";
                     }
-                    // Note(Jonas): Stop keypropagation like `Delete`.
                     e.stopPropagation();
                 }}
                 onKeyUp={e => {
