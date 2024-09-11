@@ -395,7 +395,7 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
             <Input
                 autoFocus
                 className={FilterInputClass}
-                placeholder="Search for a project..."
+                placeholder="Search for a person..."
                 defaultValue={filter}
                 onClick={stopPropagationAndPreventDefault}
                 enterKeyHint="enter"
