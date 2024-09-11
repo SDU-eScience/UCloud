@@ -418,7 +418,7 @@ export function ProjectMemberFilter({onSelect}: {onSelect: (username: string) =>
                 <Icon name="search" />
             </Relative>
         </Flex>
-        <Box maxHeight={"450px"} overflowY="scroll">
+        <Box maxHeight={"450px"} overflowY="auto">
             {activeUser ? <Flex className={HoverClass} height={"32px"} onClick={() => setFilterMember("")}><Icon ml="12px" mt="8px" size="16px" color="errorMain" name="close" /> <Truncate ml="11px" style={{alignContent: "center"}} fontSize={"16px"}>Clear</Truncate></Flex> : null}
             {members.filter(it => it.includes(filter)).map(it => <UserRow key={it} username={it} setMember={setFilterMember} avatar={avatars.avatar(it)} />)}
         </Box>
