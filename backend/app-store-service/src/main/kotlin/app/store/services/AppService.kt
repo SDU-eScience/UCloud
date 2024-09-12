@@ -2,9 +2,9 @@ package dk.sdu.cloud.app.store.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.util.CyclicArray
-import dk.sdu.cloud.accounting.util.IProjectCache
-import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
+import dk.sdu.cloud.accounting.api.AccountingV2
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.api.Project
 import dk.sdu.cloud.app.store.api.ProjectGroup
@@ -12,8 +12,10 @@ import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.checkSingleLine
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.LookupByGroupTitleRequest
 import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
 import dk.sdu.cloud.project.api.ProjectGroups
@@ -76,6 +78,7 @@ import kotlin.math.max
 //                  have a flavor name (e.g. Java or C++)
 class AppService(
     private val db: DBContext,
+    backgroundScope: BackgroundScope,
     private val projectCache: IProjectCache,
     private val serviceClient: AuthenticatedClient,
 ) {
@@ -113,6 +116,52 @@ class AppService(
     private val topPicks = InternalTopPicks(emptyList())
     private val carrousel = InternalCarrousel(emptyList())
 
+    private val storeFronts = AsyncCache<String, StoreFront>(
+        backgroundScope,
+        timeToLiveMilliseconds = 1000L * 60 * 30,
+        timeoutException = {
+            throw RPCException(
+                "Failed to fetch information about allocations",
+                HttpStatusCode.BadGateway
+            )
+        },
+        retrieve = { providerId ->
+            val frontPicks = topPicks.get().map { it.prepare() }
+            val frontCategories = listCategories()
+            val frontCarrousel = carrousel.get().map { it.prepare() }
+            println("$providerId ${frontCarrousel.size}")
+            val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+
+            val frontNewlyCreated = ArrayList<String>()
+            val frontUpdated = ArrayList<NameAndVersion>()
+            for (i in (newUpdates.size - 1).downTo(0)) {
+                frontUpdated.add(newUpdates[i])
+            }
+
+            for (i in (newApplications.size - 1).downTo(0)) {
+                frontNewlyCreated.add(newApplications[i])
+            }
+
+            StoreFront(
+                frontCarrousel,
+                frontPicks,
+                frontCategories,
+                frontSpotlight,
+                frontNewlyCreated.mapNotNull {
+                    retrieveApplication(ActorAndProject.System, it, null, loadGroupApplications = false)?.withoutInvocation()
+                },
+                frontUpdated.mapNotNull {
+                    retrieveApplication(
+                        ActorAndProject.System,
+                        it.name,
+                        it.version,
+                        loadGroupApplications = false
+                    )?.withoutInvocation()
+                }
+            )
+        }
+    )
+
     // We track new applications and new updates (for the landing page). These are just ordinary cyclic arrays with a
     // small capacity. These are not thread-safe, so we use a mutex for the rare writes.
     private val appCreateMutex = Mutex()
@@ -123,6 +172,21 @@ class AppService(
     // but with no specific version. As a result, when you ask for your starred applications, you will get the most
     // recent version from looking up in applicationVersions[starred].
     private val stars = NonBlockingHashMap<String, InternalStars>()
+
+    // TODO(Brian): Temporary function. Will be replaced.
+    fun providerCanRun(providerId: String, backend: ToolBackend): Boolean {
+        if (providerId == "slurm")  {
+            if (backend == ToolBackend.NATIVE) {
+                return true
+            }
+        } else if (providerId == "k8") {
+            if (backend == ToolBackend.DOCKER) {
+                return true
+            }
+        }
+        return false
+    }
+
 
     // TODO(Dan): This function is currently not able to actually reloadData. It is only capable of loading data.
     //  We should add functionality which allows us to reload parts of the database as needed.
@@ -714,37 +778,51 @@ class AppService(
     }
 
     suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
-        val picks = topPicks.get().map { it.prepare() }
-        val categories = listCategories(actorAndProject)
-        val carrousel = carrousel.get().map { it.prepare() }
-        val spotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+        val relevantProviders = AccountingV2.findRelevantProviders.call(
+            bulkRequestOf(
+                AccountingV2.FindRelevantProviders.RequestItem(
+                    actorAndProject.actor.safeUsername(),
+                    actorAndProject.project,
+                    true,
+                    ProductType.COMPUTE
+                )
+            ),
+            serviceClient
+        ).orThrow()
 
-        val newlyCreated = ArrayList<String>()
-        val updated = ArrayList<NameAndVersion>()
-        for (i in (newUpdates.size - 1).downTo(0)) {
-            updated.add(newUpdates[i])
-        }
+        println("There's ${relevantProviders.responses[0].providers.size} relevant providers")
 
-        for (i in (newApplications.size - 1).downTo(0)) {
-            newlyCreated.add(newApplications[i])
+        /*val carrousel: MutableList<CarrouselItem> = mutableListOf()
+        val topPicks: MutableList<TopPick> = mutableListOf()
+        var spotlight: Spotlight? = null
+        var newApplications: MutableList<ApplicationSummaryWithFavorite> = mutableListOf()
+        var recentlyUpdated: MutableList<ApplicationSummaryWithFavorite> = mutableListOf()*/
+        val frontCategories: MutableList<ApplicationCategory> = mutableListOf()
+        val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
+        val newlyCreated = ArrayList<ApplicationSummaryWithFavorite>()
+        val updated = ArrayList<ApplicationSummaryWithFavorite>()
+
+        relevantProviders.responses.first().providers.forEach { provider ->
+            val providerStoreFront = storeFronts.retrieve(provider)
+
+            val existingCategoryIds = frontCategories.map { it.metadata.id }
+            for (category in providerStoreFront.categories) {
+                if (category.metadata.id !in existingCategoryIds) {
+                    frontCategories.add(category)
+                }
+            }
+
+            newlyCreated.addAll(providerStoreFront.newApplications.filter { it !in newlyCreated })
+            updated.addAll(providerStoreFront.recentlyUpdated.filter { it !in updated })
         }
 
         return AppStore.RetrieveLandingPage.Response(
-            carrousel,
-            picks,
-            categories,
-            spotlight,
-            newlyCreated.mapNotNull {
-                retrieveApplication(actorAndProject, it, null, loadGroupApplications = false)?.withoutInvocation()
-            },
-            updated.mapNotNull {
-                retrieveApplication(
-                    actorAndProject,
-                    it.name,
-                    it.version,
-                    loadGroupApplications = false
-                )?.withoutInvocation()
-            }
+            carrousel.get(),
+            topPicks.get(),
+            frontCategories,
+            frontSpotlight,
+            newlyCreated,
+            updated
         )
     }
 
@@ -752,19 +830,21 @@ class AppService(
         return carrousel.getImages().getOrNull(index) ?: ByteArray(0)
     }
 
-    suspend fun listCategories(actorAndProject: ActorAndProject, curator: String? = null): List<ApplicationCategory> {
-        return categories.toList().sortedBy { it.second.priority() }.map { (k, v) ->
-            ApplicationCategory(
-                ApplicationCategory.Metadata(
-                    k.toInt(),
-                ),
-                ApplicationCategory.Specification(
-                    v.title(),
-                    "",
-                    v.curator()
+    fun listCategories(): List<ApplicationCategory> {
+        return categories.toList()
+            .sortedBy { it.second.priority() }
+            .map { (k, v) ->
+                ApplicationCategory(
+                    ApplicationCategory.Metadata(
+                        k.toInt(),
+                    ),
+                    ApplicationCategory.Specification(
+                        v.title(),
+                        "",
+                        v.curator()
+                    )
                 )
-            )
-        }
+            }
     }
 
     suspend fun retrieveCategory(
@@ -1216,24 +1296,28 @@ class AppService(
     suspend fun createApplication(actorAndProject: ActorAndProject, application: Application) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
 
-        val curator = curators.values.first { it.projectId == actorAndProject.project }
-        if (curator == null) {
-            throw RPCException("Not allowed to create application", HttpStatusCode.Forbidden)
+        val curatorId = if (actorAndProject == ActorAndProject.System) {
+            "main"
+        } else {
+            curators.values.firstOrNull { it.projectId == actorAndProject.project }?.id
+                ?: throw RPCException("Not allowed to create application", HttpStatusCode.Forbidden)
         }
 
-        val appWithCurator = application.copy(metadata = application.metadata.copy(curator = curator.id))
+        val appWithCurator = application.copy(metadata = application.metadata.copy(curator = curatorId))
         registerApplication(appWithCurator, flush = true)
     }
 
     suspend fun createTool(actorAndProject: ActorAndProject, tool: Tool) {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
 
-        val curator = curators.values.first { it.projectId == actorAndProject.project }
-        if (curator == null) {
-            throw RPCException("Not allowed to create tool", HttpStatusCode.Forbidden)
+        val curatorId = if (actorAndProject == ActorAndProject.System) {
+            "main"
+        } else {
+            curators.values.firstOrNull { it.projectId == actorAndProject.project }?.id
+                ?: throw RPCException("Not allowed to create tool", HttpStatusCode.Forbidden)
         }
 
-        val toolWithCurator = tool.copy(description = tool.description.copy(curator = curator.id))
+        val toolWithCurator = tool.copy(description = tool.description.copy(curator = curatorId))
         registerTool(toolWithCurator, flush = true)
     }
 
@@ -1392,10 +1476,12 @@ class AppService(
         title: String,
     ): Int {
         if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
-        val curator = curators.values.first { it.projectId == actorAndProject.project }
 
-        if (curator == null) {
-            throw RPCException("Curator not found", HttpStatusCode.NotFound)
+        val curatorId = if (actorAndProject == ActorAndProject.System) {
+            "main"
+        } else {
+            curators.values.first { it.projectId == actorAndProject.project }?.id
+                ?: throw RPCException("Curator not found", HttpStatusCode.NotFound)
         }
 
         val id = if (db == DiscardingDBContext) {
@@ -1417,7 +1503,7 @@ class AppService(
                     session.sendPreparedStatement(
                         {
                             setParameter("title", title)
-                            setParameter("curator", curator.id)
+                            setParameter("curator", curatorId)
                         },
                          """
                         insert into app_store.application_groups (title, curator)
@@ -1441,7 +1527,7 @@ class AppService(
             false,
             null,
             null,
-            curator.id
+            curatorId
         )
         return id
     }
@@ -2073,6 +2159,13 @@ class AppService(
 
         val priority = categories.size
 
+        val curatorId = if (actorAndProject == ActorAndProject.System) {
+            "main"
+        } else {
+            curators.values.first { it.projectId == actorAndProject.project }?.id
+                ?: throw RPCException("Not allowed to create category", HttpStatusCode.Forbidden)
+        }
+
         val id = if (db == DiscardingDBContext) {
             groupIdAllocatorForTestsOnly.getAndIncrement()
         } else {
@@ -2081,7 +2174,7 @@ class AppService(
                     {
                         setParameter("title", specification.title)
                         setParameter("priority", priority)
-                        setParameter("curator", specification.curator)
+                        setParameter("curator", curatorId)
                     },
                     """
                         insert into app_store.categories (tag, priority, curator) 
@@ -2092,7 +2185,7 @@ class AppService(
             }
         }
 
-        val category = InternalCategory(specification.title, emptySet(), priority, specification.curator)
+        val category = InternalCategory(specification.title, emptySet(), priority, curatorId)
         categories[id.toLong()] = category
         return id
     }
@@ -2450,6 +2543,15 @@ class AppService(
         val canCreateCategories: Boolean,
         val canManageCatalog: Boolean,
         val projectId: String
+    )
+
+    data class StoreFront(
+        val carrousel: List<CarrouselItem>,
+        val topPicks: List<TopPick>,
+        val categories: List<ApplicationCategory>,
+        val spotlight: Spotlight?,
+        val newApplications: List<ApplicationSummaryWithFavorite>,
+        val recentlyUpdated: List<ApplicationSummaryWithFavorite>,
     )
 
     private class InternalSpotlight(spotlight: Spotlight) {

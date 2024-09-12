@@ -21,5 +21,8 @@ alter table app_store.categories add column
 alter table app_store.categories add column
     public bool not null default false;
 
+create unique index unique_public on app_store.categories (tag) where public;
+create unique index unique_private on app_store.categories (tag, curator) where not public;
+
 alter table app_store.tools add column
     curator text not null default 'main' references app_store.curators(id);

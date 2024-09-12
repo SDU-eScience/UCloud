@@ -26,7 +26,7 @@ class Server(override val micro: Micro) : CommonServer {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val distributedState = DistributedStateFactory(micro)
 
-        val service = AppService(db, ProjectCache(distributedState, db), serviceClient)
+        val service = AppService(db, micro.backgroundScope, ProjectCache(distributedState, db), serviceClient)
         val importer = ImportExport(service, micro.developmentModeEnabled)
 
         configureJackson(ApplicationParameter::class, yamlMapper)

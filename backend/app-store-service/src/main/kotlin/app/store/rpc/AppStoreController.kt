@@ -89,7 +89,7 @@ class AppStoreController(
         }
 
         implement(AppStore.createGroup) {
-            val id = service.createGroup(actorAndProject, request.title, request.curator)
+            val id = service.createGroup(actorAndProject, request.title)
             ok(FindByIntId(id))
         }
 
@@ -333,7 +333,7 @@ class AppStoreController(
         }
 
         implement(AppStore.browseCategories) {
-            ok(PageV2.of(service.listCategories(actorAndProject)))
+            ok(PageV2.of(service.listCategories()))
         }
 
         implement(AppStore.retrieveCategory) {
