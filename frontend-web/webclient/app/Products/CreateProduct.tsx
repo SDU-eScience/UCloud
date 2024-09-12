@@ -270,7 +270,7 @@ export default class ResourceForm<Request, Response> extends React.Component<{
                     onChange={e => ctx.fields[props.id] = e.target.value}
                     leftLabel={!!p.leftLabel}
                     rightLabel={!!p.rightLabel}
-                    disabled={!!p.disabled ?? false}
+                    disabled={!!p.disabled}
                     defaultValue={p.defaultValue ?? ""}
                     {...p}
                 />
