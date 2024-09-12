@@ -7388,66 +7388,6 @@ export const logout = (props: any) => (
     />
   </svg>
 );
-export const mail = (props: any) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    xmlSpace="preserve"
-    style={{
-      fillRule: "evenodd",
-      clipRule: "evenodd",
-      strokeLinejoin: "round",
-      strokeMiterlimit: 2,
-    }}
-    viewBox="0 0 24 21"
-    fill="currentcolor"
-    {...props}
-  >
-    <path
-      d="m9.898 19.684 5.017-5.335-4.598-.044z"
-      style={{
-        fill: "#798aa0",
-      }}
-    />
-    <path
-      d="M.586 8.691a.918.918 0 0 0 .041 1.726l7.966 2.654 9.693 7.238a1 1 0 0 0 1.575-.587l4.111-18.697a.845.845 0 0 0-1.129-.968z"
-      style={{
-        fill: "currentcolor",
-      }}
-    />
-    <path
-      d="M7.542 12.72s7.743-5.83 11.934-8.494a.236.236 0 0 1 .315.056.24.24 0 0 1-.028.319c-3.382 3.112-9.357 9.823-9.357 9.823s-.237 2.997-.41 5.052a.34.34 0 0 1-.663.07c-.738-2.441-1.791-6.826-1.791-6.826"
-      style={{
-        fill: "url(#mail_svg__a)",
-      }}
-    />
-    <defs>
-      <linearGradient
-        id="mail_svg__a"
-        x1={0}
-        x2={1}
-        y1={0}
-        y2={0}
-        gradientTransform="matrix(7 -6 6 7 7.996 13.785)"
-        gradientUnits="userSpaceOnUse"
-      >
-        <stop
-          offset={0}
-          style={{
-            stopColor: props.color2 ? props.color2 : "currentcolor",
-            stopOpacity: 1,
-          }}
-        />
-        <stop
-          offset={1}
-          style={{
-            stopColor: "#3d4b5c",
-            stopOpacity: 1,
-          }}
-        />
-      </linearGradient>
-    </defs>
-  </svg>
-);
 export const mapMarkedAltSolid = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
