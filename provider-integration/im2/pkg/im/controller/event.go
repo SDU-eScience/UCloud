@@ -465,7 +465,7 @@ func saveLastKnownProject(project apm.Project) {
 			`,
 			db.Params{
 				"project_id":     project.Id,
-				"ucloud_project": data,
+				"ucloud_project": string(data),
 			},
 		)
 	})

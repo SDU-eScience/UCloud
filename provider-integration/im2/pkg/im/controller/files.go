@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/im/controller/upload"
 
 	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
@@ -47,9 +49,10 @@ type FileService struct {
 	CreateDownloadSession func(request DownloadSession) error
 	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
 	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
-	HandleUploadWs        func(request UploadDataWs) error
-	RetrieveProducts      func() []orc.FSSupport
-	Transfer              func(request FilesTransferRequest) (FilesTransferResponse, error)
+	//HandleUploadWs        func(request UploadDataWs) error
+	RetrieveProducts func() []orc.FSSupport
+	Transfer         func(request FilesTransferRequest) (FilesTransferResponse, error)
+	Uploader         upload.ServerFileSystem
 }
 
 type FilesBrowseFlags struct {
@@ -571,7 +574,7 @@ func controllerFiles(mux *http.ServeMux) {
 			HttpUpdateHandler[fnd.BulkRequest[CreateUploadRequest]](
 				0,
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[CreateUploadRequest]) {
-					owner, _ := ipc.GetConnectionUid(r)
+					uid := uint32(os.Getuid())
 
 					resp := fnd.BulkResponse[createUploadResponse]{}
 					for _, item := range request.Items {
@@ -583,14 +586,12 @@ func controllerFiles(mux *http.ServeMux) {
 							return
 						}
 
-						session := UploadSession{
-							Id:      util.RandomToken(32),
-							OwnedBy: owner,
-							Data:    sessionData,
-						}
-
-						if item.Type == UploadTypeFolder {
-							Files.CreateFolder(CreateFolderRequest{Path: item.Path, Drive: item.Drive, ConflictPolicy: item.ConflictPolicy})
+						session := upload.ServerSession{
+							Id:             util.RandomToken(32),
+							OwnedBy:        uid,
+							ConflictPolicy: item.ConflictPolicy,
+							Path:           item.Path,
+							UserData:       sessionData,
 						}
 
 						uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
@@ -617,7 +618,7 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
-				uid, _ := ipc.GetConnectionUid(r) // TODO Is this even an IPC endpoint?
+				uid := uint32(os.Getuid())
 
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
@@ -635,15 +636,7 @@ func controllerFiles(mux *http.ServeMux) {
 					return
 				}
 
-				err = Files.HandleUploadWs(UploadDataWs{
-					Session: session,
-					Socket:  conn,
-				})
-
-				if err != nil {
-					sendError(w, err)
-					return
-				}
+				upload.ProcessServer(conn, Files.Uploader, session)
 			},
 		)
 
@@ -747,4 +740,4 @@ func generateUploadPath(
 }
 
 var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
-var uploadSessions = util.NewCache[string, UploadSession](48 * time.Hour)
+var uploadSessions = util.NewCache[string, upload.ServerSession](48 * time.Hour)
