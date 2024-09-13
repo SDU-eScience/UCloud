@@ -4,7 +4,7 @@ import {extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
 import {ListRow} from "@/ui-components/List";
 
-enum TreeAction {
+export enum TreeAction {
     TOGGLE,
     OPEN,
     CLOSE,
@@ -19,19 +19,33 @@ export interface TreeApi {
     isActive: () => boolean;
 }
 
+const KEY_MAP: Record<string, TreeAction> = {
+    "Space": TreeAction.TOGGLE,
+    "Enter": TreeAction.TOGGLE,
+    "ArrowRight": TreeAction.OPEN,
+    "ArrowLeft": TreeAction.CLOSE,
+    "ArrowUp": TreeAction.GO_UP,
+    "ArrowDown": TreeAction.GO_DOWN,
+    "Home": TreeAction.GO_TO_TOP,
+    "End": TreeAction.GO_TO_BOTTOM,
+}
+
 const TreeClass = injectStyle("tree", k => ``);
 
 export const Tree: React.FunctionComponent<{
     apiRef?: React.MutableRefObject<TreeApi | null>;
     unhandledShortcut?: (target: HTMLElement, ev: KeyboardEvent) => void;
     children: React.ReactNode;
+    onAction?: (row: HTMLElement, action: TreeAction) => void;
 }> = props => {
     const root = useRef<HTMLDivElement>(null);
     useEffect(() => {
         function visibleRows(): HTMLElement[] {
             const r = root.current;
             if (!r) return [];
-            return Array.from(r.querySelectorAll(`[data-open] > .${TreeNodeClass}, [data-open] > * > .${TreeNodeClass}`));
+            // Note(Jonas): Rule is for the divs injected by React-Window. Not a fan, but the specificity is needed.
+            const INSANE_RULE = `div.${TreeClass} > div[data-open] > div > div > div > div.${TreeNodeClass}`;
+            return Array.from(r.querySelectorAll(`[data-open] > .${TreeNodeClass}, [data-open] > * > .${TreeNodeClass}, ${INSANE_RULE}`));
         }
 
         function getRow(rowIdx: number): [HTMLElement | null, number] {
@@ -64,13 +78,19 @@ export const Tree: React.FunctionComponent<{
             switch (action) {
                 case TreeAction.TOGGLE: {
                     const [row] = getRow(rowIdx);
-                    if (row) row.toggleAttribute("data-open");
+                    if (row) {
+                        row.toggleAttribute("data-open");
+                        props.onAction?.(row, action);
+                    }
                     break;
                 }
 
                 case TreeAction.OPEN: {
                     const [row] = getRow(rowIdx);
-                    if (row) row.setAttribute("data-open", "");
+                    if (row) {
+                        row.setAttribute("data-open", "");
+                        props.onAction?.(row, action);
+                    }
                     break;
                 }
 
@@ -91,6 +111,7 @@ export const Tree: React.FunctionComponent<{
                                 }
                             }
                         }
+                        props.onAction?.(row, action);
                     }
                     break;
                 }
@@ -122,7 +143,7 @@ export const Tree: React.FunctionComponent<{
                 const [newRow] = getRow(rowIdx);
                 if (newRow) {
                     newRow.setAttribute("data-selected", "");
-                    newRow.scrollIntoView({ block: "nearest" });
+                    newRow.scrollIntoView({block: "nearest"});
                 }
             }
         };
@@ -131,44 +152,7 @@ export const Tree: React.FunctionComponent<{
             if (ev.defaultPrevented) return;
             if (!isActive()) return;
 
-            let action: TreeAction | null = null;
-            switch (ev.code) {
-                case "Space":
-                case "Enter": {
-                    action = TreeAction.TOGGLE;
-                    break;
-                }
-
-                case "ArrowRight": {
-                    action = TreeAction.OPEN;
-                    break
-                }
-
-                case "ArrowLeft": {
-                    action = TreeAction.CLOSE;
-                    break
-                }
-
-                case "ArrowUp": {
-                    action = TreeAction.GO_UP;
-                    break;
-                }
-
-                case "ArrowDown": {
-                    action = TreeAction.GO_DOWN;
-                    break;
-                }
-
-                case "Home": {
-                    action = TreeAction.GO_TO_TOP;
-                    break;
-                }
-
-                case "End": {
-                    action = TreeAction.GO_TO_BOTTOM;
-                    break;
-                }
-            }
+            let action: TreeAction | null = KEY_MAP[ev.code];
 
             if (action === null) {
                 if (props.unhandledShortcut) {
@@ -255,6 +239,7 @@ export const TreeNode: React.FunctionComponent<{
     children?: React.ReactNode;
     className?: string;
     indent?: number;
+    onActivate?: (open: boolean) => void;
 }> = props => {
     const ref = useRef<HTMLDivElement>(null);
     const style: CSSProperties = {};
@@ -289,6 +274,7 @@ export const TreeNode: React.FunctionComponent<{
         if (!div) return;
         activate();
         div.toggleAttribute("data-open");
+        props.onActivate?.(div.hasAttribute("data-open"));
     }, []);
 
     return <div

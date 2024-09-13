@@ -1992,7 +1992,7 @@ export function Editor(): React.ReactNode {
                                             const hideZeroFields = state.locked;
 
                                             const anyNonZeroValues = checkedAllocators
-                                                .reduce((acc, allocatorId) => acc + category.totalBalanceRequested[allocatorId] ?? 0, 0);
+                                                .reduce((acc, allocatorId) => acc + (category.totalBalanceRequested[allocatorId] ?? 0), 0);
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
