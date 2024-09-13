@@ -10,7 +10,7 @@ class AuditDescription<A : Any> internal constructor(
 ) {
     companion object {
         val descriptionKey = AttributeKey<AuditDescription<Any>>("audit-description")
-        val DEFAULT_RETENTION_PERIOD: Long = 1000L * 60 * 60 * 24 * 365
+        val DEFAULT_RETENTION_PERIOD: Long = 1000L * 60 * 60 * 24 * 180
     }
 }
 

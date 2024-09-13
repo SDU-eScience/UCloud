@@ -97,7 +97,7 @@ class ElasticDataService(
                     )
                     .filter(
                         RangeQuery.Builder()
-                            .field("@timestamp")
+                            .field("timestamp")
                             .gte(JsonData.of(start))
                             .lte(JsonData.of(end))
                             .build()._toQuery()
