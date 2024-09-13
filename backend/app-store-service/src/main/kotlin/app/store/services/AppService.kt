@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import co.elastic.clients.elasticsearch.ml.Category
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.AccountingV2
@@ -21,6 +22,7 @@ import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
+import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -126,10 +128,26 @@ class AppService(
             )
         },
         retrieve = { providerId ->
+            val supportedApplications = applications.values.filter {
+                val backend = it.invocation.tool.tool?.description?.backend
+                if (backend != null) {
+                    providerCanRun(providerId, backend)
+                } else {
+                    false
+                }
+            }
+
+            val supportedGroupIds = supportedApplications.mapNotNull { it.metadata.group?.metadata?.id }
+            val supportedGroups = groups.filter { supportedGroupIds.contains(it.key.toInt())  }
+
+            val supportedCategoryIds = supportedGroups.flatMap {
+                it.value.get().categories
+            }.toSet()
+
+            val supportedCategories = listCategories().filter { supportedCategoryIds.contains(it.metadata.id) }
+
             val frontPicks = topPicks.get().map { it.prepare() }
-            val frontCategories = listCategories()
             val frontCarrousel = carrousel.get().map { it.prepare() }
-            println("$providerId ${frontCarrousel.size}")
             val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
 
             val frontNewlyCreated = ArrayList<String>()
@@ -145,7 +163,7 @@ class AppService(
             StoreFront(
                 frontCarrousel,
                 frontPicks,
-                frontCategories,
+                supportedCategories,
                 frontSpotlight,
                 frontNewlyCreated.mapNotNull {
                     retrieveApplication(ActorAndProject.System, it, null, loadGroupApplications = false)?.withoutInvocation()
@@ -790,13 +808,6 @@ class AppService(
             serviceClient
         ).orThrow()
 
-        println("There's ${relevantProviders.responses[0].providers.size} relevant providers")
-
-        /*val carrousel: MutableList<CarrouselItem> = mutableListOf()
-        val topPicks: MutableList<TopPick> = mutableListOf()
-        var spotlight: Spotlight? = null
-        var newApplications: MutableList<ApplicationSummaryWithFavorite> = mutableListOf()
-        var recentlyUpdated: MutableList<ApplicationSummaryWithFavorite> = mutableListOf()*/
         val frontCategories: MutableList<ApplicationCategory> = mutableListOf()
         val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
         val newlyCreated = ArrayList<ApplicationSummaryWithFavorite>()
