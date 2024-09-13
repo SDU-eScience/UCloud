@@ -2,9 +2,9 @@ package slurm
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"io"
 	"math"
 	"net/http"
@@ -53,31 +53,120 @@ func InitializeFiles() ctrl.FileService {
 	}
 }
 
+// TODO put this in the database
+var transferSessions = util.NewCache[string, ctrl.FilesTransferRequestInitiateSource](48 * time.Hour)
+
 func transfer(request ctrl.FilesTransferRequest) (ctrl.FilesTransferResponse, error) {
 	switch request.Type {
 	case ctrl.FilesTransferRequestTypeInitiateSource:
-		return ctrl.FilesTransferResponseInitiateSource(util.RandomToken(32), []string{"built-in"}), nil
+		req := request.InitiateSource()
+		token := util.RandomToken(32)
+		transferSessions.Set(token, *req)
+
+		return ctrl.FilesTransferResponseInitiateSource(token, []string{"built-in"}), nil
 
 	case ctrl.FilesTransferRequestTypeInitiateDestination:
-		tok := util.RandomToken(32)
-		username, err := ctrl.Whoami.Invoke(util.EmptyValue)
-		usernameHint := base64.URLEncoding.EncodeToString([]byte(username))
+		req := request.InitiateDestination()
+		if !slices.Contains(req.SupportedProtocols, "built-in") {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, no overlap in protocols.",
+			}
+		}
+
+		localDestinationPath, ok := UCloudToInternal(req.DestinationPath)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, unknown destination supplied.",
+			}
+		}
+
+		finfo, err := os.Stat(filepath.Dir(localDestinationPath))
 		if err != nil {
 			return ctrl.FilesTransferResponse{}, &util.HttpError{
-				StatusCode: http.StatusInternalServerError,
-				Why:        "Identity crisis - Who are we?",
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, unknown destination supplied.",
 			}
+		}
+
+		if !probablyHasPermissionToWrite(finfo) {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, you are not allowed to write to the destination folder.",
+			}
+		}
+
+		_, target := ctrl.CreateFolderUpload(req.DestinationPath, orc.WriteConflictPolicyMergeRename, []byte(localDestinationPath))
+
+		if req.SourceProvider == cfg.Provider.Id {
+			// NOTE(Dan): This only happens during local development
+
+			target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
 		}
 
 		return ctrl.FilesTransferResponseInitiateDestination(
 			"built-in",
 			ctrl.TransferBuiltInParameters{
-				Endpoint: cfg.Provider.Hosts.SelfPublic.ToURL() +
-					fmt.Sprintf("/transfers/built-in?session=%v&usernameHint=%v", tok, usernameHint),
+				Endpoint: target,
 			},
 		), nil
 
 	case ctrl.FilesTransferRequestTypeStart:
+		req := request.Start()
+
+		if req.SelectedProtocol != "built-in" {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Protocol is not supported",
+			}
+		}
+
+		session, ok := transferSessions.GetNow(req.Session)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unknown session",
+			}
+		}
+
+		var parameters ctrl.TransferBuiltInParameters
+
+		err := json.Unmarshal(req.ProtocolParameters, &parameters)
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Malformed request from UCloud/Core",
+			}
+		}
+
+		uploadSession := upload.ClientSession{
+			Endpoint:       parameters.Endpoint,
+			ConflictPolicy: orc.WriteConflictPolicyMergeRename,
+			Path:           session.SourcePath,
+		}
+
+		internalSource, ok := UCloudToInternal(session.SourcePath)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to open source file",
+			}
+		}
+
+		rootFile, err := os.Open(internalSource)
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to open source file",
+			}
+		}
+
+		go upload.ProcessClient(uploadSession, &uploaderClientFile{
+			Path: "",
+			File: rootFile,
+		})
+
 		return ctrl.FilesTransferResponseStart(), nil
 
 	default:
@@ -946,4 +1035,64 @@ func (u *uploaderFile) Close() {
 		_ = os.Chtimes(u.File.Name(), t, t)
 	}
 	util.SilentClose(u.File)
+}
+
+type uploaderClientFile struct {
+	Path string
+	File *os.File
+}
+
+func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
+	names, err := u.File.Readdirnames(0)
+	if err != nil {
+		return nil
+	}
+	return names
+}
+
+func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
+	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return upload.FileMetadata{}, nil
+	}
+
+	finfo, err := file.Stat()
+	if err != nil {
+		return upload.FileMetadata{}, nil
+	}
+
+	ftype := upload.FileTypeFile
+	if finfo.IsDir() {
+		ftype = upload.FileTypeDirectory
+	} else if !finfo.Mode().IsRegular() {
+		_ = file.Close()
+		return upload.FileMetadata{}, nil
+	}
+
+	metadata := upload.FileMetadata{
+		Size:         finfo.Size(),
+		ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
+		InternalPath: filepath.Join(u.Path, name),
+		Type:         ftype,
+	}
+
+	child := &uploaderClientFile{
+		Path: metadata.InternalPath,
+		File: file,
+	}
+
+	return metadata, child
+}
+
+func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool) {
+	n, err := u.File.Read(target)
+	if err != nil {
+		return 0, true
+	}
+
+	return n, n == 0
+}
+
+func (u *uploaderClientFile) Close() {
+	_ = u.File.Close()
 }

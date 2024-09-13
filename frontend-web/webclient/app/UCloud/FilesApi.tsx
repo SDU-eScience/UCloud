@@ -525,7 +525,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.C
             },
             {
-                icon: "heroEnvelope",
+                icon: "heroPaperAirplane",
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
                     inDevEnvironment() &&
@@ -539,7 +539,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             isModal: true,
                             managesLocalProject: true,
                             selection: {
-                                text: "Transfer to",
+                                text: "Transfer",
                                 show(res) {
                                     return res.status.type === "DIRECTORY" &&
                                         (

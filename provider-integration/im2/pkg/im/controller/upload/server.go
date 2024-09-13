@@ -13,10 +13,18 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
+type FileType int
+
+const (
+	FileTypeFile FileType = iota
+	FileTypeDirectory
+)
+
 type FileMetadata struct {
 	Size         int64
 	ModifiedAt   fnd.Timestamp
 	InternalPath string
+	Type         FileType
 }
 
 type ServerSession struct {
@@ -74,23 +82,25 @@ func (f *serverFileUpload) Process() {
 
 		written := int64(0)
 
-	outer:
-		for {
-			select {
-			case <-f.Ctx.Done():
-				break outer
-
-			case chunk := <-f.ChunksOrSkip:
-				if chunk == nil {
+		if f.Entry.Size > 0 {
+		outer:
+			for {
+				select {
+				case <-f.Ctx.Done():
 					break outer
-				}
 
-				file.Write(f.Ctx, chunk)
-				f.ChunkSemaphore.Release(chunkWeight(chunk))
+				case chunk := <-f.ChunksOrSkip:
+					if chunk == nil {
+						break outer
+					}
 
-				written += int64(len(chunk))
-				if written >= f.Entry.Size {
-					break outer
+					file.Write(f.Ctx, chunk)
+					f.ChunkSemaphore.Release(chunkWeight(chunk))
+
+					written += int64(len(chunk))
+					if written >= f.Entry.Size {
+						break outer
+					}
 				}
 			}
 		}
@@ -144,7 +154,7 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 
 	// NOTE(Dan): Since there will be no chunks or file listings, we can just use a single frame for all the
 	// messages we intend to send.
-	outputBuffer := &ubuf{_buf: &bytes.Buffer{}}
+	outputBuffer := util.NewBuffer(&bytes.Buffer{})
 
 outer:
 	for {
@@ -183,7 +193,7 @@ outer:
 				(&messageCompleted{NumberOfProcessedFiles: completedFiles}).Marshal(outputBuffer, true)
 			}
 
-			outputBytes := outputBuffer._buf.Bytes()
+			outputBytes := outputBuffer.ReadRemainingBytes()
 			if len(outputBytes) > 0 {
 				err := socket.WriteMessage(ws.BinaryMessage, outputBytes)
 				if err != nil {
@@ -203,7 +213,7 @@ outer:
 				break outer
 			}
 
-			buf := &ubuf{_buf: bytes.NewBuffer(data)}
+			buf := util.NewBuffer(bytes.NewBuffer(data))
 			t := messageType(buf.ReadU8())
 
 			// NOTE(Dan): We did a stupid thing here in the past, but let's roll with it. All messages are allowed to be

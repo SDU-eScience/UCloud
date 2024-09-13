@@ -1,5 +1,7 @@
 package upload
 
+import "ucloud.dk/pkg/util"
+
 type messageType uint8
 
 const (
@@ -15,22 +17,22 @@ const (
 type message interface {
 	// Unmarshal will read the binary version of this message from the buffer and into itself. This function _will not_
 	// consume the opcode from the buffer, but instead assume that it has already been consumed.
-	Unmarshal(buffer *ubuf)
+	Unmarshal(buffer *util.UBuffer)
 
 	// Marshal will produce the binary version of this message and put it in the supplied buffer. This function _will_
 	// put the opcode as the first byte in the buffer, but only if writeOpCode is true.
-	Marshal(buf *ubuf, writeOpCode bool)
+	Marshal(buf *util.UBuffer, writeOpCode bool)
 }
 
 type messageOk struct {
 	FileId int32
 }
 
-func (m *messageOk) Unmarshal(buf *ubuf) {
+func (m *messageOk) Unmarshal(buf *util.UBuffer) {
 	m.FileId = buf.ReadS32()
 }
 
-func (m *messageOk) Marshal(buf *ubuf, writeOpCode bool) {
+func (m *messageOk) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	if writeOpCode {
 		buf.WriteU8(uint8(messageTypeOk))
 	}
@@ -42,12 +44,12 @@ type messageChunk struct {
 	Data   []byte
 }
 
-func (m *messageChunk) Unmarshal(buf *ubuf) {
+func (m *messageChunk) Unmarshal(buf *util.UBuffer) {
 	m.FileId = buf.ReadS32()
 	m.Data = buf.ReadRemainingBytes()
 }
 
-func (m *messageChunk) Marshal(buf *ubuf, writeOpCode bool) {
+func (m *messageChunk) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	if writeOpCode {
 		buf.WriteU8(uint8(messageTypeChunk))
 	}
@@ -59,11 +61,11 @@ type messageSkip struct {
 	FileId int32
 }
 
-func (m *messageSkip) Unmarshal(buf *ubuf) {
+func (m *messageSkip) Unmarshal(buf *util.UBuffer) {
 	m.FileId = buf.ReadS32()
 }
 
-func (m *messageSkip) Marshal(buf *ubuf, writeOpCode bool) {
+func (m *messageSkip) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	if writeOpCode {
 		buf.WriteU8(uint8(messageTypeSkip))
 	}
@@ -77,18 +79,17 @@ type messageListing struct {
 	Path       string
 }
 
-func (m *messageListing) Unmarshal(buf *ubuf) {
+func (m *messageListing) Unmarshal(buf *util.UBuffer) {
 	m.FileId = buf.ReadS32()
 	m.Size = buf.ReadS64()
 	m.ModifiedAt = buf.ReadS64()
 	m.Path = buf.ReadString()
 }
 
-func (m *messageListing) Marshal(buf *ubuf, writeOpCode bool) {
+func (m *messageListing) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	if writeOpCode {
 		buf.WriteU8(uint8(messageTypeListing))
 	}
-	buf.WriteU8(uint8(messageTypeListing))
 	buf.WriteS32(m.FileId)
 	buf.WriteS64(m.Size)
 	buf.WriteS64(m.ModifiedAt)
@@ -99,19 +100,19 @@ type messageCompleted struct {
 	NumberOfProcessedFiles int32
 }
 
-func (m *messageCompleted) Unmarshal(buf *ubuf) {
-	buf.WriteS32(m.NumberOfProcessedFiles)
+func (m *messageCompleted) Unmarshal(buf *util.UBuffer) {
+	m.NumberOfProcessedFiles = buf.ReadS32()
 }
 
-func (m *messageCompleted) Marshal(buf *ubuf, writeOpCode bool) {
+func (m *messageCompleted) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	if writeOpCode {
 		buf.WriteU8(uint8(messageTypeCompleted))
 	}
 	buf.WriteS32(m.NumberOfProcessedFiles)
 }
 
-func parseMessage(t messageType, buf *ubuf) message {
-	if buf.err != nil {
+func parseMessage(t messageType, buf *util.UBuffer) message {
+	if buf.Error != nil {
 		return nil
 	}
 
@@ -130,12 +131,12 @@ func parseMessage(t messageType, buf *ubuf) message {
 		msg = &messageCompleted{}
 	}
 
-	if msg == nil || buf.err != nil {
+	if msg == nil || buf.Error != nil {
 		return nil
 	}
 
 	msg.Unmarshal(buf)
-	if buf.err != nil {
+	if buf.Error != nil {
 		return nil
 	}
 

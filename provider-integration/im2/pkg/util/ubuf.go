@@ -1,4 +1,4 @@
-package upload
+package util
 
 import (
 	"bytes"
@@ -6,97 +6,101 @@ import (
 )
 
 // NOTE(Dan): This is a simple wrapper around a buffer providing convenient functions for dealing with binary messages
-// written in big-endian byte order. Feel free to put this in some other package if it becomes more useful.
+// written in big-endian byte order.
 
-type ubuf struct {
-	_buf *bytes.Buffer
-	err  error
+type UBuffer struct {
+	_buf  *bytes.Buffer
+	Error error
 }
 
-func (b *ubuf) Reset() {
+func NewBuffer(buf *bytes.Buffer) *UBuffer {
+	return &UBuffer{_buf: buf}
+}
+
+func (b *UBuffer) Reset() {
 	b._buf.Reset()
 }
 
-func (b *ubuf) IsEmpty() bool {
-	return b.err != nil || b._buf.Available() == 0
+func (b *UBuffer) IsEmpty() bool {
+	return b.Error != nil || b._buf.Len() == 0
 }
 
-func (b *ubuf) ReadU8() uint8 {
+func (b *UBuffer) ReadU8() uint8 {
 	next, err := b._buf.ReadByte()
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return next
 }
 
-func (b *ubuf) ReadU16() uint16 {
+func (b *UBuffer) ReadU16() uint16 {
 	var val uint16
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadU32() uint32 {
+func (b *UBuffer) ReadU32() uint32 {
 	var val uint32
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadU64() uint64 {
+func (b *UBuffer) ReadU64() uint64 {
 	var val uint64
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadS8() int8 {
+func (b *UBuffer) ReadS8() int8 {
 	next, err := b._buf.ReadByte()
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return int8(next)
 }
 
-func (b *ubuf) ReadS16() int16 {
+func (b *UBuffer) ReadS16() int16 {
 	var val int16
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadS32() int32 {
+func (b *UBuffer) ReadS32() int32 {
 	var val int32
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadS64() int64 {
+func (b *UBuffer) ReadS64() int64 {
 	var val int64
 	err := binary.Read(b._buf, binary.BigEndian, &val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 	return val
 }
 
-func (b *ubuf) ReadRemainingBytes() []byte {
+func (b *UBuffer) ReadRemainingBytes() []byte {
 	remaining := len(b._buf.Bytes())
 	return b._buf.Next(remaining)
 }
 
-func (b *ubuf) ReadString() string {
+func (b *UBuffer) ReadString() string {
 	size := b.ReadU32()
 	if size == 0 {
 		return ""
@@ -108,74 +112,74 @@ func (b *ubuf) ReadString() string {
 	return string(output)
 }
 
-func (b *ubuf) WriteU8(val uint8) {
+func (b *UBuffer) WriteU8(val uint8) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteU16(val uint16) {
+func (b *UBuffer) WriteU16(val uint16) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteU32(val uint32) {
+func (b *UBuffer) WriteU32(val uint32) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteU64(val uint64) {
+func (b *UBuffer) WriteU64(val uint64) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteS8(val int8) {
+func (b *UBuffer) WriteS8(val int8) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteS16(val int16) {
+func (b *UBuffer) WriteS16(val int16) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteS32(val int32) {
+func (b *UBuffer) WriteS32(val int32) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteS64(val int64) {
+func (b *UBuffer) WriteS64(val int64) {
 	err := binary.Write(b._buf, binary.BigEndian, val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteString(val string) {
+func (b *UBuffer) WriteString(val string) {
 	valBytes := []byte(val)
 	b.WriteU32(uint32(len(valBytes)))
 	_, err := b._buf.Write(valBytes)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }
 
-func (b *ubuf) WriteBytes(val []byte) {
+func (b *UBuffer) WriteBytes(val []byte) {
 	_, err := b._buf.Write(val)
 	if err != nil {
-		b.err = err
+		b.Error = err
 	}
 }

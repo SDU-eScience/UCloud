@@ -574,8 +574,6 @@ func controllerFiles(mux *http.ServeMux) {
 			HttpUpdateHandler[fnd.BulkRequest[CreateUploadRequest]](
 				0,
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[CreateUploadRequest]) {
-					uid := uint32(os.Getuid())
-
 					resp := fnd.BulkResponse[createUploadResponse]{}
 					for _, item := range request.Items {
 						TrackDrive(&item.Drive)
@@ -586,15 +584,7 @@ func controllerFiles(mux *http.ServeMux) {
 							return
 						}
 
-						session := upload.ServerSession{
-							Id:             util.RandomToken(32),
-							OwnedBy:        uid,
-							ConflictPolicy: item.ConflictPolicy,
-							Path:           item.Path,
-							UserData:       sessionData,
-						}
-
-						uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
+						session, uploadPath := CreateFolderUpload(item.Path, item.ConflictPolicy, sessionData)
 
 						resp.Responses = append(
 							resp.Responses,
@@ -605,7 +595,6 @@ func controllerFiles(mux *http.ServeMux) {
 							},
 						)
 
-						uploadSessions.Set(session.Id, session)
 					}
 
 					sendResponseOrError(w, resp, nil)
@@ -717,6 +706,20 @@ func controllerFiles(mux *http.ServeMux) {
 			}),
 		)
 	}
+}
+
+func CreateFolderUpload(path string, conflictPolicy orc.WriteConflictPolicy, sessionData []byte) (upload.ServerSession, string) {
+	session := upload.ServerSession{
+		Id:             util.RandomToken(32),
+		OwnedBy:        uint32(os.Getuid()),
+		ConflictPolicy: conflictPolicy,
+		Path:           path,
+		UserData:       sessionData,
+	}
+
+	uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
+	uploadSessions.Set(session.Id, session)
+	return session, uploadPath
 }
 
 func generateUploadPath(
