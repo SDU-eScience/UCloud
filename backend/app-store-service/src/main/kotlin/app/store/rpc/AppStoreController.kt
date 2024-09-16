@@ -36,13 +36,15 @@ import kotlin.text.String
 
 class AppStoreController(
     private val importExportService: ImportExport,
-    private val service: AppService,
+    private val data: CatalogData,
+    private val catalog: Catalog,
+    private val studio: Studio,
     private val devMode: Boolean,
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppStore.findByNameAndVersion) {
             ok(
-                service.retrieveApplication(actorAndProject, request.appName, request.appVersion)
+                catalog.retrieveApplication(actorAndProject, request.appName, request.appVersion)
                     ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
             )
         }
@@ -50,20 +52,20 @@ class AppStoreController(
         implement(AppStore.retrieveAcl) {
             ok(
                 AppStore.RetrieveAcl.Response(
-                    service.retrieveDetailedAcl(actorAndProject, request.name).toList()
+                    studio.retrieveDetailedAcl(actorAndProject, request.name).toList()
                 )
             )
         }
 
         implement(AppStore.updateAcl) {
-            service.updateAcl(actorAndProject, request.name, request.changes)
+            studio.updateAcl(actorAndProject, request.name, request.changes)
             ok(Unit)
         }
 
         implement(AppStore.browseOpenWithRecommendations) {
             ok(
                 PageV2.of(
-                    service.listByExtension(
+                    catalog.listByExtension(
                         actorAndProject,
                         request.files
                     )
@@ -72,7 +74,7 @@ class AppStoreController(
         }
 
         implement(AppStore.findByName) {
-            val items = service.listVersions(actorAndProject, request.appName).map { it.withoutInvocation() }
+            val items = catalog.listVersions(actorAndProject, request.appName).map { it.withoutInvocation() }
             ok(
                 Page(
                     items.size,
@@ -84,22 +86,22 @@ class AppStoreController(
         }
 
         implement(AppStore.assignApplicationToGroup) {
-            service.assignApplicationToGroup(actorAndProject, request.name, request.group)
+            studio.assignApplicationToGroup(actorAndProject, request.name, request.group)
             ok(Unit)
         }
 
         implement(AppStore.createGroup) {
-            val id = service.createGroup(actorAndProject, request.title)
+            val id = studio.createGroup(actorAndProject, request.title)
             ok(FindByIntId(id))
         }
 
         implement(AppStore.deleteGroup) {
-            service.deleteGroup(actorAndProject, request.id)
+            studio.deleteGroup(actorAndProject, request.id)
             ok(Unit)
         }
 
         implement(AppStore.updateGroup) {
-            service.updateGroup(
+            studio.updateGroup(
                 actorAndProject,
                 request.id,
                 newTitle = request.newTitle,
@@ -112,11 +114,11 @@ class AppStoreController(
         }
 
         implement(AppStore.browseGroups) {
-            ok(PageV2.of(service.listGroups(actorAndProject)))
+            ok(PageV2.of(studio.listGroups(actorAndProject)))
         }
 
         implement(AppStore.retrieveGroup) {
-            val group = service.retrieveGroup(actorAndProject, request.id, loadApplications = true)
+            val group = studio.retrieveGroup(actorAndProject, request.id)
                 ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
 
             ok(group)
@@ -156,22 +158,21 @@ class AppStoreController(
 
             val (app, tool) = yamlDocument.normalizeToAppAndTool()
             if (tool != null) {
-                service.createTool(actorAndProject, tool)
+                studio.createTool(actorAndProject, tool)
             }
-            service.createApplication(actorAndProject, app)
+            studio.createApplication(actorAndProject, app)
 
             ok(Unit)
         }
 
         implement(AppStore.listAllApplications) {
-            ok(AppStore.ListAllApplications.Response(service.listAllApplications()))
+            ok(AppStore.ListAllApplications.Response(studio.listAllApplications()))
         }
 
         implement(AppStore.updateApplicationFlavor) {
-            service.updateAppFlavorName(actorAndProject, request.applicationName, request.flavorName)
+            studio.updateAppFlavorName(actorAndProject, request.applicationName, request.flavorName)
             ok(Unit)
         }
-
 
         if (devMode) {
             implement(AppStore.devImport) {
@@ -226,18 +227,18 @@ class AppStoreController(
         }
 
         implement(AppStore.toggleStar) {
-            ok(service.toggleStar(actorAndProject, request.name))
+            ok(data.toggleStar(actorAndProject, request.name))
         }
 
         implement(AppStore.retrieveStars) {
-            val items = service.listStarredApplications(actorAndProject).map { it.withoutInvocation() }
+            val items = catalog.listStarredApplications(actorAndProject).map { it.withoutInvocation() }
             ok(AppStore.RetrieveStars.Response(items))
         }
 
         implement(AppStore.addLogoToGroup) {
             val http = ctx as HttpCall
             val packet = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 2)
-            service.updateGroup(
+            studio.updateGroup(
                 actorAndProject,
                 request.groupId,
                 newLogo = packet.readBytes()
@@ -247,7 +248,7 @@ class AppStoreController(
         }
 
         implement(AppStore.removeLogoFromGroup) {
-            service.updateGroup(
+            studio.updateGroup(
                 actorAndProject,
                 request.id,
                 newLogo = ByteArray(0),
@@ -256,7 +257,7 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveGroupLogo) {
-            val bytes = service.retrieveGroupLogo(
+            val bytes = data.retrieveGroupLogo(
                 request.id,
                 request.darkMode,
                 request.includeText,
@@ -281,7 +282,7 @@ class AppStoreController(
         implement(AppStore.retrieveAppLogo) {
             // NOTE(Dan): The endpoint does not have any authentication token, as a result, we resolve the
             // application with system privileges simply to find the appropriate groupId.
-            val app = service.retrieveApplication(ActorAndProject.System, request.name, null)
+            val app = catalog.retrieveApplication(ActorAndProject.System, request.name, null)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val groupId = app.metadata.group?.metadata?.id
 
@@ -303,7 +304,7 @@ class AppStoreController(
                     emptyMap()
                 )
             } else {
-                service.retrieveGroupLogo(
+                data.retrieveGroupLogo(
                     groupId, request.darkMode, request.includeText,
                     request.placeTextUnderLogo, app.metadata.flavorName
                 ) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -324,7 +325,7 @@ class AppStoreController(
         }
 
         implement(AppStore.updatePublicFlag) {
-            service.updatePublicFlag(
+            studio.updatePublicFlag(
                 actorAndProject,
                 NameAndVersion(request.name, request.version),
                 request.public
@@ -333,30 +334,29 @@ class AppStoreController(
         }
 
         implement(AppStore.search) {
-            val items = service.search(actorAndProject, request.query).map { it.withoutInvocation() }
+            val items = catalog.search(actorAndProject, request.query).map { it.withoutInvocation() }
             ok(PageV2.of(items))
         }
 
         implement(AppStore.browseCategories) {
-            ok(PageV2.of(service.listCategories()))
+            ok(PageV2.of(studio.listCategories()))
         }
 
         implement(AppStore.retrieveCategory) {
             ok(
-                service.retrieveCategory(actorAndProject, request.id, loadGroups = true)
-
+                catalog.retrieveCategory(actorAndProject, request.id, loadGroups = true)
                     ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
             )
         }
 
         implement(ToolStore.findByName) {
-            val items = service.listToolVersions(actorAndProject, request.appName)
+            val items = catalog.listToolVersions(actorAndProject, request.appName)
             ok(Page(items.size, items.size, 0, items))
         }
 
         implement(ToolStore.findByNameAndVersion) {
             ok(
-                service.retrieveTool(
+                catalog.retrieveTool(
                     actorAndProject,
                     request.name,
                     request.version
@@ -394,7 +394,7 @@ class AppStoreController(
                 )
             }
 
-            service.createTool(
+            studio.createTool(
                 actorAndProject,
                 Tool(actorAndProject.actor.safeUsername(), Time.now(), Time.now(), yamlDocument.normalize())
             )
@@ -403,13 +403,13 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveLandingPage) {
-            ok(service.retrieveLandingPage(actorAndProject))
+            ok(catalog.retrieveLandingPage(actorAndProject))
         }
 
         implement(AppStore.retrieveCarrouselImage) {
             // NOTE(Dan): request.slideTitle is used mostly to circumvent the cache in case the carrousel is updated.
 
-            val bytes = service.retrieveCarrouselImage(request.index)
+            val bytes = data.retrieveCarrouselImage(request.index)
             val ktorCall = (ctx as HttpCall).call
             ktorCall.attributes.put(KtorAllowCachingKey, true)
             ktorCall.response.header(HttpHeaders.CacheControl, "max-age=3600")
@@ -425,31 +425,31 @@ class AppStoreController(
         }
 
         implement(AppStore.createCategory) {
-            ok(FindByIntId(service.createCategory(actorAndProject, request)))
+            ok(FindByIntId(studio.createCategory(actorAndProject, request)))
         }
 
         implement(AppStore.deleteCategory) {
-            service.deleteCategory(actorAndProject, request.id)
+            studio.deleteCategory(actorAndProject, request.id)
             ok(Unit)
         }
 
         implement(AppStore.addGroupToCategory) {
-            service.addGroupToCategory(actorAndProject, listOf(request.categoryId), request.groupId)
+            studio.addGroupToCategory(actorAndProject, listOf(request.categoryId), request.groupId)
             ok(Unit)
         }
 
         implement(AppStore.removeGroupFromCategory) {
-            service.removeGroupFromCategories(actorAndProject, listOf(request.categoryId), request.groupId)
+            studio.removeGroupFromCategories(actorAndProject, listOf(request.categoryId), request.groupId)
             ok(Unit)
         }
 
         implement(AppStore.assignPriorityToCategory) {
-            service.assignPriorityToCategory(actorAndProject, request.id, request.priority)
+            studio.assignPriorityToCategory(actorAndProject, request.id, request.priority)
             ok(Unit)
         }
 
         implement(AppStore.createSpotlight) {
-            val id = service.createOrUpdateSpotlight(
+            val id = studio.createOrUpdateSpotlight(
                 actorAndProject,
                 null,
                 request.title,
@@ -461,7 +461,7 @@ class AppStoreController(
         }
 
         implement(AppStore.updateSpotlight) {
-            service.createOrUpdateSpotlight(
+            studio.createOrUpdateSpotlight(
                 actorAndProject,
                 request.id ?: throw RPCException("Missing ID", HttpStatusCode.BadRequest),
                 request.title,
@@ -474,28 +474,28 @@ class AppStoreController(
         }
 
         implement(AppStore.deleteSpotlight) {
-            service.deleteSpotlight(actorAndProject, request.id)
+            studio.deleteSpotlight(actorAndProject, request.id)
             ok(Unit)
         }
 
         implement(AppStore.browseSpotlights) {
-            ok(PageV2.of(service.listSpotlights(actorAndProject)))
+            ok(PageV2.of(studio.listSpotlights(actorAndProject)))
         }
 
         implement(AppStore.retrieveSpotlight) {
             ok(
-                service.retrieveSpotlights(actorAndProject, request.id)
+                studio.retrieveSpotlights(actorAndProject, request.id)
                     ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
             )
         }
 
         implement(AppStore.activateSpotlight) {
-            service.activateSpotlight(actorAndProject, request.id)
+            studio.activateSpotlight(actorAndProject, request.id)
             ok(Unit)
         }
 
         implement(AppStore.updateCarrousel) {
-            service.updateCarrousel(actorAndProject, request.newSlides)
+            studio.updateCarrousel(actorAndProject, request.newSlides)
             ok(Unit)
         }
 
@@ -503,12 +503,12 @@ class AppStoreController(
             val http = ctx as HttpCall
             val packet = http.call.request.receiveChannel().readRemaining(1024 * 1024 * 2)
             val bytes = packet.readBytes()
-            service.updateCarrouselImage(actorAndProject, request.slideIndex, bytes)
+            studio.updateCarrouselImage(actorAndProject, request.slideIndex, bytes)
             ok(Unit)
         }
 
         implement(AppStore.updateTopPicks) {
-            service.updateTopPicks(actorAndProject, request.newTopPicks)
+            studio.updateTopPicks(actorAndProject, request.newTopPicks)
             ok(Unit)
         }
     }

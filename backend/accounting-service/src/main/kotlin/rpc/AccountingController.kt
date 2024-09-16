@@ -60,6 +60,7 @@ class AccountingController(
                         req.project,
                         req.useProject,
                         req.filterProductType,
+                        req.includeFreeToUse,
                     )
                 ).let { AccountingV2.FindRelevantProviders.Response(it.toList()) }
             }

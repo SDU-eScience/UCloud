@@ -1484,10 +1484,14 @@ class AccountingSystem(
             }
         }
 
-        val freeProviders = productCache.products().findAllFreeProducts()
-            .filter { request.filterProductType == null || it.productType == request.filterProductType }
-            .map { it.category.provider }
-            .toSet()
+        val freeProviders = if (request.includeFreeToUse) {
+            productCache.products().findAllFreeProducts()
+                .filter { request.filterProductType == null || it.productType == request.filterProductType }
+                .map { it.category.provider }
+                .toSet()
+        } else {
+            emptySet()
+        }
 
         val providers = allWorkspaces
             .flatMap { projectId ->

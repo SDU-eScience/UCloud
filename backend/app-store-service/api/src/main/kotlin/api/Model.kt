@@ -1433,7 +1433,7 @@ data class NormalizedToolDescription(
     """)
     val supportedProviders: List<String>? = null,
 
-    val curator: String? = null
+    val curator: String? = null,
 
     val buildInstructions: ToolBuildInstructions? = null,
     val loadInstructions: ToolLoadInstructions? = null,

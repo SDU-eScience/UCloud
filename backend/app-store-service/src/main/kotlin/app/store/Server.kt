@@ -26,17 +26,20 @@ class Server(override val micro: Micro) : CommonServer {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val distributedState = DistributedStateFactory(micro)
 
-        val service = AppService(db, micro.backgroundScope, ProjectCache(distributedState, db), serviceClient)
-        val importer = ImportExport(service, micro.developmentModeEnabled)
+        val data = CatalogData(db)
+        val projectCache = ProjectCache(distributedState, db)
+        val catalog = Catalog(projectCache, micro.backgroundScope, serviceClient)
+        val studio = Studio(db, data, serviceClient)
+        val importer = ImportExport(micro.developmentModeEnabled)
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 
         runBlocking {
-            service.reloadData()
+            data.reloadData()
         }
 
         configureControllers(
-            AppStoreController(importer, service, micro.developmentModeEnabled),
+            AppStoreController(importer, data, catalog, studio, micro.developmentModeEnabled),
         )
     }
 }

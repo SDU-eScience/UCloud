@@ -321,6 +321,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             val project: String? = null,
             val useProject: Boolean,
             val filterProductType: ProductType? = null,
+            val includeFreeToUse: Boolean = true,
         )
 
         @Serializable

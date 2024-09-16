@@ -20,10 +20,10 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 class ImportExport(
-    private val service: AppService,
     private val developmentMode: Boolean,
 ) {
     suspend fun exportToZip(): ByteArray {
+        /*
         val apps: List<ApplicationWithFavoriteAndTags> = service.listAllApplications().mapNotNull { (name, version) ->
             service.retrieveApplication(ActorAndProject.System, name, version, loadGroupApplications = false)
         }
@@ -106,9 +106,13 @@ class ImportExport(
 
             zipBytes.toByteArray()
         }
+         */
+        TODO()
     }
 
     suspend fun importFromZip(bytes: ByteArray) {
+        TODO()
+        /*
         val importedData = HashMap<String, ByteArray>()
         withContext(Dispatchers.IO) {
             ZipInputStream(ByteArrayInputStream(bytes)).use { zin ->
@@ -331,6 +335,7 @@ class ImportExport(
                 log.info("Could not update group: ${group.specification.title} (${ex.stackTraceToString()})")
             }
         }
+        */
     }
 
     companion object : Loggable {
