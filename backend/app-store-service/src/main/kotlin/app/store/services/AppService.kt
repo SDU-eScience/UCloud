@@ -192,7 +192,7 @@ class AppService(
     private val stars = NonBlockingHashMap<String, InternalStars>()
 
     // TODO(Brian): Temporary function. Will be replaced.
-    fun providerCanRun(providerId: String, backend: ToolBackend): Boolean {
+    private fun providerCanRun(providerId: String, backend: ToolBackend): Boolean {
         if (providerId == "slurm")  {
             if (backend == ToolBackend.NATIVE) {
                 return true
@@ -808,6 +808,11 @@ class AppService(
             serviceClient
         ).orThrow()
 
+        println("Relevant providers: $relevantProviders")
+
+        val isPrivileged = isPrivileged(actorAndProject)
+        val projectMembership = if (!isPrivileged) projectCache.lookup(actorAndProject.actor.safeUsername()) else null
+
         val frontCategories: MutableList<ApplicationCategory> = mutableListOf()
         val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
         val newlyCreated = ArrayList<ApplicationSummaryWithFavorite>()
@@ -826,6 +831,10 @@ class AppService(
             newlyCreated.addAll(providerStoreFront.newApplications.filter { it !in newlyCreated })
             updated.addAll(providerStoreFront.recentlyUpdated.filter { it !in updated })
         }
+
+        /*val filteredFrontCategories = frontCategories.filter { category ->
+            listApplicationsInCategory(actorAndProject, category.metadata.id).second.isNotEmpty()
+        }*/
 
         return AppStore.RetrieveLandingPage.Response(
             carrousel.get(),
