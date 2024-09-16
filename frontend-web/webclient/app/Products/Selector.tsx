@@ -540,9 +540,6 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k}[data-omit-border="true"] {
         border: unset;
     }
-    ${k} & p {
-        margin: 0;
-    }
 
     ${k} svg {
         position: absolute;
