@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2024.1.0-dev.1"
+version = "2024.1.66-TaskService"
 
 repositories {
     mavenCentral()
