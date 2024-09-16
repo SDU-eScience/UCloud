@@ -26,7 +26,6 @@ export const ProductSelector: React.FunctionComponent<{
     type?: ProductType;
     slim?: boolean;
     loading?: boolean;
-    omitBorder?: boolean;
     onSelect: (product: ProductV2) => void;
 }> = ({selected, ...props}) => {
     let portal = document.getElementById(dropdownPortal);
@@ -225,7 +224,7 @@ export const ProductSelector: React.FunctionComponent<{
     const showHeadings = true;
 
     return <>
-        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} data-omit-border={props.omitBorder} onClick={onToggle} ref={boxRef}>
+        <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
             <div className="selected">
                 {selected ? selected.name : <>No {productName} selected</>}<br />
                 {selected ? <>
@@ -538,10 +537,9 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         border-color: var(--borderColorHover);
     }
 
-    ${k} &[data-omit-border="true"] {
+    ${k}[data-omit-border="true"] {
         border: unset;
     }
-
     ${k} & p {
         margin: 0;
     }

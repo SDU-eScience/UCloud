@@ -1053,7 +1053,7 @@ const RunningContent: React.FunctionComponent<{
 
         {!supportsLogs ? null :
             <TabbedCard>
-                <Box height={"calc(100vh - 785px)"} minHeight={"300px"} overflowY={"scroll"} divRef={scrollRef}>
+                <Box minHeight={"300px"} divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
                         <RunningJobRank key={i} job={job} rank={i} state={state} />
                     )}
@@ -1116,8 +1116,13 @@ const StandardPanelBody: React.FunctionComponent<{
 
 const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} {
+        --termHeight: 294px;
         margin-top: 16px;
         margin-bottom: 16px;
+    }
+
+    ${k}[data-has-replicas="true"] {
+        --termHeight: 274px;
     }
 
     ${k} .rank {
@@ -1127,7 +1132,7 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 
     ${k} .term {
-        height: 100%;
+        height: var(--termHeight);
         width: 100%;
     }
 
@@ -1201,8 +1206,10 @@ const RunningJobRank: React.FunctionComponent<{
         listener();
     }, [job.id, rank]);
 
+    const hasMultipleNodes = job.specification.replicas > 1;
+
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
-        <div className={RunningJobRankWrapper}>
+        <div className={RunningJobRankWrapper} data-has-replicas={hasMultipleNodes}>
             <div ref={termRef} className="term" />
 
             {job.specification.replicas === 1 ? null : (
@@ -1363,7 +1370,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=600,status=no"
                 );
             }}>
-                <Button width="150px" type={"button"}>
+                <Button width="220px" type={"button"}>
                     <Icon name={"heroCommandLine"} />
                     <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
@@ -1371,7 +1378,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         )}
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={redirectToWeb} aria-disabled={!redirectToWeb} target={"_blank"}>
-                <Button width="160px" disabled={!redirectToWeb}>
+                <Button width="220px" disabled={!redirectToWeb}>
                     <Icon name={"heroArrowTopRightOnSquare"} />
                     <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
@@ -1390,7 +1397,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     "width=800,height=450,status=no"
                 );
             }}>
-                <Button width="160px">
+                <Button width="220px">
                     <Icon name={"heroArrowTopRightOnSquare"} />
                     <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
