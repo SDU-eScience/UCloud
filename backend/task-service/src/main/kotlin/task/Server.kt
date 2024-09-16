@@ -6,7 +6,6 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.task.rpc.TaskController
 import dk.sdu.cloud.task.services.SubscriptionService
-import dk.sdu.cloud.task.services.TaskAsyncDao
 import dk.sdu.cloud.task.services.TaskService
 import kotlinx.coroutines.GlobalScope
 
@@ -17,7 +16,7 @@ class Server(override val micro: Micro) : CommonServer {
         val db = AsyncDBSessionFactory(micro)
         val broadcastingStream = BroadcastingStream(micro)
         val subscriptionService = SubscriptionService(broadcastingStream, GlobalScope)
-        val taskService = TaskService(db, TaskAsyncDao(), subscriptionService)
+        val taskService = TaskService(db, subscriptionService)
 
         with(micro.server) {
             configureControllers(
