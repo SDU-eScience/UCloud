@@ -51,30 +51,31 @@ func RegisterProducts(products []apm.ProductV2) {
 
 	for categoryId, catItems := range newProducts {
 		newCategory := newCategories[categoryId]
-		oldCategory := existingCategories[categoryId]
+		oldCategory, exists := existingCategories[categoryId]
+		if exists {
+			if newCategory.AccountingUnit != oldCategory.AccountingUnit {
+				log.Error(
+					"Product with category %v has changed accounting unit which is not allowed. Please create a new category instead.",
+					categoryId,
+				)
+				os.Exit(1)
+			}
 
-		if newCategory.AccountingUnit != oldCategory.AccountingUnit {
-			log.Error(
-				"Product with category %v has changed accounting unit which is not allowed. Please create a new category instead.",
-				categoryId,
-			)
-			os.Exit(1)
-		}
+			if newCategory.AccountingFrequency != oldCategory.AccountingFrequency {
+				log.Error(
+					"Product with category %v has changed accounting frequency which is not allowed. Please create a new category instead.",
+					categoryId,
+				)
+				os.Exit(1)
+			}
 
-		if newCategory.AccountingFrequency != oldCategory.AccountingFrequency {
-			log.Error(
-				"Product with category %v has changed accounting frequency which is not allowed. Please create a new category instead.",
-				categoryId,
-			)
-			os.Exit(1)
-		}
-
-		if newCategory.FreeToUse != oldCategory.FreeToUse {
-			log.Error(
-				"Product with category %v has changed freeToUse flag which is not allowed. Please create a new category instead.",
-				categoryId,
-			)
-			os.Exit(1)
+			if newCategory.FreeToUse != oldCategory.FreeToUse {
+				log.Error(
+					"Product with category %v has changed freeToUse flag which is not allowed. Please create a new category instead.",
+					categoryId,
+				)
+				os.Exit(1)
+			}
 		}
 
 		var items []apm.ProductV2

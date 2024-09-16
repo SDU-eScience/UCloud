@@ -29,12 +29,16 @@ func InitCompute() ctrl.JobsService {
 	loadComputeProducts()
 
 	SlurmClient = slurmcli.NewClient()
-	if SlurmClient == nil {
+	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
 		go func() {
+			if len(Machines) == 0 {
+				return
+			}
+
 			for util.IsAlive {
 				loopComputeMonitoring()
 				loopAccounting()

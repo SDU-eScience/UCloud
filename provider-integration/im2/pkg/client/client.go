@@ -201,9 +201,10 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return ""
 	}
 
-	refreshReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/auth/providers/refresh", c.BasePath), bytes.NewBuffer(refreshReqBodyBytes))
+	uri := fmt.Sprintf("%v/auth/providers/refresh", c.BasePath)
+	refreshReq, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(refreshReqBodyBytes))
 	if err != nil {
-		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
+		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token! (Uri=%v)", err, uri)
 		return ""
 	}
 
@@ -214,7 +215,7 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 	}
 
 	if !isOkay(resp.StatusCode) {
-		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token!", resp.StatusCode)
+		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token! (Uri=%v)", resp.StatusCode, uri)
 		return ""
 	}
 
