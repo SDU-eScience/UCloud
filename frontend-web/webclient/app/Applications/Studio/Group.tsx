@@ -63,7 +63,7 @@ export const AppGroup: React.FunctionComponent = () => {
     const fetchCategories = () => {
         if (!group.data) return;
         fetchAll(next => {
-            const categories = callAPI(AppStore.browseCategories({repository: group.data!!.specification.repository, itemsPerPage: 250, next}));
+            const categories = callAPI(AppStore.browseCategories({itemsPerPage: 250, next}));
             
             if (!didCancel.current) {
                 categories.then(fetched => setCategories(fetched.items));

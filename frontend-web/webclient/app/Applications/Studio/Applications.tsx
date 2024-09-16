@@ -154,7 +154,7 @@ export const App: React.FunctionComponent = () => {
     useEffect(() => {
         if (apps.data.items.length < 1) return;
 
-        setGroups(AppStore.browseGroups({itemsPerPage: 1000, repository: apps.data.items[0].metadata.repository}));
+        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
     }, [apps.data.items]);
 
     useSetRefreshFunction(refresh);
