@@ -33,7 +33,7 @@ const List: React.FunctionComponent<BoxProps & {
     if (props.childPadding) style["--listChildPadding"] = extractSize(props.childPadding);
     return <div
         className={ListClass}
-        data-bordered={bordered !== false}
+        data-bordered={bordered}
         children={props.children}
         style={style}
     />;

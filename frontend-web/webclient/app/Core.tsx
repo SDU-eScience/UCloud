@@ -56,6 +56,7 @@ const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Add"));
 const GrantEditor = React.lazy(() => import("@/Grants/Editor"));
 const ResourceUsage = React.lazy(() => import("@/Accounting/Usage"));
 const ResourceAllocations = React.lazy(() => import("@/Accounting/Allocations"));
+const Connection = React.lazy(() => import("@/Providers/Connection"));
 
 import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
@@ -172,6 +173,7 @@ const Core = (): React.ReactNode => (
                         <Route path="/admin/providers/register"
                             element={React.createElement(requireAuth(RegisterProvider))} />
 
+                        <Route path={"/connection"} element={React.createElement(requireAuth(Connection))} />
                         <Route path="/providers/connect"
                             element={React.createElement(requireAuth(ProviderConnection))} />
                         <Route path="/providers/create" element={React.createElement(requireAuth(CreateProvider))} />

@@ -23,18 +23,33 @@ func (f *Frame) AppendField(title string, value string) {
 	f.fields = append(f.fields, frameField{title, value})
 }
 
+func (f *Frame) AppendSeparator() {
+	f.AppendField(frameSeparator, frameSeparator)
+}
+
+func (f *Frame) AppendTitle(title string) {
+	if f.title == "" {
+		f.Title(title)
+	} else {
+		f.AppendField(titleHint, title)
+	}
+}
+
+const frameSeparator = "SEPSEPSEP"
+const titleHint = "TTLTTLTTL"
+
 func (f *Frame) String() string {
 	ptyCols, _, isPty := safeQueryPtySize()
 	builder := strings.Builder{}
 
-	maxTitleSize := 0
+	maxFieldSize := 0
 	maxValueSize := 0
 	for _, field := range f.fields {
 		titleLen := len(field.Title)
 		valueLen := len(field.Value)
 
-		if titleLen > maxTitleSize {
-			maxTitleSize = titleLen
+		if titleLen > maxFieldSize {
+			maxFieldSize = titleLen
 		}
 
 		if valueLen > maxValueSize {
@@ -42,48 +57,121 @@ func (f *Frame) String() string {
 		}
 	}
 
-	margin := 3
-	spaceRequired := maxTitleSize + maxValueSize
-	if ptyCols-margin > spaceRequired {
-		remainingSpace := (ptyCols - spaceRequired) / 2
-
-		maxTitleSize += remainingSpace
-		maxValueSize += remainingSpace
+	if maxFieldSize < 25 {
+		maxFieldSize = 25
 	}
 
-	spaceRequired = maxTitleSize + maxValueSize
-	totalSpace := spaceRequired + margin
+	builder.WriteString(boxNwCorner)
+	builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-2))
+	builder.WriteString(boxNeCorner)
+	builder.WriteString("\n")
 
 	{
 		titleLength := len(f.title)
-		padding := (totalSpace - margin - titleLength) / 2
+		padding := (ptyCols - titleLength - 2) / 2
+		paddingRem := (ptyCols - titleLength - 2) % 2
 
 		titleBuilder := strings.Builder{}
+		titleBuilder.WriteString(boxVerticalBar)
 		if padding > 0 {
 			titleBuilder.WriteString(strings.Repeat(" ", padding))
 		}
 		titleBuilder.WriteString(f.title)
 		if padding > 0 {
-			titleBuilder.WriteString(strings.Repeat(" ", padding))
+			titleBuilder.WriteString(strings.Repeat(" ", padding+paddingRem))
 		}
+		titleBuilder.WriteString(boxVerticalBar)
 		titleBuilder.WriteString("\n")
 
 		builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, titleBuilder.String()))
 	}
-	builder.WriteString(strings.Repeat("-", totalSpace-margin))
+	builder.WriteString(boxVerticalRight)
+	builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+	builder.WriteString(boxHorizontalDown)
+	builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+	builder.WriteString(boxVerticalLeft)
 	builder.WriteString("\n")
 
-	for _, field := range f.fields {
-		builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, field.Title))
-		titlePadding := maxTitleSize - len(field.Title)
-		if titlePadding > 0 {
-			builder.WriteString(strings.Repeat(" ", titlePadding))
-		}
-		builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, " | "))
+	for i, field := range f.fields {
+		if field.Title == frameSeparator && field.Value == frameSeparator {
+			if i == 0 || i == len(f.fields)-1 {
+				// Do not do anything with separators on the first or last row. This would just result in a double
+				// separator which looks weird and almost certainly not what was intended.
+				continue
+			}
 
-		builder.WriteString(field.Value)
-		builder.WriteString("\n")
+			if i < len(f.fields)-1 && (f.fields[i+1].Title == titleHint || f.fields[i+1].Title == frameSeparator) {
+				continue
+			}
+
+			builder.WriteString(boxVerticalRight)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+			builder.WriteString(boxCross)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+			builder.WriteString(boxVerticalLeft)
+			builder.WriteString("\n")
+		} else if field.Title == titleHint {
+			builder.WriteString(boxVerticalRight)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+			builder.WriteString(boxHorizontalUp)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+			builder.WriteString(boxVerticalLeft)
+			builder.WriteString("\n")
+
+			{
+				titleLength := len(field.Value)
+				padding := (ptyCols - titleLength - 2) / 2
+				paddingRem := (ptyCols - titleLength - 2) % 2
+
+				titleBuilder := strings.Builder{}
+				titleBuilder.WriteString(boxVerticalBar)
+				if padding > 0 {
+					titleBuilder.WriteString(strings.Repeat(" ", padding))
+				}
+				titleBuilder.WriteString(field.Value)
+				if padding > 0 {
+					titleBuilder.WriteString(strings.Repeat(" ", padding+paddingRem))
+				}
+				titleBuilder.WriteString(boxVerticalBar)
+				titleBuilder.WriteString("\n")
+
+				builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, titleBuilder.String()))
+			}
+			builder.WriteString(boxVerticalRight)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+			builder.WriteString(boxHorizontalDown)
+			builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+			builder.WriteString(boxVerticalLeft)
+			builder.WriteString("\n")
+		} else {
+			builder.WriteString(boxVerticalBar)
+			builder.WriteString(" ")
+
+			builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, field.Title))
+			titlePadding := maxFieldSize - len(field.Title)
+			if titlePadding > 0 {
+				builder.WriteString(strings.Repeat(" ", titlePadding))
+			}
+
+			builder.WriteString(boxVerticalBar)
+			builder.WriteString(" ")
+			builder.WriteString(field.Value)
+
+			spaceRem := ptyCols - (len(field.Title) + 2 + titlePadding + len(field.Value) + 2)
+			if spaceRem > 0 {
+				builder.WriteString(strings.Repeat(" ", spaceRem-1))
+			}
+			builder.WriteString(boxVerticalBar)
+			builder.WriteString("\n")
+		}
 	}
+
+	builder.WriteString(boxSwCorner)
+	builder.WriteString(strings.Repeat(boxHorizontalBar, maxFieldSize+1))
+	builder.WriteString(boxHorizontalUp)
+	builder.WriteString(strings.Repeat(boxHorizontalBar, ptyCols-maxFieldSize-4))
+	builder.WriteString(boxSeCorner)
+	builder.WriteString("\n")
 
 	return builder.String()
 }

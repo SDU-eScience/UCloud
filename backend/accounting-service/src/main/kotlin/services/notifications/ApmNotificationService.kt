@@ -38,7 +38,7 @@ class ApmNotificationService(
     private val projectsUpdated = MutableSharedFlow<Project>()
 
     init {
-        projects.addUpdateHandler { projects ->
+        projects.addUpdateHandler { projects, _ ->
             projects.forEach { project ->
                 projectsUpdated.emit(project)
             }
@@ -143,7 +143,10 @@ class ApmNotificationService(
                     infoBuf = bufferPool.borrow()
                 }
 
+                var phase = ""
                 try {
+                    phase = "init"
+
                     // The information sets we intend to send after this update
                     // -------------------------------------------------------------------------------------------------
                     // NOTE(Dan): Wallets are being written directly into walletBuf
@@ -203,6 +206,7 @@ class ApmNotificationService(
 
                     // Project updates
                     // -------------------------------------------------------------------------------------------------
+                    phase = "project updates"
                     while (true) {
                         val updatedProject = projectUpdates.tryReceive().getOrNull() ?: break
                         var isRelevant = projectIsRelevant[updatedProject.id]
@@ -229,6 +233,7 @@ class ApmNotificationService(
                     // initialization order at the provider. For example, a provider will receive information about
                     // projects and allocations before the user connects. But the provider needs to initialize project
                     // and allocations after the user has connected.
+                    phase = "user replay requests"
                     while (true) {
                         val userToReplay = userReplayRequests.tryReceive().getOrNull() ?: break
                         val card = idCards.fetchIdCard(
@@ -240,10 +245,13 @@ class ApmNotificationService(
                                 card.adminOf.map { idCards.lookupPid(it) }.filterNotNull()).toSet() + null
 
                         for (project in projects) {
-                            val idCard = idCards.fetchIdCard(
-                                ActorAndProject(Actor.SystemOnBehalfOfUser(userToReplay), project),
-                                allowCached = true
-                            )
+                            val idCard = withRetries(2) {
+                                phase = "lookup user card $userToReplay $project $it"
+                                idCards.fetchIdCard(
+                                    ActorAndProject(Actor.SystemOnBehalfOfUser(userToReplay), project),
+                                    allowCached = it == 0,
+                                )
+                            }
 
                             val wallets = accounting.sendRequest(AccountingRequest.BrowseWallets(idCard))
                             for (wallet in wallets) {
@@ -271,6 +279,7 @@ class ApmNotificationService(
 
                     // Updated wallets
                     // -------------------------------------------------------------------------------------------------
+                    phase = "updated wallets"
                     accounting.sendRequest(
                         AccountingRequest.ForEachUpdatedWallet(
                             IdCard.System,
@@ -300,6 +309,7 @@ class ApmNotificationService(
 
                     // Send info sets
                     // -------------------------------------------------------------------------------------------------
+                    phase = "send info sets"
                     if (usersToSend.isNotEmpty() || projectsToSend.isNotEmpty() || categoriesToSend.isNotEmpty()) {
                         for (userId in usersToSend) {
                             val user = usersInverse.getValue(userId)
@@ -313,6 +323,7 @@ class ApmNotificationService(
                             infoBuf.put(ApmNotifications.OP_PROJECT)
                             infoBuf.putInt(projectId)
                             infoBuf.putLong(project.modifiedAt)
+                            println("Sending project $projectId -> ${project.id}")
                             infoBuf.putString(defaultMapper.encodeToString(Project.serializer(), project))
                         }
 
@@ -330,13 +341,14 @@ class ApmNotificationService(
 
                     // Send wallet
                     // -------------------------------------------------------------------------------------------------
+                    phase = "send wallet"
                     walletBuf.flip()
                     if (walletBuf.remaining() > 0) {
                         session.send(Frame.Binary(true, walletBuf))
                         session.flush()
                     }
                 } catch (ex: Throwable) {
-                    log.warn("Failed while processing ApmNotifications for $providerId: ${ex.toReadableStacktrace()}")
+                    log.warn("Failed while processing ApmNotifications for $providerId in phase $phase: ${ex.toReadableStacktrace()}")
                 } finally {
                     bufferPool.recycle(infoBuf)
                     bufferPool.recycle(walletBuf)

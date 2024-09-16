@@ -217,6 +217,20 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
     const {status} = project;
 
+    if (project.status.personalProviderProjectFor != null) {
+        return <MainContainer
+            main={
+                <>
+                    <Heading.h2>Unavailable for this project</Heading.h2>
+                    <p>
+                        This project belongs to a provider which does not support the accounting and project management
+                        features of UCloud. Try again with a different project.
+                    </p>
+                </>
+            }
+        />
+    }
+
     return <MainContainer
         key={project.id}
         header={
@@ -328,17 +342,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         </Flex>
                     </form>
                 </Card>
-
-                {/* Note(Jonas): Disabling for now  */}
-                {/* <Card>
-                    <ArchiveSingleProject
-                        isArchived={status.archived}
-                        projectId={projectId}
-                        projectRole={status.myRole!}
-                        title={project.specification.title}
-                        onSuccess={() => projectOps.reload()}
-                    />
-                </Card> */}
 
                 <Card>
                     <LeaveProject
@@ -519,79 +522,6 @@ function SubprojectSettings(props: AllowRenamingProps): React.ReactNode {
                         Allow subprojects to rename
                     </Label>
                 </Box>
-            </ActionBox>
-        )}
-    </>;
-}
-
-interface ArchiveSingleProjectProps {
-    isArchived: boolean;
-    projectRole: OldProjectRole;
-    projectId: string;
-    title: string;
-    onSuccess: () => void;
-}
-
-export function ArchiveSingleProject(props: ArchiveSingleProjectProps): React.ReactNode {
-    return <>
-        {props.projectRole === OldProjectRole.USER ? null : (
-            <ActionBox>
-                <Box flexGrow={1}>
-                    <Heading.h3>Project archival</Heading.h3>
-                    <Text>
-                        {!props.isArchived ? null : (
-                            <>
-                                Unarchiving a project will reverse the effects of archival.
-                                <ul>
-                                    <li>
-                                        Your projects will, once again, by visible to you and project
-                                        collaborators
-                                    </li>
-                                    <li>This action <i>is</i> reversible</li>
-                                </ul>
-                            </>
-                        )}
-                        {props.isArchived ? null : (
-                            <>
-                                You can archive a project if it is no longer relevant for your day-to-day work.
-
-                                <ul>
-                                    <li>
-                                        The project will, by default, be hidden for you and project
-                                        collaborators
-                                    </li>
-                                    <li>No data will be deleted from the project</li>
-                                    <li>This action <i>is</i> reversible</li>
-                                </ul>
-                            </>
-                        )}
-                    </Text>
-                </Box>
-                <Flex>
-                    <Button
-                        onClick={() => {
-                            addStandardDialog({
-                                title: "Are you sure?",
-                                message: `Are you sure you wish to ` +
-                                    `${props.isArchived ? "unarchive" : "archive"} ${props.title}?`,
-                                onConfirm: async () => {
-                                    const success = await callAPIWithErrorHandler(
-                                        props.isArchived ?
-                                            ProjectAPI.unarchive(bulkRequestOf({id: props.projectId})) :
-                                            ProjectAPI.archive(bulkRequestOf({id: props.projectId})));
-                                    if (success) {
-                                        props.onSuccess();
-                                        dialogStore.success();
-                                    }
-                                },
-                                addToFront: true,
-                                confirmText: `${props.isArchived ? "Unarchive" : "Archive"} project`
-                            });
-                        }}
-                    >
-                        {props.isArchived ? "Unarchive" : "Archive"}
-                    </Button>
-                </Flex>
             </ActionBox>
         )}
     </>;

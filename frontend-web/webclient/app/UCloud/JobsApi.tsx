@@ -12,7 +12,6 @@ import {BulkRequest, BulkResponse, compute, FindByStringId} from "@/UCloud/index
 import AppParameterValue = compute.AppParameterValue;
 import SimpleDuration = compute.SimpleDuration;
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {EnumFilter} from "@/Resource/Filter";
 import {stateToTitle} from "@/Applications/Jobs";
 import {Box, Flex, Icon, Text} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
@@ -27,7 +26,11 @@ import {ListRowStat} from "@/ui-components/List";
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
-import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
+import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+
+export interface DynamicParameters {
+    parametersByProvider: Record<string, ApplicationParameter[]>;
+}
 
 export interface JobBinding {
     kind: "BIND" | "UNBIND";
@@ -330,6 +333,12 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
         return apiUpdate(request, this.baseContext, "interactiveSession");
+    }
+
+    requestDynamicParameters(req: {
+        application: NameAndVersion
+    }): APICallParameters {
+        return apiUpdate(req, this.baseContext, "requestDynamicParameters")
     }
 }
 

@@ -14,6 +14,9 @@ import (
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/slurm"
+	"ucloud.dk/pkg/termio"
+	"ucloud.dk/pkg/util"
 
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/gateway"
@@ -32,8 +35,6 @@ func Launch() {
 		os.Exit(1)
 	}
 
-	_ = cfg.ReadPublicKey(*configDir)
-
 	mode := cfg.ServerModePlugin
 	pluginName := ""
 	switch flag.Arg(0) {
@@ -47,7 +48,7 @@ func Launch() {
 		mode = cfg.ServerModeProxy
 	default:
 		mode = cfg.ServerModePlugin
-		pluginName = flag.Arg(1)
+		pluginName = flag.Arg(0)
 	}
 
 	if !cfg.Parse(mode, *configDir) {
@@ -55,25 +56,47 @@ func Launch() {
 		return
 	}
 
-	userModeSecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
-	if mode == cfg.ServerModeUser && (!userModeSecretOk || userModeSecret == "") {
-		fmt.Printf("No user-Mode secret specified!\n")
-		os.Exit(1)
+	if pluginName != "" {
+		cfg.Mode = mode
+		switch cfg.Services.Type {
+		case cfg.ServicesSlurm:
+			slurm.HandleCli(pluginName)
+		}
+
+		return
 	}
 
-	_ = pluginName
+	envoySecret, userModeSecretOk := os.LookupEnv("UCLOUD_USER_SECRET")
+	if mode == cfg.ServerModeUser {
+		if !userModeSecretOk || envoySecret == "" {
+			termio.WriteLine("This command is used by IM/Server to spawn user instances. This is not intended for CLI use!")
+			termio.WriteLine("The program is terminating because no user-mode secret was specified!")
+			os.Exit(1)
+		}
+
+		// NOTE(Dan): Not security related, it just looks weird in the output of `env` on a user job. This is mostly
+		// done to avoid tickets.
+		envKeysToRemove := []string{
+			"SUDO_COMMAND",
+			"SUDO_GID",
+			"SUDO_USER",
+			"SUDO_UID",
+			"UCLOUD_USER_SECRET",
+		}
+		for _, key := range envKeysToRemove {
+			_ = os.Unsetenv(key)
+		}
+	}
+
+	if mode == cfg.ServerModeServer {
+		envoySecret = util.RandomToken(16)
+	}
+	cfg.OwnEnvoySecret = envoySecret
 
 	var dbPool *db.Pool = nil
 
 	gatewayConfigChannel := make(chan []byte)
 	if mode == cfg.ServerModeServer {
-		// TODO(Dan): Update the gateway to perform JWT validation. This should not (and must not) pass the JWT to the
-		//   upstreams. Gateway must be configured to send the user secret to all user instances. For the server
-		//  instance it must select a secret at random and use it for all subsequent requests. The secret must be
-		//  captured by all relevant requests and validated. The secret is used as a signal that Envoy has successfully
-		//  validated a JWT without passing on the JWT.
-		// TODO(Dan): Websockets are problematic here since they pass the bearer in the request message and not the
-		//   header.
 		gateway.Initialize(gateway.Config{
 			ListenAddress:   "0.0.0.0",
 			Port:            8889,
@@ -118,7 +141,7 @@ func Launch() {
 		Mode:                 mode,
 		GatewayConfigChannel: gatewayConfigChannel,
 		ConfigDir:            *configDir,
-		UserModeSecret:       userModeSecret,
+		UserModeSecret:       envoySecret,
 		MetricsHandler:       &metricsServerHandler,
 	}
 

@@ -35,6 +35,7 @@ export interface ProjectStatus {
     myRole?: ProjectRole | null;
     path?: string | null;
     needsVerification: boolean;
+    personalProviderProjectFor?: string | null;
 }
 
 export interface ProjectSpecification {

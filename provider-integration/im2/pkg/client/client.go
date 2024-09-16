@@ -201,9 +201,10 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 		return ""
 	}
 
-	refreshReq, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/auth/providers/refresh", c.BasePath), bytes.NewBuffer(refreshReqBodyBytes))
+	uri := fmt.Sprintf("%v/auth/providers/refresh", c.BasePath)
+	refreshReq, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(refreshReqBodyBytes))
 	if err != nil {
-		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token!", err)
+		log.Warn("Failed to create refresh request: %v. We are returning an invalid access token! (Uri=%v)", err, uri)
 		return ""
 	}
 
@@ -214,7 +215,7 @@ func (c *Client) RetrieveAccessTokenOrRefresh() string {
 	}
 
 	if !isOkay(resp.StatusCode) {
-		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token!", resp.StatusCode)
+		log.Warn("Failed to refresh authentication token: status=%v. We are returning an invalid access token! (Uri=%v)", resp.StatusCode, uri)
 		return ""
 	}
 
@@ -276,7 +277,7 @@ func callViaParameters(c *Client, name, baseContext, operation string, parameter
 		query = "?" + encodeQueryParameters(parameters)
 	}
 
-	request, err := http.NewRequest("GET", fmt.Sprintf("%v/%v/%v%v", c.BasePath, baseContext, operation, query), nil)
+	request, err := http.NewRequest("GET", fmt.Sprintf("%v%v/%v%v", c.BasePath, baseContext, operation, query), nil)
 	if err != nil || request == nil {
 		// TODO log this?
 		return Response{StatusCode: http.StatusBadGateway, Call: name}
@@ -298,7 +299,14 @@ func callViaJsonBody(c *Client, name, method, baseContext, operation string, pay
 		return Response{StatusCode: http.StatusBadRequest, Call: name}
 	}
 
-	request, err := http.NewRequest(method, fmt.Sprintf("%v/%v/%v", c.BasePath, baseContext, operation),
+	ctx := baseContext
+	if operation == "" {
+		ctx = strings.TrimSuffix(ctx, "/")
+	} else {
+		ctx += "/"
+	}
+
+	request, err := http.NewRequest(method, fmt.Sprintf("%v%v%v", c.BasePath, ctx, operation),
 		bytes.NewReader(payloadBytes))
 	if err != nil || request == nil {
 		return Response{StatusCode: http.StatusBadGateway, Call: name}

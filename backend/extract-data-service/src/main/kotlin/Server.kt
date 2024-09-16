@@ -7,6 +7,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.toTimestamp
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.time.LocalDate
@@ -89,6 +90,13 @@ class Server(override val micro: Micro) : CommonServer {
             if (args.contains("--data-collection")) {
                 try {
                     when {
+                        args.contains("--report-all") -> {
+                            getDates(args)
+                            deicReportService.reportAll(start, end)
+                            println("All reporting done")
+                            exitProcess(0)
+                        }
+
                         args.contains("--center") -> {
                             getDates(args)
                             deicReportService.reportCenter(start, end, false)
@@ -108,13 +116,15 @@ class Server(override val micro: Micro) : CommonServer {
                         }
 
                         args.contains("--center-daily-deic") -> {
+                            val file = File("/tmp/centerDaily.json")
                             getDates(args)
-                            deicReportService.reportCenterDailyDeic(start, end)
+                            deicReportService.reportCenterDailyDeic(start, end, file)
                             exitProcess(0)
                         }
 
                         args.contains("--person") -> {
-                            deicReportService.reportPerson()
+                            val file = File("/tmp/person.json")
+                            deicReportService.reportPerson(file)
                             exitProcess(0)
                         }
 
@@ -130,24 +140,42 @@ class Server(override val micro: Micro) : CommonServer {
                         }
 
                         args.contains("--usersActive") -> {
-                            val currentMonth = LocalDate.now().withDayOfMonth(1)
-                            var startDate = LocalDate.parse("2023-01-01")
-                            var endDate = startDate.plusMonths(4)
-                            while (startDate != currentMonth) {
-                                val start = startDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
-                                val end = endDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli()
+                            getDates(args)
+
+                            println("4 Months")
+
+                            var movingEnd = start
+                            while (start != end || start > end) {
+                                movingEnd = start.plusMonths(4)
                                 println(
-                                    "${startDate}->${endDate}: Users Active = ${
+                                    "${start}->${movingEnd}: Users Active = ${
                                         userActivityReport.elasticDataService.activeUsers(
-                                            start,
-                                            end
+                                            start.toTimestamp(),
+                                            movingEnd.toTimestamp()
                                         )
                                     }"
                                 )
 
-                                startDate = endDate
-                                endDate = startDate.plusMonths(1)
+                                start = start.plusMonths(1)
                             }
+
+                            println("Single Months")
+
+                            getDates(args)
+                            while (start != end || start > end) {
+                                movingEnd = start.plusMonths(1)
+                                println(
+                                    "${start}->${movingEnd}: Users Active = ${
+                                        userActivityReport.elasticDataService.activeUsers(
+                                            start.toTimestamp(),
+                                            movingEnd.toTimestamp()
+                                        )
+                                    }"
+                                )
+
+                                start = start.plusMonths(1)
+                            }
+
 
                             exitProcess(1)
                         }

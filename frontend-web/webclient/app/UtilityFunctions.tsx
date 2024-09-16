@@ -557,7 +557,7 @@ export function clamp(val: number, lower: number, upper: number): number {
 }
 
 // Note(Jonas): Intended to be some HTML friendly replacement to React where needed.
-// Not really tested, so attempt at own risk.
+// ~Not really tested, so attempt at own risk.~ somewhat tested now
 interface HTMLElementContent {
     tagType: keyof HTMLElementTagNameMap;
     style?: Partial<CSSStyleDeclaration>;
@@ -594,7 +594,7 @@ export function createHTMLElements<T extends HTMLElement>({children = [], ...roo
     }
 }
 export function bulkRequestOf<T>(...items: T[]): BulkRequest<T> {
-    return {"type": "bulk", items};
+    return {type: "bulk", items};
 }
 export function bulkResponseOf<T>(...items: T[]): BulkResponse<T> {
     return {responses: items};

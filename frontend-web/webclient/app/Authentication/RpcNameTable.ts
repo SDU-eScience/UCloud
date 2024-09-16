@@ -418,6 +418,7 @@ case '/api/hpc/tools': return 'hpc.tools.create';
 }
 break;
 }
-console.warn('Could not resolve RPC name, this will probably break something! A developer should run `./run.sh --run-script api-gen` from the backend', params);
+// NOTE(Dan): Not obvious that this will even be here in the future. Silencing this for now.
+// console.warn('Could not resolve RPC name, this will probably break something! A developer should run `./run.sh --run-script api-gen` from the backend', params);
 return null;
 }

@@ -1,17 +1,22 @@
 package gateway
 
 import (
+	_ "embed"
+	"encoding/json"
 	"fmt"
 	accesslogv3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	jwt "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/jwt_authn/v3"
 	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
+	"github.com/golang/protobuf/ptypes/any"
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"strings"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/util"
@@ -42,8 +47,57 @@ func createConfigurationSnapshot(
 	return snap
 }
 
+const jwtFilterName = "envoy.filters.http.jwt"
+
 func createListener(listenAddress string, port int) *listener.Listener {
-	// We will need this for later
+	serializedJwks, err := json.Marshal(cfg.Jwks)
+	checkCfg(err)
+	jwtAuth := &jwt.JwtAuthentication{
+		Providers: map[string]*jwt.JwtProvider{
+			"ucloud": {
+				Issuer: "cloud.sdu.dk",
+				JwksSourceSpecifier: &jwt.JwtProvider_LocalJwks{
+					LocalJwks: &core.DataSource{
+						Specifier: &core.DataSource_InlineString{
+							InlineString: string(serializedJwks),
+						},
+					},
+				},
+				Forward:              false,
+				ForwardPayloadHeader: "x-jwt-payload",
+			},
+		},
+		Rules: []*jwt.RequirementRule{{
+			Match: &route.RouteMatch{
+				PathSpecifier: &route.RouteMatch_Prefix{
+					Prefix: "/",
+				},
+			},
+			RequirementType: &jwt.RequirementRule_Requires{
+				Requires: &jwt.JwtRequirement{
+					RequiresType: &jwt.JwtRequirement_RequiresAny{
+						RequiresAny: &jwt.JwtRequirementOrList{
+							Requirements: []*jwt.JwtRequirement{
+								{
+									RequiresType: &jwt.JwtRequirement_ProviderName{
+										ProviderName: "ucloud",
+									},
+								},
+								{
+									RequiresType: &jwt.JwtRequirement_AllowMissing{
+										AllowMissing: &emptypb.Empty{},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}},
+	}
+
+	jwtAuthPb, err := anypb.New(jwtAuth)
+	checkCfg(err)
 
 	routerConfig, err := anypb.New(&router.Router{})
 	checkCfg(err)
@@ -90,6 +144,12 @@ func createListener(listenAddress string, port int) *listener.Listener {
 		},
 		HttpFilters: []*hcm.HttpFilter{
 			{
+				Name: jwtFilterName,
+				ConfigType: &hcm.HttpFilter_TypedConfig{
+					TypedConfig: jwtAuthPb,
+				},
+			},
+			{
 				Name: "envoy.filters.http.router",
 				ConfigType: &hcm.HttpFilter_TypedConfig{
 					TypedConfig: routerConfig,
@@ -102,6 +162,10 @@ func createListener(listenAddress string, port int) *listener.Listener {
 				RouteConfigName: "local_route",
 				ConfigSource: &core.ConfigSource{
 					ResourceApiVersion: resource.DefaultAPIVersion,
+					InitialFetchTimeout: &duration.Duration{
+						Seconds: 0,
+						Nanos:   1000000 * 500,
+					},
 					ConfigSourceSpecifier: &core.ConfigSource_ApiConfigSource{
 						ApiConfigSource: &core.ApiConfigSource{
 							TransportApiVersion:       resource.DefaultAPIVersion,
@@ -232,7 +296,10 @@ func createClusters(clusters map[string]*EnvoyCluster) []types.Resource {
 
 func formatRoute(r *EnvoyRoute) []*route.Route {
 	createBaseRoute := func() *route.Route {
-		return &route.Route{
+		result := &route.Route{
+			RequestHeadersToRemove: []string{
+				"Authorization",
+			},
 			Action: &route.Route_Route{
 				Route: &route.RouteAction{
 					ClusterSpecifier: &route.RouteAction_Cluster{
@@ -247,6 +314,37 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 				},
 			},
 		}
+
+		if r.EnvoySecretKey != "" {
+			result.RequestHeadersToAdd = append(result.RequestHeadersToAdd, &core.HeaderValueOption{
+				Header: &core.HeaderValue{
+					Key:   "ucloud-secret",
+					Value: r.EnvoySecretKey,
+				},
+				AppendAction: core.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
+			})
+		}
+		return result
+	}
+
+	disableJwtFilter := func(r *route.Route) {
+		m := r.TypedPerFilterConfig
+		if m == nil {
+			m = make(map[string]*any.Any)
+		}
+
+		perRouteFilter := &jwt.PerRouteConfig{
+			RequirementSpecifier: &jwt.PerRouteConfig_Disabled{
+				Disabled: true,
+			},
+		}
+
+		routeFilterPb, err := anypb.New(perRouteFilter)
+		checkCfg(err)
+
+		m[jwtFilterName] = routeFilterPb
+
+		r.TypedPerFilterConfig = m
 	}
 
 	result := createBaseRoute()
@@ -307,6 +405,7 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 		}
 
 	case RouteTypeVnc:
+		result.RequestHeadersToRemove = nil
 		result.Match = &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
@@ -320,6 +419,8 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 		}
 
 	case RouteTypeAuthorize:
+		result.RequestHeadersToRemove = nil
+		disableJwtFilter(result)
 		result.Match = &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
@@ -327,6 +428,8 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 		}
 
 	case RouteTypeIngress:
+		result.RequestHeadersToRemove = nil
+		disableJwtFilter(result)
 		matchers := []*route.HeaderMatcher{{
 			Name: ":authority",
 			HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{

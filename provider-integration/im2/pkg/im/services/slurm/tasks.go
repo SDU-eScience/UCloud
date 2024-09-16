@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -163,7 +164,13 @@ func RetrieveCurrentTasks(driveId string) []FileTask {
 }
 
 func findAndInitTaskFolder(driveId string) string {
-	folder, _ := UCloudToInternal(fmt.Sprintf("/%s/%s", driveId, taskFolder))
+	folder, err := os.UserHomeDir()
+	if err == nil {
+		folder = filepath.Join(folder, taskFolder)
+	} else {
+		dir, _ := UCloudToInternal(fmt.Sprintf("/%s/%s", driveId, taskFolder))
+		folder = dir
+	}
 
 	if _, err := os.Stat(folder); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(folder, os.FileMode(0770)); err != nil {

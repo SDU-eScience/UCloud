@@ -38,6 +38,7 @@ type Job struct {
 	TimeLimit int            `slurm:"Timelimit"`
 	AllocTRES map[string]int `slurm:"AllocTRES"`
 	QoS       string         `slurm:"QOS"`
+	NodeList  string         `slurm:"NodeList"`
 }
 
 func NewAccount() *Account {

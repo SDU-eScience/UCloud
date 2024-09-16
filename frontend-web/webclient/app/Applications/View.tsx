@@ -1,6 +1,6 @@
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
-import {Box, Button, Flex, Icon, Tooltip} from "@/ui-components";
+import {Box, Flex, Icon, Tooltip} from "@/ui-components";
 import Text from "@/ui-components/Text";
 import * as Pages from "./Pages";
 import {useNavigate} from "react-router";

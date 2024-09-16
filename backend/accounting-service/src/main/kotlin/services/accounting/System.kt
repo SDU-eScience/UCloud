@@ -27,8 +27,6 @@ import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.math.BigInteger
-import java.text.DateFormat
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.Comparator
@@ -210,9 +208,8 @@ class AccountingSystem(
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
-                                        is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
-                                            msg
-                                        )
+                                        is AccountingRequest.RetrieveProviderAllocations ->
+                                            retrieveProviderAllocations(msg)
 
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                         is AccountingRequest.SystemCharge -> systemCharge(msg)
@@ -254,6 +251,8 @@ class AccountingSystem(
                                                 Response.ok(Unit)
                                             }
                                         }
+
+                                        is AccountingRequest.FillUpPersonalProviderProject -> fillUpPersonalProviderProject(msg)
                                     }
                                 }
                             } catch (e: Throwable) {
@@ -304,7 +303,44 @@ class AccountingSystem(
         }
     }
 
-    private fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {
+    // See issue #4328 for more information
+    private suspend fun fillUpPersonalProviderProject(msg: AccountingRequest.FillUpPersonalProviderProject): Response<Unit> {
+        if (msg.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val productIds = productCache.productProviderToProductIds(msg.provider) ?: return Response.ok(Unit)
+        val categories = productIds
+            .mapNotNull { productCache.productIdToProduct(it) }
+            .map { it.category.toId() }
+            .toSet()
+
+        val now = Time.now()
+        val inTheFuture = now + (1000L * 60 * 60 * 24 * 365 * 1000)
+        for (category in categories) {
+            val wallet = authorizeAndLocateWallet(
+                IdCard.System,
+                msg.projectId,
+                category,
+                ActionType.WALLET_ADMIN,
+            ) ?: continue
+
+            if (wallet.allocationsByParent.isEmpty()) {
+                insertAllocation(
+                    now,
+                    wallet,
+                    parentWalletId = 0,
+                    quota = 1,
+                    start = now,
+                    end = inTheFuture,
+                    grantedIn = null,
+                    autoCommit = true,
+                )
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private suspend fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {
         if (msg.idCard != IdCard.System) {
             return Response.error(HttpStatusCode.Forbidden, "Forbidden")
         } else {
@@ -387,7 +423,6 @@ class AccountingSystem(
         val wallets = walletsByOwner.getOrPut(internalOwner.id) { ArrayList() }
         val existingWallet = wallets.find { it.category.toId() == categoryId }
 
-        //Permission check
         val ownerUid = if (internalOwner.isProject()) {
             null
         } else {
@@ -539,12 +574,25 @@ class AccountingSystem(
         val now = Time.now()
         val idCard = request.idCard
         val parentOwner = request.ownerOverride ?: lookupOwner(idCard)
-        ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
+            ?: return Response.error(HttpStatusCode.Forbidden, "Could not find information about your project (${idCard})")
         val internalParentWallet = authorizeAndLocateWallet(idCard, parentOwner, request.category, ActionType.READ)
             ?: return Response.error(HttpStatusCode.Forbidden, "You are not allowed to create this sub-allocation")
 
         if (request.ownerOverride != null && idCard != IdCard.System) {
             return Response.error(HttpStatusCode.Forbidden, "You are not allowed to bypass ownership check!")
+        }
+
+        // NOTE(Dan): Personal provider projects cannot sub-allocate (see #4328)
+        val parentOwnerInfo = ownersById.getValue(internalParentWallet.ownedBy)
+        if (parentOwnerInfo.isProject()) {
+            val parentPid = idCardService.lookupPidFromProjectId(parentOwnerInfo.reference)
+                ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+            val projectInfo = idCardService.lookupProjectInformation(parentPid)
+                ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+
+            if (projectInfo.personalProviderProjectFor != null) {
+                return Response.error(HttpStatusCode.Forbidden, "this project does not allow sub-allocations")
+            }
         }
 
         toCheck.add(internalParentWallet.id)
@@ -855,7 +903,7 @@ class AccountingSystem(
         return chargeWallet(wallet, request.amount, request.isDelta, request.scope, request.scope)
     }
 
-    private fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
+    private suspend fun systemCharge(request: AccountingRequest.SystemCharge): Response<Unit> {
         val wallet = walletsById[request.walletId.toInt()]
             ?: return Response.error(HttpStatusCode.NotFound, "Unknown wallet: ${request.walletId}")
 
@@ -900,7 +948,7 @@ class AccountingSystem(
         return Response.ok(Unit)
     }
 
-    private fun chargeWallet(
+    private suspend fun chargeWallet(
         wallet: InternalWallet,
         amount: Long,
         isDelta: Boolean,
@@ -908,6 +956,19 @@ class AccountingSystem(
         scopeExplanation: String? = null,
         debug: Boolean = false,
     ): Response<Unit> {
+        // NOTE(Dan): Charges for personal provider projects are ignored (see #4328)
+        val owner = ownersById.getValue(wallet.ownedBy)
+        if (owner.isProject()) {
+            val pid = idCardService.lookupPidFromProjectId(owner.reference)
+                ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+            val projectInfo = idCardService.lookupProjectInformation(pid)
+                ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+
+            if (projectInfo.personalProviderProjectFor != null) {
+                return Response.ok(Unit)
+            }
+        }
+
         try {
             if (debug) {
                 val now = Time.now()
@@ -1228,7 +1289,7 @@ class AccountingSystem(
         return g
     }
 
-    private fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {
+    private suspend fun scanRetirement(request: AccountingRequest.ScanRetirement): Response<Unit> {
         if (request.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
 
         val now = Time.now()
@@ -1244,7 +1305,7 @@ class AccountingSystem(
         return Response.ok(Unit)
     }
 
-    private fun retireAllocation(allocationId: Int) {
+    private suspend fun retireAllocation(allocationId: Int) {
         val alloc = allocations[allocationId] ?: return
         val wallet = walletsById.getValue(alloc.belongsToWallet)
         val group = wallet.allocationsByParent.getValue(alloc.parentWallet)
@@ -1368,7 +1429,8 @@ class AccountingSystem(
                     wallet.category,
                     it.start,
                     it.end,
-                    it.quota
+                    it.quota,
+                    it.grantedIn?.let { id -> AccountingV2.BrowseProviderAllocations.GrantInformation(id) }
                 )
             }
             .toList()

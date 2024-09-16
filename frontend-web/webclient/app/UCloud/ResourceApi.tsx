@@ -25,6 +25,7 @@ import {Product, ProductType, ProductV2} from "@/Accounting";
 import {NavigateFunction} from "react-router";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import * as Accounting from "@/Accounting";
+import {EmbeddedSettings} from "@/ui-components/ResourceBrowser";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -164,7 +165,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
     onSelectRestriction?: (resource: Res) => boolean | string;
-    embedded: boolean;
+    embedded?: EmbeddedSettings;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
@@ -221,7 +222,7 @@ export abstract class ResourceApi<Res extends Resource,
         reload?: () => void;
         closeProperties?: () => void;
         api: ResourceApi<Res, Prod, Spec, Update, Flags, Status, Support>;
-        embedded?: boolean;
+        embedded?: EmbeddedSettings;
     }> = props => <ResourceProperties {...props} api={this} />
 
     protected constructor(namespace: string) {

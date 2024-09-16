@@ -1,42 +1,41 @@
 package slurm
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
-	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
-var idToDriveCache = util.NewCache[string, orc.Drive](24 * time.Hour)
 var localPathToDriveCache = util.NewCache[string, orc.Drive](24 * time.Hour)
 
 func CacheDrive(drive orc.Drive) {
-	idToDriveCache.Set(drive.Id, drive)
 	localPathToDriveCache.Set(DriveToLocalPath(drive), drive)
 }
 
 func RetrieveDrive(driveId string) (orc.Drive, bool) {
-	return idToDriveCache.Get(driveId, func() (orc.Drive, error) {
-		if cfg.Mode == cfg.ServerModeUser {
-			drive, err := retrieveDriveByIdIpc.Invoke(fnd.FindByStringId{Id: driveId})
-			return drive, err
-		} else {
-			return orc.RetrieveDrive(driveId)
-		}
-	})
+	res, ok := ctrl.RetrieveDrive(driveId)
+	if ok {
+		return *res, true
+	} else {
+		return orc.Drive{}, false
+	}
 }
 
 func DriveToLocalPath(drive orc.Drive) string {
-	localPath, _ := strings.CutPrefix(drive.ProviderGeneratedId, cfg.Provider.Id+"-")
-	return localPath
+	idx := strings.Index(drive.ProviderGeneratedId, "\n")
+	if idx <= 0 || idx+1 >= len(drive.ProviderGeneratedId) {
+		localPath, _ := strings.CutPrefix(drive.ProviderGeneratedId, cfg.Provider.Id+"-")
+		return localPath
+	}
+	return drive.ProviderGeneratedId[idx+1:]
 }
 
-func ResolveDriveByPath(path string) (orc.Drive, bool) {
+func ResolveDriveByLocalPath(path string) (orc.Drive, bool) {
 	cleanPath := filepath.Clean(path)
 	parents := util.Parents(cleanPath)
 	for i := len(parents) - 1; i >= 0; i-- {
@@ -46,38 +45,35 @@ func ResolveDriveByPath(path string) (orc.Drive, bool) {
 		}
 	}
 
-	_, result, ok := idToDriveCache.FindEntry(func(drive orc.Drive) bool {
-		return drive.ProviderGeneratedId == cfg.Provider.Id+"-"+cleanPath
-	})
+	prefix := cfg.Provider.Id + "-"
 
-	if ok {
-		return result, true
-	}
+	var prefixes []string
+	var suffixes []string
 
-	var potentialIds []string
+	prefixes = append(prefixes, prefix)
+	suffixes = append(suffixes, cleanPath)
+
 	for _, parent := range parents {
-		potentialId := fmt.Sprintf(
-			"%v-%v",
-			cfg.Provider.Id,
-			parent,
-		)
-
-		potentialIds = append(potentialIds, potentialId)
+		prefixes = append(prefixes, prefix)
+		suffixes = append(suffixes, parent)
 	}
 
-	return orc.Drive{}, false
+	res, ok := ctrl.RetrieveDriveByProviderId(prefixes, suffixes)
+	if ok {
+		return *res, true
+	} else {
+		return orc.Drive{}, false
+	}
+}
 
-	/*
-		// TODO Need to use server instance to do something along the lines of this:
+func ResolveDriveByUCloudPath(path string) (orc.Drive, bool) {
+	components := util.Components(path)
+	if len(components) == 0 {
+		return orc.Drive{}, false
+	}
 
-		drives, err := orc.BrowseDrives("", orc.BrowseDrivesFlags{
-			FilterProviderIds: util.OptValue(strings.Join(potentialIds, ",")),
-		})
-
-		if err != nil {
-
-		}
-	*/
+	driveId := components[0]
+	return RetrieveDrive(driveId)
 }
 
 func UCloudToInternal(path string) (string, bool) {
@@ -124,14 +120,18 @@ func UCloudToInternalWithDrive(drive orc.Drive, path string) string {
 
 func InternalToUCloud(path string) (string, bool) {
 	cleanPath := filepath.Clean(path)
-	drive, ok := ResolveDriveByPath(cleanPath)
+	drive, ok := ResolveDriveByLocalPath(cleanPath)
 	if !ok {
 		return "", false
 	}
 
 	basePath := DriveToLocalPath(drive) + "/"
 	withoutBasePath, _ := strings.CutPrefix(cleanPath, basePath)
-	return "/" + drive.Id + "/" + withoutBasePath, true
+	if cleanPath+"/" == basePath {
+		return "/" + drive.Id, true
+	} else {
+		return "/" + drive.Id + "/" + withoutBasePath, true
+	}
 }
 
 func InternalToUCloudWithDrive(drive orc.Drive, path string) string {

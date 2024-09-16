@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Image, Markdown, Relative} from "@/ui-components";
+import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";

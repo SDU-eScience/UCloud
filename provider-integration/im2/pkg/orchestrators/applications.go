@@ -3,6 +3,7 @@ package orchestrators
 import (
 	"encoding/json"
 	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/util"
 )
 
 type NameAndVersion struct {
@@ -46,17 +47,44 @@ const (
 )
 
 type ToolDescription struct {
-	Info                  NameAndVersion `json:"info"`
-	DefaultNumberOfNodes  int            `json:"defaultNumberOfNodes"`
-	DefaultTimeAllocation SimpleDuration `json:"defaultTimeAllocation"`
-	RequiredModules       []string       `json:"requiredModules"`
-	Authors               []string       `json:"authors"`
-	Title                 string         `json:"title"`
-	Description           string         `json:"description"`
-	Backend               ToolBackend    `json:"backend"`
-	License               string         `json:"license"`
-	Image                 string         `json:"image,omitempty"`
-	SupportedProviders    []string       `json:"supportedProviders,omitempty"`
+	Info                  NameAndVersion                     `json:"info"`
+	DefaultNumberOfNodes  int                                `json:"defaultNumberOfNodes"`
+	DefaultTimeAllocation SimpleDuration                     `json:"defaultTimeAllocation"`
+	RequiredModules       []string                           `json:"requiredModules"`
+	Authors               []string                           `json:"authors"`
+	Title                 string                             `json:"title"`
+	Description           string                             `json:"description"`
+	Backend               ToolBackend                        `json:"backend"`
+	License               string                             `json:"license"`
+	Image                 string                             `json:"image,omitempty"`
+	SupportedProviders    []string                           `json:"supportedProviders,omitempty"`
+	BuildInstructions     util.Option[ToolBuildInstructions] `json:"buildInstructions"`
+	LoadInstructions      util.Option[ToolLoadInstructions]  `json:"loadInstructions"`
+}
+
+type ToolBuildInstructionsType string
+
+const (
+	ToolBuildInstructionsTypeNativeEasyBuild ToolBuildInstructionsType = "NativeEasyBuild"
+	ToolBuildInstructionsTypeNativeSpack     ToolBuildInstructionsType = "NativeSpack"
+)
+
+type ToolBuildInstructions struct {
+	Type       ToolBuildInstructionsType `json:"type"`
+	Repository string                    `json:"repository"`
+	Files      []string                  `json:"files"`
+	Packages   []string                  `json:"packages"`
+}
+
+type ToolLoadInstructionsType string
+
+const (
+	ToolLoadInstructionsNativeModuleWithJinja ToolLoadInstructionsType = "NativeModuleWithJinja"
+)
+
+type ToolLoadInstructions struct {
+	Type    ToolLoadInstructionsType `json:"type"`
+	Modules []string                 `json:"modules"`
 }
 
 type Tool struct {
@@ -156,6 +184,7 @@ type ApplicationInvocationDescription struct {
 	FileExtensions        []string
 	LicenseServers        []string
 	Modules               ModulesSection
+	Sbatch                map[string]InvocationParameter
 }
 
 type VncDescription struct {
@@ -192,6 +221,7 @@ const (
 	InvocationParameterTypeWord     InvocationParameterType = "word"
 	InvocationParameterTypeVar      InvocationParameterType = "var"
 	InvocationParameterTypeBoolFlag InvocationParameterType = "bool_flag"
+	InvocationParameterTypeJinja    InvocationParameterType = "jinja"
 )
 
 type InvocationParameter struct {
@@ -200,6 +230,7 @@ type InvocationParameter struct {
 	InvocationParameterWord
 	InvocationParameterVar
 	InvocationParameterBoolFlag
+	InvocationParameterJinja
 }
 
 type InvocationParameterEnv struct {
@@ -223,6 +254,10 @@ type InvocationParameterVar struct {
 type InvocationParameterBoolFlag struct {
 	VariableName string `json:"variableName,omitempty"`
 	Flag         string `json:"flag,omitempty"`
+}
+
+type InvocationParameterJinja struct {
+	Template string `json:"template,omitempty"`
 }
 
 type ModulesSection struct {
@@ -347,8 +382,8 @@ func ApplicationParameterBoolean(name string, optional bool, title string, descr
 }
 
 type EnumOption struct {
-	Name  string
-	Value string
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 func ApplicationParameterEnumeration(name string, optional bool, title string, description string, options []EnumOption) ApplicationParameter {

@@ -394,9 +394,9 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
 
                     // Row title
                     if (isViewingShareGroupPreview(share)) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, dims, row));
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(share.sharedWith, row));
                     } else {
-                        const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, dims, row);
+                        const node = ResourceBrowser.defaultTitleRenderer(share.sourceFilePath, row);
                         row.title.append(node);
                         prettyFilePath(share.sourceFilePath).then(title => {
                             node.innerText = title;
@@ -628,7 +628,6 @@ export function OutgoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Outgoin
                         navigate: to => navigate(to),
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
-                        embedded: false,
                         isCreating: false,
                         dispatch: dispatch,
                         supportByProvider: support,

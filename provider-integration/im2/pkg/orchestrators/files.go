@@ -21,7 +21,7 @@ type DriveSpecification struct {
 }
 
 type FSSupport struct {
-	ProductSupport
+	Product apm.ProductReference `json:"product"`
 
 	Stats struct {
 		SizeInBytes                  bool `json:"sizeInBytes"`
@@ -62,11 +62,8 @@ type UFileStatus struct {
 	Type FileType     `json:"type"`
 	Icon FileIconHint `json:"icon,omitempty"`
 
-	// TODO This technically breaks with UCloud's current API because we are sending 0 instead of null.
-	//   I think we should change the core/frontend to consider FSSupport when reading 0 values here.
-
-	SizeInBytes                  int64 `json:"sizeInBytes"`
-	SizeIncludingChildrenInBytes int64 `json:"sizeIncludingChildrenInBytes"`
+	SizeInBytes                  util.Option[int64] `json:"sizeInBytes"`
+	SizeIncludingChildrenInBytes util.Option[int64] `json:"sizeIncludingChildrenInBytes"`
 
 	ModifiedAt fnd.Timestamp `json:"modifiedAt"`
 	AccessedAt fnd.Timestamp `json:"accessedAt"`
@@ -134,7 +131,7 @@ func BrowseDrives(next string, flags BrowseDrivesFlags) (fnd.PageV2[Drive], erro
 		driveCtrlNamespace+"browse",
 		driveCtrlContext,
 		"",
-		[]string{"next", next},
+		append([]string{"next", next}, c.StructToParameters(flags)...),
 	)
 }
 

@@ -154,7 +154,12 @@ class AppStoreController(
                 )
             }
 
-            service.createApplication(actorAndProject, yamlDocument.normalize())
+            val (app, tool) = yamlDocument.normalizeToAppAndTool()
+            if (tool != null) {
+                service.createTool(actorAndProject, tool)
+            }
+            service.createApplication(actorAndProject, app)
+
             ok(Unit)
         }
 

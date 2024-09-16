@@ -3,7 +3,7 @@ import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
-import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import {ApplicationGroup, TopPick} from "@/Applications/AppStoreApi";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";

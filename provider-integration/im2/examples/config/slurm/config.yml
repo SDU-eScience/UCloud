@@ -80,6 +80,19 @@ services:
 
   slurm:
     fakeResourceAllocation: true
+    applications:
+      variables:
+        myVariables: 40
+        myOtherVariable: 2
+        myGreeting: "hello user"
+      templates:
+        myGlobalPreamble: |
+          {% if requiresOptionalPackages %}
+          module load extra-packages
+          {% endif %}
+
+          echo {{ myGreeting }}
+
     accountManagement:
       accounting: # Usage and quota management
         type: Automatic

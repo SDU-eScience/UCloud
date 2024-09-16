@@ -1454,3 +1454,6 @@ val exampleBatchApplication = exampleApplication(
         )
     )
 )
+
+const val injectedPrefix = "_injected_"
+

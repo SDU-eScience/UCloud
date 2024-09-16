@@ -2,7 +2,6 @@ import * as React from "react";
 import ReactDOM from "react-dom";
 
 import {ProductV2, productCategoryEquals, ProductV2Compute, ProductType, explainUnit, ProductCategoryV2, priceToString} from "@/Accounting";
-import {Client} from "@/Authentication/HttpClientInstance";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {connectionState} from "@/Providers/ConnectionState";
 import {ProviderLogo} from "@/Providers/ProviderLogo";

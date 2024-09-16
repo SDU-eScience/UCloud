@@ -39,7 +39,7 @@ export const DetailedNews: React.FC = () => {
         setParams(getByIdRequest({id}));
     }, [id]);
 
-    usePage("Post: " + newsPost.data?.title ?? "Detailed News", SidebarTabId.NONE);
+    usePage("Post: " + (newsPost.data?.title ?? "Detailed News"), SidebarTabId.NONE);
 
     if (newsPost.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
     if (newsPost.data == null) return <MainContainer headerSize={0} main="News post not found" />;

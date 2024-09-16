@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,15 +26,19 @@ var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
 
 func InitCompute() ctrl.JobsService {
-	loadProducts()
+	loadComputeProducts()
 
 	SlurmClient = slurmcli.NewClient()
-	if SlurmClient == nil {
+	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
 		go func() {
+			if len(Machines) == 0 {
+				return
+			}
+
 			for util.IsAlive {
 				loopComputeMonitoring()
 				loopAccounting()
@@ -43,23 +48,67 @@ func InitCompute() ctrl.JobsService {
 	}
 
 	return ctrl.JobsService{
-		Submit:            submitJob,
-		Terminate:         terminateJob,
-		Extend:            extendJob,
-		RetrieveProducts:  retrieveMachineSupport,
-		Follow:            follow,
-		HandleShell:       handleShell,
-		OpenWebSession:    openWebSession,
-		ServerFindIngress: serverFindIngress,
+		Submit:                   submitJob,
+		Terminate:                terminateJob,
+		Extend:                   extendJob,
+		RetrieveProducts:         retrieveMachineSupport,
+		Follow:                   follow,
+		HandleShell:              handleShell,
+		OpenWebSession:           openWebSession,
+		ServerFindIngress:        serverFindIngress,
+		RequestDynamicParameters: requestDynamicParameters,
 	}
 }
+
+func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+	if owner.Project == "" {
+		return nil
+	}
+
+	project, ok := ctrl.GetLastKnownProject(owner.Project)
+	if !ok {
+		return nil
+	}
+
+	if !project.Status.PersonalProviderProjectFor.Present {
+		return nil
+	}
+
+	accounts := []string{"unknown"}
+	myUser, err := user.Current()
+	if err == nil {
+		accounts = SlurmClient.UserListAccounts(myUser.Username)
+	}
+
+	var opts []orc.EnumOption
+	for _, account := range accounts {
+		opts = append(opts, orc.EnumOption{
+			Name:  account,
+			Value: account,
+		})
+	}
+
+	return []orc.ApplicationParameter{
+		orc.ApplicationParameterEnumeration(
+			SlurmAccountParameter,
+			false,
+			"Slurm account",
+			"The slurm account to use for this job.",
+			opts,
+		),
+	}
+}
+
+const InjectedPrefix = "_injected_"
+const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
 
 var nextComputeAccountingTime = time.Now()
 
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
-		billing := Accounting.FetchUsage()
+		billing := Accounting.FetchUsageInMinutes()
+		// TODO convert this to correct UCloud unit
 
 		var reportItems []apm.UsageReportItem
 		for owner, usage := range billing {
@@ -103,7 +152,7 @@ func loopComputeMonitoring() {
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
-		parsed, ok := parseProviderId(job.ProviderGeneratedId)
+		parsed, ok := parseJobProviderId(job.ProviderGeneratedId)
 		if !ok {
 			continue
 		}
@@ -122,7 +171,13 @@ func loopComputeMonitoring() {
 			continue
 		}
 
-		batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		didUpdate := batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		if didUpdate {
+			nodeList := SlurmClient.JobGetNodeList(job.JobID)
+			if len(nodeList) > 0 {
+				batch.TrackAssignedNodes(ucloudId, nodeList)
+			}
+		}
 	}
 }
 
@@ -178,7 +233,7 @@ func extendJob(_ ctrl.JobExtendRequest) error {
 }
 
 func terminateJob(request ctrl.JobTerminateRequest) error {
-	providerId, ok := parseProviderId(request.Job.ProviderGeneratedId)
+	providerId, ok := parseJobProviderId(request.Job.ProviderGeneratedId)
 	if !ok {
 		// Nothing to do
 		return nil
@@ -217,7 +272,7 @@ func (i parsedProviderJobId) String() string {
 	return fmt.Sprintf("%v/%v/%v", i.BelongsToAccount, i.SlurmId, time.Now().UnixMilli())
 }
 
-func parseProviderId(providerId string) (parsedProviderJobId, bool) {
+func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 	var result parsedProviderJobId
 	if providerId == "" {
 		return result, false
@@ -263,11 +318,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 
 	accountName := ""
 	{
-		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(SlurmJobConfiguration{
+		jobCfg := SlurmJobConfiguration{
 			Owner:              orc.ResourceOwnerToWalletOwner(request.JobToSubmit.Resource),
 			EstimatedProduct:   request.JobToSubmit.Specification.Product,
 			EstimatedNodeCount: request.JobToSubmit.Specification.Replicas,
-		})
+			Job:                util.OptValue(request.JobToSubmit),
+		}
+
+		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
 
 		if len(accounts) != 1 {
 			return util.OptNone[string](), &util.HttpError{
@@ -310,7 +368,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	return util.OptValue(providerId), nil
 }
 
-func loadProducts() {
+func loadComputeProducts() {
 	for categoryName, category := range ServiceConfig.Compute.Machines {
 		productCategory := apm.ProductCategory{
 			Name:                categoryName,
@@ -358,9 +416,10 @@ func loadProducts() {
 			for _, machineConfig := range group.Configs {
 				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
 				product := apm.ProductV2{
+					Type:        apm.ProductTypeCCompute,
 					Category:    productCategory,
 					Name:        name,
-					Description: "TODO", // TODO
+					Description: "A compute product", // TODO
 
 					ProductType:               apm.ProductTypeCompute,
 					Price:                     int64(math.Floor(machineConfig.Price * 1_000_000)),
@@ -541,7 +600,7 @@ func serverFindIngress(job *orc.Job) ctrl.ConfiguredWebIngress {
 }
 
 func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
-	parsedId, ok := parseProviderId(job.ProviderGeneratedId)
+	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
 		return cfg.HostInfo{}, errors.New("could not parse provider id")
 	}
@@ -581,6 +640,20 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 	}
 
 	basePath := drives[0].FilePath
+
+	if owner.ProjectId != "" {
+		dir, err := os.UserHomeDir()
+
+		if err == nil {
+			project, ok := ctrl.GetLastKnownProject(owner.ProjectId)
+			if !ok {
+				basePath = dir
+			} else if project.Status.PersonalProviderProjectFor.Present {
+				basePath = dir
+			}
+		}
+	}
+
 	folder := filepath.Join(basePath, JobFolderName)
 	if _, err := os.Stat(folder); err != nil {
 		err = os.MkdirAll(folder, 0770)

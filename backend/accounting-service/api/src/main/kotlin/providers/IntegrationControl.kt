@@ -20,4 +20,26 @@ object IntegrationControl : CallDescriptionContainer("providers.im.control") {
     val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "clearConnection", roles = Roles.PROVIDER)
     }
+
+    val reverseConnection = ReverseConnection.call
+
+    object ReverseConnection {
+        @Serializable
+        class Request()
+
+        @Serializable
+        data class Response(
+            val token: String,
+        )
+
+        val call = call(
+            "reverseConnection",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "reverseConnection", roles = Roles.PROVIDER)
+            }
+        )
+    }
 }

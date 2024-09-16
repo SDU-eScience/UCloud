@@ -50,6 +50,10 @@ class FileController(private val files: FilesService) : Controller {
             ok(FilesStreamingSearchResult.EndOfResults())
         }
 
+        implement(Files.transfer) {
+            ok(files.transfer(actorAndProject, request))
+        }
+
         implement(FilesControl.addUpdate) {
             files.addTaskUpdate(actorAndProject, request)
             ok(Unit)

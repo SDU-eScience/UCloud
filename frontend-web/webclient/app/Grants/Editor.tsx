@@ -878,6 +878,7 @@ function useStateReducerMiddleware(
                     projects: [{id: null as (string | null), title: "My workspace"}].concat(
                         projectPage.items
                             .filter(it => isAdminOrPI(it.status.myRole!))
+                            .filter(it => it.status.personalProviderProjectFor == null)
                             .map(it => ({id: it.id, title: it.specification.title}))
                     )
                 });
@@ -891,8 +892,6 @@ function useStateReducerMiddleware(
                 const wallets = (await pWallets).filter(it => !it.paysFor.freeToUse);
 
                 try {
-
-
                     dispatch({
                         type: "AllocatorsLoaded",
                         allocators: [{
@@ -1872,6 +1871,12 @@ export function Editor(): React.ReactNode {
                                         <option value="6">6 months</option>
                                         <option value="12">12 months</option>
                                         <option value="24">24 months</option>
+
+                                        {!Client.userIsAdmin ? null : (
+                                            [3, 4, 5, 6, 7, 8, 9, 10].map(years =>
+                                                <option value={`${years * 12}`}>{years} years</option>
+                                            )
+                                        )}
                                     </Select>
                                 </label>
                             </FormField>
@@ -1987,7 +1992,7 @@ export function Editor(): React.ReactNode {
                                             const hideZeroFields = state.locked;
 
                                             const anyNonZeroValues = checkedAllocators
-                                                .reduce((acc, allocatorId) => acc + category.totalBalanceRequested[allocatorId] ?? 0, 0);
+                                                .reduce((acc, allocatorId) => acc + (category.totalBalanceRequested[allocatorId] ?? 0), 0);
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
@@ -1995,7 +2000,7 @@ export function Editor(): React.ReactNode {
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={Accounting.guestimateProductCategoryDescription(category.category.name, providerId)}
+                                                description={Accounting.guesstimateProductCategoryDescription(category.category.name, providerId)}
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={false}
                                             >
@@ -2654,11 +2659,7 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
         if (currentMonth === 11) date.setFullYear(date.getFullYear() + 1);
     }
 
-    result.sort((a, b) => {
-        if (a.time < b.time) return -1;
-        if (a.time > b.time) return 1;
-        return 0;
-    });
+    result.sort((a, b) => a.time - b.time);
 
     return result;
 }

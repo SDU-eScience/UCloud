@@ -1,7 +1,6 @@
 import * as React from "react";
 import {BulkResponse, compute, FindByStringId} from "@/UCloud";
 import {useState} from "react";
-import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import JobsApi from "@/UCloud/JobsApi";
 import {Button} from "@/ui-components";
 import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
@@ -84,7 +83,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, dimensions, row));
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(entry.metadata.title, row));
 
                     setIcon(AppStore.retrieveAppLogo({
                         name: entry.metadata.name,

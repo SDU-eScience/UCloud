@@ -1,7 +1,7 @@
 import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
@@ -48,9 +48,16 @@ async function fetchProjects(next?: string): Promise<PageV2<Project>> {
     return result;
 }
 
-export function projectTitleFromCache(projectId?: string) {
-    if (!projectId) return "My workspace";
-    const project = projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+export function projectTitleFromCache(projectId?: string): string {
+    const project = !projectId ? undefined : projectCache.retrieveFromCacheOnly("")?.items.find(it => it.id === projectId);
+    return projectTitle(project);
+}
+
+export function projectTitle(project?: Project): string {
+    if (!project) return "My workspace";
+    if (project.status.personalProviderProjectFor) {
+        return project.status.personalProviderProjectFor;
+    }
     return project?.specification.title ?? ""
 }
 
@@ -98,13 +105,10 @@ export function ContextSwitcher({managed}: {
     let activeContext = "My workspace";
     const activeProject = managed ? controlledProject : projectId;
     if (activeProject) {
-        const title = activeProject === project.fetch().id ?
-            project.fetch().specification.title :
-            projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
-        if (title) {
-            activeContext = title;
+        if (managed) {
+            activeContext = projectList.items.find(it => it.id === activeProject)?.specification.title ?? "";
         } else {
-            activeContext = shortUUID(activeProject);
+            activeContext = projectTitle(project.fetch());
         }
     }
 
@@ -176,6 +180,35 @@ export function ContextSwitcher({managed}: {
             scrollingParent.removeEventListener("scroll", noScroll);
         };
     }, []);
+
+    const sortAndScroll = React.useCallback((projectId: string) => {
+        setProjectList(page => {
+            const clickedProject = page.items.find(it => it.id === projectId);
+            if (clickedProject) {
+                clickedProject.status.isFavorite = !clickedProject.status.isFavorite;
+                if (clickedProject.status.isFavorite) {
+                    // Note(Jonas): Allow re-render, THEN scroll
+                    window.setTimeout(() => {
+                        const switcher = document.querySelector(`[data-component="project-switcher"]`);
+                        const projectRow = switcher?.querySelector(`[data-project="${projectId}"]`);
+                        if (switcher && projectRow) {
+                            projectRow.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest"});
+                        }
+                    }, 1);
+                }
+            }
+
+            page.items = [...page.items.sort((a, b) => {
+                if (a.status.isFavorite && b.status.isFavorite) return a.specification.title.localeCompare(b.specification.title);
+                if (a.status.isFavorite) return -1;
+                if (b.status.isFavorite) return 1;
+                return a.specification.title.localeCompare(b.specification.title);
+            })];
+
+            return {...page};
+        });
+    }, []);
+
 
     const showMyWorkspace =
         activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
@@ -260,8 +293,8 @@ export function ContextSwitcher({managed}: {
                                 className={BottomBorderedRow}
                                 onClick={() => setActiveProject(it.id)}
                             >
-                                <Favorite project={it} />
-                                <Text fontSize="var(--breadText)">{it.specification.title}</Text>
+                                <Favorite project={it} onClickedFavorite={sortAndScroll} />
+                                <Text fontSize="var(--breadText)">{projectTitle(it)}</Text>
                             </div>
                         )}
 
@@ -275,7 +308,7 @@ export function ContextSwitcher({managed}: {
     );
 }
 
-function Favorite({project}: {project: Project}): React.ReactNode {
+function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavorite(id: string): void;}): React.ReactNode {
     const [isFavorite, setIsFavorite] = React.useState(project.status.isFavorite);
 
     const [commandLoading, invokeCommand] = useCloudCommand();
@@ -287,6 +320,7 @@ function Favorite({project}: {project: Project}): React.ReactNode {
             invokeCommand(Api.toggleFavorite(
                 bulkRequestOf({id: p.id})
             ), {defaultErrorHandler: false});
+            onClickedFavorite(p.id);
         } catch (e) {
             setIsFavorite(f => !f);
             displayErrorMessageOrDefault(e, "Failed to toggle favorite");

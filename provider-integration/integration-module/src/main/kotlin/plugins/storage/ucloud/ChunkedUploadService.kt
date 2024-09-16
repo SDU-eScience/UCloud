@@ -19,14 +19,16 @@ class ChunkedUploadService(
         modifiedAt: Long? = null
     ): Boolean {
         val descriptor = openFileDescriptors.get(target.path, offset, modifiedAt = modifiedAt)
-        val stream = LinuxOutputStream(descriptor.handle)
+        try {
+            val stream = LinuxOutputStream(descriptor.handle)
+            payload.copyTo(stream)
 
-        payload.copyTo(stream)
-
-        if (shouldClose) {
-            openFileDescriptors.close(descriptor, conflictPolicy, modifiedAt = modifiedAt)
+            if (shouldClose) {
+                openFileDescriptors.close(descriptor, conflictPolicy, modifiedAt = modifiedAt)
+            }
+        } finally {
+            descriptor.release()
         }
-        descriptor.release()
 
         return shouldClose
     }

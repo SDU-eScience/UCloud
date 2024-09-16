@@ -39,10 +39,10 @@ const (
 )
 
 type AccountingUnit struct {
-	Name                   string
-	NamePlural             string
-	FloatingPoint          bool
-	DisplayFrequencySuffix bool
+	Name                   string `json:"name"`
+	NamePlural             string `json:"namePlural"`
+	FloatingPoint          bool   `json:"floatingPoint"`
+	DisplayFrequencySuffix bool   `json:"displayFrequencySuffix"`
 }
 
 type AccountingFrequency string
@@ -86,7 +86,18 @@ func (f AccountingFrequency) IsPeriodic() bool {
 	}
 }
 
+type ProductTypeC string
+
+const (
+	ProductTypeCStorage   ProductTypeC = "storage"
+	ProductTypeCCompute   ProductTypeC = "compute"
+	ProductTypeCIngress   ProductTypeC = "ingress"
+	ProductTypeCLicense   ProductTypeC = "license"
+	ProductTypeCNetworkIp ProductTypeC = "network_ip"
+)
+
 type ProductV2 struct {
+	Type                      ProductTypeC    `json:"type"`
 	Category                  ProductCategory `json:"category"`
 	Name                      string          `json:"name,omitempty"`
 	Description               string          `json:"description,omitempty"`
@@ -116,7 +127,7 @@ func (p *ProductV2) ToReference() ProductReference {
 // API
 // =====================================================================================================================
 
-const productContext = "/api/products/v2/"
+const productContext = "/api/products/v2"
 const productsNamespace = "products.v2."
 
 type ProductsFilter struct {
@@ -136,4 +147,15 @@ func BrowseProducts(next string, filter ProductsFilter) (fnd.PageV2[ProductV2], 
 		"",
 		append(c.StructToParameters(filter), "next", next, "itemsPerPage", "250"),
 	)
+}
+
+func CreateProducts(products []ProductV2) error {
+	_, err := c.ApiCreate[util.Empty](
+		productsNamespace+"create",
+		productContext,
+		"",
+		fnd.BulkRequest[ProductV2]{products},
+	)
+
+	return err
 }

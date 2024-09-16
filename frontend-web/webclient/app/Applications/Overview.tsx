@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Flex, Grid, Link} from "@/ui-components";
-import {AppCard, AppCardType} from "./Card";
+import {Box, Flex, Grid} from "@/ui-components";
 import {usePage} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useLocation} from "react-router";
@@ -10,14 +9,11 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {doNothing} from "@/UtilityFunctions";
-import AppRoutes from "@/Routes";
-import {ApplicationGroup} from "@/Applications/AppStoreApi";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
-import BaseLink from "@/ui-components/BaseLink";
 
 const OverviewStyle = injectStyle("app-overview", k => `
     ${k} {

@@ -16,13 +16,14 @@ import {
     MainContainer,
     Relative,
     Select,
+    Text,
     TextArea,
     Truncate,
 } from "@/ui-components";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import * as Accounting from "@/Accounting";
-import {periodsOverlap, ProductType, WalletOwner, WalletV2} from "@/Accounting";
-import {deepCopy, groupBy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
+import {NO_EXPIRATION_FALLBACK, ProductType, UsageAndQuota, WalletV2} from "@/Accounting";
+import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
 import {useProjectId} from "@/Project/Api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
@@ -43,8 +44,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {useNavigate} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useAvatars} from "@/AvataaarLib/hook";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
-import {Tree, TreeApi, TreeNode} from "@/ui-components/Tree";
+import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import ProvidersApi from "@/UCloud/ProvidersApi";
 import WAYF from "@/Grants/wayf-idps.json";
 import {MandatoryField} from "@/Applications/Jobs/Widgets";
@@ -62,12 +62,14 @@ import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {useProject} from "@/Project/cache";
 import {OldProjectRole} from "@/Project";
+import {VariableSizeList} from "react-window";
+import ReactVirtualizedAutoSizer from "react-virtualized-auto-sizer";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 // State
 // =====================================================================================================================
-interface State {
+interface State extends Accounting.AllocationDisplayTree {
     remoteData: {
         wallets: Accounting.WalletV2[];
         managedProviders: string[];
@@ -75,59 +77,7 @@ interface State {
         gifts: Gifts.GiftWithCriteria[];
     };
 
-    yourAllocations: {
-        [P in ProductType]?: {
-            usageAndQuota: UsageAndQuota[];
-            wallets: {
-                category: Accounting.ProductCategoryV2;
-                usageAndQuota: UsageAndQuota;
-
-                allocations: {
-                    id: number;
-                    grantedIn?: number;
-                    quota: number;
-                    note?: AllocationNote;
-
-                    start: number;
-                    end: number;
-
-                    retiredAmount: number;
-                    shouldShowRetiredAmount: boolean
-                }[];
-            }[];
-        }
-    };
-
-    subAllocations: {
-        searchQuery: string;
-        searchInflight: number;
-
-        recipients: {
-            owner: {
-                title: string;
-                primaryUsername: string;
-                reference: Accounting.WalletOwner;
-            };
-
-            usageAndQuota: (UsageAndQuota & {type: Accounting.ProductType})[];
-
-            groups: {
-                category: Accounting.ProductCategoryV2;
-                usageAndQuota: UsageAndQuota;
-
-                allocations: {
-                    allocationId: number;
-                    quota: number;
-                    note?: AllocationNote;
-                    isEditing: boolean;
-                    grantedIn?: number;
-
-                    start: number;
-                    end: number;
-                }[];
-            }[];
-        }[];
-    };
+    searchQuery: string;
 
     gifts?: {
         title: string;
@@ -147,22 +97,6 @@ interface State {
     viewOnlyProjects: boolean;
 }
 
-interface AllocationNote {
-    rowShouldBeGreyedOut: boolean;
-    icon: IconName;
-    iconColor: ThemeColor;
-    text: string;
-}
-
-interface UsageAndQuota {
-    usage: number;
-    quota: number;
-    unit: string;
-    maxUsable: number;
-    retiredAmount: number;
-    retiredAmountStillCounts: boolean;
-}
-
 // State reducer
 // =====================================================================================================================
 type UIAction =
@@ -174,7 +108,6 @@ type UIAction =
     | {type: "UpdateSearchQuery", newQuery: string}
     | {type: "SetEditing", recipientIdx: number, groupIdx: number, allocationIdx: number, isEditing: boolean}
     | {type: "UpdateAllocation", allocationIdx: number, groupIdx: number, recipientIdx: number, newQuota: number}
-    | {type: "UpdateSearchInflight", delta: number}
     | {type: "UpdateGift", data: Partial<State["gifts"]>}
     | {type: "GiftCreated", gift: Gifts.GiftWithCriteria}
     | {type: "GiftDeleted", id: number}
@@ -184,7 +117,8 @@ type UIAction =
     ;
 
 
-const fuzzyMatcher = newFuzzyMatchFuse<Accounting.ParentOrChildWallet, "projectId" | "projectTitle">(["projectId", "projectTitle"]);
+const fuzzyMatcher = newFuzzyMatchFuse<Accounting.AllocationDisplayTreeRecipientOwner, "title" | "primaryUsername">(["title", "primaryUsername"]);
+
 function stateReducer(state: State, action: UIAction): State {
     switch (action.type) {
         case "WalletsLoaded": {
@@ -332,36 +266,6 @@ function stateReducer(state: State, action: UIAction): State {
             return rebuildTree(newState);
         }
 
-        /*
-        case "MergeSearchResults": {
-            const newState: State = {
-                ...state,
-                remoteData: {
-                    ...state.remoteData,
-                    subAllocations: [...state.remoteData.subAllocations]
-                }
-            };
-
-            const subAllocations = newState.remoteData.subAllocations;
-            for (const newResult of action.subAllocations) {
-                if (subAllocations.some(it => it.id === newResult.id)) continue;
-                subAllocations.push(newResult);
-            }
-
-            return rebuildTree(newState);
-        }
-         */
-
-        case "UpdateSearchInflight": {
-            return {
-                ...state,
-                subAllocations: {
-                    ...state.subAllocations,
-                    searchInflight: state.subAllocations.searchInflight + action.delta
-                }
-            };
-        }
-
         case "SetEditing": {
             const recipient = getOrNull(state.subAllocations.recipients, action.recipientIdx);
             if (!recipient) return state;
@@ -441,321 +345,19 @@ function stateReducer(state: State, action: UIAction): State {
     }
 
     function rebuildTree(state: State): State {
-        const now = timestampUnixMs();
-
-        function allocationNote(
-            alloc: Accounting.Allocation
-        ): AllocationNote | undefined {
-            // NOTE(Dan): We color code and potentially grey out rows when the end-user should be aware of something
-            // on the allocation.
-            //
-            // - If a row should be greyed out, then it means that the row is not currently active (and is not counted
-            //   in summaries).
-            // - If the accompanying row has a red calendar, then the note is about something which has happened.
-            // - If the accompanying row has a blue calendar, then the note is about something which will happen.
-            const icon: IconName = "heroCalendarDays";
-            const colorInThePast: ThemeColor = "errorMain";
-            const colorForTheFuture: ThemeColor = "primaryMain";
-
-            const allocPeriod = normalizePeriodForComparison(allocationToPeriod(alloc));
-            if (now > allocPeriod.end) {
-                return {
-                    rowShouldBeGreyedOut: true,
-                    icon,
-                    iconColor: colorInThePast,
-                    text: `Already expired (${Accounting.utcDate(allocPeriod.end)})`,
-                };
-            }
-
-            if (allocPeriod.start > now) {
-                return {
-                    rowShouldBeGreyedOut: true,
-                    icon,
-                    iconColor: colorForTheFuture,
-                    text: `Starts in the future (${Accounting.utcDate(allocPeriod.start)})`,
-                };
-            }
-
-            return undefined;
-        }
-
-        const walletsInPeriod = state.remoteData.wallets.filter(wallet => {
-            return !wallet.paysFor.freeToUse
-        });
-
-        const filteredSubAllocations: {
-            wallet: Accounting.WalletV2,
-            childGroup: Accounting.AllocationGroupWithChild
-        }[] = [];
-
-        for (const wallet of state.remoteData.wallets) {
-            if (wallet.paysFor.freeToUse) continue;
-
-            const children = wallet.children ?? [];
-            const query = state.subAllocations.searchQuery;
-            for (const childGroup of children) {
-                let matches = query === "";
-
-                if (!matches) {
-                    fuzzyMatcher.setCollection([childGroup.child]);
-                    matches = fuzzyMatcher.search(query).length > 0;
-                }
-
-                // TODO more checks?
-                if (matches) {
-                    filteredSubAllocations.push({wallet, childGroup});
-                }
-            }
-        }
-
-        // Build the "Your allocations" tree
-        const yourAllocations: State["yourAllocations"] = {};
-        {
-            const walletsByType = groupBy(walletsInPeriod, it => it.paysFor.productType);
-            for (const [type, wallets] of Object.entries(walletsByType)) {
-                yourAllocations[type as ProductType] = {
-                    usageAndQuota: [],
-                    wallets: []
-                };
-                const entry = yourAllocations[type as ProductType]!;
-
-                const quotaBalances = wallets.flatMap(wallet =>
-                    ({balance: wallet.quota, category: wallet.paysFor})
-                );
-                const usageBalances = wallets.flatMap(wallet =>
-                    ({balance: wallet.totalUsage, category: wallet.paysFor})
-                );
-
-                const maxUsableBalances = wallets.map(wallet =>
-                    ({balance: wallet.maxUsable, category: wallet.paysFor})
-                );
-
-                const retired = wallets.map(wallet => {
-                    let totalRetired = 0
-                    wallet.allocationGroups.forEach(group =>
-                        group?.group?.allocations.forEach(alloc =>
-                            totalRetired += alloc.retiredUsage ?? 0
-                        )
-                    )
-                    return ({balance: totalRetired, category: wallet.paysFor})
-                })
-
-                const combinedQuotas = Accounting.combineBalances(quotaBalances);
-                const combinedUsage = Accounting.combineBalances(usageBalances);
-                const combineMaxUsable = Accounting.combineBalances(maxUsableBalances);
-                const combineRetire = Accounting.combineBalances(retired)
-
-                const combineShouldUseRetired = wallets.map(wallet =>
-                    wallet.paysFor.accountingFrequency === "ONCE"
-                )
-
-                for (let i = 0; i < combinedQuotas.length; i++) {
-                    const usage = combinedUsage[i];
-                    const quota = combinedQuotas[i];
-                    const maxUsable = combineMaxUsable[i]
-                    const retired = combineRetire[i]
-                    const shouldUseRetired = combineShouldUseRetired[i]
-
-                    entry.usageAndQuota.push({
-                        usage: usage.normalizedBalance,
-                        quota: quota.normalizedBalance,
-                        unit: usage.unit,
-                        maxUsable: maxUsable.normalizedBalance,
-                        retiredAmount: retired.normalizedBalance,
-                        retiredAmountStillCounts: shouldUseRetired
-                    });
-                }
-
-                for (const wallet of wallets) {
-                    const usage = Accounting.combineBalances([{balance: wallet.totalUsage, category: wallet.paysFor}]);
-                    const quota = Accounting.combineBalances([{balance: wallet.quota, category: wallet.paysFor}]);
-                    const maxUsable = Accounting.combineBalances([{
-                        balance: wallet.maxUsable,
-                        category: wallet.paysFor
-                    }]);
-                    let totalRetired = 0;
-                    wallet.allocationGroups.forEach(({group}) =>
-                        group.allocations.forEach(alloc => (
-                            totalRetired += alloc.retiredUsage ?? 0
-                        ))
-                    )
-
-                    const retiredAmount = Accounting.combineBalances([{balance: totalRetired, category: wallet.paysFor}])
-                    const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
-                    entry.wallets.push({
-                        category: wallet.paysFor,
-
-                        usageAndQuota: {
-                            usage: usage?.[0]?.normalizedBalance ?? 0,
-                            quota: quota?.[0]?.normalizedBalance ?? 0,
-                            unit: usage?.[0]?.unit ?? "",
-                            maxUsable: maxUsable?.[0]?.normalizedBalance ?? 0,
-                            retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
-                            retiredAmountStillCounts: shouldUseRetired
-                        },
-
-                        allocations: wallet.allocationGroups.flatMap(({group}) =>
-                            group.allocations.map(alloc => ({
-                                id: alloc.id,
-                                grantedIn: alloc.grantedIn ?? undefined,
-                                note: allocationNote(alloc),
-                                quota: alloc.quota,
-                                start: alloc.startDate,
-                                end: alloc.endDate ?? NO_EXPIRATION_FALLBACK,
-                                retiredAmount: alloc.retiredUsage ?? 0,
-                                shouldShowRetiredAmount: wallet.paysFor.accountingFrequency !== "ONCE"
-                            }))
-                        ),
-                    });
-                }
-            }
-        }
-
-        // Start building the sub-allocations UI
-        const subAllocations: State["subAllocations"] = {
-            ...state.subAllocations,
-            recipients: []
-        };
-
-        {
-            for (const {childGroup, wallet} of filteredSubAllocations) {
-                let allocOwner: WalletOwner;
-                if (childGroup.child.projectId) {
-                    allocOwner = {type: "project", projectId: childGroup.child.projectId};
-                } else {
-                    if (state.viewOnlyProjects) continue;
-                    allocOwner = {type: "user", username: childGroup.child.projectTitle};
-                }
-
-                let recipient = subAllocations.recipients
-                    .find(it => Accounting.walletOwnerEquals(it.owner.reference, allocOwner));
-                if (!recipient) {
-                    recipient = {
-                        owner: {
-                            reference: allocOwner,
-                            primaryUsername: childGroup.child.pi,
-                            title: childGroup.child.projectTitle,
-                        },
-                        groups: [],
-                        usageAndQuota: []
-                    };
-
-                    subAllocations.recipients.push(recipient);
-                }
-
-                const shouldUseRetired = wallet.paysFor.accountingFrequency === "ONCE";
-
-                let combinedQuota = 0;
-                childGroup.group.allocations.forEach(alloc => {
-                    if (allocationIsActive(alloc, new Date().getTime())) {
-                        combinedQuota += alloc.quota;
-                    }
-                });
-                const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
-                // Need to have total usage in case retired should be included in final result
-                let combinedUsage = childGroup.group.usage;
-                if (!shouldUseRetired) {
-                    combinedUsage += combinedRetired;
-                }
-
-
-                const localUsage = Accounting.combineBalances([{balance: childGroup.group.usage, category: wallet.paysFor}]);
-
-                const usage = Accounting.combineBalances([{balance: combinedUsage, category: wallet.paysFor}]);
-                const quota = Accounting.combineBalances([{balance: combinedQuota, category: wallet.paysFor}]);
-                const retiredAmount = Accounting.combineBalances([{balance: combinedRetired, category: wallet.paysFor}]);
-
-                const newGroup: State["subAllocations"]["recipients"][0]["groups"][0] = {
-                    category: wallet.paysFor,
-                    usageAndQuota: {
-                        usage: usage?.[0]?.normalizedBalance ?? 0,
-                        quota: quota?.[0]?.normalizedBalance ?? 0,
-                        maxUsable: 0,
-                        unit: usage?.[0]?.unit ?? "",
-                        retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
-                        retiredAmountStillCounts: shouldUseRetired
-                    },
-                    allocations: [],
-                };
-
-                const uq = newGroup.usageAndQuota;
-                uq.maxUsable = uq.quota - (localUsage[0]?.normalizedBalance ?? 0);
-
-                for (const alloc of childGroup.group.allocations.reverse()) {
-                    newGroup.allocations.push({
-                        allocationId: alloc.id,
-                        quota: alloc.quota,
-                        note: allocationNote(alloc),
-                        isEditing: false,
-                        start: alloc.startDate,
-                        end: alloc.endDate,
-                        grantedIn: alloc.grantedIn ?? undefined,
-                    });
-                }
-
-                recipient.groups.push(newGroup);
-            }
-
-            for (const recipient of subAllocations.recipients) {
-                const uqBuilder: {
-                    type: Accounting.ProductType,
-                    unit: string,
-                    usage: number,
-                    quota: number,
-                    maxUsable: number,
-                    retiredAmount: number,
-                    retiredAmountStillCounts: boolean
-                }[] = [];
-                for (const group of recipient.groups) {
-                    const existing = uqBuilder.find(it =>
-                        it.type === group.category.productType && it.unit === group.usageAndQuota.unit);
-
-                    if (existing) {
-                        existing.usage += group.usageAndQuota.usage;
-                        existing.quota += group.usageAndQuota.quota;
-                    } else {
-                        uqBuilder.push({
-                            type: group.category.productType,
-                            usage: group.usageAndQuota.usage,
-                            quota: group.usageAndQuota.quota,
-                            unit: group.usageAndQuota.unit,
-                            maxUsable: group.usageAndQuota.maxUsable,
-                            retiredAmount: group.usageAndQuota.retiredAmount,
-                            retiredAmountStillCounts: group.usageAndQuota.retiredAmountStillCounts
-                        });
-                    }
-                }
-
-                recipient.groups.sort((a, b) => {
-                    const providerCmp = a.category.provider.localeCompare(b.category.provider);
-                    if (providerCmp !== 0) return providerCmp;
-                    const categoryCmp = a.category.name.localeCompare(b.category.name);
-                    if (categoryCmp !== 0) return categoryCmp;
-                    return 0;
-                });
-
-                for (const b of uqBuilder) {
-                    // NOTE(Dan): We do not know how much is usable locally since this depends on other allocations which
-                    // might not be coming from us. The backend doesn't tell us this since it would leak information we do
-                    // not have access to.
-                    //
-                    // As a result, we set the maxUsable to be equivalent to the remaining balance. That is, we tell the UI
-                    // that we can use the entire quota (even if we cannot).
-                    b.maxUsable = b.quota - b.usage;
-                }
-
-                recipient.usageAndQuota = uqBuilder;
-            }
-        }
-
-        subAllocations.recipients.sort((a, b) => {
-            return a.owner.title.localeCompare(b.owner.title);
+        const newTree = Accounting.buildAllocationDisplayTree(state.remoteData.wallets);
+        const query = state.searchQuery;
+        newTree.subAllocations.recipients = newTree.subAllocations.recipients.filter(recipient => {
+            if (recipient.owner.reference.type === "user" && state.viewOnlyProjects) return false;
+            if (query === "") return true;
+            fuzzyMatcher.setCollection([recipient.owner]);
+            return fuzzyMatcher.search(query).length > 0;
         });
 
         return {
             ...state,
-            yourAllocations,
-            subAllocations,
+            yourAllocations: newTree.yourAllocations,
+            subAllocations: newTree.subAllocations,
         };
     }
 }
@@ -1350,8 +952,8 @@ const Allocations: React.FunctionComponent = () => {
     const indent = 16;
 
     const sortedAllocations = Object.entries(state.yourAllocations).sort((a, b) => {
-        const aPriority = productTypesByPriority.indexOf(a[0] as ProductType);
-        const bPriority = productTypesByPriority.indexOf(b[0] as ProductType);
+        const aPriority = Accounting.productTypesByPriority.indexOf(a[0] as ProductType);
+        const bPriority = Accounting.productTypesByPriority.indexOf(b[0] as ProductType);
 
         if (aPriority === bPriority) return 0;
         if (aPriority === -1) return 1;
@@ -1363,6 +965,25 @@ const Allocations: React.FunctionComponent = () => {
 
     // Actual user-interface
     // -----------------------------------------------------------------------------------------------------------------
+    if (projectState.fetch().status.personalProviderProjectFor != null) {
+        return <MainContainer
+            main={
+                <>
+                    <Heading.h2>Unavailable for this project</Heading.h2>
+                    <p>
+                        This project belongs to a provider which does not support the accounting and project management
+                        features of UCloud. Try again with a different project.
+                    </p>
+                </>
+            }
+        />
+    }
+
+    React.useEffect(() => {
+        openNodes = {};
+    }, [projectId]);
+    const listRef = useRef<VariableSizeList<State["subAllocations"]["recipients"]>>(null);
+
     return <MainContainer
         headerSize={0}
         main={<div className={AllocationsStyle}>
@@ -1483,8 +1104,9 @@ const Allocations: React.FunctionComponent = () => {
                                                         {g.resources.map((r, idx) => {
                                                             const pc = state.remoteData.managedProducts[r.provider]?.find(it => it.name === r.category);
                                                             if (!pc) return null;
-                                                            return <li
-                                                                key={idx}>{r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}</li>
+                                                            return <li key={idx}>
+                                                                {r.category} / {r.provider}: {Accounting.balanceToString(pc, r.balanceRequested)}
+                                                            </li>
                                                         })}
                                                     </ul>
                                                 </td>
@@ -1625,7 +1247,7 @@ const Allocations: React.FunctionComponent = () => {
                         </Flex>}
                         right={<Flex flexDirection={"row"} gap={"8px"}>
                             {tree.usageAndQuota.map((uq, idx) => <React.Fragment key={idx}>
-                                <ProgressBar uq={uq} type={type} />
+                                <ProgressBar uq={uq} />
                             </React.Fragment>
                             )}
                         </Flex>}
@@ -1639,7 +1261,7 @@ const Allocations: React.FunctionComponent = () => {
                                     <code>{wallet.category.name}</code>
                                 </Flex>}
                                 right={<Flex flexDirection={"row"} gap={"8px"}>
-                                    <ProgressBar uq={wallet.usageAndQuota} type={type} />
+                                    <ProgressBar uq={wallet.usageAndQuota} />
                                 </Flex>}
                                 indent={indent * 2}
                             >
@@ -1680,10 +1302,9 @@ const Allocations: React.FunctionComponent = () => {
                                                         <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
                                                     </TooltipV2>
                                                 </>}
-                                                <div className="low-opaqueness">{
-                                                    (alloc.shouldShowRetiredAmount && alloc.note !== undefined) ? (Accounting.balanceToString(wallet.category, alloc.retiredAmount, {precision: 2}) + " / " + Accounting.balanceToString(wallet.category, alloc.quota, {precision: 2})) :
-                                                        Accounting.balanceToString(wallet.category, alloc.quota, {precision: 2})
-                                                }</div>
+                                                <div className="low-opaqueness">
+                                                    {alloc.display.quota}
+                                                </div>
                                             </Flex>}
                                         />
                                     )
@@ -1707,7 +1328,7 @@ const Allocations: React.FunctionComponent = () => {
                         <Input
                             placeholder={"Search in your sub-projects"}
                             height={35}
-                            value={state.subAllocations.searchQuery}
+                            value={state.searchQuery}
                             onInput={onSearchInput}
                             onKeyDown={onSearchKey}
                             disabled={state.editControlsDisabled}
@@ -1715,238 +1336,254 @@ const Allocations: React.FunctionComponent = () => {
                         />
                         <div style={{position: "relative"}}>
                             <div style={{position: "absolute", top: "-30px", right: "11px"}}>
-                                {state.subAllocations.searchInflight === 0 ?
-                                    <Icon name={"heroMagnifyingGlass"} />
-                                    : <HexSpin size={18} margin={"0"} />
-                                }
+                                <Icon name={"heroMagnifyingGlass"} />
                             </div>
                         </div>
                     </Box>
                 </Flex>
                 <Flex>
                     <Label width="160px" ml="auto">
-                        <Checkbox onChange={e => dispatchEvent({type: "ToggleViewOnlyProjects", viewOnlyProjects: e.target.checked})} defaultChecked={state.viewOnlyProjects} />
+                        <Checkbox onChange={e => dispatchEvent({
+                            type: "ToggleViewOnlyProjects",
+                            viewOnlyProjects: e.target.checked
+                        })} defaultChecked={state.viewOnlyProjects} />
                         <span>View only projects</span>
                     </Label>
                 </Flex>
 
                 {state.subAllocations.recipients.length !== 0 ? null : <>
-                    You do not have any sub-allocations {state.subAllocations.searchQuery ? "with the active search" : ""} at the moment.
+                    You do not have any sub-allocations {state.searchQuery ? "with the active search" : ""} at the
+                    moment.
                     {projectRole === OldProjectRole.USER ? null : <>
                         You can create a sub-project by clicking <a href="#" onClick={onNewSubProject}>here</a>.
                     </>}
                 </>}
 
-                <Tree apiRef={suballocationTree} unhandledShortcut={onSubAllocationShortcut}>
-                    {state.subAllocations.recipients.map((recipient, recipientIdx) => {
-                        return <TreeNode
-                            key={recipient.owner.title}
-                            left={<Flex gap={"4px"} alignItems={"center"}>
-                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
-                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
-                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
-                                        avatarStyle={"Circle"} />
-                                </TooltipV2>
-                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
-                            </Flex>}
-                            right={<div className={"sub-alloc"}>
-                                {recipient.owner.reference.type === "project" &&
-                                    <Link
-                                        to={AppRoutes.grants.grantGiverInitiatedEditor({
-                                            title: recipient.owner.title,
-                                            piUsernameHint: recipient.owner.primaryUsername,
-                                            projectId: recipient.owner.reference.projectId,
-                                            start: timestampUnixMs(),
-                                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
-                                            subAllocator: false,
-                                        })}
-                                    >
-                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"} subIcon={"heroPlusCircle"}
-                                            subColor1={"primaryContrast"} subColor2={"primaryContrast"} />
-                                    </Link>
-                                }
+                <ReactVirtualizedAutoSizer>
+                    {({height, width}) =>
+                        <Tree apiRef={suballocationTree} onAction={(row, action) => {
+                            if (![TreeAction.TOGGLE, TreeAction.OPEN, TreeAction.CLOSE].includes(action)) return;
+                            const recipient = row.getAttribute("data-recipient");
+                            if (!recipient) return;
+                            const group = row.getAttribute("data-group");
+                            setNodeState(action, recipient, group);
+
+                            listRef.current?.resetAfterIndex(0);
+                        }} unhandledShortcut={onSubAllocationShortcut}>
+                            <VariableSizeList
+                                height={600}
+                                width={width}
+                                ref={listRef}
+                                estimatedItemSize={ROW_HEIGHT}
+                                itemCount={state.subAllocations.recipients.length}
+                                itemData={state.subAllocations.recipients}
+                                itemSize={idx => calculateHeightInPx(idx, state)}
+                            >
+                                {({index: recipientIdx, style, data}) => {
+                                    const recipient = data[recipientIdx];
+                                    return <div style={style}>
+                                        <TreeNode
+                                            key={recipient.owner.title}
+                                            data-recipient={recipient.owner.title}
+                                            data-open={openNodes[recipient.owner.title]}
+                                            onActivate={open => {
+                                                if (open) setNodeState(TreeAction.OPEN, recipient.owner.title);
+                                                else setNodeState(TreeAction.CLOSE, recipient.owner.title);
+                                                listRef.current?.resetAfterIndex(recipientIdx);
+                                            }}
+                                            left={<Flex gap={"4px"} alignItems={"center"}>
+                                                <TooltipV2 tooltip={`Project PI: ${recipient.owner.primaryUsername}`}>
+                                                    <Avatar {...avatars.avatarFromCache(recipient.owner.primaryUsername)}
+                                                        style={{height: "32px", width: "auto", marginTop: "-4px"}}
+                                                        avatarStyle={"Circle"} />
+                                                </TooltipV2>
+                                                <Truncate title={recipient.owner.title}>{recipient.owner.title}</Truncate>
+                                            </Flex>}
+                                            right={<div className={"sub-alloc"}>
+                                                {recipient.owner.reference.type === "project" &&
+                                                    <Link
+                                                        to={AppRoutes.grants.grantGiverInitiatedEditor({
+                                                            title: recipient.owner.title,
+                                                            piUsernameHint: recipient.owner.primaryUsername,
+                                                            projectId: recipient.owner.reference.projectId,
+                                                            start: timestampUnixMs(),
+                                                            end: timestampUnixMs() + (1000 * 60 * 60 * 24 * 365),
+                                                            subAllocator: false,
+                                                        })}
+                                                    >
+                                                        <SmallIconButton title="View grant application" icon={"heroBanknotes"}
+                                                            subIcon={"heroPlusCircle"}
+                                                            subColor1={"primaryContrast"} subColor2={"primaryContrast"} />
+                                                    </Link>
+                                                }
 
 
-                                {recipient.usageAndQuota.map((uq, idx) => {
-                                    if (idx > 2) return null;
-                                    return <ProgressBar key={idx} uq={uq} type={uq.type} />;
-                                })}
-                            </div>}
-                        >
-                            {recipient.groups.map((g, gidx) =>
-                                <TreeNode
-                                    key={g.category.name}
-                                    left={<Flex gap={"4px"}>
-                                        <Flex gap={"4px"} width={"200px"}>
-                                            <ProviderLogo providerId={g.category.provider} size={20} />
-                                            <Icon name={Accounting.productTypeToIcon(g.category.productType)}
-                                                size={20} />
-                                            <code>{g.category.name}</code>
-                                        </Flex>
-                                    </Flex>}
-                                    right={
-                                        <ProgressBar uq={g.usageAndQuota} type={g.category.productType} />
-                                    }
-                                >
-                                    {g.allocations
-                                        .map((alloc, idx) =>
-                                            <TreeNode
-                                                key={alloc.allocationId}
-                                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
-                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
-                                                left={<Flex>
-                                                    <Flex width={"200px"}>
-                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
-                                                        <div>
-                                                            <b>Allocation ID:</b>
-                                                            {" "}
-                                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
-                                                        </div>
-                                                    </Flex>
-
-                                                    <Flex width={"250px"}>
-                                                        Period:
-                                                        {" "}
-                                                        {dateToStringNoTime(alloc.start)}
-                                                        {" "}&mdash;{" "}
-                                                        {dateToStringNoTime(alloc.end)}
-                                                    </Flex>
-
-                                                    {alloc.grantedIn && <>
-                                                        <Link target={"_blank"}
-                                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
-                                                            View grant application{" "}
-                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
-                                                        </Link>
-                                                    </>}
-                                                </Flex>}
-                                                right={<Flex flexDirection={"row"} gap={"8px"}>
-                                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
-                                                        <SmallIconButton
-                                                            icon={"heroPencil"} onClick={onEdit}
-                                                            disabled={state.editControlsDisabled}
-                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} />
-                                                    }
-                                                    {alloc.note && <>
-                                                        <TooltipV2 tooltip={alloc.note.text}>
-                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
-                                                        </TooltipV2>
-                                                    </>}
-
-                                                    {alloc.isEditing ?
-                                                        <Flex gap={"4px"} width={"250px"}>
-                                                            <Input
-                                                                height={"24px"}
-                                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
-                                                                autoFocus
-                                                                onKeyDown={onEditKey}
-                                                                onBlur={onEditBlur}
-                                                                data-ridx={recipientIdx} data-idx={idx}
-                                                                data-gidx={gidx}
-                                                            />
-                                                            {Accounting.explainUnit(g.category).name}
+                                                {recipient.usageAndQuota.map((uq, idx) => {
+                                                    if (idx > 2) return null;
+                                                    return <ProgressBar key={idx} uq={uq} />;
+                                                })}
+                                            </div>}
+                                        >
+                                            {recipient.groups.map((g, gidx) =>
+                                                <TreeNode
+                                                    key={g.category.name}
+                                                    data-recipient={recipient.owner.title}
+                                                    data-group={g.category.name}
+                                                    data-open={openNodes[makeCategoryKey(recipient.owner.title, g.category.name)]}
+                                                    left={<Flex gap={"4px"}>
+                                                        <Flex gap={"4px"} width={"200px"}>
+                                                            <ProviderLogo providerId={g.category.provider} size={20} />
+                                                            <Icon name={Accounting.productTypeToIcon(g.category.productType)}
+                                                                size={20} />
+                                                            <code>{g.category.name}</code>
                                                         </Flex>
-                                                        : <>
-                                                            {Accounting.balanceToString(g.category, alloc.quota)}
-                                                        </>
+                                                    </Flex>}
+                                                    right={
+                                                        <ProgressBar uq={g.usageAndQuota} />
                                                     }
-                                                </Flex>}
-                                            />
-                                        )
-                                    }
-                                </TreeNode>)}
-                        </TreeNode>
-                    })}
-                </Tree>
+                                                    onActivate={open => {
+                                                        if (open) setNodeState(TreeAction.OPEN, recipient.owner.title, g.category.name);
+                                                        else setNodeState(TreeAction.CLOSE, recipient.owner.title, g.category.name);
+                                                        listRef.current?.resetAfterIndex(recipientIdx);
+                                                    }}
+                                                >
+                                                    {g.allocations
+                                                        .map((alloc, idx) =>
+                                                            <TreeNode
+                                                                key={alloc.allocationId}
+                                                                className={alloc.note?.rowShouldBeGreyedOut ? "disabled-alloc" : undefined}
+                                                                data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx}
+                                                                left={<Flex>
+                                                                    <Flex width={"200px"}>
+                                                                        <Icon name={"heroBanknotes"} ml="8px" mr={4} />
+                                                                        <div>
+                                                                            <b>Allocation ID:</b>
+                                                                            {" "}
+                                                                            <code>{chunkedString(alloc.allocationId.toString().padStart(6, "0"), 3, false).join(" ")}</code>
+                                                                        </div>
+                                                                    </Flex>
+
+                                                                    <Flex width={"250px"}>
+                                                                        Period:
+                                                                        {" "}
+                                                                        {dateToStringNoTime(alloc.start)}
+                                                                        {" "}&mdash;{" "}
+                                                                        {dateToStringNoTime(alloc.end)}
+                                                                    </Flex>
+
+                                                                    {alloc.grantedIn && <>
+                                                                        <Link target={"_blank"}
+                                                                            to={AppRoutes.grants.editor(alloc.grantedIn)}>
+                                                                            View grant application{" "}
+                                                                            <Icon name={"heroArrowTopRightOnSquare"} mt={-6} />
+                                                                        </Link>
+                                                                    </>}
+                                                                </Flex>}
+                                                                right={<Flex flexDirection={"row"} gap={"8px"}>
+                                                                    {alloc.note?.rowShouldBeGreyedOut !== true && !alloc.isEditing &&
+                                                                        <SmallIconButton
+                                                                            icon={"heroPencil"} onClick={onEdit}
+                                                                            disabled={state.editControlsDisabled}
+                                                                            data-ridx={recipientIdx} data-idx={idx} data-gidx={gidx} />
+                                                                    }
+                                                                    {alloc.note && <>
+                                                                        <TooltipV2 tooltip={alloc.note.text}>
+                                                                            <Icon name={alloc.note.icon} color={alloc.note.iconColor} />
+                                                                        </TooltipV2>
+                                                                    </>}
+
+                                                                    {alloc.isEditing ?
+                                                                        <Flex gap={"4px"} width={"250px"}>
+                                                                            <Input
+                                                                                height={"24px"}
+                                                                                defaultValue={Math.ceil(Accounting.explainUnit(g.category).priceFactor * alloc.quota)}
+                                                                                autoFocus
+                                                                                onKeyDown={onEditKey}
+                                                                                onBlur={onEditBlur}
+                                                                                data-ridx={recipientIdx} data-idx={idx}
+                                                                                data-gidx={gidx}
+                                                                            />
+                                                                            <Text width="120px">{Accounting.explainUnit(g.category).name}</Text>
+                                                                        </Flex>
+                                                                        : <Text>
+                                                                            {Accounting.balanceToString(g.category, alloc.quota)}
+                                                                        </Text>
+                                                                    }
+                                                                </Flex>}
+                                                            />
+                                                        )
+                                                    }
+                                                </TreeNode>)}
+                                        </TreeNode>
+                                    </div>
+                                }}
+                            </VariableSizeList>
+                        </Tree>}
+                </ReactVirtualizedAutoSizer>
             </>}
         </div>}
     />;
 };
 
+function setNodeState(action: TreeAction, recipient: string, group?: string | null): void {
+    const key = group ? makeCategoryKey(recipient, group) : recipient;
+    switch (action) {
+        case TreeAction.CLOSE:
+            delete openNodes[key];
+            break;
+        case TreeAction.OPEN: {
+            openNodes[key] = true;
+            break;
+        }
+        case TreeAction.TOGGLE: {
+            openNodes[key] = !openNodes[key];
+            if (!openNodes[key]) delete openNodes[key];
+            break;
+        }
+    }
+}
+
+const ROW_HEIGHT = 48;
+function calculateHeightInPx(idx: number, state: State): number {
+    if (state.subAllocations.recipients.length <= idx) return 0; // Already handled 
+    const recipient = state.subAllocations.recipients[idx];
+    let height = ROW_HEIGHT;
+    const isOpen = openNodes[recipient.owner.title]
+    if (isOpen) {
+        height += recipient.groups.length * ROW_HEIGHT;
+        recipient.groups.forEach(g => {
+            const isGroupOpen = openNodes[makeCategoryKey(recipient.owner.title, g.category.name)];
+            if (isGroupOpen) {
+                height += g.allocations.length * ROW_HEIGHT;
+            }
+        });
+    }
+
+    return height;
+}
+
+function makeCategoryKey(title: Accounting.AllocationDisplayTreeRecipientOwner["title"], name: Accounting.ProductCategoryV2["name"]): string {
+    return title + "$$" + name;
+}
+
+let openNodes: Record<string, boolean> = {};
+
 // Utility components
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-function ProgressBar({uq, type}: {
+function ProgressBar({uq}: {
     uq: UsageAndQuota,
-    type: ProductType,
 }) {
-    if (uq.quota == 0) return null;
-    let usage: number;
-    if (uq.retiredAmountStillCounts) {
-        usage = uq.usage;
-    } else {
-        usage = uq.usage - uq.retiredAmount;
-    }
-
     return <NewAndImprovedProgress
-        limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + uq.usage) / uq.quota) * 100}
-        label={progressText(type, uq)}
-        percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
-        withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
+        limitPercentage={uq.display.maxUsablePercentage}
+        label={uq.display.usageAndQuotaPercent}
+        percentage={uq.display.percentageUsed}
+        withWarning={uq.display.displayOverallocationWarning}
     />;
 }
 
-export function showWarning(quota: number, maxUsable: number, usage: number): boolean {
-    if (maxUsable + usage >= quota) return false;
-    if (maxUsable + usage === 0) return false;
-    return usage / (maxUsable + usage) >= 0.95; // Note(Jonas): Also handles usage === 0
-}
-
-const productTypesByPriority: ProductType[] = [
-    "COMPUTE",
-    "STORAGE",
-    "NETWORK_IP",
-    "INGRESS",
-    "LICENSE",
-];
-
-function progressText(type: ProductType, uq: UsageAndQuota): string {
-    let text = "";
-
-    let balance: number;
-    if (uq.retiredAmountStillCounts) {
-        balance = uq.usage;
-    } else {
-        balance = uq.usage - uq.retiredAmount;
-    }
-
-    text += Accounting.balanceToStringFromUnit(type, uq.unit, balance, {
-        precision: 2,
-        removeUnitIfPossible: true
-    });
-    text += " / ";
-    text += Accounting.balanceToStringFromUnit(type, uq.unit, uq.quota, {precision: 2});
-
-    if (uq.quota !== 0) {
-        text += " (";
-        text += Math.round((balance / uq.quota) * 100);
-        text += "%)";
-    }
-    return text;
-}
-
-function allocationIsActive(
-    alloc: Accounting.Allocation,
-    now: number,
-): boolean {
-    return periodsOverlap(allocationToPeriod(alloc), {start: now, end: now});
-}
-
-interface Period {
-    start: number;
-    end: number;
-}
-
-function allocationToPeriod(alloc: Accounting.Allocation): Period {
-    return {start: alloc.startDate, end: alloc.endDate ?? NO_EXPIRATION_FALLBACK};
-}
-
-function normalizePeriodForComparison(period: Period): Period {
-    return {start: Math.floor(period.start / 1000) * 1000, end: Math.floor(period.end / 1000) * 1000};
-}
-
-export function totalUsageExcludingRetiredIfNeeded(wallet: WalletV2): number {
+export function currentTotalUsage(wallet: WalletV2): number {
     let totalusage: number
     let retired = 0
     if (wallet.paysFor.accountingFrequency === "ONCE") {
@@ -1959,7 +1596,7 @@ export function totalUsageExcludingRetiredIfNeeded(wallet: WalletV2): number {
         )
         totalusage = wallet.totalUsage - retired
     }
-    return totalusage
+    return totalusage;
 }
 
 const SmallIconButtonStyle = injectStyle("small-icon-button", k => `
@@ -2048,13 +1685,12 @@ async function fetchManagedProviders(): Promise<string[]> {
 function initialState(): State {
     return {
         remoteData: {wallets: [], managedProviders: [], managedProducts: {}, gifts: []},
-        subAllocations: {searchQuery: "", searchInflight: 0, recipients: []},
+        subAllocations: {recipients: []},
+        searchQuery: "",
         yourAllocations: {},
         editControlsDisabled: false,
         viewOnlyProjects: true,
     };
-};
-
-const NO_EXPIRATION_FALLBACK = 4102444800353;
+}
 
 export default Allocations;

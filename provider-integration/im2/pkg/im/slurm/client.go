@@ -221,7 +221,7 @@ func (c *Client) JobQuery(id int) *Job {
 		return nil
 	}
 
-	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
+	cmd := []string{"sacct", "-XPj", fmt.Sprint(id), "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
 	stdout, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
@@ -237,7 +237,7 @@ func (c *Client) JobQuery(id int) *Job {
 }
 
 func (c *Client) JobList() []Job {
-	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos"}
+	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
 	stdout, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
@@ -365,6 +365,16 @@ func (c *Client) AccountBillingList() map[string]int64 {
 		result[account] = usage
 	}
 	return result
+}
+
+func (c *Client) UserListAccounts(user string) []string {
+	stdout, ok := util.RunCommand([]string{"sacctmgr", "show", "user", user, "--associations", "format=account", "--parsable2", "--noheader"})
+	if !ok {
+		return nil
+	}
+
+	lines := strings.Split(stdout, "\n")
+	return lines
 }
 
 var billingRegex = regexp.MustCompile("billing=(\\d+)")

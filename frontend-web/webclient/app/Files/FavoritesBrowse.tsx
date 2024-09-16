@@ -4,7 +4,6 @@ import {useLayoutEffect, useRef} from "react";
 import MainContainer from "@/ui-components/MainContainer";
 import {
     EmptyReasonTag,
-    placeholderImage,
     ResourceBrowseFeatures,
     ResourceBrowser,
     ColumnTitleList,
@@ -24,7 +23,7 @@ import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import MetadataDocumentApi, {FileMetadataAttached} from "@/UCloud/MetadataDocumentApi";
 import AppRoutes from "@/Routes";
 import {image} from "@/Utilities/HTMLUtilities";
-import {isLikelyFolder, sidebarFavoriteCache} from "./FavoriteCache";
+import {isLikelyDirectory, sidebarFavoriteCache} from "./FavoriteCache";
 import {callAPI} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {UFile} from "@/UCloud/UFile";
@@ -125,7 +124,8 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
                     const ext = filePath.indexOf(".") !== -1 ? extensionFromPath(filePath) : undefined;
                     const ext4 = ext?.substring(0, 4) ?? "File";
                     const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(filePath);
-                    return renderFileIconFromProperties(ext4, fileInfo?.status.type === "DIRECTORY" ?? isLikelyFolder(filePath), fileInfo?.status.icon);
+                    const isDirectory = fileInfo?.status.type === "DIRECTORY";
+                    return renderFileIconFromProperties(ext4, isDirectory || isLikelyDirectory(filePath), fileInfo?.status.icon);
                 };
 
                 browser.on("renderRow", (fav, row, containerWidth) => {
@@ -134,9 +134,9 @@ function FavoriteBrowse({selection, navigateToFolder}: {navigateToFolder: (path:
                     renderFileIcon(fav.path).then(setIcon)
                     row.title.append(icon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), containerWidth, row);
+                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
                     row.title.append(title);
-                    
+
                     const favoriteIcon = favoriteRowIcon(row);
 
                     ResourceBrowser.icons.renderIcon({

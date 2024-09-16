@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	ws "github.com/gorilla/websocket"
+	"net/http"
 	"strings"
 	"time"
 	"ucloud.dk/pkg/apm"
@@ -13,6 +14,7 @@ import (
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -23,11 +25,25 @@ type ApmService struct {
 	HandleNotification func(update *NotificationWalletUpdated)
 }
 
-const replayFromKey = "events-replay-from"
-
 var userReplayChannel chan string
 
 func initEvents() {
+	getLastKnownProjectIpc.Handler(func(r *ipc.Request[string]) ipc.Response[apm.Project] {
+		projectId := r.Payload
+		if BelongsToWorkspace(apm.WalletOwnerProject(projectId), r.Uid) {
+			project, ok := GetLastKnownProject(projectId)
+			if ok {
+				return ipc.Response[apm.Project]{
+					StatusCode: http.StatusOK,
+					Payload:    project,
+				}
+			}
+		}
+		return ipc.Response[apm.Project]{
+			StatusCode: http.StatusNotFound,
+		}
+	})
+
 	userReplayChannel = make(chan string)
 
 	go func() {
@@ -135,7 +151,7 @@ func handleNotification(nType NotificationMessageType, notification any) {
 }
 
 func setReplayFrom() {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -266,6 +282,8 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					}
 
 					handleNotification(NotificationMessageProjectUpdated, &notification)
+				default:
+					log.Warn("Invalid APM opcode received: %v", op)
 				}
 			}
 
@@ -435,7 +453,7 @@ func (b *buf) GetString() string {
 func saveLastKnownProject(project apm.Project) {
 	data, _ := json.Marshal(project)
 
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
@@ -447,39 +465,49 @@ func saveLastKnownProject(project apm.Project) {
 			`,
 			db.Params{
 				"project_id":     project.Id,
-				"ucloud_project": data,
+				"ucloud_project": string(data),
 			},
 		)
 	})
 }
 
+var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
+
 func GetLastKnownProject(projectId string) (apm.Project, bool) {
-	jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
-		jsonData, ok := db.Get[struct{ UCloudProject string }](
-			tx,
-			`
+	if cfg.Mode == cfg.ServerModeServer {
+		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
+			jsonData, ok := db.Get[struct{ UCloudProject string }](
+				tx,
+				`
 				select ucloud_project
 				from tracked_projects
 				where project_id = :project_id
 			`,
-			db.Params{
-				"project_id": projectId,
-			},
-		)
-		return jsonData.UCloudProject, ok
-	})
+				db.Params{
+					"project_id": projectId,
+				},
+			)
+			return jsonData.UCloudProject, ok
+		})
 
-	if !ok {
-		return apm.Project{}, false
-	}
+		if !ok {
+			return apm.Project{}, false
+		}
 
-	var result apm.Project
-	err := json.Unmarshal([]byte(jsonData), &result)
-	if err != nil {
-		log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
-		return apm.Project{}, false
+		var result apm.Project
+		err := json.Unmarshal([]byte(jsonData), &result)
+		if err != nil {
+			log.Warn("Could not unmarshal last known project %v -> %v", projectId, jsonData)
+			return apm.Project{}, false
+		}
+		return result, true
+	} else {
+		project, err := getLastKnownProjectIpc.Invoke(projectId)
+		if err != nil {
+			return apm.Project{}, false
+		}
+		return project, true
 	}
-	return result, true
 }
 
 func BelongsToWorkspace(workspace apm.WalletOwner, uid uint32) bool {
@@ -563,7 +591,7 @@ type TrackedAllocation struct {
 }
 
 func trackAllocation(update *NotificationWalletUpdated) {
-	db.NewTxV(func(tx *db.Transaction) {
+	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`

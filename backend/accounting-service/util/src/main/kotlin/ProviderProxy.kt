@@ -392,75 +392,6 @@ class ProviderProxy<
         throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
     }
 
-    suspend fun <R : Any, S : Any, R2 : Any> proxySubscription(
-        actorAndProject: ActorAndProject,
-        request: R,
-        instructions: SubscriptionProxyInstructions<Comms, Support, Res, R, R2, S>
-    ): S {
-        var mappedRequest: R2? = null
-        with(instructions) {
-            val reqWithResource = verifyAndFetchResources(actorAndProject, request)
-            val (_, support) = support.retrieveProductSupport(reqWithResource.second.reference)
-            verifyRequest(reqWithResource.first, reqWithResource.second, support)
-            val provider = reqWithResource.second.reference.provider
-
-            try {
-                val comms = providers.prepareCommunication(provider)
-                val providerCall = retrieveCall(comms)
-                val im = IntegrationProvider(provider)
-                val requestForProvider = beforeCall(provider, reqWithResource)
-                mappedRequest = requestForProvider
-
-                for (attempt in 0 until 5) {
-                    if (provider == Provider.UCLOUD_CORE_PROVIDER) {
-                        afterCall(provider, reqWithResource, null)
-                        break
-                    }
-
-                    val response = providerCall.subscribe(
-                        requestForProvider,
-                        if (isUserRequest) {
-                            comms.wsClient.withProxyInfo(
-                                actorAndProject.actor.safeUsername(),
-                                actorAndProject.signedIntentFromUser
-                            )
-                        } else {
-                            comms.wsClient
-                        },
-                        handler = { message ->
-                            onMessage(provider, reqWithResource, message)
-                        }
-                    )
-
-                    if (response.statusCode == HttpStatusCode.RetryWith ||
-                        response.statusCode == HttpStatusCode.ServiceUnavailable
-                    ) {
-                        if (isUserRequest) {
-                            im.init.call(
-                                IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
-                                comms.client
-                            ).orThrow()
-
-                            delay(200L + (attempt * 500))
-                            continue
-                        } else {
-                            response.throwError()
-                        }
-                    }
-
-                    val capturedResponse = response.orThrow()
-                    afterCall(provider, reqWithResource, capturedResponse)
-                    return capturedResponse
-                }
-            } catch (ex: Throwable) {
-                onFailure(provider, reqWithResource, ex, mappedRequest)
-                throw ex
-            }
-        }
-
-        throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
-    }
-
     suspend fun <R : Any, S : Any> pureProxy(
         actorAndProject: ActorAndProject,
         productRef: ProductReference,
@@ -575,6 +506,7 @@ suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeSu
             } else {
                 baseClient
             },
+            bearerInHeader = true,
             handler
         )
 
