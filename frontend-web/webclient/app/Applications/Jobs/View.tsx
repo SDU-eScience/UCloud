@@ -1052,8 +1052,8 @@ const RunningContent: React.FunctionComponent<{
         </div>
 
         {!supportsLogs ? null :
-            <TabbedCard>
-                <Box minHeight={"300px"} divRef={scrollRef}>
+            <TabbedCard style={{height: "max(50vh, 420px)"}}>
+                <Box divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
                         <RunningJobRank key={i} job={job} rank={i} state={state} />
                     )}
@@ -1116,13 +1116,13 @@ const StandardPanelBody: React.FunctionComponent<{
 
 const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} {
-        --termHeight: 294px;
+        --termHeight: max(320px, calc(50vh - 60px));
         margin-top: 16px;
         margin-bottom: 16px;
     }
 
     ${k}[data-has-replicas="true"] {
-        --termHeight: 274px;
+        --termHeight: max(300px, calc(50vh - 113px));
     }
 
     ${k} .rank {
