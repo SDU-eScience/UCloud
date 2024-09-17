@@ -705,6 +705,4 @@ class CatalogData(
             }
         }
     }
-
-
 }

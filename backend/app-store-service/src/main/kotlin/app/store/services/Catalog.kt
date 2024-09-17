@@ -6,7 +6,9 @@ import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.AsyncCache
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.accounting.util.ProjectCache
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -53,7 +55,7 @@ class Catalog(
         return if (version == null) {
             listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
         } else {
-            loadApplications(
+            prepareApplicationsForUser(
                 actorAndProject,
                 listOf(NameAndVersion(name, version)),
                 loadGroupApplications = loadGroupApplications
@@ -69,7 +71,7 @@ class Catalog(
         val appVersions =
             applicationVersions[name] ?: throw RPCException("Unknown application: $name", HttpStatusCode.NotFound)
 
-        val apps = loadApplications(
+        val apps = prepareApplicationsForUser(
             actorAndProject,
             appVersions.get().map { NameAndVersion(name, it) },
             withAllVersions = true,
@@ -127,23 +129,33 @@ class Catalog(
         return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
     }
 
-    private suspend fun findRelevantStoreFronts(actorAndProject: ActorAndProject): List<StoreFront> {
-        val relevantProviders = AccountingV2.findRelevantProviders.call(
-            bulkRequestOf(
-                AccountingV2.FindRelevantProviders.RequestItem(
-                    actorAndProject.actor.safeUsername(),
-                    actorAndProject.project,
-                    useProject = true,
-                    filterProductType = ProductType.COMPUTE,
-                    includeFreeToUse = false,
-                )
-            ),
-            serviceClient
-        ).orThrow()
+    private val relevantStoreFrontsCache = AsyncCache<ActorAndProject, List<StoreFront>>(
+        backgroundScope,
+        timeToLiveMilliseconds = 10_000,
+        timeoutMilliseconds = 1000,
+        timeoutException = { throw RPCException("Failed to fetch application data", HttpStatusCode.InternalServerError) },
+        retrieve = { actorAndProject ->
+            val relevantProviders = AccountingV2.findRelevantProviders.call(
+                bulkRequestOf(
+                    AccountingV2.FindRelevantProviders.RequestItem(
+                        actorAndProject.actor.safeUsername(),
+                        actorAndProject.project,
+                        useProject = true,
+                        filterProductType = ProductType.COMPUTE,
+                        includeFreeToUse = false,
+                    )
+                ),
+                serviceClient
+            ).orThrow()
 
-        return relevantProviders.responses.first().providers.map { providerId ->
-            storeFronts.retrieve(providerId)
+            relevantProviders.responses.first().providers.map { providerId ->
+                storeFronts.retrieve(providerId)
+            }
         }
+    )
+
+    private suspend fun findRelevantStoreFronts(actorAndProject: ActorAndProject): List<StoreFront> {
+        return relevantStoreFrontsCache.retrieve(actorAndProject)
     }
 
     suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
@@ -203,10 +215,7 @@ class Catalog(
             .flatMap { it.status.groups ?: emptyList() }
             .associateBy { it.metadata.id }
             .values
-            .filter { group ->
-                val apps = group.status.applications ?: emptyList()
-                apps.any { hasPermission(it.metadata.name, it.metadata.version, projectMembership) }
-            }
+            .mapNotNull { prepareGroupForUser(actorAndProject, projectMembership, it) }
             .sortedBy { it.specification.title.lowercase() }
 
 
@@ -214,6 +223,37 @@ class Catalog(
             categoryMetadata.metadata,
             categoryMetadata.specification,
             ApplicationCategory.Status(dedupedGroups)
+        )
+    }
+
+    private fun prepareGroupForUser(
+        actorAndProject: ActorAndProject,
+        projectMembership: MembershipStatusCacheEntry,
+        group: ApplicationGroup,
+    ): ApplicationGroup? {
+        val apps = group.status.applications ?: emptyList()
+        val runnableApps = apps.filter { hasPermission(it.metadata.name, it.metadata.version, projectMembership) }
+        if (runnableApps.isEmpty()) return null
+
+        val newDefaultFlavor =
+            if (runnableApps.size == 1) {
+                runnableApps[0].metadata.name
+            } else {
+                val hasDefault = runnableApps.any { it.metadata.name == group.specification.defaultFlavor }
+                if (hasDefault) {
+                    group.specification.defaultFlavor
+                } else {
+                    null
+                }
+            }
+
+        return group.copy(
+            specification = group.specification.copy(
+                defaultFlavor = newDefaultFlavor
+            ),
+            status = group.status.copy(
+                applications = runnableApps
+            )
         )
     }
 
@@ -237,7 +277,7 @@ class Catalog(
         groupId: Int
     ): List<ApplicationWithFavoriteAndTags> {
         val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return loadApplications(actorAndProject, group.applications).sortedBy {
+        return prepareApplicationsForUser(actorAndProject, group.applications).sortedBy {
             it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
         }
     }
@@ -271,7 +311,7 @@ class Catalog(
             }
         }
 
-        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
+        val loaded = prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
         return loaded.map {
             val extsSupported = it.invocation.fileExtensions.filter { it in extensions }
             ApplicationWithExtension(it.metadata, extsSupported)
@@ -337,7 +377,7 @@ class Catalog(
             candidates.addAll(appVersions.map { NameAndVersion(name, it) })
         }
 
-        val loaded = loadApplications(actorAndProject, candidates, withAllVersions = false)
+        val loaded = prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
         return loaded.sortedByDescending { scores[it.metadata.name] ?: 0 }
     }
 
@@ -386,7 +426,7 @@ class Catalog(
                 candidates.add(NameAndVersion(name, version))
             }
         }
-        return loadApplications(actorAndProject, candidates, withAllVersions = false)
+        return prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
     }
 
     private fun hasPermission(
@@ -415,19 +455,27 @@ class Catalog(
         return false
     }
 
-    private suspend fun loadApplications(
+    private suspend fun prepareApplicationsForUser(
         actorAndProject: ActorAndProject,
         versions: Collection<NameAndVersion>,
         withAllVersions: Boolean = false,
         loadGroupApplications: Boolean = false,
     ): List<ApplicationWithFavoriteAndTags> {
-        val result = ArrayList<Application>()
         val (actor) = actorAndProject
+        if (actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) {
+            return prepareApplicationsForProvider(actorAndProject, versions, withAllVersions, loadGroupApplications)
+        }
+
+        val result = ArrayList<Application>()
         val isPrivileged = isPrivileged(actorAndProject)
         val projectMembership = if (!isPrivileged) projectCache.lookup(actor.safeUsername()) else null
 
+        val allStorefronts = findRelevantStoreFronts(actorAndProject)
+
         for (nameAndVersion in versions) {
             val app = applications[nameAndVersion] ?: continue
+            if (!allStorefronts.any { nameAndVersion.name in it.knownApplication }) continue
+
             if (!app.metadata.public && !isPrivileged) {
                 val username = actor.safeUsername()
                 if (projectMembership == null) continue
@@ -468,6 +516,15 @@ class Catalog(
                 emptyList(),
             )
         }
+    }
+
+    private suspend fun prepareApplicationsForProvider(
+        actorAndProject: ActorAndProject,
+        versions: Collection<NameAndVersion>,
+        withAllVersions: Boolean = false,
+        loadGroupApplications: Boolean = false,
+    ): List<ApplicationWithFavoriteAndTags> {
+        TODO()
     }
 
     private val storeFronts = AsyncCache<String, StoreFront>(
@@ -521,11 +578,18 @@ class Catalog(
                             .filter { category.metadata.id in it.get().categories }
                             .map { it.toApiModel() }
                             .map { apiGroup ->
+                                val applicationsInGroup = supportedApplications
+                                    .filter { it.metadata.group?.metadata?.id == apiGroup.metadata.id }
+                                    .map { ApplicationSummaryWithFavorite(it.metadata, false, emptyList()) }
+                                    .groupBy { it.metadata.name }
+
+                                val dedupedApplications = applicationsInGroup.map { (name, versions) ->
+                                    versions.maxBy { it.metadata.createdAt }
+                                }
+
                                 apiGroup.copy(
                                     status = apiGroup.status.copy(
-                                        applications = supportedApplications
-                                            .filter { it.metadata.group?.metadata?.id == apiGroup.metadata.id }
-                                            .map { ApplicationSummaryWithFavorite(it.metadata, false, emptyList()) }
+                                        applications = dedupedApplications,
                                     )
                                 )
                             }

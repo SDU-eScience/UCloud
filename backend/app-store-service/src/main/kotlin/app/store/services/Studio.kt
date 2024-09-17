@@ -1121,11 +1121,12 @@ class Studio(
     suspend fun retrieveGroup(
         actorAndProject: ActorAndProject,
         groupId: Int,
+        loadApplications: Boolean,
     ): ApplicationGroup? {
         val group = groups[groupId.toLong()]?.toApiModel() ?: return null
         return group.copy(
             status = group.status.copy(
-                applications = listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
+                applications = if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() } else null
             )
         )
     }
@@ -1155,7 +1156,7 @@ class Studio(
             val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
             val tool = tools[toolKey] ?: continue
             val group = app.metadata.group?.metadata?.id?.let { id ->
-                retrieveGroup(actorAndProject, id)
+                retrieveGroup(actorAndProject, id, false)
             }
 
             result.add(
