@@ -1,11 +1,11 @@
-import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
+import {Application, ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 
 export type SidebarActionType = SetAppFavorites | ToggleFavorite | ToggleTheme;
 
 export const SET_APP_FAVORITES = "SET_APP_FAVORITES";
-type SetAppFavorites = PayloadAction<typeof SET_APP_FAVORITES, {favorites: ApplicationSummaryWithFavorite[]}>;
+type SetAppFavorites = PayloadAction<typeof SET_APP_FAVORITES, {favorites: Application[]}>;
 
-export function setAppFavorites(favorites: ApplicationSummaryWithFavorite[]): SetAppFavorites {
+export function setAppFavorites(favorites: Application[]): SetAppFavorites {
     return {
         type: SET_APP_FAVORITES,
         payload: {favorites}
@@ -13,9 +13,9 @@ export function setAppFavorites(favorites: ApplicationSummaryWithFavorite[]): Se
 }
 
 export const TOGGLE_APP_FAVORITE = "TOGGLE_APP_FAVORITE";
-type ToggleFavorite = PayloadAction<typeof TOGGLE_APP_FAVORITE, {app: ApplicationSummaryWithFavorite, favorite: boolean}>;
+type ToggleFavorite = PayloadAction<typeof TOGGLE_APP_FAVORITE, {app: Application, favorite: boolean}>;
 
-export function toggleAppFavorite(app: ApplicationSummaryWithFavorite, favorite: boolean): ToggleFavorite {
+export function toggleAppFavorite(app: Application, favorite: boolean): ToggleFavorite {
     return {
         type: TOGGLE_APP_FAVORITE,
         payload: {

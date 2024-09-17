@@ -753,7 +753,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 success(
                     AppStore.findByNameAndVersion,
                     FindByNameAndVersionRequest("a-batch-application", "1.0.0"),
-                    ApplicationWithFavoriteAndTags(
+                    Application(
                         metadata,
                         ApplicationInvocationDescription(
                             ToolReference(
@@ -785,8 +785,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             ),
                             listOf("*")
                         ),
-                        favorite,
-                        tags,
                     ),
                     user,
                     "application"

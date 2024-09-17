@@ -10,6 +10,24 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonElement
 
+@Serializable
+data class ApplicationFlags(
+    // If categories are requested, should the groups in the categories be included?
+    val includeGroups: Boolean = false,
+
+    // If groups are included, should the applications in the groups be included?
+    val includeApplications: Boolean = false,
+
+    // If an application is included, should the star status be included?
+    val includeStars: Boolean = false,
+
+    // If an application is included, should the invocation be included?
+    val includeInvocation: Boolean = false,
+
+    // If an application is included, should the invocation be included?
+    val includeVersions: Boolean = false,
+)
+
 sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpStatusCode) :
     RPCException(why, httpStatusCode) {
     class DuplicateDefinition(type: String, definitions: List<String>) :
@@ -38,7 +56,7 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
 
 @Serializable
 @UCloudApiDoc("""
-    The ApplicationType determines how user's interact with an Application
+    The ApplicationType determines how users interact with an Application
     
     - `BATCH`: A non-interactive $TYPE_REF Application which runs without user input
     - `VNC`: An interactive $TYPE_REF Application exposing a remote desktop interface
@@ -1106,7 +1124,7 @@ data class ApplicationMetadata(
     val flavorName: String? = null,
 
     @UCloudApiDoc("The ApplicationGroup of the Application")
-    val group: ApplicationGroup? = null,
+    val groupId: Long? = null,
 
     @UCloudApiDoc("The curator id of the Application")
     val curator: String? = null,
@@ -1294,27 +1312,6 @@ data class ApplicationInvocationDescription(
         }
 }
 
-interface WithAppMetadata {
-    val metadata: ApplicationMetadata
-}
-
-interface WithAppInvocation {
-    val invocation: ApplicationInvocationDescription
-}
-
-interface WithAppFavorite {
-    val favorite: Boolean
-}
-
-interface WithAllAppTags {
-    val tags: List<String>
-}
-
-@Serializable
-data class ApplicationSummary(
-    override val metadata: ApplicationMetadata
-) : WithAppMetadata
-
 @Serializable
 @UCloudApiDoc("""
     Applications specify the input parameters and invocation of a software package.
@@ -1323,49 +1320,12 @@ data class ApplicationSummary(
 """, importance = 1000)
 @UCloudApiOwnedBy(AppStore::class)
 data class Application(
-    override val metadata: ApplicationMetadata,
-    override val invocation: ApplicationInvocationDescription
-) : WithAppMetadata, WithAppInvocation {
-    fun withoutInvocation(): ApplicationSummary = ApplicationSummary(metadata)
-}
+    val metadata: ApplicationMetadata,
 
-@Serializable
-@UCloudApiDoc("""
-    Applications specify the input parameters and invocation of a software package.
-
-    For more information see the [full documentation](/docs/developer-guide/orchestration/compute/appstore/apps.md).
-""")
-data class ApplicationWithExtension(
-    override val metadata: ApplicationMetadata,
-    val extensions: List<String>
-) : WithAppMetadata
-
-@Serializable
-@UCloudApiDoc("""
-    Applications specify the input parameters and invocation of a software package.
-
-    For more information see the [full documentation](/docs/developer-guide/orchestration/compute/appstore/apps.md).
-""")
-data class ApplicationWithFavoriteAndTags(
-    override val metadata: ApplicationMetadata,
-    override val invocation: ApplicationInvocationDescription,
-    override val favorite: Boolean,
-    override val tags: List<String>
-) : WithAppMetadata, WithAppInvocation, WithAppFavorite, WithAllAppTags {
-    fun withoutInvocation(): ApplicationSummaryWithFavorite = ApplicationSummaryWithFavorite(metadata, favorite, tags)
-}
-
-@Serializable
-@UCloudApiDoc("""
-    Applications specify the input parameters and invocation of a software package.
-
-    For more information see the [full documentation](/docs/developer-guide/orchestration/compute/appstore/apps.md).
-""")
-data class ApplicationSummaryWithFavorite(
-    override val metadata: ApplicationMetadata,
-    override val favorite: Boolean,
-    override val tags: List<String>
-) : WithAppMetadata, WithAppFavorite, WithAllAppTags
+    val invocation: ApplicationInvocationDescription? = null,
+    val favorite: Boolean? = null,
+    val versions: List<String>? = null,
+)
 
 @Serializable
 @UCloudApiDoc("The specification of a Tool", importance = 450)

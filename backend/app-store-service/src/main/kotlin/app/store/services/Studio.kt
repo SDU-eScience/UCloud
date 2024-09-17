@@ -17,7 +17,6 @@ import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -90,7 +89,11 @@ class Studio(
 
         val normalizedNewDescription = newDescription?.trim()
         if (newTitle != null) checkSingleLine("title", newTitle, maximumSize = 64)
-        if (!normalizedNewDescription.isNullOrEmpty()) checkSingleLine("description", normalizedNewDescription, maximumSize = 600)
+        if (!normalizedNewDescription.isNullOrEmpty()) checkSingleLine(
+            "description",
+            normalizedNewDescription,
+            maximumSize = 600
+        )
 
         val resizedLogo = if (newLogo != null) {
             if (newLogo.isEmpty()) {
@@ -169,8 +172,10 @@ class Studio(
             }
         }
 
-        g.updateMetadata(newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo,
-            newLogoHasText, newColorRemapping?.light, newColorRemapping?.dark)
+        g.updateMetadata(
+            newTitle, normalizedNewDescription, newDefaultFlavor, resizedLogo,
+            newLogoHasText, newColorRemapping?.light, newColorRemapping?.dark
+        )
 
         LogoGenerator.invalidateCache(g.get().title)
     }
@@ -205,10 +210,10 @@ class Studio(
             val key = NameAndVersion(appName, version)
             val app = applications[key] ?: continue
 
-            val currentGroupId = app.metadata.group
+            val currentGroupId = app.metadata.groupId
             var currentGroup: InternalGroup? = null
             if (currentGroupId != null) {
-                currentGroup = groups[currentGroupId.metadata.id.toLong()]
+                currentGroup = groups[currentGroupId.toLong()]
                 currentGroup?.removeApplications(setOf(key))
             }
 
@@ -216,7 +221,7 @@ class Studio(
 
             applications[key] = app.copy(
                 metadata = app.metadata.copy(
-                    group = currentGroup?.toApiModel()
+                    groupId = currentGroup?.id
                 )
             )
         }
@@ -322,7 +327,7 @@ class Studio(
             val app = applications[appRef] ?: continue
             applications[appRef] = app.copy(
                 metadata = app.metadata.copy(
-                    group = null
+                    groupId = null
                 )
             )
         }
@@ -382,8 +387,7 @@ class Studio(
                         serviceClient
                     ).orNull()
 
-                    val foundProject = projectById ?:
-                    Projects.retrieve.call(
+                    val foundProject = projectById ?: Projects.retrieve.call(
                         ProjectsRetrieveRequest(change.entity.project!!),
                         serviceClient
                     ).orRethrowAs {
@@ -504,7 +508,11 @@ class Studio(
         val appVersions =
             applicationVersions[appName] ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
 
-        val newFlavor = if (newFlavorName != "") { newFlavorName } else { null }
+        val newFlavor = if (newFlavorName != "") {
+            newFlavorName
+        } else {
+            null
+        }
 
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -1126,7 +1134,9 @@ class Studio(
         val group = groups[groupId.toLong()]?.toApiModel() ?: return null
         return group.copy(
             status = group.status.copy(
-                applications = if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() } else null
+                applications =
+                if (loadApplications) listApplicationsInGroup(actorAndProject, groupId)
+                else null
             )
         )
     }
@@ -1134,7 +1144,7 @@ class Studio(
     suspend fun listApplicationsInGroup(
         actorAndProject: ActorAndProject,
         groupId: Int
-    ): List<ApplicationWithFavoriteAndTags> {
+    ): List<Application> {
         val group = groups[groupId.toLong()]?.get() ?: return emptyList()
         return loadApplications(actorAndProject, group.applications).sortedBy {
             it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
@@ -1145,7 +1155,7 @@ class Studio(
         actorAndProject: ActorAndProject,
         versions: Collection<NameAndVersion>,
         withAllVersions: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
+    ): List<Application> {
         val result = ArrayList<Application>()
         val isPrivileged = isPrivileged(actorAndProject)
         if (!isPrivileged) return emptyList()
@@ -1153,20 +1163,19 @@ class Studio(
         for (nameAndVersion in versions) {
             val app = applications[nameAndVersion] ?: continue
 
-            val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
+            val toolKey = app.invocation!!.tool.let { NameAndVersion(it.name, it.version) }
             val tool = tools[toolKey] ?: continue
-            val group = app.metadata.group?.metadata?.id?.let { id ->
-                retrieveGroup(actorAndProject, id, false)
-            }
 
             result.add(
                 app.copy(
                     metadata = app.metadata.copy(
-                        group = group,
+                        groupId = app.metadata.groupId,
                     ),
-                    invocation = app.invocation.copy(
-                        tool = app.invocation.tool.copy(tool = tool)
-                    )
+                    invocation = app.invocation?.let { invo ->
+                        invo.copy(
+                            tool = invo.tool.copy(tool = tool)
+                        )
+                    }
                 )
             )
         }
@@ -1180,11 +1189,9 @@ class Studio(
         }
 
         return deduped.map {
-            ApplicationWithFavoriteAndTags(
+            Application(
                 it.metadata,
                 it.invocation,
-                false,
-                emptyList(),
             )
         }
     }

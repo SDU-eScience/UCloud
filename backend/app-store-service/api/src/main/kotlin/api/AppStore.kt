@@ -4,7 +4,6 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -75,11 +74,9 @@ invocation of the application, but is used solely to visually group applications
                         exampleBatchApplication.metadata.name,
                         exampleBatchApplication.metadata.version
                     ),
-                    ApplicationWithFavoriteAndTags(
+                    Application(
                         exampleBatchApplication.metadata,
                         exampleBatchApplication.invocation,
-                        false,
-                        emptyList()
                     ),
                     user
                 )
@@ -111,7 +108,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -146,7 +143,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -181,7 +178,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -227,7 +224,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -272,7 +269,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -286,6 +283,7 @@ invocation of the application, but is used solely to visually group applications
     val create = LegacyApi.create
     val search = Search.call
     val browseOpenWithRecommendations = BrowseOpenWithRecommendations.call
+    val findGroupByApplication = FindGroupByApplication.call
 
     // Application management
     // =================================================================================================================
@@ -358,7 +356,7 @@ invocation of the application, but is used solely to visually group applications
         val findByName = call(
             "findByName",
             FindByNameRequest.serializer(),
-            Page.serializer(ApplicationSummaryWithFavorite.serializer()),
+            Page.serializer(Application.serializer()),
             CommonErrorMessage.serializer()
         ) {
             auth {
@@ -388,7 +386,7 @@ invocation of the application, but is used solely to visually group applications
         val findByNameAndVersion = call(
             "findByNameAndVersion",
             FindByNameAndVersionRequest.serializer(),
-            ApplicationWithFavoriteAndTags.serializer(),
+            Application.serializer(),
             CommonErrorMessage.serializer()
         ) {
             auth {
@@ -457,7 +455,7 @@ invocation of the application, but is used solely to visually group applications
     object RetrieveStars {
         @Serializable
         data class Response(
-            val items: List<ApplicationSummaryWithFavorite>,
+            val items: List<Application>,
         )
 
         val call = call(
@@ -488,7 +486,7 @@ invocation of the application, but is used solely to visually group applications
         val call = call(
             "search",
             Request.serializer(),
-            PageV2.serializer(ApplicationSummaryWithFavorite.serializer()),
+            PageV2.serializer(Application.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
                 httpSearch(baseContext)
@@ -584,13 +582,41 @@ invocation of the application, but is used solely to visually group applications
         val call = call(
             "browseOpenWithRecommendations",
             Request.serializer(),
-            PageV2.serializer(ApplicationWithExtension.serializer()),
+            PageV2.serializer(Application.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "openWith")
 
                 documentation {
                     summary = "Finds a page of Application which can open a specific UFile"
+                }
+            }
+        )
+    }
+
+    object FindGroupByApplication {
+        @Serializable
+        data class Request(
+            val appName: String,
+            val appVersion: String? = null,
+            val flags: ApplicationFlags = ApplicationFlags(),
+        )
+
+        val call = call(
+            "findGroupByApplication",
+            Request.serializer(),
+            ApplicationGroup.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "findGroupByApplication", roles = Roles.END_USER)
+
+                documentation {
+                    summary = "Find an application group by one of its application group members"
+                    description = """
+                        If appVersion is null, then the latest version will be used. If appVersion is specified, then
+                        that specific application will be returned in the group (assuming includeApplications = true).
+                        All other applications in the group will contain the newest version.
+                    """.trimIndent()
                 }
             }
         )
@@ -966,8 +992,8 @@ invocation of the application, but is used solely to visually group applications
             val topPicks: List<TopPick>,
             val categories: List<ApplicationCategory>,
             val spotlight: Spotlight?,
-            val newApplications: List<ApplicationSummaryWithFavorite>,
-            val recentlyUpdated: List<ApplicationSummaryWithFavorite>,
+            val newApplications: List<Application>,
+            val recentlyUpdated: List<Application>,
         )
 
         val call = call(
@@ -1262,7 +1288,7 @@ data class ApplicationGroup(
 
     @Serializable
     data class Status(
-        val applications: List<ApplicationSummaryWithFavorite>? = null,
+        val applications: List<Application>? = null,
     )
 }
 
@@ -1287,22 +1313,6 @@ data class ApplicationCategory(
     @Serializable
     data class Status(
         val groups: List<ApplicationGroup>? = null,
-    )
-}
-
-@Serializable
-data class ApplicationRepository(
-    val metadata: Metadata,
-    val specification: Specification,
-) {
-    @Serializable
-    data class Metadata(
-        val id: String
-    )
-
-    @Serializable
-    data class Specification(
-        val title: String
     )
 }
 
@@ -1393,10 +1403,7 @@ fun exampleApplication(
             title,
             "An example application",
             public = true,
-            group = ApplicationGroup(
-                ApplicationGroup.Metadata(0),
-                ApplicationGroup.Specification("Test Group", "", null, emptySet(), curator = "main")
-            ),
+            groupId = 0,
             curator = "main"
         ),
         ApplicationInvocationDescription(
@@ -1428,8 +1435,7 @@ fun exampleApplication(
     )
 }
 
-@UCloudApiExampleValue
-val exampleBatchApplication = exampleApplication(
+@UCloudApiExampleValue val exampleBatchApplication = exampleApplication(
     "acme-batch",
     "1.0.0",
     "acme/batch:1.0.0",

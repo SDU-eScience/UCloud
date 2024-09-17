@@ -61,6 +61,8 @@ import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {
+    Application,
+    ApplicationGroup,
     ApplicationParameter,
     ApplicationSummaryWithFavorite,
     ApplicationWithFavoriteAndTags
@@ -104,7 +106,7 @@ const initialState: UserDetailsState = {
     settings: defaultEmailSettings
 };
 
-function getLicense(app: ApplicationWithFavoriteAndTags): string | undefined {
+function getLicense(app: Application): string | undefined {
     return app.invocation.tool.tool?.description.license
 }
 
@@ -124,7 +126,7 @@ export const Create: React.FunctionComponent = () => {
 
     const isInitialMount = !useDidMount();
     const [isLoading, invokeCommand] = useCloudCommand();
-    const [applicationResp, fetchApplication] = useCloudAPI<ApplicationWithFavoriteAndTags | null>(
+    const [applicationResp, fetchApplication] = useCloudAPI<ApplicationGroup | null>(
         {noop: true},
         null
     );
@@ -133,16 +135,13 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
-    if (applicationResp) {
-        usePage(`${applicationResp.data?.metadata.title} ${applicationResp.data?.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
+    const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
+
+    if (application) {
+        usePage(`${application.metadata.title} ${application.metadata.version ?? ""}`, SidebarTabId.APPLICATIONS);
     } else {
         usePage(`${appName} ${appVersion ?? ""}`, SidebarTabId.APPLICATIONS);
     }
-
-    const [previousResp, fetchPrevious] = useCloudAPI<Page<ApplicationSummaryWithFavorite> | null>(
-        {noop: true},
-        null
-    );
 
     const [estimatedCost, setEstimatedCost] = useState<{
         durationInMinutes: number,
@@ -261,11 +260,19 @@ export const Create: React.FunctionComponent = () => {
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
-        fetchApplication(AppStore.findByNameAndVersion({appName, appVersion: appVersion ?? undefined}));
-        fetchPrevious(AppStore.findByName({appName}));
+        fetchApplication(
+            AppStore.findGroupByApplication({
+                appName,
+                appVersion: appVersion ?? undefined,
+                flags: {
+                    includeApplications: true,
+                    includeInvocation: true,
+                    includeStars: true,
+                    includeVersions: true
+                }
+            })
+        );
     }, [appName, appVersion]);
-
-    const application = applicationResp.data;
 
     useEffect(() => {
         if (!application) return;
@@ -478,7 +485,7 @@ export const Create: React.FunctionComponent = () => {
     ).map(it => it.name), errors) + countErrors(folders.errors, ingress.errors, networks.errors, peers.errors);
     const anyError = errorCount > 0;
 
-    const appGroup = application.metadata.group;
+    const appGroup = applicationResp?.data;
     const license = getLicense(application);
 
     return <MainContainer
@@ -489,7 +496,7 @@ export const Create: React.FunctionComponent = () => {
                         title={appGroup?.specification?.title ?? application.metadata.title}
                         application={application}
                         flavors={appGroup?.status?.applications ?? []}
-                        allVersions={previousResp.data?.items ?? []}
+                        allVersions={application.versions ?? []}
                     />
                     <Box flexGrow={1} />
 

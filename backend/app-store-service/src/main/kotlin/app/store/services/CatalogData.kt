@@ -3,23 +3,16 @@ package dk.sdu.cloud.app.store.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.accounting.util.AsyncCache
-import dk.sdu.cloud.accounting.util.CyclicArray
-import dk.sdu.cloud.accounting.util.IProjectCache
 import dk.sdu.cloud.accounting.util.ThreadSafeCyclicArray
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.toTimestamp
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import org.cliffc.high_scale_lib.NonBlockingHashMap
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
@@ -440,7 +433,7 @@ class CatalogData(
             this.getString("website"),
             this.getBoolean("is_public")!!,
             this.getString("flavor_name"),
-            group,
+            group?.metadata?.id?.toLong(),
             this.getString("curator")!!,
             this.getDate("created_at")!!.toTimestamp(),
         )
@@ -471,21 +464,20 @@ class CatalogData(
         val previousVersion = if (allVersions.size >= 2) allVersions[allVersions.size - 2] else null
         val previousApp = previousVersion?.let { v -> applications[NameAndVersion(app.metadata.name, v)] }
 
-        val tool = app.invocation.tool.let { t -> tools[NameAndVersion(t.name, t.version)] }
+        val tool = app.invocation?.tool?.let { t -> tools[NameAndVersion(t.name, t.version)] }
         if (tool == null) {
-            throw RPCException("This tool does not exist: ${app.invocation.tool}", HttpStatusCode.BadRequest)
+            throw RPCException("This tool does not exist: ${app.invocation?.tool}", HttpStatusCode.BadRequest)
         }
 
-        val group = app.metadata.group ?: previousApp?.metadata?.group
-        if (group != null) {
-            val groupCache = registerGroup(group)
-            groupCache.addApplications(setOf(key))
+        val groupId = app.metadata.groupId ?: previousApp?.metadata?.groupId
+        if (groupId != null) {
+            groups[groupId]!!.addApplications(setOf(key))
         }
 
         app = app.copy(
             metadata = app.metadata.copy(
                 flavorName = app.metadata.flavorName ?: previousApp?.metadata?.flavorName,
-                group = group,
+                groupId = groupId,
             )
         )
         applications[key] = app
@@ -507,14 +499,14 @@ class CatalogData(
                         setParameter("title", app.metadata.title)
                         setParameter("description", app.metadata.description)
                         setParameter("website", app.metadata.website)
-                        setParameter("tool_name", app.invocation.tool.name)
-                        setParameter("tool_version", app.invocation.tool.version)
+                        setParameter("tool_name", app.invocation!!.tool.name)
+                        setParameter("tool_version", app.invocation!!.tool.version)
                         setParameter("is_public", app.metadata.public)
                         setParameter("id_name", app.metadata.name)
                         setParameter("id_version", app.metadata.version)
                         setParameter("application", defaultMapper.encodeToString(app.invocation))
                         setParameter("original_document", "{}")
-                        setParameter("group", group?.metadata?.id)
+                        setParameter("group", groupId)
                         setParameter("flavor", app.metadata.flavorName ?: previousApp?.metadata?.flavorName)
                         setParameter("curator", curator)
                     },

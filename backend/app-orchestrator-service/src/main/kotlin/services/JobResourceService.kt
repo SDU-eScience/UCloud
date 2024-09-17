@@ -1086,13 +1086,13 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation.web != null)
+                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            require(app.invocation.vnc != null)
+                            require(app.invocation!!.vnc != null)
                             block.checkFeature(block.vnc)
                         }
 
@@ -1338,7 +1338,7 @@ class JobResourceService(
         val application = appCache.resolveApplication(appName, appVersion)
             ?: error("Unknown application")
 
-        val tool = application.invocation.tool.tool ?: error("No tool")
+        val tool = application.invocation!!.tool.tool ?: error("No tool")
 
         val block = when (tool.description.backend) {
             ToolBackend.SINGULARITY -> error("unsupported tool backend")

@@ -37,6 +37,8 @@ export interface ToolReference {
 export interface Application {
     metadata: ApplicationMetadata;
     invocation: ApplicationInvocationDescription;
+    versions?: string[] | null;
+    favorite?: boolean | null;
 }
 
 export interface NameAndVersion {
@@ -53,7 +55,7 @@ export interface ApplicationMetadata {
     website?: string;
     public: boolean;
     flavorName?: string;
-    group?: ApplicationGroup;
+    groupId?: number | null;
 }
 
 export interface ApplicationInvocationDescription {
@@ -281,6 +283,7 @@ export interface ApplicationWithFavoriteAndTags {
     invocation: ApplicationInvocationDescription;
     favorite: boolean;
     tags: string[];
+    versions?: string[] | null;
 }
 
 export interface DetailedEntityWithPermission {
@@ -341,7 +344,7 @@ export interface ApplicationGroupSpecification {
 }
 
 export interface ApplicationGroupStatus {
-    applications?: ApplicationSummaryWithFavorite[] | null;
+    applications?: Application[] | null;
 }
 
 export interface ApplicationCategory {
@@ -421,6 +424,31 @@ export function findByNameAndVersion(request: {
         path: buildQueryString(`${baseContext}/byNameAndVersion`, request),
         reloadId: Math.random(),
     };
+}
+
+export interface ApplicationFlags {
+    // If categories are requested, should the groups in the categories be included?
+    includeGroups?: boolean | null;
+
+    // If groups are included, should the applications in the groups be included?
+    includeApplications?: boolean | null;
+
+    // If an application is included, should the star status be included?
+    includeStars?: boolean | null;
+
+    // If an application is included, should the invocation be included?
+    includeInvocation?: boolean | null;
+
+    // If an application is included, should the invocation be included?
+    includeVersions?: boolean | null;
+}
+
+export function findGroupByApplication(request: {
+    appName: string;
+    appVersion?: string | null;
+    flags?: ApplicationFlags
+}): APICallParameters<unknown, ApplicationGroup> {
+    return apiUpdate(request, baseContext, "findGroupByApplication");
 }
 
 export function create(file: File): Promise<{ error?: string }> {

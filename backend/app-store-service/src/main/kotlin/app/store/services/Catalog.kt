@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.AsyncCache
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.accounting.util.ProjectCache
-import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -19,19 +19,18 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
 import kotlin.math.max
 
 // Deals with access to the application catalog
 
 data class StoreFront(
-    val carrousel: List<CarrouselItem>,
-    val topPicks: List<TopPick>,
-    val categories: List<ApplicationCategory>,
-    val spotlight: Spotlight?,
+    val categories: Set<Long>,
+    val groups: Set<Long>,
     val knownApplication: Set<String>,
-    val knownTools: Set<String>,
+
+
+    // TODO Keep track of categories and groups containing at least one public application
+    //   Use these to bypass can run check.
 )
 
 class Catalog(
@@ -39,95 +38,212 @@ class Catalog(
     private val backgroundScope: BackgroundScope,
     private val serviceClient: AuthenticatedClient,
 ) {
-    // Catalog services (read)
-    // =================================================================================================================
-    // This section of the code contain function to retrieve by ID and list items by different criteria. This includes
-    // functions for all parts of the catalog hierarchy. A small number of functions found in this section are
-    // privileged due to them only being used for management purposes. For example, we do not allow normal users to list
-    // all applications stored in the system. Instead, users must go through the hierarchy to find the applications they
-    // want to use.
+    /**
+     * Retrieves an application by name and version. If the version is unspecified, then fetch the newest version.
+     *
+     * If the actor is an end-user then only applications usable from within the workspace will be returned. In addition,
+     * only applications for which the end-user has permissions will be returned. UCloud administrators can see any
+     * application in the system.
+     *
+     * If the actor is a provider then neither the "can run" check is performed or permission checks.
+     */
     suspend fun retrieveApplication(
         actorAndProject: ActorAndProject,
         name: String,
         version: String?,
-        loadGroupApplications: Boolean = true,
-    ): ApplicationWithFavoriteAndTags? {
-        return if (version == null) {
-            listVersions(actorAndProject, name, loadGroupApplications = loadGroupApplications).firstOrNull()
+        flags: ApplicationFlags
+    ): Application? {
+        val (actor) = actorAndProject
+        val skipCanRunCheck = actor == Actor.System || actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)
+        if (!skipCanRunCheck) {
+            val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+            if (!allStoreFronts.any { name in it.knownApplication }) return null
+        }
+
+        val appVersions = applicationVersions[name]?.get() ?: return null
+        if (version == null) {
+            for (actualVersion in appVersions.asReversed()) {
+                val app = applications[NameAndVersion(name, actualVersion)] ?: continue
+                val result = prepareApplicationForUser(
+                    actorAndProject,
+                    projectCache.lookup(actorAndProject.actor.safeUsername()),
+                    app,
+                    flags,
+                )
+
+                if (result != null) return result
+            }
+            return null
         } else {
-            prepareApplicationsForUser(
+            val actualVersion = appVersions.find { it == version } ?: return null
+            val app = applications[NameAndVersion(name, actualVersion)] ?: return null
+            return prepareApplicationForUser(
                 actorAndProject,
-                listOf(NameAndVersion(name, version)),
-                loadGroupApplications = loadGroupApplications
-            ).singleOrNull()
-        }
-    }
-
-    suspend fun listVersions(
-        actorAndProject: ActorAndProject,
-        name: String,
-        loadGroupApplications: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val appVersions =
-            applicationVersions[name] ?: throw RPCException("Unknown application: $name", HttpStatusCode.NotFound)
-
-        val apps = prepareApplicationsForUser(
-            actorAndProject,
-            appVersions.get().map { NameAndVersion(name, it) },
-            withAllVersions = true,
-            loadGroupApplications = loadGroupApplications
-        )
-        return apps.sortedByDescending { it.metadata.createdAt }
-    }
-
-    fun retrieveTool(
-        actorAndProject: ActorAndProject,
-        name: String,
-        version: String?,
-    ): Tool? {
-        return if (version == null) {
-            listToolVersions(actorAndProject, name).firstOrNull()
-        } else {
-            tools[NameAndVersion(name, version)]
-        }
-    }
-
-    fun listToolVersions(
-        @Suppress("UNUSED_PARAMETER") actorAndProject: ActorAndProject,
-        name: String
-    ): List<Tool> {
-        val result = ArrayList<Tool>()
-        val versions = toolVersions[name]?.get() ?: return emptyList()
-        for (v in versions) {
-            val key = NameAndVersion(name, v)
-            result.add(tools[key] ?: continue)
-        }
-        return result.sortedByDescending { it.createdAt }
-    }
-
-    private suspend fun TopPick.prepare(): TopPick {
-        val gid = groupId
-        if (gid != null) {
-            val g = groups[gid.toLong()]?.get() ?: return this
-            return copy(title = g.title, defaultApplicationToRun = g.defaultFlavor, logoHasText = g.logoHasText)
-        } else {
-            val a = retrieveApplication(ActorAndProject.System, applicationName ?: "", null) ?: return this
-            val g = a.metadata.group?.metadata?.id?.let { groupId -> groups[groupId.toLong()]?.get() }
-            return copy(
-                title = a.metadata.title, defaultApplicationToRun = a.metadata.name,
-                logoHasText = g?.logoHasText ?: false
+                projectCache.lookup(actorAndProject.actor.safeUsername()),
+                app,
+                flags,
             )
         }
     }
 
-    private suspend fun Spotlight.prepare(): Spotlight {
-        return copy(applications = applications.map { it.prepare() })
+    /**
+     * Retrieves an application group by its ID.
+     *
+     * This API is only available for end-users. Similar to the [retrieveApplication] call, this function will filter
+     * out applications that are actually runnable in the current workspace. Groups which do not have any runnable
+     * applications are automatically skipped. The default flavor of the group is automatically adjusted based on the
+     * runnable applications.
+     *
+     * Groups will automatically include all applications across all service providers that are relevant in the current
+     * workspace.
+     */
+    suspend fun retrieveGroup(
+        actorAndProject: ActorAndProject,
+        id: Long,
+        flags: ApplicationFlags
+    ): ApplicationGroup? {
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        if (!allStoreFronts.any { id in it.groups }) return null
+
+        val group = groups[id] ?: return null
+
+        val groupInfo = group.get()
+        val apps = ArrayList<Application>()
+        val appNames = groupInfo.applications.map { it.name }.toSet()
+        for (appName in appNames) {
+            val app = retrieveApplication(actorAndProject, appName, null, flags)
+                ?: continue
+
+            apps.add(app)
+        }
+
+        var defaultFlavor = groupInfo.defaultFlavor
+        if (apps.size == 1) {
+            defaultFlavor = apps.single().metadata.name
+        } else if (defaultFlavor != null) {
+            defaultFlavor = defaultFlavor.takeIf { flavor -> apps.any { it.metadata.name == flavor } }
+        }
+
+        if (apps.isEmpty()) return null
+        return ApplicationGroup(
+            metadata = ApplicationGroup.Metadata(
+                group.id.toInt(),
+            ),
+            specification = ApplicationGroup.Specification(
+                groupInfo.title,
+                groupInfo.description,
+                defaultFlavor,
+                groupInfo.categories,
+                ApplicationGroup.ColorReplacements(
+                    groupInfo.colorRemappingLight,
+                    groupInfo.colorRemappingDark
+                ),
+                groupInfo.logoHasText,
+                groupInfo.curator,
+            ),
+            status = ApplicationGroup.Status(
+                applications = if (flags.includeApplications) apps else null
+            )
+        )
     }
 
-    private fun CarrouselItem.prepare(): CarrouselItem {
-        val defaultGroupApp = linkedGroup?.let { groups[it.toLong()]?.get()?.defaultFlavor }
-        return copy(resolvedLinkedApp = defaultGroupApp ?: linkedApplication)
+    suspend fun findGroupByApplication(
+        actorAndProject: ActorAndProject,
+        appName: String,
+        appVersion: String?,
+        flags: ApplicationFlags
+    ): ApplicationGroup? {
+        val app = retrieveApplication(actorAndProject, appName, appVersion, flags) ?: return null
+        val groupId = app.metadata.groupId ?: return null
+        val group = retrieveGroup(actorAndProject, groupId, flags) ?: return null
+
+        var groupApps = group.status.applications
+        if (groupApps != null) {
+            groupApps = groupApps.filter { it.metadata.name != appName } + app
+        }
+
+        return group.copy(
+            status = group.status.copy(
+                applications = groupApps,
+            )
+        )
     }
+
+    /**
+     * Retrieves an application category by its ID.
+     *
+     * This API is only available for end-users. Similar to the [retrieveGroup] call, this function will filter in groups
+     * based on the group's applications ability to be run in the current workspace. If a category is empty after this
+     * filter, then they are not included.
+     */
+    suspend fun retrieveCategory(
+        actorAndProject: ActorAndProject,
+        id: Long,
+        flags: ApplicationFlags
+    ): ApplicationCategory? {
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        if (!allStoreFronts.any { id in it.categories }) return null
+
+        val category = categories[id]
+        val groupsIds = category.groups()
+        val groups = ArrayList<ApplicationGroup>()
+
+        for (groupId in groupsIds) {
+            val group = retrieveGroup(actorAndProject, groupId.toLong(), flags)
+                ?: continue
+
+            groups.add(group)
+        }
+
+        groups.sortBy { it.specification.title.lowercase() }
+
+        if (groups.isEmpty()) return null
+
+        return ApplicationCategory(
+            ApplicationCategory.Metadata(id.toInt()),
+            ApplicationCategory.Specification(
+                category.title(),
+                "",
+                category.curator(),
+            ),
+            ApplicationCategory.Status(
+                if (flags.includeGroups) groups else null
+            )
+        )
+    }
+
+    suspend fun retrieveLandingPage(
+        actorAndProject: ActorAndProject,
+    ): AppStore.RetrieveLandingPage.Response {
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val allCategories = allStoreFronts.flatMap { it.categories }.toSet()
+
+        val resolvedCategories = allCategories
+            .mapNotNull { retrieveCategory(actorAndProject, it, ApplicationFlags()) }
+            .sortedBy { categories[it.metadata.id.toLong()]?.priority() ?: 10000 }
+
+        return AppStore.RetrieveLandingPage.Response(
+            emptyList(),
+            emptyList(),
+            resolvedCategories,
+            null,
+            emptyList(),
+            emptyList(),
+        )
+    }
+
+    /**
+     * Same semantics as [retrieveApplication] but searches for a specific application
+     */
+    suspend fun search(
+        actorAndProject: ActorAndProject,
+        query: String,
+    ): List<Application> = TODO()
+
+    suspend fun openWithApplication(
+        actorAndProject: ActorAndProject,
+        files: List<String>,
+    ): List<Application> = TODO()
 
     private val relevantStoreFrontsCache = AsyncCache<ActorAndProject, List<StoreFront>>(
         backgroundScope,
@@ -158,130 +274,7 @@ class Catalog(
         return relevantStoreFrontsCache.retrieve(actorAndProject)
     }
 
-    suspend fun retrieveLandingPage(actorAndProject: ActorAndProject): AppStore.RetrieveLandingPage.Response {
-        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
-
-        val projectMembership = projectCache.lookup(actorAndProject.actor.safeUsername())
-
-        val frontCategories = ArrayList<ApplicationCategory>()
-        val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
-        val newlyCreated = ArrayList<ApplicationSummaryWithFavorite>()
-        val updated = ArrayList<ApplicationSummaryWithFavorite>()
-
-        allStoreFronts.forEach { providerStoreFront ->
-            val existingCategoryIds = frontCategories.map { it.metadata.id }
-            for (category in providerStoreFront.categories) {
-                if (category.metadata.id !in existingCategoryIds) {
-                    frontCategories.add(category)
-                }
-            }
-
-//            newlyCreated.addAll(providerStoreFront.newApplications.filter { it !in newlyCreated })
-//            updated.addAll(providerStoreFront.recentlyUpdated.filter { it !in updated })
-        }
-
-        // NOTE(Dan): Only include categories which are non-empty after respecting the ACL.
-        val filteredFrontCategories = frontCategories.filter { category ->
-            val groups = category.status.groups ?: emptyList()
-            groups.any { group ->
-                val apps = group.status.applications ?: emptyList()
-                apps.any { hasPermission(it.metadata.name, it.metadata.version, projectMembership) }
-            }
-        }
-
-        return AppStore.RetrieveLandingPage.Response(
-            carrousel.get(),
-            topPicks.get(),
-            filteredFrontCategories,
-            frontSpotlight,
-            newlyCreated,
-            updated
-        )
-    }
-
-    suspend fun retrieveCategory(
-        actorAndProject: ActorAndProject,
-        categoryId: Int,
-        loadGroups: Boolean = false
-    ): ApplicationCategory? {
-        val projectMembership = projectCache.lookup(actorAndProject.actor.safeUsername())
-        val storeFronts = findRelevantStoreFronts(actorAndProject)
-        val allCategories = storeFronts
-            .mapNotNull { front -> front.categories.find { it.metadata.id == categoryId } }
-
-        val categoryMetadata = allCategories.firstOrNull() ?: return null
-        val dedupedGroups = allCategories
-            .asSequence()
-            .flatMap { it.status.groups ?: emptyList() }
-            .associateBy { it.metadata.id }
-            .values
-            .mapNotNull { prepareGroupForUser(actorAndProject, projectMembership, it) }
-            .sortedBy { it.specification.title.lowercase() }
-
-
-        return ApplicationCategory(
-            categoryMetadata.metadata,
-            categoryMetadata.specification,
-            ApplicationCategory.Status(dedupedGroups)
-        )
-    }
-
-    private fun prepareGroupForUser(
-        actorAndProject: ActorAndProject,
-        projectMembership: MembershipStatusCacheEntry,
-        group: ApplicationGroup,
-    ): ApplicationGroup? {
-        val apps = group.status.applications ?: emptyList()
-        val runnableApps = apps.filter { hasPermission(it.metadata.name, it.metadata.version, projectMembership) }
-        if (runnableApps.isEmpty()) return null
-
-        val newDefaultFlavor =
-            if (runnableApps.size == 1) {
-                runnableApps[0].metadata.name
-            } else {
-                val hasDefault = runnableApps.any { it.metadata.name == group.specification.defaultFlavor }
-                if (hasDefault) {
-                    group.specification.defaultFlavor
-                } else {
-                    null
-                }
-            }
-
-        return group.copy(
-            specification = group.specification.copy(
-                defaultFlavor = newDefaultFlavor
-            ),
-            status = group.status.copy(
-                applications = runnableApps
-            )
-        )
-    }
-
-    private suspend fun retrieveGroup(
-        actorAndProject: ActorAndProject,
-        groupId: Int,
-        loadApplications: Boolean = false
-    ): ApplicationGroup? {
-        val group = groups[groupId.toLong()]?.toApiModel() ?: return null
-        return group.copy(
-            status = group.status.copy(
-                applications =
-                if (loadApplications) listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
-                else null,
-            )
-        )
-    }
-
-    suspend fun listApplicationsInGroup(
-        actorAndProject: ActorAndProject,
-        groupId: Int
-    ): List<ApplicationWithFavoriteAndTags> {
-        val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return prepareApplicationsForUser(actorAndProject, group.applications).sortedBy {
-            it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
-        }
-    }
-
+    /*
     suspend fun listByExtension(
         actorAndProject: ActorAndProject,
         files: List<String>,
@@ -380,6 +373,7 @@ class Catalog(
         val loaded = prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
         return loaded.sortedByDescending { scores[it.metadata.name] ?: 0 }
     }
+     */
 
     // Calculates the "editing" distance between two strings. This returns back a number representing how different
     // two strings are. The number will always be positive. Lower numbers indicated similar strings. Zero indicates
@@ -414,32 +408,76 @@ class Catalog(
         return cost[a.length]
     }
 
-
-    suspend fun listStarredApplications(
+    private suspend fun prepareApplicationForUser(
         actorAndProject: ActorAndProject,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val appNames = stars[actorAndProject.actor.safeUsername()]?.get() ?: return emptyList()
-        val candidates = ArrayList<NameAndVersion>()
-        for (name in appNames) {
-            val versions = applicationVersions[name]?.get() ?: emptyList()
-            for (version in versions) {
-                candidates.add(NameAndVersion(name, version))
+        membership: MembershipStatusCacheEntry,
+        application: Application,
+        flags: ApplicationFlags,
+    ): Application? {
+        if (!application.metadata.public) {
+            if (!hasPermission(application.metadata.name, actorAndProject.actor, membership))  {
+                return null
             }
         }
-        return prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
+
+        val favorite: Boolean? = if (!flags.includeStars) {
+            null
+        } else {
+            val myStars = stars[actorAndProject.actor.safeUsername()]
+            if (myStars == null) {
+                false
+            } else {
+                application.metadata.name in myStars.get()
+            }
+        }
+
+        val invocation: ApplicationInvocationDescription? = if (!flags.includeInvocation) {
+            null
+        } else {
+            application.invocation
+        }
+
+        var versions: List<String>? = null
+        if (flags.includeVersions) {
+            val allResolvedVersions = ArrayList<Application>()
+            allResolvedVersions.add(application)
+
+            val allVersions =
+                applicationVersions[application.metadata.name]?.get() ?: listOf(application.metadata.version)
+
+            for (version in allVersions) {
+                if (version == application.metadata.version) continue
+
+                val app = retrieveApplication(
+                    actorAndProject,
+                    application.metadata.name,
+                    version,
+                    ApplicationFlags()
+                )
+
+                if (app != null) allResolvedVersions.add(app)
+            }
+
+            allResolvedVersions.sortBy { it.metadata.createdAt }
+            versions = allResolvedVersions.map { it.metadata.version }
+        }
+
+        return application.copy(
+            favorite = favorite,
+            invocation = invocation,
+            versions = versions,
+        )
     }
 
     private fun hasPermission(
         appName: String,
-        username: String,
+        actor: Actor,
         projectMembership: MembershipStatusCacheEntry
     ): Boolean {
-        val versions = applicationVersions[appName]?.get() ?: return false
-        for (version in versions) {
-            val app = applications[NameAndVersion(appName, version)] ?: continue
-            if (app.metadata.public) return true
-        }
+        if (actor == Actor.System) return true
+        if (actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) return true
 
+        val username = actor.safeUsername()
         val acl = accessControlLists[appName]?.get() ?: return false
         for (entry in acl) {
             val entity = entry.entity
@@ -455,78 +493,6 @@ class Catalog(
         return false
     }
 
-    private suspend fun prepareApplicationsForUser(
-        actorAndProject: ActorAndProject,
-        versions: Collection<NameAndVersion>,
-        withAllVersions: Boolean = false,
-        loadGroupApplications: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
-        val (actor) = actorAndProject
-        if (actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) {
-            return prepareApplicationsForProvider(actorAndProject, versions, withAllVersions, loadGroupApplications)
-        }
-
-        val result = ArrayList<Application>()
-        val isPrivileged = isPrivileged(actorAndProject)
-        val projectMembership = if (!isPrivileged) projectCache.lookup(actor.safeUsername()) else null
-
-        val allStorefronts = findRelevantStoreFronts(actorAndProject)
-
-        for (nameAndVersion in versions) {
-            val app = applications[nameAndVersion] ?: continue
-            if (!allStorefronts.any { nameAndVersion.name in it.knownApplication }) continue
-
-            if (!app.metadata.public && !isPrivileged) {
-                val username = actor.safeUsername()
-                if (projectMembership == null) continue
-                if (!hasPermission(nameAndVersion.name, username, projectMembership)) continue
-            }
-
-            val toolKey = app.invocation.tool.let { NameAndVersion(it.name, it.version) }
-            val tool = tools[toolKey] ?: continue
-            val group = app.metadata.group?.metadata?.id?.let { id ->
-                retrieveGroup(actorAndProject, id, loadGroupApplications)
-            }
-            result.add(
-                app.copy(
-                    metadata = app.metadata.copy(
-                        group = group,
-                    ),
-                    invocation = app.invocation.copy(
-                        tool = app.invocation.tool.copy(tool = tool)
-                    )
-                )
-            )
-        }
-
-        val deduped = if (!withAllVersions) {
-            result.groupBy { it.metadata.name }.map { (_, versions) ->
-                versions.maxBy { it.metadata.createdAt }
-            }
-        } else {
-            result
-        }
-
-        val myStars = stars[actorAndProject.actor.safeUsername()]?.get() ?: emptySet()
-        return deduped.map {
-            ApplicationWithFavoriteAndTags(
-                it.metadata,
-                it.invocation,
-                it.metadata.name in myStars,
-                emptyList(),
-            )
-        }
-    }
-
-    private suspend fun prepareApplicationsForProvider(
-        actorAndProject: ActorAndProject,
-        versions: Collection<NameAndVersion>,
-        withAllVersions: Boolean = false,
-        loadGroupApplications: Boolean = false,
-    ): List<ApplicationWithFavoriteAndTags> {
-        TODO()
-    }
-
     private val storeFronts = AsyncCache<String, StoreFront>(
         backgroundScope,
         timeToLiveMilliseconds = 1000L * 60 * 30,
@@ -538,7 +504,7 @@ class Catalog(
         },
         retrieve = { providerId ->
             val supportedApplications = applications.values.filter {
-                val backend = it.invocation.tool.tool?.description?.backend
+                val backend = it.invocation?.tool?.tool?.description?.backend
                 if (backend != null) {
                     providerCanRun(providerId, backend)
                 } else {
@@ -547,81 +513,23 @@ class Catalog(
             }
 
             val supportedGroupIds = supportedApplications
-                .mapNotNull { it.metadata.group?.metadata?.id }
+                .mapNotNull { it.metadata.groupId }
+                .toSet()
 
             val supportedGroups = groups
-                .filter { supportedGroupIds.contains(it.key.toInt()) }
+                .filter { supportedGroupIds.contains(it.key) }
 
             val supportedCategoryIds = supportedGroups
                 .flatMap { it.value.get().categories }
+                .map { it.toLong() }
                 .toSet()
 
-            val supportedCategories = categories
-                .filter { it.key.toInt() in supportedCategoryIds }
-                .map { (k, v) ->
-                    ApplicationCategory(
-                        ApplicationCategory.Metadata(
-                            k.toInt(),
-                        ),
-                        ApplicationCategory.Specification(
-                            v.title(),
-                            "",
-                            v.curator()
-                        )
-                    )
-                }
-
-            val resolvedCategories = supportedCategories.map { category ->
-                category.copy(
-                    status = ApplicationCategory.Status(
-                        groups = supportedGroups.values
-                            .filter { category.metadata.id in it.get().categories }
-                            .map { it.toApiModel() }
-                            .map { apiGroup ->
-                                val applicationsInGroup = supportedApplications
-                                    .filter { it.metadata.group?.metadata?.id == apiGroup.metadata.id }
-                                    .map { ApplicationSummaryWithFavorite(it.metadata, false, emptyList()) }
-                                    .groupBy { it.metadata.name }
-
-                                val dedupedApplications = applicationsInGroup.map { (name, versions) ->
-                                    versions.maxBy { it.metadata.createdAt }
-                                }
-
-                                apiGroup.copy(
-                                    status = apiGroup.status.copy(
-                                        applications = dedupedApplications,
-                                    )
-                                )
-                            }
-                    )
-                )
-            }
-
-            val frontPicks = topPicks.get().map { it.prepare() }
-            val frontCarrousel = carrousel.get().map { it.prepare() }
-            val frontSpotlight = spotlights.values.find { it.get().active }?.get()?.prepare()
-
-            val frontNewlyCreated = ArrayList<String>()
-            val frontUpdated = ArrayList<NameAndVersion>()
-            for (i in (newUpdates.size() - 1).downTo(0)) {
-                frontUpdated.add(newUpdates.get(i))
-            }
-
-            for (i in (newApplications.size() - 1).downTo(0)) {
-                frontNewlyCreated.add(newApplications.get(i))
-            }
-
-
             val knownApplications = supportedApplications.map { it.metadata.name }.toSet()
-            val knownTools = supportedApplications.map { it.invocation.tool.name }.toSet()
 
             StoreFront(
-                frontCarrousel,
-                frontPicks,
-                resolvedCategories,
-                frontSpotlight,
+                supportedCategoryIds,
+                supportedGroupIds,
                 knownApplications,
-                knownTools,
             )
         }
     )
@@ -635,4 +543,6 @@ class Catalog(
         }
         return false
     }
+
+
 }

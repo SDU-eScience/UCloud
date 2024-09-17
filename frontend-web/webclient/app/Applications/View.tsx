@@ -7,20 +7,20 @@ import {useNavigate} from "react-router";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import {ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
+import {Application, ApplicationSummaryWithFavorite, ApplicationWithFavoriteAndTags} from "@/Applications/AppStoreApi";
 import {Feature, hasFeature} from "@/Features";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const DEFAULT_FLAVOR_NAME = "Default";
 
 export const AppHeader: React.FunctionComponent<{
-    application: ApplicationWithFavoriteAndTags;
-    allVersions: ApplicationSummaryWithFavorite[];
-    flavors: ApplicationSummaryWithFavorite[];
+    application: Application;
+    allVersions: string[];
+    flavors: Application[];
     title: string;
 }> = props => {
     /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
-    const newest: ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
+    const newestVersion = props.allVersions[props.allVersions.length - 1];
     const navigate = useNavigate();
     const close = React.useRef(() => void 0);
 
@@ -103,17 +103,17 @@ export const AppHeader: React.FunctionComponent<{
                             <Box
                                 minWidth={"300px"}
                                 p={"8px"}
-                                key={it.metadata.version}
-                                onClick={() => navigate(Pages.runApplication(it.metadata))}>
-                                {it.metadata.version}
+                                key={it}
+                                onClick={() => navigate(Pages.runApplication({name: props.application.metadata.name, version: it}))}>
+                                {it}
                             </Box>
                         )}
                     </ClickableDropdown>
-                    {newest && newest.metadata.version !== props.application.metadata.version ?
+                    {newestVersion !== props.application.metadata.version ?
                         <Tooltip tooltipContentWidth={390} trigger={
                             <div className={TriggerDiv} onClick={e => {
                                 e.preventDefault();
-                                navigate(Pages.runApplication(newest.metadata));
+                                navigate(Pages.runApplication({name: props.application.metadata.name, version: newestVersion}));
                             }}>
                                 New version available.
                             </div>
