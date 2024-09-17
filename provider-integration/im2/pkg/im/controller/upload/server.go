@@ -63,13 +63,11 @@ type serverFileUpload struct {
 }
 
 func (f *serverFileUpload) Process() {
-	defer f.Done.Store(true)
-
 	err := f.OpenFilesSemaphore.Acquire(f.Ctx, 1)
 	if err != nil {
+		f.Done.Store(true)
 		return
 	}
-	defer f.OpenFilesSemaphore.Release(1)
 
 	file := f.FileSystem.OpenFileIfNeeded(f.Session, FileMetadata{
 		Size:         f.Entry.Size,
@@ -111,6 +109,9 @@ func (f *serverFileUpload) Process() {
 	if file != nil {
 		file.Close()
 	}
+
+	f.Done.Store(true)
+	f.OpenFilesSemaphore.Release(1)
 }
 
 func chunkWeight(chunk []byte) int64 {

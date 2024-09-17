@@ -1343,7 +1343,7 @@ class FilesService(
             val sourceProvider = sourceDrive.specification.product.provider
             verifyReadRequest(UFileIncludeFlags(), sourceDrive.status.resolvedSupport!!.support)
 
-            val destinationDrive = collectionFromPath(actorAndProject, reqItem.sourcePath, Permission.EDIT)
+            val destinationDrive = collectionFromPath(actorAndProject, reqItem.destinationPath, Permission.EDIT)
             val destinationProvider = destinationDrive.specification.product.provider
             verifyReadRequest(UFileIncludeFlags(), destinationDrive.status.resolvedSupport!!.support)
 

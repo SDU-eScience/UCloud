@@ -3,8 +3,10 @@ package upload
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
 	ws "github.com/gorilla/websocket"
+	"golang.org/x/sync/semaphore"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -49,8 +51,11 @@ type clientWorker struct {
 }
 
 func (w *clientWorker) Process() {
-	chunkBytes := make([]byte, 1024*1024*16)
-	chunkBuffer := util.NewBuffer(&bytes.Buffer{})
+	chunkBytes1 := make([]byte, 1024*1024*16)
+	chunkBytes2 := make([]byte, 1024*1024*16)
+	chunkBytes := chunkBytes1
+
+	skipBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingTicker := time.NewTicker(50 * time.Millisecond)
 
@@ -111,32 +116,49 @@ outer:
 			case 1:
 				// Send chunks
 				written := int64(0)
-				for {
-					chunkBuffer.Reset()
-					chunkBuffer.WriteU8(uint8(messageTypeChunk))
-					chunkBuffer.WriteS32(work.Id)
 
-					count, isDone := work.File.Read(w.Ctx, chunkBytes)
-					if count > 0 {
-						written += int64(count)
-						w.BytesTransferred.Add(int64(count))
-						chunkBuffer.WriteBytes(chunkBytes[:count])
-					}
+				readBuffersAvailable := semaphore.NewWeighted(2)
+				writeBuffers := make(chan []byte, 2)
 
-					data := chunkBuffer.ReadRemainingBytes()
-					if len(data) > 5 {
-						err := w.Connection.WriteMessage(ws.BinaryMessage, data)
+				go func() {
+					currBuf := chunkBytes1
+					nextBuf := chunkBytes2
+					for {
+						// Acquire read permit (in-case writing is too slow, it usually is)
+						err := readBuffersAvailable.Acquire(w.Ctx, 1)
 						if err != nil {
-							_ = w.Connection.Close()
-							log.Warn("Uploader client failed to send message: %v", err)
-							break outer
+							break
 						}
-					}
 
-					if isDone {
+						chunkBytes[0] = uint8(messageTypeChunk)
+						binary.BigEndian.PutUint32(chunkBytes[1:], uint32(work.Id))
+						count, isDone := work.File.Read(w.Ctx, chunkBytes[5:])
+						if count > 0 {
+							written += int64(count)
+							w.BytesTransferred.Add(int64(count))
+
+							data := chunkBytes[:5+count]
+							writeBuffers <- data
+						}
+
+						if isDone {
+							writeBuffers <- nil
+							break
+						}
+
+						// Swap buffers
+						tmp := currBuf
+						currBuf = nextBuf
+						nextBuf = tmp
+					}
+				}()
+
+				for {
+					data := <-writeBuffers
+					if data == nil {
 						if work.Metadata.Size != written {
-							chunkBuffer.Reset()
-							(&messageSkip{FileId: work.Id}).Marshal(chunkBuffer, true)
+							skipBuffer.Reset()
+							(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
 
 							err := w.Connection.WriteMessage(ws.BinaryMessage, data)
 							if err != nil {
@@ -148,6 +170,15 @@ outer:
 
 						break
 					}
+
+					err := w.Connection.WriteMessage(ws.BinaryMessage, data)
+					if err != nil {
+						_ = w.Connection.Close()
+						log.Warn("Uploader client failed to send message: %v", err)
+						break outer
+					}
+
+					readBuffersAvailable.Release(1)
 				}
 
 				work.Done.Swap(true)
@@ -248,7 +279,7 @@ func ProcessClient(session ClientSession, rootFile ClientFile) {
 
 	sessionContext, cancel := context.WithCancel(context.Background())
 
-	maintenanceTicker := time.NewTicker(100 * time.Millisecond)
+	statTicker := time.NewTicker(500 * time.Millisecond)
 	discoveredWorkForUs := make(chan *clientWork)
 	discoveredWorkForWorkers := make(chan *clientWork)
 	incomingWebsocket := make(chan incomingMessage)
@@ -412,7 +443,7 @@ outer:
 		case <-sessionContext.Done():
 			break outer
 
-		case <-maintenanceTicker.C:
+		case <-statTicker.C:
 			flushStats()
 
 		case work := <-discoveredWorkForUs:
@@ -545,6 +576,6 @@ func sizeToHumanReadableWithUnit(bytes float64) readableSize {
 }
 
 func smoothMeasure(old, new float64) float64 {
-	const smoothing = 0.9
+	const smoothing = 0.5
 	return (new * smoothing) + (old * (1.0 - smoothing))
 }

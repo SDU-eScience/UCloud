@@ -528,7 +528,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "heroPaperAirplane",
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
-                    inDevEnvironment() &&
+                    hasFeature(Feature.TRANSFER_TO) &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
