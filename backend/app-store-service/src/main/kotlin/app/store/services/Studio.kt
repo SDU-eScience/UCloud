@@ -1125,7 +1125,7 @@ class Studio(
         val group = groups[groupId.toLong()]?.toApiModel() ?: return null
         return group.copy(
             status = group.status.copy(
-                applications = null
+                applications = listApplicationsInGroup(actorAndProject, groupId).map { it.withoutInvocation() }
             )
         )
     }
