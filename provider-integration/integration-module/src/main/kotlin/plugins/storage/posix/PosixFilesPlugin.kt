@@ -26,6 +26,8 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.TaskState
 import dk.sdu.cloud.utils.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -87,11 +89,11 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         if (needsInit) {
-            taskSystem.retrieveCurrentTasks(collection.id).forEach { processTask(it, doCreate = false) }
+            taskSystem.retrieveCurrentTasks(collection.id).forEach { processTask(it.second, doCreate = false) }
         }
     }
 
-    private suspend fun processTask(task: PosixTask, doCreate: Boolean = true): LongRunningTask {
+    private suspend fun processTask(task: PosixTask, doCreate: Boolean = true): BackgroundTask {
         val shouldBackgroundProcess = if (!doCreate) {
             true
         } else {
@@ -109,9 +111,10 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         // Dispatch task related tasks and run the processor
-        if (shouldBackgroundProcess && doCreate) {
-            val now = Time.now()
+        val backgroundTask = if (shouldBackgroundProcess && doCreate) {
             taskSystem.registerTask(task)
+        } else {
+            taskSystem.retrieveCurrentTasks(task.id).first().first
         }
 
         return if (shouldBackgroundProcess) {
@@ -133,10 +136,10 @@ class PosixFilesPlugin : FilePlugin {
                     }
                 }
             }
-            LongRunningTask.ContinuesInBackground(task.id)
+            backgroundTask
         } else {
             processor()
-            LongRunningTask.Complete()
+            backgroundTask
         }
     }
 
@@ -174,7 +177,8 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun RequestContext.move(
         req: BulkRequest<FilesProviderMoveRequestItem>
-    ): List<LongRunningTask?> {
+    ): List<BackgroundTask?> {
+
         val result = req.items.map { reqItem ->
             processTask(PosixTask.Move("Moving files...", reqItem.resolvedOldCollection.id, reqItem))
         }
@@ -205,7 +209,7 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun RequestContext.copy(
         req: BulkRequest<FilesProviderCopyRequestItem>
-    ): List<LongRunningTask?> {
+    ): List<BackgroundTask?> {
         val result = req.items.map { reqItem ->
             processTask(
                 PosixTask.Copy(
@@ -413,7 +417,7 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun RequestContext.moveToTrash(
         request: BulkRequest<FilesProviderTrashRequestItem>
-    ): List<LongRunningTask?> {
+    ): List<BackgroundTask?> {
         val allItems = request.items
             .groupBy { it.resolvedCollection.id }
             .map { (collId, tasks) ->
@@ -434,7 +438,7 @@ class PosixFilesPlugin : FilePlugin {
                 didSeeCollection.add(it.resolvedCollection.id)
                 allItems[it.resolvedCollection.id]
             } else {
-                LongRunningTask.Complete()
+                allItems[it.resolvedCollection.id]
             }
         }
     }
@@ -466,7 +470,7 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun RequestContext.emptyTrash(
         request: BulkRequest<FilesProviderEmptyTrashRequestItem>
-    ): List<LongRunningTask?> {
+    ): List<BackgroundTask?> {
         return request.items.map { reqItem ->
             processTask(PosixTask.EmptyTrash("Emptying trash...", reqItem.resolvedCollection.id, reqItem))
         }
@@ -504,7 +508,7 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun RequestContext.createFolder(
         req: BulkRequest<FilesProviderCreateFolderRequestItem>
-    ): List<LongRunningTask?> {
+    ): List<BackgroundTask?> {
         val result = req.items.map { reqItem ->
             val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
             try {
@@ -520,7 +524,22 @@ class PosixFilesPlugin : FilePlugin {
                     HttpStatusCode.Forbidden
                 )
             }
-            LongRunningTask.Complete()
+            //DUMMY TASK
+            BackgroundTask(
+                0L,
+                Time.now(),
+                Time.now(),
+                createdBy = reqItem.resolvedCollection.owner.createdBy,
+                status = BackgroundTask.Status(
+                    TaskState.SUCCESS,
+                    "Folder Creation",
+                    "Done"
+                ),
+                specification = BackgroundTask.Specification(
+                    canPause = false,
+                    canCancel = false
+                )
+            )
         }
         return result
     }

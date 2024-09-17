@@ -39,3 +39,10 @@ data class BackgroundTask(
     )
 }
 
+@Serializable
+data class BackgroundTaskUpdate(
+    val taskId: Long,
+    val modifiedAt: Long,
+    val newStatus: BackgroundTask.Status
+)
+

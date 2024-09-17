@@ -12,6 +12,7 @@ import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.task.api.BackgroundTask
 import dk.sdu.cloud.utils.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -32,12 +33,12 @@ class PosixTaskSystem(
     private val pluginContext: PluginContext,
     private val pathConverter: PathConverter,
 ) {
-    suspend fun registerTask(task: PosixTask) {
+    suspend fun registerTask(task: PosixTask): BackgroundTask {
         // NOTE(Dan): We first find the task folder to make sure that the arguments are valid
         val taskFolder = findAndInitTaskFolder(task.collectionId)
 
         val response = pluginContext.ipcClient.sendRequest(TaskIpc.register, TaskSpecification(task.title))
-        task.id = response.id
+        task.id = response.taskId.toString()
         task.timestamp = Time.now()
         task.collectionId = task.collectionId
 
@@ -51,6 +52,8 @@ class PosixTaskSystem(
             defaultMapper.encodeToString(PosixTask.serializer(), task),
             autoClose = true
         )
+
+        return response
     }
 
     suspend fun markTaskAsComplete(collectionId: String, taskId: String) {
@@ -59,8 +62,8 @@ class PosixTaskSystem(
         NioFiles.delete(file)
     }
 
-    suspend fun retrieveCurrentTasks(collectionId: String): List<PosixTask> {
-        return listFiles(findAndInitTaskFolder(collectionId).path).asSequence()
+    suspend fun retrieveCurrentTasks(collectionId: String): List<Pair<BackgroundTask,PosixTask>> {
+        val tasks =  listFiles(findAndInitTaskFolder(collectionId).path).asSequence()
             .filter {
                 val name = it.fileName()
                 name.startsWith(TASK_PREFIX) && name.endsWith(TASK_SUFFIX)
@@ -75,7 +78,15 @@ class PosixTaskSystem(
                     defaultMapper.decodeFromString(PosixTask.serializer(), it)
                 }.getOrNull()
             }
-            .toList()
+            .toList().sortedBy { it.id }
+
+        val backgroundTasks = mutableListOf<BackgroundTask>()
+        tasks.forEach {
+            backgroundTasks.add(pluginContext.ipcClient.sendRequest(TaskIpc.view, FindByStringId(collectionId)))
+        }
+
+        val combined = backgroundTasks.sortedBy { it.taskId }.zip(tasks)
+        return combined
     }
 
     private suspend fun findAndInitTaskFolder(collectionId: String): InternalFile {

@@ -11,6 +11,7 @@ import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
+import dk.sdu.cloud.task.api.BackgroundTask
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
@@ -184,23 +185,23 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
         httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE)
     }
 
-    val move = call("move", BulkRequest.serializer(FilesProviderMoveRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val move = call("move", BulkRequest.serializer(FilesProviderMoveRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move", roles = Roles.SERVICE)
     }
 
-    val copy = call("copy", BulkRequest.serializer(FilesProviderCopyRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val copy = call("copy", BulkRequest.serializer(FilesProviderCopyRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "copy", roles = Roles.SERVICE)
     }
 
-    val createFolder = call("createFolder", BulkRequest.serializer(FilesProviderCreateFolderRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val createFolder = call("createFolder", BulkRequest.serializer(FilesProviderCreateFolderRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "folder", roles = Roles.SERVICE)
     }
 
-    val trash = call("trash", BulkRequest.serializer(FilesProviderTrashRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val trash = call("trash", BulkRequest.serializer(FilesProviderTrashRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "trash", roles = Roles.SERVICE)
     }
 
-    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FilesProviderEmptyTrashRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FilesProviderEmptyTrashRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "emptyTrash", roles = Roles.SERVICE)
     }
 

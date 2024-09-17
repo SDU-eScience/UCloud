@@ -15,13 +15,15 @@ import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
-import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPoolForFileIo
 import dk.sdu.cloud.plugins.storage.ucloud.FSException
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.CreateRequest
+import dk.sdu.cloud.task.api.Tasks
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -40,7 +42,6 @@ import kotlinx.serialization.builtins.serializer
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.coroutines.coroutineContext
-import kotlin.math.min
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -73,8 +74,9 @@ data class TaskSpecification(val title: String)
 
 // TODO(Dan): Move this somewhere else
 object TaskIpc : IpcContainer("tasks") {
-    val register = createHandler(TaskSpecification.serializer(), FindByStringId.serializer())
+    val register = createHandler(TaskSpecification.serializer(), BackgroundTask.serializer())
     val markAsComplete = updateHandler("markAsComplete", FindByStringId.serializer(), Unit.serializer())
+    val view = retrieveHandler(FindByStringId.serializer(), BackgroundTask.serializer())
 }
 
 @Serializable
@@ -93,11 +95,22 @@ class FileController(
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid)
+            val username = UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
+            val backgroundTask = Tasks.create.callBlocking(
+                CreateRequest(
+                    user = username,
+                    provider = providerId,
+                    operation = request.title,
+                    progress = "Accepted",
+                    canPause = false,
+                    canCancel = false
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+
             dbConnection.withSession { session ->
-                val id = secureToken(32).replace("/", "-")
 
                 session.prepareStatement(
                     """
@@ -107,13 +120,22 @@ class FileController(
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("title", request.title)
-                        bindString("task_id", id)
+                        bindString("task_id", backgroundTask.taskId.toString())
                         bindString("local", user.uid.toString())
                     }
                 )
-
-                FindByStringId(id)
             }
+            backgroundTask
+        })
+
+        server.addHandler(TaskIpc.view.handler {user, request ->
+            UserMapping.localIdToUCloudId(user.uid)
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+
+            Tasks.view.call(
+                request,
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
         })
 
         server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
@@ -141,8 +163,8 @@ class FileController(
 
             if (!doesExist) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            FilesControl.markAsComplete.callBlocking(
-                bulkRequestOf(FilesControlMarkAsCompleteRequestItem(request.id)),
+            Tasks.markAsComplete.callBlocking(
+                FindByLongId(request.id.toLong()),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
         })

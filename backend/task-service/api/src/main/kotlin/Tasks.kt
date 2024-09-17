@@ -34,7 +34,7 @@ data class CreateRequest(
 typealias CreateResponse = BackgroundTask
 
 @Serializable
-data class PostStatusRequest(val update: BackgroundTask)
+data class PostStatusRequest(val update: BackgroundTaskUpdate)
 typealias PostStatusResponse = Unit
 
 typealias MarkAsCompleteRequest = FindByLongId
@@ -93,19 +93,13 @@ Providers use this functionality through one of the Control interfaces. They do 
                 success(
                     postStatus,
                     PostStatusRequest(
-                        BackgroundTask(
+                        BackgroundTaskUpdate(
                             taskId = id,
-                            createdAt = 0L,
                             modifiedAt = it * 1000L,
-                            createdBy = username,
-                            status = BackgroundTask.Status(
+                            newStatus = BackgroundTask.Status(
                                 TaskState.RUNNING,
                                 "Counting to 3",
                                 "Count: ${it + 1}"
-                            ),
-                            BackgroundTask.Specification(
-                                false,
-                                false
                             )
                         )
                     ),

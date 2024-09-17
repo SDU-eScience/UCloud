@@ -54,23 +54,22 @@ class TaskService(
             ))
     }
 
-    suspend fun postStatus(actorAndProject: ActorAndProject, task: BackgroundTask) {
-        val taskId = task.taskId
+    suspend fun postStatus(actorAndProject: ActorAndProject, update: BackgroundTaskUpdate) {
+        val taskId = update.taskId
         if (actorAndProject.actor is Actor.User ) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("task_id", taskId)
-                    setParameter("modify", Time.now())
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("state", task.status.state.toString())
-                    setParameter("op", task.status.operation)
-                    setParameter("progress", task.status.progress)
+                    setParameter("modify", update.modifiedAt)
+                    setParameter("state", update.newStatus.state.toString())
+                    setParameter("op", update.newStatus.operation)
+                    setParameter("progress", update.newStatus.progress)
                 },
                 """
                     update task.tasks_v2
-                    set modified_at = :modify, created_by = :username, state = :state, operation = :op, progress = :progress
+                    set modified_at = :modify, state = :state, operation = :op, progress = :progress
                     where id = :task_id
                 """
             )

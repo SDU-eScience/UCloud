@@ -3,18 +3,14 @@ package dk.sdu.cloud.plugins.storage.ucloud
 import dk.sdu.cloud.Prometheus
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.DebugContextType
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FilesControl
-import dk.sdu.cloud.file.orchestrator.api.FilesControlAddUpdateRequestItem
-import dk.sdu.cloud.file.orchestrator.api.FilesControlMarkAsCompleteRequestItem
-import dk.sdu.cloud.file.orchestrator.api.LongRunningTask
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
@@ -22,6 +18,7 @@ import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.task.api.*
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
@@ -63,32 +60,63 @@ class TaskSystem(
         handlers.add(handler)
     }
 
-    suspend fun submitTask(name: String, request: JsonObject): LongRunningTask {
-        val handler = handlers.find { with(it) { taskContext.canHandle(name, request) } } ?: run {
-            log.warn("Unable to handle request: $name $request")
+    suspend fun submitTask(
+        requestName: String,
+        request: JsonObject,
+        username: String,
+        currentProvider: String,
+        operationDescription: String,
+        progressDescription: String = "Accepted",
+        canPause: Boolean = false,
+        canCancel: Boolean = false
+    ): BackgroundTask {
+        val handler = handlers.find { with(it) { taskContext.canHandle(requestName, request) } } ?: run {
+            log.warn("Unable to handle request: $requestName $request")
             throw RPCException("Unable to handle this request", HttpStatusCode.InternalServerError)
         }
 
         with (handler) {
-            val requirements = taskContext.collectRequirements(name, request, REQUIREMENT_MAX_TIME_MS)
+            val requirements = taskContext.collectRequirements(requestName, request, REQUIREMENT_MAX_TIME_MS)
+            val task = Tasks.create.call(
+                CreateRequest(
+                    user = username,
+                    provider = currentProvider,
+                    operation = operationDescription,
+                    progress = progressDescription,
+                    canPause = canPause,
+                    canCancel = canCancel
+                ),
+                client
+            ).orThrow()
             return if (requirements == null || requirements.scheduleInBackground) {
-                scheduleInBackground(name, request, requirements)
+                scheduleInBackground(requestName, request, requirements, task)
             } else {
-                val taskId = UUID.randomUUID().toString()
-                taskContext.execute(
-                    StorageTask(taskId, name, requirements, request, null, Time.now())
-                )
-                LongRunningTask.Complete()
+                Tasks.postStatus.call(
+                    PostStatusRequest(
+                        BackgroundTaskUpdate(
+                            task.taskId,
+                            Time.now(),
+                            BackgroundTask.Status(
+                                TaskState.SUCCESS,
+                                task.status.operation,
+                                "Done"
+                            )
+                        )
+                    ),
+                    client
+                ).orThrow()
+
+                task
             }
         }
     }
 
     private suspend fun scheduleInBackground(
-        name: String,
+        requestName: String,
         request: JsonObject,
         requirements: TaskRequirements?,
-    ): LongRunningTask.ContinuesInBackground {
-        val id = UUID.randomUUID().toString()
+        task: BackgroundTask
+    ): BackgroundTask {
         db.withSession { session ->
             session.prepareStatement(
                 """
@@ -97,14 +125,14 @@ class TaskSystem(
                     values (:id, :request_name, :requirements, :request, :progress, null, null) 
                 """
             ).useAndInvokeAndDiscard {
-                bindString("id", id)
-                bindString("request_name", name)
+                bindString("id", task.taskId.toString())
+                bindString("request_name", requestName)
                 bindString("request", defaultMapper.encodeToString(JsonObject.serializer(), request))
                 bindString("requirements", defaultMapper.encodeToString(TaskRequirements.serializer().nullable, requirements))
                 bindStringNullable("progress", null as String?)
             }
         }
-        return LongRunningTask.ContinuesInBackground(id)
+        return task
     }
 
     fun launchScheduler(scope: CoroutineScope) {
@@ -231,19 +259,26 @@ class TaskSystem(
                                     ?: error("Handler returned no requirements $task"))
 
                             log.debug("Starting work of $task")
-                            FilesControl.addUpdate.call(
-                                bulkRequestOf(
-                                    FilesControlAddUpdateRequestItem(
-                                        task.taskId,
-                                        "Resuming work on task..."
+
+                            Tasks.postStatus.call(
+                                PostStatusRequest(
+                                    BackgroundTaskUpdate(
+                                        taskId = task.taskId.toLong(),
+                                        modifiedAt = Time.now(),
+                                        newStatus = BackgroundTask.Status(
+                                            TaskState.RUNNING,
+                                            task.requestName,
+                                            "Resuming work on task..."
+                                        ),
                                     )
                                 ),
                                 client
                             )
+
                             taskContext.execute(task.copy(requirements = requirements))
-                            FilesControl.markAsComplete.call(
-                                bulkRequestOf(
-                                    FilesControlMarkAsCompleteRequestItem(task.taskId)
+                            Tasks.markAsComplete.call(
+                                MarkAsCompleteRequest(
+                                    task.taskId.toLong()
                                 ),
                                 client
                             )

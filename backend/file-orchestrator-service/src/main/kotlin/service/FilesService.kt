@@ -795,7 +795,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesMoveRequestItem,
-                    BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderMoveRequestItem>, BackgroundTask>() {
                 val oldCollectionsByRequest =
                     HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
@@ -867,7 +867,7 @@ class FilesService(
                 override suspend fun afterCall(
                     provider: String,
                     resources: List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>,
-                    response: BulkResponse<LongRunningTask?>
+                    response: BulkResponse<BackgroundTask?>
                 ) {
                     val batch = ArrayList<FilesMoveRequestItem>()
                     for ((index, res) in resources.withIndex()) {
@@ -892,7 +892,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesCopyRequestItem,
-                    BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderCopyRequestItem>, BackgroundTask>() {
                 val oldCollectionsByRequest =
                     HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
@@ -964,7 +964,7 @@ class FilesService(
                 override suspend fun afterCall(
                     provider: String,
                     resources: List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>,
-                    response: BulkResponse<LongRunningTask?>
+                    response: BulkResponse<BackgroundTask?>
                 ) {
                 }
             }
@@ -1039,11 +1039,11 @@ class FilesService(
         )
     }
 
-    private fun findTasksInBackgroundFromResponse(response: BulkResponse<LongRunningTask?>) =
+    private fun findTasksInBackgroundFromResponse(response: BulkResponse<BackgroundTask?>) =
         response.responses
             .asSequence()
             .filterNotNull()
-            .filterIsInstance<LongRunningTask.ContinuesInBackground>()
+            .filter{ it.status.state != TaskState.FAILURE && it.status.state != TaskState.SUCCESS }
 
     suspend fun trash(
         actorAndProject: ActorAndProject,
