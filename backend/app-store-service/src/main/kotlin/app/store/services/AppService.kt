@@ -5,6 +5,7 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.store.api.*
+import info.debatty.java.stringsimilarity.Cosine
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -53,7 +54,11 @@ class InternalGroup(
         val logoHasText: Boolean,
         val colorRemappingLight: Map<Int, Int>?,
         val colorRemappingDark: Map<Int, Int>?,
-        val curator: String
+        val curator: String,
+
+        // Pre-computed search indexes
+        val titleSearchShingle: Map<String, Int>,
+        val descriptionSearchShingle: Map<String, Int>,
     )
 
     private val ref = AtomicReference(
@@ -67,7 +72,10 @@ class InternalGroup(
             logoHasText,
             colorRemappingLight,
             colorRemappingDark,
-            curator
+            curator,
+
+            emptyMap(),
+            emptyMap(),
         )
     )
 
@@ -84,34 +92,67 @@ class InternalGroup(
     ) {
         while (true) {
             val oldRef = ref.get()
+
+            val newTitle = title ?: oldRef.title
+            val newDescription = description ?: oldRef.description
+
+            val flavors = oldRef.applications.mapNotNull {
+                applications[it]?.metadata?.flavorName
+            }.joinToString(" ")
+
+            val titleSearch = searchCosine.getProfile("$newTitle $flavors".lowercase())
+            val descriptionSearch = searchCosine.getProfile(newDescription.lowercase())
+
             val newRef = oldRef.copy(
-                title = title ?: oldRef.title,
-                description = description ?: oldRef.description,
+                title = newTitle,
+                description = newDescription,
                 defaultFlavor = defaultFlavor ?: oldRef.defaultFlavor,
                 logo = if (logo?.size == 0) null else logo ?: oldRef.logo,
                 logoHasText = newLogoHasText ?: oldRef.logoHasText,
                 colorRemappingLight = colorRemappingLight,
                 colorRemappingDark = colorRemappingDark,
+                titleSearchShingle = titleSearch,
+                descriptionSearchShingle = descriptionSearch,
             )
             if (ref.compareAndSet(oldRef, newRef)) break
         }
     }
 
-    fun addApplications(applications: Set<NameAndVersion>) {
+    fun addApplications(newApplications: Set<NameAndVersion>) {
         while (true) {
             val oldRef = ref.get()
+
+            val updatedApps = oldRef.applications + newApplications
+
+            val flavors = updatedApps.mapNotNull {
+                applications[it]?.metadata?.flavorName
+            }.joinToString(" ")
+
+            val titleSearchShingle = searchCosine.getProfile("${oldRef.title} $flavors".lowercase())
+
             val newRef = oldRef.copy(
-                applications = oldRef.applications + applications
+                applications = updatedApps,
+                titleSearchShingle = titleSearchShingle,
             )
             if (ref.compareAndSet(oldRef, newRef)) break
         }
     }
 
-    fun removeApplications(applications: Set<NameAndVersion>) {
+    fun removeApplications(appsToRemove: Set<NameAndVersion>) {
         while (true) {
             val oldRef = ref.get()
+
+            val updatedApps = oldRef.applications - appsToRemove
+
+            val flavors = updatedApps.mapNotNull {
+                applications[it]?.metadata?.flavorName
+            }.joinToString(" ")
+
+            val titleSearchShingle = searchCosine.getProfile("${oldRef.title} $flavors".lowercase())
+
             val newRef = oldRef.copy(
-                applications = oldRef.applications - applications
+                applications = updatedApps,
+                titleSearchShingle = titleSearchShingle,
             )
             if (ref.compareAndSet(oldRef, newRef)) break
         }
@@ -350,3 +391,12 @@ class InternalStars(stars: Set<String>) {
 
 val groupIdAllocatorForTestsOnly = AtomicInteger(0)
 const val DESIRED_LOGO_WIDTH = 300
+
+
+val searchCosine = Cosine()
+
+fun Cosine.safeSimilarity(profileA: Map<String, Int>, profileB: Map<String, Int>): Double {
+    if (profileA.isEmpty()) return 0.0
+    if (profileB.isEmpty()) return 0.0
+    return this.similarity(profileA, profileB)
+}

@@ -1235,18 +1235,6 @@ data class CarrouselItem(
         checkSingleLine(::imageCredit, imageCredit)
         checkTextLength(::body, body, maximumSize = 400)
 
-        var linkedItems = 0
-        if (linkedApplication != null) linkedItems++
-        if (linkedGroup != null) linkedItems++
-        if (linkedWebPage != null) linkedItems++
-
-        if (linkedItems != 1) {
-            throw RPCException(
-                "Exactly one of linkedApplication, linkedWebPage or linkedGroup must be supplied!",
-                HttpStatusCode.BadRequest
-            )
-        }
-
         if (linkedApplication != null) checkSingleLine(::linkedApplication, linkedApplication)
         if (linkedWebPage != null) checkSingleLine(::linkedWebPage, linkedWebPage)
     }

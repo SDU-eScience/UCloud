@@ -5,6 +5,7 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.AsyncCache
+import dk.sdu.cloud.accounting.util.CyclicArray
 import dk.sdu.cloud.accounting.util.MembershipStatusCacheEntry
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.app.store.api.*
@@ -19,7 +20,6 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.math.max
 
 // Deals with access to the application catalog
 
@@ -28,6 +28,8 @@ data class StoreFront(
     val groups: Set<Long>,
     val knownApplication: Set<String>,
 
+    val newApplications: CyclicArray<NameAndVersion>,
+    val updatedApplications: CyclicArray<NameAndVersion>,
 
     // TODO Keep track of categories and groups containing at least one public application
     //   Use these to bypass can run check.
@@ -212,6 +214,34 @@ class Catalog(
         )
     }
 
+    private suspend fun prepareTopPickForUser(actorAndProject: ActorAndProject, item: TopPick): TopPick? {
+        val groupId = item.groupId
+        val appName = item.applicationName
+        if (groupId != null) {
+            val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags())
+                ?: return null
+
+            return item.copy(
+                title = group.specification.title,
+                applicationName = null,
+                groupId = groupId,
+                defaultApplicationToRun = group.specification.defaultFlavor,
+            )
+        } else if (appName != null) {
+            val app = retrieveApplication(actorAndProject, appName, null, ApplicationFlags())
+                ?: return null
+
+            return item.copy(
+                title = app.metadata.title,
+                applicationName = appName,
+                groupId = null,
+                defaultApplicationToRun = app.metadata.name,
+            )
+        } else {
+            return null
+        }
+    }
+
     suspend fun retrieveLandingPage(
         actorAndProject: ActorAndProject,
     ): AppStore.RetrieveLandingPage.Response {
@@ -222,13 +252,69 @@ class Catalog(
             .mapNotNull { retrieveCategory(actorAndProject, it, ApplicationFlags()) }
             .sortedBy { categories[it.metadata.id.toLong()]?.priority() ?: 10000 }
 
+
+        val slides = carrousel.get().map { slide ->
+            var resolvedLinkedApp: String? = null
+
+            var applicationName = slide.linkedApplication
+            var groupId = slide.linkedGroup?.toLong()
+            if (groupId != null) {
+                val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags())
+                if (group == null) {
+                    groupId = null
+                } else {
+                    resolvedLinkedApp = group.specification.defaultFlavor
+                }
+            } else if (applicationName != null) {
+                val app = retrieveApplication(actorAndProject, applicationName, null, ApplicationFlags())
+                if (app == null) {
+                    applicationName = null
+                }
+            }
+
+            slide.copy(
+                linkedApplication = applicationName,
+                linkedGroup = groupId?.toInt(),
+                resolvedLinkedApp = resolvedLinkedApp,
+            )
+        }
+
+        val picks = topPicks.get().mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+
+        val activeSpotlight = spotlights.values.find { it.get().active }?.get()?.let { spotlight ->
+            val newApps = spotlight.applications.mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+            spotlight.copy(applications = newApps).takeIf { it.applications.isNotEmpty() }
+        }
+
+        val allNewApplications = ArrayList<Application>()
+        val allUpdatedApplications = ArrayList<Application>()
+
+        for (storeFront in allStoreFronts) {
+            for (newApp in storeFront.newApplications) {
+                val element = retrieveApplication(actorAndProject, newApp.name, newApp.version, ApplicationFlags())
+                    ?: continue
+
+                allNewApplications.add(element)
+            }
+
+            for (updatedApp in storeFront.updatedApplications) {
+                val element = retrieveApplication(actorAndProject, updatedApp.name, updatedApp.version, ApplicationFlags())
+                    ?: continue
+
+                allUpdatedApplications.add(element)
+            }
+        }
+
+        allNewApplications.sortByDescending { it.metadata.createdAt }
+        allUpdatedApplications.sortByDescending { it.metadata.createdAt }
+
         return AppStore.RetrieveLandingPage.Response(
-            emptyList(),
-            emptyList(),
+            slides,
+            picks,
             resolvedCategories,
-            null,
-            emptyList(),
-            emptyList(),
+            activeSpotlight,
+            allNewApplications.take(5),
+            allUpdatedApplications.take(5),
         )
     }
 
@@ -238,18 +324,124 @@ class Catalog(
     suspend fun search(
         actorAndProject: ActorAndProject,
         query: String,
-    ): List<Application> = TODO()
+    ): List<Application> {
+        val relevantStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val queryProfile = searchCosine.getProfile(query.lowercase())
+        val similarities = HashMap<Long, Double>()
+
+        for (storeFront in relevantStoreFronts) {
+            for (groupId in storeFront.groups) {
+                if (groupId in similarities) continue
+                val group = groups[groupId] ?: continue
+                val groupInfo = group.get()
+
+                var similarity = searchCosine.safeSimilarity(queryProfile, groupInfo.titleSearchShingle)
+                similarity += searchCosine.safeSimilarity(queryProfile, groupInfo.descriptionSearchShingle) * 0.5
+                similarities[groupId] = similarity
+            }
+        }
+
+        val resolvedApps = HashMap<NameAndVersion, Application>()
+        val result = HashMap<NameAndVersion, Double>()
+        val candidates = similarities.entries.sortedByDescending { it.value }
+        for ((groupId, similarity) in candidates) {
+            val group = retrieveGroup(
+                actorAndProject,
+                groupId,
+                ApplicationFlags(
+                    includeApplications = true,
+                    includeStars = true
+                )
+            ) ?: continue
+
+            val apps = group.status.applications ?: emptyList()
+            for (app in apps) {
+                val profile = searchCosine.getProfile(app.metadata.title.lowercase())
+                val ownSimilarity = searchCosine.safeSimilarity(queryProfile, profile)
+                val nameAndVersion = NameAndVersion(app.metadata.name, app.metadata.version)
+                result[nameAndVersion] = similarity + ownSimilarity
+                resolvedApps[nameAndVersion] = app
+            }
+
+            if (result.size >= 50) break
+        }
+
+        return result.entries.sortedByDescending { it.value }.mapNotNull { resolvedApps[it.key] }
+    }
 
     suspend fun openWithApplication(
         actorAndProject: ActorAndProject,
         files: List<String>,
-    ): List<Application> = TODO()
+    ): List<Application> {
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+
+        val membership = projectCache.lookup(actorAndProject.actor.safeUsername())
+
+        val extensions = files.flatMap { file ->
+            if (file.contains(".")) {
+                listOf("." + file.substringAfterLast('.'))
+            } else {
+                buildList {
+                    val name = file.substringAfterLast('/')
+                    add(name.removeSuffix("/"))
+
+                    if (file.endsWith("/")) {
+                        val fixedName = file.removeSuffix("/").substringAfterLast("/")
+                        add("$fixedName/")
+                        add(fixedName)
+                        add("/")
+                    }
+                }
+            }
+        }.toSet()
+
+        val candidates = HashSet<Application>()
+        for (storeFront in allStoreFronts) {
+            for (appName in storeFront.knownApplication) {
+                val app =
+                    retrieveApplication(actorAndProject, appName, null, ApplicationFlags(includeInvocation = true))
+                        ?: continue
+
+                if (app.invocation!!.fileExtensions.any { it in extensions }) {
+                    candidates.add(app)
+                }
+            }
+        }
+
+        val dedupedCandidates = candidates.groupBy { it.metadata.name }.map { (name, versions) ->
+            versions.sortedByDescending { it.metadata.createdAt }[0]
+        }
+
+        val result = ArrayList<Application>()
+        for (candidate in dedupedCandidates) {
+            val loaded = prepareApplicationForUser(
+                actorAndProject,
+                membership,
+                candidate,
+                ApplicationFlags(
+                    includeVersions = false,
+                    includeStars = true,
+                    includeInvocation = true,
+                )
+            ) ?: continue
+
+            result.add(loaded)
+        }
+
+        result.sortBy { it.metadata.title }
+        return result
+    }
 
     private val relevantStoreFrontsCache = AsyncCache<ActorAndProject, List<StoreFront>>(
         backgroundScope,
         timeToLiveMilliseconds = 10_000,
         timeoutMilliseconds = 1000,
-        timeoutException = { throw RPCException("Failed to fetch application data", HttpStatusCode.InternalServerError) },
+        timeoutException = {
+            throw RPCException(
+                "Failed to fetch application data",
+                HttpStatusCode.InternalServerError
+            )
+        },
         retrieve = { actorAndProject ->
             val relevantProviders = AccountingV2.findRelevantProviders.call(
                 bulkRequestOf(
@@ -274,140 +466,6 @@ class Catalog(
         return relevantStoreFrontsCache.retrieve(actorAndProject)
     }
 
-    /*
-    suspend fun listByExtension(
-        actorAndProject: ActorAndProject,
-        files: List<String>,
-    ): List<ApplicationWithExtension> {
-        val extensions = files.flatMap { file ->
-            if (file.contains(".")) {
-                listOf("." + file.substringAfterLast('.'))
-            } else {
-                buildList {
-                    val name = file.substringAfterLast('/')
-                    add(name.removeSuffix("/"))
-
-                    if (file.endsWith("/")) {
-                        val fixedName = file.removeSuffix("/").substringAfterLast("/")
-                        add("$fixedName/")
-                        add(fixedName)
-                        add("/")
-                    }
-                }
-            }
-        }.toSet()
-
-        val candidates = HashSet<NameAndVersion>()
-        for ((_, app) in applications) {
-            if (app.invocation.fileExtensions.any { it in extensions }) {
-                candidates.add(NameAndVersion(app.metadata.name, app.metadata.version))
-            }
-        }
-
-        val loaded = prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
-        return loaded.map {
-            val extsSupported = it.invocation.fileExtensions.filter { it in extensions }
-            ApplicationWithExtension(it.metadata, extsSupported)
-        }
-    }
-
-    suspend fun search(
-        actorAndProject: ActorAndProject,
-        query: String,
-    ): List<ApplicationWithFavoriteAndTags> {
-        // NOTE(Dan): This probably won't perform very well, but my quick tests tells me that it is probably
-        // still better than what we currently have.
-        val queryWords = query.split(" ")
-        val scores = HashMap<String, Int>()
-        val arr1 = IntArray(128)
-        val arr2 = IntArray(128)
-
-        val scoreCutoff = max(1, queryWords.minOf { it.length } / 2)
-
-        for ((nameAndVersion, app) in applications) {
-            if (nameAndVersion.name in scores) continue
-            val titleWords = app.metadata.title.split(" ")
-            val descriptionWords = app.metadata.description.split(" ")
-
-            // We rank each result by a home-brew system of inverting the editing distance. We search through both the
-            // title and the description. Each query word gets the best match it finds through both title and
-            // description. We sum the score of each query word to give a total score for each application. The
-            // applications with the highest scores returned to the user.
-            var totalScore = 0
-            for (q in queryWords) {
-                var maxScorePerWord = 0
-                for (t in titleWords) {
-                    var score = 0
-                    val distance = levenshteinDistance(q, t, arr1, arr2)
-                    val inverted = q.length - distance
-                    if (inverted > 0) score += inverted
-                    if (inverted == q.length) score += inverted
-
-                    maxScorePerWord = max(score, maxScorePerWord)
-                }
-
-                for (t in descriptionWords) {
-                    var score = 0
-                    val distance = levenshteinDistance(q, t, arr1, arr2)
-                    val inverted = q.length - distance
-                    if (inverted > 0) score += inverted
-                    if (inverted == q.length) score += inverted
-
-                    maxScorePerWord = max(score, maxScorePerWord)
-                }
-
-                totalScore += maxScorePerWord
-            }
-
-            scores[nameAndVersion.name] = totalScore
-        }
-
-        val candidates = ArrayList<NameAndVersion>()
-        scores.entries.sortedByDescending { it.value }.take(50).mapNotNull {
-            if (it.value < scoreCutoff) return@mapNotNull null
-            val name = it.key
-            val appVersions = applicationVersions[name]?.get() ?: return@mapNotNull null
-            candidates.addAll(appVersions.map { NameAndVersion(name, it) })
-        }
-
-        val loaded = prepareApplicationsForUser(actorAndProject, candidates, withAllVersions = false)
-        return loaded.sortedByDescending { scores[it.metadata.name] ?: 0 }
-    }
-     */
-
-    // Calculates the "editing" distance between two strings. This returns back a number representing how different
-    // two strings are. The number will always be positive. Lower numbers indicated similar strings. Zero indicates
-    // that the strings are identical. String comparisons are case-insensitive.
-    private fun levenshteinDistance(a: String, b: String, arr1: IntArray, arr2: IntArray): Int {
-        if (a == b) return 0
-        if (a.isEmpty()) return b.length
-        if (b.isEmpty()) return a.length
-        if (arr1.size < a.length + 1 || arr2.size < a.length + 1) return max(a.length, b.length)
-
-        var cost = arr1
-        var newCost = arr2
-
-        for (i in cost.indices) cost[i] = i
-        Arrays.fill(newCost, 0)
-
-        for (i in 1..b.length) {
-            newCost[0] = i
-            for (j in 1..a.length) {
-                val costToInsert = cost[j] + 1
-                val costToDelete = newCost[j - 1] + 1
-                var costToReplace = cost[j - 1]
-                if (a[j - 1].lowercaseChar() != b[i - 1].lowercaseChar()) costToReplace += 1
-                newCost[j] = minOf(costToReplace, costToInsert, costToDelete)
-            }
-
-            val temp = cost
-            cost = newCost
-            newCost = temp
-        }
-
-        return cost[a.length]
-    }
-
     private suspend fun prepareApplicationForUser(
         actorAndProject: ActorAndProject,
         membership: MembershipStatusCacheEntry,
@@ -415,7 +473,7 @@ class Catalog(
         flags: ApplicationFlags,
     ): Application? {
         if (!application.metadata.public) {
-            if (!hasPermission(application.metadata.name, actorAndProject.actor, membership))  {
+            if (!hasPermission(application.metadata.name, actorAndProject.actor, membership)) {
                 return null
             }
         }
@@ -524,12 +582,33 @@ class Catalog(
                 .map { it.toLong() }
                 .toSet()
 
+            val newApplications = CyclicArray<NameAndVersion>(25)
+            val updatedApplications = CyclicArray<NameAndVersion>(25)
+
             val knownApplications = supportedApplications.map { it.metadata.name }.toSet()
+
+            val resolvedApplications = knownApplications.flatMap { appName ->
+                val versions = applicationVersions[appName]?.get() ?: return@flatMap emptyList()
+                versions.mapNotNull { applications[NameAndVersion(appName, it)] }
+            }.sortedBy { it.metadata.createdAt }
+
+            val seenBefore = HashSet<String>()
+            for (app in resolvedApplications) {
+                val key = NameAndVersion(app.metadata.name, app.metadata.version)
+                updatedApplications.add(key)
+                if (app.metadata.name !in seenBefore) {
+                    newApplications.add(key)
+                }
+
+                seenBefore.add(app.metadata.name)
+            }
 
             StoreFront(
                 supportedCategoryIds,
                 supportedGroupIds,
                 knownApplications,
+                newApplications,
+                updatedApplications,
             )
         }
     )
@@ -543,6 +622,4 @@ class Catalog(
         }
         return false
     }
-
-
 }
