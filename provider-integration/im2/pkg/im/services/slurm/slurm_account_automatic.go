@@ -5,6 +5,7 @@ import (
 	"os/user"
 	"slices"
 	"ucloud.dk/pkg/apm"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/slurm"
 	"ucloud.dk/pkg/log"
@@ -124,7 +125,7 @@ func (a *automaticAccountManagementService) synchronizeProjectToSlurmAccount(pro
 
 func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.NotificationWalletUpdated) {
 	log.Info("slurm account wallet update %v %v", update.Category.Name, update.CombinedQuota)
-	_, ok := ServiceConfig.Compute.Machines[update.Category.Name]
+	machineConfig, ok := ServiceConfig.Compute.Machines[update.Category.Name]
 	if !ok {
 		return
 	}
@@ -161,17 +162,28 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 		account.MaxJobs = 0
 	}
 
-	// TODO This should be in minutes but we don't know the frequency and such yet
+	// TODO Make sure Slurm service only accepts resource as a unit
+	multiplier := uint64(1)
+	switch machineConfig.Payment.Interval {
+	case cfg.PaymentIntervalMinutely:
+		multiplier = 1
+	case cfg.PaymentIntervalHourly:
+		multiplier = 60
+	case cfg.PaymentIntervalDaily:
+		multiplier = 60 * 24
+	}
+	quotaInMinutes := update.CombinedQuota * multiplier
+
 	if account.QuotaTRES == nil {
 		account.QuotaTRES = make(map[string]int)
 	}
-	account.QuotaTRES["billing"] = int(update.CombinedQuota)
-	account.RawShares = int(update.CombinedQuota / 60 / 24)
+	account.QuotaTRES["billing"] = int(quotaInMinutes)
+	account.RawShares = int(quotaInMinutes / 60 / 24)
 
 	SlurmClient.AccountModify(account)
 }
 
-func (a *automaticAccountManagementService) FetchUsage() map[SlurmAccountOwner]int64 {
+func (a *automaticAccountManagementService) FetchUsageInMinutes() map[SlurmAccountOwner]int64 {
 	result := map[SlurmAccountOwner]int64{}
 	billing := SlurmClient.AccountBillingList()
 	for account, usage := range billing {

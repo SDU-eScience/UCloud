@@ -26,15 +26,19 @@ var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
 
 func InitCompute() ctrl.JobsService {
-	loadProducts()
+	loadComputeProducts()
 
 	SlurmClient = slurmcli.NewClient()
-	if SlurmClient == nil {
+	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
 		go func() {
+			if len(Machines) == 0 {
+				return
+			}
+
 			for util.IsAlive {
 				loopComputeMonitoring()
 				loopAccounting()
@@ -103,7 +107,8 @@ var nextComputeAccountingTime = time.Now()
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
-		billing := Accounting.FetchUsage()
+		billing := Accounting.FetchUsageInMinutes()
+		// TODO convert this to correct UCloud unit
 
 		var reportItems []apm.UsageReportItem
 		for owner, usage := range billing {
@@ -147,7 +152,7 @@ func loopComputeMonitoring() {
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
-		parsed, ok := parseProviderId(job.ProviderGeneratedId)
+		parsed, ok := parseJobProviderId(job.ProviderGeneratedId)
 		if !ok {
 			continue
 		}
@@ -166,7 +171,13 @@ func loopComputeMonitoring() {
 			continue
 		}
 
-		batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		didUpdate := batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
+		if didUpdate {
+			nodeList := SlurmClient.JobGetNodeList(job.JobID)
+			if len(nodeList) > 0 {
+				batch.TrackAssignedNodes(ucloudId, nodeList)
+			}
+		}
 	}
 }
 
@@ -222,7 +233,7 @@ func extendJob(_ ctrl.JobExtendRequest) error {
 }
 
 func terminateJob(request ctrl.JobTerminateRequest) error {
-	providerId, ok := parseProviderId(request.Job.ProviderGeneratedId)
+	providerId, ok := parseJobProviderId(request.Job.ProviderGeneratedId)
 	if !ok {
 		// Nothing to do
 		return nil
@@ -261,7 +272,7 @@ func (i parsedProviderJobId) String() string {
 	return fmt.Sprintf("%v/%v/%v", i.BelongsToAccount, i.SlurmId, time.Now().UnixMilli())
 }
 
-func parseProviderId(providerId string) (parsedProviderJobId, bool) {
+func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 	var result parsedProviderJobId
 	if providerId == "" {
 		return result, false
@@ -357,7 +368,7 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	return util.OptValue(providerId), nil
 }
 
-func loadProducts() {
+func loadComputeProducts() {
 	for categoryName, category := range ServiceConfig.Compute.Machines {
 		productCategory := apm.ProductCategory{
 			Name:                categoryName,
@@ -405,9 +416,10 @@ func loadProducts() {
 			for _, machineConfig := range group.Configs {
 				name := fmt.Sprintf("%v-%v", groupName, pickResource(group.NameSuffix, machineConfig))
 				product := apm.ProductV2{
+					Type:        apm.ProductTypeCCompute,
 					Category:    productCategory,
 					Name:        name,
-					Description: "TODO", // TODO
+					Description: "A compute product", // TODO
 
 					ProductType:               apm.ProductTypeCompute,
 					Price:                     int64(math.Floor(machineConfig.Price * 1_000_000)),
@@ -588,7 +600,7 @@ func serverFindIngress(job *orc.Job) ctrl.ConfiguredWebIngress {
 }
 
 func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
-	parsedId, ok := parseProviderId(job.ProviderGeneratedId)
+	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
 		return cfg.HostInfo{}, errors.New("could not parse provider id")
 	}

@@ -184,7 +184,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
             let counter = 0;
             setInterval(() => {
                 triggerNotificationPopup({
-                    icon: "mail",
+                    icon: "heroPaperAirplane",
                     title: `Notification ${counter}`,
                     body: "This is a test notification!",
                     isPinned: false,

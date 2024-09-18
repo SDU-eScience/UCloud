@@ -83,7 +83,7 @@ func ResizePty(masterFd *os.File, cols, rows int) {
 }
 
 func handleShell(session *ctrl.ShellSession, cols, rows int) {
-	parsedId, ok := parseProviderId(session.Job.ProviderGeneratedId)
+	parsedId, ok := parseJobProviderId(session.Job.ProviderGeneratedId)
 	if !ok {
 		return
 	}

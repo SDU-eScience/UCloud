@@ -179,6 +179,15 @@ sealed class FilesStreamingSearchResult {
     class EndOfResults : FilesStreamingSearchResult()
 }
 
+@Serializable
+data class FilesTransferRequest(
+    val sourcePath: String,
+    val destinationPath: String,
+)
+
+@Serializable
+class FilesTransferResponse
+
 // ---
 
 @UCloudApiStable
@@ -1003,6 +1012,20 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 Clients should expect that this endpoint stops returning results after a given timeout. After which,
                 it is no longer possible to request additional results. 
             """.trimIndent()
+        }
+    }
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    val transfer = call(
+        "transfer",
+        BulkRequest.serializer(FilesTransferRequest.serializer()),
+        BulkResponse.serializer(FilesTransferResponse.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
+        httpUpdate(baseContext, "transfer", roles = Roles.END_USER)
+
+        documentation {
+            summary = "Transfers files between two different service providers"
         }
     }
 

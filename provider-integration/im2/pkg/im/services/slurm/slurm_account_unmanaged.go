@@ -22,6 +22,6 @@ func (u unmanagedAccountManagementService) OnWalletUpdated(update *ctrl.Notifica
 	// Do nothing
 }
 
-func (u unmanagedAccountManagementService) FetchUsage() map[SlurmAccountOwner]int64 {
+func (u unmanagedAccountManagementService) FetchUsageInMinutes() map[SlurmAccountOwner]int64 {
 	return make(map[SlurmAccountOwner]int64)
 }

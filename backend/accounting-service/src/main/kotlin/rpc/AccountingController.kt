@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
 import dk.sdu.cloud.accounting.services.accounting.AccountingSystem
 import dk.sdu.cloud.accounting.services.accounting.DataVisualization
+import dk.sdu.cloud.accounting.services.grants.GrantsV2Service
 import dk.sdu.cloud.accounting.services.notifications.ApmNotificationService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.IdCardService
@@ -29,6 +30,7 @@ class AccountingController(
     private val dataVisualization: DataVisualization,
     private val idCards: IdCardService,
     private val apmNotifications: ApmNotificationService,
+    private val grants: GrantsV2Service,
 ) : Controller {
     private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
         call: CallDescription<R, S, E>,
@@ -207,20 +209,28 @@ class AccountingController(
 
         implementOrDispatch(AccountingV2.browseProviderAllocations) {
             val idCard = idCards.fetchIdCard(actorAndProject)
-            ok(
-                accounting.sendRequest(
-                    AccountingRequest.RetrieveProviderAllocations(
-                        idCard,
-                        request.itemsPerPage,
-                        request.next,
-                        request.consistency,
-                        request.itemsToSkip,
-                        request.filterOwnerId,
-                        request.filterOwnerIsProject,
-                        request.filterCategory,
-                    )
+            val withoutGrantInformation = accounting.sendRequest(
+                AccountingRequest.RetrieveProviderAllocations(
+                    idCard,
+                    request.itemsPerPage,
+                    request.next,
+                    request.consistency,
+                    request.itemsToSkip,
+                    request.filterOwnerId,
+                    request.filterOwnerIsProject,
+                    request.filterCategory,
                 )
             )
+
+            val grantIds = withoutGrantInformation.items.mapNotNull { it.grant?.grantId }.toSet().toList()
+            val infoByGrant = grants.retrieveGrantInformation(grantIds).associateBy { it.grantId }
+            val newItems = withoutGrantInformation.items.map { item ->
+                item.copy(
+                    grant = item.grant?.let { infoByGrant[it.grantId] }
+                )
+            }
+
+            ok(withoutGrantInformation.copy(items = newItems))
         }
 
         implement(VisualizationV2.retrieveCharts) {

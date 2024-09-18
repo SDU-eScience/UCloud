@@ -1,11 +1,12 @@
 package slurm
 
 import (
-	"bytes"
-	"encoding/binary"
+	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/user"
@@ -14,12 +15,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
+	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/controller/upload"
 
-	"github.com/gorilla/websocket"
 	lru "github.com/hashicorp/golang-lru/v2/expirable"
 	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -31,46 +32,10 @@ import (
 var browseCache *lru.LRU[string, []cachedDirEntry]
 var tasksInitializedMutex sync.Mutex
 var tasksInitialized []string
-var uploadDescriptors UploadDescriptors
-
-type UploadSessionData struct {
-	ConflictPolicy orc.WriteConflictPolicy
-	Path           string
-	Type           ctrl.UploadType
-}
-
-type FileListingEntry struct {
-	Id         uint
-	Path       string
-	Size       uint64
-	ModifiedAt time.Time
-	Offset     uint64
-}
-
-type FolderUploadMessageType uint8
-
-const (
-	FolderUploadMessageTypeOk             FolderUploadMessageType = 0
-	FolderUploadMessageTypeChecksum       FolderUploadMessageType = 1
-	FolderUploadMessageTypeChunk          FolderUploadMessageType = 2
-	FolderUploadMessageTypeSkip           FolderUploadMessageType = 3
-	FolderUploadMessageTypeListing        FolderUploadMessageType = 4
-	FolderUploadMessageTypeFilesCompleted FolderUploadMessageType = 5
-)
-
-func (t FolderUploadMessageType) Int() int8 {
-	for i := 0; i <= 5; i++ {
-		if FolderUploadMessageType(i) == t {
-			return int8(i)
-		}
-	}
-
-	return 0
-}
 
 func InitializeFiles() ctrl.FileService {
-	uploadDescriptors.startMonitoringLoop()
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
+	loadStorageProducts()
 	return ctrl.FileService{
 		BrowseFiles:           browse,
 		RetrieveFile:          retrieve,
@@ -81,8 +46,134 @@ func InitializeFiles() ctrl.FileService {
 		EmptyTrash:            emptyTrash,
 		CreateDownloadSession: createDownload,
 		CreateUploadSession:   createUpload,
-		HandleUploadWs:        uploadWs,
 		Download:              download,
+		RetrieveProducts:      retrieveProducts,
+		Transfer:              transfer,
+		Uploader:              &uploaderFileSystem{},
+	}
+}
+
+// TODO put this in the database
+var transferSessions = util.NewCache[string, ctrl.FilesTransferRequestInitiateSource](48 * time.Hour)
+
+func transfer(request ctrl.FilesTransferRequest) (ctrl.FilesTransferResponse, error) {
+	switch request.Type {
+	case ctrl.FilesTransferRequestTypeInitiateSource:
+		req := request.InitiateSource()
+		token := util.RandomToken(32)
+		transferSessions.Set(token, *req)
+
+		return ctrl.FilesTransferResponseInitiateSource(token, []string{"built-in"}), nil
+
+	case ctrl.FilesTransferRequestTypeInitiateDestination:
+		req := request.InitiateDestination()
+		if !slices.Contains(req.SupportedProtocols, "built-in") {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, no overlap in protocols.",
+			}
+		}
+
+		localDestinationPath, ok := UCloudToInternal(req.DestinationPath)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, unknown destination supplied.",
+			}
+		}
+
+		finfo, err := os.Stat(filepath.Dir(localDestinationPath))
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, unknown destination supplied.",
+			}
+		}
+
+		if !probablyHasPermissionToWrite(finfo) {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to fulfill this request, you are not allowed to write to the destination folder.",
+			}
+		}
+
+		_, target := ctrl.CreateFolderUpload(req.DestinationPath, orc.WriteConflictPolicyMergeRename, []byte(localDestinationPath))
+
+		if req.SourceProvider == cfg.Provider.Id {
+			// NOTE(Dan): This only happens during local development
+
+			target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
+		}
+
+		return ctrl.FilesTransferResponseInitiateDestination(
+			"built-in",
+			ctrl.TransferBuiltInParameters{
+				Endpoint: target,
+			},
+		), nil
+
+	case ctrl.FilesTransferRequestTypeStart:
+		req := request.Start()
+
+		if req.SelectedProtocol != "built-in" {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Protocol is not supported",
+			}
+		}
+
+		session, ok := transferSessions.GetNow(req.Session)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unknown session",
+			}
+		}
+
+		var parameters ctrl.TransferBuiltInParameters
+
+		err := json.Unmarshal(req.ProtocolParameters, &parameters)
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Malformed request from UCloud/Core",
+			}
+		}
+
+		uploadSession := upload.ClientSession{
+			Endpoint:       parameters.Endpoint,
+			ConflictPolicy: orc.WriteConflictPolicyMergeRename,
+			Path:           session.SourcePath,
+		}
+
+		internalSource, ok := UCloudToInternal(session.SourcePath)
+		if !ok {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to open source file",
+			}
+		}
+
+		rootFile, err := os.Open(internalSource)
+		if err != nil {
+			return ctrl.FilesTransferResponse{}, &util.HttpError{
+				StatusCode: http.StatusBadRequest,
+				Why:        "Unable to open source file",
+			}
+		}
+
+		go upload.ProcessClient(uploadSession, &uploaderClientFile{
+			Path: "",
+			File: rootFile,
+		})
+
+		return ctrl.FilesTransferResponseStart(), nil
+
+	default:
+		return ctrl.FilesTransferResponse{}, &util.HttpError{
+			StatusCode: http.StatusBadRequest,
+			Why:        "Unknown message",
+		}
 	}
 }
 
@@ -648,7 +739,6 @@ func processCopyTask(task *FileTask) error {
 	}
 
 	return nil
-
 }
 
 func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile, drive orc.Drive) {
@@ -720,400 +810,13 @@ func createDownload(session ctrl.DownloadSession) error {
 }
 
 func createUpload(request ctrl.CreateUploadRequest) ([]byte, error) {
+	// TODO(Dan): This can fail if we do not have permissions to write at this path
 	path := UCloudToInternalWithDrive(request.Drive, request.Path)
 
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
 		path, _ = findAvailableNameOnRename(path)
 	}
-
-	data, err := json.Marshal(
-		UploadSessionData{
-			Path:           path,
-			ConflictPolicy: orc.WriteConflictPolicyRename,
-			Type:           request.Type,
-		},
-	)
-
-	if err != nil {
-		log.Error("Unable to marshal upload session: %v", err)
-		return nil, &util.HttpError{
-			StatusCode: http.StatusBadRequest,
-			Why:        "Unable to start upload",
-		}
-	}
-
-	return data, nil
-}
-
-func uploadWsFile(socket *websocket.Conn, session UploadSessionData) error {
-	var fileOffset int64 = 0
-	var fileSize int64 = 0
-
-	file, err := os.OpenFile(session.Path, os.O_CREATE+os.O_RDWR, 0644)
-
-	if err != nil {
-		log.Error("Failed to open file for upload: %v", err)
-		return &util.HttpError{
-			StatusCode: http.StatusBadRequest,
-			Why:        "Unable to upload file",
-		}
-	}
-
-	for {
-		messageType, data, readErr := socket.ReadMessage()
-
-		if readErr != nil {
-			log.Error("Failed to read message from socket: %v", readErr)
-			return &util.HttpError{
-				StatusCode: http.StatusBadRequest,
-				Why:        "Error occured while uploading file",
-			}
-		}
-
-		message := string(data)
-
-		if messageType == websocket.TextMessage {
-			fileInfo := strings.Split(message, " ")
-
-			var err error
-			fileOffset, _ = strconv.ParseInt(fileInfo[0], 10, 64)
-			fileSize, err = strconv.ParseInt(fileInfo[1], 10, 64)
-
-			if err != nil {
-				log.Error("Failed to read file information used for upload: %v", err)
-				return &util.HttpError{
-					StatusCode: http.StatusBadRequest,
-					Why:        "Error occured while uploading file",
-				}
-			}
-		} else {
-			written, err := file.WriteAt(data, fileOffset)
-			if err != nil {
-				log.Error("Failed to write to file during upload: %v", err)
-				return &util.HttpError{
-					StatusCode: http.StatusBadRequest,
-					Why:        "Error occured while uploading file",
-				}
-			}
-
-			fileOffset += int64(written)
-			socket.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint(fileOffset)))
-		}
-
-		if fileOffset >= fileSize {
-			return nil
-		}
-	}
-}
-
-func uploadWsFolder(socket *websocket.Conn, session UploadSessionData) error {
-	listing := make(map[uint32]FileListingEntry)
-	errorChannel := make(chan util.HttpError, 5)
-	responseBuffer := bytes.NewBuffer([]byte{})
-
-	drive, _ := ResolveDriveByPath(session.Path)
-
-	flushResponses := func() {
-		if responseBuffer.Len() > 0 {
-			socket.WriteMessage(websocket.BinaryMessage, responseBuffer.Bytes())
-		}
-		responseBuffer.Reset()
-	}
-
-	var filesCompleted atomic.Int32
-
-	// Write FilesCompleted messages to the socket.
-	go func() {
-		var last int32 = 0
-		buf := bytes.NewBuffer([]byte{})
-		for {
-			current := filesCompleted.Load()
-			if last != current {
-				buf.Reset()
-				binary.Write(buf, binary.BigEndian, byte(FolderUploadMessageTypeFilesCompleted.Int()))
-				buf = bytes.NewBuffer(binary.BigEndian.AppendUint32(buf.Bytes(), uint32(current)))
-				err := socket.WriteMessage(websocket.BinaryMessage, buf.Bytes())
-				if err != nil {
-					errorChannel <- util.HttpError{
-						StatusCode: http.StatusInternalServerError,
-						Why:        fmt.Sprintf("Problem writing to socket: %v", err),
-					}
-					return
-				}
-				last = current
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-
-	for {
-		_, data, readErr := socket.ReadMessage()
-
-		if readErr != nil {
-			break
-		}
-
-		buffer := bytes.NewBuffer(data)
-		uploadMessageType, _ := buffer.ReadByte()
-
-		switch FolderUploadMessageType(uploadMessageType) {
-		case FolderUploadMessageTypeListing:
-			{
-				type ListingResponse struct {
-					Message FolderUploadMessageType
-					Entry   uint
-				}
-
-				workChannel := make(chan []FileListingEntry)
-				workResponses := make(chan []ListingResponse)
-
-				// Determine which files needs to be uploaded.
-				go func() {
-					for {
-						entries, ok := <-workChannel
-
-						if !ok {
-							break
-						}
-
-						var responses []ListingResponse
-
-						for entryKey, entry := range entries {
-							message := FolderUploadMessageTypeOk
-							fileInfo, err := os.Stat(session.Path + "/" + entry.Path)
-
-							if err != nil {
-								message = FolderUploadMessageTypeOk
-							} else {
-								diffModifiedAt := entry.ModifiedAt.UnixMilli() - fileInfo.ModTime().UnixMilli()
-								if diffModifiedAt < 0 {
-									diffModifiedAt = diffModifiedAt * -1
-								}
-
-								if fileInfo.IsDir() {
-									message = FolderUploadMessageTypeSkip
-								} else if uint64(fileInfo.Size()) == entry.Size {
-									message = FolderUploadMessageTypeSkip
-								} else if diffModifiedAt < 1000 {
-									message = FolderUploadMessageTypeSkip
-								}
-							}
-
-							if message == FolderUploadMessageTypeSkip {
-								filesCompleted.Add(1)
-								entries[entryKey].Offset = entry.Size
-							}
-
-							responses = append(responses, ListingResponse{Message: message, Entry: uint(entry.Id)})
-						}
-
-						workResponses <- responses
-					}
-
-					close(workResponses)
-				}()
-
-				// Process listing
-				go func() {
-					var batch []FileListingEntry
-
-					for {
-						if buffer.Len() < 1 {
-							break
-						}
-						fileId := binary.BigEndian.Uint32(buffer.Next(4))
-						size := binary.BigEndian.Uint64(buffer.Next(8))
-						modifiedAt := binary.BigEndian.Uint64(buffer.Next(8))
-						pathSize := binary.BigEndian.Uint32(buffer.Next(4))
-
-						if pathSize > 1024*64 {
-							log.Error("Refusing to allocate space for this file: %d", pathSize)
-							continue
-						}
-
-						path := string(buffer.Next(int(pathSize)))
-
-						fileListingEntry := FileListingEntry{
-							Id:         uint(fileId),
-							Path:       path,
-							Size:       size,
-							ModifiedAt: fnd.TimeFromUnixMilli(modifiedAt).Time(),
-							Offset:     0,
-						}
-
-						batch = append(batch, fileListingEntry)
-						listing[fileId] = fileListingEntry
-
-						if len(batch) > 100 {
-							workChannel <- batch
-							batch = []FileListingEntry{}
-						}
-					}
-
-					if len(batch) > 0 {
-						workChannel <- batch
-					}
-
-					close(workChannel)
-				}()
-
-				go func() {
-					for {
-						batch, ok := <-workResponses
-
-						if !ok {
-							flushResponses()
-							break
-						}
-
-						for _, entry := range batch {
-							if responseBuffer.Len() > 64 {
-								flushResponses()
-							}
-
-							binary.Write(responseBuffer, binary.BigEndian, byte(entry.Message.Int()))
-							responseBuffer = bytes.NewBuffer(binary.BigEndian.AppendUint32(responseBuffer.Bytes(), uint32(entry.Entry)))
-						}
-					}
-				}()
-			}
-		case FolderUploadMessageTypeSkip:
-			{
-				filesCompleted.Add(1)
-			}
-		case FolderUploadMessageTypeChunk:
-			{
-				fileId := binary.BigEndian.Uint32(buffer.Next(4))
-				chunk := buffer.Bytes()
-
-				go func() {
-					tmpFileEntry := listing[fileId]
-
-					// Check if found in listing
-					if tmpFileEntry.Path == "" {
-						errorChannel <- util.HttpError{
-							StatusCode: http.StatusNotFound,
-							Why:        "Attempted to upload chunk to unknown file",
-						}
-						return
-					}
-
-					err := doHandleFolderUpload(
-						session,
-						listing[fileId],
-						drive,
-						chunk,
-					)
-
-					if err != nil {
-						errorChannel <- util.HttpError{
-							StatusCode: http.StatusInternalServerError,
-							Why:        fmt.Sprintf("Upload failed: %v", err),
-						}
-						return
-					}
-
-					tmpFileEntry.Offset += uint64(len(data[5:]))
-					if tmpFileEntry.Offset >= tmpFileEntry.Size {
-						filesCompleted.Add(1)
-					}
-
-					listing[fileId] = tmpFileEntry
-				}()
-			}
-		default:
-			{
-			}
-		}
-
-		select {
-		case err := <-errorChannel:
-			return &err
-		default:
-			{
-			}
-		}
-	}
-
-	return nil
-}
-
-func doHandleFolderUpload(session UploadSessionData, entry FileListingEntry, drive orc.Drive, data []byte) error {
-	// Create folders
-	folders := strings.Split(entry.Path, "/")
-	folders = folders[0 : len(folders)-1]
-	var allFolders []string
-
-	for i := 0; i < len(folders); i++ {
-		// TODO This really needs to be improved
-		element := strings.Join(folders[0:i+1], "/")
-
-		if strings.Contains(element, "../") {
-			return &util.HttpError{
-				StatusCode: http.StatusBadRequest,
-				Why:        "Bailing",
-			}
-		}
-
-		if element == ".." {
-			return &util.HttpError{
-				StatusCode: http.StatusBadRequest,
-				Why:        "Bailing",
-			}
-		}
-
-		allFolders = append(allFolders, element)
-		i++
-	}
-
-	for _, folder := range allFolders {
-		path, _ := InternalToUCloud(session.Path + "/" + folder)
-
-		createFolder(ctrl.CreateFolderRequest{
-			Path:           path,
-			Drive:          drive,
-			ConflictPolicy: orc.WriteConflictPolicyReject,
-		})
-	}
-
-	targetPath := session.Path + "/" + entry.Path
-
-	uploadDescriptor := uploadDescriptors.get(targetPath, int64(entry.Offset), false, entry.ModifiedAt)
-
-	written, err := uploadDescriptor.Handle.Write(data)
-
-	if entry.Offset+uint64(written) >= entry.Size {
-		uploadDescriptors.close(*uploadDescriptor, orc.WriteConflictPolicyReplace, entry.ModifiedAt)
-	}
-
-	uploadDescriptor.release()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func uploadWs(upload ctrl.UploadDataWs) error {
-	defer upload.Socket.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-
-	var session UploadSessionData
-	err := json.Unmarshal(upload.Session.Data, &session)
-
-	if err != nil {
-		log.Error("Unmarshal of session data failed: %v", err)
-		return &util.HttpError{
-			StatusCode: http.StatusBadRequest,
-			Why:        "Invalid upload session",
-		}
-	}
-
-	if session.Type == ctrl.UploadTypeFile {
-		return uploadWsFile(upload.Socket, session)
-	} else {
-		return uploadWsFolder(upload.Socket, session)
-	}
+	return []byte(path), nil
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
@@ -1158,153 +861,6 @@ func download(session ctrl.DownloadSession) (io.ReadSeekCloser, int64, error) {
 	return file, stat.Size(), nil
 }
 
-// Upload File Descriptors
-type UploadDescriptors struct {
-	openDescriptors []UploadDescriptor
-	mutex           sync.Mutex
-}
-
-type UploadDescriptor struct {
-	PartialPath string
-	TargetPath  string
-	Handle      *os.File
-	LastUsed    time.Time
-	InUse       *sync.Mutex
-	Waiting     *atomic.Int32
-}
-
-// Releases the upload file descriptor for further writing.
-func (ud *UploadDescriptor) release() {
-	ud.InUse.Unlock()
-	ud.LastUsed = time.Now()
-}
-
-func (descriptors *UploadDescriptors) close(descriptor UploadDescriptor, conflictPolicy orc.WriteConflictPolicy, modifiedAt time.Time) {
-	resolvedTargetPath := descriptor.TargetPath
-
-	if conflictPolicy == orc.WriteConflictPolicyRename {
-		resolvedTargetPath, _ = findAvailableNameOnRename(descriptor.TargetPath)
-	}
-
-	os.Rename(descriptor.PartialPath, resolvedTargetPath)
-
-	if modifiedAt.UnixMilli() > 0 {
-		os.Chtimes(resolvedTargetPath, modifiedAt, modifiedAt)
-	}
-
-	descriptors.mutex.Lock()
-	descriptor.Handle.Close()
-
-	var newDescriptors []UploadDescriptor
-	for _, openDesc := range descriptors.openDescriptors {
-		if descriptor.Handle.Fd() != openDesc.Handle.Fd() {
-			newDescriptors = append(newDescriptors, openDesc)
-		}
-	}
-
-	descriptors.openDescriptors = newDescriptors
-
-	descriptors.mutex.Unlock()
-}
-
-func (descriptors *UploadDescriptors) get(path string, offset int64, truncate bool, modifiedAt time.Time) *UploadDescriptor {
-	descriptors.mutex.Lock()
-	internalTargetPath, _ := UCloudToInternal(path)
-	internalPartialPath, _ := UCloudToInternal(path + ".ucloud_part")
-
-	var found *UploadDescriptor = nil
-
-	for key, ud := range descriptors.openDescriptors {
-		if ud.PartialPath == internalPartialPath {
-			found = &descriptors.openDescriptors[key]
-		}
-	}
-
-	if found != nil {
-		descriptors.mutex.Unlock()
-		found.InUse.Lock()
-		return found
-	}
-
-	var flags int = os.O_CREATE + os.O_RDWR
-	if truncate {
-		flags += os.O_TRUNC
-	}
-
-	handle, _ := os.OpenFile(internalPartialPath, flags, 0644)
-
-	if modifiedAt.UnixMilli() == 0 {
-		os.Chtimes(internalPartialPath, modifiedAt, modifiedAt)
-	}
-
-	newDescriptor := UploadDescriptor{
-		PartialPath: internalPartialPath,
-		TargetPath:  internalTargetPath,
-		Handle:      handle,
-		LastUsed:    time.Now(),
-		InUse:       &sync.Mutex{},
-		Waiting:     &atomic.Int32{},
-	}
-
-	descriptors.openDescriptors = append(descriptors.openDescriptors, newDescriptor)
-
-	descriptor := &descriptors.openDescriptors[len(descriptors.openDescriptors)-1]
-
-	descriptors.mutex.Unlock()
-
-	descriptor.Waiting.Add(1)
-	descriptor.InUse.Lock()
-	descriptor.Waiting.Add(-1)
-	if offset >= 0 {
-		descriptor.Handle.Seek(offset, 0)
-	}
-
-	return descriptor
-}
-
-// Starts the monitoring loop of upload descriptors, which will periodically close unused file descriptors used for uploads.
-func (d *UploadDescriptors) startMonitoringLoop() {
-	go func() {
-		for {
-			d.mutex.Lock()
-			var closedDescriptors []uintptr
-
-			for _, descriptor := range d.openDescriptors {
-				if time.Now().UnixMilli() > descriptor.LastUsed.UnixMilli()+10000 && descriptor.InUse.TryLock() {
-					if descriptor.Waiting.Load() != 0 {
-						descriptor.InUse.Unlock()
-					} else {
-						descriptor.Handle.Close()
-						closedDescriptors = append(closedDescriptors, descriptor.Handle.Fd())
-					}
-				}
-			}
-
-			// Remove closed descriptors
-			var newDescriptors []UploadDescriptor
-
-			for _, desc := range d.openDescriptors {
-				shouldRemove := false
-				for _, closed := range closedDescriptors {
-					if desc.Handle.Fd() == closed {
-						shouldRemove = true
-						break
-					}
-				}
-
-				if !shouldRemove {
-					newDescriptors = append(newDescriptors, desc)
-				}
-			}
-
-			d.openDescriptors = newDescriptors
-
-			d.mutex.Unlock()
-			time.Sleep(2 * time.Second)
-		}
-	}()
-}
-
 func UnitToBytes(unit string) uint64 {
 	switch unit {
 	case "KB":
@@ -1331,4 +887,212 @@ func UnitToBytes(unit string) uint64 {
 		log.Warn("%v Unknown unit %v", util.GetCaller(), unit)
 		return 1
 	}
+}
+
+var StorageProducts []apm.ProductV2
+var storageSupport []orc.FSSupport
+
+func loadStorageProducts() {
+	for categoryName, category := range ServiceConfig.FileSystems {
+		productCategory := apm.ProductCategory{
+			Name:                categoryName,
+			Provider:            cfg.Provider.Id,
+			ProductType:         apm.ProductTypeCompute,
+			AccountingFrequency: apm.AccountingFrequencyPeriodicMinute,
+			FreeToUse:           false,
+			AllowSubAllocations: true,
+		}
+
+		usePrice := false
+		switch category.Payment.Type {
+		case cfg.PaymentTypeMoney:
+			productCategory.AccountingUnit.Name = category.Payment.Currency
+			productCategory.AccountingUnit.NamePlural = category.Payment.Currency
+			productCategory.AccountingUnit.DisplayFrequencySuffix = false
+			productCategory.AccountingUnit.FloatingPoint = true
+			usePrice = true
+
+		case cfg.PaymentTypeResource:
+			productCategory.AccountingUnit.Name = category.Payment.Unit
+			productCategory.AccountingUnit.NamePlural = productCategory.AccountingUnit.Name
+			productCategory.AccountingUnit.FloatingPoint = false
+			productCategory.AccountingUnit.DisplayFrequencySuffix = true
+		}
+
+		switch category.Payment.Interval {
+		case cfg.PaymentIntervalMinutely:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicMinute
+		case cfg.PaymentIntervalHourly:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicHour
+		case cfg.PaymentIntervalDaily:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicDay
+		default:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyOnce
+			productCategory.AccountingUnit.DisplayFrequencySuffix = false
+		}
+
+		product := apm.ProductV2{
+			Type:        apm.ProductTypeCStorage,
+			Category:    productCategory,
+			Name:        categoryName,
+			Description: "A storage product", // TODO
+
+			ProductType:               apm.ProductTypeStorage,
+			Price:                     int64(math.Floor(category.Payment.Price * 1_000_000)),
+			HiddenInGrantApplications: false,
+		}
+
+		if !usePrice {
+			product.Price = 1
+		}
+
+		StorageProducts = append(StorageProducts, product)
+	}
+
+	for _, p := range StorageProducts {
+		support := orc.FSSupport{
+			Product: apm.ProductReference{
+				Id:       p.Name,
+				Category: p.Category.Name,
+				Provider: cfg.Provider.Id,
+			},
+		}
+
+		support.Stats.SizeInBytes = true
+		support.Stats.ModifiedAt = true
+		support.Stats.CreatedAt = true
+		support.Stats.AccessedAt = true
+		support.Stats.UnixPermissions = true
+		support.Stats.UnixOwner = true
+		support.Stats.UnixGroup = true
+
+		support.Collection.AclModifiable = false
+		support.Collection.UsersCanCreate = false
+		support.Collection.UsersCanDelete = false
+		support.Collection.UsersCanRename = false
+
+		support.Files.AclModifiable = false
+		support.Files.TrashSupport = true
+		support.Files.IsReadOnly = false
+		support.Files.SearchSupported = false
+		support.Files.StreamingSearchSupported = true
+		support.Files.SharesSupported = false
+
+		storageSupport = append(storageSupport, support)
+	}
+}
+
+func retrieveProducts() []orc.FSSupport {
+	return storageSupport
+}
+
+type uploaderFileSystem struct{}
+type uploaderFile struct {
+	File     *os.File
+	Metadata upload.FileMetadata
+	err      error
+}
+
+func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
+	rootPath := string(session.UserData)
+	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
+
+	info, err := os.Stat(internalPath)
+	if err != nil {
+		err = os.MkdirAll(filepath.Dir(internalPath), 0770)
+		if err != nil {
+			return nil
+		}
+	} else {
+		if info.Size() == fileMeta.Size && math.Abs(info.ModTime().Sub(fileMeta.ModifiedAt.Time()).Minutes()) < 1 {
+			return nil
+		}
+	}
+
+	file, err := os.OpenFile(internalPath, os.O_RDWR|os.O_TRUNC|os.O_CREATE, 0660)
+	if err != nil {
+		return nil
+	}
+
+	return &uploaderFile{file, fileMeta, nil}
+}
+
+func (u *uploaderFile) Write(_ context.Context, data []byte) {
+	if u.err != nil {
+		return
+	}
+
+	_, err := u.File.Write(data)
+
+	if err != nil {
+		u.err = err
+	}
+}
+
+func (u *uploaderFile) Close() {
+	if u.err == nil {
+		t := u.Metadata.ModifiedAt.Time()
+		_ = os.Chtimes(u.File.Name(), t, t)
+	}
+	util.SilentClose(u.File)
+}
+
+type uploaderClientFile struct {
+	Path string
+	File *os.File
+}
+
+func (u *uploaderClientFile) ListChildren(ctx context.Context) []string {
+	names, err := u.File.Readdirnames(0)
+	if err != nil {
+		return nil
+	}
+	return names
+}
+
+func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload.FileMetadata, upload.ClientFile) {
+	file, err := FileOpenAt(u.File, name, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return upload.FileMetadata{}, nil
+	}
+
+	finfo, err := file.Stat()
+	if err != nil {
+		return upload.FileMetadata{}, nil
+	}
+
+	ftype := upload.FileTypeFile
+	if finfo.IsDir() {
+		ftype = upload.FileTypeDirectory
+	} else if !finfo.Mode().IsRegular() {
+		_ = file.Close()
+		return upload.FileMetadata{}, nil
+	}
+
+	metadata := upload.FileMetadata{
+		Size:         finfo.Size(),
+		ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
+		InternalPath: filepath.Join(u.Path, name),
+		Type:         ftype,
+	}
+
+	child := &uploaderClientFile{
+		Path: metadata.InternalPath,
+		File: file,
+	}
+
+	return metadata, child
+}
+
+func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool) {
+	n, err := u.File.Read(target)
+	if err != nil {
+		return 0, true
+	}
+
+	return n, n == 0
+}
+
+func (u *uploaderClientFile) Close() {
+	_ = u.File.Close()
 }

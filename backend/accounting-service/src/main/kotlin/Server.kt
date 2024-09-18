@@ -101,7 +101,14 @@ class Server(
         )
 
         configureControllers(
-            AccountingController(micro, accountingSystem, dataVisualization, idCardService, apmNotifications).also { accountingController = it},
+            AccountingController(
+                micro,
+                accountingSystem,
+                dataVisualization,
+                idCardService,
+                apmNotifications,
+                grants,
+            ).also { accountingController = it},
             ProductController(productService, accountingSystem, client),
             FavoritesController(db, favoriteProjects),
             GiftController(giftService),

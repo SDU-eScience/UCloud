@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.AccountingV2
 import dk.sdu.cloud.accounting.api.ProductCategoryIdV2
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.services.accounting.AccountingRequest
@@ -906,6 +907,65 @@ class GrantsV2Service(
 
             if (!success) {
                 throw RPCException("Unable to upload logo", HttpStatusCode.NotFound)
+            }
+        }
+    }
+
+    suspend fun retrieveGrantInformation(
+        grantIds: List<Long>
+    ): List<AccountingV2.BrowseProviderAllocations.GrantInformation> {
+        return db.withSession { session ->
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("grant_ids", grantIds)
+                },
+                """
+                    with
+                        max_revision_and_id as (
+                            select
+                                a.id,
+                                max(r.revision_number) max_revision
+                            from
+                                "grant".applications a
+                                join "grant".revisions r on a.id = r.application_id
+                            where
+                                a.id = some(:grant_ids)
+                            group by
+                                id
+                        )
+                    select
+                        r.application_id as grant_id,
+                        f.reference_ids as reference_ids,
+                        array_agg(approval.project_id) as approvers,
+                        array_agg(p.title) as approver_titles
+                    from
+                        max_revision_and_id mid
+                        join "grant".revisions r on
+                            r.application_id = mid.id
+                            and r.revision_number = mid.max_revision
+                        join "grant".forms f on
+                            r.application_id = f.application_id
+                            and r.revision_number = f.revision_number
+                        join "grant".grant_giver_approvals approval on approval.application_id = mid.id
+                        join project.projects p on approval.project_id = p.id
+                    group by
+                        r.application_id,
+                        f.reference_ids;
+                """
+            ).rows
+
+            rows.map { row ->
+                val id = row.getLong(0)!!
+                val referenceIds = row.getAs<List<String>?>(1)?.filter { it.isNotBlank() } ?: emptyList()
+                val approvers = row.getAs<List<String>>(2)
+                val approverTitles = row.getAs<List<String>>(3)
+
+                AccountingV2.BrowseProviderAllocations.GrantInformation(
+                    id,
+                    approvers,
+                    approverTitles,
+                    referenceIds,
+                )
             }
         }
     }

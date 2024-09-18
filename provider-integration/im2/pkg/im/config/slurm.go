@@ -94,8 +94,9 @@ var SlurmAccountingTypeOptions = []SlurmAccountingType{
 }
 
 type SlurmAccountingScripted struct {
-	WalletUpdated string
-	FetchUsage    string
+	OnQuotaUpdated   string
+	OnUsageReporting string
+	OnProjectUpdated string
 }
 
 type SlurmAccountingAutomatic struct {
@@ -224,8 +225,8 @@ type GpfsMapping struct {
 }
 
 type SlurmFsManagementScripted struct {
-	WalletUpdated string
-	FetchUsage    string
+	OnQuotaUpdated   string
+	OnUsageReporting string
 }
 
 func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, services *yaml.Node) (bool, ServicesConfigurationSlurm) {
@@ -331,8 +332,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 				case SlurmFsManagementTypeScripted:
 					scripted := SlurmFsManagementScripted{}
-					scripted.WalletUpdated = requireChildText(filePath, managementNode, "walletUpdated", &success)
-					scripted.FetchUsage = requireChildText(filePath, managementNode, "fetchUsage", &success)
+					scripted.OnQuotaUpdated = requireChildText(filePath, managementNode, "onQuotaUpdated", &success)
+					scripted.OnUsageReporting = requireChildText(filePath, managementNode, "onUsageReporting", &success)
 					fs.Management.Configuration = &scripted
 
 				}
@@ -763,8 +764,9 @@ func parseAccountingAutomatic(filePath string, node *yaml.Node, success *bool) S
 
 func parseAccountingScripted(filePath string, node *yaml.Node, success *bool) SlurmAccountingScripted {
 	result := SlurmAccountingScripted{}
-	result.FetchUsage = requireChildFile(filePath, node, "fetchUsage", FileCheckRead, success)
-	result.WalletUpdated = requireChildFile(filePath, node, "walletUpdated", FileCheckRead, success)
+	result.OnUsageReporting = requireChildFile(filePath, node, "onUsageReporting", FileCheckRead, success)
+	result.OnQuotaUpdated = requireChildFile(filePath, node, "onQuotaUpdated", FileCheckRead, success)
+	result.OnProjectUpdated = requireChildFile(filePath, node, "onProjectUpdated", FileCheckRead, success)
 	return result
 }
 

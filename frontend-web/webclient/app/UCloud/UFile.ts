@@ -40,6 +40,11 @@ export interface FilesMoveRequestItem {
 
 export type FilesCopyRequestItem = FilesMoveRequestItem;
 
+export interface FilesTransferRequestItem {
+    sourcePath: string;
+    destinationPath: string;
+}
+
 export interface FilesCreateFolderRequestItem {
     id: string;
     conflictPolicy: WriteConflictPolicy;

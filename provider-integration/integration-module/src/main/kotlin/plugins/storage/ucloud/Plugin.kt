@@ -46,6 +46,7 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.pool.*
 import io.ktor.websocket.*
+import io.prometheus.client.Gauge
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -551,64 +552,42 @@ class UCloudFilePlugin : FilePlugin {
                         val fileEntry: FileListingEntry = listing[fileId]
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         ChunkProcessingScope.launchWithPermit {
-                            if (!frame.buffer.isDirect) {
-                                DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
-                                    val data = if (buffer.hasArray()) {
-                                        buffer.array().sliceArray(5..<buffer.array().size)
-                                    } else {
-                                        buffer.moveToByteArray()
-                                    }
-
-                                    try {
-                                        var offset = 0
-                                        var first = true
-                                        while (offset < data.size || first) {
-                                            first = false
-                                            if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
-                                            val count = min(data.size - offset, nativeBuffer.remaining())
-                                            nativeBuffer.put(data, offset, count)
-                                            nativeBuffer.flip()
-                                            offset += count
-                                            val channel = ByteReadChannel(nativeBuffer)
-
-                                            val isDone = doHandleFolderUpload(
-                                                pluginData,
-                                                fileCollections,
-                                                fileEntry,
-                                                channel,
-                                                fileEntry.offset + count >= fileEntry.size
-                                            )
-
-                                            fileEntry.offset += count
-                                            if (isDone || fileEntry.offset >= fileEntry.size) {
-                                                filesCompleted.getAndIncrement()
-                                                backlog.remove(fileEntry.id.toInt())
-                                            }
-                                        }
-                                    } catch (ex: Throwable) {
-                                        ex.printStackTrace()
-                                        throw ex
-                                    }
-                                }
-                            } else {
+                            DefaultDirectBufferPoolForFileIo.useInstance { nativeBuffer ->
                                 val data = if (buffer.hasArray()) {
                                     buffer.array().sliceArray(5..<buffer.array().size)
                                 } else {
                                     buffer.moveToByteArray()
                                 }
 
-                                val isDone = doHandleFolderUpload(
-                                    pluginData,
-                                    fileCollections,
-                                    fileEntry,
-                                    ByteReadChannel(data),
-                                    fileEntry.offset + data.size >= fileEntry.size
-                                )
+                                try {
+                                    var offset = 0
+                                    var first = true
+                                    while (offset < data.size || first) {
+                                        first = false
+                                        if (nativeBuffer.remaining() == 0) nativeBuffer.flip()
+                                        val count = min(data.size - offset, nativeBuffer.remaining())
+                                        nativeBuffer.put(data, offset, count)
+                                        nativeBuffer.flip()
+                                        offset += count
+                                        val channel = ByteReadChannel(nativeBuffer)
 
-                                fileEntry.offset += data.size
-                                if (isDone || fileEntry.offset >= fileEntry.size) {
-                                    filesCompleted.getAndIncrement()
-                                    backlog.remove(fileEntry.id.toInt())
+                                        val isDone = doHandleFolderUpload(
+                                            pluginData,
+                                            fileCollections,
+                                            fileEntry,
+                                            channel,
+                                            fileEntry.offset + count >= fileEntry.size
+                                        )
+
+                                        fileEntry.offset += count
+                                        if (isDone || fileEntry.offset >= fileEntry.size) {
+                                            filesCompleted.getAndIncrement()
+                                            backlog.remove(fileEntry.id.toInt())
+                                        }
+                                    }
+                                } catch (ex: Throwable) {
+                                    ex.printStackTrace()
+                                    throw ex
                                 }
                             }
                         }
@@ -1123,14 +1102,23 @@ class UCloudFilePlugin : FilePlugin {
             val self = this
 
             permits.acquire()
+            uploadChunkPermits.set(permits.availablePermits.toDouble())
             self.launch {
                 try {
                     block()
                 } finally {
                     permits.release()
+                    uploadChunkPermits.set(permits.availablePermits.toDouble())
                 }
             }
         }
+
+        private val uploadChunkPermits = Gauge.build()
+            .namespace(systemName)
+            .subsystem("ucloud_upload")
+            .name("permits")
+            .help("Number of permits available")
+            .register()
     }
 }
 

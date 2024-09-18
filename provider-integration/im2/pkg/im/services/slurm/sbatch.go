@@ -121,7 +121,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 			copiedParameters[k] = v
 		}
 
-		ext := ctrl.NewExtension[any, OutputStruct]()
+		ext := ctrl.NewScript[any, OutputStruct]()
 		ext.Script = path
 
 		res, ok := ext.Invoke(copiedParameters)
@@ -316,7 +316,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 
 		if allocatedPort.Present {
 			appendLine(builder, "export UCLOUD_PORT=%d", allocatedPort.Get())
-			appendLine(builder, "echo %d > %v", allocatedPort, orc.EscapeBash(filepath.Join(jobFolder, AllocatedPortFile)))
+			appendLine(builder, "echo %d > %v", allocatedPort.Get(), orc.EscapeBash(filepath.Join(jobFolder, AllocatedPortFile)))
 			appendLine(builder, "")
 		}
 

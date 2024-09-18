@@ -208,9 +208,8 @@ class AccountingSystem(
                                         is AccountingRequest.MaxUsable -> maxUsable(msg)
                                         is AccountingRequest.BrowseWallets -> browseWallets(msg)
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
-                                        is AccountingRequest.RetrieveProviderAllocations -> retrieveProviderAllocations(
-                                            msg
-                                        )
+                                        is AccountingRequest.RetrieveProviderAllocations ->
+                                            retrieveProviderAllocations(msg)
 
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                         is AccountingRequest.SystemCharge -> systemCharge(msg)
@@ -1430,7 +1429,8 @@ class AccountingSystem(
                     wallet.category,
                     it.start,
                     it.end,
-                    it.quota
+                    it.quota,
+                    it.grantedIn?.let { id -> AccountingV2.BrowseProviderAllocations.GrantInformation(id) }
                 )
             }
             .toList()

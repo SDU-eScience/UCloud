@@ -25,8 +25,8 @@ data class UploadDescriptor(
 )
 
 fun UploadDescriptor.release() {
-    inUse.unlock()
     lastUsed = Time.now()
+    inUse.unlock()
 }
 
 class UploadDescriptors(
@@ -65,12 +65,13 @@ class UploadDescriptors(
         truncate: Boolean = false,
         modifiedAt: Long? = null
     ): UploadDescriptor {
-        val descriptor = descriptorsMutex.withLock {
-            val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
-            val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
+        val internalTargetFile = pathConverter.ucloudToInternal(UCloudFile.create(path))
+        val internalPartialFile = pathConverter.ucloudToInternal(UCloudFile.create("$path.ucloud_part"))
 
+        val descriptor = descriptorsMutex.withLock {
             val found = openDescriptors.find { it.partialPath == internalPartialFile.path }
             if (found != null) {
+                found.waiting.getAndIncrement()
                 return@withLock found
             }
 
@@ -87,12 +88,19 @@ class UploadDescriptors(
 
             val resolvedPartialPath = internalPartialFile.parent().path + newName
 
-            val newDescriptor = UploadDescriptor(resolvedPartialPath, internalTargetFile.path, handle, Time.now(), Mutex(), AtomicInteger(0))
+            val newDescriptor = UploadDescriptor(
+                partialPath = resolvedPartialPath,
+                targetPath = internalTargetFile.path,
+                handle = handle,
+                lastUsed = Time.now(),
+                inUse = Mutex(),
+                waiting = AtomicInteger(0)
+            )
+            newDescriptor.waiting.getAndIncrement()
             openDescriptors.add(newDescriptor)
             return@withLock newDescriptor
         }
 
-        descriptor.waiting.getAndIncrement()
         descriptor.inUse.lock()
         descriptor.waiting.getAndDecrement()
         if (offset != null) {

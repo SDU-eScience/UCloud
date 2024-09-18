@@ -21,7 +21,7 @@ type DriveSpecification struct {
 }
 
 type FSSupport struct {
-	ProductSupport
+	Product apm.ProductReference `json:"product"`
 
 	Stats struct {
 		SizeInBytes                  bool `json:"sizeInBytes"`
@@ -131,7 +131,7 @@ func BrowseDrives(next string, flags BrowseDrivesFlags) (fnd.PageV2[Drive], erro
 		driveCtrlNamespace+"browse",
 		driveCtrlContext,
 		"",
-		[]string{"next", next},
+		append([]string{"next", next}, c.StructToParameters(flags)...),
 	)
 }
 

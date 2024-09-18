@@ -1,27 +1,46 @@
 import {
-    CREATE_TAG, DELETE_TAG, Permission, PERMISSIONS_TAG,
-    ResourceApi, ResourceBrowseCallbacks,
+    CREATE_TAG,
+    DELETE_TAG,
+    Permission,
+    PERMISSIONS_TAG,
+    ResourceApi,
+    ResourceBrowseCallbacks,
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Box, Button, Error, Flex, Icon, Link, MainContainer, Select, Text, TextArea, Truncate} from "@/ui-components";
-import * as React from "react";
 import {
-    fileName,
-    getParentPath,
-    readableUnixMode,
-    sizeToString
-} from "@/Utilities/FileUtilities";
+    Box,
+    Button,
+    Error,
+    Flex,
+    Icon,
+    Link,
+    MainContainer,
+    Markdown,
+    Select,
+    Text,
+    TextArea,
+    Truncate
+} from "@/ui-components";
+import * as React from "react";
+import {useEffect, useState} from "react";
+import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
     doNothing,
+    extensionFromPath,
+    ExtensionType,
+    extensionType,
     inDevEnvironment,
+    isLightThemeStored,
+    languageFromExtension,
     onDevSite,
     prettierString,
     removeTrailingSlash,
-    stopPropagation
+    stopPropagation,
+    typeFromMime
 } from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
@@ -38,10 +57,9 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
-import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
+import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import {useEffect, useState} from "react";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
 import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
@@ -49,19 +67,9 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
-import {injectStyle, makeClassName} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
 import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
-import {
-    ExtensionType,
-    extensionFromPath,
-    extensionType,
-    isLightThemeStored,
-    languageFromExtension,
-    typeFromMime
-} from "@/UtilityFunctions";
-import {Markdown} from "@/ui-components";
-import {classConcat, injectStyleSimple} from "@/Unstyled";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -74,7 +82,7 @@ import {
     FilesCreateFolderRequestItem,
     FilesCreateUploadRequestItem,
     FilesEmptyTrashRequestItem,
-    FilesMoveRequestItem,
+    FilesMoveRequestItem, FilesTransferRequestItem,
     FilesTrashRequestItem,
     UFile,
     UFileIncludeFlags,
@@ -517,6 +525,58 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.C
             },
             {
+                icon: "heroPaperAirplane",
+                text: "Transfer to...",
+                enabled: (selected, cb) =>
+                    hasFeature(Feature.TRANSFER_TO) &&
+                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
+                    selected.length > 0 &&
+                    selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
+                onClick: (selected, cb) => {
+                    const pathRef = {current: getParentPath(selected[0].id)};
+                    dialogStore.addDialog(
+                        <FileBrowse opts={{
+                            isModal: true,
+                            managesLocalProject: true,
+                            selection: {
+                                text: "Transfer",
+                                show(res) {
+                                    return res.status.type === "DIRECTORY" &&
+                                        (
+                                            res.specification.product.provider !== selected[0].specification.product.provider ||
+                                                res.specification.product.provider === "go-slurm"
+                                        );
+                                },
+                                onClick: async (res) => {
+                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                                    try {
+                                        await cb.invokeCommand(
+                                            this.transfer({
+                                                type: "bulk",
+                                                items: selected.map(file => ({
+                                                    sourcePath: file.id,
+                                                    destinationPath: target + "/" + fileName(file.id)
+                                                }))
+                                            })
+                                        );
+                                        cb.reload();
+                                        dialogStore.success();
+                                        snackbarStore.addSuccess("Files are now transferring...", false);
+                                    } catch (e) {
+                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
+                                    }
+                                }
+                            },
+                            initialPath: pathRef.current,
+                        }}/>,
+                        doNothing,
+                        true,
+                        this.fileSelectorModalStyle
+                    );
+                },
+                shortcut: ShortcutKey.T,
+            },
+            {
                 icon: "move",
                 text: "Move to...",
                 enabled: (selected, cb) => {
@@ -753,6 +813,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         ];
 
         return ourOps.concat(base);
+    }
+
+    public transfer(request: BulkRequest<FilesTransferRequestItem>): APICallParameters<BulkRequest<{}>> {
+        return apiUpdate(request, this.baseContext, "transfer");
     }
 
     public copy(request: BulkRequest<FilesCopyRequestItem>): APICallParameters<BulkRequest<FilesCopyRequestItem>> {

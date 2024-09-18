@@ -960,8 +960,8 @@ type IdentityManagement struct {
 }
 
 type IdentityManagementScripted struct {
-	CreateUser     string
-	SyncUserGroups string
+	OnUserConnected  string
+	OnProjectUpdated string
 }
 
 type IdentityManagementFreeIPA struct {
@@ -1033,8 +1033,8 @@ func parseIdentityManagement(filePath string, node *yaml.Node) (bool, IdentityMa
 func parseIdentityManagementScripted(filePath string, node *yaml.Node) (bool, IdentityManagementScripted) {
 	var result IdentityManagementScripted
 	success := true
-	result.CreateUser = requireChildFile(filePath, node, "createUser", FileCheckRead, &success)
-	result.SyncUserGroups = requireChildFile(filePath, node, "syncUserGroups", FileCheckRead, &success)
+	result.OnUserConnected = requireChildFile(filePath, node, "onUserConnected", FileCheckRead, &success)
+	result.OnProjectUpdated = requireChildFile(filePath, node, "onProjectUpdated", FileCheckRead, &success)
 	return success, result
 }
 

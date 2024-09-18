@@ -60,7 +60,7 @@ func Launch() {
 		cfg.Mode = mode
 		switch cfg.Services.Type {
 		case cfg.ServicesSlurm:
-			slurm.HandlePlugin(pluginName)
+			slurm.HandleCli(pluginName)
 		}
 
 		return

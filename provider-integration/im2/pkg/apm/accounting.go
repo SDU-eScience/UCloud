@@ -130,38 +130,41 @@ func CheckProviderUsable(
 }
 
 type BrowseProviderAllocationsReq struct {
-	FilterOwnerId        string
-	FilterOwnerIsProject bool
-	FilterCategory       string
+	FilterOwnerId        string `json:"filterOwnerId"`
+	FilterOwnerIsProject bool   `json:"filterOwnerIsProject"`
+	FilterCategory       string `json:"filterCategory"`
+	Next                 string `json:"next,omitempty"`
+	ItemsPerPage         int    `json:"itemsPerPage"`
 }
 
 type BrowseProviderAllocationsResp struct {
-	Id       string          `json:"id"`
-	Owner    WalletOwner     `json:"owner"`
-	Category ProductCategory `json:"categoryId"`
-	Start    fnd.Timestamp   `json:"notBefore"`
-	End      fnd.Timestamp   `json:"notAfter"`
-	Quota    int64           `json:"quota"`
+	Id       string                        `json:"id"`
+	Owner    WalletOwner                   `json:"owner"`
+	Category ProductCategory               `json:"categoryId"`
+	Start    fnd.Timestamp                 `json:"notBefore"`
+	End      fnd.Timestamp                 `json:"notAfter"`
+	Quota    int64                         `json:"quota"`
+	Grant    util.Option[GrantInformation] `json:"grant"`
+}
+
+type GrantInformation struct {
+	GrantId        uint64   `json:"grantId"`
+	Approver       []string `json:"approver"`
+	ApproverTitles []string `json:"approverTitles"`
+	ReferenceIds   []string `json:"referenceIds"`
 }
 
 func BrowseProviderAllocations(
 	next string,
 	request BrowseProviderAllocationsReq,
-) (fnd.BulkResponse[BrowseProviderAllocationsResp], error) {
-	var payload struct {
-		BrowseProviderAllocationsReq
-		Next         string
-		ItemsPerPage int
-	}
+) (fnd.PageV2[BrowseProviderAllocationsResp], error) {
+	request.Next = next
+	request.ItemsPerPage = 250
 
-	payload.BrowseProviderAllocationsReq = request
-	payload.Next = next
-	payload.ItemsPerPage = 250
-
-	return c.ApiUpdate[fnd.BulkResponse[BrowseProviderAllocationsResp]](
+	return c.ApiUpdate[fnd.PageV2[BrowseProviderAllocationsResp]](
 		accountingNamespace+"browseProviderAllocations",
 		accountingContext,
 		"browseProviderAllocations",
-		payload,
+		request,
 	)
 }

@@ -1,7 +1,6 @@
 {
     "LOGIN_PRODUCT_NAME": "DeiC Type 1 HPC",
     "PRODUCT_NAME": "UCloud",
-    "VERSION_TEXT": "",
     "DEV_SITE": "dev.cloud.sdu.dk",
     "SANDBOX_SITE": "sandbox.dev.cloud.sdu.dk",
     "STAGING_SITE": "staging.dev.cloud.sdu.dk",

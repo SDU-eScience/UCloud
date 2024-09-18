@@ -52,7 +52,7 @@ function resolveNotification(event: Notification): {
         case "PROJECT_USER_REMOVED":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
         case "NEW_GRANT_APPLICATION":
-            const icon = "mail";
+            const icon = "heroPaperAirplane";
             const oldPrefix = "New grant application to ";
             if (event.message.indexOf(oldPrefix) === 0) {
                 const modifiedTitle = event.message.substring(oldPrefix.length);

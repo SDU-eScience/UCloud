@@ -11,7 +11,7 @@ import (
 
 type AccountingService interface {
 	OnWalletUpdated(update *ctrl.NotificationWalletUpdated)
-	FetchUsage() map[SlurmAccountOwner]int64
+	FetchUsageInMinutes() map[SlurmAccountOwner]int64
 }
 
 type AccountMapperService interface {
@@ -33,6 +33,8 @@ func InitAccountManagement() {
 			Accounting = InitAutomaticAccountManagement()
 		case cfg.SlurmAccountingTypeNone:
 			Accounting = InitUnmanagedAccountManagement()
+		case cfg.SlurmAccountingTypeScripted:
+			Accounting = InitScriptedAccountManagement()
 		}
 	}
 	switch ServiceConfig.Compute.AccountManagement.AccountMapper.Type {
@@ -48,6 +50,7 @@ func InitAccountManagement() {
 }
 
 type SlurmJobConfiguration struct {
+	UCloudUsername     string
 	Owner              apm.WalletOwner
 	EstimatedProduct   apm.ProductReference
 	EstimatedNodeCount int
