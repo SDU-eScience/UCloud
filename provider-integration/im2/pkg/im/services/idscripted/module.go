@@ -110,7 +110,7 @@ type createUserResponse struct {
 	Uid uint32 `json:"uid"`
 }
 
-var onUserConnected = ctrl.NewExtension[createUserRequest, createUserResponse]()
+var onUserConnected = ctrl.NewScript[createUserRequest, createUserResponse]()
 
 type scriptMember struct {
 	UCloudUsername string                       `json:"UCloudUsername"`
@@ -132,4 +132,4 @@ type syncProjectResponse struct {
 	Gid uint32 `json:"gid"`
 }
 
-var onProjectUpdated = ctrl.NewExtension[syncProjectRequest, syncProjectResponse]()
+var onProjectUpdated = ctrl.NewScript[syncProjectRequest, syncProjectResponse]()

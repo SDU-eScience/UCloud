@@ -121,7 +121,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 			copiedParameters[k] = v
 		}
 
-		ext := ctrl.NewExtension[any, OutputStruct]()
+		ext := ctrl.NewScript[any, OutputStruct]()
 		ext.Script = path
 
 		res, ok := ext.Invoke(copiedParameters)

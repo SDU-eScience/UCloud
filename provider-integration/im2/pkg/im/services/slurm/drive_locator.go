@@ -238,7 +238,7 @@ func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
 					Path string `json:"path"`
 				}
 
-				ext := ctrl.NewExtension[map[string]string, scriptResp]()
+				ext := ctrl.NewScript[map[string]string, scriptResp]()
 				ext.Script = locator.Script
 
 				resp, ok := ext.Invoke(params)
