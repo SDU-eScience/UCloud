@@ -30,7 +30,7 @@ class Server(override val micro: Micro) : CommonServer {
         val projectCache = ProjectCache(distributedState, db)
         val catalog = Catalog(projectCache, micro.backgroundScope, serviceClient)
         val studio = Studio(db, data, serviceClient)
-        val importer = ImportExport(micro.developmentModeEnabled)
+        val importer = ImportExport(micro.developmentModeEnabled, data, studio)
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 

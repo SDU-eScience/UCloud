@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.defaultMapper
@@ -21,57 +20,73 @@ import java.util.zip.ZipOutputStream
 
 class ImportExport(
     private val developmentMode: Boolean,
+    private val data: CatalogData,
+    private val studio: Studio,
 ) {
     suspend fun exportToZip(): ByteArray {
-        /*
-        val apps: List<ApplicationWithFavoriteAndTags> = service.listAllApplications().mapNotNull { (name, version) ->
-            service.retrieveApplication(ActorAndProject.System, name, version, loadGroupApplications = false)
+        val apiApps = applications.values.toList()
+        val apiTools = tools.values.toList()
+        val apiGroups = groups.map {
+            val internal = it.value.get()
+            ApplicationGroup(
+                ApplicationGroup.Metadata(it.key.toInt()),
+                ApplicationGroup.Specification(
+                    internal.title,
+                    internal.description,
+                    internal.defaultFlavor,
+                    internal.categories,
+                    ApplicationGroup.ColorReplacements(
+                        internal.colorRemappingLight,
+                        internal.colorRemappingDark,
+                    ),
+                    internal.logoHasText,
+                    internal.curator
+                ),
+            )
         }
 
-        val tools: List<Tool> = service.listAllTools().mapNotNull { (name, version) ->
-            service.retrieveTool(ActorAndProject.System, name, version)
+        val groupMemberships: Map<Int, List<NameAndVersion>> = apiGroups.associate {
+            val internalGroup = groups[it.metadata.id.toLong()]!!
+            it.metadata.id to internalGroup.get().applications.toList()
         }
 
-        val groups = service.listGroups(ActorAndProject.System)
+        val groupLogos = apiGroups.map {
+            it.metadata.id to data.retrieveRawGroupLogo(it.metadata.id)
+        }.toMap()
 
-        val groupMemberships: Map<Int, List<NameAndVersion>> = groups.associate {
-            it.metadata.id to service.listApplicationsInGroup(ActorAndProject.System, it.metadata.id).map {
-                NameAndVersion(it.metadata.name, it.metadata.version)
-            }
+        val apiCategories = categories.map { (id, category) ->
+            ApplicationCategory(
+                ApplicationCategory.Metadata(id.toInt()),
+                ApplicationCategory.Specification(
+                    category.title(),
+                    "",
+                    category.curator(),
+                ),
+            )
         }
-        val groupLogos = groups.map { it.metadata.id to service.retrieveRawGroupLogo(it.metadata.id) }.toMap()
 
-        val categories = service.listCategories()
-
-        val categoryMemberships: Map<Int, List<Int>> = categories.associate { category ->
-            val categoryId = category.metadata.id
-            val membership = service.retrieveCategory(ActorAndProject.System, categoryId, loadGroups = true)
-                ?.status
-                ?.groups
-                ?.map { it.metadata.id }
-                ?: emptyList()
-
-            categoryId to membership
+        val categoryMemberships: Map<Int, List<Int>> = apiCategories.associate { category ->
+            val internalCategory = categories[category.metadata.id.toLong()]
+            category.metadata.id to internalCategory.groups().toList()
         }
 
         val spotlights: MutableList<Spotlight> = mutableListOf()
 
         // TODO(Brian)
-        val currentLanding = service.retrieveLandingPage(ActorAndProject.System)
-        val carrousel: List<CarrouselItem> = currentLanding.carrousel
-        val carrouselImages = carrousel.mapIndexed { index, _ -> service.retrieveCarrouselImage(index) }
-        val topPicks: List<TopPick> = currentLanding.topPicks
+        val apiCarrousel = carrousel.get().toList()
+        val carrouselImages = apiCarrousel.mapIndexed { index, _ -> data.retrieveCarrouselImage(index) }
+        val apiTopPicks: List<TopPick> = topPicks.get().toList()
 
         // Encoding
-        val categoriesFile = defaultMapper.encodeToString(categories).encodeToByteArray()
+        val categoriesFile = defaultMapper.encodeToString(apiCategories).encodeToByteArray()
         val categoryMembershipFile = defaultMapper.encodeToString(categoryMemberships).encodeToByteArray()
-        val groupsFile = defaultMapper.encodeToString(groups).encodeToByteArray()
+        val groupsFile = defaultMapper.encodeToString(apiGroups).encodeToByteArray()
         val groupMembershipFile = defaultMapper.encodeToString(groupMemberships).encodeToByteArray()
-        val toolsFile = defaultMapper.encodeToString(tools).encodeToByteArray()
-        val appsFile = defaultMapper.encodeToString(apps).encodeToByteArray()
+        val toolsFile = defaultMapper.encodeToString(apiTools).encodeToByteArray()
+        val appsFile = defaultMapper.encodeToString(apiApps).encodeToByteArray()
         val spotlightFile = defaultMapper.encodeToString(spotlights).encodeToByteArray()
-        val carrouselFile = defaultMapper.encodeToString(carrousel).encodeToByteArray()
-        val topPicksFile = defaultMapper.encodeToString(topPicks).encodeToByteArray()
+        val carrouselFile = defaultMapper.encodeToString(apiCarrousel).encodeToByteArray()
+        val topPicksFile = defaultMapper.encodeToString(apiTopPicks).encodeToByteArray()
 
         return withContext(Dispatchers.IO) {
             val zipBytes = ByteArrayOutputStream()
@@ -106,13 +121,9 @@ class ImportExport(
 
             zipBytes.toByteArray()
         }
-         */
-        TODO()
     }
 
     suspend fun importFromZip(bytes: ByteArray) {
-        TODO()
-        /*
         val importedData = HashMap<String, ByteArray>()
         withContext(Dispatchers.IO) {
             ZipInputStream(ByteArrayInputStream(bytes)).use { zin ->
@@ -134,24 +145,24 @@ class ImportExport(
             }
         }
 
-        val apps = decode(appsFileName, ListSerializer(ApplicationWithFavoriteAndTags.serializer()))
-        val tools = decode(toolsFileName, ListSerializer(Tool.serializer()))
-        val groups = decode(groupsFileName, ListSerializer(ApplicationGroup.serializer()))
-        val groupLogos = groups.mapNotNull {
+        val appsToImport = decode(appsFileName, ListSerializer(Application.serializer()))
+        val toolsToImport = decode(toolsFileName, ListSerializer(Tool.serializer()))
+        val groupsToImport = decode(groupsFileName, ListSerializer(ApplicationGroup.serializer()))
+        val logosToImport = groupsToImport.mapNotNull {
             val logo = importedData[groupLogoFileName(it.metadata.id)] ?: return@mapNotNull null
             it.metadata.id to logo
         }.toMap()
-        val groupMembership = decode(
+        val groupMembersToImport = decode(
             groupMembershipFileName,
             MapSerializer(Int.serializer(), ListSerializer(NameAndVersion.serializer()))
         )
-        val categories = decode(categoriesFileName, ListSerializer(ApplicationCategory.serializer()))
+        val categoriesToImport = decode(categoriesFileName, ListSerializer(ApplicationCategory.serializer()))
         val categoryMembership =
             decode(categoryMembershipFileName, MapSerializer(Int.serializer(), ListSerializer(Int.serializer())))
-        val spotlights = decode(spotlightFileName, ListSerializer(Spotlight.serializer()))
-        val carrousel = decode(carrouselFileName, ListSerializer(CarrouselItem.serializer()))
-        val carrouselImages = carrousel.mapIndexedNotNull { index, _ -> importedData[carrouselImageFileName(index)] }
-        val topPicks = decode(topPicksFileName, ListSerializer(TopPick.serializer()))
+        val spotlightsToImport = decode(spotlightFileName, ListSerializer(Spotlight.serializer()))
+        val carrouselToImport = decode(carrouselFileName, ListSerializer(CarrouselItem.serializer()))
+        val carrouselImages = carrouselToImport.mapIndexedNotNull { index, _ -> importedData[carrouselImageFileName(index)] }
+        val topPicksToImport = decode(topPicksFileName, ListSerializer(TopPick.serializer()))
 
         val a = ActorAndProject.System
 
@@ -159,11 +170,11 @@ class ImportExport(
         // turn it off if you need it now).
         if (developmentMode) {
             println("Creating tools!")
-            for (tool in tools) {
+            for (tool in toolsToImport) {
                 println("Creating a tool! ${tool.description.info}")
-                if (service.retrieveTool(a, tool.description.info.name, tool.description.info.version) == null) {
+                if (tools[tool.description.info] == null) {
                     try {
-                        service.createTool(a, tool)
+                        studio.createTool(a, tool)
                     } catch (ex: Throwable) {
                         error("Could not create tool: ${tool.description.info}\n${ex.toReadableStacktrace()}")
                     }
@@ -171,11 +182,11 @@ class ImportExport(
             }
 
             println("Creating apps!")
-            for (app in apps) {
+            for (app in appsToImport) {
                 println("Creating an app! ${app.metadata.name}")
-                if (service.retrieveApplication(a, app.metadata.name, app.metadata.version) == null) {
+                if (applications[NameAndVersion(app.metadata.name, app.metadata.version)] == null) {
                     try {
-                        service.createApplication(a, Application(app.metadata.copy(group = null), app.invocation))
+                        studio.createApplication(a, Application(app.metadata.copy(groupId = null), app.invocation))
                     } catch (ex: Throwable) {
                         error("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
                     }
@@ -183,36 +194,33 @@ class ImportExport(
             }
         }
 
-        // TODO(Brian)
-        val existingGroups = service.listGroups(a)
-        println("These are the existing groups: ${existingGroups.map { it.specification.title }.joinToString("\n")}")
-        val groupIdRemapper = groups.mapNotNull { g ->
-            val existing = existingGroups.find { it.specification.title == g.specification.title }
+        val groupIdRemapper = groupsToImport.mapNotNull { g ->
+            val existing = groups.entries.find { it.value.get().title == g.specification.title }
             if (existing == null) return@mapNotNull null
-            g.metadata.id to existing.metadata.id
+            g.metadata.id to existing.key
         }.toMap().toMutableMap()
 
-        println("Groups: ${groups.map { it.specification.title }.joinToString("\n")}")
+        println("Groups: ${groupsToImport.map { it.specification.title }.joinToString("\n")}")
 
-        for (group in groups) {
+        for (group in groupsToImport) {
             val existingId = groupIdRemapper[group.metadata.id]
             if (existingId != null) continue
 
             println("Creating group: ${group.specification.title}")
 
             // TODO(Brian)
-            val newId = service.createGroup(a, group.specification.title)
-            groupIdRemapper[group.metadata.id] = newId
+            val id = studio.createGroup(a, group.specification.title)
+            groupIdRemapper[group.metadata.id] = id.toLong()
         }
 
         println("Groups are remapped like this: ${groupIdRemapper.entries.joinToString("\n") { "${it.key} -> ${it.value}" }}")
 
-        for (group in groups) {
+        for (group in groupsToImport) {
             val mappedId = groupIdRemapper.getValue(group.metadata.id)
             try {
-                service.updateGroup(
+                studio.updateGroup(
                     a,
-                    mappedId,
+                    mappedId.toInt(),
                     newDescription = group.specification.description,
                     newLogoHasText = group.specification.logoHasText,
                     newColorRemapping = group.specification.colorReplacement.also { println("Color replacement: ${group} $it") },
@@ -222,53 +230,51 @@ class ImportExport(
             }
         }
 
-        for (group in groups) {
-            val logo = groupLogos[group.metadata.id] ?: continue
-            val mappedId = groupIdRemapper.getValue(group.metadata.id)
+        for (group in groupsToImport) {
+            val logo = logosToImport[group.metadata.id] ?: continue
+            val mappedId = groupIdRemapper.getValue(group.metadata.id).toInt()
             try {
-                service.updateGroup(a, mappedId, newLogo = logo)
+                studio.updateGroup(a, mappedId, newLogo = logo)
             } catch (ex: Throwable) {
                 log.info("Could not update group logo: ${group.specification.title}")
             }
         }
 
-        for ((rawId, members) in groupMembership) {
-            val mappedId = groupIdRemapper.getValue(rawId)
+        for ((rawId, members) in groupMembersToImport) {
+            val mappedId = groupIdRemapper.getValue(rawId)?.toInt()
             for (member in members) {
                 try {
-                    service.assignApplicationToGroup(a, member.name, mappedId)
+                    studio.assignApplicationToGroup(a, member.name, mappedId)
                 } catch (ex: Throwable) {
                     log.info("Could not assign application to group: ${member.name} $rawId $mappedId\n\t${ex.toReadableStacktrace()}")
                 }
             }
         }
 
-        // TODO(Brian)
-        val existingCategories = service.listCategories()
-        val categoryIdRemapper = categories.mapNotNull { c ->
-            val existing = existingCategories.find { it.specification.title.equals(c.specification.title, ignoreCase = true) }
+        val categoryIdRemapper = categoriesToImport.mapNotNull { c ->
+            val existing = categories.entries.find { it.value.title().equals(c.specification.title, ignoreCase = true) }
             if (existing == null) return@mapNotNull null
-            c.metadata.id to existing.metadata.id
+            c.metadata.id to existing.key
         }.toMap().toMutableMap()
 
-        for (category in categories) {
+        for (category in categoriesToImport) {
             val existingId = categoryIdRemapper[category.metadata.id]
             if (existingId != null) continue
 
             try {
-                val newId = service.createCategory(a, category.specification.copy(curator = "main")) // TODO(Brian)
-                categoryIdRemapper[category.metadata.id] = newId
+                val newId = studio.createCategory(a, category.specification.copy(curator = "main"))
+                    categoryIdRemapper[category.metadata.id] = newId.toLong()
             } catch (ex: Throwable) {
                 log.info("Could not create category: ${category.specification}")
             }
         }
 
         for ((rawId, membership) in categoryMembership) {
-            val mappedId = categoryIdRemapper.getValue(rawId)
+            val mappedId = categoryIdRemapper.getValue(rawId).toInt()
             for (member in membership) {
-                val mappedMember = groupIdRemapper.getValue(member)
+                val mappedMember = groupIdRemapper.getValue(member).toInt()
                 try {
-                    service.addGroupToCategory(a, listOf(mappedId), mappedMember)
+                    studio.addGroupToCategory(a, listOf(mappedId), mappedMember)
                 } catch (ex: Throwable) {
                     log.info("Could not add group to category")
                 }
@@ -276,18 +282,17 @@ class ImportExport(
         }
 
         println("Creating spotlights...")
-        val existingSpotlights = service.listSpotlights(a)
-        for (spotlight in spotlights) {
-            val existingId = existingSpotlights.find { it.title == spotlight.title }?.id
+        for (spotlight in spotlightsToImport) {
+            val existingId = spotlights.entries.find { it.value.get().title == spotlight.title }?.key
             try {
-                service.createOrUpdateSpotlight(
+                studio.createOrUpdateSpotlight(
                     a,
-                    existingId,
+                    existingId?.toInt(),
                     spotlight.title,
                     spotlight.body,
                     spotlight.active,
                     spotlight.applications.map { pick ->
-                        pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
+                        pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] }?.toInt())
                     }
                 )
             } catch (ex: Throwable) {
@@ -297,9 +302,9 @@ class ImportExport(
 
         println("Updating carrousel")
         try {
-            service.updateCarrousel(a, carrousel.map { s ->
+            studio.updateCarrousel(a, carrouselToImport.map { s ->
                 s.copy(
-                    linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) },
+                    linkedGroup = s.linkedGroup?.let { groupIdRemapper.getValue(it) }?.toInt(),
                 )
             })
         } catch (ex: Throwable) {
@@ -307,35 +312,34 @@ class ImportExport(
         }
         for ((index, image) in carrouselImages.withIndex()) {
             try {
-                service.updateCarrouselImage(a, index, image)
+                studio.updateCarrouselImage(a, index, image)
             } catch (ex: Throwable) {
                 log.info("Failed uploading carrousel image")
             }
         }
 
-        val newTopPicks = topPicks.map { pick ->
-            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] })
+        val newTopPicks = topPicksToImport.map { pick ->
+            pick.copy(groupId = pick.groupId?.let { groupIdRemapper[it] }?.toInt())
         }
         println("These are the picks! $newTopPicks")
         try {
-            service.updateTopPicks(a, newTopPicks)
+            studio.updateTopPicks(a, newTopPicks)
         } catch (ex: Throwable) {
             log.info("Could not update top picks! ${ex.stackTraceToString()}")
         }
 
-        for (group in groups) {
+        for (group in groupsToImport) {
             val mappedId = groupIdRemapper.getValue(group.metadata.id)
             try {
-                service.updateGroup(
+                studio.updateGroup(
                     a,
-                    mappedId,
+                    mappedId.toInt(),
                     newDefaultFlavor = group.specification.defaultFlavor,
                 )
             } catch (ex: Throwable) {
                 log.info("Could not update group: ${group.specification.title} (${ex.stackTraceToString()})")
             }
         }
-        */
     }
 
     companion object : Loggable {

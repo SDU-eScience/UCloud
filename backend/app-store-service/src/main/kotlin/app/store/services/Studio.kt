@@ -47,6 +47,7 @@ class Studio(
         val curatorId = if (actorAndProject == ActorAndProject.System) {
             "main"
         } else {
+            // TODO Doesn't check membership
             curators.values.firstOrNull { it.projectId == actorAndProject.project }?.id
                 ?: throw RPCException("Not allowed to create application", HttpStatusCode.Forbidden)
         }
