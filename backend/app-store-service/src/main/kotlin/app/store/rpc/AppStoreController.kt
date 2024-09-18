@@ -251,8 +251,7 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveStars) {
-            val items = emptyList<Application>() // TODO
-            ok(AppStore.RetrieveStars.Response(items))
+            ok(AppStore.RetrieveStars.Response(catalog.retrieveStarredApplications(actorAndProject)))
         }
 
         implement(AppStore.addLogoToGroup) {

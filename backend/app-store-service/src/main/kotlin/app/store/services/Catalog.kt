@@ -252,7 +252,6 @@ class Catalog(
             .mapNotNull { retrieveCategory(actorAndProject, it, ApplicationFlags()) }
             .sortedBy { categories[it.metadata.id.toLong()]?.priority() ?: 10000 }
 
-
         val slides = carrousel.get().map { slide ->
             var resolvedLinkedApp: String? = null
 
@@ -279,7 +278,41 @@ class Catalog(
             )
         }
 
-        val picks = topPicks.get().mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+        var picks = topPicks.get().mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+        if (picks.size < 5) {
+            // Try to extract applications from the different storefronts, assuming that they don't have a lot of
+            // applications. For some providers, we can easily just display the entire catalog on the landing page.
+
+            val groups = TreeSet<ApplicationGroup> { o1, o2 ->
+                o1.specification.title.compareTo(o2.specification.title)
+            }
+
+            for (pick in picks) {
+                val groupId = pick.groupId ?: continue
+                val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags()) ?: continue
+                groups.add(group)
+            }
+
+            outer@for (front in allStoreFronts) {
+                for (groupId in front.groups) {
+                    val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags()) ?: continue
+                    groups.add(group)
+
+                    if (groups.size >= 15) break@outer
+                }
+            }
+
+            picks = groups.map { group ->
+                TopPick(
+                    group.specification.title,
+                    null,
+                    group.metadata.id.toInt(),
+                    group.specification.description,
+                    group.specification.defaultFlavor,
+                    group.specification.logoHasText,
+                )
+            }
+        }
 
         val activeSpotlight = spotlights.values.find { it.get().active }?.get()?.let { spotlight ->
             val newApps = spotlight.applications.mapNotNull { prepareTopPickForUser(actorAndProject, it) }
@@ -298,8 +331,9 @@ class Catalog(
             }
 
             for (updatedApp in storeFront.updatedApplications) {
-                val element = retrieveApplication(actorAndProject, updatedApp.name, updatedApp.version, ApplicationFlags())
-                    ?: continue
+                val element =
+                    retrieveApplication(actorAndProject, updatedApp.name, updatedApp.version, ApplicationFlags())
+                        ?: continue
 
                 allUpdatedApplications.add(element)
             }
@@ -430,6 +464,23 @@ class Catalog(
 
         result.sortBy { it.metadata.title }
         return result
+    }
+
+    suspend fun retrieveStarredApplications(
+        actorAndProject: ActorAndProject,
+    ): List<Application> {
+        val myStars = stars[actorAndProject.actor.safeUsername()]?.get() ?: return emptyList()
+        return myStars.mapNotNull {
+            retrieveApplication(
+                actorAndProject,
+                it,
+                null,
+                ApplicationFlags(
+                    includeStars = true,
+                    includeInvocation = true
+                ),
+            )
+        }
     }
 
     private val relevantStoreFrontsCache = AsyncCache<ActorAndProject, List<StoreFront>>(
