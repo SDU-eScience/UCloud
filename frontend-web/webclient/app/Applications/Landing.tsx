@@ -2,7 +2,7 @@ import * as React from "react";
 import {usePage} from "@/Navigation/Redux";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {classConcat, injectStyle} from "@/Unstyled";
-import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Markdown, Relative} from "@/ui-components";
+import {Box, Button, Card, Flex, Grid, Icon, MainContainer, Markdown, Relative, Tooltip} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
@@ -20,6 +20,7 @@ import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -87,25 +88,27 @@ const LandingPage: React.FunctionComponent = () => {
 
                     {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
 
-                    <div>
-                        <h3>Browse by category</h3>
-                        <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
-                            {landingPage.categories.map((c, idx) =>
-                                <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
-                                    categoryTitle={c.specification.title} />
-                            )}
-                        </Grid>
-                    </div>
+                    {landingPage.categories.length < 1 ? null :
+                        <div>
+                            <h3>Browse by category</h3>
+                            <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
+                                {landingPage.categories.map((c, idx) =>
+                                    <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
+                                        categoryTitle={c.specification.title} />
+                                )}
+                            </Grid>
+                        </div>
+                    }
 
                     <div>
                         <h3>Updated applications</h3>
                         <TabbedCard>
                             <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
                                 <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                    {landingPage.newApplications.map(app => (
+                                    {landingPage.newApplications.map((app, idx) => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                             description={app.metadata.description} fullWidth
-                                            key={app.metadata.name}
+                                            key={idx}
                                             isApplication />
                                     ))}
                                 </Flex>
@@ -113,10 +116,10 @@ const LandingPage: React.FunctionComponent = () => {
 
                             <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
                                 <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                    {landingPage.recentlyUpdated.map(app => (
+                                    {landingPage.recentlyUpdated.map((app, idx) => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                             description={app.metadata.description} fullWidth
-                                            key={app.metadata.name}
+                                            key={idx}
                                             isApplication />
                                     ))}
                                 </Flex>
@@ -307,8 +310,8 @@ export const Hero: React.FunctionComponent<{
         slideLinkIsExternal = false;
         if (slide.resolvedLinkedApp) {
             slideLink = AppRoutes.jobs.create(slide.resolvedLinkedApp);
-        } else {
-            slideLink = AppRoutes.apps.group((slide.linkedGroup ?? 1).toString());
+        } else if (slide.linkedGroup) {
+            slideLink = AppRoutes.apps.group((slide.linkedGroup).toString());
         }
     }
 
@@ -345,19 +348,28 @@ export const Hero: React.FunctionComponent<{
                     </div>
                     <Box flexGrow={1} />
                     {(slide.imageCredit != "Unknown") && <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
-                    <ReactRouterLink
-                        to={slideLink}
-                        style={{width: "100%"}}
-                        target={slideLinkIsExternal || isPreview ? "_blank" : undefined}
-                        rel="noopener"
-                    >
-                        <Button fullWidth>
-                            <Icon name={"heroPlay"} />
-                            <div>
-                                {slide.linkedWebPage ? "Open web-page" : "Open application"}
-                            </div>
-                        </Button>
-                    </ReactRouterLink>
+                    {slideLink ? 
+                        <ReactRouterLink
+                            to={slideLink}
+                            style={{width: "100%"}}
+                            target={slideLinkIsExternal || isPreview ? "_blank" : undefined}
+                            rel="noopener"
+                        >
+                            <Button fullWidth>
+                                <Icon name={"heroPlay"} />
+                                <div>
+                                    {slide.linkedWebPage ? "Open web-page" : "Open application"}
+                                </div>
+                            </Button>
+                        </ReactRouterLink>
+                    : <>
+                        <TooltipV2 tooltip={<>You do not have resources to<br />run this application in this project</>} >
+                            <Button fullWidth disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
+                                <Icon name={"heroPlay"} />
+                                <div>Open application</div>
+                            </Button>
+                        </TooltipV2>
+                    </>}
                 </div>
             </div>
         </div>
@@ -651,11 +663,11 @@ const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
         gap: 16px;
     }
     
-    ${k} > *:first-child {
+    ${k} > *:first-child:nth-last-child(n + 5) {
         grid-row: span 2;
     }
     
-    ${k} > *:first-child > * {
+    ${k} > *:first-child:nth-last-child(n + 5) > * {
         height: calc(115px * 2 + 16px);
     }
     
@@ -704,24 +716,25 @@ const LogoCard: React.FunctionComponent<{
 }
 
 export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
-    return <div>
-        <h3>Top picks</h3>
-        <div className={TopPickCardGridStyle}>
-            {topPicks.map((pick, idx) => {
-                if (pick.groupId) {
-                    let link = AppRoutes.apps.group(pick.groupId.toString());
-                    if (pick.defaultApplicationToRun) {
-                        link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
-                    }
+    return topPicks.length < 1 ? null :
+        <div>
+            <h3>Top picks</h3>
+            <div className={TopPickCardGridStyle}>
+                {topPicks.map((pick, idx) => {
+                    if (pick.groupId) {
+                        let link = AppRoutes.apps.group(pick.groupId.toString());
+                        if (pick.defaultApplicationToRun) {
+                            link = AppRoutes.jobs.create(pick.defaultApplicationToRun);
+                        }
 
-                    return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
-                        title={pick.title} link={link} />;
-                } else {
-                    return null;
-                }
-            })}
+                        return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
+                            title={pick.title} link={link} />;
+                    } else {
+                        return null;
+                    }
+                })}
+            </div>
         </div>
-    </div>
 };
 
 export const StarredApplications2: React.FunctionComponent<{
@@ -732,7 +745,7 @@ export const StarredApplications2: React.FunctionComponent<{
         <div className={classConcat(TopPickCardGridStyle, apps.length <= 5 ? "small" : undefined)}>
             {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
-                const groupId = app.metadata.group?.metadata?.id ?? 0;
+                const groupId = app.metadata.groupId ?? 0;
 
                 return <LogoCard
                     key={app.metadata.name}

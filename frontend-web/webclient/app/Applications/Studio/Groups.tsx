@@ -62,9 +62,6 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                 </Flex>
             }
             main={<>
-                {!projectId || allGroups.length < 1 ? <>
-                    <Box>No application groups found for this project.</Box>
-                </> : <>
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
                         <label className={ButtonClass} style={{flexGrow: 1}}>
                             Upload application
@@ -227,7 +224,6 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                         ))}
                     </List>
                 </>}
-            </>}
         />);
 };
 
