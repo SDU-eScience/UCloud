@@ -212,7 +212,7 @@ Providers use this functionality through one of the Control interfaces. They do 
     val create = call("create", CreateRequest.serializer(), CreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(
             baseContext = baseContext,
-            roles = Roles.PRIVILEGED
+            roles = Roles.PROVIDER
         )
 
         websocket(baseContext)
@@ -222,7 +222,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         httpUpdate(
             baseContext,
             "postStatus",
-            Roles.PRIVILEGED
+            Roles.PROVIDER
         )
 
         websocket(baseContext)
@@ -232,7 +232,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         httpUpdate(
             baseContext,
             "markAsComplete",
-            roles = Roles.PRIVILEGED,
+            roles = Roles.PROVIDER,
         )
 
         websocket(baseContext)

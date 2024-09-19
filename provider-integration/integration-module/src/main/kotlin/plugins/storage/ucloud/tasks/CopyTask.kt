@@ -3,13 +3,18 @@ package dk.sdu.cloud.plugins.storage.ucloud.tasks
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.serviceContext
+import dk.sdu.cloud.task.api.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -108,6 +113,8 @@ class CopyTask : TaskHandler {
         val realRequest = defaultMapper.decodeFromJsonElement(BulkRequest.serializer(FilesCopyRequestItem.serializer()), task.rawRequest)
 
         val numberOfCoroutines = if (task.requirements?.scheduleInBackground == true) 10 else 1
+        var numberOfFiles = realRequest.items.size
+        var filesCopied = 0L
         runWork(
             backgroundDispatcher,
             numberOfCoroutines,
@@ -123,12 +130,19 @@ class CopyTask : TaskHandler {
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.oldId))
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.newId))
 
+                postUpdate(
+                    task.taskId.toLong(),
+                    "Copying files",
+                    "$filesCopied/$numberOfFiles copied")
+
                 val result = try {
-                    nativeFs.copy(
+                    val result = nativeFs.copy(
                         InternalFile(nextItem.oldId),
                         InternalFile(nextItem.newId),
                         nextItem.conflictPolicy
                     )
+                    filesCopied++
+                    result
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while copying files: ${ex.stackTraceToString()}")
@@ -143,7 +157,7 @@ class CopyTask : TaskHandler {
                     } catch (ex: FSException) {
                         emptyList()
                     }
-
+                    numberOfFiles += childrenFileNames.size
                     for (childFileName in childrenFileNames) {
                         channel.send(
                             FileToCopy(
@@ -157,6 +171,23 @@ class CopyTask : TaskHandler {
                 }
             }
         )
+    }
+
+    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+        Tasks.postStatus.call(
+            PostStatusRequest(
+                BackgroundTaskUpdate(
+                    taskId = taskId,
+                    modifiedAt = Time.now(),
+                    newStatus = BackgroundTask.Status(
+                        TaskState.RUNNING,
+                        operation,
+                        progress
+                    ),
+                )
+            ),
+            serviceContext.rpcClient
+        ).orThrow()
     }
 
     companion object : Loggable {

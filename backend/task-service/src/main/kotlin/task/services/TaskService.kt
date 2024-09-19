@@ -14,10 +14,7 @@ class TaskService(
     private val subscriptionService: SubscriptionService
 ) {
     suspend fun create(actorAndProject: ActorAndProject, request: CreateRequest): BackgroundTask {
-        if (actorAndProject.actor is Actor.User ) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
         val initTime = Time.now()
-
         val jobId = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -25,7 +22,7 @@ class TaskService(
                     setParameter("username", request.user)
                     setParameter("provider", request.provider)
                     setParameter("operation", request.operation)
-                    setParameter("process", request.progress)
+                    setParameter("progress", request.progress)
                     setParameter("cancel", request.canCancel)
                     setParameter("pause", request.canPause)
                 },
@@ -33,7 +30,7 @@ class TaskService(
                     insert into task.tasks_v2 
                     (created_at, modified_at, created_by, owned_by, operation, progress, can_cancel, can_pause) 
                     values 
-                    (:current_time, :current_time, :username, :provider, :operation, :progress, :cancel, :pause)
+                    (to_timestamp(:current_time/1000), to_timestamp(:current_time), :username, :provider, :operation, :progress, :cancel, :pause)
                     returning id
                 """
             ).rows.singleOrNull()?.getLong(0) ?: throw RPCException("Failed to create task", HttpStatusCode.UnprocessableEntity)
@@ -56,7 +53,6 @@ class TaskService(
 
     suspend fun postStatus(actorAndProject: ActorAndProject, update: BackgroundTaskUpdate) {
         val taskId = update.taskId
-        if (actorAndProject.actor is Actor.User ) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -69,7 +65,7 @@ class TaskService(
                 },
                 """
                     update task.tasks_v2
-                    set modified_at = :modify, state = :state, operation = :op, progress = :progress
+                    set modified_at = to_timestamp(:modify/1000), state = :state, operation = :op, progress = :progress
                     where id = :task_id
                 """
             )
@@ -77,14 +73,10 @@ class TaskService(
 
         val taskFound = findById(taskId)
 
-        if (taskFound.createdBy != actorAndProject.actor.safeUsername()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
         subscriptionService.onTaskUpdate(taskFound.createdBy, taskFound)
     }
 
     suspend fun markAsComplete(actorAndProject: ActorAndProject, jobId: Long) {
-        if (actorAndProject.actor is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
         val success = db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -92,7 +84,7 @@ class TaskService(
                 },
                 """
                    update task.tasks_v2
-                   set state = 'SUCCESS', modified_at = now(), can_pause = false, can_cancel = false
+                   set state = 'SUCCESS', progress = 'Done', modified_at = now(), can_pause = false, can_cancel = false
                    where id = :task_id
                 """
             ).rowsAffected > 0
@@ -112,7 +104,7 @@ class TaskService(
                         setParameter("username", actorAndProject.actor.safeUsername())
                     },
                     """
-                    select id, created_at, modified_at, created_by, state, operation, progress, can_pause, can_cancel 
+                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, state, operation, progress, can_pause, can_cancel 
                     from task.tasks_v2 
                     where created_by = :username
                     order by created_at desc
@@ -139,7 +131,7 @@ class TaskService(
                     setParameter("username", username)
                 },
                 """
-                    select id, created_at, modified_at, created_by, state, operation, progress, can_pause, can_cancel 
+                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, state, operation, progress, can_pause, can_cancel 
                     from task.tasks_v2 
                     where created_by = :username
                     order by created_at desc
@@ -157,7 +149,7 @@ class TaskService(
                     setParameter("task_id", jobId)
                 },
                 """
-                    select id, created_at, modified_at, created_by, state, operation, progress, can_pause, can_cancel 
+                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, state, operation, progress, can_pause, can_cancel 
                     from task.tasks_v2 
                     where id = :task_id
                 """

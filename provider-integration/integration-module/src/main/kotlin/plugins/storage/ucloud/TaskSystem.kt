@@ -91,6 +91,18 @@ class TaskSystem(
             return if (requirements == null || requirements.scheduleInBackground) {
                 scheduleInBackground(requestName, request, requirements, task)
             } else {
+
+                taskContext.execute(
+                    StorageTask(
+                        task.taskId.toString(),
+                        requestName,
+                        requirements,
+                        request,
+                        null,
+                        Time.now()
+                    )
+                )
+
                 Tasks.postStatus.call(
                     PostStatusRequest(
                         BackgroundTaskUpdate(
@@ -260,22 +272,8 @@ class TaskSystem(
 
                             log.debug("Starting work of $task")
 
-                            Tasks.postStatus.call(
-                                PostStatusRequest(
-                                    BackgroundTaskUpdate(
-                                        taskId = task.taskId.toLong(),
-                                        modifiedAt = Time.now(),
-                                        newStatus = BackgroundTask.Status(
-                                            TaskState.RUNNING,
-                                            task.requestName,
-                                            "Resuming work on task..."
-                                        ),
-                                    )
-                                ),
-                                client
-                            )
-
                             taskContext.execute(task.copy(requirements = requirements))
+
                             Tasks.markAsComplete.call(
                                 MarkAsCompleteRequest(
                                     task.taskId.toLong()
@@ -325,6 +323,7 @@ data class TaskContext(
 
 interface TaskHandler {
     fun TaskContext.canHandle(name: String, request: JsonObject): Boolean
+    suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String)
     suspend fun TaskContext.collectRequirements(name: String, request: JsonObject, maxTime: Long?): TaskRequirements?
     suspend fun TaskContext.execute(task: StorageTask)
 }
