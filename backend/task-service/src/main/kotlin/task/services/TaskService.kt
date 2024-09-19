@@ -124,24 +124,6 @@ class TaskService(
         }
     }
 
-    private suspend fun findByUser(username: String): List<BackgroundTask> {
-        return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", username)
-                },
-                """
-                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, state, operation, progress, can_pause, can_cancel 
-                    from task.tasks_v2 
-                    where created_by = :username
-                    order by created_at desc
-                """
-            ).rows.map {
-                it.toBackgroundTask()
-            }
-        }
-    }
-
     private suspend fun findById(jobId: Long): BackgroundTask {
         return db.withSession { session ->
             session.sendPreparedStatement(
