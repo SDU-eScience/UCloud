@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {Box, Flex, Grid} from "@/ui-components";
+import {Box, Flex, Grid, MainContainer} from "@/ui-components";
 import {usePage} from "@/Navigation/Redux";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useLocation} from "react-router";
@@ -11,23 +11,8 @@ import {getQueryParam} from "@/Utilities/URIUtilities";
 import {doNothing} from "@/UtilityFunctions";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {injectStyle} from "@/Unstyled";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
-
-const OverviewStyle = injectStyle("app-overview", k => `
-    ${k} {
-        margin: 0 auto;
-        padding-top: 16px;
-        padding-bottom: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 1100px;
-        min-width: 600px;
-        min-height: 100vh;
-    }
-`);
 
 const ApplicationsOverview: React.FunctionComponent = () => {
     const location = useLocation();
@@ -52,34 +37,39 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     const appSearch = useAppSearch();
 
     return (
-        <div>
-            <div className={Gradient}>
-                <div className={GradientWithPolygons}>
-                    <div className={OverviewStyle}>
-                        <Flex alignItems={"center"}>
-                            <h3 className="title">{title}</h3>
-                            <Box ml="auto"/>
-                            <UtilityBar onSearch={appSearch}/>
-                        </Flex>
+        <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <MainContainer main={<>
+                    <Flex mb="16px" alignItems={"center"}>
+                        <h3 className="title">{title}</h3>
+                        <Box ml="auto" />
+                        <UtilityBar onSearch={appSearch} />
+                    </Flex>
 
-                        <Grid gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"} columnGap={"16px"} rowGap={"16px"}>
-                            {groups.map(section =>
-                                <AppCard2
-                                    fullWidth
-                                    key={section.metadata.id}
-                                    title={section.specification.title}
-                                    isApplication={false}
-                                    description={section.specification.description}
-                                    name={section.metadata.id.toString()}
-                                    applicationName={section.specification.defaultFlavor}
-                                />
-                            )}
-                        </Grid>
-                    </div>
-                </div>
+                    <AppGrid>
+                        {groups.map(section =>
+                            <AppCard2
+                                fullWidth
+                                key={section.metadata.id}
+                                title={section.specification.title}
+                                isApplication={false}
+                                description={section.specification.description}
+                                name={section.metadata.id.toString()}
+                                applicationName={section.specification.defaultFlavor}
+                            />
+                        )}
+                    </AppGrid>
+                </>}
+                />
             </div>
         </div>
     );
 };
+
+export function AppGrid(props: React.PropsWithChildren): React.ReactNode {
+    return <Grid gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"} columnGap={"16px"} rowGap={"16px"}>
+        {props.children}
+    </Grid>
+}
 
 export default ApplicationsOverview;
