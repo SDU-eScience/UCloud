@@ -62,11 +62,11 @@ type scriptedSlurmAccUsage struct {
 }
 
 type scriptedAccountManagementService struct {
-	onQuotaUpdated   ctrl.Extension[scriptedSlurmAccQuotaUpdated, util.Empty]
-	onUsageReporting ctrl.Extension[util.Empty, struct {
+	onQuotaUpdated   ctrl.Script[scriptedSlurmAccQuotaUpdated, util.Empty]
+	onUsageReporting ctrl.Script[util.Empty, struct {
 		Usage []scriptedSlurmAccUsage `json:"usage"`
 	}]
-	onProjectUpdated ctrl.Extension[scriptedSlurmAccProjectUpdated, util.Empty]
+	onProjectUpdated ctrl.Script[scriptedSlurmAccProjectUpdated, util.Empty]
 }
 
 func (u *scriptedAccountManagementService) OnWalletUpdated(update *ctrl.NotificationWalletUpdated) {

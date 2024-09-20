@@ -439,7 +439,7 @@ func (a *defaultAccountMapper) ServerEvaluateAccountMapper(category string, owne
 				AccountName string `json:"accountName"`
 			}
 
-			ext := ctrl.NewExtension[map[string]string, Resp]()
+			ext := ctrl.NewScript[map[string]string, Resp]()
 			ext.Script = mapper.Script
 
 			resp, ok := ext.Invoke(params)
@@ -529,6 +529,21 @@ func (a *defaultAccountMapper) ServerSlurmJobToConfiguration(job *slurmcli.Job) 
 		return
 	}
 
+	info, err := user.Lookup(job.User)
+	if err != nil {
+		return
+	}
+
+	uid, err := strconv.Atoi(info.Uid)
+	if err != nil {
+		return
+	}
+
+	ucloudUser, ok := ctrl.MapLocalToUCloud(uint32(uid))
+	if !ok {
+		return
+	}
+
 	cpuCount := getAllocTres(job, "cpu", 1)
 	memory := getAllocTres(job, "mem", 1) / (1000 * 1000 * 1000)
 	trueNodeCount := getAllocTres(job, "node", 1)
@@ -536,6 +551,7 @@ func (a *defaultAccountMapper) ServerSlurmJobToConfiguration(job *slurmcli.Job) 
 	nodeMultiplier := 1
 
 	config := SlurmJobConfiguration{}
+	config.UCloudUsername = ucloudUser
 
 	// Attempt exact match
 	for _, machine := range Machines {
