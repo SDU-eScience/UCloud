@@ -530,6 +530,7 @@ class PosixFilesPlugin : FilePlugin {
                 Time.now(),
                 Time.now(),
                 createdBy = reqItem.resolvedCollection.owner.createdBy,
+                provider = "",
                 status = BackgroundTask.Status(
                     TaskState.SUCCESS,
                     "Folder Creation",

@@ -1,12 +1,8 @@
-package dk.sdu.cloud.app.orchestrator.services
+package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.accounting.util.AsyncCache
-import dk.sdu.cloud.accounting.util.ProductCache
-import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
-import dk.sdu.cloud.accounting.util.checkOrRefresh
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.*
@@ -14,7 +10,6 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
@@ -29,7 +24,7 @@ import kotlin.time.measureTimedValue
 
 typealias UnknownResourceApi<Support> = ResourceApi<*, *, *, *, *, *, Support>
 
-class ProviderCommunications(
+class ProviderCommunicationsV2(
     private val backgroundScope: BackgroundScope,
     private val serviceClient: AuthenticatedClient,
     private val productCache: ProductCache,
@@ -41,7 +36,7 @@ class ProviderCommunications(
             throw RPCException("Failed to establish communication with $it", HttpStatusCode.BadGateway)
         },
         retrieve = { providerId ->
-            Providers.retrieveSpecification.call(
+            dk.sdu.cloud.provider.api.Providers.retrieveSpecification.call(
                 ProvidersRetrieveSpecificationRequest(providerId),
                 serviceClient
             ).orThrow()
@@ -60,7 +55,7 @@ class ProviderCommunications(
                 JwtRefresher.ProviderOrchestrator(serviceClient, providerId)
             )
 
-            val providerSpec = Providers.retrieveSpecification.call(
+            val providerSpec = dk.sdu.cloud.provider.api.Providers.retrieveSpecification.call(
                 ProvidersRetrieveSpecificationRequest(providerId),
                 serviceClient
             ).orThrow()
@@ -506,4 +501,4 @@ class ProviderCommunications(
     }
 }
 
-private val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")
+val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")

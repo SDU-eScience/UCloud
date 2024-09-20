@@ -16,6 +16,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.PostStatusRequest
 import io.ktor.utils.io.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -71,6 +72,9 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
         req: FilesProviderStreamingSearchRequest
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> {
         throw RPCException("Streaming search is not supported by this provider", HttpStatusCode.BadRequest)
+    }
+    suspend fun RequestContext.modifyTask(request: PostStatusRequest) {
+        println("MODIFYING TASK: $request")
     }
 
     override suspend fun RequestContext.create(resource: UFile): FindByStringId? {

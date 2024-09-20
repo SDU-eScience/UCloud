@@ -98,7 +98,7 @@ class FileController(
             val username = UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
-            val backgroundTask = Tasks.create.callBlocking(
+            val backgroundTask = Tasks.create.call(
                 CreateRequest(
                     user = username,
                     provider = providerId,

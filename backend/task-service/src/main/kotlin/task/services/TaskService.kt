@@ -2,6 +2,7 @@ package dk.sdu.cloud.task.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.PageV2
@@ -11,7 +12,8 @@ import dk.sdu.cloud.task.api.*
 
 class TaskService(
     private val db: DBContext,
-    private val subscriptionService: SubscriptionService
+    private val subscriptionService: SubscriptionService,
+    private val providerComm: ProviderCommunicationsV2
 ) {
     suspend fun create(actorAndProject: ActorAndProject, request: CreateRequest): BackgroundTask {
         val initTime = Time.now()
@@ -41,6 +43,7 @@ class TaskService(
             createdAt = initTime,
             modifiedAt = initTime,
             createdBy = request.user,
+            provider = request.provider,
             status = BackgroundTask.Status(
                 operation = request.operation ?: DEFAULT_TASK_OPERATION,
                 progress = request.progress ?: DEFAULT_TASK_PROGRESS
@@ -70,11 +73,16 @@ class TaskService(
         }
     }
 
-    private suspend fun forwardUserAction(taskId: Long) {
-        val foundTask = findById(taskId)
-        val provider = foundTask.taskId
-        val username = foundTask.createdBy
-
+    private suspend fun forwardUserAction(actorAndProject: ActorAndProject, provider: String, update: BackgroundTaskUpdate) {
+        providerComm.call(
+            provider,
+            actorAndProject,
+            {
+                TasksProvider(it).userAction
+            },
+            PostStatusRequest(update),
+            isUserRequest = true
+        )
     }
 
     suspend fun userAction(actorAndProject: ActorAndProject, update: BackgroundTaskUpdate) {
@@ -82,21 +90,27 @@ class TaskService(
 
         val taskId = update.taskId
         val foundTask = findById(taskId)
-
         if (foundTask.createdBy != actorAndProject.actor.safeUsername()) throw RPCException("Task not found", HttpStatusCode.NotFound)
-
         //Note(HENRIK) If task is already finished all good? notify user?
         if (foundTask.status.state == TaskState.FAILURE || foundTask.status.state == TaskState.SUCCESS) return
+
+        val newState = update.newStatus.state
+        if (newState == TaskState.SUSPENDED && !foundTask.specification.canPause) {
+            throw RPCException("Task cannot be paused", HttpStatusCode.BadRequest)
+        }
+        if (newState == TaskState.CANCELLED && !foundTask.specification.canCancel) {
+            throw RPCException("Task cannot be cancelled", HttpStatusCode.BadRequest)
+        }
 
         val normalizedUpdate = update.copy(
             newStatus = BackgroundTask.Status(
                 update.newStatus.state,
-                when (update.newStatus.state) {
+                when (newState) {
                     TaskState.CANCELLED -> "Operation cancelled by user"
                     TaskState.SUSPENDED -> "Operation paused by user"
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
                 },
-                when (update.newStatus.state) {
+                when (newState) {
                     TaskState.CANCELLED -> "Cancelled"
                     TaskState.SUSPENDED -> {
                         if(foundTask.status.state == TaskState.RUNNING) {
@@ -110,7 +124,7 @@ class TaskService(
 
         updateBackgroundTask(actorAndProject, normalizedUpdate)
 
-        forwardUserAction(taskId)
+        forwardUserAction(actorAndProject, foundTask.provider, normalizedUpdate)
 
         val taskFound = findById(taskId)
         subscriptionService.onTaskUpdate(taskFound.createdBy, taskFound)
@@ -181,7 +195,7 @@ class TaskService(
                     setParameter("task_id", jobId)
                 },
                 """
-                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, state, operation, progress, can_pause, can_cancel 
+                    select id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint, created_by, owned_by, state, operation, progress, can_pause, can_cancel 
                     from task.tasks_v2 
                     where id = :task_id
                 """
@@ -196,14 +210,15 @@ class TaskService(
         createdAt = getLong(1)!!,
         modifiedAt = getLong(2)!!,
         createdBy = getString(3)!!,
+        provider = getString(4)!!,
         status = BackgroundTask.Status(
-            TaskState.valueOf(getString(4)!!),
-            getString(5)!!,
-            getString(6)!!
+            TaskState.valueOf(getString(5)!!),
+            getString(6)!!,
+            getString(7)!!
         ),
         specification = BackgroundTask.Specification(
-            getBoolean(7)!!,
-            getBoolean(8)!!
+            getBoolean(8)!!,
+            getBoolean(9)!!
         )
     )
 

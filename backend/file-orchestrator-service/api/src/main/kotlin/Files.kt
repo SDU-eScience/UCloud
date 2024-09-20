@@ -286,6 +286,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 10L,
                                 10L,
                                 "user",
+                                provider = "K8",
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Moving File",
@@ -329,6 +330,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 10L,
                                 10L,
                                 "user",
+                                provider = "K8",
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Copying File",
@@ -443,6 +445,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 10L,
                                 10L,
                                 "user",
+                                provider = "K8",
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Creating Folder",
@@ -488,6 +491,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 10L,
                                 10L,
                                 "user",
+                                provider = "K8",
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Moving Folder To Trash",
@@ -503,6 +507,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             10L,
                             10L,
                             "user",
+                                provider = "K8",
                             status = BackgroundTask.Status(
                                 TaskState.SUCCESS,
                                 "Moving File to Trash",
@@ -546,6 +551,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 10L,
                                 10L,
                                 "user",
+                                provider = "K8",
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Emptying Trash",

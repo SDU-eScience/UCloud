@@ -1,5 +1,6 @@
 package dk.sdu.cloud.task.api
 
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 
 const val DEFAULT_TASK_OPERATION = "Background Task"
@@ -21,6 +22,7 @@ data class BackgroundTask(
     val createdAt: Long,
     val modifiedAt: Long,
     val createdBy: String,
+    val provider: String,
     val status: Status,
     val specification: Specification,
 ) {
@@ -42,7 +44,7 @@ data class BackgroundTask(
 @Serializable
 data class BackgroundTaskUpdate(
     val taskId: Long,
-    val modifiedAt: Long,
+    val modifiedAt: Long = Time.now(),
     val newStatus: BackgroundTask.Status
 )
 

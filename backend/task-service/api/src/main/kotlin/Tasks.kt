@@ -77,12 +77,12 @@ Providers use this functionality through one of the Control interfaces. They do 
                     createdAt = 0L,
                     modifiedAt = 0L,
                     createdBy = username,
+                    provider = "K8",
                     status = BackgroundTask.Status(
                         TaskState.RUNNING,
                         "Counting to 3",
                         "Count: 0"
-                    ),
-                    BackgroundTask.Specification(
+                    ), BackgroundTask.Specification(
                         false,
                         false
                     )
@@ -131,6 +131,7 @@ Providers use this functionality through one of the Control interfaces. They do 
                                         createdAt = 0L,
                                         modifiedAt = it * 1000L,
                                         createdBy = "username",
+                                        provider = "K8",
                                         status = BackgroundTask.Status(
                                             TaskState.RUNNING,
                                             "Counting to 3",
@@ -155,6 +156,7 @@ Providers use this functionality through one of the Control interfaces. They do 
                                     createdAt = 0L,
                                     modifiedAt = 4000L,
                                     createdBy = "username",
+                                    provider = "K8",
                                     status = BackgroundTask.Status(
                                         TaskState.SUCCESS,
                                         "Counting to 3",
