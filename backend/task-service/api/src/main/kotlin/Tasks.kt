@@ -224,6 +224,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         httpUpdate(
             baseContext,
             "userAction",
+            Roles.END_USER
         )
 
         websocket(baseContext)
