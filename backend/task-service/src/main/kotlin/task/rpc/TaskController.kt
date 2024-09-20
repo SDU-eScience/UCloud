@@ -8,6 +8,7 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.task.api.TaskState
 import dk.sdu.cloud.task.api.Tasks
 import dk.sdu.cloud.task.services.SubscriptionService
 import dk.sdu.cloud.task.services.TaskService
@@ -35,6 +36,15 @@ class TaskController(
             while (true) {
                 delay(1000)
             }
+        }
+
+        //TODO() HENRIK
+        implement(Tasks.userAction) {
+            val newState = request.update.newStatus.state
+            if (newState == TaskState.CANCELLED || newState == TaskState.SUSPENDED) {
+                taskService.userAction(actorAndProject, request.update)
+            }
+            ok(Unit)
         }
 
         implement(Tasks.postStatus) {

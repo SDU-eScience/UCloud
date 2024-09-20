@@ -218,6 +218,15 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
+    val userAction = call("userAction", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(
+            baseContext,
+            "userAction",
+        )
+
+        websocket(baseContext)
+    }
+
     val postStatus = call("postStatus", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
