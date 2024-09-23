@@ -10,25 +10,34 @@ import kotlinx.serialization.builtins.serializer
 @Serializable
 data class ListRequest(
     override val itemsPerPage: Int? = null,
-    override val page: Int? = null,
-) : WithPaginationRequest
-typealias ListResponse = Page<Task>
+    override val itemsToSkip: Long?,
+    override val next: String?,
+    override val consistency: PaginationRequestV2Consistency?
+) : WithPaginationRequestV2
+typealias ListResponse = PageV2<BackgroundTask>
 
 typealias ViewRequest = FindByStringId
-typealias ViewResponse = Task
+typealias ViewResponse = BackgroundTask
 
 typealias ListenRequest = Unit
-typealias ListenResponse = TaskUpdate
+typealias ListenResponse = BackgroundTask
 
 @Serializable
-data class CreateRequest(val title: String, val owner: String, val initialStatus: String? = null)
-typealias CreateResponse = Task
+data class CreateRequest(
+    val user: String,
+    val provider: String,
+    val operation: String? = null,
+    val progress: String? = null,
+    val canPause: Boolean = false,
+    val canCancel: Boolean = false,
+)
+typealias CreateResponse = BackgroundTask
 
 @Serializable
-data class PostStatusRequest(val update: TaskUpdate)
+data class PostStatusRequest(val update: BackgroundTaskUpdate)
 typealias PostStatusResponse = Unit
 
-typealias MarkAsCompleteRequest = FindByStringId
+typealias MarkAsCompleteRequest = FindByLongId
 typealias MarkAsCompleteResponse = Unit
 
 @TSTopLevel
@@ -47,7 +56,7 @@ Providers use this functionality through one of the Control interfaces. They do 
     }
 
     override fun documentation() {
-        val id = "b06f51d2-88af-487c-bb4c-4cc156cf24fd"
+        val id = 123L
         val username = "User#1234"
         val title = "We are counting to 3"
 
@@ -55,14 +64,45 @@ Providers use this functionality through one of the Control interfaces. They do 
             val service = ucloudCore()
             success(
                 create,
-                CreateRequest(title, username),
-                CreateResponse(id, username, "_ucloud", title, complete = false, startedAt = 0L, modifiedAt = 0L),
+                CreateRequest(
+                    user = username,
+                    provider = "provider",
+                    operation = "Counting to 3",
+                    progress = "Count: 0",
+                    canPause = false,
+                    canCancel = false
+                ),
+                CreateResponse(
+                    taskId = id,
+                    createdAt = 0L,
+                    modifiedAt = 0L,
+                    createdBy = username,
+                    provider = "K8",
+                    status = BackgroundTask.Status(
+                        TaskState.RUNNING,
+                        "Counting to 3",
+                        "Count: 0"
+                    ), BackgroundTask.Specification(
+                        false,
+                        false
+                    )
+                ),
                 service
             )
             repeat(3) {
                 success(
                     postStatus,
-                    PostStatusRequest(TaskUpdate(id, messageToAppend = "Count is now ${it + 1}")),
+                    PostStatusRequest(
+                        BackgroundTaskUpdate(
+                            taskId = id,
+                            modifiedAt = it * 1000L,
+                            newStatus = BackgroundTask.Status(
+                                TaskState.RUNNING,
+                                "Counting to 3",
+                                "Count: ${it + 1}"
+                            )
+                        )
+                    ),
                     PostStatusResponse,
                     service
                 )
@@ -87,8 +127,20 @@ Providers use this functionality through one of the Control interfaces. They do 
                             UseCaseNode.RequestOrResponse.Response(
                                 IngoingCallResponse.Ok(
                                     ListenResponse(
-                                        id,
-                                        messageToAppend = "Count is now ${it + 1}"
+                                        taskId = id,
+                                        createdAt = 0L,
+                                        modifiedAt = it * 1000L,
+                                        createdBy = "username",
+                                        provider = "K8",
+                                        status = BackgroundTask.Status(
+                                            TaskState.RUNNING,
+                                            "Counting to 3",
+                                            "Count: ${it + 1}"
+                                        ),
+                                        BackgroundTask.Specification(
+                                            false,
+                                            false
+                                        )
                                     ),
                                     HttpStatusCode.OK,
                                     FakeOutgoingCall
@@ -100,8 +152,20 @@ Providers use this functionality through one of the Control interfaces. They do 
                         UseCaseNode.RequestOrResponse.Response(
                             IngoingCallResponse.Ok(
                                 ListenResponse(
-                                    id,
-                                    complete = true
+                                    taskId = id,
+                                    createdAt = 0L,
+                                    modifiedAt = 4000L,
+                                    createdBy = "username",
+                                    provider = "K8",
+                                    status = BackgroundTask.Status(
+                                        TaskState.SUCCESS,
+                                        "Counting to 3",
+                                        "Done"
+                                    ),
+                                    BackgroundTask.Specification(
+                                        false,
+                                        false
+                                    )
                                 ),
                                 HttpStatusCode.OK,
                                 FakeOutgoingCall
@@ -113,21 +177,14 @@ Providers use this functionality through one of the Control interfaces. They do 
         }
     }
 
-    val list = call("list", ListRequest.serializer(), Page.serializer(Task.serializer()), CommonErrorMessage.serializer()) {
+    val list = call("list", ListRequest.serializer(), PageV2.serializer(BackgroundTask.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
 
-        http {
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(ListRequest::itemsPerPage)
-                +boundTo(ListRequest::page)
-            }
-        }
+        httpSearch(
+            baseContext = baseContext
+        )
 
         websocket(baseContext)
     }
@@ -137,14 +194,7 @@ Providers use this functionality through one of the Control interfaces. They do 
             access = AccessRight.READ
         }
 
-        http {
-            path {
-                using(baseContext)
-                +UCloudApi.RETRIEVE
-            }
-
-            params { +boundTo(ViewRequest::id) }
-        }
+        httpRetrieve(baseContext)
 
         websocket(baseContext)
     }
@@ -162,60 +212,40 @@ Providers use this functionality through one of the Control interfaces. They do 
     }
 
     val create = call("create", CreateRequest.serializer(), CreateResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
+        httpCreate(
+            baseContext = baseContext,
+            roles = Roles.PROVIDER
+        )
 
-        http {
-            method = HttpMethod.Put
+        websocket(baseContext)
+    }
 
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+    val userAction = call("userAction", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(
+            baseContext,
+            "userAction",
+            Roles.END_USER
+        )
 
         websocket(baseContext)
     }
 
     val postStatus = call("postStatus", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"postStatus"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(
+            baseContext,
+            "postStatus",
+            Roles.PROVIDER
+        )
 
         websocket(baseContext)
     }
 
     val markAsComplete = call("markAsComplete", MarkAsCompleteRequest.serializer(), MarkAsCompleteResponse.serializer(), CommonErrorMessage.serializer()) {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"markAsComplete"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(
+            baseContext,
+            "markAsComplete",
+            roles = Roles.PROVIDER,
+        )
 
         websocket(baseContext)
     }

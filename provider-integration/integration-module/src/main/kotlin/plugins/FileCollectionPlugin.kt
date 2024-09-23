@@ -12,9 +12,6 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProviderRenameRequestItem
-import dk.sdu.cloud.file.orchestrator.api.FilesProviderMoveRequestItem
-import dk.sdu.cloud.file.orchestrator.api.LongRunningTask
 import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 
 interface FileCollectionPlugin : ResourcePlugin<

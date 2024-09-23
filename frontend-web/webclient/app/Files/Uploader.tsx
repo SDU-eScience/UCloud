@@ -25,6 +25,7 @@ import {
     Upload,
     uploadCalculateSpeed,
     UploadState,
+    uploadStore,
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
@@ -52,12 +53,9 @@ import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
 import {FilesCreateUploadRequestItem, FilesCreateUploadResponseItem} from "@/UCloud/UFile";
 import {TooltipV2} from "@/ui-components/Tooltip";
-
-const MAX_CONCURRENT_UPLOADS = 5;
-const MAX_CONCURRENT_UPLOADS_IN_FOLDER = 256;
-const maxChunkSize = 16 * 1000 * 1000;
-const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
-const MAX_WS_BUFFER = 1024 * 1024 * 16 * 4
+import {NewAndImprovedProgress} from "@/ui-components/Progress";
+import {UploadConfig} from "@/Files/Upload";
+import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -139,7 +137,7 @@ function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string
         shaSumWorker.postMessage({type: "Start"});
 
         while (!reader.isEof() && !upload.terminationRequested) {
-            const chunk = await reader.readChunk(maxChunkSize);
+            const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
             shaSumWorker.postMessage({type: "Update", data: chunk});
         }
 
@@ -184,7 +182,7 @@ function createResumeableFolder(
 
                 if (!didInit) {
                     didInit = true;
-                    for (let i = 0; i < MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
+                    for (let i = 0; i < UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
                         startLoop(i);
                     }
                 }
@@ -329,7 +327,7 @@ function createResumeableFolder(
 
     async function startLoop(id: number) {
         while (!upload.terminationRequested && uploadSocket.readyState === WebSocket.OPEN) {
-            if (startedUploads - upload.filesCompleted >= MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
+            if (startedUploads - upload.filesCompleted >= UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER) {
                 await delay(1);
                 continue;
             }
@@ -394,7 +392,7 @@ function createResumeableFolder(
         reader: ChunkedFileReader,
         fileId: number
     ): Promise<[ArrayBuffer, number]> {
-        const chunk = await reader.readChunk(maxChunkSize);
+        const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
         const meta = constructMessageMeta(FolderUploadMessageType.CHUNK, fileId);
         return [concatArrayBuffers(meta, chunk), chunk.byteLength];
     }
@@ -420,7 +418,7 @@ function sendWsChunk(connection: WebSocket, chunk: ArrayBuffer): Promise<void> {
 }
 
 function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () => void) {
-    if (connection.bufferedAmount + chunk.byteLength < MAX_WS_BUFFER) {
+    if (connection.bufferedAmount + chunk.byteLength < UploadConfig.MAX_WS_BUFFER) {
         connection.send(chunk);
         onComplete();
     } else {
@@ -440,9 +438,9 @@ function createResumeable(
     return async () => {
         if (strategy.protocol === "CHUNKED") {
             while (!reader.isEof() && !upload.terminationRequested) {
-                await sendChunk(await reader.readChunk(maxChunkSize));
+                await sendChunk(await reader.readChunk(UploadConfig.maxChunkSize));
 
-                const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                const expiration = new Date().getTime() + UploadConfig.UPLOAD_EXPIRATION_MILLIS;
                 localStorage.setItem(
                     createLocalStorageUploadKey(fullFilePath),
                     JSON.stringify({
@@ -472,7 +470,7 @@ function createResumeable(
                     upload.progressInBytes = parseInt(message.data);
                     uploadTrackProgress(upload);
 
-                    const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
+                    const expiration = new Date().getTime() + UploadConfig.UPLOAD_EXPIRATION_MILLIS;
                     localStorage.setItem(
                         createLocalStorageUploadKey(fullFilePath),
                         JSON.stringify({
@@ -503,7 +501,7 @@ function createResumeable(
                     uploadSocket.send(`${progressStart} ${reader.fileSize().toString()}`)
 
                     while (!reader.isEof() && !upload.terminationRequested) {
-                        const chunk = await reader.readChunk(maxChunkSize);
+                        const chunk = await reader.readChunk(UploadConfig.maxChunkSize);
                         await sendWsChunk(uploadSocket, chunk);
                     }
                 });
@@ -550,6 +548,81 @@ function findResumableUploadsFromUploadPath(uploadPath: string): string[] {
     ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
 }
 
+async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) => void) {
+    const activeUploads =
+        uploadStore.getSnapshot().reduce((acc, u) => u.state === UploadState.UPLOADING ? acc + 1 : acc, 0);
+    const maxUploadsToRemaining = UploadConfig.MAX_CONCURRENT_UPLOADS - activeUploads;
+    if (maxUploadsToRemaining > 0) {
+        const creationRequests: FilesCreateUploadRequestItem[] = [];
+        const actualUploads: Upload[] = [];
+        const resumingUploads: Upload[] = [];
+
+        for (const upload of batch) {
+            if (upload.state !== UploadState.PENDING) continue;
+            if (creationRequests.length + resumingUploads.length >= maxUploadsToRemaining) break;
+
+            const uploadType = upload.folderName ? "FOLDER" : "FILE";
+            const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
+                upload.targetPath + "/" + upload.folderName
+                : upload.targetPath + "/" + upload.name;
+
+            const item = fetchValidUploadFromLocalStorage(fullFilePath);
+            if (item !== null) {
+                upload.uploadResponse = item.strategy;
+                resumingUploads.push(upload);
+                upload.state = UploadState.UPLOADING;
+                continue;
+            }
+
+            upload.state = UploadState.UPLOADING;
+            creationRequests.push({
+                supportedProtocols,
+                type: uploadType,
+                conflictPolicy: upload.conflictPolicy,
+                id: fullFilePath,
+            });
+
+            actualUploads.push(upload);
+        }
+
+        if (actualUploads.length + resumingUploads.length === 0) return;
+
+        try {
+            if (creationRequests.length > 0) {
+                const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
+                    FilesApi.createUpload(bulkRequestOf(...creationRequests))
+                )).responses;
+
+                for (const [index, response] of responses.entries()) {
+                    const upload = actualUploads[index];
+                    upload.uploadResponse = response;
+                }
+            }
+
+            for (const upload of [...actualUploads, ...resumingUploads]) {
+                processUpload(upload)
+                    .then(() => {
+                        upload.state = UploadState.DONE;
+                        setLookForNewUploads(true);
+                    })
+                    .catch(e => {
+                        if (typeof e === "string") {
+                            upload.error = e;
+                            upload.state = UploadState.DONE;
+                        }
+                    });
+            }
+        } catch (e) {
+            const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
+            for (let i = 0; i < creationRequests.length; i++) {
+                actualUploads[i].state = UploadState.DONE;
+                actualUploads[i].error = errorMessage;
+            }
+            return;
+        }
+    }
+}
+
 const Uploader: React.FunctionComponent = () => {
     const [uploadPath] = useGlobal("uploadPath", "/");
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
@@ -562,133 +635,13 @@ const Uploader: React.FunctionComponent = () => {
         setUploaderVisible(false);
     }, []);
 
-    const startUploads = useCallback(async (batch: Upload[]) => {
-        let activeUploads = 0;
-        for (const u of uploads) {
-            if (u.state === UploadState.UPLOADING) activeUploads++;
-        }
-
-        const maxUploadsToUse = MAX_CONCURRENT_UPLOADS - activeUploads;
-        if (maxUploadsToUse > 0) {
-            const creationRequests: FilesCreateUploadRequestItem[] = [];
-            const actualUploads: Upload[] = [];
-            const resumingUploads: Upload[] = [];
-
-            for (const upload of batch) {
-                if (upload.state !== UploadState.PENDING) continue;
-                if (creationRequests.length + resumingUploads.length >= maxUploadsToUse) break;
-
-                const uploadType = upload.folderName ? "FOLDER" : "FILE";
-                const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
-                    upload.targetPath + "/" + upload.folderName
-                    : upload.targetPath + "/" + upload.name;
-
-                const item = fetchValidUploadFromLocalStorage(fullFilePath);
-                if (item !== null) {
-                    upload.uploadResponse = item.strategy;
-                    resumingUploads.push(upload);
-                    upload.state = UploadState.UPLOADING;
-                    continue;
-                }
-
-                upload.state = UploadState.UPLOADING;
-                creationRequests.push({
-                    supportedProtocols,
-                    type: uploadType,
-                    conflictPolicy: upload.conflictPolicy,
-                    id: fullFilePath,
-                });
-
-                actualUploads.push(upload);
-            }
-
-            if (actualUploads.length + resumingUploads.length === 0) return;
-
-            try {
-                if (creationRequests.length > 0) {
-                    const responses = (await callAPI<BulkResponse<FilesCreateUploadResponseItem>>(
-                        FilesApi.createUpload(bulkRequestOf(...creationRequests))
-                    )).responses;
-
-                    for (const [index, response] of responses.entries()) {
-                        const upload = actualUploads[index];
-                        upload.uploadResponse = response;
-                    }
-                }
-
-                for (const upload of [...actualUploads, ...resumingUploads]) {
-                    processUpload(upload)
-                        .then(() => {
-                            upload.state = UploadState.DONE;
-                            setLookForNewUploads(true);
-                        })
-                        .catch(e => {
-                            if (typeof e === "string") {
-                                upload.error = e;
-                                upload.state = UploadState.DONE;
-                            }
-                        });
-                }
-            } catch (e) {
-                const errorMessage = errorMessageOrDefault(e, "Unable to start upload");
-                for (let i = 0; i < creationRequests.length; i++) {
-                    actualUploads[i].state = UploadState.DONE;
-                    actualUploads[i].error = errorMessage;
-                }
-                return;
-            }
-        }
-    }, [uploads]);
-
-    const stopUploads = useCallback((batch: Upload[]) => {
-        for (const upload of batch) {
-            // Find possible entries in resumables
-            upload.terminationRequested = true;
-        }
-    }, []);
-
-    const pauseUploads = useCallback((batch: Upload[]) => {
-        for (const upload of batch) {
-            upload.terminationRequested = true;
-            upload.paused = true;
-            upload.state = UploadState.PENDING;
-        }
-    }, []);
-
-    const resumeUploads = useCallback((batch: Upload[]) => {
-        batch.forEach(async it => {
-            it.terminationRequested = undefined;
-            it.paused = undefined;
-            it.state = UploadState.UPLOADING;
-            it.resume?.().then(() => {
-                it.state = UploadState.DONE;
-                setLookForNewUploads(true);
-            }).catch(e => {
-                if (typeof e === "string") {
-                    it.error = e;
-                    it.state = UploadState.DONE;
-                }
-            });
-        });
-    }, [uploads]);
-
-    const clearUploads = useCallback((batch: Upload[]) => {
-        /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
-        /* Note(Jonas): Yes. */
-        setUploads(uploads.filter(u => !batch.some(b => b === u)));
-        // Note(Jonas): Find possible entries in paused uploads and remove it. 
-        setPausedFilesInFolder(entries => {
-            let cpy = [...entries];
-            for (const upload of batch) {
-                cpy = cpy.filter(it => it !== upload.targetPath + "/" + upload.name);
-            }
-            return cpy;
-        });
-    }, [uploads]);
-
-    const callbacks: UploadCallback = useMemo(() => (
-        {startUploads, stopUploads, pauseUploads, resumeUploads, clearUploads}
-    ), [startUploads, stopUploads]);
+    const callbacks: UploadCallback = useMemo(() => ({
+        startUploads: b => startUploads(b, setLookForNewUploads),
+        stopUploads: b => uploadStore.stopUploads(b),
+        pauseUploads: b => uploadStore.pauseUploads(b),
+        resumeUploads: b => uploadStore.resumeUploads(b, setLookForNewUploads),
+        clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
+    }), [startUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
@@ -735,7 +688,7 @@ const Uploader: React.FunctionComponent = () => {
         }
 
         setUploads(allUploads);
-        startUploads(allUploads);
+        startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
     useEffect(() => {
@@ -773,7 +726,7 @@ const Uploader: React.FunctionComponent = () => {
     useEffect(() => {
         if (lookForNewUploads) {
             setLookForNewUploads(false);
-            startUploads(uploads);
+            startUploads(uploads, setLookForNewUploads);
             const shouldReload = uploads.every(it => it.state === UploadState.DONE) &&
                 uploads.some(it => it.targetPath === uploadPath && !it.terminationRequested);
             if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {
@@ -818,16 +771,12 @@ const Uploader: React.FunctionComponent = () => {
         <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
             <div>
                 <Flex>
-                    <Box ml="auto" />
-                    <Icon onClick={closeModal} cursor="pointer" color="textPrimary" size="16px" name="close" />
-                </Flex>
-                <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="6px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
                         : null}
                 </Flex>
-                <Text className={UploaderSpeedTextClass}>{uploadingText}</Text>
+                <Text fontSize={10} className={UploaderSpeedTextClass}>{uploadingText}</Text>
             </div>
             <div style={{
                 // Note(Jonas): Modal height, row with close button, file upload text height, top and bottom padding
@@ -836,7 +785,7 @@ const Uploader: React.FunctionComponent = () => {
             }}>
                 <div className="uploads" style={{width: "100%"}}>
                     {uploads.map((upload, idx) => (
-                        <UploadRow
+                        <UploaderRow
                             key={`${upload.name}-${idx}`}
                             upload={upload}
                             callbacks={callbacks}
@@ -877,7 +826,7 @@ const Uploader: React.FunctionComponent = () => {
                         marginRight: "4px"
                     }}>
                         {resumables.map(it =>
-                            <div className={UploaderRowClass} key={it}>
+                            <div className={TaskRowClass} key={it}>
                                 <Spacer paddingTop="20px"
                                     left={<>
                                         <div>
@@ -935,7 +884,7 @@ function getUploadTimings(uploads: Upload[]): {
 
 type HandleUploadsFunction = (batch: Upload[]) => void;
 
-interface UploadCallback {
+export interface UploadCallback {
     startUploads: HandleUploadsFunction;
     stopUploads: HandleUploadsFunction;
     pauseUploads: HandleUploadsFunction;
@@ -974,162 +923,170 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         border-width: 2px;
         border-color: var(--textPrimary);
         border-style: dashed;
-        border-radius: 24px;
+        border-radius: 10px;
     }
 `);
 
-const UploaderRowClass = injectStyle("uploader-row", k => `
+export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
-        border-radius: 24px;
-        border: 1px solid var(--textPrimary);
-        height: 70px;
-        width: 100%;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 0, 0, 20%);
+        height: 64px;
+        width: 398px;
+        max-width: 400px;
         margin-top: 12px;
         margin-bottom: 12px;
-    }
-
-    ${k} > div:first-child {
-        display: flex;
-        align-items: center;
-        padding-top: 12px;
+        box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
     
+    ${k} > div > .text {
+        margin-top: auto;
+        margin-bottom: auto;
+        margin-left: 8px;
+        font-size: 12px; 
+    }
+
     ${k}[data-has-error="true"] {
         height: 90px;
     }
 
     ${k} > div.error-box {
+        margin-top: 4px;
         width: 100%;
-        border-radius: 16px;
+        border-radius: 10px;
     }
-
-    ${k} > div > div:first-child {
-        margin-left: 16px;
-    }
-
-    ${k} > div > div:nth-child(2) {
-        vertical-align: middle;
-        margin-left: 8px;
-    }
-    
-    ${k} > div > div:nth-child(3) {
-        display: flex;
-        flex-grow: 1;
-}
 `);
 
 
-function uploadIsTerminal(upload: Upload): boolean {
+export function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 
-function UploadRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
+export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const showPause = hoverPause && !paused && upload.folderName === undefined;
     const showCircle = !hoverPause && !paused;
-    const stopped = upload.terminationRequested || upload.error;
+    const stopped = upload.terminationRequested || !!upload.error;
 
-    return upload.folderName ? (
-        <div className={UploaderRowClass} data-has-error={upload.error != null}>
-            <div>
-                <div><FtIcon fileIcon={{type: "DIRECTORY"}} size="32px" /></div>
-                <div>
-                    <Truncate maxWidth="270px" color="var(--textPrimary)" fontSize="18px">{upload.folderName}</Truncate>
-                    <Text
-                        fontSize="12px">Uploaded {upload.filesCompleted} of {upload.filesDiscovered} {upload.filesDiscovered > 1 ? "files" : "file"}</Text>
-                </div>
-                <div />
-                <Flex mr="16px">
-                    <Text style={{fontSize: "var(--secondaryText)"}}>
-                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                        {" / "}
-                        {sizeToString(upload.fileSizeInBytes ?? 0)}
-                        {" "}
-                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
-                    </Text>
-                    <Box mr="8px" />
-                    {inProgress ? <>
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                            onClick={() => callbacks.stopUploads([upload])} />
-                    </>
-                        :
-                        <TooltipV2 tooltip={"Click to remove row"}>
-                            <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                                callbacks.clearUploads([upload]);
-                                const fullFilePath = upload.targetPath + "/" + upload.name;
-                                removeUploadFromStorage(fullFilePath);
-                                upload.state = UploadState.DONE;
-                            }} color={stopped ? "errorMain" : "primaryMain"} />
-                        </TooltipV2>}
-                </Flex>
+    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
+    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
+
+    const title = upload.folderName ?? upload.name;
+    const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
+        <Icon cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
+            callbacks.clearUploads([upload]);
+            const fullFilePath = upload.targetPath + "/" + upload.name;
+            removeUploadFromStorage(fullFilePath);
+            upload.state = UploadState.DONE;
+        }} color={stopped ? "errorMain" : "primaryMain"} />
+    </TooltipV2>;
+
+    // TODO(Jonas): There is _some_ overlap that can be reused between the two instead of having to entirely different options
+    return upload.folderName ?
+        <TaskRow
+            error={upload.error}
+            icon={icon}
+            top={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
+            bottom={right}
+            status={right}
+            operations={inProgress ? <>
+                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
+                <Icon name="close" cursor="pointer" color="errorMain"
+                    onClick={() => callbacks.stopUploads([upload])} />
+            </> : removeOperation}
+            progressInfo={progressInfo}
+        /> : <TaskRow
+            error={upload.error}
+            top={title}
+            icon={icon}
+            bottom={right}
+            status={right}
+            operations={inProgress ? <>
+                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
+                    onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
+                    color="primaryMain" /> : null}
+                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
+                    onMouseEnter={() => setHoverPause(true)} /> : null}
+                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
+                    onClick={() => callbacks.stopUploads([upload])} />
+            </>
+                : <>
+                    {paused ? <Icon cursor="pointer" mr="8px" name="play"
+                        onClick={() => callbacks.resumeUploads([upload])}
+                        color="primaryMain" /> : null}
+                    {removeOperation}
+                </>}
+            progressInfo={progressInfo}
+        />;
+}
+
+export function TaskRow({top, bottom, status, icon, progressInfo, operations, error}: {
+    icon: React.ReactNode;
+    top: string | React.ReactNode;
+    bottom: string | React.ReactNode;
+    status: string | React.ReactNode;
+    operations: React.ReactNode;
+    error?: string;
+    progressInfo: {
+        indeterminate: boolean;
+        stopped: boolean;
+        progress: number;
+        limit: number;
+    };
+}): React.ReactNode {
+    const hasError = error != null;
+    return (<div className={TaskRowClass} data-has-error={hasError}>
+        <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
+            <Box ml="8px" my="auto">{icon}</Box>
+            <div className="text">
+                <Truncate>{top}</Truncate>
+                <Truncate>{bottom}</Truncate>
+                <Truncate>{status}</Truncate>
             </div>
-            <div className="error-box">
-                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
-            </div>
+            <Box mr="auto" />
+            <Box my="auto">{operations}</Box>
+            <Box my="auto" mr="4px" height="32px" >
+                <ProgressCircle
+                    indeterminate={!progressInfo.stopped && progressInfo.progress !== progressInfo.limit && progressInfo.indeterminate}
+                    failures={progressInfo.stopped ? progressInfo.limit : 0}
+                    successes={progressInfo.progress}
+                    total={progressInfo.limit}
+                    finishedColor="successLight"
+                    pendingColor="secondaryDark"
+                    size={32}
+                />
+            </Box>
+        </Flex>
+        <div className="error-box">
+            {hasError ? <div className={ErrorSpan}>{error}</div> : null}
         </div>
-    ) : (
-        <div className={UploaderRowClass} data-has-error={upload.error != null}>
-            <div>
-                <div><FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(upload.name)}} size="32px" /></div>
-                <div>
-                    <Truncate maxWidth="270px" color="var(--textPrimary)"
-                        fontSize="18px">{upload.name}</Truncate>
-                    <Text fontSize="12px">{sizeToString(upload.fileSizeInBytes ?? 0)}</Text>
-                </div>
-                <div />
-                <Flex mr="16px">
-                    <Text style={{fontSize: "var(--secondaryText)"}}>
-                        {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                        {" / "}
-                        {sizeToString(upload.fileSizeInBytes ?? 0)}
-                        {" "}
-                        ({sizeToString(uploadCalculateSpeed(upload))}/s)
-                    </Text>
-                    <Box mr="8px" />
-                    {inProgress ? <>
-                        {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                            onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                            color="primaryMain" /> : null}
-                        {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                            onMouseEnter={() => setHoverPause(true)} /> : null}
-                        <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                            onClick={() => callbacks.stopUploads([upload])} />
-                    </>
-                        :
-                        <>
-                            {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                                onClick={() => callbacks.resumeUploads([upload])}
-                                color="primaryMain" /> : null}
-                            <TooltipV2 tooltip={"Click to remove row"}>
-                                <Icon mr="16px" cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-                                    callbacks.clearUploads([upload]);
-                                    const fullFilePath = upload.targetPath + "/" + upload.name;
-                                    removeUploadFromStorage(fullFilePath);
-                                    upload.state = UploadState.DONE;
-                                }} color={stopped ? "errorMain" : "primaryMain"} />
-                            </TooltipV2>
-                        </>}
-                </Flex>
-            </div>
-            <div className="error-box">
-                {upload.error ? <div className={ErrorSpan}>{upload.error}</div> : null}
-            </div>
-        </div>
-    );
+    </div>)
 }
 
 const ErrorSpan = injectStyleSimple("error-span", `
     color: white;
-    border: 1px solid red;
-    background-color: red;
-    padding-left: 4px;
-    padding-right: 4px;
+    border: 1px solid var(-errorMain);
+    background-color: var(--errorMain);
+    padding-left: 6px;
+    padding-right: 6px;
     border-radius: 12px;
-    margin-right: 16px;
+    margin-right: 4px;
+    margin-left: 4px;
 `);
+
+export function TaskProgress({progress, limit, stopped}: {stopped: boolean; progress: number; limit: number}): React.JSX.Element {
+    return <NewAndImprovedProgress
+        limitPercentage={stopped ? 0 : 100}
+        height="8px"
+        width="100%"
+        percentage={progress / limit * 100}
+        progressColor={{start: "primaryMain", end: "primaryMain"}}
+        limitColor={{start: "errorMain", end: "errorMain"}}
+    />;
+}
 
 const UploaderArt: React.FunctionComponent = () => {
     return <div className={UploadArtWrapper}>
@@ -1146,9 +1103,9 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle: ReactModal.Styles = ({
     content: {
         ...largeModalStyle.content,
-        left: `calc(50vw - 300px)`,
+        left: `calc(50vw - 225px)`,
         minWidth: "250px",
-        width: "600px",
+        width: "450px",
         maxWidth: "600px",
         height: "auto",
         overflowY: "hidden",

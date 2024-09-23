@@ -78,11 +78,14 @@ fun DatabaseConfig.migrateAll() {
     data class SchemaMigrations(val schema: String, val location: Location, val loadedClasses: List<Class<*>>)
 
     val schemaPriority = mapOf(
-        "newaccounting" to 10000,
-        "file_orchestrator" to 10001,
-        "app_orchestrator" to 10002,
-        "file_ucloud" to 10003,
-        "app_kubernetes" to 10004,
+        "auth" to 10000,
+        "newaccounting" to 10001,
+        "provider" to 10002,
+        "task" to 10003,
+        "file_orchestrator" to 10004,
+        "app_orchestrator" to 10005,
+        "file_ucloud" to 10006,
+        "app_kubernetes" to 10007,
     )
     var priorityDontCareCounter = 0
 

@@ -22,6 +22,8 @@ import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.provider.api.Resources
+import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.TaskState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
@@ -47,20 +49,6 @@ data class FindByPath(override val id: String) : WithPath
 
 @Serializable
 @UCloudApiStable
-sealed class LongRunningTask {
-    @Serializable
-    @SerialName("complete")
-    @UCloudApiStable
-    class Complete : LongRunningTask()
-
-    @Serializable
-    @SerialName("continues_in_background")
-    @UCloudApiStable
-    data class ContinuesInBackground(val taskId: String) : LongRunningTask()
-}
-
-@Serializable
-@UCloudApiStable
 enum class FilesSortBy {
     PATH,
     SIZE,
@@ -83,7 +71,7 @@ data class FilesMoveRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesMoveResponse = BulkResponse<LongRunningTask?>
+typealias FilesMoveResponse = BulkResponse<BackgroundTask?>
 
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 
@@ -94,10 +82,10 @@ data class FilesCopyRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesCopyResponse = BulkResponse<LongRunningTask?>
+typealias FilesCopyResponse = BulkResponse<BackgroundTask?>
 
 typealias FilesDeleteRequest = BulkRequest<FindByPath>
-typealias FilesDeleteResponse = BulkResponse<LongRunningTask>
+typealias FilesDeleteResponse = BulkResponse<BackgroundTask>
 
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
 
@@ -107,7 +95,7 @@ data class FilesCreateFolderRequestItem(
     override val id: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
-typealias FilesCreateFolderResponse = BulkResponse<LongRunningTask?>
+typealias FilesCreateFolderResponse = BulkResponse<BackgroundTask?>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 
@@ -120,12 +108,12 @@ data class FilesUpdateAclRequestItem(
 typealias FilesUpdateAclResponse = Unit
 
 typealias FilesTrashRequest = BulkRequest<FindByPath>
-typealias FilesTrashResponse = BulkResponse<LongRunningTask?>
+typealias FilesTrashResponse = BulkResponse<BackgroundTask?>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 
 typealias FilesEmptyTrashRequest = BulkRequest<FindByPath>
-typealias FilesEmptyTrashResponse = BulkResponse<LongRunningTask?>
+typealias FilesEmptyTrashResponse = BulkResponse<BackgroundTask?>
 
 @Serializable
 @UCloudApiStable
@@ -291,7 +279,26 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesMoveRequestItem("/123/my/file", "/123/my/new_file", WriteConflictPolicy.REJECT)
                     ),
-                    FilesMoveResponse(listOf(LongRunningTask.Complete())),
+                    FilesMoveResponse(
+                        listOf(
+                            BackgroundTask(
+                                taskId = 1,
+                                10L,
+                                10L,
+                                "user",
+                                provider = "K8",
+                                status = BackgroundTask.Status(
+                                    TaskState.SUCCESS,
+                                    "Moving File",
+                                    "Done"
+                                ),
+                                BackgroundTask.Specification(
+                                    canPause = true,
+                                    canCancel = false
+                                )
+                            )
+                        )
+                    ),
                     user
                 )
             }
@@ -316,7 +323,26 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesCopyRequestItem("/123/my/file", "/123/my/file", WriteConflictPolicy.RENAME)
                     ),
-                    FilesMoveResponse(listOf(LongRunningTask.Complete())),
+                    FilesMoveResponse(
+                        listOf(
+                            BackgroundTask(
+                                taskId = 2,
+                                10L,
+                                10L,
+                                "user",
+                                provider = "K8",
+                                status = BackgroundTask.Status(
+                                    TaskState.SUCCESS,
+                                    "Copying File",
+                                    "Done"
+                                ),
+                                BackgroundTask.Specification(
+                                    canPause = false,
+                                    canCancel = false
+                                )
+                            )
+                        )
+                    ),
                     user
                 )
             }
@@ -412,7 +438,26 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             WriteConflictPolicy.REJECT
                         )
                     ),
-                    FilesCreateFolderResponse(listOf(LongRunningTask.Complete())),
+                    FilesCreateFolderResponse(
+                        listOf(
+                            BackgroundTask(
+                                taskId = 1,
+                                10L,
+                                10L,
+                                "user",
+                                provider = "K8",
+                                status = BackgroundTask.Status(
+                                    TaskState.SUCCESS,
+                                    "Creating Folder",
+                                    "Done"
+                                ),
+                                BackgroundTask.Specification(
+                                    canPause = false,
+                                    canCancel = false
+                                )
+                            )
+                        )
+                    ),
                     user
                 )
             }
@@ -441,8 +486,38 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     ),
                     BulkResponse(
                         listOf(
-                            LongRunningTask.Complete(),
-                            LongRunningTask.Complete(),
+                            BackgroundTask(
+                                taskId = 1,
+                                10L,
+                                10L,
+                                "user",
+                                provider = "K8",
+                                status = BackgroundTask.Status(
+                                    TaskState.SUCCESS,
+                                    "Moving Folder To Trash",
+                                    "Done"
+                                ),
+                                BackgroundTask.Specification(
+                                    canPause = false,
+                                    canCancel = true
+                                )
+                            ),
+                            BackgroundTask(
+                                taskId = 2,
+                            10L,
+                            10L,
+                            "user",
+                                provider = "K8",
+                            status = BackgroundTask.Status(
+                                TaskState.SUCCESS,
+                                "Moving File to Trash",
+                                "Done"
+                            ),
+                            BackgroundTask.Specification(
+                                canPause = false,
+                                canCancel = true
+                            )
+                        )
                         )
                     ),
                     user
@@ -471,7 +546,22 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     ),
                     BulkResponse(
                         listOf(
-                            LongRunningTask.Complete(),
+                            BackgroundTask(
+                                taskId = 1,
+                                10L,
+                                10L,
+                                "user",
+                                provider = "K8",
+                                status = BackgroundTask.Status(
+                                    TaskState.SUCCESS,
+                                    "Emptying Trash",
+                                    "Done"
+                                ),
+                                BackgroundTask.Specification(
+                                    canPause = true,
+                                    canCancel = false
+                                )
+                            )
                         )
                     ),
                     user
@@ -687,7 +777,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         ))
     }
 
-    val move = call("move", BulkRequest.serializer(FilesMoveRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val move = call("move", BulkRequest.serializer(FilesMoveRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move")
 
         documentation {
@@ -720,7 +810,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val copy = call("copy", BulkRequest.serializer(FilesCopyRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val copy = call("copy", BulkRequest.serializer(FilesCopyRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "copy")
 
         documentation {
@@ -812,7 +902,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val createFolder = call("createFolder", BulkRequest.serializer(FilesCreateFolderRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val createFolder = call("createFolder", BulkRequest.serializer(FilesCreateFolderRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "folder")
 
         documentation {
@@ -836,7 +926,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val trash = call("trash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val trash = call("trash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "trash")
 
         documentation {
@@ -872,7 +962,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "emptyTrash")
 
         documentation {

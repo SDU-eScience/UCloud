@@ -37,6 +37,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     size?: string | number;
     squared?: boolean;
     spin?: boolean;
+    spinSpeed?: string;
     hoverColor?: ThemeColor | HexColor;
     title?: string;
     className?: string;
@@ -45,6 +46,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
 
 export const IconClass = injectStyle("icon", k => `
     ${k} {
+        --spinSpeed: 1s;
         flex: none;
         vertical-align: middle;
         transition: transform .2s ease-in-out; 
@@ -55,7 +57,7 @@ export const IconClass = injectStyle("icon", k => `
     }
     
     ${k}[data-spin="true"] {
-        animation: icon-spin 1s linear infinite;
+        animation: icon-spin var(--spinSpeed) linear infinite;
     }
     
     @keyframes icon-spin {
@@ -68,6 +70,7 @@ const Icon: React.FunctionComponent<IconBaseProps> = ({size = 18, squared = true
     const style: CSSProperties = unbox(props);
     if (props.color) style["--color"] = `var(--${props.color})`;
     if (props.hoverColor) style["--hoverColor"] = `var(--${props.hoverColor})`;
+    if (props.spinSpeed) style["--spinSpeed"] = props.spinSpeed;
     if (props.rotation) style.transform = `rotate(${props.rotation}deg)`;
     style.cursor = props.cursor ?? "inherit";
     if (props.name === "fork") {
