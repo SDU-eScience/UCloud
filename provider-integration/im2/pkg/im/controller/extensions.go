@@ -2,10 +2,17 @@ package controller
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+
+	db "ucloud.dk/pkg/database"
+	fnd "ucloud.dk/pkg/foundation"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -42,6 +49,100 @@ func prepareFile(req any) (string, bool) {
 	return file.Name(), true
 }
 
+func InitScriptsLogDatabase() {
+	CliScriptsCreate.Handler(func(r *ipc.Request[CliScriptsCreateRequest]) ipc.Response[int] {
+		if r.Uid != 0 {
+			return ipc.Response[int]{
+				StatusCode: http.StatusForbidden,
+				Payload:    0,
+			}
+		}
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					insert into script_log(timestamp, request, script_path, stdout, stderr, status_code, uid, success)
+					values (now(), :request, :script_path, :stdout, :stderr, :status_code, :uid, :success)
+				`,
+				db.Params{
+					"request":     r.Payload.Request,
+					"script_path": r.Payload.Path,
+					"stdout":      r.Payload.Stdout,
+					"stderr":      r.Payload.Stderr,
+					"status_code": r.Payload.StatusCode,
+					"uid":         r.Uid,
+					"success":     r.Payload.Success,
+				},
+			)
+		})
+
+		return ipc.Response[int]{
+			StatusCode: http.StatusOK,
+			Payload:    0,
+		}
+	})
+
+	CliScriptsRetrieve.Handler(func(r *ipc.Request[CliScriptsRetrieveRequest]) ipc.Response[scriptLogEntry] {
+		if r.Uid != 0 {
+			return ipc.Response[scriptLogEntry]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		return db.NewTx(func(tx *db.Transaction) ipc.Response[scriptLogEntry] {
+			result, ok := db.Get[scriptLogEntry](
+				tx,
+				`
+					select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
+					from script_log
+					where id = :id
+				`,
+				db.Params{
+					"id": r.Payload.Id,
+				},
+			)
+
+			if !ok {
+				return ipc.Response[scriptLogEntry]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+
+			fmt.Printf("%v\n", result)
+
+			return ipc.Response[scriptLogEntry]{
+				StatusCode: http.StatusOK,
+				Payload:    result,
+			}
+		})
+	})
+
+	CliScriptsList.Handler(func(r *ipc.Request[CliScriptsListRequest]) ipc.Response[[]scriptLogEntry] {
+		if r.Uid != 0 {
+			return ipc.Response[[]scriptLogEntry]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		result := db.NewTx(func(tx *db.Transaction) []scriptLogEntry {
+			return db.Select[scriptLogEntry](
+				tx,
+				`
+				select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
+				from script_log
+			`,
+				db.Params{},
+			)
+		})
+
+		return ipc.Response[[]scriptLogEntry]{
+			StatusCode: http.StatusOK,
+			Payload:    result,
+		}
+	})
+}
+
 func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	var resp Resp
 	if e.Script == "" {
@@ -55,6 +156,15 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 
 	requestFile, ok := prepareFile(req)
 	if !ok {
+		reqBytes, _ := json.Marshal(req)
+		respBytes, _ := json.Marshal(resp)
+
+		reqString := base64.StdEncoding.EncodeToString(reqBytes)
+		respString := base64.StdEncoding.EncodeToString(respBytes)
+
+		CliScriptsCreate.Invoke(
+			CliScriptsCreateRequest{e.Script, reqString, respString, "", "", 0, false},
+		)
 		return resp, false
 	}
 
@@ -69,6 +179,18 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
 		log.Warn("%v extension failed: %s %v", e.Script, s, err)
+
+		stdoutString := base64.StdEncoding.EncodeToString(stdout.Bytes())
+		stderrString := base64.StdEncoding.EncodeToString(stderr.Bytes())
+		reqBytes, _ := json.Marshal(req)
+		respBytes, _ := json.Marshal(resp)
+
+		reqString := base64.StdEncoding.EncodeToString(reqBytes)
+		respString := base64.StdEncoding.EncodeToString(respBytes)
+
+		CliScriptsCreate.Invoke(
+			CliScriptsCreateRequest{requestFile, reqString, respString, stdoutString, stderrString, 0, false},
+		)
 		return resp, false
 	}
 
@@ -84,9 +206,57 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		return resp, false
 	}
 
+	stdoutString := base64.StdEncoding.EncodeToString(stdout.Bytes())
+	stderrString := base64.StdEncoding.EncodeToString(stderr.Bytes())
+	reqBytes, _ := json.Marshal(req)
+	respBytes, _ := json.Marshal(resp)
+
+	reqString := base64.StdEncoding.EncodeToString(reqBytes)
+	respString := base64.StdEncoding.EncodeToString(respBytes)
+
+	CliScriptsCreate.Invoke(
+		CliScriptsCreateRequest{e.Script, reqString, respString, stdoutString, stderrString, 0, true},
+	)
+
 	return resp, true
 }
 
 func NewScript[Req any, Resp any]() Script[Req, Resp] {
 	return Script[Req, Resp]{}
 }
+
+type CliScriptsCreateRequest struct {
+	Path       string
+	Request    string
+	Response   string
+	Stdout     string
+	Stderr     string
+	StatusCode int
+	Success    bool
+}
+
+type CliScriptsRetrieveRequest struct {
+	Id uint64
+}
+
+type CliScriptsListRequest struct{}
+type CliScriptsClearRequest struct{}
+
+type scriptLogEntry struct {
+	Timestamp  fnd.Timestamp
+	Id         uint64
+	Request    string
+	ScriptPath string
+	Stdout     string
+	Stderr     string
+	StatusCode string
+	Success    bool
+	Uid        int
+}
+
+var (
+	CliScriptsCreate   = ipc.NewCall[CliScriptsCreateRequest, int]("cli.slurm.scripts.create")
+	CliScriptsRetrieve = ipc.NewCall[CliScriptsRetrieveRequest, scriptLogEntry]("cli.slurm.scripts.retrieve")
+	CliScriptsList     = ipc.NewCall[CliScriptsListRequest, []scriptLogEntry]("cli.slurm.scripts.browse")
+	CliScriptsClear    = ipc.NewCall[CliScriptsClearRequest, int]("cli.slurm.scripts.clear")
+)

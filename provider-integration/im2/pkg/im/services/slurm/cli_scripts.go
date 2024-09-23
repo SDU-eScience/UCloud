@@ -1,27 +1,24 @@
 package slurm
 
 import (
-	"fmt"
-	"net/http"
 	"os"
+	"strconv"
 
-	db "ucloud.dk/pkg/database"
-	fnd "ucloud.dk/pkg/foundation"
-	"ucloud.dk/pkg/im/ipc"
-	"ucloud.dk/pkg/log"
+	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/termio"
 )
 
-type scriptLogEntry struct {
-	Timestamp  fnd.Timestamp
-	Id         uint64
-	Request    string
-	ScriptPath string
-	Stdout     string
-	Stderr     string
-	StatusCode string
-	Success    bool
-	Uid        int
+func writeHelp() {
+	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "help      ")
+	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Prints this help text")
+
+	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "ls")
+	termio.WriteStyled(termio.NoStyle, termio.DefaultColor, 0, " | ")
+	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "list ")
+	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Lists log of all previously run scripts")
+
+	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "get <ID>  ")
+	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Retrieves a detailed overview of one script log entry")
 }
 
 func HandleScriptsCommand() {
@@ -30,70 +27,104 @@ func HandleScriptsCommand() {
 		os.Exit(1)
 	}
 
-	response, err := cliScriptsList.Invoke(cliScriptsListRequest{})
-
-	if err != nil {
-		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
+	command := ""
+	if len(os.Args) >= 3 {
+		command = os.Args[2]
 	}
 
-	for _, entry := range response {
-		termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "%d %s %s", entry.Uid, entry.ScriptPath, entry.Success)
-	}
-}
+	switch {
+	case isHelpCommand(command):
+		writeHelp()
+	case isListCommand(command):
+		response, err := ctrl.CliScriptsList.Invoke(ctrl.CliScriptsListRequest{})
+		if err != nil {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
+			return
+		}
 
-func HandleScriptsCommandServer() {
-	cliScriptsList.Handler(func(r *ipc.Request[cliScriptsListRequest]) ipc.Response[[]scriptLogEntry] {
-		if r.Uid != 0 {
-			return ipc.Response[[]scriptLogEntry]{
-				StatusCode: http.StatusForbidden,
+		if len(response) < 1 {
+			termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "No entries in script log")
+			return
+		}
+
+		t := termio.Table{}
+
+		t.AppendHeader("ID")
+		t.AppendHeader("Path")
+		t.AppendHeader("UID")
+		t.AppendHeader("Status")
+
+		for _, entry := range response {
+			t.Cell("%d", entry.Id)
+			t.Cell("%s", entry.ScriptPath)
+			t.Cell("%d", entry.Uid)
+
+			switch entry.Success {
+			case true:
+				t.Cell("SUCCESS")
+			case false:
+				t.Cell("FAILED")
 			}
 		}
-		log.Info("Making transaction")
 
-		result := db.NewTx(func(tx *db.Transaction) []scriptLogEntry {
-			var result []scriptLogEntry
-			rows := db.Select[struct {
-				timestamp  fnd.Timestamp
-				id         uint64
-				request    string
-				scriptPath string
-				stdout     string
-				stderr     string
-				statusCode string
-				success    bool
-				uid        int
-			}](
-				tx,
-				`
-				select *
-				from script_log
-			`,
-				db.Params{},
-			)
+		termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "Use ucloud scripts get <ID> to view details")
 
-			for _, row := range rows {
-				fmt.Printf("%d %s\n", row.id, row.scriptPath)
-				result = append(
-					result,
-					scriptLogEntry{
-						Id:         row.id,
-						ScriptPath: row.scriptPath,
-					},
-				)
-			}
+		t.Print()
+	case isGetCommand(command):
+		if len(os.Args) < 4 {
+			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "Syntax: ")
+			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "ucloud scripts get <ID>")
+			return
+		}
 
-			return result
+		getId, err := strconv.Atoi(os.Args[3])
+		if err != nil {
+			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "Syntax: ")
+			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "ucloud scripts get <ID>")
+			return
+		}
+
+		response, err := ctrl.CliScriptsRetrieve.Invoke(ctrl.CliScriptsRetrieveRequest{Id: uint64(getId)})
+		if err != nil {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
+			return
+		}
+
+		t := termio.Table{}
+
+		t.AppendHeader("Key")
+		t.AppendHeader("Value")
+
+		t.Cell("ID")
+		t.Cell("%d", response.Id)
+
+		t.Cell("Path")
+		t.Cell("%s", response.ScriptPath)
+
+		t.Cell("UID")
+		t.Cell("%d", response.Uid)
+
+		t.Cell("Status")
+		switch response.Success {
+		case true:
+			t.Cell("SUCCESS")
+		case false:
+			t.Cell("FAILED")
+		}
+
+		t.Print()
+
+	case command == "test":
+		ctrl.CliScriptsCreate.Invoke(ctrl.CliScriptsCreateRequest{
+			Path:       "/test/path",
+			Request:    "some request",
+			Response:   "some response",
+			Stdout:     "some stdout",
+			Stderr:     "some stderr",
+			StatusCode: 0,
+			Success:    true,
 		})
-
-		return ipc.Response[[]scriptLogEntry]{
-			StatusCode: http.StatusOK,
-			Payload:    result,
-		}
-	})
+	default:
+		writeHelp()
+	}
 }
-
-type cliScriptsListRequest struct{}
-
-var (
-	cliScriptsList = ipc.NewCall[cliScriptsListRequest, []scriptLogEntry]("cli.slurm.scripts.list")
-)

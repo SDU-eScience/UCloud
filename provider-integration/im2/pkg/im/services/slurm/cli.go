@@ -52,7 +52,6 @@ func InitCliServer() {
 	HandleJobsCommandServer()
 	HandleDrivesCommandServer()
 	HandleAllocationsCommandServer()
-	HandleScriptsCommandServer()
 }
 
 func isListCommand(command string) bool {
@@ -108,6 +107,15 @@ func isDeleteCommand(command string) bool {
 func isReplaceCommand(command string) bool {
 	switch command {
 	case "replace":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHelpCommand(command string) bool {
+	switch command {
+	case "help":
 		return true
 	default:
 		return false
