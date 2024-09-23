@@ -16,7 +16,7 @@ import dk.sdu.cloud.base64Encode
 object FeatureMiscellaneous : JobFeature {
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val application = resources.findResources(job).application
-        val containerConfig = application.invocation.container ?: ContainerDescription()
+        val containerConfig = application.invocation!!.container ?: ContainerDescription()
 
         if (containerConfig.changeWorkingDirectory) builder.workingDirectory = "/work"
         builder.shouldAllowRoot = containerConfig.runAsRoot

@@ -33,7 +33,7 @@ class FeatureParameter(
     private val argBuilder = OurArgBuilder(pathConverter, pluginContext)
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
-        val app = resources.findResources(job).application.invocation
+        val app = resources.findResources(job).application.invocation!!
 
         val defaultParameters: Map<ApplicationParameter, AppParameterValue> = buildMap {
             for (it in app.parameters) {

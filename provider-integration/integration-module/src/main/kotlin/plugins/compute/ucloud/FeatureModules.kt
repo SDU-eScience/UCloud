@@ -9,7 +9,7 @@ object FeatureModules : JobFeature {
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         if (builder !is PodBasedBuilder) return
         val modules = pluginConfig.modules ?: return
-        val app = resources.findResources(job).application.invocation
+        val app = resources.findResources(job).application.invocation!!
         val appModules = app.modules
         if (appModules != null && appModules.optional.isNotEmpty()) {
             builder.environment("UCLOUD_MODULES_ROOT", appModules.mountPath)
@@ -60,7 +60,7 @@ object FeatureModules : JobFeature {
         val modules = pluginConfig.modules ?: return
         val parametersToMatch = modules.legacy.parametersToMatch
         if (parametersToMatch.isEmpty()) return
-        val app = resources.findResources(job).application.invocation
+        val app = resources.findResources(job).application.invocation!!
         val mountPath = app.modules?.mountPath ?: "/opt/ucloud-modules"
         val normalizedMountPath = mountPath.removeSuffix("/") + "/"
 
