@@ -7,10 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.days
 
 class DataVisualization(
@@ -152,20 +149,21 @@ class DataVisualization(
                     it.paysFor.name == category && it.paysFor.provider == provider
                 }
             }
-
+        }
             coroutineScope {
                 val usageOverTime = launch {
                     // Usage over time
-                    val rows = session.sendPreparedStatement(
-                        {
-                            setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                                w.allocationGroups.map { it.group.id }
-                            })
+                    db.withSession { session ->
+                        val rows = session.sendPreparedStatement(
+                            {
+                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
+                                    w.allocationGroups.map { it.group.id }
+                                })
 
-                            setParameter("start", request.start)
-                            setParameter("end", request.end)
-                        },
-                        """
+                                setParameter("start", request.start)
+                                setParameter("end", request.end)
+                            },
+                            """
                         with samples as (
                             select
                                 s.wallet_id,
@@ -203,32 +201,33 @@ class DataVisualization(
                             join samples s on w.id = s.wallet_id
                         order by pc.id, s.sample_time desc 
                     """
-                    ).rows
+                        ).rows
 
-                    var currentProductCategory = -1L
+                        var currentProductCategory = -1L
 
-                    var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
-                    fun flushChart() {
-                        if (currentProductCategory != -1L) {
-                            usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
-                            dataPoints = ArrayList()
-                        }
-                    }
-
-                    for (row in rows) {
-                        val allocCategory = row.getLong(0)!!
-                        val usage = row.getDouble(1)!!
-                        val quota = row.getLong(2)!!
-                        val timestamp = row.getLong(3)!!
-
-                        if (currentProductCategory != allocCategory) {
-                            flushChart() // no-op if currentProductCategory = -1L
-                            currentProductCategory = allocCategory
+                        var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                        fun flushChart() {
+                            if (currentProductCategory != -1L) {
+                                usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
+                                dataPoints = ArrayList()
+                            }
                         }
 
-                        dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                        for (row in rows) {
+                            val allocCategory = row.getLong(0)!!
+                            val usage = row.getDouble(1)!!
+                            val quota = row.getLong(2)!!
+                            val timestamp = row.getLong(3)!!
+
+                            if (currentProductCategory != allocCategory) {
+                                flushChart() // no-op if currentProductCategory = -1L
+                                currentProductCategory = allocCategory
+                            }
+
+                            dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                        }
+                        flushChart()
                     }
-                    flushChart()
                 }
 
                 val breakDownByProject = launch {
@@ -353,9 +352,6 @@ class DataVisualization(
                     }
                 }
             }
-        }
-
-
         return assembleResult()
     }
 }
