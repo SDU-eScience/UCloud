@@ -60,9 +60,25 @@ class AccountingController(
                         req.project,
                         req.useProject,
                         req.filterProductType,
+                        req.includeFreeToUse,
                     )
                 ).let { AccountingV2.FindRelevantProviders.Response(it.toList()) }
             }
+            ok(BulkResponse(responses))
+        }
+
+        implementOrDispatch(AccountingV2.findAllProviders) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            val responses = request.items.map { req ->
+                accounting.sendRequest(
+                    AccountingRequest.FindAllProviders(
+                        idCard,
+                        req.filterProductType,
+                        req.includeFreeToUse,
+                    )
+                ).let { AccountingV2.FindAllProviders.Response(it.toList()) }
+            }
+
             ok(BulkResponse(responses))
         }
 

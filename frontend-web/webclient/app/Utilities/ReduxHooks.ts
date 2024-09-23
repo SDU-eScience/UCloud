@@ -1,12 +1,15 @@
 import {useDispatch, useSelector} from "react-redux";
 import {useCallback} from "react";
 import {ProjectCache} from "@/Project";
+import * as AppStore from "@/Applications/AppStoreApi";
 
 export interface HookStore {
     uploaderVisible?: boolean;
     uploadPath?: string;
 
     projectCache?: ProjectCache;
+    catalogLandingPage?: AppStore.LandingPage;
+    catalogDiscovery?: AppStore.CatalogDiscovery;
 }
 
 type Action = GenericSetAction | GenericMergeAction;

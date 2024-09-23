@@ -53,16 +53,6 @@ class FileController(private val files: FilesService) : Controller {
             ok(files.transfer(actorAndProject, request))
         }
 
-        implement(FilesControl.addUpdate) {
-            files.addTaskUpdate(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(FilesControl.markAsComplete) {
-            files.markTaskAsComplete(actorAndProject, request)
-            ok(Unit)
-        }
-
         return@with
     }
 }

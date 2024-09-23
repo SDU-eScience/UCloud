@@ -32,7 +32,7 @@ class FeatureTask(
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val jobResources = resources.findResources(job)
         val app = jobResources.application.invocation
-        val tool = app.tool.tool!!.description
+        val tool = app!!.tool.tool!!.description
 
         @Suppress("DEPRECATION")
         builder.image(tool.container!!)

@@ -1,115 +1,68 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Input, Link, List} from "@/ui-components";
-import React, {useCallback, useState} from "react";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Box, Button, Flex, Icon, Input, Label, Link, List, Select} from "@/ui-components";
+import React, {useRef, useState} from "react";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router";
 import {SafeLogo} from "../AppToolLogo";
 import {ListRow} from "@/ui-components/List";
-import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {doNothing} from "@/UtilityFunctions";
+import * as Heading from "@/ui-components/Heading";
+import {doNothing, inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {dialogStore} from "@/Dialog/DialogStore";
-import AppRoutes from "@/Routes";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {useProjectId} from "@/Project/Api";
+import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
 
 export const ApplicationGroups: React.FunctionComponent = () => {
+    const projectId = useProjectId();
     const [filter, setTitleFilter] = React.useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const navigate = useNavigate();
+    const selectRef = useRef<HTMLSelectElement>(null);
 
     const createRef = React.useRef<HTMLInputElement>(null);
     const filterRef = React.useRef<HTMLInputElement>(null);
 
-    const [allGroups, setGroups] = useCloudAPI(
-        AppStore.browseGroups({itemsPerPage: 250}),
-        emptyPageV2,
-    );
+    const [allGroups, setGroups] = React.useState<AppStore.ApplicationGroup[]>([]);
     
-    usePage("Application groups", SidebarTabId.ADMIN)
+    React.useEffect(() => {
+        fetchGroups();
+    }, [projectId]);
 
-    const refresh = useCallback(() => {
-        setGroups(AppStore.browseGroups({itemsPerPage: 250})).then(doNothing);
-    }, []);
+    usePage("Application groups", SidebarTabId.APPLICATION_STUDIO)
+
+    const fetchGroups = () => {
+        fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})))
+            .then(groups => setGroups(groups));
+    };
 
     const results = React.useMemo(() => {
-        return allGroups.data.items.filter(it => it.specification.title.toLowerCase().includes(filter.toLowerCase()))
-    }, [allGroups.data, filter]);
+        return allGroups.filter(it => it.specification.title.toLowerCase().includes(filter.toLowerCase()))
+    }, [allGroups, filter]);
 
-    useSetRefreshFunction(refresh);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     return (
         <MainContainer
             header={
-                <Box maxWidth="800px" ml="auto" mr="auto">
-                    <h3 className="title">Application groups</h3>
-                </Box>
+                <Flex justifyContent="space-between">
+                    <Heading.h2>Application groups</Heading.h2>
+                    <ContextSwitcher />
+                </Flex>
             }
             main={
-                <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
+                <>
                     <Flex gap={"16px"} mb={"32px"} flexWrap={"wrap"}>
-                        <label className={ButtonClass} style={{flexGrow: 1}}>
-                            Upload application
-                            <HiddenInputField
-                                type="file"
-                                onChange={async e => {
-                                    const target = e.target;
-                                    if (target.files) {
-                                        const file = target.files[0];
-                                        target.value = "";
-                                        if (file.size > 1024 * 1024 * 5) {
-                                            snackbarStore.addFailure("File exceeds 5MB. Not allowed.", false);
-                                        } else {
-                                            const error = (await AppStore.create(file)).error;
-                                            if (error != null) {
-                                                setErrorMessage(error);
-                                            } else {
-                                                snackbarStore.addSuccess("Application uploaded successfully", false);
-                                                setErrorMessage(null);
-                                            }
-                                        }
-                                        dialogStore.success();
-                                    }
-                                }}
-                            />
-                        </label>
+                        <UploadAppAndTool onError={(err) => setErrorMessage(err)} onSuccess={doNothing} style={{flexGrow: 1}} />
 
-                        <label className={ButtonClass} style={{flexGrow: 1}}>
-                            Upload tool
-                            <HiddenInputField
-                                type="file"
-                                onChange={async e => {
-                                    const target = e.target;
-                                    if (target.files) {
-                                        const file = target.files[0];
-                                        target.value = "";
-                                        if (file.size > 1024 * 512) {
-                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                        } else {
-                                            const error = (await AppStore.createTool(file)).error;
-                                            if (error != null) {
-                                                setErrorMessage(error);
-                                            } else {
-                                                snackbarStore.addSuccess("Tool uploaded successfully", false);
-                                                setErrorMessage(null);
-                                            }
-                                        }
-                                        dialogStore.success();
-                                    }
-                                }}
-                            />
-                        </label>
-
-                        <Link to={AppRoutes.apps.studioHero()} flexGrow={1}><Button fullWidth>Carrousel</Button></Link>
-                        <Link to={AppRoutes.apps.studioTopPicks()} flexGrow={1}><Button fullWidth>Top picks</Button></Link>
-                        <Link to={AppRoutes.apps.studioSpotlights()} flexGrow={1}><Button fullWidth>Spotlights</Button></Link>
-                        <Link to={AppRoutes.apps.studioCategories()} flexGrow={1}><Button fullWidth>Categories</Button></Link>
                         <Box flexGrow={1}>
                             <Button fullWidth onClick={() => {
                                 AppStore.doExport().then(s => {
@@ -124,31 +77,33 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                             </Button>
                         </Box>
 
-                        <label className={ButtonClass} style={{flexGrow: 1}}>
-                            Import from ZIP
-                            <HiddenInputField
-                                type="file"
-                                onChange={async e => {
-                                    const target = e.target;
-                                    if (target.files) {
-                                        const file = target.files[0];
-                                        target.value = "";
-                                        if (file.size > 1024 * 1024 * 64) {
-                                            snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
-                                        } else {
-                                            const error = (await AppStore.doImport(file)).error;
-                                            if (error != null) {
-                                                setErrorMessage(error);
+                        {!inDevEnvironment() ? null :
+                            <label className={ButtonClass} style={{flexGrow: 1}}>
+                                Import from ZIP
+                                <HiddenInputField
+                                    type="file"
+                                    onChange={async e => {
+                                        const target = e.target;
+                                        if (target.files) {
+                                            const file = target.files[0];
+                                            target.value = "";
+                                            if (file.size > 1024 * 1024 * 64) {
+                                                snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                             } else {
-                                                snackbarStore.addSuccess("Tool uploaded successfully", false);
-                                                setErrorMessage(null);
+                                                const error = (await AppStore.doImport(file)).error;
+                                                if (error != null) {
+                                                    setErrorMessage(error);
+                                                } else {
+                                                    snackbarStore.addSuccess("Tool uploaded successfully", false);
+                                                    setErrorMessage(null);
+                                                }
                                             }
+                                            dialogStore.success();
                                         }
-                                        dialogStore.success();
-                                    }
-                                }}
-                            />
-                        </label>
+                                    }}
+                                />
+                            </label>
+                        }
                     </Flex>
 
                     {errorMessage && <Box mb={"32px"}>
@@ -212,14 +167,13 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 } right={
                                 <ConfirmationButton onAction={() => {
                                     invokeCommand(AppStore.deleteGroup({id: group.metadata.id})).then(doNothing);
-                                    refresh();
+                                    fetchGroups();
                                 }} icon="heroTrash" />
                             }
                             />
                         ))}
                     </List>
-                </Box>
-            }
+                </>}
         />);
 };
 

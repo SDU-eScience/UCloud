@@ -98,7 +98,6 @@ data class ProductCategoryId(
 @UCloudApiOwnedBy(Products::class)
 @UCloudApiDoc("Contains a unique reference to a Product")
 @UCloudApiStable
-@Deprecated("Use ProductReferenceV2")
 data class ProductReference(
     @UCloudApiDoc("The `Product` ID")
     val id: String,

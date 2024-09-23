@@ -40,12 +40,12 @@ class JobVerificationService(
             if (specification.timeAllocation!!.toMillis() <= 0) {
                 throw JobException.VerificationError("Time allocated for job is too short.")
             }
-            if (application.invocation.tool.tool?.description?.backend == ToolBackend.VIRTUAL_MACHINE) {
+            if (application.invocation!!.tool.tool?.description?.backend == ToolBackend.VIRTUAL_MACHINE) {
                 specification.timeAllocation = null
             }
         }
 
-        val sshMode = application.invocation.ssh?.mode ?: SshDescription.Mode.DISABLED
+        val sshMode = application.invocation!!.ssh?.mode ?: SshDescription.Mode.DISABLED
         if (specification.sshEnabled == true && sshMode == SshDescription.Mode.DISABLED) {
             throw JobException.VerificationError("This application does not support SSH but sshEnabled was true")
         }
@@ -56,7 +56,7 @@ class JobVerificationService(
 
         // Check peers
         run {
-            val parameterPeers = application.invocation.parameters
+            val parameterPeers = application.invocation!!.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
                 .mapNotNull { verifiedParameters[it.name] as AppParameterValue.Peer? }
 
@@ -212,16 +212,16 @@ class JobVerificationService(
         specification: JobSpecification,
     ): Map<String, AppParameterValue> {
         val userParameters = HashMap(specification.parameters)
-        val paramKeys = app.invocation.parameters.map { it.name }
+        val paramKeys = app.invocation!!.parameters.map { it.name }
         userParameters.forEach { (k, _) ->
             if (!paramKeys.contains(k)) {
                 throw RPCException("Unknown parameter given: $k", HttpStatusCode.BadRequest)
             }
         }
-        if (userParameters.isNotEmpty() && app.invocation.parameters.isEmpty()) {
+        if (userParameters.isNotEmpty() && app.invocation!!.parameters.isEmpty()) {
             throw RPCException("Unknown parameter(s) given", HttpStatusCode.BadRequest)
         }
-        for (param in app.invocation.parameters) {
+        for (param in app.invocation!!.parameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
                 log.debug("Missing value: param=${param} providedValue=${providedValue}")

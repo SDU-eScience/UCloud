@@ -13,18 +13,35 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
+import {useDiscovery} from "@/Applications/Hooks";
+import {injectStyle} from "@/Unstyled";
 
-const ApplicationsOverview: React.FunctionComponent = () => {
+const OverviewStyle = injectStyle("app-overview", k => `
+    ${k} {
+        margin: 0 auto;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 1100px;
+        min-width: 600px;
+        min-height: 100vh;
+    }
+`);
+
+const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();
     const idParam = getQueryParam(location.search, "categoryId");
     const id = parseInt(idParam ?? "-1");
 
-    const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id}), null);
+    const [discovery] = useDiscovery();
+    const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id, ...discovery}), null);
     const category = categoryState.data;
     const groups = category?.status?.groups ?? [];
 
     const refresh = useCallback(() => {
-        fetchCategory(AppStore.retrieveCategory({id})).then(doNothing);
+        fetchCategory(AppStore.retrieveCategory({id, ...discovery})).then(doNothing);
     }, [id]);
 
     useEffect(() => {
@@ -72,4 +89,4 @@ export function AppGrid(props: React.PropsWithChildren): React.ReactNode {
     </Grid>
 }
 
-export default ApplicationsOverview;
+export default ApplicationsCategory;

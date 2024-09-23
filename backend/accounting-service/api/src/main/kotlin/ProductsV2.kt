@@ -225,7 +225,6 @@ sealed class ProductV2 {
     }
 }
 
-@Suppress("DEPRECATION")
 typealias ProductReferenceV2 = ProductReference
 
 interface ProductFlagsV2 {

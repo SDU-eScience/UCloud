@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2024.1.66-TaskService9"
+        val version = "2024.1.69"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 

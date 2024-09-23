@@ -115,6 +115,13 @@ sealed class AccountingRequest<Resp> {
         val project: String?,
         val useProject: Boolean,
         val filterProductType: ProductType? = null,
+        val includeFreeToUse: Boolean = true,
+    ) : AccountingRequest<Set<String>>()
+
+    data class FindAllProviders(
+        override val idCard: IdCard,
+        val filterProductType: ProductType? = null,
+        val includeFreeToUse: Boolean = true,
     ) : AccountingRequest<Set<String>>()
 
     data class ProviderCheckUsable(

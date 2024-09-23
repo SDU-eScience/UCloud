@@ -11,19 +11,20 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useDiscovery} from "@/Applications/Hooks";
 import {AppCard2} from "./Landing";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
-import {AppGrid} from "./Overview";
-
+import {AppGrid} from "@/Applications/Category";
 
 const ApplicationsGroup: React.FunctionComponent = () => {
     const idParam = useParams<{id: string}>().id;
     const id = parseInt(idParam ?? "-1");
+    const [discovery] = useDiscovery();
 
-    const [appGroup, fetchAppGroup] = useCloudAPI(AppStore.retrieveGroup({id}), null);
+    const [appGroup, fetchAppGroup] = useCloudAPI(AppStore.retrieveGroup({id, ...discovery}), null);
 
     const refresh = useCallback(() => {
-        fetchAppGroup(AppStore.retrieveGroup({id})).then(doNothing);
+        fetchAppGroup(AppStore.retrieveGroup({id, ...discovery})).then(doNothing);
     }, [id]);
 
     usePage(appGroup.data?.specification.title ?? "Application", SidebarTabId.APPLICATIONS);

@@ -350,7 +350,7 @@ sealed class ApplicationYaml(val application: String) {
                 description,
                 website,
                 // TODO: should this always be false by default?
-                false
+                false,
             )
 
             val normalizedParameters = parameters.values.map { param ->
