@@ -8,16 +8,12 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
-data class ListRequest(
+data class BrowseRequest(
     override val itemsPerPage: Int? = null,
     override val itemsToSkip: Long?,
     override val next: String?,
     override val consistency: PaginationRequestV2Consistency?
 ) : WithPaginationRequestV2
-typealias ListResponse = PageV2<BackgroundTask>
-
-typealias ViewRequest = FindByStringId
-typealias ViewResponse = BackgroundTask
 
 typealias ListenRequest = Unit
 typealias ListenResponse = BackgroundTask
@@ -25,13 +21,15 @@ typealias ListenResponse = BackgroundTask
 @Serializable
 data class CreateRequest(
     val user: String,
-    val provider: String,
     val operation: String? = null,
     val progress: String? = null,
     val canPause: Boolean = false,
     val canCancel: Boolean = false,
 )
 typealias CreateResponse = BackgroundTask
+
+@Serializable
+data class PauseOrCancelRequest(val id: Long, val requestedState: TaskState)
 
 @Serializable
 data class PostStatusRequest(val update: BackgroundTaskUpdate)
@@ -66,7 +64,6 @@ Providers use this functionality through one of the Control interfaces. They do 
                 create,
                 CreateRequest(
                     user = username,
-                    provider = "provider",
                     operation = "Counting to 3",
                     progress = "Count: 0",
                     canPause = false,
@@ -177,25 +174,21 @@ Providers use this functionality through one of the Control interfaces. They do 
         }
     }
 
-    val list = call("list", ListRequest.serializer(), PageV2.serializer(BackgroundTask.serializer()), CommonErrorMessage.serializer()) {
+    val browse = call("browse", BrowseRequest.serializer(), PageV2.serializer(BackgroundTask.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
 
-        httpSearch(
-            baseContext = baseContext
-        )
-
+        httpBrowse(baseContext)
         websocket(baseContext)
     }
 
-    val view = call("view", ViewRequest.serializer(), ViewResponse.serializer(), CommonErrorMessage.serializer()) {
+    val retrieve = call("retrieve", FindByLongId.serializer(), BackgroundTask.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
 
         httpRetrieve(baseContext)
-
         websocket(baseContext)
     }
 
@@ -213,17 +206,22 @@ Providers use this functionality through one of the Control interfaces. They do 
 
     val create = call("create", CreateRequest.serializer(), CreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(
-            baseContext = baseContext,
+            baseContext,
             roles = Roles.PROVIDER
         )
 
-        websocket(baseContext)
+        websocket(baseContext) {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PROVIDER
+            }
+        }
     }
 
-    val userAction = call("userAction", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
+    val pauseOrCancel = call("pauseOrCancel", PauseOrCancelRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
-            "userAction",
+            "pauseOrCancel",
             Roles.END_USER
         )
 
@@ -237,7 +235,12 @@ Providers use this functionality through one of the Control interfaces. They do 
             Roles.PROVIDER
         )
 
-        websocket(baseContext)
+        websocket(baseContext) {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PROVIDER
+            }
+        }
     }
 
     val markAsComplete = call("markAsComplete", MarkAsCompleteRequest.serializer(), MarkAsCompleteResponse.serializer(), CommonErrorMessage.serializer()) {
@@ -247,6 +250,11 @@ Providers use this functionality through one of the Control interfaces. They do 
             roles = Roles.PROVIDER,
         )
 
-        websocket(baseContext)
+        websocket(baseContext) {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PROVIDER
+            }
+        }
     }
 }

@@ -1,8 +1,9 @@
 package dk.sdu.cloud.task.rpc
 
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Controller
@@ -38,12 +39,8 @@ class TaskController(
             }
         }
 
-        //TODO(Just returns ok. Provider does nothing)
-        implement(Tasks.userAction) {
-            val newState = request.update.newStatus.state
-            if (newState == TaskState.CANCELLED || newState == TaskState.SUSPENDED) {
-                taskService.userAction(actorAndProject, request.update)
-            }
+        implement(Tasks.pauseOrCancel) {
+            taskService.pauseOrCancel(actorAndProject, request)
             ok(Unit)
         }
 
@@ -52,12 +49,17 @@ class TaskController(
             ok(Unit)
         }
 
-        implement(Tasks.list) {
-            ok(taskService.list(actorAndProject, request))
+        implement(Tasks.browse) {
+            ok(taskService.browse(actorAndProject, request))
         }
 
-        implement(Tasks.view) {
-            ok(taskService.find(actorAndProject, request))
+        implement(Tasks.retrieve) {
+            ok(
+                taskService.findById(
+                    actorAndProject,
+                    request.id
+                )
+            )
         }
 
         implement(Tasks.create) {
