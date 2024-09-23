@@ -397,7 +397,7 @@ export const Hero: React.FunctionComponent<{
                             </Button>
                         </ReactRouterLink>
                     : <>
-                        <TooltipV2 tooltip={<>You do not have resources to<br />run this application in this project</>} >
+                        <TooltipV2 tooltip={<>This application is not available<br />with your current filter!</>} >
                             <Button fullWidth disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
                                 <Icon name={"heroPlay"} />
                                 <div>Open application</div>

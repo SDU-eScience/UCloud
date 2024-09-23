@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.AccountingV2
+import dk.sdu.cloud.accounting.api.ProductReferenceV2
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.AsyncCache
 import dk.sdu.cloud.accounting.util.CyclicArray
@@ -18,6 +19,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
@@ -34,14 +38,13 @@ data class StoreFront(
 
     val publicCategories: Set<Long>,
     val publicGroups: Set<Long>,
-    // TODO Keep track of categories and groups containing at least one public application
-    //   Use these to bypass can run check.
 )
 
 class Catalog(
     private val projectCache: ProjectCache,
     private val backgroundScope: BackgroundScope,
     private val serviceClient: AuthenticatedClient,
+    private val db: DBContext,
 ) {
     init {
         cacheInvalidationListeners.add {
@@ -591,7 +594,7 @@ class Catalog(
     ): List<StoreFront> {
         return when (discovery.discovery ?: CatalogDiscoveryMode.DEFAULT) {
             CatalogDiscoveryMode.ALL -> {
-                allProviders.retrieve(Unit).map { storeFronts.retrieve(it) }
+                listOf(storeFronts.retrieve(""))
             }
 
             CatalogDiscoveryMode.AVAILABLE -> {
@@ -705,11 +708,15 @@ class Catalog(
         },
         retrieve = { providerId ->
             val supportedApplications = applications.values.filter {
-                val backend = it.invocation?.tool?.tool?.description?.backend
-                if (backend != null) {
-                    providerCanRun(providerId, backend)
+                if (providerId == "") {
+                    true
                 } else {
-                    false
+                    val backend = it.invocation?.tool?.tool?.description?.backend
+                    if (backend != null) {
+                        providerCanRun(providerId, backend)
+                    } else {
+                        false
+                    }
                 }
             }
 
@@ -775,13 +782,72 @@ class Catalog(
         }
     )
 
-    // TODO(Brian): Temporary function. Will be replaced.
-    private fun providerCanRun(providerId: String, backend: ToolBackend): Boolean {
-        if (providerId in setOf("go-slurm", "slurm")) {
-            return backend == ToolBackend.NATIVE
-        } else if (providerId == "k8") {
-            return backend == ToolBackend.DOCKER
+    private data class MachineSupport(
+        val product: ProductReferenceV2,
+        val backendType: ToolBackend,
+
+        val vnc: Boolean,
+        val logs: Boolean,
+        val terminal: Boolean,
+        val timeExtension: Boolean,
+        val web: Boolean,
+        val peers: Boolean,
+        val suspend: Boolean,
+    )
+
+    private val supportCache = AsyncCache<Unit, List<MachineSupport>>(
+        backgroundScope,
+        timeToLiveMilliseconds = 60_000,
+        timeoutException = {
+            throw RPCException("Failed to fetch information about service providers", HttpStatusCode.BadGateway)
+        },
+        retrieve = { _ ->
+            db.withSession { session ->
+                val rows = session.sendPreparedStatement(
+                    {},
+                    """
+                        select
+                            product_name,
+                            product_category,
+                            product_provider,
+                            backend_type,
+                            vnc,
+                            logs,
+                            terminal,
+                            time_extension,
+                            web,
+                            peers,
+                            suspend
+                        from
+                            app_orchestrator.machine_support_info
+                    """
+                ).rows
+
+                rows.map { row ->
+                    MachineSupport(
+                        ProductReferenceV2(
+                            row.getString(0)!!,
+                            row.getString(1)!!,
+                            row.getString(2)!!,
+                        ),
+                        ToolBackend.valueOf(row.getString(3)!!),
+                        row.getBoolean(4)!!,
+                        row.getBoolean(5)!!,
+                        row.getBoolean(6)!!,
+                        row.getBoolean(7)!!,
+                        row.getBoolean(8)!!,
+                        row.getBoolean(9)!!,
+                        row.getBoolean(10)!!,
+                    )
+                }
+            }
         }
-        return false
+    )
+
+    private suspend fun providerCanRun(providerId: String, backend: ToolBackend): Boolean {
+        val allSupport = supportCache.retrieve(Unit)
+        return allSupport.any { support ->
+            support.product.provider == providerId && support.backendType == backend
+        }
     }
 }

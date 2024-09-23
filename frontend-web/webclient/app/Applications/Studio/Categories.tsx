@@ -23,11 +23,6 @@ const Categories: React.FunctionComponent = () => {
     usePage("Application Studio | Categories", SidebarTabId.APPLICATION_STUDIO);
 
     const fetchCategories = () => {
-        if (!projectId) {
-            setCategories([]);
-            return;
-        }
-
         fetchAll(next => {
             return callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}));
         }).then(categories => setCategories(categories));
@@ -80,8 +75,9 @@ const Categories: React.FunctionComponent = () => {
                 <ContextSwitcher />
             </Flex>
 
+            <Button onClick={createCategory}>Create category</Button>
+
             {categories.length < 1 ? <>No categories here</>: <>
-                <Button onClick={createCategory}>Create category</Button>
                 {categories.map((c, idx) => {
                     return <ListRow
                         key={c.metadata.id}

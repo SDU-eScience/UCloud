@@ -28,7 +28,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         val data = CatalogData(db)
         val projectCache = ProjectCache(distributedState, db)
-        val catalog = Catalog(projectCache, micro.backgroundScope, serviceClient)
+        val catalog = Catalog(projectCache, micro.backgroundScope, serviceClient, db)
         val studio = Studio(db, projectCache, data, serviceClient)
         val importer = ImportExport(micro.developmentModeEnabled, data, studio)
 
