@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
@@ -17,6 +18,7 @@ import dk.sdu.cloud.project.api.LookupProjectAndGroupRequest
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
+import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.DiscardingDBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -27,47 +29,82 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import javax.imageio.ImageIO
 
-// Deals with access to the application studio
-
+// Catalog services (write)
+// =================================================================================================================
+// This section of the code contain function to update the application catalog. Almost all calls in this section
+// are privileged. These calls will commonly update both the in-memory version of data and the database
+// immediately.
 class Studio(
     // TODO(Dan): Eliminate the db variable from this file
     private val db: DBContext,
 
+    private val projectCache: ProjectCache,
     private val data: CatalogData,
     private val serviceClient: AuthenticatedClient,
 ) {
-    // Catalog services (write)
-    // =================================================================================================================
-    // This section of the code contain function to update the application catalog. Almost all calls in this section
-    // are privileged. These calls will commonly update both the in-memory version of data and the database
-    // immediately. When new applications are made, the appCreateMutex must be used.
-    suspend fun createApplication(actorAndProject: ActorAndProject, application: Application) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+    private suspend fun findAssociatedCuratorOrNull(actorAndProject: ActorAndProject): InternalCurator? {
+        return try {
+            return findAssociatedCuratorOrFail(actorAndProject)
+        } catch (ex: Throwable) {
+            return null
+        }
+    }
 
-        val curatorId = if (actorAndProject == ActorAndProject.System) {
-            "main"
-        } else {
-            // TODO Doesn't check membership
-            curators.values.firstOrNull { it.projectId == actorAndProject.project }?.id
-                ?: throw RPCException("Not allowed to create application", HttpStatusCode.Forbidden)
+    private suspend fun findAssociatedCuratorOrFail(actorAndProject: ActorAndProject): InternalCurator {
+        fun fail(): Nothing =
+            throw RPCException("You are not allowed to access this interface", HttpStatusCode.Forbidden)
+
+        if (actorAndProject == ActorAndProject.System) {
+            return curators[mainCurator] ?: fail()
         }
 
-        val appWithCurator = application.copy(metadata = application.metadata.copy(curator = curatorId))
+        val membership = projectCache.lookup(actorAndProject.actor.safeUsername())
+        val projectId = actorAndProject.project
+        if (projectId !in membership.adminInProjects && !isPrivileged(actorAndProject)) {
+            throw RPCException(
+                "Only administrators of their project can access this interface",
+                HttpStatusCode.Forbidden
+            )
+        }
+
+        val curatorFromProject = curators.values.firstOrNull { it.projectId == projectId }
+        if (curatorFromProject != null) {
+            return curatorFromProject
+        } else if (isPrivileged(actorAndProject)) {
+            return curators[mainCurator] ?: fail()
+        } else {
+            fail()
+        }
+    }
+
+    suspend fun createApplication(actorAndProject: ActorAndProject, application: Application) {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+
+        if (!application.metadata.name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException(
+                "All applications uploaded by you must start with '${curator.mandatedPrefix}'!",
+                HttpStatusCode.Forbidden
+            )
+        }
+
+        val appWithCurator = application.copy(metadata = application.metadata.copy(curator = curator.id))
         data.registerApplication(appWithCurator, flush = true)
+        triggerCacheInvalidation()
     }
 
     suspend fun createTool(actorAndProject: ActorAndProject, tool: Tool) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
 
-        val curatorId = if (actorAndProject == ActorAndProject.System) {
-            "main"
-        } else {
-            curators.values.firstOrNull { it.projectId == actorAndProject.project }?.id
-                ?: throw RPCException("Not allowed to create tool", HttpStatusCode.Forbidden)
+        if (!tool.description.info.name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException(
+                "All tools uploaded by you must start with '${curator.mandatedPrefix}'!",
+                HttpStatusCode.Forbidden
+            )
         }
 
-        val toolWithCurator = tool.copy(description = tool.description.copy(curator = curatorId))
+        val toolWithCurator = tool.copy(description = tool.description.copy(curator = curator.id))
         data.registerTool(toolWithCurator, flush = true)
+        triggerCacheInvalidation()
     }
 
     suspend fun updateGroup(
@@ -80,8 +117,16 @@ class Studio(
         newLogoHasText: Boolean? = null,
         newColorRemapping: ApplicationGroup.ColorReplacements? = null,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
         val g = groups[id.toLong()] ?: throw RPCException("Unknown group: $id", HttpStatusCode.NotFound)
+
+        if (!curator.canManageCatalog && g.get().curator != curator.id) {
+            throw RPCException(
+                "You are not allowed to update groups",
+                HttpStatusCode.Forbidden
+            )
+        }
+
         val lookupByTitle = groups.filter { it.value.get().title == newTitle }
 
         if (lookupByTitle.isNotEmpty() && !lookupByTitle.keys.contains(id.toLong())) {
@@ -179,6 +224,7 @@ class Studio(
         )
 
         LogoGenerator.invalidateCache(g.get().title)
+        triggerCacheInvalidation()
     }
 
     suspend fun assignApplicationToGroup(
@@ -186,12 +232,21 @@ class Studio(
         appName: String,
         groupId: Int?,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+
         val newGroup =
             if (groupId == null) null
             else groups[groupId.toLong()] ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
+
         val allVersions = applicationVersions[appName]?.get()
             ?: throw RPCException("Unknown application: $appName", HttpStatusCode.NotFound)
+
+        if (!appName.startsWith(curator.mandatedPrefix)) {
+            throw RPCException(
+                "You are not allowed to manage this application!",
+                HttpStatusCode.Forbidden
+            )
+        }
 
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -226,20 +281,15 @@ class Studio(
                 )
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun createGroup(
         actorAndProject: ActorAndProject,
         title: String,
     ): Int {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
-
-        val curatorId = if (actorAndProject == ActorAndProject.System) {
-            "main"
-        } else {
-            curators.values.first { it.projectId == actorAndProject.project }?.id
-                ?: throw RPCException("Curator not found", HttpStatusCode.NotFound)
-        }
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
 
         val id = if (db == DiscardingDBContext) {
             groupIdAllocatorForTestsOnly.getAndIncrement()
@@ -260,7 +310,7 @@ class Studio(
                     session.sendPreparedStatement(
                         {
                             setParameter("title", title)
-                            setParameter("curator", curatorId)
+                            setParameter("curator", curator.id)
                         },
                         """
                         insert into app_store.application_groups (title, curator)
@@ -285,8 +335,9 @@ class Studio(
             false,
             null,
             null,
-            curatorId
+            curator.id,
         )
+        triggerCacheInvalidation()
         return id
     }
 
@@ -294,8 +345,15 @@ class Studio(
         actorAndProject: ActorAndProject,
         groupId: Int
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
-        groups[groupId.toLong()] ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
+        val internalGroup = groups[groupId.toLong()] ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
+
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        for (app in internalGroup.get().applications) {
+            if (!app.name.startsWith(curator.mandatedPrefix)) {
+                throw RPCException("You are not allowed to delete this group from the system", HttpStatusCode.Forbidden)
+            }
+        }
+
         db.withSession { session ->
             session.sendPreparedStatement(
                 { setParameter("group_id", groupId) },
@@ -332,6 +390,8 @@ class Studio(
                 )
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun updatePublicFlag(
@@ -339,7 +399,11 @@ class Studio(
         nameAndVersion: NameAndVersion,
         isPublic: Boolean,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!nameAndVersion.name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this application!", HttpStatusCode.Forbidden)
+        }
+
         val app = applications.get(nameAndVersion) ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
         val newApp = app.copy(
             metadata = app.metadata.copy(
@@ -364,6 +428,7 @@ class Studio(
             )
         }
         applications[nameAndVersion] = newApp
+        triggerCacheInvalidation()
     }
 
     suspend fun updateAcl(
@@ -371,7 +436,11 @@ class Studio(
         name: String,
         changes: List<ACLEntryRequest>,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException("Forbidden", HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this application!", HttpStatusCode.Forbidden)
+        }
+
         if (changes.isEmpty()) return
 
         val acl = accessControlLists.computeIfAbsent(name) { InternalAcl(emptySet()) }
@@ -498,6 +567,8 @@ class Studio(
                 )
             }
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun updateAppFlavorName(
@@ -505,7 +576,11 @@ class Studio(
         appName: String,
         newFlavorName: String?,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!appName.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this application!", HttpStatusCode.Forbidden)
+        }
+
         val appVersions =
             applicationVersions[appName] ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
 
@@ -539,6 +614,8 @@ class Studio(
             )
             applications[appRef] = newApp
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun addGroupToCategory(
@@ -546,7 +623,11 @@ class Studio(
         categoryIds: List<Int>,
         groupId: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
         for (categoryId in categoryIds) {
             if (db == DiscardingDBContext) {
@@ -576,6 +657,8 @@ class Studio(
                 }
             }
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun removeGroupFromCategories(
@@ -583,7 +666,11 @@ class Studio(
         tagIds: List<Int>,
         groupId: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val group = groups[groupId.toLong()] ?: throw RPCException("Unknown group: $groupId", HttpStatusCode.NotFound)
         for (tagId in tagIds) {
             db.withSession { session ->
@@ -607,10 +694,16 @@ class Studio(
                 group.removeCategories(setOf(tagId))
             }
         }
+
+        triggerCacheInvalidation()
     }
 
-    fun retrieveAcl(actorAndProject: ActorAndProject, name: String): Collection<EntityWithPermission> {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    suspend fun retrieveAcl(actorAndProject: ActorAndProject, name: String): Collection<EntityWithPermission> {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         return accessControlLists[name]?.get() ?: emptySet()
     }
 
@@ -618,6 +711,11 @@ class Studio(
         actorAndProject: ActorAndProject,
         name: String
     ): Collection<DetailedEntityWithPermission> {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val list = retrieveAcl(actorAndProject, name)
         return list.mapNotNull { e ->
             val projectAndGroupLookup =
@@ -663,7 +761,10 @@ class Studio(
         actorAndProject: ActorAndProject,
         newPicks: List<TopPick>,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         for (slide in newPicks) {
             val app = slide.applicationName
@@ -710,6 +811,8 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun createOrUpdateSpotlight(
@@ -720,7 +823,11 @@ class Studio(
         active: Boolean,
         applications: List<TopPick>,
     ): Int {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val spotlightId = db.withSession { session ->
             val allocatedId = if (db == DiscardingDBContext) {
                 id ?: groupIdAllocatorForTestsOnly.getAndIncrement()
@@ -792,6 +899,7 @@ class Studio(
             activateSpotlight(actorAndProject, spotlightId)
         }
 
+        triggerCacheInvalidation()
         return spotlightId
     }
 
@@ -799,7 +907,10 @@ class Studio(
         actorAndProject: ActorAndProject,
         id: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         spotlights.values.forEach { spot -> spot.update { it.copy(active = false) } }
         val spotlight = spotlights[id.toLong()] ?: throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
@@ -815,13 +926,18 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun deleteSpotlight(
         actorAndProject: ActorAndProject,
         id: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         val didRemove = spotlights.remove(id.toLong()) != null
         if (!didRemove) throw RPCException("Unknown spotlight", HttpStatusCode.NotFound)
@@ -843,6 +959,8 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun assignPriorityToCategory(
@@ -850,7 +968,11 @@ class Studio(
         categoryId: Int,
         priority: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val category =
             categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
         val currentPriority = category.priority()
@@ -890,22 +1012,20 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun createCategory(
         actorAndProject: ActorAndProject,
         specification: ApplicationCategory.Specification,
     ): Int {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         val priority = categories.size
-
-        val curatorId = if (actorAndProject == ActorAndProject.System) {
-            "main"
-        } else {
-            curators.values.first { it.projectId == actorAndProject.project }?.id
-                ?: throw RPCException("Not allowed to create category", HttpStatusCode.Forbidden)
-        }
 
         val id = if (db == DiscardingDBContext) {
             groupIdAllocatorForTestsOnly.getAndIncrement()
@@ -915,7 +1035,7 @@ class Studio(
                     {
                         setParameter("title", specification.title)
                         setParameter("priority", priority)
-                        setParameter("curator", curatorId)
+                        setParameter("curator", curator.id)
                     },
                     """
                         insert into app_store.categories (tag, priority, curator) 
@@ -926,8 +1046,9 @@ class Studio(
             }
         }
 
-        val category = InternalCategory(specification.title, emptySet(), priority, curatorId)
+        val category = InternalCategory(specification.title, emptySet(), priority, curator.id)
         categories[id.toLong()] = category
+        triggerCacheInvalidation()
         return id
     }
 
@@ -935,7 +1056,11 @@ class Studio(
         actorAndProject: ActorAndProject,
         categoryId: Int,
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         val category =
             categories[categoryId.toLong()] ?: throw RPCException("Unknown category", HttpStatusCode.NotFound)
 
@@ -968,6 +1093,7 @@ class Studio(
         }
 
         reorderCategories()
+        triggerCacheInvalidation()
     }
 
     private suspend fun reorderCategories() {
@@ -1002,7 +1128,11 @@ class Studio(
         actorAndProject: ActorAndProject,
         newSlides: List<CarrouselItem>
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         for (slide in newSlides) {
             val app = slide.linkedApplication
             val group = slide.linkedGroup
@@ -1058,6 +1188,8 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
     suspend fun updateCarrouselImage(
@@ -1065,7 +1197,10 @@ class Studio(
         slideIndex: Int,
         image: ByteArray
     ) {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         carrousel.updateImages {
             val copy = ArrayList(it)
@@ -1089,42 +1224,39 @@ class Studio(
                 """
             )
         }
+
+        triggerCacheInvalidation()
     }
 
-    fun retrieveSpotlights(
+    suspend fun retrieveSpotlights(
         actorAndProject: ActorAndProject,
         id: Int,
     ): Spotlight? {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
+
         return spotlights[id.toLong()]?.get()
     }
 
-    fun listSpotlights(
+    suspend fun listSpotlights(
         actorAndProject: ActorAndProject,
     ): List<Spotlight> {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!curator.canManageCatalog) {
+            throw RPCException("You are not allowed to manage this part of the catalog", HttpStatusCode.Forbidden)
+        }
 
         return spotlights.values.map { it.get() }
     }
 
     suspend fun listGroups(actorAndProject: ActorAndProject): List<ApplicationGroup> {
-        if (!isPrivileged(actorAndProject)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        findAssociatedCuratorOrFail(actorAndProject)
 
-        val results = if (!actorAndProject.project.isNullOrEmpty()) {
-            val curatorId = curators.values.first { it.projectId == actorAndProject.project }?.id
-            if (curatorId == null) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-            groups.filter { curatorId == it.value.get().curator }
-        } else if (actorAndProject == ActorAndProject.System) {
-            groups
-        } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-        }
-
-        return results.mapNotNull { (groupId, _) ->
+        return groups.mapNotNull { (groupId, _) ->
             groups[groupId]?.toApiModel()
-        }.sortedBy { it.specification.title }
+        }.sortedBy { it.specification.title.lowercase() }
     }
 
     suspend fun retrieveGroup(
@@ -1132,6 +1264,8 @@ class Studio(
         groupId: Int,
         loadApplications: Boolean,
     ): ApplicationGroup? {
+        findAssociatedCuratorOrFail(actorAndProject)
+
         val group = groups[groupId.toLong()]?.toApiModel() ?: return null
         return group.copy(
             status = group.status.copy(
@@ -1147,9 +1281,8 @@ class Studio(
         groupId: Int
     ): List<Application> {
         val group = groups[groupId.toLong()]?.get() ?: return emptyList()
-        return loadApplications(actorAndProject, group.applications).sortedBy {
-            it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase()
-        }
+        return loadApplications(actorAndProject, group.applications)
+            .sortedBy { it.metadata.flavorName?.lowercase() ?: it.metadata.name.lowercase() }
     }
 
     private suspend fun loadApplications(
@@ -1157,11 +1290,11 @@ class Studio(
         versions: Collection<NameAndVersion>,
         withAllVersions: Boolean = false,
     ): List<Application> {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
         val result = ArrayList<Application>()
-        val isPrivileged = isPrivileged(actorAndProject)
-        if (!isPrivileged) return emptyList()
 
         for (nameAndVersion in versions) {
+            if (!nameAndVersion.name.startsWith(curator.mandatedPrefix)) continue
             val app = applications[nameAndVersion] ?: continue
 
             val toolKey = app.invocation!!.tool.let { NameAndVersion(it.name, it.version) }
@@ -1197,15 +1330,19 @@ class Studio(
         }
     }
 
-    fun listAllApplications(): List<NameAndVersion> {
-        return applicationVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
+    suspend fun listAllApplications(actorAndProject: ActorAndProject): List<NameAndVersion> {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        return applicationVersions
+            .flatMap { (name, versions) ->
+                if (!name.startsWith(curator.mandatedPrefix)) emptyList()
+                else versions.get().map { NameAndVersion(name, it) }
+            }
+            .sortedBy { (it.name + "@" + it.version).lowercase() }
     }
 
-    fun listAllTools(): List<NameAndVersion> {
-        return toolVersions.flatMap { (name, versions) -> versions.get().map { NameAndVersion(name, it) } }
-    }
+    suspend fun listCategories(actorAndProject: ActorAndProject): List<ApplicationCategory> {
+        findAssociatedCuratorOrFail(actorAndProject)
 
-    fun listCategories(): List<ApplicationCategory> {
         return categories.toList()
             .sortedBy { it.second.priority() }
             .map { (k, v) ->
@@ -1220,5 +1357,48 @@ class Studio(
                     )
                 )
             }
+    }
+
+    suspend fun retrieveApplicationWithVersions(
+        actorAndProject: ActorAndProject,
+        name: String,
+    ): List<Application> {
+        val curator = findAssociatedCuratorOrFail(actorAndProject)
+        if (!name.startsWith(curator.mandatedPrefix)) {
+            throw RPCException("You are not allowed to manage this application", HttpStatusCode.Forbidden)
+        }
+
+        val versions = applicationVersions[name]?.get() ?: throw RPCException("Unknown application", HttpStatusCode.NotFound)
+        val apps = ArrayList<Application>()
+        for (version in versions.asReversed()) {
+            val application = applications[NameAndVersion(name, version)] ?: continue
+            apps.add(application)
+        }
+
+        return apps
+    }
+
+    suspend fun retrieveCuratorStatus(
+        actorAndProject: ActorAndProject
+    ): List<AppStore.RetrieveLandingPage.CuratorStatus> {
+        val myCurators = HashMap<String, InternalCurator>()
+        findAssociatedCuratorOrNull(actorAndProject)?.let { myCurators[it.id] = it }
+
+        val membership = projectCache.lookup(actorAndProject.actor.safeUsername())
+        for (projectId in membership.adminInProjects) {
+            val curator = curators.values.find { it.projectId == projectId} ?: continue
+            myCurators[curator.id] = curator
+        }
+
+        return myCurators.values.map {
+            AppStore.RetrieveLandingPage.CuratorStatus(
+                it.projectId,
+                it.canManageCatalog,
+                it.mandatedPrefix,
+            )
+        }
+    }
+
+    companion object {
     }
 }

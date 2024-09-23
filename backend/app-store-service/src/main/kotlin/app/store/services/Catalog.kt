@@ -20,10 +20,11 @@ import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.safeUsername
 import java.util.*
 import kotlin.collections.ArrayList
-
-// Deals with access to the application catalog
+import kotlin.collections.HashSet
 
 data class StoreFront(
+    val providerId: String,
+
     val categories: Set<Long>,
     val groups: Set<Long>,
     val knownApplication: Set<String>,
@@ -31,6 +32,8 @@ data class StoreFront(
     val newApplications: CyclicArray<NameAndVersion>,
     val updatedApplications: CyclicArray<NameAndVersion>,
 
+    val publicCategories: Set<Long>,
+    val publicGroups: Set<Long>,
     // TODO Keep track of categories and groups containing at least one public application
     //   Use these to bypass can run check.
 )
@@ -40,6 +43,12 @@ class Catalog(
     private val backgroundScope: BackgroundScope,
     private val serviceClient: AuthenticatedClient,
 ) {
+    init {
+        cacheInvalidationListeners.add {
+            storeFronts.invalidateAll()
+        }
+    }
+
     /**
      * Retrieves an application by name and version. If the version is unspecified, then fetch the newest version.
      *
@@ -53,12 +62,13 @@ class Catalog(
         actorAndProject: ActorAndProject,
         name: String,
         version: String?,
-        flags: ApplicationFlags
+        flags: ApplicationFlags,
+        discovery: WithCatalogDiscovery,
     ): Application? {
         val (actor) = actorAndProject
         val skipCanRunCheck = actor == Actor.System || actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)
         if (!skipCanRunCheck) {
-            val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+            val allStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
             if (!allStoreFronts.any { name in it.knownApplication }) return null
         }
 
@@ -71,6 +81,7 @@ class Catalog(
                     projectCache.lookup(actorAndProject.actor.safeUsername()),
                     app,
                     flags,
+                    discovery,
                 )
 
                 if (result != null) return result
@@ -84,6 +95,7 @@ class Catalog(
                 projectCache.lookup(actorAndProject.actor.safeUsername()),
                 app,
                 flags,
+                discovery,
             )
         }
     }
@@ -102,9 +114,10 @@ class Catalog(
     suspend fun retrieveGroup(
         actorAndProject: ActorAndProject,
         id: Long,
-        flags: ApplicationFlags
+        flags: ApplicationFlags,
+        discovery: WithCatalogDiscovery,
     ): ApplicationGroup? {
-        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
         if (!allStoreFronts.any { id in it.groups }) return null
 
         val group = groups[id] ?: return null
@@ -113,7 +126,7 @@ class Catalog(
         val apps = ArrayList<Application>()
         val appNames = groupInfo.applications.map { it.name }.toSet()
         for (appName in appNames) {
-            val app = retrieveApplication(actorAndProject, appName, null, flags)
+            val app = retrieveApplication(actorAndProject, appName, null, flags, discovery)
                 ?: continue
 
             apps.add(app)
@@ -153,11 +166,12 @@ class Catalog(
         actorAndProject: ActorAndProject,
         appName: String,
         appVersion: String?,
-        flags: ApplicationFlags
+        flags: ApplicationFlags,
+        discovery: WithCatalogDiscovery,
     ): ApplicationGroup? {
-        val app = retrieveApplication(actorAndProject, appName, appVersion, flags) ?: return null
+        val app = retrieveApplication(actorAndProject, appName, appVersion, flags, discovery) ?: return null
         val groupId = app.metadata.groupId ?: return null
-        val group = retrieveGroup(actorAndProject, groupId, flags) ?: return null
+        val group = retrieveGroup(actorAndProject, groupId, flags, discovery) ?: return null
 
         var groupApps = group.status.applications
         if (groupApps != null) {
@@ -181,25 +195,29 @@ class Catalog(
     suspend fun retrieveCategory(
         actorAndProject: ActorAndProject,
         id: Long,
-        flags: ApplicationFlags
+        flags: ApplicationFlags,
+        discovery: WithCatalogDiscovery,
     ): ApplicationCategory? {
-        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
         if (!allStoreFronts.any { id in it.categories }) return null
 
         val category = categories[id]
         val groupsIds = category.groups()
         val groups = ArrayList<ApplicationGroup>()
 
-        for (groupId in groupsIds) {
-            val group = retrieveGroup(actorAndProject, groupId.toLong(), flags)
-                ?: continue
+        // NOTE(Dan): This will skip group and app loading if we know the category is public
+        if (flags.includeGroups || allStoreFronts.none { id in it.publicCategories }) {
+            for (groupId in groupsIds) {
+                val group = retrieveGroup(actorAndProject, groupId.toLong(), flags, discovery)
+                    ?: continue
 
-            groups.add(group)
+                groups.add(group)
+            }
+
+            groups.sortBy { it.specification.title.lowercase() }
+
+            if (groups.isEmpty()) return null
         }
-
-        groups.sortBy { it.specification.title.lowercase() }
-
-        if (groups.isEmpty()) return null
 
         return ApplicationCategory(
             ApplicationCategory.Metadata(id.toInt()),
@@ -214,11 +232,15 @@ class Catalog(
         )
     }
 
-    private suspend fun prepareTopPickForUser(actorAndProject: ActorAndProject, item: TopPick): TopPick? {
+    private suspend fun prepareTopPickForUser(
+        actorAndProject: ActorAndProject,
+        item: TopPick,
+        discovery: WithCatalogDiscovery
+    ): TopPick? {
         val groupId = item.groupId
         val appName = item.applicationName
         if (groupId != null) {
-            val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags())
+            val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags(), discovery)
                 ?: return null
 
             return item.copy(
@@ -228,7 +250,7 @@ class Catalog(
                 defaultApplicationToRun = group.specification.defaultFlavor,
             )
         } else if (appName != null) {
-            val app = retrieveApplication(actorAndProject, appName, null, ApplicationFlags())
+            val app = retrieveApplication(actorAndProject, appName, null, ApplicationFlags(), discovery)
                 ?: return null
 
             return item.copy(
@@ -244,12 +266,13 @@ class Catalog(
 
     suspend fun retrieveLandingPage(
         actorAndProject: ActorAndProject,
+        discovery: WithCatalogDiscovery,
     ): AppStore.RetrieveLandingPage.Response {
-        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
         val allCategories = allStoreFronts.flatMap { it.categories }.toSet()
 
         val resolvedCategories = allCategories
-            .mapNotNull { retrieveCategory(actorAndProject, it, ApplicationFlags()) }
+            .mapNotNull { retrieveCategory(actorAndProject, it, ApplicationFlags(), discovery) }
             .sortedBy { categories[it.metadata.id.toLong()]?.priority() ?: 10000 }
 
         val slides = carrousel.get().map { slide ->
@@ -258,14 +281,14 @@ class Catalog(
             var applicationName = slide.linkedApplication
             var groupId = slide.linkedGroup?.toLong()
             if (groupId != null) {
-                val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags())
+                val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags(), discovery)
                 if (group == null) {
                     groupId = null
                 } else {
                     resolvedLinkedApp = group.specification.defaultFlavor
                 }
             } else if (applicationName != null) {
-                val app = retrieveApplication(actorAndProject, applicationName, null, ApplicationFlags())
+                val app = retrieveApplication(actorAndProject, applicationName, null, ApplicationFlags(), discovery)
                 if (app == null) {
                     applicationName = null
                 }
@@ -278,7 +301,7 @@ class Catalog(
             )
         }
 
-        var picks = topPicks.get().mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+        var picks = topPicks.get().mapNotNull { prepareTopPickForUser(actorAndProject, it, discovery) }
         if (picks.size < 5) {
             // Try to extract applications from the different storefronts, assuming that they don't have a lot of
             // applications. For some providers, we can easily just display the entire catalog on the landing page.
@@ -289,13 +312,13 @@ class Catalog(
 
             for (pick in picks) {
                 val groupId = pick.groupId ?: continue
-                val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags()) ?: continue
+                val group = retrieveGroup(actorAndProject, groupId.toLong(), ApplicationFlags(), discovery) ?: continue
                 groups.add(group)
             }
 
-            outer@for (front in allStoreFronts) {
+            outer@ for (front in allStoreFronts) {
                 for (groupId in front.groups) {
-                    val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags()) ?: continue
+                    val group = retrieveGroup(actorAndProject, groupId, ApplicationFlags(), discovery) ?: continue
                     groups.add(group)
 
                     if (groups.size >= 15) break@outer
@@ -315,7 +338,7 @@ class Catalog(
         }
 
         val activeSpotlight = spotlights.values.find { it.get().active }?.get()?.let { spotlight ->
-            val newApps = spotlight.applications.mapNotNull { prepareTopPickForUser(actorAndProject, it) }
+            val newApps = spotlight.applications.mapNotNull { prepareTopPickForUser(actorAndProject, it, discovery) }
             spotlight.copy(applications = newApps).takeIf { it.applications.isNotEmpty() }
         }
 
@@ -324,15 +347,22 @@ class Catalog(
 
         for (storeFront in allStoreFronts) {
             for (newApp in storeFront.newApplications) {
-                val element = retrieveApplication(actorAndProject, newApp.name, newApp.version, ApplicationFlags())
-                    ?: continue
+                val element =
+                    retrieveApplication(actorAndProject, newApp.name, newApp.version, ApplicationFlags(), discovery)
+                        ?: continue
 
                 allNewApplications.add(element)
             }
 
             for (updatedApp in storeFront.updatedApplications) {
                 val element =
-                    retrieveApplication(actorAndProject, updatedApp.name, updatedApp.version, ApplicationFlags())
+                    retrieveApplication(
+                        actorAndProject,
+                        updatedApp.name,
+                        updatedApp.version,
+                        ApplicationFlags(),
+                        discovery
+                    )
                         ?: continue
 
                 allUpdatedApplications.add(element)
@@ -349,6 +379,12 @@ class Catalog(
             activeSpotlight,
             allNewApplications.take(5),
             allUpdatedApplications.take(5),
+
+            // NOTE(Dan): The curator status is filled in by the Studio but kept in this call to save the frontend a
+            // round-trip.
+            emptyList(),
+
+            availableProviders = availableStoreFronts.retrieve(actorAndProject).map { it.providerId }.toSet()
         )
     }
 
@@ -358,8 +394,9 @@ class Catalog(
     suspend fun search(
         actorAndProject: ActorAndProject,
         query: String,
+        discovery: WithCatalogDiscovery,
     ): List<Application> {
-        val relevantStoreFronts = findRelevantStoreFronts(actorAndProject)
+        val relevantStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
         val queryProfile = searchCosine.getProfile(query.lowercase())
         val similarities = HashMap<Long, Double>()
 
@@ -385,7 +422,8 @@ class Catalog(
                 ApplicationFlags(
                     includeApplications = true,
                     includeStars = true
-                )
+                ),
+                discovery,
             ) ?: continue
 
             val apps = group.status.applications ?: emptyList()
@@ -407,7 +445,11 @@ class Catalog(
         actorAndProject: ActorAndProject,
         files: List<String>,
     ): List<Application> {
-        val allStoreFronts = findRelevantStoreFronts(actorAndProject)
+        // NOTE(Dan): Open with recommendations should always just pick from what we can actually run, it makes no sense
+        // to show other applications.
+        val discovery = CatalogDiscovery(CatalogDiscoveryMode.AVAILABLE)
+
+        val allStoreFronts = findRelevantStoreFronts(actorAndProject, discovery)
 
         val membership = projectCache.lookup(actorAndProject.actor.safeUsername())
 
@@ -432,9 +474,13 @@ class Catalog(
         val candidates = HashSet<Application>()
         for (storeFront in allStoreFronts) {
             for (appName in storeFront.knownApplication) {
-                val app =
-                    retrieveApplication(actorAndProject, appName, null, ApplicationFlags(includeInvocation = true))
-                        ?: continue
+                val app = retrieveApplication(
+                    actorAndProject,
+                    appName,
+                    null,
+                    ApplicationFlags(includeInvocation = true),
+                    discovery
+                ) ?: continue
 
                 if (app.invocation!!.fileExtensions.any { it in extensions }) {
                     candidates.add(app)
@@ -456,7 +502,8 @@ class Catalog(
                     includeVersions = false,
                     includeStars = true,
                     includeInvocation = true,
-                )
+                ),
+                discovery,
             ) ?: continue
 
             result.add(loaded)
@@ -468,6 +515,7 @@ class Catalog(
 
     suspend fun retrieveStarredApplications(
         actorAndProject: ActorAndProject,
+        discovery: WithCatalogDiscovery,
     ): List<Application> {
         val myStars = stars[actorAndProject.actor.safeUsername()]?.get() ?: return emptyList()
         return myStars.mapNotNull {
@@ -479,11 +527,12 @@ class Catalog(
                     includeStars = true,
                     includeInvocation = true
                 ),
+                discovery,
             )
         }
     }
 
-    private val relevantStoreFrontsCache = AsyncCache<ActorAndProject, List<StoreFront>>(
+    private val availableStoreFronts = AsyncCache<ActorAndProject, List<StoreFront>>(
         backgroundScope,
         timeToLiveMilliseconds = 10_000,
         timeoutMilliseconds = 1000,
@@ -513,8 +562,48 @@ class Catalog(
         }
     )
 
-    private suspend fun findRelevantStoreFronts(actorAndProject: ActorAndProject): List<StoreFront> {
-        return relevantStoreFrontsCache.retrieve(actorAndProject)
+    private val allProviders = AsyncCache<Unit, Set<String>>(
+        backgroundScope,
+        timeToLiveMilliseconds = 10_000,
+        timeoutMilliseconds = 1000,
+        timeoutException = {
+            throw RPCException(
+                "Failed to fetch application data",
+                HttpStatusCode.InternalServerError
+            )
+        },
+        retrieve = { _ ->
+            AccountingV2.findAllProviders.call(
+                bulkRequestOf(
+                    AccountingV2.FindAllProviders.RequestItem(
+                        filterProductType = ProductType.COMPUTE,
+                        includeFreeToUse = false,
+                    )
+                ),
+                serviceClient
+            ).orThrow().responses.flatMap { it.providers }.toSet()
+        }
+    )
+
+    private suspend fun findRelevantStoreFronts(
+        actorAndProject: ActorAndProject,
+        discovery: WithCatalogDiscovery,
+    ): List<StoreFront> {
+        return when (discovery.discovery ?: CatalogDiscoveryMode.DEFAULT) {
+            CatalogDiscoveryMode.ALL -> {
+                allProviders.retrieve(Unit).map { storeFronts.retrieve(it) }
+            }
+
+            CatalogDiscoveryMode.AVAILABLE -> {
+                availableStoreFronts.retrieve(actorAndProject)
+            }
+
+            CatalogDiscoveryMode.SELECTED -> {
+                val all = allProviders.retrieve(Unit)
+                val selectedProviders = (discovery.selected ?: "").split(",").filter { it in all }
+                selectedProviders.map { storeFronts.retrieve(it) }
+            }
+        }
     }
 
     private suspend fun prepareApplicationForUser(
@@ -522,6 +611,7 @@ class Catalog(
         membership: MembershipStatusCacheEntry,
         application: Application,
         flags: ApplicationFlags,
+        discovery: WithCatalogDiscovery,
     ): Application? {
         if (!application.metadata.public) {
             if (!hasPermission(application.metadata.name, actorAndProject.actor, membership)) {
@@ -561,7 +651,8 @@ class Catalog(
                     actorAndProject,
                     application.metadata.name,
                     version,
-                    ApplicationFlags()
+                    ApplicationFlags(),
+                    discovery,
                 )
 
                 if (app != null) allResolvedVersions.add(app)
@@ -585,6 +676,7 @@ class Catalog(
     ): Boolean {
         if (actor == Actor.System) return true
         if (actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) return true
+        if (isPrivileged(actor)) return true
 
         val username = actor.safeUsername()
         val acl = accessControlLists[appName]?.get() ?: return false
@@ -643,6 +735,9 @@ class Catalog(
                 versions.mapNotNull { applications[NameAndVersion(appName, it)] }
             }.sortedBy { it.metadata.createdAt }
 
+            val publicGroups = HashSet<Long>()
+            val publicCategories = HashSet<Long>()
+
             val seenBefore = HashSet<String>()
             for (app in resolvedApplications) {
                 val key = NameAndVersion(app.metadata.name, app.metadata.version)
@@ -651,15 +746,31 @@ class Catalog(
                     newApplications.add(key)
                 }
 
+                if (app.metadata.public) {
+                    val groupId = app.metadata.groupId
+                    if (groupId != null) {
+                        publicGroups.add(groupId)
+                        val group = groups[groupId]!!
+
+                        for (category in group.get().categories) {
+                            publicCategories.add(category.toLong())
+                        }
+                    }
+                }
+
                 seenBefore.add(app.metadata.name)
             }
 
             StoreFront(
+                providerId,
+
                 supportedCategoryIds,
                 supportedGroupIds,
                 knownApplications,
                 newApplications,
                 updatedApplications,
+                publicCategories,
+                publicGroups,
             )
         }
     )

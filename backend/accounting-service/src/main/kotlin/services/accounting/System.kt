@@ -212,6 +212,7 @@ class AccountingSystem(
                                             retrieveProviderAllocations(msg)
 
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
+                                        is AccountingRequest.FindAllProviders -> findAllProviders(msg)
                                         is AccountingRequest.SystemCharge -> systemCharge(msg)
                                         is AccountingRequest.ProviderCheckUsable -> providerCheckUsable(msg)
                                         is AccountingRequest.ForEachUpdatedWallet -> forEachUpdatedWallet(msg)
@@ -1501,6 +1502,26 @@ class AccountingSystem(
             .toSet()
 
         return Response.ok(providers + freeProviders)
+    }
+
+    private suspend fun findAllProviders(
+        request: AccountingRequest.FindAllProviders,
+    ): Response<Set<String>> {
+        val result = HashSet<String>()
+
+        for (product in productCache.products()) {
+            if (request.filterProductType != null && product.productType != request.filterProductType)  {
+                continue
+            }
+
+            if (!request.includeFreeToUse && product.category.freeToUse) {
+                continue
+            }
+
+            result.add(product.category.provider)
+        }
+
+        return Response.ok(result)
     }
 
     private fun retrieveDescendants(request: AccountingRequest.RetrieveDescendants): Response<List<String>> {

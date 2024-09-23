@@ -262,7 +262,7 @@ class ImportExport(
             if (existingId != null) continue
 
             try {
-                val newId = studio.createCategory(a, category.specification.copy(curator = "main"))
+                val newId = studio.createCategory(a, category.specification.copy(curator = mainCurator))
                     categoryIdRemapper[category.metadata.id] = newId.toLong()
             } catch (ex: Throwable) {
                 log.info("Could not create category: ${category.specification}")

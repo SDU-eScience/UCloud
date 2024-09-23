@@ -14,6 +14,7 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {injectStyle} from "@/Unstyled";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AppCard2} from "@/Applications/Landing";
+import {useDiscovery} from "@/Applications/Hooks";
 
 const OverviewStyle = injectStyle("app-overview", k => `
     ${k} {
@@ -29,17 +30,18 @@ const OverviewStyle = injectStyle("app-overview", k => `
     }
 `);
 
-const ApplicationsOverview: React.FunctionComponent = () => {
+const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();
     const idParam = getQueryParam(location.search, "categoryId");
     const id = parseInt(idParam ?? "-1");
 
-    const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id}), null);
+    const [discovery] = useDiscovery();
+    const [categoryState, fetchCategory] = useCloudAPI(AppStore.retrieveCategory({id, ...discovery}), null);
     const category = categoryState.data;
     const groups = category?.status?.groups ?? [];
 
     const refresh = useCallback(() => {
-        fetchCategory(AppStore.retrieveCategory({id})).then(doNothing);
+        fetchCategory(AppStore.retrieveCategory({id, ...discovery})).then(doNothing);
     }, [id]);
 
     useEffect(() => {
@@ -82,4 +84,4 @@ const ApplicationsOverview: React.FunctionComponent = () => {
     );
 };
 
-export default ApplicationsOverview;
+export default ApplicationsCategory;

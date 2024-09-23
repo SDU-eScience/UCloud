@@ -1,5 +1,18 @@
 import MainContainer from "@/ui-components/MainContainer";
-import {Box, Button, Checkbox, Flex, Icon, Input, Label, Link, Relative, Select, TextArea} from "@/ui-components";
+import {
+    Box,
+    Button,
+    Checkbox,
+    Error,
+    Flex,
+    Icon,
+    Input,
+    Label,
+    Link,
+    Relative,
+    Select,
+    TextArea
+} from "@/ui-components";
 import React, {useCallback, useEffect, useRef, useState} from "react";
 import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as Heading from "@/ui-components/Heading";
@@ -22,17 +35,20 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {Toggle} from "@/ui-components/Toggle";
+import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
 
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{ id: string }>().id ?? "-1");
 
     const [group, fetchGroup] = useCloudAPI(AppStore.retrieveGroup({id}), null);
     const [filter, setFilter] = useState("");
-    const [appList] = useCloudAPI(
-        AppStore.listAllApplications({}),
-        { items: [] },
+    const [reloadId, setReloadId] = useState(0);
+    const [appUploadError, setAppUploadErr] = useState<string | null>(null);
+    const [appList, fetchAppList] = useCloudAPI<Page<AppStore.NameAndVersion>>(
+        { noop: true },
+        { items: [], itemsInTotal: 0, itemsPerPage: 0, pageNumber: 0 },
     );
-    
+
     usePage("Edit group", SidebarTabId.APPLICATION_STUDIO);
 
     const uniqueAppsSet = new Set<string>();
@@ -63,11 +79,11 @@ export const AppGroup: React.FunctionComponent = () => {
     const fetchCategories = () => {
         if (!group.data) return;
         fetchAll(next => {
-            const categories = callAPI(AppStore.browseCategories({itemsPerPage: 250, next}));
-            
+            const categories = callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}));
+
             if (!didCancel.current) {
                 categories.then(fetched => setCategories(fetched.items));
-            };
+            }
             return categories;
         });
     };
@@ -75,6 +91,8 @@ export const AppGroup: React.FunctionComponent = () => {
     const refresh = useCallback(async () => {
         fetchGroup(AppStore.retrieveGroup({id})).then(doNothing);
         fetchCategories();
+        setReloadId(p => p + 1);
+        fetchAppList(AppStore.listAllApplications({}));
     }, [id]);
 
     useEffect(() => {
@@ -152,7 +170,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                         key={appName}
                                         left={
                                             <Flex gap="10px">
-                                                <SafeLogo name={appName} type="APPLICATION" size="30px"/>
+                                                <SafeLogo name={appName} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/>
                                                 {appName}
                                             </Flex>
                                         }
@@ -234,8 +252,8 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
-                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"}/></Box>
-                                    <Flex justifyContent="right">
+                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"} cacheBust={reloadId.toString()}/></Box>
+                                    <Flex justifyContent="right" gap={"8px"}>
                                         <label className={ButtonClass}>
                                             Upload
                                             <HiddenInputField
@@ -311,9 +329,21 @@ export const AppGroup: React.FunctionComponent = () => {
                                             >
                                                 Add
                                             </Button>
+
+                                            <UploadAppAndTool
+                                                onError={setAppUploadErr}
+                                                onSuccess={refresh}
+                                                style={{marginLeft: "8px", height: "25px"}}
+                                            />
                                         </Flex>
                                         <Box mt="25px" mr="60px">Default</Box>
                                     </Flex>
+
+                                    {appUploadError ?
+                                        <Error error={appUploadError} clearError={() => setAppUploadErr(null)} />
+                                        : null
+                                    }
+
                                     <List width="100%">
                                         {group.data.status?.applications?.map(app => (
                                             <ListRow
@@ -321,7 +351,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
                                                     <Flex justifyContent="left" gap="15px">
-                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px"/></Box>
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/></Box>
                                                         <Box mt="6px">{app.metadata.title}</Box>
                                                     </Flex>
                                                 }

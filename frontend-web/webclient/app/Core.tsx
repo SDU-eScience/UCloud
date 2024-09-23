@@ -5,7 +5,7 @@ import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
-const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
+const ApplicationsOverview = React.lazy(() => import("./Applications/Category"));
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
 const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));

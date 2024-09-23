@@ -118,6 +118,12 @@ sealed class AccountingRequest<Resp> {
         val includeFreeToUse: Boolean = true,
     ) : AccountingRequest<Set<String>>()
 
+    data class FindAllProviders(
+        override val idCard: IdCard,
+        val filterProductType: ProductType? = null,
+        val includeFreeToUse: Boolean = true,
+    ) : AccountingRequest<Set<String>>()
+
     data class ProviderCheckUsable(
         override val idCard: IdCard,
         val category: ProductCategoryIdV2,

@@ -63,6 +63,14 @@ val newUpdates = ThreadSafeCyclicArray<NameAndVersion>(5)
 // recent version from looking up in applicationVersions[starred].
 val stars = NonBlockingHashMap<String, InternalStars>()
 
+val cacheInvalidationListeners = ArrayList<suspend () -> Unit>()
+
+suspend fun triggerCacheInvalidation() {
+    cacheInvalidationListeners.forEach { it() }
+}
+
+const val mainCurator = "main"
+
 class CatalogData(
     private val db: DBContext,
 ) {
@@ -103,20 +111,26 @@ class CatalogData(
             }
 
             val curatorRows = session.sendPreparedStatement(
+                {},
                 """
-                    select id, public_read, can_create_categories, can_manage_catalog, managed_by_project_id from app_store.curators
+                    select
+                        id,
+                        can_manage_catalog,
+                        managed_by_project_id,
+                        mandated_prefix
+                    from
+                        app_store.curators
                 """
             )
 
             curatorRows.rows.forEach { row ->
-                val id = row.getString("id")!!
-                val publicRead = row.getBoolean("public_read")!!
-                val canCreateCategories = row.getBoolean("can_create_categories")!!
-                val canManageCatalog = row.getBoolean("can_manage_catalog")!!
-                val projectId = row.getString("managed_by_project_id")!!
+                val id = row.getString(0)!!
+                val canManageCatalog = row.getBoolean(1)!!
+                val managedByProjectId = row.getString(2)!!
+                val mandatedPrefix = row.getString(3)!!
 
                 curators.computeIfAbsent(id) {
-                    InternalCurator(id, publicRead, canCreateCategories, canManageCatalog, projectId)
+                    InternalCurator(id, canManageCatalog, managedByProjectId, mandatedPrefix)
                 }
             }
 
@@ -154,7 +168,8 @@ class CatalogData(
                 """
             ).rows
 
-            val appGroups = session.sendPreparedStatement("""
+            val appGroups = session.sendPreparedStatement(
+                """
                 select 
                     id,
                     title,
@@ -165,7 +180,8 @@ class CatalogData(
                     color_remapping,
                     curator 
                 from app_store.application_groups
-            """).rows
+            """
+            ).rows
 
             for (row in appGroups) {
                 val id = row.getInt("id") ?: continue
@@ -312,7 +328,8 @@ class CatalogData(
                     val title = row.getString(1)!!
                     val description = row.getString(2)!!
                     val active = row.getBoolean(3)!!
-                    spotlights[spotlightId.toLong()] = InternalSpotlight(Spotlight(title, description, emptyList(), active, spotlightId))
+                    spotlights[spotlightId.toLong()] =
+                        InternalSpotlight(Spotlight(title, description, emptyList(), active, spotlightId))
                 }
 
                 session.sendPreparedStatement(
@@ -458,6 +475,14 @@ class CatalogData(
             throw RPCException("This application already exists!", HttpStatusCode.Conflict)
         }
 
+        if (app.metadata.curator.isNullOrEmpty()) {
+            if (flush) {
+                throw IllegalArgumentException("curator must be specified")
+            } else {
+                app = app.copy(metadata = app.metadata.copy(curator = mainCurator))
+            }
+        }
+
         val appVersions = applicationVersions.computeIfAbsent(key.name) { InternalVersions() }
         appVersions.add(key.version)
         val allVersions = appVersions.get()
@@ -472,20 +497,6 @@ class CatalogData(
         val groupId = app.metadata.groupId ?: previousApp?.metadata?.groupId
         if (groupId != null) {
             groups[groupId]!!.addApplications(setOf(key))
-        }
-
-        app = app.copy(
-            metadata = app.metadata.copy(
-                flavorName = app.metadata.flavorName ?: previousApp?.metadata?.flavorName,
-                groupId = groupId,
-            )
-        )
-        applications[key] = app
-
-        val curator = if (!app.metadata.curator.isNullOrEmpty()) {
-            app.metadata.curator
-        } else {
-            "main"
         }
 
         if (flush) {
@@ -508,7 +519,7 @@ class CatalogData(
                         setParameter("original_document", "{}")
                         setParameter("group", groupId)
                         setParameter("flavor", app.metadata.flavorName ?: previousApp?.metadata?.flavorName)
-                        setParameter("curator", curator)
+                        setParameter("curator", app.metadata.curator)
                     },
                     """
                         insert into app_store.applications
@@ -520,11 +531,27 @@ class CatalogData(
             }
         }
 
+        app = app.copy(
+            metadata = app.metadata.copy(
+                flavorName = app.metadata.flavorName ?: previousApp?.metadata?.flavorName,
+                groupId = groupId,
+            ),
+            invocation = app.invocation?.copy(
+                tool = ToolReference(
+                    tool.description.info.name,
+                    tool.description.info.version,
+                    tool
+                )
+            )
+        )
+        applications[key] = app
+
         if (appVersions.get().size == 1) newApplications.add(app.metadata.name)
         newUpdates.add(NameAndVersion(app.metadata.name, app.metadata.version))
     }
 
-    suspend fun registerTool(tool: Tool, flush: Boolean) {
+    suspend fun registerTool(inputTool: Tool, flush: Boolean) {
+        var tool = inputTool
         val key = tool.description.info
         if (tools[key] != null) {
             // NOTE(Dan): We purposefully don't deal with the race conflict we have here. I don't believe it is worth
@@ -532,13 +559,13 @@ class CatalogData(
             // depend on this not potentially having a race condition.
             throw RPCException("This tool already exists!", HttpStatusCode.Conflict)
         }
-        tools[key] = tool
-        toolVersions.computeIfAbsent(key.name) { InternalVersions() }.add(key.version)
 
-        val curator = if (!tool.description.curator.isNullOrEmpty()) {
-            tool.description.curator
-        } else {
-            "main"
+        if (tool.description.curator.isNullOrEmpty()) {
+            if (flush) {
+                throw IllegalArgumentException("curator must be specified")
+            } else {
+                tool = tool.copy(description = tool.description.copy(curator = mainCurator))
+            }
         }
 
         if (flush) {
@@ -552,7 +579,7 @@ class CatalogData(
                         setParameter("original_document", "{}")
                         setParameter("name", key.name)
                         setParameter("version", key.version)
-                        setParameter("curator", curator)
+                        setParameter("curator", tool.description.curator)
                     },
                     """
                         insert into app_store.tools
@@ -563,6 +590,10 @@ class CatalogData(
                 )
             }
         }
+
+
+        tools[key] = tool
+        toolVersions.computeIfAbsent(key.name) { InternalVersions() }.add(key.version)
     }
 
     private fun registerGroup(group: ApplicationGroup): InternalGroup {

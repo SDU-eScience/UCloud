@@ -16,10 +16,16 @@ import {doNothing} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
-import {Spotlight, TopPick} from "@/Applications/AppStoreApi";
+import {defaultCatalogDiscovery, emptyLandingPage, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
 import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {CatalogDiscoveryModeSwitcher} from "@/Applications/Jobs/CatalogDiscoveryMode";
+import {Feature, hasFeature} from "@/Features";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {useProjectId} from "@/Project/Api";
+import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
 const landingStyle = injectStyle("landing-page", k => `
@@ -49,23 +55,40 @@ const landingStyle = injectStyle("landing-page", k => `
 
 const LandingPage: React.FunctionComponent = () => {
     usePage("Applications", SidebarTabId.APPLICATIONS);
-    const [landingPageState, fetchLandingPage] = useCloudAPI(
-        AppStore.retrieveLandingPage({}),
-        null
-    );
 
-    const [starred, fetchStarred] = useCloudAPI(
-        AppStore.retrieveStars({}),
+    const projectId = useProjectId();
+    const oldProjectId = React.useRef<string | null>(null);
+    const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
+    const [discoveryMode] = useDiscovery();
+
+    const [landingPage] = useGlobal("catalogLandingPage", emptyLandingPage);
+
+    const [starred, fetchStarred] = useCloudAPI<{items: AppStore.Application[]}>(
+        {noop: true},
         {items: []}
     );
 
-    const landingPage = landingPageState.data;
-
     const refresh = useCallback(() => {
-        fetchLandingPage(AppStore.retrieveLandingPage({})).then(doNothing);
-        fetchStarred(AppStore.retrieveStars({})).then(doNothing);
-    }, []);
+        const discoverHasChanged =
+            discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
+            discoveryMode.selected !== oldDiscoveryMode.current?.selected;
+
+        const projectHasChanged = oldProjectId.current !== projectId;
+
+        if (discoverHasChanged || projectHasChanged) {
+            fetchStarred(AppStore.retrieveStars(discoveryMode)).then(doNothing);
+        }
+
+        oldDiscoveryMode.current = discoveryMode;
+        oldProjectId.current = projectId ?? null;
+    }, [discoveryMode, projectId]);
+
+    useEffect(() => {
+        refresh();
+    }, [refresh]);
+
     useSetRefreshFunction(refresh);
+
     const appSearch = useAppSearch();
 
     if (!landingPage) return <div>
@@ -76,17 +99,22 @@ const LandingPage: React.FunctionComponent = () => {
     </div>;
 
     return <div className={Gradient}>
-            <div className={GradientWithPolygons}>
-                <MainContainer main={<article className={landingStyle}>
-                    <Flex alignItems={"center"}><Box ml="auto" /><UtilityBar onSearch={appSearch} /></Flex>
-                    <Hero slides={landingPage.carrousel} />
+        <div className={GradientWithPolygons}>
+            <MainContainer main={
+                <article className={landingStyle}>
+                    <Flex alignItems={"center"}>
+                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher /> : null}
+                        <Box flexGrow={1}/>
+                        <UtilityBar onSearch={appSearch}/>
+                    </Flex>
+                    <Hero slides={landingPage.carrousel}/>
                     {starred.data.items.length > 0 ?
-                        <StarredApplications2 apps={starred.data.items} /> : null}
+                        <StarredApplications2 apps={starred.data.items}/> : null}
 
 
-                    <TopPicksCard2 topPicks={landingPage.topPicks} />
+                    <TopPicksCard2 topPicks={landingPage.topPicks}/>
 
-                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight} /> : null}
+                    {landingPage.spotlight ? <SpotlightCard2 spotlight={landingPage.spotlight}/> : null}
 
                     {landingPage.categories.length < 1 ? null :
                         <div>
@@ -108,7 +136,7 @@ const LandingPage: React.FunctionComponent = () => {
                                     {landingPage.newApplications.map((app, idx) => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                             description={app.metadata.description} fullWidth
-                                            key={idx}
+                                            key={app.metadata.name+app.metadata.version}
                                             isApplication />
                                     ))}
                                 </Flex>
@@ -116,19 +144,19 @@ const LandingPage: React.FunctionComponent = () => {
 
                             <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
                                 <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                    {landingPage.recentlyUpdated.map((app, idx) => (
+                                    {landingPage.recentlyUpdated.map(app => (
                                         <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                             description={app.metadata.description} fullWidth
-                                            key={idx}
+                                            key={app.metadata.name+app.metadata.version}
                                             isApplication />
                                     ))}
                                 </Flex>
                             </TabbedCardTab>
                         </TabbedCard>
                     </div>
-                </article>} />
-            </div>
-        </div>;
+                </article>}/>
+        </div>
+    </div>;
 };
 
 export const SpotlightCard: React.FunctionComponent<{
@@ -141,9 +169,9 @@ export const SpotlightCard: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard1 key={idx} name={pick.groupId.toString()}
-                            title={pick.title} description={pick.description}
-                            applicationName={pick.defaultApplicationToRun}
-                            fullWidth target={target} />;
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target}/>;
                     } else {
                         return null;
                     }
@@ -171,9 +199,9 @@ export const SpotlightCard2: React.FunctionComponent<{
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
                         return <AppCard2 key={idx} name={pick.groupId.toString()}
-                            title={pick.title} description={pick.description}
-                            applicationName={pick.defaultApplicationToRun}
-                            fullWidth target={target} />;
+                                         title={pick.title} description={pick.description}
+                                         applicationName={pick.defaultApplicationToRun}
+                                         fullWidth target={target}/>;
                     } else {
                         return null;
                     }
@@ -268,13 +296,13 @@ const HeroStyle = injectStyle("hero", k => `
     ${k} .indicators > .indicator.active {
         background: var(--secondaryDark);
     }
-`);  
+`);
 
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
     onClick: () => void;
 }> = (props) => {
-    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick} />;
+    return <div className={classConcat("indicator", props.active ? "active" : undefined)} onClick={props.onClick}/>;
 };
 export const Hero: React.FunctionComponent<{
     slides: AppStore.CarrouselItem[];
@@ -316,17 +344,23 @@ export const Hero: React.FunctionComponent<{
     }
 
     const imageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index, slideTitle: slide.title});
-    const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: nextSlideIndex, slideTitle: nextSlide.title});
-    const prevImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({index: prevSlideIndex, slideTitle: prevSlide.title});
+    const nextImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({
+        index: nextSlideIndex,
+        slideTitle: nextSlide.title
+    });
+    const prevImageLink = imageLinks?.[index] ?? AppStore.retrieveCarrouselImage({
+        index: prevSlideIndex,
+        slideTitle: prevSlide.title
+    });
 
     return <Card style={{overflow: "hidden", border: 0, padding: 0}}>
         {/* Note(Jonas): Pre-fetch next image, so text and image change at the same time in the carousel */}
-        <link rel="prefetch" as="image" href={nextImageLink} />
+        <link rel="prefetch" as="image" href={nextImageLink}/>
         <div className={HeroStyle}>
             <div className={"carousel"}>
                 <div className={"carouselImages"}>
-                    <img key={2*activeIndex+1} alt={"cover image"} src={imageLink} />
-                    <img key={activeIndex} alt={"cover image"} src={prevImageLink} />
+                    <img key={2 * activeIndex + 1} alt={"cover image"} src={imageLink}/>
+                    <img key={activeIndex} alt={"cover image"} src={prevImageLink}/>
                     <div className="indicators">
                         {slides.map((s, i) =>
                             <HeroIndicator
@@ -348,7 +382,7 @@ export const Hero: React.FunctionComponent<{
                     </div>
                     <Box flexGrow={1} />
                     {(slide.imageCredit != "Unknown") && <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
-                    {slideLink ? 
+                    {slideLink ?
                         <ReactRouterLink
                             to={slideLink}
                             style={{width: "100%"}}
@@ -444,7 +478,7 @@ const AppCard1: React.FunctionComponent<{
         target={props.target}
         className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
     >
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"} />
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"}/>
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -524,8 +558,8 @@ export const AppCard2: React.FunctionComponent<{
     }
 
     return <ReactRouterLink to={link} target={props.target}
-        className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} />
+                            className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"}/>
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -550,7 +584,7 @@ const AppCardGridStyle = injectStyle("app-card-grid", k => `
     }
 `);
 
-const AppCardGrid: React.FunctionComponent<{children: React.ReactNode}> = ({children}) => {
+const AppCardGrid: React.FunctionComponent<{ children: React.ReactNode }> = ({children}) => {
     return <div className={AppCardGridStyle}>{children}</div>;
 }
 
@@ -607,7 +641,7 @@ const CategoryCard: React.FunctionComponent<{
         <div className={CategoryCardStyle} style={style}>
             <Relative>
                 <div className={"logo-wrapper"}>
-                    <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"} />
+                    <AppLogoRaw rot={60} color1Offset={1} color2Offset={2} appC={appCIdx} size={"130px"}/>
                 </div>
             </Relative>
             <span>{props.categoryTitle}</span>
@@ -639,14 +673,14 @@ const SpotlightDescription = injectStyle("spotlight-description", k => `
     }
 `)
 
-export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
+export const TopPicksCard: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
     return <TitledCard title={"Top picks"} icon={"heroChartBar"}>
         <AppCardGrid>
             {topPicks.map(pick => {
                 if (pick.groupId) {
                     return <AppCard1 key={pick.groupId} name={pick.groupId.toString()}
-                        title={pick.title} description={pick.description}
-                        applicationName={pick.defaultApplicationToRun} />;
+                                     title={pick.title} description={pick.description}
+                                     applicationName={pick.defaultApplicationToRun}/>;
                 } else {
                     return null;
                 }
@@ -710,7 +744,7 @@ const LogoCard: React.FunctionComponent<{
 }> = ({id, link, title, large}) => {
     return <ReactRouterLink to={link}>
         <div className={TopPickCardStyle}>
-            <LogoWithText id={id} title={title} size={60} forceUnder={large} />
+            <LogoWithText id={id} title={title} size={60} forceUnder={large}/>
         </div>
     </ReactRouterLink>;
 }
@@ -745,7 +779,6 @@ export const StarredApplications2: React.FunctionComponent<{
         <div className={classConcat(TopPickCardGridStyle, apps.length <= 5 ? "small" : undefined)}>
             {apps.map((app, idx) => {
                 const link = AppRoutes.jobs.create(app.metadata.name);
-                const groupId = app.metadata.groupId ?? 0;
 
                 return <LogoCard
                     key={app.metadata.name}

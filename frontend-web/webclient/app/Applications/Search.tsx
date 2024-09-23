@@ -20,6 +20,7 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useDiscovery} from "@/Applications/Hooks";
 
 export function useAppSearch(): (query: string) => void {
     const navigate = useNavigate();
@@ -50,14 +51,15 @@ const SearchResults: React.FunctionComponent = () => {
     const location = useLocation();
     const dispatch = useDispatch();
     const query = readQuery(location.search);
+    const [discovery] = useDiscovery();
     const [results, fetchResults] = useCloudAPI(
         AppStore.search({query, itemsPerPage: 250}),
         emptyPage
     );
 
     const refresh = useCallback(() => {
-        fetchResults(AppStore.search({query, itemsPerPage: 250})).then(doNothing);
-    }, [query]);
+        fetchResults(AppStore.search({query, itemsPerPage: 250, ...discovery})).then(doNothing);
+    }, [query, discovery]);
 
     useEffect(() => {
         refresh();
@@ -106,7 +108,7 @@ const SearchResults: React.FunctionComponent = () => {
                                 type={AppCardType.APPLICATION}
                                 link={Pages.run(app.metadata.name)}
                                 onFavorite={onFavorite}
-                                isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                                isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite === true}
                                 application={app}
                             />
                         ))}

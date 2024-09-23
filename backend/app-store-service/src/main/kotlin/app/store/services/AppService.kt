@@ -12,7 +12,10 @@ import java.util.concurrent.atomic.AtomicReference
 // Utilities
 // =================================================================================================================
 fun isPrivileged(actorAndProject: ActorAndProject): Boolean {
-    val (actor) = actorAndProject
+    return isPrivileged(actorAndProject.actor)
+}
+
+fun isPrivileged(actor: Actor): Boolean {
     return actor == Actor.System || ((actor as? Actor.User)?.principal?.role ?: Role.GUEST) in Roles.PRIVILEGED
 }
 
@@ -264,12 +267,10 @@ class InternalCategory(
 
 data class InternalCurator(
     val id: String,
-    val publicRead: Boolean,
-    val canCreateCategories: Boolean,
     val canManageCatalog: Boolean,
-    val projectId: String
+    val projectId: String,
+    val mandatedPrefix: String,
 )
-
 
 class InternalSpotlight(spotlight: Spotlight) {
     private val ref = AtomicReference(spotlight)

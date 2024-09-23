@@ -281,6 +281,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     // Internal service + provider utilities
     // =================================================================================================================
     val findRelevantProviders = FindRelevantProviders.call
+    val findAllProviders = FindAllProviders.call
     val browseProviderAllocations = BrowseProviderAllocations.call
     val retrieveDescendants = RetrieveDescendants.call
     val adminDebug = AdminDebug.call
@@ -336,6 +337,29 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "findRelevantProviders", Roles.PRIVILEGED)
+            }
+        )
+    }
+
+    object FindAllProviders {
+        @Serializable
+        data class RequestItem(
+            val filterProductType: ProductType? = null,
+            val includeFreeToUse: Boolean = true,
+        )
+
+        @Serializable
+        data class Response(
+            val providers: List<String>
+        )
+
+        val call = call(
+            "findAllProviders",
+            BulkRequest.serializer(RequestItem.serializer()),
+            BulkResponse.serializer(Response.serializer()),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "findAllProviders", Roles.PRIVILEGED)
             }
         )
     }

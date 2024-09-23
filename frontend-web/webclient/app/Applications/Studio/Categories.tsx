@@ -2,7 +2,7 @@ import * as React from "react";
 import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
-import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
 import {useCallback, useEffect, useState} from "react";
@@ -29,7 +29,7 @@ const Categories: React.FunctionComponent = () => {
         }
 
         fetchAll(next => {
-            return callAPI(AppStore.browseCategories({itemsPerPage: 250, next}));
+            return callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}));
         }).then(categories => setCategories(categories));
     };
 
@@ -43,7 +43,7 @@ const Categories: React.FunctionComponent = () => {
             placeholder: "Name",
         })).result;
 
-        await callAPI(AppStore.createCategory({
+        await callAPIWithErrorHandler(AppStore.createCategory({
             title: categoryName,
         }));
 
@@ -55,7 +55,7 @@ const Categories: React.FunctionComponent = () => {
         const index = parseInt(findDomAttributeFromAncestors(e.target, "data-idx") ?? "");
         const newIndex = Math.max(0, up ? index - 1 : index + 1);
 
-        await callAPI(AppStore.assignPriorityToCategory({ id, priority: newIndex }));
+        await callAPIWithErrorHandler(AppStore.assignPriorityToCategory({ id, priority: newIndex }));
         fetchCategories();
     }, []);
 
@@ -69,7 +69,7 @@ const Categories: React.FunctionComponent = () => {
 
     const deleteCategory = useCallback(async (key: string) => {
         const id = parseInt(key);
-        await callAPI(AppStore.deleteCategory({id}));
+        await callAPIWithErrorHandler(AppStore.deleteCategory({id}));
         fetchCategories();
     }, []);
 

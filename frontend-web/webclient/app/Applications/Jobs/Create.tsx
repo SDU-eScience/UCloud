@@ -74,6 +74,7 @@ import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
 import AppRoutes from "@/Routes";
+import {useDiscovery} from "@/Applications/Hooks";
 
 interface InsufficientFunds {
     why?: string;
@@ -164,6 +165,7 @@ export const Create: React.FunctionComponent = () => {
         if (wallet === null) return null;
         return explainWallet(wallet);
     }, [estimatedCost.wallet]);
+    const [discovery] = useDiscovery();
 
     const provider = getProviderField();
 
@@ -257,6 +259,7 @@ export const Create: React.FunctionComponent = () => {
     useUState(connectionState);
 
     useEffect(() => {
+        console.log({discovery});
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
@@ -269,10 +272,11 @@ export const Create: React.FunctionComponent = () => {
                     includeInvocation: true,
                     includeStars: true,
                     includeVersions: true
-                }
+                },
+                ...discovery,
             })
         );
-    }, [appName, appVersion]);
+    }, [appName, appVersion, discovery]);
 
     useEffect(() => {
         if (!application) return;

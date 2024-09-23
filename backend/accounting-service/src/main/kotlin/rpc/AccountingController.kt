@@ -67,6 +67,21 @@ class AccountingController(
             ok(BulkResponse(responses))
         }
 
+        implementOrDispatch(AccountingV2.findAllProviders) {
+            val idCard = idCards.fetchIdCard(actorAndProject)
+            val responses = request.items.map { req ->
+                accounting.sendRequest(
+                    AccountingRequest.FindAllProviders(
+                        idCard,
+                        req.filterProductType,
+                        req.includeFreeToUse,
+                    )
+                ).let { AccountingV2.FindAllProviders.Response(it.toList()) }
+            }
+
+            ok(BulkResponse(responses))
+        }
+
         implementOrDispatch(AccountingV2.reportUsage) {
             val isService = (actorAndProject.actor as? Actor.User)?.principal?.role == Role.SERVICE
             val idCard = if (isService) IdCard.System else idCards.fetchIdCard(actorAndProject)

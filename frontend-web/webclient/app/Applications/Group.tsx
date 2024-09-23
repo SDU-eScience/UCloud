@@ -16,18 +16,19 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-
+import {useDiscovery} from "@/Applications/Hooks";
 
 const ApplicationsGroup: React.FunctionComponent = () => {
     const idParam = useParams<{ id: string }>().id;
     const id = parseInt(idParam ?? "-1");
+    const [discovery] = useDiscovery();
 
-    const [appGroup, fetchAppGroup] = useCloudAPI(AppStore.retrieveGroup({ id }), null);
+    const [appGroup, fetchAppGroup] = useCloudAPI(AppStore.retrieveGroup({id, ...discovery}), null);
 
     const dispatch = useDispatch();
 
     const refresh = useCallback(() => {
-        fetchAppGroup(AppStore.retrieveGroup({id})).then(doNothing);
+        fetchAppGroup(AppStore.retrieveGroup({id, ...discovery})).then(doNothing);
     }, [id]);
 
     usePage(appGroup.data?.specification.title ?? "Application", SidebarTabId.APPLICATIONS);
@@ -82,7 +83,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                     type={AppCardType.APPLICATION}
                     link={Pages.run(app.metadata.name)}
                     onFavorite={onFavorite}
-                    isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite}
+                    isFavorite={favoriteStatus.find(it => it.metadata.name === app.metadata.name) !== undefined ? true : app.favorite === true}
                     application={app}
                 />
             ))}
