@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
@@ -33,7 +34,11 @@ func HandleCli(command string) {
 
 	case "allocations":
 		HandleAllocationsCommand()
+
+	case "scripts":
+		HandleScriptsCommand()
 	}
+
 }
 
 func InitCliServer() {
@@ -47,6 +52,7 @@ func InitCliServer() {
 	HandleJobsCommandServer()
 	HandleDrivesCommandServer()
 	HandleAllocationsCommandServer()
+	HandleScriptsCommandServer()
 }
 
 func isListCommand(command string) bool {
