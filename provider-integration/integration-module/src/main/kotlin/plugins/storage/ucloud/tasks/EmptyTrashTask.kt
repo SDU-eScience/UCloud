@@ -12,6 +12,7 @@ import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.child
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.*
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask.Companion
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.task.api.*
@@ -105,11 +106,16 @@ class EmptyTrashTask(
                         val filesToDelete = nativeFs.listFiles(internalFile)
                         var filesDeleted = 0L
                         filesToDelete.forEach {
-                            postUpdate(
-                                task.taskId.toLong(),
-                                "Emptying Trash",
-                                "$filesDeleted/${filesToDelete.size} deleted"
-                            )
+                            try {
+                                postUpdate(
+                                    task.taskId.toLong(),
+                                    "Emptying Trash",
+                                    "$filesDeleted/${filesToDelete.size} deleted"
+                                )
+                            } catch (ex: Exception) {
+                                CopyTask.log.warn("Failed to update status for task: $task")
+                                CopyTask.log.info(ex.message)
+                            }
                             try {
                                 val src = internalFile.child(it)
                                 val dst = stagingFolder.child(UUID.randomUUID().toString())

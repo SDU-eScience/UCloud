@@ -130,10 +130,16 @@ class CopyTask : TaskHandler {
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.oldId))
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.newId))
 
-                postUpdate(
-                    task.taskId.toLong(),
-                    "Copying files",
-                    "$filesCopied/$numberOfFiles copied")
+                try {
+                    postUpdate(
+                        task.taskId.toLong(),
+                        "Copying files",
+                        "$filesCopied/$numberOfFiles copied")
+
+                } catch (ex: Exception) {
+                    log.warn("Failed to update status for task: $task")
+                    log.info(ex.message)
+                }
 
                 val result = try {
                     val result = nativeFs.copy(

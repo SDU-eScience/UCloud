@@ -274,12 +274,18 @@ class TaskSystem(
 
                             taskContext.execute(task.copy(requirements = requirements))
 
-                            Tasks.markAsComplete.call(
-                                MarkAsCompleteRequest(
-                                    task.taskId.toLong()
-                                ),
-                                client
-                            )
+                            try {
+                                Tasks.markAsComplete.call(
+                                    MarkAsCompleteRequest(
+                                        task.taskId.toLong()
+                                    ),
+                                    client
+                                )
+                            } catch (ex: Exception) {
+                                log.warn("Failed to mark task (${task.taskId}) as completed")
+                                log.info(ex.message)
+                                return@useContext
+                            }
                             log.debug("Completed the execution of $task")
 
                             markJobAsComplete(db, task.taskId)
