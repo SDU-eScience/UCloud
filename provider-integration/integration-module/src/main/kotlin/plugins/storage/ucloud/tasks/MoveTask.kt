@@ -11,7 +11,6 @@ import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.*
-import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask.Companion
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.serviceContext
@@ -97,8 +96,8 @@ class MoveTask : TaskHandler {
                                 "$filesMoved/$filesToMove files have been moved"
                             )
                         } catch (ex: Exception) {
-                            CopyTask.log.warn("Failed to update status for task: $task")
-                            CopyTask.log.info(ex.message)
+                            log.warn("Failed to update status for task: $task")
+                            log.info(ex.message)
                         }
                     }
 

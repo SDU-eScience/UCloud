@@ -1,7 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud.tasks
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -12,13 +11,9 @@ import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.child
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.*
-import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask.Companion
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.task.api.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import java.nio.file.StandardCopyOption
@@ -113,8 +108,8 @@ class EmptyTrashTask(
                                     "$filesDeleted/${filesToDelete.size} deleted"
                                 )
                             } catch (ex: Exception) {
-                                CopyTask.log.warn("Failed to update status for task: $task")
-                                CopyTask.log.info(ex.message)
+                                log.warn("Failed to update status for task: $task")
+                                log.info(ex.message)
                             }
                             try {
                                 val src = internalFile.child(it)

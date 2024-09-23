@@ -24,7 +24,6 @@ import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.task.api.BackgroundTask
 import dk.sdu.cloud.task.api.CreateRequest
 import dk.sdu.cloud.task.api.Tasks
-import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -163,10 +162,15 @@ class FileController(
 
             if (!doesExist) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            Tasks.markAsComplete.callBlocking(
-                FindByLongId(request.id.toLong()),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
+            try {
+                Tasks.markAsComplete.callBlocking(
+                    FindByLongId(request.id.toLong()),
+                    controllerContext.pluginContext.rpcClient
+                ).orThrow()
+            } catch (ex: Exception) {
+                log.warn("Failed to update status for task: ${request.id}")
+                log.info(ex.message)
+            }
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
