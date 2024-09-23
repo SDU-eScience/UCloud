@@ -10,7 +10,7 @@ class TaskController(
     override fun configure(rpcServer: RpcServer) {
         val tasks = TasksProvider(controllerContext.configuration.core.providerId)
         with (rpcServer) {
-            implement(tasks.userAction) {
+            implement(tasks.pauseOrCancel) {
                 controllerContext.configuration.plugins.files.values.forEach { plugin ->
                     with(requestContext(controllerContext)) {
                         with(plugin) {

@@ -64,7 +64,6 @@ class TaskSystem(
         requestName: String,
         request: JsonObject,
         username: String,
-        currentProvider: String,
         operationDescription: String,
         progressDescription: String = "Accepted",
         canPause: Boolean = false,
@@ -80,7 +79,6 @@ class TaskSystem(
             val task = Tasks.create.call(
                 CreateRequest(
                     user = username,
-                    provider = currentProvider,
                     operation = operationDescription,
                     progress = progressDescription,
                     canPause = canPause,

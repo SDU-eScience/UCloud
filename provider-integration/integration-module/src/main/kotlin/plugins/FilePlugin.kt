@@ -16,6 +16,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.PauseOrCancelRequest
 import dk.sdu.cloud.task.api.PostStatusRequest
 import io.ktor.utils.io.*
 import io.ktor.websocket.*
@@ -73,7 +74,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> {
         throw RPCException("Streaming search is not supported by this provider", HttpStatusCode.BadRequest)
     }
-    suspend fun RequestContext.modifyTask(request: PostStatusRequest) {
+    suspend fun RequestContext.modifyTask(request: BackgroundTask) {
         println("MODIFYING TASK: $request")
     }
 
