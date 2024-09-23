@@ -100,11 +100,11 @@ class FileController(
             val backgroundTask = Tasks.create.call(
                 CreateRequest(
                     user = username,
-                    provider = providerId,
                     operation = request.title,
                     progress = "Accepted",
                     canPause = false,
-                    canCancel = false
+                    canCancel = false,
+                    icon = request.title
                 ),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
@@ -131,8 +131,8 @@ class FileController(
             UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
-            Tasks.view.call(
-                request,
+            Tasks.retrieve.call(
+                FindByLongId(request.id.toLong()),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
         })

@@ -73,7 +73,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> {
         throw RPCException("Streaming search is not supported by this provider", HttpStatusCode.BadRequest)
     }
-    suspend fun RequestContext.modifyTask(request: PostStatusRequest) {
+    suspend fun RequestContext.modifyTask(request: BackgroundTask) {
         println("MODIFYING TASK: $request")
     }
 

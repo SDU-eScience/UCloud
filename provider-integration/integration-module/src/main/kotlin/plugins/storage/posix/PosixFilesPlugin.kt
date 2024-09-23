@@ -539,7 +539,8 @@ class PosixFilesPlugin : FilePlugin {
                 specification = BackgroundTask.Specification(
                     canPause = false,
                     canCancel = false
-                )
+                ),
+                null
             )
         }
         return result

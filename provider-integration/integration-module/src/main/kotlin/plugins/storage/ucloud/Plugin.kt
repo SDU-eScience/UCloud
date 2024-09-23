@@ -223,6 +223,7 @@ class UCloudFilePlugin : FilePlugin {
                 username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
                 currentProvider = providerId,
                 operationDescription = "Creating folder ${reqItem.id}",
+                icon = null
             )
         }
     }
@@ -611,6 +612,7 @@ class UCloudFilePlugin : FilePlugin {
                 username = username,
                 currentProvider = providerId,
                 operationDescription = "Moving file to trash",
+                icon = "move"
             )
         }
     }
@@ -627,6 +629,7 @@ class UCloudFilePlugin : FilePlugin {
                 username = username,
                 currentProvider = providerId,
                 operationDescription = "Emptying Trash",
+                icon = "trash"
             )
         }
     }
@@ -656,6 +659,7 @@ class UCloudFilePlugin : FilePlugin {
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
                 currentProvider = providerId,
                 operationDescription = "Moving file",
+                icon = "move"
             )
         }
     }
@@ -675,6 +679,7 @@ class UCloudFilePlugin : FilePlugin {
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
                 currentProvider = providerId,
                 operationDescription = "Copying file",
+                icon = "copy"
             )
         }
     }
@@ -738,6 +743,7 @@ class UCloudFilePlugin : FilePlugin {
             username = resource.owner.createdBy,
             currentProvider = providerId,
             operationDescription = "Deleting file",
+            icon = "trash"
         )
     }
 
@@ -1176,7 +1182,8 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
             ) as JsonObject,
             username = ucloudUsername ?: resource.owner.createdBy,
             currentProvider = providerId,
-            operationDescription = "Deleting ${resource.specification.title}"
+            operationDescription = "Deleting ${resource.specification.title}",
+            icon = "trash"
         )
         val drives = ArrayList<UCloudDrive>()
         dbConnection.withSession { session ->
