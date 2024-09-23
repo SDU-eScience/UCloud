@@ -10,7 +10,7 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-type Extension[Req any, Resp any] struct {
+type Script[Req any, Resp any] struct {
 	Script string
 }
 
@@ -42,11 +42,11 @@ func prepareFile(req any) (string, bool) {
 	return file.Name(), true
 }
 
-func (e *Extension[Req, Resp]) Invoke(req Req) (Resp, bool) {
+func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	var resp Resp
 	if e.Script == "" {
 		log.Error(
-			"You must set the Script property of an extension after NewExtension but it was never set: %v %v",
+			"You must set the Script property of an extension after NewScript but it was never set: %v %v",
 			req,
 			resp,
 		)
@@ -87,6 +87,6 @@ func (e *Extension[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	return resp, true
 }
 
-func NewExtension[Req any, Resp any]() Extension[Req, Resp] {
-	return Extension[Req, Resp]{}
+func NewScript[Req any, Resp any]() Script[Req, Resp] {
+	return Script[Req, Resp]{}
 }

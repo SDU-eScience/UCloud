@@ -52,8 +52,8 @@ type scriptedFileManagementUsageResp struct {
 
 type scriptedFileManagementService struct {
 	name             string
-	onQuotaUpdated   ctrl.Extension[scriptedFileManagementQuotaReq, util.Empty]
-	onUsageReporting ctrl.Extension[scriptedFileManagementUsageReq, scriptedFileManagementUsageResp]
+	onQuotaUpdated   ctrl.Script[scriptedFileManagementQuotaReq, util.Empty]
+	onUsageReporting ctrl.Script[scriptedFileManagementUsageReq, scriptedFileManagementUsageResp]
 	unitInBytes      uint64
 }
 

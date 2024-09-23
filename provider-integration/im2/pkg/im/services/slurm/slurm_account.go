@@ -50,6 +50,7 @@ func InitAccountManagement() {
 }
 
 type SlurmJobConfiguration struct {
+	UCloudUsername     string
 	Owner              apm.WalletOwner
 	EstimatedProduct   apm.ProductReference
 	EstimatedNodeCount int

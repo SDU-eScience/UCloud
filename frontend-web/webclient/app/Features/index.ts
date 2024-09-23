@@ -5,6 +5,7 @@ export enum Feature {
     INLINE_TERMINAL,
     NEW_IDPS,
     COMPONENT_STORED_CUT_COPY,
+    TRANSFER_TO,
 
     // NOTE(Dan, 27/06/23): Waiting for clarification if we are allowed to ask for this optional info under our
     // current policies.
@@ -80,6 +81,11 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments
     },
+
+    "transfer-to": {
+        feature: Feature.TRANSFER_TO,
+        showWithoutFlag: allDevEnvironments,
+    }
 };
 
 function getCurrentEnvironment(): Environment {
