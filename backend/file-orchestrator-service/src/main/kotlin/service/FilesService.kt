@@ -165,7 +165,10 @@ class FilesService(
             listOf(collection),
             listOf(permission),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = false)
-        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException("File not found", HttpStatusCode.NotFound)
+        ).singleOrNull()?.specification?.product?.provider ?: throw RPCException(
+            "File not found",
+            HttpStatusCode.NotFound
+        )
     }
 
 
@@ -1180,6 +1183,220 @@ class FilesService(
                 }
             }
         )
+    }
+
+    private data class TaskToRegister(
+        val provider: String,
+        val title: String,
+        val backgroundTask: LongRunningTask.ContinuesInBackground,
+        val actorAndProject: ActorAndProject
+    )
+
+    private suspend fun registerTasks(
+        tasks: List<TaskToRegister>
+    ) {
+        if (tasks.isEmpty()) return
+        data class MappedTask(val provider: String, val providerId: String, val taskId: String)
+
+        val mappedTasks = ArrayList<MappedTask>()
+        for (task in tasks) {
+            val taskId = Tasks.create.call(
+                CreateRequest(task.title, task.actorAndProject.actor.safeUsername()),
+                serviceClient
+            ).orNull()?.jobId
+
+            if (taskId == null) {
+                log.info("Unable to register tasks!")
+                continue
+            }
+
+            mappedTasks.add(MappedTask(task.provider, task.backgroundTask.taskId, taskId))
+        }
+
+        if (mappedTasks.isEmpty()) return
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val providers by parameterList<String>()
+                    val providerGeneratedIds by parameterList<String>()
+                    val taskIds by parameterList<String>()
+                    for (task in mappedTasks) {
+                        providers.add(task.provider)
+                        providerGeneratedIds.add(task.providerId)
+                        taskIds.add(task.taskId)
+                    }
+                },
+                """
+                    insert into file_orchestrator.task_mapping (provider_id, provider_generated_task_id, actual_task_id) 
+                    select unnest(:providers::text[]), unnest(:provider_generated_ids::text[]),
+                           unnest(:task_ids::text[])
+                """
+            )
+        }
+    }
+
+    suspend fun addTaskUpdate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesControlAddUpdateRequestItem>
+    ) {
+        val providerSpec = providers.prepareCommunication(actorAndProject.actor).provider
+        db.withSession { session ->
+            val taskIds = lookupTaskIds(session, providerSpec, request.items.map { it.taskId })
+
+            for ((taskId, update) in taskIds.zip(request.items)) {
+                val response = Tasks.postStatus.call(
+                    PostStatusRequest(TaskUpdate(taskId, messageToAppend = update.update)),
+                    serviceClient
+                )
+
+                if (response !is IngoingCallResponse.Ok) {
+                    log.info("Unable to add task update: $taskId")
+                }
+            }
+        }
+    }
+
+    suspend fun markTaskAsComplete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesControlMarkAsCompleteRequestItem>
+    ) {
+        val providerSpec = providers.prepareCommunication(actorAndProject.actor).provider
+        db.withSession { session ->
+            val taskIds = lookupTaskIds(session, providerSpec, request.items.map { it.taskId })
+
+            for (taskId in taskIds) {
+                val response = Tasks.markAsComplete.call(
+                    MarkAsCompleteRequest(taskId),
+                    serviceClient
+                )
+
+                if (response !is IngoingCallResponse.Ok) {
+                    log.info("Unable to mark task as complete: $taskId")
+                }
+            }
+        }
+    }
+
+    private suspend fun lookupTaskIds(
+        session: AsyncDBConnection,
+        providerSpec: ProviderSpecification,
+        providerIds: List<String>
+    ): List<String> {
+        val taskIds = session.sendPreparedStatement(
+            {
+                setParameter("provider_id", providerSpec.id)
+                setParameter("task_ids", providerIds)
+            },
+            """
+                with entries as (
+                    select unnest(:task_ids::text[]) task_id
+                )
+                select actual_task_id
+                from
+                    file_orchestrator.task_mapping tm join
+                    entries e on tm.provider_generated_task_id = e.task_id
+                where
+                    tm.provider_id = :provider_id
+            """
+        ).rows.map { it.getString(0)!! }
+
+        if (taskIds.size != providerIds.size) {
+            throw RPCException("Request contains unknown task IDs", HttpStatusCode.NotFound)
+        }
+        return taskIds
+    }
+
+    suspend fun transfer(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FilesTransferRequest>,
+    ): BulkResponse<FilesTransferResponse> {
+        for (reqItem in request.items) {
+            val sourceDrive = collectionFromPath(actorAndProject, reqItem.sourcePath, Permission.READ)
+            val sourceProvider = sourceDrive.specification.product.provider
+            verifyReadRequest(UFileIncludeFlags(), sourceDrive.status.resolvedSupport!!.support)
+
+            val destinationDrive = collectionFromPath(actorAndProject, reqItem.destinationPath, Permission.EDIT)
+            val destinationProvider = destinationDrive.specification.product.provider
+            verifyReadRequest(UFileIncludeFlags(), destinationDrive.status.resolvedSupport!!.support)
+
+            if (sourceProvider != "go-slurm" && sourceProvider == destinationProvider) {
+                throw RPCException("Cannot transfer files between the same provider", HttpStatusCode.BadRequest)
+            }
+
+            val sourceResp = try {
+                providers.invokeCall(
+                    sourceProvider,
+                    actorAndProject,
+                    { it.filesApi.transfer },
+                    FilesProviderTransferRequest.InitiateSource(reqItem.sourcePath, sourceDrive, destinationProvider),
+                    actorAndProject.signedIntentFromUser,
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    throw RPCException(
+                        "The source provider is unwilling to perform this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                throw ex
+            }
+
+            if (sourceResp !is FilesProviderTransferResponse.InitiateSource) {
+                throw RPCException("Malformed reply from source provider", HttpStatusCode.BadGateway)
+            }
+
+            val destResp = try {
+                providers.invokeCall(
+                    destinationProvider,
+                    actorAndProject,
+                    { it.filesApi.transfer },
+                    FilesProviderTransferRequest.InitiateDestination(
+                        reqItem.destinationPath,
+                        destinationDrive,
+                        sourceProvider,
+                        sourceResp.supportedProtocols
+                    ),
+                    actorAndProject.signedIntentFromUser
+                )
+            } catch (ex: RPCException) {
+                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    throw RPCException(
+                        "The destination provider is unwilling to perform this request",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                throw ex
+            }
+
+            if (destResp !is FilesProviderTransferResponse.InitiateDestination) {
+                throw RPCException("Malformed reply from destination provider", HttpStatusCode.BadGateway)
+            }
+
+            if (destResp.selectedProtocol !in sourceResp.supportedProtocols) {
+                throw RPCException("Malformed reply from destination provider (unknown protocol)", HttpStatusCode.BadGateway)
+            }
+
+            val finalResp = providers.invokeCall(
+                sourceProvider,
+                actorAndProject,
+                { it.filesApi.transfer },
+                FilesProviderTransferRequest.Start(
+                    sourceResp.session,
+                    destResp.selectedProtocol,
+                    destResp.protocolParameters
+                ),
+                actorAndProject.signedIntentFromUser,
+            )
+
+            if (finalResp !is FilesProviderTransferResponse.Start) {
+                throw RPCException("Malformed reply from source provider", HttpStatusCode.BadGateway)
+            }
+        }
+
+        return BulkResponse(request.items.map { FilesTransferResponse() })
     }
 
     companion object : Loggable {
