@@ -804,6 +804,7 @@ fun main(args: Array<String>) {
                     ConnectionController(controllerContext, envoyConfig),
                     EventController(controllerContext),
                     FaultInjectionController(controllerContext),
+                    TaskController(controllerContext)
                 )
             }
 

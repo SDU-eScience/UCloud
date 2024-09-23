@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator
 
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.rpc.*
 import dk.sdu.cloud.app.orchestrator.services.*
@@ -35,7 +36,7 @@ object AppOrchestratorServices {
     lateinit var productCache: ProductCache
     lateinit var appCache: ApplicationCache
 
-    lateinit var providers: ProviderCommunications
+    lateinit var providers: ProviderCommunicationsV2
     lateinit var altProviders: dk.sdu.cloud.accounting.util.Providers<ComputeCommunication>
     lateinit var storageProviders: StorageProviders
 
@@ -109,7 +110,7 @@ class Server(override val micro: Micro) : CommonServer {
             }
 
             payment = PaymentService(db, serviceClient)
-            providers = ProviderCommunications(micro.backgroundScope, serviceClient, productCache)
+            providers = ProviderCommunicationsV2(micro.backgroundScope, serviceClient, productCache)
             fileCollections = FileCollectionService(projectCache, db, storageProviders, storageSupport, serviceClient)
 
             jobs = JobResourceService(serviceClient)

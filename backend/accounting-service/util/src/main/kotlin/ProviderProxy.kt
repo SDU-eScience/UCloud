@@ -422,8 +422,6 @@ class ProviderProxy<
     }
 }
 
-private val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")
-
 suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeCall(
     provider: String,
     actorAndProject: ActorAndProject,

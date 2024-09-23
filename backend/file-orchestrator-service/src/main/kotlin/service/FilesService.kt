@@ -798,7 +798,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesMoveRequestItem,
-                    BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderMoveRequestItem>, BackgroundTask>() {
                 val oldCollectionsByRequest =
                     HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
@@ -870,7 +870,7 @@ class FilesService(
                 override suspend fun afterCall(
                     provider: String,
                     resources: List<RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>,
-                    response: BulkResponse<LongRunningTask?>
+                    response: BulkResponse<BackgroundTask?>
                 ) {
                     val batch = ArrayList<FilesMoveRequestItem>()
                     for ((index, res) in resources.withIndex()) {
@@ -882,12 +882,6 @@ class FilesService(
                     if (batch.isNotEmpty()) {
                         moveHandlers.forEach { handler -> handler(batch) }
                     }
-
-                    registerTasks(
-                        findTasksInBackgroundFromResponse(response)
-                            .map { TaskToRegister(provider, "Moving files", it, actorAndProject) }
-                            .toList()
-                    )
                 }
             }
         )
@@ -901,7 +895,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesCopyRequestItem,
-                    BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderCopyRequestItem>, BackgroundTask>() {
                 val oldCollectionsByRequest =
                     HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
                 val newCollectionsByRequest =
@@ -973,13 +967,8 @@ class FilesService(
                 override suspend fun afterCall(
                     provider: String,
                     resources: List<RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>,
-                    response: BulkResponse<LongRunningTask?>
+                    response: BulkResponse<BackgroundTask?>
                 ) {
-                    registerTasks(
-                        findTasksInBackgroundFromResponse(response)
-                            .map { TaskToRegister(provider, "Copying files", it, actorAndProject) }
-                            .toList()
-                    )
                 }
             }
         )
@@ -1049,20 +1038,15 @@ class FilesService(
             { extractPathMetadata(it.id).collection },
             { req, coll -> FilesProviderCreateFolderRequestItem(coll, req.id, req.conflictPolicy) },
             afterCall = { provider, _, response ->
-                registerTasks(
-                    findTasksInBackgroundFromResponse(response)
-                        .map { TaskToRegister(provider, "Creating folders", it, actorAndProject) }
-                        .toList()
-                )
             }
         )
     }
 
-    private fun findTasksInBackgroundFromResponse(response: BulkResponse<LongRunningTask?>) =
+    private fun findTasksInBackgroundFromResponse(response: BulkResponse<BackgroundTask?>) =
         response.responses
             .asSequence()
             .filterNotNull()
-            .filterIsInstance<LongRunningTask.ContinuesInBackground>()
+            .filter{ it.status.state != TaskState.FAILURE && it.status.state != TaskState.SUCCESS }
 
     suspend fun trash(
         actorAndProject: ActorAndProject,
@@ -1087,12 +1071,6 @@ class FilesService(
                 if (batch.isNotEmpty()) {
                     trashHandlers.forEach { handler -> handler(batch) }
                 }
-
-                registerTasks(
-                    findTasksInBackgroundFromResponse(response)
-                        .map { TaskToRegister(provider, "Moving to trash", it, actorAndProject) }
-                        .toList()
-                )
             }
         )
     }
@@ -1109,11 +1087,6 @@ class FilesService(
             { extractPathMetadata(it.id).collection },
             { req, collection -> FilesProviderEmptyTrashRequestItem(collection, req.id) },
             afterCall = { provider, resources, response ->
-                registerTasks(
-                    findTasksInBackgroundFromResponse(response)
-                        .map { TaskToRegister(provider, "Emptying trash", it, actorAndProject) }
-                        .toList()
-                )
             }
         )
     }
