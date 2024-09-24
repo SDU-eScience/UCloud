@@ -69,7 +69,7 @@ function resolveNotification(event: Notification): {
             if (event.meta.jobIds.length > 1) {
                 jobsCompletedTitle = `${event.meta.jobIds.length} jobs completed`;
             } else {
-                if (event.meta.jobNames[0]) {
+                if (event.meta.jobNames?.[0]) {
                     jobsCompletedTitle = `${event.meta.jobNames[0]} completed`;
                 } else {
                     jobsCompletedTitle = `${event.meta.appTitles[0]} completed`;
@@ -95,7 +95,7 @@ function resolveNotification(event: Notification): {
             if (event.meta.jobIds.length > 1) {
                 jobsStartedTitle = `${event.meta.jobIds.length} jobs started`;
             } else {
-                if (event.meta.jobNames[0]) {
+                if (event.meta.jobNames?.[0]) {
                     jobsStartedTitle = `${event.meta.jobNames[0]} started`;
                 } else {
                     jobsStartedTitle = `${event.meta.appTitles[0]} started`;
@@ -119,7 +119,7 @@ function resolveNotification(event: Notification): {
             if (event.meta.jobIds.length > 1) {
                 jobsExpiredTitle = `${event.meta.jobIds.length} jobs expired`;
             } else {
-                if (event.meta.jobNames[0]) {
+                if (event.meta.jobNames?.[0]) {
                     jobsExpiredTitle = `${event.meta.jobNames[0]} expired`;
                 } else {
                     jobsExpiredTitle = `${event.meta.appTitles[0]} expired`;

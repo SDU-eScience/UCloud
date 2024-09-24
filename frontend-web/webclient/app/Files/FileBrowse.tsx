@@ -70,6 +70,7 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
+import {taskStore} from "@/Services/BackgroundTasks/BackgroundTask";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -433,7 +434,9 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         FilesApi.move(requestPayload) :
                         FilesApi.copy(requestPayload);
 
-                    callAPI(call).catch(err => {
+                    callAPI(call).then(it => 
+                        taskStore.addTaskList(it.responses)
+                    ).catch(err => {
                         snackbarStore.addFailure(extractErrorMessage(err), false);
                         browser.refresh();
                     });
