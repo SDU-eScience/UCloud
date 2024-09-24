@@ -380,8 +380,7 @@ class Catalog(
                         updatedApp.version,
                         ApplicationFlags(),
                         discovery
-                    )
-                        ?: continue
+                    ) ?: continue
 
                 allUpdatedApplications.add(element)
             }
@@ -552,8 +551,8 @@ class Catalog(
 
     private val availableStoreFronts = AsyncCache<ActorAndProject, List<StoreFront>>(
         backgroundScope,
-        timeToLiveMilliseconds = 10_000,
-        timeoutMilliseconds = 1000,
+        timeToLiveMilliseconds = 120_000,
+        timeoutMilliseconds = 10_000,
         timeoutException = {
             throw RPCException(
                 "Failed to fetch application data",
@@ -582,8 +581,8 @@ class Catalog(
 
     private val allProviders = AsyncCache<Unit, Set<String>>(
         backgroundScope,
-        timeToLiveMilliseconds = 10_000,
-        timeoutMilliseconds = 1000,
+        timeToLiveMilliseconds = 120_000,
+        timeoutMilliseconds = 10_000,
         timeoutException = {
             throw RPCException(
                 "Failed to fetch application data",
@@ -747,8 +746,8 @@ class Catalog(
                 .map { it.toLong() }
                 .toSet()
 
-            val newApplications = CyclicArray<NameAndVersion>(25)
-            val updatedApplications = CyclicArray<NameAndVersion>(25)
+            val newApplications = CyclicArray<NameAndVersion>(5)
+            val updatedApplications = CyclicArray<NameAndVersion>(5)
 
             val knownApplications = supportedApplications.map { it.metadata.name }.toSet()
 

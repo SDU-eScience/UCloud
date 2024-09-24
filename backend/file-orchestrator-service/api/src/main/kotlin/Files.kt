@@ -22,11 +22,10 @@ import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.provider.api.Resources
-import dk.sdu.cloud.task.api.BackgroundTask
-import dk.sdu.cloud.task.api.TaskState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 
@@ -71,7 +70,7 @@ data class FilesMoveRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesMoveResponse = BulkResponse<BackgroundTask?>
+typealias FilesMoveResponse = BulkResponse<Unit?>
 
 typealias FilesCopyRequest = BulkRequest<FilesCopyRequestItem>
 
@@ -82,10 +81,10 @@ data class FilesCopyRequestItem(
     override val newId: String,
     override val conflictPolicy: WriteConflictPolicy
 ) : WithPathMoving, WithConflictPolicy
-typealias FilesCopyResponse = BulkResponse<BackgroundTask?>
+typealias FilesCopyResponse = BulkResponse<Unit?>
 
 typealias FilesDeleteRequest = BulkRequest<FindByPath>
-typealias FilesDeleteResponse = BulkResponse<BackgroundTask>
+typealias FilesDeleteResponse = BulkResponse<Unit>
 
 typealias FilesCreateFolderRequest = BulkRequest<FilesCreateFolderRequestItem>
 
@@ -95,7 +94,7 @@ data class FilesCreateFolderRequestItem(
     override val id: String,
     override val conflictPolicy: WriteConflictPolicy,
 ) : WithPath, WithConflictPolicy
-typealias FilesCreateFolderResponse = BulkResponse<BackgroundTask?>
+typealias FilesCreateFolderResponse = BulkResponse<Unit?>
 
 typealias FilesUpdateAclRequest = BulkRequest<FilesUpdateAclRequestItem>
 
@@ -108,12 +107,12 @@ data class FilesUpdateAclRequestItem(
 typealias FilesUpdateAclResponse = Unit
 
 typealias FilesTrashRequest = BulkRequest<FindByPath>
-typealias FilesTrashResponse = BulkResponse<BackgroundTask?>
+typealias FilesTrashResponse = BulkResponse<Unit?>
 
 typealias FilesCreateUploadRequest = BulkRequest<FilesCreateUploadRequestItem>
 
 typealias FilesEmptyTrashRequest = BulkRequest<FindByPath>
-typealias FilesEmptyTrashResponse = BulkResponse<BackgroundTask?>
+typealias FilesEmptyTrashResponse = BulkResponse<Unit?>
 
 @Serializable
 @UCloudApiStable
@@ -279,26 +278,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesMoveRequestItem("/123/my/file", "/123/my/new_file", WriteConflictPolicy.REJECT)
                     ),
-                    FilesMoveResponse(
-                        listOf(
-                            BackgroundTask(
-                                taskId = 1,
-                                10L,
-                                10L,
-                                "user",
-                                provider = "K8",
-                                status = BackgroundTask.Status(
-                                    TaskState.SUCCESS,
-                                    "Moving File",
-                                    "Done"
-                                ),
-                                BackgroundTask.Specification(
-                                    canPause = true,
-                                    canCancel = false
-                                )
-                            )
-                        )
-                    ),
+                    BulkResponse(emptyList()),
                     user
                 )
             }
@@ -323,26 +303,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FilesCopyRequestItem("/123/my/file", "/123/my/file", WriteConflictPolicy.RENAME)
                     ),
-                    FilesMoveResponse(
-                        listOf(
-                            BackgroundTask(
-                                taskId = 2,
-                                10L,
-                                10L,
-                                "user",
-                                provider = "K8",
-                                status = BackgroundTask.Status(
-                                    TaskState.SUCCESS,
-                                    "Copying File",
-                                    "Done"
-                                ),
-                                BackgroundTask.Specification(
-                                    canPause = false,
-                                    canCancel = false
-                                )
-                            )
-                        )
-                    ),
+                    BulkResponse(emptyList()),
                     user
                 )
             }
@@ -438,26 +399,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             WriteConflictPolicy.REJECT
                         )
                     ),
-                    FilesCreateFolderResponse(
-                        listOf(
-                            BackgroundTask(
-                                taskId = 1,
-                                10L,
-                                10L,
-                                "user",
-                                provider = "K8",
-                                status = BackgroundTask.Status(
-                                    TaskState.SUCCESS,
-                                    "Creating Folder",
-                                    "Done"
-                                ),
-                                BackgroundTask.Specification(
-                                    canPause = false,
-                                    canCancel = false
-                                )
-                            )
-                        )
-                    ),
+                    BulkResponse(emptyList()),
                     user
                 )
             }
@@ -484,42 +426,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                         FindByPath("/123/folder"),
                         FindByPath("/123/file")
                     ),
-                    BulkResponse(
-                        listOf(
-                            BackgroundTask(
-                                taskId = 1,
-                                10L,
-                                10L,
-                                "user",
-                                provider = "K8",
-                                status = BackgroundTask.Status(
-                                    TaskState.SUCCESS,
-                                    "Moving Folder To Trash",
-                                    "Done"
-                                ),
-                                BackgroundTask.Specification(
-                                    canPause = false,
-                                    canCancel = true
-                                )
-                            ),
-                            BackgroundTask(
-                                taskId = 2,
-                            10L,
-                            10L,
-                            "user",
-                                provider = "K8",
-                            status = BackgroundTask.Status(
-                                TaskState.SUCCESS,
-                                "Moving File to Trash",
-                                "Done"
-                            ),
-                            BackgroundTask.Specification(
-                                canPause = false,
-                                canCancel = true
-                            )
-                        )
-                        )
-                    ),
+                    BulkResponse(emptyList()),
                     user
                 )
             }
@@ -544,31 +451,11 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                     bulkRequestOf(
                         FindByPath("/home/trash")
                     ),
-                    BulkResponse(
-                        listOf(
-                            BackgroundTask(
-                                taskId = 1,
-                                10L,
-                                10L,
-                                "user",
-                                provider = "K8",
-                                status = BackgroundTask.Status(
-                                    TaskState.SUCCESS,
-                                    "Emptying Trash",
-                                    "Done"
-                                ),
-                                BackgroundTask.Specification(
-                                    canPause = true,
-                                    canCancel = false
-                                )
-                            )
-                        )
-                    ),
+                    BulkResponse(emptyList()),
                     user
                 )
             }
         )
-
 
         useCase(
             browseUseCase,
@@ -777,7 +664,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         ))
     }
 
-    val move = call("move", BulkRequest.serializer(FilesMoveRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val move = call("move", BulkRequest.serializer(FilesMoveRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move")
 
         documentation {
@@ -810,7 +697,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val copy = call("copy", BulkRequest.serializer(FilesCopyRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val copy = call("copy", BulkRequest.serializer(FilesCopyRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "copy")
 
         documentation {
@@ -902,7 +789,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val createFolder = call("createFolder", BulkRequest.serializer(FilesCreateFolderRequestItem.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val createFolder = call("createFolder", BulkRequest.serializer(FilesCreateFolderRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "folder")
 
         documentation {
@@ -926,7 +813,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val trash = call("trash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val trash = call("trash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "trash")
 
         documentation {
@@ -962,7 +849,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(BackgroundTask.serializer().nullable), CommonErrorMessage.serializer()) {
+    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "emptyTrash")
 
         documentation {

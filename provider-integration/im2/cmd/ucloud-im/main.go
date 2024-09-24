@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"ucloud.dk/pkg/im/external/gpfs"
 
-	"ucloud.dk/pkg/im/gpfs"
 	"ucloud.dk/pkg/im/launcher"
 	"ucloud.dk/pkg/termio"
 )

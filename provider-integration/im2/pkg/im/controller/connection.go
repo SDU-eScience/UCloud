@@ -391,97 +391,8 @@ func controllerConnection(mux *http.ServeMux) {
 					return
 				}
 
-				// Try in a few different ways to get the most reliable exe which we will pass to `sudo`
-				exe, err := os.Executable()
-				if err != nil {
-					exe = "ucloud"
-				} else {
-					abs, err := filepath.Abs(exe)
-					if err == nil {
-						exe = abs
-					}
-				}
-
-				port, valid := allocatePortIfNeeded(uid)
-				if valid {
-					startupLogFile := filepath.Join(cfg.Provider.Logs.Directory, fmt.Sprintf("user-startup-%v.log", uid))
-					logFile, err := os.OpenFile(
-						startupLogFile,
-						os.O_RDONLY|os.O_WRONLY|os.O_CREATE,
-						0600,
-					)
-
-					if err != nil {
-						log.Warn("Could not create startup log file for user at %v", logFile)
-						sendStatusCode(w, http.StatusInternalServerError)
-						return
-					}
-
-					secret := util.RandomToken(16)
-
-					var args []string
-					args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
-					args = append(args, "-u")
-					args = append(args, fmt.Sprintf("#%v", uid))
-					debugPort, shouldDebug := getDebugPort(request.Username)
-					if shouldDebug {
-						args = append(args, "/usr/bin/dlv")
-						args = append(args, "exec")
-					}
-					args = append(args, exe)
-					if shouldDebug {
-						args = append(args, "--headless", "--api-version=2", "--continue", "--accept-multiclient")
-						args = append(args, fmt.Sprintf("--listen=0.0.0.0:%v", debugPort))
-						args = append(args, "--")
-					}
-					args = append(args, "user")
-					args = append(args, fmt.Sprint(port))
-					args = append(args, request.Username)
-
-					child := exec.Command("sudo", args...)
-					child.Stdout = logFile
-					child.Stderr = logFile
-					child.Env = append(os.Environ(), fmt.Sprintf("UCLOUD_USER_SECRET=%v", secret))
-
-					err = child.Start()
-					if err != nil {
-						log.Warn("Failed to start UCloud/User process for uid=%v. There might be information in %v", uid, startupLogFile)
-						util.SilentClose(logFile)
-						sendStatusCode(w, http.StatusInternalServerError)
-						return
-					}
-					userInstancesLaunched.Inc()
-
-					go func() {
-						err = child.Wait()
-						log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
-						log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
-						log.Warn("The instance will be automatically restarted when the user makes another request.")
-
-						instanceMutex.Lock()
-						delete(runningInstances, uid)
-						instanceMutex.Unlock()
-
-						util.SilentClose(logFile)
-					}()
-
-					gateway.SendMessage(gateway.ConfigurationMessage{
-						ClusterUp: &gateway.EnvoyCluster{
-							Name:    request.Username,
-							Address: "127.0.0.1",
-							Port:    port,
-							UseDNS:  false,
-						},
-						RouteUp: &gateway.EnvoyRoute{
-							Cluster:        request.Username,
-							Identifier:     request.Username,
-							Type:           gateway.RouteTypeUser,
-							EnvoySecretKey: secret,
-						},
-					})
-				}
-
-				sendStatusCode(w, http.StatusOK)
+				err := LaunchUserInstance(uid)
+				sendResponseOrError(w, util.EmptyValue, err)
 			}),
 		)
 
@@ -588,6 +499,104 @@ func controllerConnection(mux *http.ServeMux) {
 			}),
 		)
 	}
+}
+
+func LaunchUserInstance(uid uint32) error {
+	if !LaunchUserInstances {
+		return fmt.Errorf("attempting to launch user instance, but this IM will not launch user instances")
+	}
+
+	ucloudUsername, ok := MapLocalToUCloud(uid)
+	if !ok {
+		return fmt.Errorf("unknown user")
+	}
+
+	// Try in a few different ways to get the most reliable exe which we will pass to `sudo`
+	exe, err := os.Executable()
+	if err != nil {
+		exe = "ucloud"
+	} else {
+		abs, err := filepath.Abs(exe)
+		if err == nil {
+			exe = abs
+		}
+	}
+
+	port, valid := allocatePortIfNeeded(uid)
+	if valid {
+		startupLogFile := filepath.Join(cfg.Provider.Logs.Directory, fmt.Sprintf("user-startup-%v.log", uid))
+		logFile, err := os.OpenFile(
+			startupLogFile,
+			os.O_RDONLY|os.O_WRONLY|os.O_CREATE,
+			0600,
+		)
+
+		if err != nil {
+			return fmt.Errorf("could not create startup log file for user at %v", logFile)
+		}
+
+		secret := util.RandomToken(16)
+
+		var args []string
+		args = append(args, "--preserve-env=UCLOUD_USER_SECRET")
+		args = append(args, "-u")
+		args = append(args, fmt.Sprintf("#%v", uid))
+		debugPort, shouldDebug := getDebugPort(ucloudUsername)
+		if shouldDebug {
+			args = append(args, "/usr/bin/dlv")
+			args = append(args, "exec")
+		}
+		args = append(args, exe)
+		if shouldDebug {
+			args = append(args, "--headless", "--api-version=2", "--continue", "--accept-multiclient")
+			args = append(args, fmt.Sprintf("--listen=0.0.0.0:%v", debugPort))
+			args = append(args, "--")
+		}
+		args = append(args, "user")
+		args = append(args, fmt.Sprint(port))
+		args = append(args, ucloudUsername)
+
+		child := exec.Command("sudo", args...)
+		child.Stdout = logFile
+		child.Stderr = logFile
+		child.Env = append(os.Environ(), fmt.Sprintf("UCLOUD_USER_SECRET=%v", secret))
+
+		err = child.Start()
+		if err != nil {
+			util.SilentClose(logFile)
+			return fmt.Errorf("failed to start UCloud/User process for uid=%v see %v", uid, startupLogFile)
+		}
+		userInstancesLaunched.Inc()
+
+		go func() {
+			err = child.Wait()
+			log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
+			log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
+			log.Warn("The instance will be automatically restarted when the user makes another request.")
+
+			instanceMutex.Lock()
+			delete(runningInstances, uid)
+			instanceMutex.Unlock()
+
+			util.SilentClose(logFile)
+		}()
+
+		gateway.SendMessage(gateway.ConfigurationMessage{
+			ClusterUp: &gateway.EnvoyCluster{
+				Name:    ucloudUsername,
+				Address: "127.0.0.1",
+				Port:    port,
+				UseDNS:  false,
+			},
+			RouteUp: &gateway.EnvoyRoute{
+				Cluster:        ucloudUsername,
+				Identifier:     ucloudUsername,
+				Type:           gateway.RouteTypeUser,
+				EnvoySecretKey: secret,
+			},
+		})
+	}
+	return nil
 }
 
 var InitiateReverseConnectionFromUser = ipc.NewCall[util.Empty, string]("connection.initiateReverseConnectionFromUser")

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	fnd "ucloud.dk/pkg/foundation"
-	"ucloud.dk/pkg/im/freeipa"
+	"ucloud.dk/pkg/im/external/freeipa"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
