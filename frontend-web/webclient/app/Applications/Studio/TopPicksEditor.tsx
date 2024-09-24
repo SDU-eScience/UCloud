@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Box, Button, Flex, Icon, MainContainer} from "@/ui-components";
+import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
@@ -10,10 +10,12 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {TopPicksCard} from "@/Applications/Landing";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {fetchAll} from "@/Utilities/PageUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const form: ScaffoldedFormObject = {
     id: "",
@@ -68,7 +70,7 @@ const form: ScaffoldedFormObject = {
             ]
         }
     ]
-}
+};
 
 interface TopPicksData extends Record<string, unknown> {
     applications: {
@@ -78,6 +80,8 @@ interface TopPicksData extends Record<string, unknown> {
 }
 
 const TopPicksEditor: React.FunctionComponent = () => {
+    usePage("Top picks editor", SidebarTabId.APPLICATION_STUDIO);
+
     const [rawData, setData] = useState<Record<string, unknown>>({});
     const [topPicksPreview, setTopPicksPreview] = useState<TopPick[]>([]);
     const data = rawData as Partial<TopPicksData>;
@@ -85,7 +89,9 @@ const TopPicksEditor: React.FunctionComponent = () => {
     const allErrors = Object.values(errors.current);
     const firstError = allErrors.length > 0 ? allErrors[0] : null;
 
-    const refresh = useCallback(() => {
+    const selectRef = React.useRef<HTMLSelectElement>(null);
+
+    const fetchTopPicks = () => {
         let didCancel = false;
         (async () => {
             const groupPromise = fetchAll(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next})));
@@ -103,19 +109,17 @@ const TopPicksEditor: React.FunctionComponent = () => {
                 }))
             };
 
-            console.log("Setting this", newData);
-
             setData(newData);
         })();
 
         return () => {
             didCancel = true;
         };
-    }, []);
+    };
 
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        fetchTopPicks();
+    }, []);
 
     useEffect(() => {
         setTopPicksPreview((data.applications ?? []).map(app => ({
@@ -141,8 +145,8 @@ const TopPicksEditor: React.FunctionComponent = () => {
     }, [data]);
 
     const onSave = useCallback(() => {
-        callAPI(AppStore.updateTopPicks({ newTopPicks: topPicksPreview })).then(refresh);
-    }, [topPicksPreview, refresh]);
+        callAPI(AppStore.updateTopPicks({ newTopPicks: topPicksPreview })).then(fetchTopPicks);
+    }, [topPicksPreview]);
 
     const onShowPreview = useCallback(() => {
         dialogStore.addDialog(
@@ -163,6 +167,9 @@ const TopPicksEditor: React.FunctionComponent = () => {
     }, [topPicksPreview]);
 
     return <MainContainer
+        header={
+                <Heading.h2>Top picks</Heading.h2>
+        }
         main={<>
             <Flex gap={"32px"}>
                 <Flex flexDirection={"column"} gap={"8px"} flexGrow={1} maxHeight={"calc(100vh - 32px)"} overflowY={"auto"}>

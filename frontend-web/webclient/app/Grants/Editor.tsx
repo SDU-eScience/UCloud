@@ -349,7 +349,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         case "GrantGiverInitiatedLoaded": {
-            const recipient: Grants.Recipient = {
+            const recipient: Grants.Recipient & {username?: string} = {
                 type: action.projectId ? "existingProject" : "newProject",
                 title: action.title,
                 id: action.projectId ?? action.title,

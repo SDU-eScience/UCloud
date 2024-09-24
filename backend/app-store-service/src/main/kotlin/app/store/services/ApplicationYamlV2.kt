@@ -399,7 +399,6 @@ data class ApplicationYamlV2(
                 website = null,
                 public = false,
                 flavorName = null,
-                group = null,
                 createdAt = Time.now(),
             ),
             ApplicationInvocationDescription(

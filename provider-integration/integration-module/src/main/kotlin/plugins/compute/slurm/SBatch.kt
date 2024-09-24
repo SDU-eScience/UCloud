@@ -48,15 +48,15 @@ suspend fun createSbatchFile(
     val pluginConfig = plugin.pluginConfig
 
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
-        ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
+        ?: job.status.resolvedApplication!!.invocation!!.tool.tool!!.description.defaultTimeAllocation
 
     val formattedTime = "${timeAllocation.hours}:${timeAllocation.minutes}:${timeAllocation.seconds}"
     val resolvedProduct = job.status.resolvedProduct!!
 
     //sbatch will stop processing further #SBATCH directives once the first non-comment non-whitespace line has been reached in the script.
     // remove whitespaces
-    val app = job.status.resolvedApplication!!.invocation
-    val tool = job.status.resolvedApplication!!.invocation.tool.tool!!
+    val app = job.status.resolvedApplication!!.invocation!!
+    val tool = job.status.resolvedApplication!!.invocation!!.tool.tool!!
 
     val defaultParameters: Map<ApplicationParameter, AppParameterValue> = buildMap {
         for (it in app.parameters) {

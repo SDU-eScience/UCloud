@@ -1,5 +1,7 @@
 package dk.sdu.cloud.accounting.util
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.*
 
 /**
@@ -49,6 +51,33 @@ class CyclicArray<T>(val capacity: Int) : Iterable<T> {
                 @Suppress("UNCHECKED_CAST")
                 return data[(head + (offset++)) % capacity] as T
             }
+        }
+    }
+}
+
+class ThreadSafeCyclicArray<T>(val capacity: Int) {
+    private val delegate = CyclicArray<T>(capacity)
+    private val mutex = Mutex()
+
+    suspend fun size(): Int {
+        mutex.withLock {
+            return delegate.size
+        }
+    }
+
+    suspend fun add(element: T) {
+        mutex.withLock {
+            delegate.add(element)
+        }
+    }
+
+    suspend fun get(index: Int): T {
+        return mutex.withLock { delegate.get(index) }
+    }
+
+    suspend fun clear() {
+        mutex.withLock {
+            delegate.clear()
         }
     }
 }

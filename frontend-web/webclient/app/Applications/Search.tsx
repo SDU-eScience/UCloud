@@ -13,8 +13,9 @@ import {UtilityBar} from "@/Navigation/UtilityBar";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useDiscovery} from "@/Applications/Hooks";
 import {AppCard2} from "./Landing";
-import {AppGrid} from "./Overview";
+import {AppGrid} from "@/Applications/Category";
 
 export function useAppSearch(): (query: string) => void {
     const navigate = useNavigate();
@@ -30,14 +31,15 @@ function readQuery(queryParams: string): string {
 const SearchResults: React.FunctionComponent = () => {
     const location = useLocation();
     const query = readQuery(location.search);
+    const [discovery] = useDiscovery();
     const [results, fetchResults] = useCloudAPI(
         AppStore.search({query, itemsPerPage: 250}),
         emptyPage
     );
 
     const refresh = useCallback(() => {
-        fetchResults(AppStore.search({query, itemsPerPage: 250})).then(doNothing);
-    }, [query]);
+        fetchResults(AppStore.search({query, itemsPerPage: 250, ...discovery})).then(doNothing);
+    }, [query, discovery]);
 
     useEffect(() => {
         refresh();

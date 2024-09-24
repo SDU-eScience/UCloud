@@ -2,7 +2,14 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useDispatch, useSelector} from "react-redux";
-import {bulkRequestOf, copyToClipboard, displayErrorMessageOrDefault, joinToString, useFrameHidden} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    copyToClipboard,
+    displayErrorMessageOrDefault, doNothing,
+    joinToString,
+    useEffectSkipMount,
+    useFrameHidden
+} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -59,6 +66,9 @@ import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {projectTitle} from "@/Project/ContextSwitcher";
+import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
+import {LegacyReduxObject} from "@/DefaultObjects";
+import {useDiscovery} from "@/Applications/Hooks";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -201,10 +211,11 @@ interface MenuElement {
 
 interface SidebarMenuElements {
     items: MenuElement[];
-    predicate: () => boolean;
+    predicate: (state: HookStore) => boolean;
 }
 
 const sideBarMenuElements: [
+    SidebarMenuElements,
     SidebarMenuElements,
     SidebarMenuElements,
 ] = [
@@ -220,9 +231,18 @@ const sideBarMenuElements: [
         },
         {
             items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()}
+                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
             ],
             predicate: () => Client.userIsAdmin
+        },
+        {
+            items: [
+                {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
+            ],
+            predicate: (state) => {
+                const curatorStatus = state.catalogLandingPage?.curator;
+                return curatorStatus != null && curatorStatus.length > 0;
+            }
         }
     ];
 
@@ -374,7 +394,10 @@ export function Sidebar(): React.ReactNode {
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
-    const sidebar: MenuElement[] = sidebarEntries.filter(it => it.predicate())
+    const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
+
+    const sidebar: MenuElement[] = sidebarEntries
+        .filter(it => it.predicate(reduxState))
         .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
     return (
@@ -554,17 +577,38 @@ function SecondarySidebar({
         clearClicked();
     }, [clearClicked]);
 
-    const [favoriteApps] = useCloudAPI(
+    const [favoriteApps, fetchFavoriteApps] = useCloudAPI(
         AppStore.retrieveStars({}),
         {items: []}
     );
 
-    const [appStoreSections] = useCloudAPI(
-        AppStore.browseCategories({itemsPerPage: 250}),
-        emptyPageV2
-    );
+    const [discoveryMode] = useDiscovery();
+    const [landingPage, setLandingPage] = useGlobal("catalogLandingPage", AppStore.emptyLandingPage);
+    const oldProjectId = React.useRef<string | null>(null);
+    const oldDiscoveryMode = React.useRef<AppStore.CatalogDiscovery | null>(null);
 
     const canConsume = checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+    useEffect(() => {
+        (async () => {
+            const discoverHasChanged =
+                discoveryMode.discovery !== oldDiscoveryMode.current?.discovery ||
+                discoveryMode.selected !== oldDiscoveryMode.current?.selected;
+
+            const projectHasChanged = oldProjectId.current !== projectId;
+
+            if (discoverHasChanged || projectHasChanged) {
+                const page = await callAPI(AppStore.retrieveLandingPage(discoveryMode));
+                setLandingPage(page);
+            }
+
+            oldDiscoveryMode.current = discoveryMode;
+            oldProjectId.current = projectId ?? null;
+        })();
+    }, [projectId, discoveryMode]);
+
+    useEffectSkipMount(() => {
+        fetchFavoriteApps(AppStore.retrieveStars({})).then(doNothing);
+    }, [projectId]);
 
     const dispatch = useDispatch();
     React.useEffect(() => {
@@ -781,13 +825,15 @@ function SecondarySidebar({
                     )}
                 </> : null}
 
-                <SidebarSectionHeader to={AppRoutes.apps.landing()}
-                    tab={SidebarTabId.APPLICATIONS}>Store</SidebarSectionHeader>
-                {appStoreSections.data.items.length === 0 && <>
+                <SidebarSectionHeader to={AppRoutes.apps.landing()} tab={SidebarTabId.APPLICATIONS}>
+                    Store
+                </SidebarSectionHeader>
+
+                {landingPage.categories.length === 0 && <>
                     <SidebarEmpty>No applications found</SidebarEmpty>
                 </>}
 
-                {appStoreSections.data.items.map(section =>
+                {landingPage.categories.map(section =>
                     <SidebarEntry
                         key={section.metadata.id}
                         to={AppRoutes.apps.category(section.metadata.id)}
@@ -825,8 +871,6 @@ function SecondarySidebar({
                 <SidebarSectionHeader tab={SidebarTabId.ADMIN}>Tools</SidebarSectionHeader>
                 <SidebarEntry to={AppRoutes.admin.userCreation()} text={"User creation"} icon={"heroUser"}
                     tab={SidebarTabId.ADMIN} />
-                <SidebarEntry to={AppRoutes.admin.applicationStudio()} text={"Application studio"}
-                    icon={"heroBuildingStorefront"} tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.news()} text={"News"} icon={"heroNewspaper"}
                     tab={SidebarTabId.ADMIN} />
                 <SidebarEntry to={AppRoutes.admin.providers()} text={"Providers"} icon={"heroCloud"}
@@ -836,6 +880,21 @@ function SecondarySidebar({
                 <SidebarEntry to={AppRoutes.admin.playground()} text={"Playground"} icon={"heroCake"}
                     tab={SidebarTabId.ADMIN} />
             </>}
+
+            {active !== SidebarTabId.APPLICATION_STUDIO ? null : <>
+                <SidebarSectionEmptyHeader />
+                <SidebarEntry to={AppRoutes.appStudio.groups()} text={"Applications"} icon={"heroSquare3Stack3D"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.categories()} text={"Categories"} icon={"heroSquaresPlus"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.hero()} text={"Carrousel"} icon={"heroFilm"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.topPicks()} text={"Top picks"} icon={"heroTrophy"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+                <SidebarEntry to={AppRoutes.appStudio.spotlights()} text={"Spotlights"} icon={"heroCamera"}
+                    tab={SidebarTabId.APPLICATION_STUDIO} />
+            </>}
+
         </Flex>
     </div>;
 }

@@ -40,6 +40,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.task.api.BackgroundTask
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
 import io.ktor.utils.io.*
@@ -52,7 +53,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
@@ -194,7 +194,7 @@ class UCloudFilePlugin : FilePlugin {
         downloads.download(UCloudFile.create(pluginData), ctx)
     }
 
-    override suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?> {
+    override suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<BackgroundTask?> {
         for (reqItem in req.items) {
             limitChecker.checkLimit(reqItem.resolvedCollection)
         }
@@ -214,11 +214,13 @@ class UCloudFilePlugin : FilePlugin {
 
         return checkedItems.map { reqItem ->
             tasks.submitTask(
-                Files.createFolder.fullName,
-                defaultMapper.encodeToJsonElement(
+                requestName = Files.createFolder.fullName,
+                request = defaultMapper.encodeToJsonElement(
                     BulkRequest.serializer(FilesProviderCreateFolderRequestItem.serializer()),
                     bulkRequestOf(reqItem)
-                ) as JsonObject
+                ) as JsonObject,
+                username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
+                operationDescription = "Creating folder ${reqItem.id}",
             )
         }
     }
@@ -595,7 +597,7 @@ class UCloudFilePlugin : FilePlugin {
         }
     }
 
-    override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {
+    override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<BackgroundTask?> {
         val username = ucloudUsername ?: throw RPCException("No username supplied", HttpStatusCode.BadRequest)
         return request.items.map { reqItem ->
             tasks.submitTask(
@@ -603,12 +605,14 @@ class UCloudFilePlugin : FilePlugin {
                 defaultMapper.encodeToJsonElement(
                     BulkRequest.serializer(TrashRequestItem.serializer()),
                     bulkRequestOf(TrashRequestItem(username, reqItem.id))
-                ) as JsonObject
+                ) as JsonObject,
+                username = username,
+                operationDescription = "Moving file to trash",
             )
         }
     }
 
-    override suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?> {
+    override suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<BackgroundTask?> {
         val username = ucloudUsername ?: throw RPCException("No username supplied", HttpStatusCode.BadRequest)
         return request.items.map { requestItem ->
             tasks.submitTask(
@@ -616,12 +620,14 @@ class UCloudFilePlugin : FilePlugin {
                 defaultMapper.encodeToJsonElement(
                     BulkRequest.serializer(EmptyTrashRequestItem.serializer()),
                     bulkRequestOf(EmptyTrashRequestItem(username, requestItem.id))
-                ) as JsonObject
+                ) as JsonObject,
+                username = username,
+                operationDescription = "Emptying Trash",
             )
         }
     }
 
-    override suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?> {
+    override suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<BackgroundTask?> {
         for (reqItem in req.items) {
             limitChecker.checkLimit(reqItem.resolvedNewCollection)
         }
@@ -642,12 +648,14 @@ class UCloudFilePlugin : FilePlugin {
                 defaultMapper.encodeToJsonElement(
                     BulkRequest.serializer(FilesProviderMoveRequestItem.serializer()),
                     bulkRequestOf(reqItem)
-                ) as JsonObject
+                ) as JsonObject,
+                username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
+                operationDescription = "Moving file",
             )
         }
     }
 
-    override suspend fun RequestContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?> {
+    override suspend fun RequestContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<BackgroundTask?> {
         req.items.forEach { reqItem ->
             limitChecker.checkLimit(reqItem.resolvedNewCollection)
         }
@@ -658,7 +666,9 @@ class UCloudFilePlugin : FilePlugin {
                 defaultMapper.encodeToJsonElement(
                     BulkRequest.serializer(FilesProviderCopyRequestItem.serializer()),
                     bulkRequestOf(reqItem)
-                ) as JsonObject
+                ) as JsonObject,
+                username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
+                operationDescription = "Copying file",
             )
         }
     }
@@ -718,7 +728,9 @@ class UCloudFilePlugin : FilePlugin {
             defaultMapper.encodeToJsonElement(
                 BulkRequest.serializer(UFile.serializer()),
                 bulkRequestOf(resource)
-            ) as JsonObject
+            ) as JsonObject,
+            username = resource.owner.createdBy,
+            operationDescription = "Deleting file",
         )
     }
 
@@ -1154,7 +1166,9 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
             defaultMapper.encodeToJsonElement(
                 BulkRequest.serializer(FindByPath.serializer()),
                 bulkRequestOf(FindByPath("/${resource.id}"))
-            ) as JsonObject
+            ) as JsonObject,
+            username = ucloudUsername ?: resource.owner.createdBy,
+            operationDescription = "Deleting ${resource.specification.title}"
         )
         val drives = ArrayList<UCloudDrive>()
         dbConnection.withSession { session ->

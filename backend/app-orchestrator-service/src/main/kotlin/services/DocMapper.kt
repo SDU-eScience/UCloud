@@ -8,8 +8,8 @@ import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.IdCard
 import dk.sdu.cloud.accounting.util.ProductCache
 import dk.sdu.cloud.accounting.util.ResourceDocument
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
+import dk.sdu.cloud.accounting.util.UnknownResourceApi
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.json.JsonElement
 import java.util.HashMap
@@ -18,7 +18,7 @@ import java.util.HashSet
 class DocMapper<A, B>(
     private val idCards: IIdCardService,
     private val productCache: ProductCache,
-    private val providers: ProviderCommunications,
+    private val providers: ProviderCommunicationsV2,
     private val api: UnknownResourceApi<*>,
     private val converter: suspend DocMapperInfo<A>.() -> B,
 ) {

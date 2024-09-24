@@ -2,82 +2,21 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import {EveryIcon, IconName} from "@/ui-components/Icon";
-import {Flex} from "@/ui-components";
+import {Box, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
-import {NewAndImprovedProgress} from "@/ui-components/Progress";
-import {ConfirmationButton, ConfirmationButtonPlainHTML} from "@/ui-components/ConfirmationAction";
-import {showWarning} from "@/Accounting";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
-interface UsageAndQuota {
-    usage: number;
-    quota: number;
-    unit: string;
-    maxUsable: number;
-    retiredAmount: number;
-    retiredAmountStillCounts: boolean;
-}
-
-const usagesAndTypes: {
-    uq: UsageAndQuota;
-    triangle: boolean;
-}[] = [{
-    triangle: false,
-    uq: {maxUsable: 90 - 4, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 4}
-}, {
-    triangle: true,
-    uq: {maxUsable: 90 - (0.95 * 90), quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 0.95 * 90}
-}, {
-    triangle: false,
-    uq: {maxUsable: 90 - 84, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 84}
-}, /* {
-    triangle: true,
-    uq: {maxUsable: 0, quota: 100, retiredAmount: 0, retiredAmountStillCounts: false, unit: "N/A", usage: 44}
-} */];
 
 const Playground: React.FunctionComponent = () => {
 
-    const divRef = React.useRef<HTMLDivElement>(null);
-    React.useEffect(() => {
-        if (divRef.current) {
-            divRef.current.append(ConfirmationButtonPlainHTML(document.createElement("div"), "TEXT! ACTION!", () => console.log("foo"), {}))
-        }
-    }, [divRef.current]);
-
-
     const main = (
         <>
-
-            <ConfirmationButton
-                icon="heroTrash"
-                actionText="Action text"
-                onAction={() => console.log("ACTION!!!!")}
-            />
-
-            <div ref={divRef} />
-
-            {usagesAndTypes.map(({uq, triangle}) => {
-                if (uq.quota == 0) return null;
-                let usage: number
-                if (uq.retiredAmountStillCounts) {
-                    usage = uq.usage
-                } else {
-                    usage = uq.usage - uq.retiredAmount
-                }
-
-                return <NewAndImprovedProgress
-                    limitPercentage={uq.quota === 0 ? 100 : ((uq.maxUsable + usage) / uq.quota) * 100}
-                    label={triangle ? "Expect warning" : "Expect no warning"}
-                    percentage={uq.quota === 0 ? 0 : (usage / uq.quota) * 100}
-                    withWarning={showWarning(uq.quota, uq.maxUsable, uq.usage)}
-                />
-            })}
-
+            <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
             <NewAndImprovedProgress limitPercentage={40} label="Forty!" percentage={30} />
@@ -312,3 +251,5 @@ function PaletteColors(): React.ReactNode {
 }
 
 export default Playground;
+
+

@@ -59,6 +59,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import org.cliffc.high_scale_lib.NonBlockingHashMapLong
 import java.util.*
 import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
@@ -798,7 +799,123 @@ class JobResourceService(
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
     ): SupportByProvider<Product.Compute, ComputeSupport> {
-        return providers.retrieveProducts(actorAndProject, Jobs)
+        val result = providers.retrieveProducts<Product.Compute, ComputeSupport>(actorAndProject, Jobs)
+        saveSupportInfoIfNeeded(result)
+        return result
+    }
+
+    private val nextSupportInfoSave = AtomicLong(0L)
+    private suspend fun saveSupportInfoIfNeeded(support: SupportByProvider<Product.Compute, ComputeSupport>) {
+        if (support.productsByProvider.isEmpty()) return
+
+        val now = Time.now()
+        val nextSave = nextSupportInfoSave.get()
+        if (now > nextSave && nextSupportInfoSave.compareAndSet(nextSave, now + 60_000)) {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        val productNames = ArrayList<String>().also { setParameter("product_names", it) }
+                        val productCategories = ArrayList<String>().also { setParameter("product_categories", it) }
+                        val productProviders = ArrayList<String>().also { setParameter("product_providers", it) }
+                        val backendTypes = ArrayList<String>().also { setParameter("backend_types", it) }
+
+                        val vnc = ArrayList<Boolean>().also { setParameter("vnc_flags", it) }
+                        val logs = ArrayList<Boolean>().also { setParameter("log_flags", it) }
+                        val terminal = ArrayList<Boolean>().also { setParameter("terminal_flags", it) }
+                        val timeExtension = ArrayList<Boolean>().also { setParameter("time_extension_flags", it) }
+                        val peers = ArrayList<Boolean>().also { setParameter("peer_flags", it) }
+                        val suspend = ArrayList<Boolean>().also { setParameter("suspend_flags", it) }
+                        val web = ArrayList<Boolean>().also { setParameter("web_flags", it) }
+
+                        for ((provider, products) in support.productsByProvider.entries) {
+                            for (product in products) {
+                                val backendType: String = when {
+                                    product.support.docker.enabled == true -> ToolBackend.DOCKER.name
+                                    product.support.virtualMachine.enabled == true -> ToolBackend.VIRTUAL_MACHINE.name
+                                    product.support.native.enabled == true -> ToolBackend.NATIVE.name
+                                    else -> null
+                                } ?: continue
+
+                                val flags: ComputeSupport.UniversalBackendSupport = when {
+                                    product.support.docker.enabled == true -> product.support.docker
+                                    product.support.virtualMachine.enabled == true -> product.support.virtualMachine
+                                    product.support.native.enabled == true -> product.support.native
+                                    else -> null
+                                } ?: continue
+
+                                productNames.add(product.product.name)
+                                productCategories.add(product.product.category.name)
+                                productProviders.add(provider)
+                                backendTypes.add(backendType)
+
+                                vnc.add(flags.vnc == true)
+                                logs.add(flags.logs == true)
+                                terminal.add(flags.terminal == true)
+                                timeExtension.add(flags.timeExtension == true)
+                                peers.add((flags as? ComputeSupport.WithPeers)?.peers == true)
+                                suspend.add((flags as? ComputeSupport.WithSuspension)?.suspension == true)
+                                web.add((flags as? ComputeSupport.WithWeb)?.web == true)
+                            }
+                        }
+                    },
+                    """
+                        with data as (
+                            select
+                                unnest(:product_names::text[]) as product_name,
+                                unnest(:product_categories::text[]) as product_category,
+                                unnest(:product_providers::text[]) as product_provider,
+                                unnest(:backend_types::text[]) as backend_type,
+                                unnest(:vnc_flags::bool[]) as vnc,
+                                unnest(:log_flags::bool[]) as log,
+                                unnest(:terminal_flags::bool[]) as terminal,
+                                unnest(:peer_flags::bool[]) as peers,
+                                unnest(:suspend_flags::bool[]) as suspend,
+                                unnest(:web_flags::bool[]) as web,
+                                unnest(:time_extension_flags::bool[]) as time_extension
+                        )
+                        insert into app_orchestrator.machine_support_info(
+                            product_name,
+                            product_category,
+                            product_provider,
+                            backend_type,
+                            vnc,
+                            logs,
+                            terminal,
+                            web,
+                            peers,
+                            suspend,
+                            time_extension
+                        )
+                        select
+                            product_name,
+                            product_category,
+                            product_provider,
+                            backend_type,
+                            vnc,
+                            log,
+                            terminal,
+                            web,
+                            peers,
+                            suspend,
+                            time_extension
+                        from
+                            data
+                        on conflict (product_name, product_category, product_provider) do update set
+                            product_name = excluded.product_name,
+                            product_category = excluded.product_category,
+                            product_provider = excluded.product_provider,
+                            backend_type = excluded.backend_type,
+                            vnc = excluded.vnc,
+                            logs = excluded.logs,
+                            terminal = excluded.terminal,
+                            web = excluded.web,
+                            peers = excluded.peers,
+                            suspend = excluded.suspend,
+                            time_extension = excluded.time_extension
+                    """
+                )
+            }
+        }
     }
 
     // The `retrieveUtilization` endpoint allows the end-user to ask the provider how busy the cluster is for a given
@@ -1086,13 +1203,13 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation.web != null)
+                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            require(app.invocation.vnc != null)
+                            require(app.invocation!!.vnc != null)
                             block.checkFeature(block.vnc)
                         }
 
@@ -1338,7 +1455,7 @@ class JobResourceService(
         val application = appCache.resolveApplication(appName, appVersion)
             ?: error("Unknown application")
 
-        val tool = application.invocation.tool.tool ?: error("No tool")
+        val tool = application.invocation!!.tool.tool ?: error("No tool")
 
         val block = when (tool.description.backend) {
             ToolBackend.SINGULARITY -> error("unsupported tool backend")

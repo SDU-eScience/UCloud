@@ -16,8 +16,6 @@ export const SshWidget: React.FunctionComponent<{
     onSshKeysValid: (valid: boolean) => void;
     initialEnabledStatus?: boolean;
 }> = props => {
-    if (!hasFeature(Feature.SSH)) return null;
-
     const sshMode = props.application.invocation.ssh?.mode ?? "DISABLED";
     const [sshKeyFirstPage] = useCloudAPI<PageV2<SSHKey>>(SshKeyApi.browse({itemsPerPage: 10}), emptyPageV2);
     let hasAnyKeys = sshKeyFirstPage.data.items.length > 0;
