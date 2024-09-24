@@ -128,6 +128,7 @@ class TaskService(
                 when (newState) {
                     TaskState.CANCELLED -> "Operation cancelled by user"
                     TaskState.SUSPENDED -> "Operation paused by user"
+                    TaskState.RUNNING -> foundTask.status.operation
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
                 },
                 when (newState) {
@@ -139,6 +140,7 @@ class TaskService(
                             ""
                         }
                     }
+                    TaskState.RUNNING -> foundTask.status.progress
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
                 },
                 foundTask.status.progressPercentage,

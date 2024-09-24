@@ -40,7 +40,7 @@ typealias MarkAsCompleteRequest = FindByLongId
 typealias MarkAsCompleteResponse = Unit
 
 @TSTopLevel
-object Tasks : CallDescriptionContainer("task") {
+object Tasks : CallDescriptionContainer("tasks") {
     private const val baseContext = "/api/tasks"
 
     init {
