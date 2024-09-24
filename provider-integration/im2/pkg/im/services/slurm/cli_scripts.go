@@ -11,16 +11,34 @@ import (
 )
 
 func writeHelp() {
-	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "help      ")
-	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Prints this help text")
+	f := termio.Frame{}
 
-	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "ls")
-	termio.WriteStyled(termio.NoStyle, termio.DefaultColor, 0, " | ")
-	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "list ")
-	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Lists log of all previously run scripts")
+	f.AppendTitle("Scripts help")
+	f.AppendField("help", "Prints this help text")
+	f.AppendSeparator()
 
-	termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "get <ID>  ")
-	termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "Retrieves a detailed overview of one script log entry")
+	f.AppendField("ls|list", "Lists log of previously run scripts")
+	f.AppendField("", "")
+	f.AppendField("  --query=<QUERY>", "Search log entries where <QUERY> exists in stdout, stderr, request or script path.")
+	f.AppendField("  --failures", "Show only failed scripts")
+	f.AppendField("  --script=<PATH>", "Show only entries from script with <PATH>")
+	f.AppendField(
+		"  --before-relative=<INTERVAL>",
+		"Show entries older than <INTERVAL>\ne.g. --before-relative=\"1 hour\" shows entries older than 1 hour",
+	)
+	f.AppendField(
+		"  --after-relative=<INTERVAL>",
+		"Show entries newer than <INTERVAL>\ne.g. --after-relative=\"1 hour\" shows entries from the past hour",
+	)
+	f.AppendSeparator()
+
+	f.AppendField("get|retrieve|stat|view <ID>", "Retrieves a detailed overview of script log entry with <ID>")
+	f.AppendSeparator()
+	f.AppendField("del|delete|rm|remove <ID>", "Delete script log entry with <ID>")
+	f.AppendSeparator()
+	f.AppendField("clear", "Deletes all script log entries")
+
+	f.Print()
 }
 
 func HandleScriptsCommand() {
