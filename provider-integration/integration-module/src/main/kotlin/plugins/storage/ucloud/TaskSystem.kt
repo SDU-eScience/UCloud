@@ -64,7 +64,6 @@ class TaskSystem(
         requestName: String,
         request: JsonObject,
         username: String,
-        currentProvider: String,
         operationDescription: String,
         progressDescription: String = "Accepted",
         canPause: Boolean = false,

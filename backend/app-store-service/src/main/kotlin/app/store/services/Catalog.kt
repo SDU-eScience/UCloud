@@ -49,6 +49,7 @@ class Catalog(
     init {
         cacheInvalidationListeners.add {
             storeFronts.invalidateAll()
+            availableStoreFronts.invalidateAll()
         }
     }
 
@@ -173,8 +174,22 @@ class Catalog(
         discovery: WithCatalogDiscovery,
     ): ApplicationGroup? {
         val app = retrieveApplication(actorAndProject, appName, appVersion, flags, discovery) ?: return null
-        val groupId = app.metadata.groupId ?: return null
-        val group = retrieveGroup(actorAndProject, groupId, flags, discovery) ?: return null
+        val groupId = app.metadata.groupId
+        val group = if (groupId != null) {
+            retrieveGroup(actorAndProject, groupId, flags, discovery) ?: return null
+        } else {
+            ApplicationGroup(
+                ApplicationGroup.Metadata(Int.MAX_VALUE),
+                ApplicationGroup.Specification(
+                    app.metadata.title,
+                    app.metadata.description,
+                    app.metadata.name,
+                ),
+                ApplicationGroup.Status(
+                    applications = listOf(app),
+                )
+            )
+        }
 
         var groupApps = group.status.applications
         if (groupApps != null) {

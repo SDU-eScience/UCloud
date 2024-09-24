@@ -16,6 +16,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.PauseOrCancelRequest
 import dk.sdu.cloud.task.api.PostStatusRequest
 import io.ktor.utils.io.*
 import io.ktor.websocket.*

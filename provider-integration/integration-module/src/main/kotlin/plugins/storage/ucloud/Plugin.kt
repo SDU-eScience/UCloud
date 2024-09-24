@@ -53,7 +53,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.selects.onTimeout
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
@@ -221,7 +220,6 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
-                currentProvider = providerId,
                 operationDescription = "Creating folder ${reqItem.id}",
                 icon = null
             )
@@ -610,7 +608,6 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(TrashRequestItem(username, reqItem.id))
                 ) as JsonObject,
                 username = username,
-                currentProvider = providerId,
                 operationDescription = "Moving file to trash",
                 icon = "move"
             )
@@ -627,7 +624,6 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(EmptyTrashRequestItem(username, requestItem.id))
                 ) as JsonObject,
                 username = username,
-                currentProvider = providerId,
                 operationDescription = "Emptying Trash",
                 icon = "trash"
             )
@@ -657,7 +653,6 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
-                currentProvider = providerId,
                 operationDescription = "Moving file",
                 icon = "move"
             )
@@ -677,7 +672,6 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
-                currentProvider = providerId,
                 operationDescription = "Copying file",
                 icon = "copy"
             )
@@ -741,7 +735,6 @@ class UCloudFilePlugin : FilePlugin {
                 bulkRequestOf(resource)
             ) as JsonObject,
             username = resource.owner.createdBy,
-            currentProvider = providerId,
             operationDescription = "Deleting file",
             icon = "trash"
         )
@@ -1181,7 +1174,6 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 bulkRequestOf(FindByPath("/${resource.id}"))
             ) as JsonObject,
             username = ucloudUsername ?: resource.owner.createdBy,
-            currentProvider = providerId,
             operationDescription = "Deleting ${resource.specification.title}",
             icon = "trash"
         )

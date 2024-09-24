@@ -464,7 +464,7 @@ export const Create: React.FunctionComponent = () => {
     if (application == null) {
         return (
             <MainContainer
-                main={<Heading.h3>Unable to find application &apos;{appName} {appVersion}&apos;</Heading.h3>}
+                main={<Heading.h3>Unable to find application &apos;{appName}&apos;</Heading.h3>}
             />
         );
     }

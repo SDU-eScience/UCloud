@@ -132,7 +132,7 @@ class FileController(
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             Tasks.retrieve.call(
-                FindByLongId(request.id.toLong()),
+                FindByLongId(request.id.toLongOrNull() ?: -1),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
         })
