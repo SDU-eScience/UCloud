@@ -56,7 +56,7 @@ func InitScriptsLogDatabase() {
 			}
 		}
 
-		db.NewTx0(func(tx *db.Transaction) {
+		err := db.NewTx(func(tx *db.Transaction) error {
 			db.Exec(
 				tx,
 				`
@@ -73,7 +73,20 @@ func InitScriptsLogDatabase() {
 					"success":     r.Payload.Success,
 				},
 			)
+
+			err := tx.ConsumeError()
+			if err != nil {
+				log.Warn("Failed to insert script log entry: %v", err)
+				return err
+			}
+			return nil
 		})
+
+		if err != nil {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusBadRequest,
+			}
+		}
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
@@ -101,6 +114,14 @@ func InitScriptsLogDatabase() {
 			)
 
 			if !ok {
+				return ipc.Response[scriptLogEntry]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+
+			err := tx.ConsumeError()
+			if err != nil {
+				log.Warn("Error while retrieving script log entry: %v", err)
 				return ipc.Response[scriptLogEntry]{
 					StatusCode: http.StatusNotFound,
 				}
@@ -138,8 +159,8 @@ func InitScriptsLogDatabase() {
 			sqlFilterScript = sql.NullString{String: r.Payload.Script, Valid: true}
 		}
 
-		result := db.NewTx(func(tx *db.Transaction) []scriptLogEntry {
-			return db.Select[scriptLogEntry](
+		return db.NewTx(func(tx *db.Transaction) ipc.Response[[]scriptLogEntry] {
+			result := db.Select[scriptLogEntry](
 				tx,
 				`
 					select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
@@ -167,12 +188,19 @@ func InitScriptsLogDatabase() {
 					"filter_script":  sqlFilterScript,
 				},
 			)
-		})
 
-		return ipc.Response[[]scriptLogEntry]{
-			StatusCode: http.StatusOK,
-			Payload:    result,
-		}
+			err := tx.ConsumeError()
+			if err != nil {
+				return ipc.Response[[]scriptLogEntry]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+
+			return ipc.Response[[]scriptLogEntry]{
+				StatusCode: http.StatusOK,
+				Payload:    result,
+			}
+		})
 	})
 
 	CliScriptsClear.Handler(func(r *ipc.Request[CliScriptsClearRequest]) ipc.Response[util.Empty] {
@@ -182,7 +210,7 @@ func InitScriptsLogDatabase() {
 			}
 		}
 
-		db.NewTx0(func(tx *db.Transaction) {
+		err := db.NewTx(func(tx *db.Transaction) error {
 			db.Exec(
 				tx,
 				`
@@ -190,7 +218,21 @@ func InitScriptsLogDatabase() {
 				`,
 				db.Params{},
 			)
+
+			err := tx.ConsumeError()
+			if err != nil {
+				log.Warn("Unable to clear script log: %v", err)
+				return err
+			}
+
+			return nil
 		})
+
+		if err != nil {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusBadRequest,
+			}
+		}
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
@@ -204,7 +246,7 @@ func InitScriptsLogDatabase() {
 			}
 		}
 
-		db.NewTx0(func(tx *db.Transaction) {
+		err := db.NewTx(func(tx *db.Transaction) error {
 			db.Exec(
 				tx,
 				`
@@ -212,7 +254,21 @@ func InitScriptsLogDatabase() {
 				`,
 				db.Params{"id": r.Payload.Id},
 			)
+
+			err := tx.ConsumeError()
+			if err != nil {
+				log.Warn("Unable to delete from script log: %v", err)
+				return err
+			}
+
+			return nil
 		})
+
+		if err != nil {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusBadRequest,
+			}
+		}
 
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
