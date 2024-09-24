@@ -277,12 +277,12 @@ class DataVisualization(
                                     group by
                                         w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
-                               with_usage as (
+                                with_usage as (
                                     select
                                         dts.id,
                                         dts.product_category,
-                                        newest_sample.tree_usage,
-                                        oldest_sample.tree_usage,
+                                        newest_sample.tree_usage newest,
+                                        oldest_sample.tree_usage oldest,
                                         case
                                             when dts.is_periodic then newest_sample.tree_usage - oldest_sample.tree_usage
                                             when not dts.is_periodic then newest_sample.tree_usage
@@ -301,11 +301,11 @@ class DataVisualization(
                                 p.id,
                                 coalesce(p.title, wo.username),
                                 case
-                                    when au.floating_point = true then u.usage / 1000000.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.usage::double precision / 60.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.usage::double precision / 60.0 / 60.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0
+                                    when au.floating_point = true then u.newest / 1000000.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.newest::double precision
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.newest::double precision / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.newest::double precision / 60.0 / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.newest::double precision / 60.0 / 60.0 / 24.0
                                 end tusage
                             from
                                 with_usage u
