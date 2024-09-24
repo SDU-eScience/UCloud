@@ -73,8 +73,7 @@ func HandleScriptsCommand() {
 		t.Print()
 	case isGetCommand(command):
 		if len(os.Args) < 4 {
-			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "Syntax: ")
-			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "ucloud scripts get <ID>")
+			termio.WriteStyled(termio.Bold, termio.Red, 0, "Missing ID")
 			return
 		}
 
@@ -127,6 +126,23 @@ func HandleScriptsCommand() {
 			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, keys[i])
 			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, values[i])
 		}
+	case command == "clear":
+		ctrl.CliScriptsClear.Invoke(ctrl.CliScriptsClearRequest{})
+
+	case isDeleteCommand(command):
+		if len(os.Args) < 4 {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing ID")
+			return
+		}
+
+		getId, err := strconv.Atoi(os.Args[3])
+		if err != nil {
+			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, "Syntax: ")
+			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, "ucloud scripts get <ID>")
+			return
+		}
+
+		ctrl.CliScriptsRemove.Invoke(ctrl.CliScriptsRemoveRequest{Id: uint64(getId)})
 
 	case command == "test":
 		// TODO(Brian) Delete this section

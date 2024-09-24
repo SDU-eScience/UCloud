@@ -48,11 +48,10 @@ func prepareFile(req any) (string, bool) {
 }
 
 func InitScriptsLogDatabase() {
-	CliScriptsCreate.Handler(func(r *ipc.Request[CliScriptsCreateRequest]) ipc.Response[int] {
+	CliScriptsCreate.Handler(func(r *ipc.Request[CliScriptsCreateRequest]) ipc.Response[util.Empty] {
 		if r.Uid != 0 {
-			return ipc.Response[int]{
+			return ipc.Response[util.Empty]{
 				StatusCode: http.StatusForbidden,
-				Payload:    0,
 			}
 		}
 
@@ -75,9 +74,8 @@ func InitScriptsLogDatabase() {
 			)
 		})
 
-		return ipc.Response[int]{
+		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
-			Payload:    0,
 		}
 	})
 
@@ -125,10 +123,10 @@ func InitScriptsLogDatabase() {
 			return db.Select[scriptLogEntry](
 				tx,
 				`
-				select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
-				from script_log
-				order by id limit 100
-			`,
+					select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
+					from script_log
+					order by id limit 100
+				`,
 				db.Params{},
 			)
 		})
@@ -138,6 +136,51 @@ func InitScriptsLogDatabase() {
 			Payload:    result,
 		}
 	})
+
+	CliScriptsClear.Handler(func(r *ipc.Request[CliScriptsClearRequest]) ipc.Response[util.Empty] {
+		if r.Uid != 0 {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					delete from script_log where true
+				`,
+				db.Params{},
+			)
+		})
+
+		return ipc.Response[util.Empty]{
+			StatusCode: http.StatusOK,
+		}
+	})
+
+	CliScriptsRemove.Handler(func(r *ipc.Request[CliScriptsRemoveRequest]) ipc.Response[util.Empty] {
+		if r.Uid != 0 {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					delete from script_log where id = :id 
+				`,
+				db.Params{"id": r.Payload.Id},
+			)
+		})
+
+		return ipc.Response[util.Empty]{
+			StatusCode: http.StatusOK,
+		}
+	})
+
 }
 
 func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
@@ -222,6 +265,10 @@ type CliScriptsRetrieveRequest struct {
 	Id uint64
 }
 
+type CliScriptsRemoveRequest struct {
+	Id uint64
+}
+
 type CliScriptsListRequest struct{}
 type CliScriptsClearRequest struct{}
 
@@ -238,8 +285,9 @@ type scriptLogEntry struct {
 }
 
 var (
-	CliScriptsCreate   = ipc.NewCall[CliScriptsCreateRequest, int]("cli.slurm.scripts.create")
+	CliScriptsCreate   = ipc.NewCall[CliScriptsCreateRequest, util.Empty]("cli.slurm.scripts.create")
 	CliScriptsRetrieve = ipc.NewCall[CliScriptsRetrieveRequest, scriptLogEntry]("cli.slurm.scripts.retrieve")
 	CliScriptsList     = ipc.NewCall[CliScriptsListRequest, []scriptLogEntry]("cli.slurm.scripts.browse")
-	CliScriptsClear    = ipc.NewCall[CliScriptsClearRequest, int]("cli.slurm.scripts.clear")
+	CliScriptsRemove   = ipc.NewCall[CliScriptsRemoveRequest, util.Empty]("cli.slurm.scripts.remove")
+	CliScriptsClear    = ipc.NewCall[CliScriptsClearRequest, util.Empty]("cli.slurm.scripts.clear")
 )
