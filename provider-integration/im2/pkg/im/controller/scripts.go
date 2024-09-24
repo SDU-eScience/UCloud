@@ -2,9 +2,7 @@ package controller
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -42,7 +40,7 @@ func prepareFile(req any) (string, bool) {
 
 	_, err = file.Write(jsonBytes)
 	if err != nil {
-		log.Warn("Failed to write extension request: %v", err)
+		log.Warn("Failed to write script request: %v", err)
 		return "", false
 	}
 
@@ -109,8 +107,6 @@ func InitScriptsLogDatabase() {
 				}
 			}
 
-			fmt.Printf("%v\n", result)
-
 			return ipc.Response[scriptLogEntry]{
 				StatusCode: http.StatusOK,
 				Payload:    result,
@@ -131,6 +127,7 @@ func InitScriptsLogDatabase() {
 				`
 				select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
 				from script_log
+				order by id limit 100
 			`,
 				db.Params{},
 			)
@@ -147,7 +144,7 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	var resp Resp
 	if e.Script == "" {
 		log.Error(
-			"You must set the Script property of an extension after NewScript but it was never set: %v %v",
+			"You must set the Script property of a script after NewScript but it was never set: %v %v",
 			req,
 			resp,
 		)
@@ -157,13 +154,10 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	requestFile, ok := prepareFile(req)
 	if !ok {
 		reqBytes, _ := json.Marshal(req)
-		respBytes, _ := json.Marshal(resp)
-
-		reqString := base64.StdEncoding.EncodeToString(reqBytes)
-		respString := base64.StdEncoding.EncodeToString(respBytes)
+		reqString := string(reqBytes)
 
 		CliScriptsCreate.Invoke(
-			CliScriptsCreateRequest{e.Script, reqString, respString, "", "", 0, false},
+			CliScriptsCreateRequest{e.Script, reqString, "", "", 0, false},
 		)
 		return resp, false
 	}
@@ -178,18 +172,13 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	err := cmd.Run()
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
-		log.Warn("%v extension failed: %s %v", e.Script, s, err)
+		log.Warn("%v script failed: %s %v", e.Script, s, err)
 
-		stdoutString := base64.StdEncoding.EncodeToString(stdout.Bytes())
-		stderrString := base64.StdEncoding.EncodeToString(stderr.Bytes())
 		reqBytes, _ := json.Marshal(req)
-		respBytes, _ := json.Marshal(resp)
-
-		reqString := base64.StdEncoding.EncodeToString(reqBytes)
-		respString := base64.StdEncoding.EncodeToString(respBytes)
+		reqString := string(reqBytes)
 
 		CliScriptsCreate.Invoke(
-			CliScriptsCreateRequest{requestFile, reqString, respString, stdoutString, stderrString, 0, false},
+			CliScriptsCreateRequest{e.Script, reqString, stdout.String(), stderr.String(), 0, false},
 		)
 		return resp, false
 	}
@@ -197,7 +186,7 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	err = json.Unmarshal(stdout.Bytes(), &resp)
 	if err != nil {
 		log.Warn(
-			"%v extension returned invalid response: \n\terr=%v\n\tstdout%v\n\tstderr=%v",
+			"%v script returned invalid response: \n\terr=%v\n\tstdout%v\n\tstderr=%v",
 			e.Script,
 			err,
 			stdout.String(),
@@ -206,16 +195,11 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		return resp, false
 	}
 
-	stdoutString := base64.StdEncoding.EncodeToString(stdout.Bytes())
-	stderrString := base64.StdEncoding.EncodeToString(stderr.Bytes())
 	reqBytes, _ := json.Marshal(req)
-	respBytes, _ := json.Marshal(resp)
-
-	reqString := base64.StdEncoding.EncodeToString(reqBytes)
-	respString := base64.StdEncoding.EncodeToString(respBytes)
+	reqString := string(reqBytes)
 
 	CliScriptsCreate.Invoke(
-		CliScriptsCreateRequest{e.Script, reqString, respString, stdoutString, stderrString, 0, true},
+		CliScriptsCreateRequest{e.Script, reqString, stdout.String(), stderr.String(), 0, true},
 	)
 
 	return resp, true
@@ -228,7 +212,6 @@ func NewScript[Req any, Resp any]() Script[Req, Resp] {
 type CliScriptsCreateRequest struct {
 	Path       string
 	Request    string
-	Response   string
 	Stdout     string
 	Stderr     string
 	StatusCode int

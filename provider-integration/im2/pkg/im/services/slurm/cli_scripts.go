@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 
@@ -50,12 +51,14 @@ func HandleScriptsCommand() {
 		t := termio.Table{}
 
 		t.AppendHeader("ID")
+		t.AppendHeader("Time")
 		t.AppendHeader("Path")
 		t.AppendHeader("UID")
 		t.AppendHeader("Status")
 
 		for _, entry := range response {
 			t.Cell("%d", entry.Id)
+			t.Cell("%s", entry.Timestamp.Time())
 			t.Cell("%s", entry.ScriptPath)
 			t.Cell("%d", entry.Uid)
 
@@ -66,8 +69,6 @@ func HandleScriptsCommand() {
 				t.Cell("FAILED")
 			}
 		}
-
-		termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "Use ucloud scripts get <ID> to view details")
 
 		t.Print()
 	case isGetCommand(command):
@@ -90,40 +91,54 @@ func HandleScriptsCommand() {
 			return
 		}
 
-		t := termio.Table{}
-
-		t.AppendHeader("Key")
-		t.AppendHeader("Value")
-
-		t.Cell("ID")
-		t.Cell("%d", response.Id)
-
-		t.Cell("Path")
-		t.Cell("%s", response.ScriptPath)
-
-		t.Cell("UID")
-		t.Cell("%d", response.Uid)
-
-		t.Cell("Status")
-		switch response.Success {
-		case true:
-			t.Cell("SUCCESS")
-		case false:
-			t.Cell("FAILED")
+		keys := []string{
+			"          ID ",
+			"        Time ",
+			"        Path ",
+			"         UID ",
+			"      Status ",
+			" Status code ",
+			"\nRequest\n",
+			"\nStdout\n",
+			"\nStderr\n",
 		}
 
-		t.Print()
+		statusString := ""
+		switch response.Success {
+		case true:
+			statusString = termio.WriteStyledString(termio.NoStyle, termio.Green, 0, "SUCCESS")
+		case false:
+			statusString = termio.WriteStyledString(termio.NoStyle, termio.Red, 0, "FAILED")
+		}
+
+		values := []string{
+			fmt.Sprintf("%d", response.Id),
+			response.Timestamp.Time().String(),
+			response.ScriptPath,
+			fmt.Sprintf("%d", response.Uid),
+			statusString,
+			response.StatusCode,
+			response.Request,
+			response.Stdout,
+			response.Stderr,
+		}
+
+		for i := 0; i < len(keys); i++ {
+			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, keys[i])
+			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, values[i])
+		}
 
 	case command == "test":
-		ctrl.CliScriptsCreate.Invoke(ctrl.CliScriptsCreateRequest{
-			Path:       "/test/path",
-			Request:    "some request",
-			Response:   "some response",
-			Stdout:     "some stdout",
-			Stderr:     "some stderr",
-			StatusCode: 0,
-			Success:    true,
-		})
+		// TODO(Brian) Delete this section
+		type testReq struct {
+			Path string `json:"path"`
+		}
+		type testResp struct {
+			bytesUsed int
+		}
+
+		testScript := ctrl.Script[testReq, testResp]{Script: "/opt/ucloud/test_script.py"}
+		testScript.Invoke(testReq{Path: "/opt/ucloud"})
 	default:
 		writeHelp()
 	}
