@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/termio"
@@ -37,14 +38,66 @@ func HandleScriptsCommand() {
 	case isHelpCommand(command):
 		writeHelp()
 	case isListCommand(command):
-		response, err := ctrl.CliScriptsList.Invoke(ctrl.CliScriptsListRequest{})
+		query := ""
+		before := ""
+		after := ""
+		failuresOnly := false
+		scriptPath := ""
+
+		for _, arg := range os.Args[3:] {
+			switch {
+			case strings.HasPrefix(arg, "--query"):
+				splitted := strings.Split(arg, "=")
+				if len(splitted) > 1 {
+					if len(splitted[1]) > 0 {
+						query = splitted[1]
+					}
+				}
+			case strings.HasPrefix(arg, "--script"):
+				splitted := strings.Split(arg, "=")
+				if len(splitted) > 1 {
+					if len(splitted[1]) > 0 {
+						scriptPath = splitted[1]
+					}
+				}
+			case strings.HasPrefix(arg, "--before-relative"):
+				splitted := strings.Split(arg, "=")
+				if len(splitted) > 1 {
+					if len(splitted[1]) > 0 {
+						before = splitted[1]
+					}
+				}
+			case strings.HasPrefix(arg, "--after-relative"):
+				splitted := strings.Split(arg, "=")
+				if len(splitted) > 1 {
+					if len(splitted[1]) > 0 {
+						after = splitted[1]
+					}
+				}
+			case strings.HasPrefix(arg, "--failures"):
+				failuresOnly = true
+			default:
+				termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Unknown parameter %s", arg)
+			}
+
+		}
+
+		response, err := ctrl.CliScriptsList.Invoke(
+			ctrl.CliScriptsListRequest{
+				Query:        query,
+				Before:       before,
+				After:        after,
+				FailuresOnly: failuresOnly,
+				Script:       scriptPath,
+			},
+		)
 		if err != nil {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failed to get script log")
 			return
 		}
 
 		if len(response) < 1 {
-			termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "No entries in script log")
+			termio.WriteStyledLine(termio.Bold, termio.DefaultColor, 0, "No entries found")
 			return
 		}
 
@@ -54,6 +107,7 @@ func HandleScriptsCommand() {
 		t.AppendHeader("Time")
 		t.AppendHeader("Path")
 		t.AppendHeader("UID")
+		t.AppendHeader("StatusCode")
 		t.AppendHeader("Status")
 
 		for _, entry := range response {
@@ -61,6 +115,7 @@ func HandleScriptsCommand() {
 			t.Cell("%s", entry.Timestamp.Time())
 			t.Cell("%s", entry.ScriptPath)
 			t.Cell("%d", entry.Uid)
+			t.Cell("%s", entry.StatusCode)
 
 			switch entry.Success {
 			case true:
@@ -90,18 +145,6 @@ func HandleScriptsCommand() {
 			return
 		}
 
-		keys := []string{
-			"          ID ",
-			"        Time ",
-			"        Path ",
-			"         UID ",
-			"      Status ",
-			" Status code ",
-			"\nRequest\n",
-			"\nStdout\n",
-			"\nStderr\n",
-		}
-
 		statusString := ""
 		switch response.Success {
 		case true:
@@ -110,22 +153,23 @@ func HandleScriptsCommand() {
 			statusString = termio.WriteStyledString(termio.NoStyle, termio.Red, 0, "FAILED")
 		}
 
-		values := []string{
-			fmt.Sprintf("%d", response.Id),
-			response.Timestamp.Time().String(),
-			response.ScriptPath,
-			fmt.Sprintf("%d", response.Uid),
-			statusString,
-			response.StatusCode,
-			response.Request,
-			response.Stdout,
-			response.Stderr,
-		}
+		f := termio.Frame{}
 
-		for i := 0; i < len(keys); i++ {
-			termio.WriteStyled(termio.Bold, termio.DefaultColor, 0, keys[i])
-			termio.WriteStyledLine(termio.NoStyle, termio.DefaultColor, 0, values[i])
-		}
+		f.AppendTitle("Script Log Entry")
+		f.AppendField("ID", fmt.Sprintf("%d", response.Id))
+		f.AppendField("Time", response.Timestamp.Time().String())
+		f.AppendField("Path", response.ScriptPath)
+		f.AppendField("UID", fmt.Sprintf("%d", response.Uid))
+		f.AppendField("Status", statusString)
+		f.AppendField("Status code", response.StatusCode)
+		f.AppendSeparator()
+		f.AppendField("Request", response.Request)
+		f.AppendSeparator()
+		f.AppendField("stdout", response.Stdout)
+		f.AppendSeparator()
+		f.AppendField("stderr", response.Stderr)
+
+		f.Print()
 	case command == "clear":
 		ctrl.CliScriptsClear.Invoke(ctrl.CliScriptsClearRequest{})
 
@@ -147,7 +191,7 @@ func HandleScriptsCommand() {
 	case command == "test":
 		// TODO(Brian) Delete this section
 		type testReq struct {
-			Path string `json:"path"`
+			Path string
 		}
 		type testResp struct {
 			bytesUsed int

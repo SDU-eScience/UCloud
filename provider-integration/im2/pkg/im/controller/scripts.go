@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -119,15 +120,52 @@ func InitScriptsLogDatabase() {
 			}
 		}
 
+		sqlQuery := sql.NullString{}
+		sqlFilterBefore := sql.NullString{}
+		sqlFilterAfter := sql.NullString{}
+		sqlFilterScript := sql.NullString{}
+
+		if r.Payload.Query != "" {
+			sqlQuery = sql.NullString{String: r.Payload.Query, Valid: true}
+		}
+		if r.Payload.After != "" {
+			sqlFilterAfter = sql.NullString{String: r.Payload.After, Valid: true}
+		}
+		if r.Payload.Before != "" {
+			sqlFilterBefore = sql.NullString{String: r.Payload.Before, Valid: true}
+		}
+		if r.Payload.Script != "" {
+			sqlFilterScript = sql.NullString{String: r.Payload.Script, Valid: true}
+		}
+
 		result := db.NewTx(func(tx *db.Transaction) []scriptLogEntry {
 			return db.Select[scriptLogEntry](
 				tx,
 				`
 					select timestamp, id, request, script_path, stdout, stderr, status_code, success, uid
 					from script_log
-					order by id limit 100
+                    where
+						(cast(:filter_failure as bool) is false or cast(:filter_failure as bool) = not success) and
+						(cast(:filter_script as text) is null or script_path ilike '%' || :filter_script || '%') and
+						(cast(:filter_before as text) is null or timestamp < now() - cast(:filter_before as interval)) and
+						(cast(:filter_after as text) is null or timestamp > now() - cast(:filter_after as interval)) and
+                        (
+                            cast(:query as text) is null or
+                            stdout ilike '%' || :query || '%' or
+                            stderr ilike '%' || :query || '%' or
+                            request ilike '%' || :query || '%' or
+                            script_path ilike '%' || :query || '%'
+                        )
+                    order by timestamp desc
+                    limit 35
 				`,
-				db.Params{},
+				db.Params{
+					"filter_failure": r.Payload.FailuresOnly,
+					"query":          sqlQuery,
+					"filter_after":   sqlFilterAfter,
+					"filter_before":  sqlFilterBefore,
+					"filter_script":  sqlFilterScript,
+				},
 			)
 		})
 
@@ -269,7 +307,14 @@ type CliScriptsRemoveRequest struct {
 	Id uint64
 }
 
-type CliScriptsListRequest struct{}
+type CliScriptsListRequest struct {
+	Query        string
+	Before       string
+	After        string
+	Script       string
+	FailuresOnly bool
+}
+
 type CliScriptsClearRequest struct{}
 
 type scriptLogEntry struct {
