@@ -165,6 +165,13 @@ class AsyncCache<K, V>(
         return null
     }
 
+    suspend fun invalidateAll() {
+        mutex.withWriter {
+            cache.clear()
+            prefetchList.clear()
+        }
+    }
+
     suspend fun invalidate(key: K) {
         mutex.withWriter {
             cache.remove(key)

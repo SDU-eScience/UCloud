@@ -1,6 +1,5 @@
 package dk.sdu.cloud.task.services
 
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.WSSession
@@ -9,18 +8,18 @@ import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.JsonEventStream
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.task.api.TaskUpdate
+import dk.sdu.cloud.task.api.BackgroundTask
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 
-private typealias Socket = CallHandler<*, TaskUpdate, *>
+private typealias Socket = CallHandler<*, BackgroundTask, *>
 
 private class UserHandler(
     val user: String,
-    private val stream: EventStream<TaskUpdate>,
+    private val stream: EventStream<BackgroundTask>,
     private val broadcastingStream: BroadcastingStream,
     private val scope: CoroutineScope
 ) {
@@ -89,7 +88,7 @@ class SubscriptionService(
     }
 
     private fun eventStream(user: String) =
-        JsonEventStream("task-sub-${user}", TaskUpdate.serializer(), { it.jobId })
+        JsonEventStream("task-sub-${user}", BackgroundTask.serializer(), { it.taskId.toString() })
 
     suspend fun onDisconnect(session: WSSession) {
         globalLock.withLock {
@@ -101,7 +100,7 @@ class SubscriptionService(
         }
     }
 
-    suspend fun onTaskUpdate(user: String, update: TaskUpdate) {
+    suspend fun onTaskUpdate(user: String, update: BackgroundTask) {
         broadcastingStream.broadcast(update, eventStream(user))
     }
 

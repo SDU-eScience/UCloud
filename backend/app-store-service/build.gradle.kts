@@ -14,6 +14,7 @@ kotlin.sourceSets {
             implementation("com.vladmihalcea:hibernate-types-52:2.4.1")
             implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
             implementation("org.imgscalr:imgscalr-lib:4.2")
+            implementation("info.debatty:java-string-similarity:2.0.0")
         }
     }
 }

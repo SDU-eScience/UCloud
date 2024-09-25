@@ -4,7 +4,6 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -75,11 +74,9 @@ invocation of the application, but is used solely to visually group applications
                         exampleBatchApplication.metadata.name,
                         exampleBatchApplication.metadata.version
                     ),
-                    ApplicationWithFavoriteAndTags(
+                    Application(
                         exampleBatchApplication.metadata,
                         exampleBatchApplication.invocation,
-                        false,
-                        emptyList()
                     ),
                     user
                 )
@@ -111,7 +108,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -146,7 +143,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -181,7 +178,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -227,7 +224,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -272,7 +269,7 @@ invocation of the application, but is used solely to visually group applications
                 success(
                     findByNameAndVersion,
                     FindByNameAndVersionRequest(application.metadata.name, application.metadata.version),
-                    ApplicationWithFavoriteAndTags(application.metadata, application.invocation, false, emptyList()),
+                    Application(application.metadata, application.invocation),
                     user
                 )
             }
@@ -281,11 +278,11 @@ invocation of the application, but is used solely to visually group applications
 
     // Core CRUD
     // =================================================================================================================
-    val findByName = LegacyApi.findByName
     val findByNameAndVersion = LegacyApi.findByNameAndVersion
     val create = LegacyApi.create
     val search = Search.call
     val browseOpenWithRecommendations = BrowseOpenWithRecommendations.call
+    val findGroupByApplication = FindGroupByApplication.call
 
     // Application management
     // =================================================================================================================
@@ -294,6 +291,7 @@ invocation of the application, but is used solely to visually group applications
     val updateAcl = UpdateAcl.call
     val updatePublicFlag = UpdatePublicFlag.call
     val listAllApplications = ListAllApplications.call
+    val retrieveStudioApplication = RetrieveStudioApplication.call
 
     // Starred applications
     // =================================================================================================================
@@ -316,7 +314,7 @@ invocation of the application, but is used solely to visually group applications
     // Category management
     // =================================================================================================================
     val createCategory = CreateCategory.call
-    val browseCategories = BrowseCategories.call
+    val browseStudioCategories = BrowseStudioCategories.call
     val retrieveCategory = RetrieveCategory.call
     val addGroupToCategory = AddGroupToCategory.call
     val removeGroupFromCategory = RemoveGroupFromCategory.call
@@ -354,41 +352,20 @@ invocation of the application, but is used solely to visually group applications
 
     // NOTE(Dan): Legacy API - do not touch
     object LegacyApi {
-        // NOTE(Dan): Legacy API - do not touch
-        val findByName = call(
-            "findByName",
-            FindByNameRequest.serializer(),
-            Page.serializer(ApplicationSummaryWithFavorite.serializer()),
-            CommonErrorMessage.serializer()
-        ) {
-            auth {
-                roles = Roles.AUTHENTICATED
-                access = AccessRight.READ
-            }
+        @Serializable
+        data class FindByNameAndVersion(
+            val appName: String,
+            val appVersion: String? = null,
 
-            http {
-                path {
-                    using(baseContext)
-                    +"byName"
-                }
-
-                params {
-                    +boundTo(FindByNameRequest::appName)
-                    +boundTo(FindByNameRequest::itemsPerPage)
-                    +boundTo(FindByNameRequest::page)
-                }
-            }
-
-            documentation {
-                summary = "Finds Applications given an exact name"
-            }
-        }
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
 
         // NOTE(Dan): Legacy API - do not touch
         val findByNameAndVersion = call(
             "findByNameAndVersion",
-            FindByNameAndVersionRequest.serializer(),
-            ApplicationWithFavoriteAndTags.serializer(),
+            FindByNameAndVersion.serializer(),
+            Application.serializer(),
             CommonErrorMessage.serializer()
         ) {
             auth {
@@ -417,7 +394,7 @@ invocation of the application, but is used solely to visually group applications
         // NOTE(Dan): Legacy API - do not touch
         val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
             auth {
-                roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
+                roles = Roles.END_USER
                 access = AccessRight.READ
             }
 
@@ -456,13 +433,19 @@ invocation of the application, but is used solely to visually group applications
 
     object RetrieveStars {
         @Serializable
+        data class Request(
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
+
+        @Serializable
         data class Response(
-            val items: List<ApplicationSummaryWithFavorite>,
+            val items: List<Application>,
         )
 
         val call = call(
             "retrieveStars",
-            Unit.serializer(),
+            Request.serializer(),
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
@@ -483,12 +466,15 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
-        ) : WithPaginationRequestV2
+
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithPaginationRequestV2, WithCatalogDiscovery
 
         val call = call(
             "search",
             Request.serializer(),
-            PageV2.serializer(ApplicationSummaryWithFavorite.serializer()),
+            PageV2.serializer(Application.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
                 httpSearch(baseContext)
@@ -514,7 +500,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updatePublicFlag", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updatePublicFlag", roles = Roles.END_USER)
 
                 documentation {
                     summary = "Changes the 'publicly accessible' status of an Application"
@@ -540,7 +526,7 @@ invocation of the application, but is used solely to visually group applications
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "acl", roles = Roles.PRIVILEGED)
+                httpRetrieve(baseContext, "acl", roles = Roles.END_USER)
 
                 documentation {
                     summary = "Retrieves the permission information associated with an Application"
@@ -562,7 +548,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateAcl", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateAcl", roles = Roles.END_USER)
 
                 documentation {
                     summary = "Updates the permissions associated with an Application"
@@ -584,13 +570,44 @@ invocation of the application, but is used solely to visually group applications
         val call = call(
             "browseOpenWithRecommendations",
             Request.serializer(),
-            PageV2.serializer(ApplicationWithExtension.serializer()),
+            PageV2.serializer(Application.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "openWith")
 
                 documentation {
                     summary = "Finds a page of Application which can open a specific UFile"
+                }
+            }
+        )
+    }
+
+    object FindGroupByApplication {
+        @Serializable
+        data class Request(
+            val appName: String,
+            val appVersion: String? = null,
+            val flags: ApplicationFlags = ApplicationFlags(),
+
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
+
+        val call = call(
+            "findGroupByApplication",
+            Request.serializer(),
+            ApplicationGroup.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "findGroupByApplication", roles = Roles.END_USER)
+
+                documentation {
+                    summary = "Find an application group by one of its application group members"
+                    description = """
+                        If appVersion is null, then the latest version will be used. If appVersion is specified, then
+                        that specific application will be returned in the group (assuming includeApplications = true).
+                        All other applications in the group will contain the newest version.
+                    """.trimIndent()
                 }
             }
         )
@@ -609,7 +626,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "assignApplicationToGroup", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "assignApplicationToGroup", roles = Roles.END_USER)
             }
         )
     }
@@ -621,7 +638,7 @@ invocation of the application, but is used solely to visually group applications
             FindByIntId.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "createGroup", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "createGroup", roles = Roles.END_USER)
             }
         )
     }
@@ -633,7 +650,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "deleteGroup", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "deleteGroup", roles = Roles.END_USER)
             }
         )
     }
@@ -654,7 +671,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateGroup", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateGroup", roles = Roles.END_USER)
             }
         )
     }
@@ -666,6 +683,7 @@ invocation of the application, but is used solely to visually group applications
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
+            val curator: String? = null,
         ) : WithPaginationRequestV2
 
         val call = call(
@@ -674,7 +692,7 @@ invocation of the application, but is used solely to visually group applications
             PageV2.serializer(ApplicationGroup.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpBrowse(baseContext, "groups", roles = Roles.PRIVILEGED)
+                httpBrowse(baseContext, "groups", roles = Roles.END_USER)
             }
         )
     }
@@ -704,7 +722,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateApplicationFlavor", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateApplicationFlavor", roles = Roles.END_USER)
 
                 documentation {
                     summary = "Updates the flavor name for a set of applications"
@@ -720,7 +738,7 @@ invocation of the application, but is used solely to visually group applications
             FindByIntId.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "createCategory", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "createCategory", roles = Roles.END_USER)
             }
         )
     }
@@ -738,7 +756,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "addGroupToCategory", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "addGroupToCategory", roles = Roles.END_USER)
             }
         )
     }
@@ -756,7 +774,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "removeGroupFromCategory", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "removeGroupFromCategory", roles = Roles.END_USER)
             }
         )
     }
@@ -774,12 +792,12 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "assignPriorityToCategory", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "assignPriorityToCategory", roles = Roles.END_USER)
             }
         )
     }
 
-    object BrowseCategories {
+    object BrowseStudioCategories {
         @Serializable
         class Request(
             override val itemsPerPage: Int? = null,
@@ -800,9 +818,17 @@ invocation of the application, but is used solely to visually group applications
     }
 
     object RetrieveCategory {
+        @Serializable
+        data class Request(
+            val id: Int,
+
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
+
         val call = call(
             "retrieveCategory",
-            FindByIntId.serializer(),
+            Request.serializer(),
             ApplicationCategory.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
@@ -818,7 +844,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "deleteCategory", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "deleteCategory", roles = Roles.END_USER)
             }
         )
     }
@@ -836,7 +862,7 @@ invocation of the application, but is used solely to visually group applications
             CommonErrorMessage.serializer(),
             handler = {
                 auth {
-                    roles = Roles.PRIVILEGED
+                    roles = Roles.END_USER
                     access = AccessRight.READ_WRITE
                 }
 
@@ -867,7 +893,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "removeLogoFromGroup", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "removeLogoFromGroup", roles = Roles.END_USER)
             }
         )
     }
@@ -959,18 +985,33 @@ invocation of the application, but is used solely to visually group applications
 
     object RetrieveLandingPage {
         @Serializable
+        data class Request(
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
+
+        @Serializable
         data class Response(
             val carrousel: List<CarrouselItem>,
             val topPicks: List<TopPick>,
             val categories: List<ApplicationCategory>,
             val spotlight: Spotlight?,
-            val newApplications: List<ApplicationSummaryWithFavorite>,
-            val recentlyUpdated: List<ApplicationSummaryWithFavorite>,
+            val newApplications: List<Application>,
+            val recentlyUpdated: List<Application>,
+            val curator: List<CuratorStatus>,
+            val availableProviders: Set<String>,
+        )
+
+        @Serializable
+        data class CuratorStatus(
+            val projectId: String,
+            val canManageCatalog: Boolean,
+            val mandatedPrefix: String,
         )
 
         val call = call(
             "retrieveLandingPage",
-            Unit.serializer(),
+            Request.serializer(),
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
@@ -1009,7 +1050,29 @@ invocation of the application, but is used solely to visually group applications
             Response.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "allApplications", roles = Roles.PRIVILEGED)
+                httpRetrieve(baseContext, "allApplications", roles = Roles.END_USER)
+            }
+        )
+    }
+
+    object RetrieveStudioApplication {
+        @Serializable
+        data class Request(
+            val name: String,
+        )
+
+        @Serializable
+        data class Response(
+            val versions: List<Application>
+        )
+
+        val call = call(
+            "retrieveStudioApplication",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "studioApplication", roles = Roles.END_USER)
             }
         )
     }
@@ -1022,7 +1085,7 @@ invocation of the application, but is used solely to visually group applications
             FindByIntId.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "createSpotlight", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "createSpotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1034,7 +1097,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateSpotlight", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateSpotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1046,7 +1109,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "deleteSpotlight", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "deleteSpotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1058,7 +1121,7 @@ invocation of the application, but is used solely to visually group applications
             Spotlight.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpRetrieve(baseContext, "spotlight", roles = Roles.PRIVILEGED)
+                httpRetrieve(baseContext, "spotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1078,7 +1141,7 @@ invocation of the application, but is used solely to visually group applications
             PageV2.serializer(Spotlight.serializer()),
             CommonErrorMessage.serializer(),
             handler = {
-                httpBrowse(baseContext, "spotlight", roles = Roles.PRIVILEGED)
+                httpBrowse(baseContext, "spotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1090,7 +1153,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "activateSpotlight", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "activateSpotlight", roles = Roles.END_USER)
             }
         )
     }
@@ -1107,7 +1170,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateCarrousel", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateCarrousel", roles = Roles.END_USER)
             }
         )
     }
@@ -1125,7 +1188,7 @@ invocation of the application, but is used solely to visually group applications
             CommonErrorMessage.serializer(),
             handler = {
                 auth {
-                    roles = Roles.PRIVILEGED
+                    roles = Roles.END_USER
                     access = AccessRight.READ_WRITE
                 }
 
@@ -1157,7 +1220,7 @@ invocation of the application, but is used solely to visually group applications
             Unit.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
-                httpUpdate(baseContext, "updateTopPicks", roles = Roles.PRIVILEGED)
+                httpUpdate(baseContext, "updateTopPicks", roles = Roles.END_USER)
             }
         )
     }
@@ -1207,18 +1270,6 @@ data class CarrouselItem(
         checkSingleLine(::imageCredit, imageCredit)
         checkTextLength(::body, body, maximumSize = 400)
 
-        var linkedItems = 0
-        if (linkedApplication != null) linkedItems++
-        if (linkedGroup != null) linkedItems++
-        if (linkedWebPage != null) linkedItems++
-
-        if (linkedItems != 1) {
-            throw RPCException(
-                "Exactly one of linkedApplication, linkedWebPage or linkedGroup must be supplied!",
-                HttpStatusCode.BadRequest
-            )
-        }
-
         if (linkedApplication != null) checkSingleLine(::linkedApplication, linkedApplication)
         if (linkedWebPage != null) checkSingleLine(::linkedWebPage, linkedWebPage)
     }
@@ -1252,6 +1303,7 @@ data class ApplicationGroup(
         val categories: Set<Int> = emptySet(),
         val colorReplacement: ColorReplacements = ColorReplacements(),
         val logoHasText: Boolean = false,
+        val curator: String = ""
     )
 
     @Serializable
@@ -1259,7 +1311,7 @@ data class ApplicationGroup(
 
     @Serializable
     data class Status(
-        val applications: List<ApplicationSummaryWithFavorite>? = null,
+        val applications: List<Application>? = null,
     )
 }
 
@@ -1278,6 +1330,7 @@ data class ApplicationCategory(
     data class Specification(
         val title: String,
         val description: String? = null,
+        val curator: String? = null
     )
 
     @Serializable
@@ -1340,11 +1393,7 @@ data class DetailedEntityWithPermission(
     val permission: ApplicationAccessRight
 )
 
-@Serializable
-data class FindByNameAndVersionRequest(
-    val appName: String,
-    val appVersion: String? = null
-)
+typealias FindByNameAndVersionRequest = AppStore.LegacyApi.FindByNameAndVersion
 
 @Serializable
 data class ACLEntryRequest(
@@ -1373,10 +1422,8 @@ fun exampleApplication(
             title,
             "An example application",
             public = true,
-            group = ApplicationGroup(
-                ApplicationGroup.Metadata(0),
-                ApplicationGroup.Specification("Test Group", "", null, emptySet())
-            )
+            groupId = 0,
+            curator = "main"
         ),
         ApplicationInvocationDescription(
             ToolReference(
@@ -1394,7 +1441,8 @@ fun exampleApplication(
                         description = "An example tool",
                         backend = toolBackend,
                         license = "None",
-                        image = image
+                        image = image,
+                        curator = "main"
                     )
                 )
             ),
@@ -1406,8 +1454,7 @@ fun exampleApplication(
     )
 }
 
-@UCloudApiExampleValue
-val exampleBatchApplication = exampleApplication(
+@UCloudApiExampleValue val exampleBatchApplication = exampleApplication(
     "acme-batch",
     "1.0.0",
     "acme/batch:1.0.0",
@@ -1435,3 +1482,30 @@ val exampleBatchApplication = exampleApplication(
 
 const val injectedPrefix = "_injected_"
 
+@Serializable
+enum class CatalogDiscoveryMode {
+    ALL,
+    AVAILABLE,
+    SELECTED;
+
+    companion object {
+        val DEFAULT = ALL
+    }
+}
+
+interface WithCatalogDiscovery {
+    val discovery: CatalogDiscoveryMode?
+
+    /**
+     * Comma-separated list of selected service provider IDs. If none is specified then this should default to null.
+     *
+     * NOTE(Dan): This list is comma-separated to play nice with the httpRetrieve convention.
+     */
+    val selected: String?
+}
+
+@Serializable
+data class CatalogDiscovery(
+    override val discovery: CatalogDiscoveryMode? = null,
+    override val selected: String? = null,
+) : WithCatalogDiscovery

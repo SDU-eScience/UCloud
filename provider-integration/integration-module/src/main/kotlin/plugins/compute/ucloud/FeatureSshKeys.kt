@@ -33,7 +33,7 @@ class FeatureSshKeys(
         }
 
         val application = job.status.resolvedApplication!!
-        val sshStatus = application.invocation.ssh ?: return
+        val sshStatus = application.invocation!!.ssh ?: return
         if (sshStatus.mode == SshDescription.Mode.DISABLED) return
 
         val relevantKeys = JobsControl.browseSshKeys.call(

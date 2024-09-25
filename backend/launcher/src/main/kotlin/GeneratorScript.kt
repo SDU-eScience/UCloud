@@ -21,7 +21,6 @@ import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FileMetadata
 import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaces
 import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.FilesControl
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.api.Shares
 import dk.sdu.cloud.file.orchestrator.api.SharesControl
@@ -190,11 +189,6 @@ fun generateCode() {
                                                 "ingoing",
                                                 "Ingoing API",
                                                 FilesProvider(PROVIDER_ID_PLACEHOLDER)
-                                            ),
-                                            Chapter.Feature(
-                                                "outgoing",
-                                                "Outgoing API",
-                                                FilesControl
                                             )
                                         )
                                     ),

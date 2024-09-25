@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/controller/upload"
 
 	ws "github.com/gorilla/websocket"
@@ -39,20 +40,21 @@ type CreateUploadRequest struct {
 }
 
 type FileService struct {
-	BrowseFiles           func(request BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error)
-	RetrieveFile          func(request RetrieveFileRequest) (orc.ProviderFile, error)
-	CreateFolder          func(request CreateFolderRequest) error
-	Move                  func(request MoveFileRequest) error
-	Copy                  func(request CopyFileRequest) error
-	MoveToTrash           func(request MoveToTrashRequest) error
-	EmptyTrash            func(request EmptyTrashRequest) error
-	CreateDownloadSession func(request DownloadSession) error
-	Download              func(request DownloadSession) (io.ReadSeekCloser, int64, error)
-	CreateUploadSession   func(request CreateUploadRequest) ([]byte, error)
-	//HandleUploadWs        func(request UploadDataWs) error
-	RetrieveProducts func() []orc.FSSupport
-	Transfer         func(request FilesTransferRequest) (FilesTransferResponse, error)
-	Uploader         upload.ServerFileSystem
+	BrowseFiles                 func(request BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error)
+	RetrieveFile                func(request RetrieveFileRequest) (orc.ProviderFile, error)
+	CreateFolder                func(request CreateFolderRequest) error
+	Move                        func(request MoveFileRequest) error
+	Copy                        func(request CopyFileRequest) error
+	MoveToTrash                 func(request MoveToTrashRequest) error
+	EmptyTrash                  func(request EmptyTrashRequest) error
+	CreateDownloadSession       func(request DownloadSession) error
+	Download                    func(request DownloadSession) (io.ReadSeekCloser, int64, error)
+	CreateUploadSession         func(request CreateUploadRequest) ([]byte, error)
+	RetrieveProducts            func() []orc.FSSupport
+	TransferSourceInitiate      func(request FilesTransferRequestInitiateSource) ([]string, error)
+	TransferDestinationInitiate func(request FilesTransferRequestInitiateDestination) (FilesTransferResponse, error)
+	TransferSourceBegin         func(request FilesTransferRequestStart, session TransferSession) error
+	Uploader                    upload.ServerFileSystem
 }
 
 type FilesBrowseFlags struct {
@@ -379,7 +381,7 @@ func controllerFiles(mux *http.ServeMux) {
 				0,
 				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[downloadRequest]) {
 					resp := fnd.BulkResponse[downloadResponse]{}
-					owner, _ := ipc.GetConnectionUid(r)
+					owner := uint32(os.Getuid())
 
 					for _, item := range request.Items {
 						TrackDrive(&item.ResolvedCollection)
@@ -420,7 +422,7 @@ func controllerFiles(mux *http.ServeMux) {
 		)
 
 		mux.HandleFunc(fmt.Sprintf("/ucloud/%v/download", cfg.Provider.Id), func(w http.ResponseWriter, r *http.Request) {
-			uid, _ := ipc.GetConnectionUid(r) // TODO Is this even an IPC call ???
+			uid := uint32(os.Getuid())
 
 			token := r.URL.Query().Get("token")
 			session, ok := downloadSessions.GetNow(token)
@@ -646,7 +648,7 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			fileContext+"transfer",
 			HttpUpdateHandler(0, func(w http.ResponseWriter, r *http.Request, request transferRequest) {
-				if Files.Transfer == nil {
+				if Files.TransferSourceBegin == nil || Files.TransferDestinationInitiate == nil || Files.TransferSourceInitiate == nil {
 					sendError(w, &util.HttpError{
 						StatusCode: http.StatusBadRequest,
 						Why:        "Bad request",
@@ -654,29 +656,64 @@ func controllerFiles(mux *http.ServeMux) {
 					return
 				}
 
-				transformed := FilesTransferRequest{Type: request.Type}
 				switch request.Type {
 				case FilesTransferRequestTypeInitiateSource:
 					TrackDrive(request.SourceCollection)
-					transformed.Payload = &FilesTransferRequestInitiateSource{
+					payload := FilesTransferRequestInitiateSource{
 						SourcePath:          request.SourcePath,
 						DestinationProvider: request.DestinationPath,
 					}
 
+					protocols, err := Files.TransferSourceInitiate(payload)
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+
+					id, err := createTransferSessionCall.Invoke(payload)
+					resp := FilesTransferResponseInitiateSource(id.Id, protocols)
+					sendResponseOrError(w, resp, err)
+
 				case FilesTransferRequestTypeInitiateDestination:
 					TrackDrive(request.DestinationCollection)
-					transformed.Payload = &FilesTransferRequestInitiateDestination{
+					payload := FilesTransferRequestInitiateDestination{
 						DestinationPath:    request.DestinationPath,
 						SourceProvider:     request.SourceProvider,
 						SupportedProtocols: request.SupportedProtocols,
 					}
 
+					resp, err := Files.TransferDestinationInitiate(payload)
+					sendResponseOrError(w, resp, err)
+
 				case FilesTransferRequestTypeStart:
-					transformed.Payload = &FilesTransferRequestStart{
+					payload := FilesTransferRequestStart{
 						Session:            request.Session,
 						SelectedProtocol:   request.SelectedProtocol,
 						ProtocolParameters: request.ProtocolParameters,
 					}
+
+					_, err := selectTransferProtocolCall.Invoke(SelectTransferProtocolRequest{
+						Id:                 request.Session,
+						SelectedProtocol:   request.SelectedProtocol,
+						ProtocolParameters: request.ProtocolParameters,
+					})
+
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+
+					session, ok := RetrieveTransferSession(request.Session)
+					if !ok {
+						sendError(w, &util.HttpError{
+							StatusCode: http.StatusNotFound,
+							Why:        "unknown session",
+						})
+						return
+					}
+
+					err = Files.TransferSourceBegin(payload, session)
+					sendResponseOrError(w, FilesTransferResponseStart(), err)
 
 				default:
 					sendError(w, &util.HttpError{
@@ -685,9 +722,6 @@ func controllerFiles(mux *http.ServeMux) {
 					})
 					return
 				}
-
-				resp, err := Files.Transfer(transformed)
-				sendResponseOrError(w, resp, err)
 			}),
 		)
 	} else if cfg.Mode == cfg.ServerModeServer {
@@ -705,6 +739,113 @@ func controllerFiles(mux *http.ServeMux) {
 				)
 			}),
 		)
+
+		createTransferSessionCall.Handler(func(r *ipc.Request[FilesTransferRequestInitiateSource]) ipc.Response[fnd.FindByStringId] {
+			token := util.RandomToken(16)
+
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						insert into file_transfers(id, owner_uid, ucloud_source, destination_provider,
+							selected_protocol, protocol_parameters) 
+						values (:token, :uid, :source, :dest, null, null)
+				    `,
+					db.Params{
+						"token":  token,
+						"uid":    r.Uid,
+						"source": r.Payload.SourcePath,
+						"dest":   r.Payload.DestinationProvider,
+					},
+				)
+			})
+
+			return ipc.Response[fnd.FindByStringId]{
+				StatusCode: http.StatusOK,
+				Payload:    fnd.FindByStringId{Id: token},
+			}
+		})
+
+		selectTransferProtocolCall.Handler(func(r *ipc.Request[SelectTransferProtocolRequest]) ipc.Response[util.Empty] {
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						update file_transfers
+						set
+							selected_protocol = :protocol,
+							protocol_parameters = cast(:parameters as jsonb)
+						where
+							id = :id
+							and owner_uid = :uid
+				    `,
+					db.Params{
+						"id":         r.Payload.Id,
+						"protocol":   r.Payload.SelectedProtocol,
+						"parameters": string(r.Payload.ProtocolParameters),
+						"uid":        r.Uid,
+					},
+				)
+			})
+
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+			}
+		})
+
+		retrieveTransferSession.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[TransferSession] {
+			session, ok := db.NewTx2(func(tx *db.Transaction) (TransferSession, bool) {
+				row, ok := db.Get[struct {
+					UCloudSource        string
+					DestinationProvider string
+					SelectedProtocol    string
+					ProtocolParameters  string
+				}](
+					tx,
+					`
+						select
+							ucloud_source,
+							destination_provider,
+							selected_protocol,
+							protocol_parameters
+						from
+							file_transfers
+						where
+							owner_uid = :uid
+							and id = :id
+				    `,
+					db.Params{
+						"uid": r.Uid,
+						"id":  r.Payload.Id,
+					},
+				)
+
+				if !ok {
+					return TransferSession{}, false
+				} else {
+					return TransferSession{
+						Id: r.Payload.Id,
+						FilesTransferRequestInitiateSource: FilesTransferRequestInitiateSource{
+							SourcePath:          row.UCloudSource,
+							DestinationProvider: row.DestinationProvider,
+						},
+						SelectedProtocol:   row.SelectedProtocol,
+						ProtocolParameters: []byte(row.ProtocolParameters),
+					}, true
+				}
+			})
+
+			if !ok {
+				return ipc.Response[TransferSession]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+
+			return ipc.Response[TransferSession]{
+				StatusCode: http.StatusOK,
+				Payload:    session,
+			}
+		})
 	}
 }
 
@@ -744,3 +885,31 @@ func generateUploadPath(
 
 var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
 var uploadSessions = util.NewCache[string, upload.ServerSession](48 * time.Hour)
+
+type TransferSession struct {
+	Id string
+	FilesTransferRequestInitiateSource
+
+	SelectedProtocol   string
+	ProtocolParameters json.RawMessage
+}
+
+type SelectTransferProtocolRequest struct {
+	Id                 string
+	SelectedProtocol   string
+	ProtocolParameters json.RawMessage
+}
+
+var (
+	createTransferSessionCall  = ipc.NewCall[FilesTransferRequestInitiateSource, fnd.FindByStringId]("ctrl.files.createTransferSession")
+	selectTransferProtocolCall = ipc.NewCall[SelectTransferProtocolRequest, util.Empty]("ctrl.files.selectTransferProtocol")
+	retrieveTransferSession    = ipc.NewCall[fnd.FindByStringId, TransferSession]("ctrl.files.retrieveTransferSession")
+)
+
+func RetrieveTransferSession(id string) (TransferSession, bool) {
+	session, err := retrieveTransferSession.Invoke(fnd.FindByStringId{Id: id})
+	if err != nil {
+		return TransferSession{}, false
+	}
+	return session, true
+}

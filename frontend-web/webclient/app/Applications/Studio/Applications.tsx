@@ -93,9 +93,9 @@ export const App: React.FunctionComponent = () => {
         { entries: [] }
     );
 
-    const [apps, setAppParameters] = useCloudAPI<Page<ApplicationSummaryWithFavorite>>(
-        AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}),
-        emptyPage
+    const [apps, setAppParameters] = useCloudAPI<{ versions: AppStore.Application[] }>(
+        AppStore.findStudioApplication({name}),
+        {versions: []}
     );
     const [versions, setVersions] = useState<AppVersion[]>([]);
     const [selectedEntityType, setSelectedEntityType] = useState<AccessEntityType>(AccessEntityType.USER);
@@ -110,13 +110,10 @@ export const App: React.FunctionComponent = () => {
     }, [name]);
 
     useEffect(() => {
-        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
-    }, [name]);
-
-    useEffect(() => {
-        const [firstApp] = apps.data.items;
+        const [firstApp] = apps.data.versions;
         if (!firstApp) return;
-        if (selectedGroup === firstApp.metadata.group?.metadata.id) return;
+
+        if (selectedGroup === firstApp.metadata.groupId) return;
 
         if (selectedGroup == 0) {
             invokeCommand(AppStore.assignApplicationToGroup({
@@ -132,35 +129,40 @@ export const App: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (!allGroups) return;
-        if (!apps.data.items[0]) return;
+        if (apps.data.versions.length === 0) return;
 
-        setSelectedGroup(apps.data.items[0].metadata.group?.metadata.id ?? 0);
+        setSelectedGroup(apps.data.versions[0].metadata.groupId ?? 0);
     }, [allGroups, apps]);
 
     // Loading of application versions
     useEffect(() => {
         const appVersions: AppVersion[] = [];
-        apps.data.items.forEach(item => {
+        apps.data.versions.forEach(item => {
             appVersions.push({version: item.metadata.version, isPublic: item.metadata.public});
         });
         setVersions(appVersions);
-        if (apps.data.items.length && flavorField.current) {
-            flavorField.current.value = apps.data.items[0].metadata.flavorName ?? "";
+        if (apps.data.versions.length && flavorField.current) {
+            flavorField.current.value = apps.data.versions[0].metadata.flavorName ?? "";
         }
-    }, [apps.data.items]);
+    }, [apps.data.versions]);
 
-    usePage("Application Studio | Applications", SidebarTabId.ADMIN);
+    usePage("Application Studio | Applications", SidebarTabId.APPLICATION_STUDIO);
 
     const refresh = useCallback(() => {
-        setAppParameters(AppStore.findByName({appName: name, itemsPerPage: 50, page: 0}));
-        setGroups(AppStore.browseGroups({itemsPerPage: 250}));
+        setAppParameters(AppStore.findStudioApplication({name}));
     }, [name]);
+
+    useEffect(() => {
+        if (apps.data.versions.length < 1) return;
+
+        setGroups(AppStore.browseGroups({itemsPerPage: 1000}));
+    }, [apps.data.versions]);
 
     useSetRefreshFunction(refresh);
     useLoading(commandLoading || apps.loading);
 
-    const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
-    const flavorName = apps.data.items.length > 0 ? (apps.data.items[0].metadata.flavorName ?? appTitle) : undefined;
+    const appTitle = apps.data.versions.length > 0 ? apps.data.versions[0].metadata.title : name;
+    const flavorName = apps.data.versions.length > 0 ? (apps.data.versions[0].metadata.flavorName ?? appTitle) : undefined;
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const flavorField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);

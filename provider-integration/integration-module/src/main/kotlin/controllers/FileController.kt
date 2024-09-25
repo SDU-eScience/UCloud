@@ -15,14 +15,15 @@ import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
-import dk.sdu.cloud.plugins.storage.ucloud.DefaultDirectBufferPoolForFileIo
 import dk.sdu.cloud.plugins.storage.ucloud.FSException
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
-import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.task.api.BackgroundTask
+import dk.sdu.cloud.task.api.CreateRequest
+import dk.sdu.cloud.task.api.Tasks
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -40,7 +41,6 @@ import kotlinx.serialization.builtins.serializer
 import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.coroutines.coroutineContext
-import kotlin.math.min
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -73,8 +73,9 @@ data class TaskSpecification(val title: String)
 
 // TODO(Dan): Move this somewhere else
 object TaskIpc : IpcContainer("tasks") {
-    val register = createHandler(TaskSpecification.serializer(), FindByStringId.serializer())
+    val register = createHandler(TaskSpecification.serializer(), BackgroundTask.serializer())
     val markAsComplete = updateHandler("markAsComplete", FindByStringId.serializer(), Unit.serializer())
+    val view = retrieveHandler(FindByStringId.serializer(), BackgroundTask.serializer())
 }
 
 @Serializable
@@ -93,11 +94,22 @@ class FileController(
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid)
+            val username = UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
+            val backgroundTask = Tasks.create.call(
+                CreateRequest(
+                    user = username,
+                    operation = request.title,
+                    progress = "Accepted",
+                    canPause = false,
+                    canCancel = false,
+                    icon = request.title
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+
             dbConnection.withSession { session ->
-                val id = secureToken(32).replace("/", "-")
 
                 session.prepareStatement(
                     """
@@ -107,13 +119,22 @@ class FileController(
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("title", request.title)
-                        bindString("task_id", id)
+                        bindString("task_id", backgroundTask.taskId.toString())
                         bindString("local", user.uid.toString())
                     }
                 )
-
-                FindByStringId(id)
             }
+            backgroundTask
+        })
+
+        server.addHandler(TaskIpc.view.handler {user, request ->
+            UserMapping.localIdToUCloudId(user.uid)
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+
+            Tasks.retrieve.call(
+                FindByLongId(request.id.toLongOrNull() ?: -1),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
         })
 
         server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
@@ -141,10 +162,15 @@ class FileController(
 
             if (!doesExist) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            FilesControl.markAsComplete.callBlocking(
-                bulkRequestOf(FilesControlMarkAsCompleteRequestItem(request.id)),
-                controllerContext.pluginContext.rpcClient
-            ).orThrow()
+            try {
+                Tasks.markAsComplete.callBlocking(
+                    FindByLongId(request.id.toLong()),
+                    controllerContext.pluginContext.rpcClient
+                ).orThrow()
+            } catch (ex: Exception) {
+                log.warn("Failed to update status for task: ${request.id}")
+                log.info(ex.message)
+            }
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->

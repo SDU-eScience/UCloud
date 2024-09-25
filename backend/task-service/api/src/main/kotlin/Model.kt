@@ -1,44 +1,52 @@
 package dk.sdu.cloud.task.api
 
+import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class Task(
-    val jobId: String,
-    val owner: String,
-    val processor: String,
-    val title: String? = null,
-    val status: String? = null,
-    val complete: Boolean,
-    val startedAt: Long,
-    val modifiedAt: Long
-)
+const val DEFAULT_TASK_OPERATION = "Background Task"
+const val DEFAULT_TASK_PROGRESS = "Accepted"
 
 @Serializable
-data class TaskUpdate(
-    val jobId: String,
-    val newTitle: String? = null,
-    val speeds: List<Speed> = emptyList(),
-    val progress: Progress? = null,
-    val complete: Boolean = false,
-    val messageToAppend: String? = null,
-    val newStatus: String? = null
-)
+enum class TaskState{
+    IN_QUEUE,
+    SUSPENDED,
+    RUNNING,
+    CANCELLED,
+    FAILURE,
+    SUCCESS
+}
 
 @Serializable
-open class Speed(
-    open val title: String,
-    open val speed: Double,
-    open val unit: String,
-    open val asText: String,
-)
+data class BackgroundTask(
+    val taskId: Long,
+    val createdAt: Long,
+    val modifiedAt: Long,
+    val createdBy: String,
+    val provider: String,
+    val status: Status,
+    val specification: Specification,
+    val icon: String?
+) {
 
-@Deprecated("Replaced with Speed", ReplaceWith("Speed"))
-typealias SimpleSpeed = Speed
+    @Serializable
+    data class Status(
+        val state: TaskState = TaskState.IN_QUEUE,
+        val operation: String = DEFAULT_TASK_OPERATION,
+        val progress: String = DEFAULT_TASK_PROGRESS,
+        val progressPercentage: Int = -1,
+    )
+
+    @Serializable
+    data class Specification(
+        val canPause: Boolean = false,
+        val canCancel: Boolean = false
+    )
+}
 
 @Serializable
-data class Progress(
-    var title: String,
-    var current: Int,
-    var maximum: Int
+data class BackgroundTaskUpdate(
+    val taskId: Long,
+    val modifiedAt: Long = Time.now(),
+    val newStatus: BackgroundTask.Status
 )
+

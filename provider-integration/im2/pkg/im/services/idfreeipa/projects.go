@@ -5,7 +5,7 @@ import (
 	"strconv"
 	fnd "ucloud.dk/pkg/foundation"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/freeipa"
+	"ucloud.dk/pkg/im/external/freeipa"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )

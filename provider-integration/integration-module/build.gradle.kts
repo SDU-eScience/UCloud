@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2024.1.0-dev.1"
+version = "2024.1.71"
 
 repositories {
     mavenCentral()
@@ -18,13 +18,14 @@ repositories {
 
 dependencies {
     run {
-        val version = "2024.1.0-dev-39"
+        val version = "2024.1.71"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
         ucloud("app-orchestrator-service-api")
         ucloud("service-lib-lib")
+        ucloud("task-service-api")
 
         implementation("org.cliffc.high_scale_lib:cliff-utils:$version")
     }

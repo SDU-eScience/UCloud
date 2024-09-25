@@ -3,6 +3,7 @@ import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/Dat
 import {Client} from "@/Authentication/HttpClientInstance";
 import {FindByLongId, PaginationRequestV2} from "@/UCloud";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import {getStoredProject} from "@/Project/ReduxState";
 
 const baseContext = "/api/hpc/apps";
 
@@ -37,6 +38,8 @@ export interface ToolReference {
 export interface Application {
     metadata: ApplicationMetadata;
     invocation: ApplicationInvocationDescription;
+    versions?: string[] | null;
+    favorite?: boolean | null;
 }
 
 export interface NameAndVersion {
@@ -53,7 +56,7 @@ export interface ApplicationMetadata {
     website?: string;
     public: boolean;
     flavorName?: string;
-    group?: ApplicationGroup
+    groupId?: number | null;
 }
 
 export interface ApplicationInvocationDescription {
@@ -276,12 +279,7 @@ export interface ContainerDescription {
     runAsRealUser: boolean;
 }
 
-export interface ApplicationWithFavoriteAndTags {
-    metadata: ApplicationMetadata;
-    invocation: ApplicationInvocationDescription;
-    favorite: boolean;
-    tags: string[];
-}
+export type ApplicationWithFavoriteAndTags = Application;
 
 export interface DetailedEntityWithPermission {
     entity: DetailedAccessEntity;
@@ -316,11 +314,7 @@ export interface ApplicationWithExtension {
     extensions: string[];
 }
 
-export interface ApplicationSummaryWithFavorite {
-    metadata: ApplicationMetadata;
-    favorite: boolean;
-    tags: string[];
-}
+export type ApplicationSummaryWithFavorite = Application;
 
 export interface ApplicationGroup {
     metadata: ApplicationGroupMetadata;
@@ -341,7 +335,7 @@ export interface ApplicationGroupSpecification {
 }
 
 export interface ApplicationGroupStatus {
-    applications?: ApplicationSummaryWithFavorite[] | null;
+    applications?: Application[] | null;
 }
 
 export interface ApplicationCategory {
@@ -398,19 +392,6 @@ export function createTool(file: File): Promise<{ error?: string }> {
 
 // Core API
 // =====================================================================================================================
-export function findByName(request: {
-    appName: string;
-    itemsPerPage?: number;
-    page?: number;
-}): APICallParameters<unknown, Page<ApplicationSummaryWithFavorite>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString(`${baseContext}/byName`, request),
-        reloadId: Math.random(),
-    };
-}
-
 export function findByNameAndVersion(request: {
     appName: string;
     appVersion?: string | null;
@@ -421,6 +402,31 @@ export function findByNameAndVersion(request: {
         path: buildQueryString(`${baseContext}/byNameAndVersion`, request),
         reloadId: Math.random(),
     };
+}
+
+export interface ApplicationFlags {
+    // If categories are requested, should the groups in the categories be included?
+    includeGroups?: boolean | null;
+
+    // If groups are included, should the applications in the groups be included?
+    includeApplications?: boolean | null;
+
+    // If an application is included, should the star status be included?
+    includeStars?: boolean | null;
+
+    // If an application is included, should the invocation be included?
+    includeInvocation?: boolean | null;
+
+    // If an application is included, should the invocation be included?
+    includeVersions?: boolean | null;
+}
+
+export function findGroupByApplication(request: {
+    appName: string;
+    appVersion?: string | null;
+    flags?: ApplicationFlags
+} & CatalogDiscovery): APICallParameters<unknown, ApplicationGroup> {
+    return apiUpdate(request, baseContext, "findGroupByApplication");
 }
 
 export function create(file: File): Promise<{ error?: string }> {
@@ -434,6 +440,8 @@ async function uploadFile(method: string, path: string, file: File, headers?: Re
 
     const actualHeaders: Record<string, string> = {...(headers ?? {})};
     actualHeaders["Authorization"] = `Bearer ${token}`;
+    const projectId = getStoredProject();
+    if (projectId) actualHeaders["Project"] = projectId;
 
     const response = await fetch(Client.computeURL("/", path), {
         method: method,
@@ -459,7 +467,7 @@ async function uploadFile(method: string, path: string, file: File, headers?: Re
 
 export function search(request: {
     query: string
-} & PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationSummaryWithFavorite>> {
+} & PaginationRequestV2 & CatalogDiscovery): APICallParameters<unknown, PageV2<ApplicationSummaryWithFavorite>> {
     return apiSearch(request, baseContext);
 }
 
@@ -509,7 +517,7 @@ export function toggleStar(request: { name: string }): APICallParameters<unknown
     return apiUpdate(request, baseContext, "toggleStar");
 }
 
-export function retrieveStars(request: {}): APICallParameters<unknown, { items: ApplicationSummaryWithFavorite[] }> {
+export function retrieveStars(request: CatalogDiscovery): APICallParameters<unknown, { items: Application[] }> {
     return apiRetrieve(request, baseContext, "stars");
 }
 
@@ -519,7 +527,7 @@ export function createGroup(request: ApplicationGroupSpecification): APICallPara
     return apiUpdate(request, baseContext, "createGroup");
 }
 
-export function retrieveGroup(request: { id: number }): APICallParameters<unknown, ApplicationGroup> {
+export function retrieveGroup(request: { id: number } & CatalogDiscovery): APICallParameters<unknown, ApplicationGroup> {
     return apiRetrieve(request, baseContext, "groups");
 }
 
@@ -546,9 +554,11 @@ export function addLogoToGroup(groupId: number, logo: File): Promise<{ error?: s
     updateAppLogoCacheInvalidationParameter();
     return uploadFile("POST", `${baseContext}/uploadLogo`, logo, {"Upload-Name": b64EncodeUnicode(groupId.toString())});
 }
+
 export function removeLogoFromGroup(request: { id: number }): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "removeLogoFromGroup");
 }
+
 export function retrieveGroupLogo(request: {
     id: number;
     darkMode?: boolean;
@@ -556,9 +566,10 @@ export function retrieveGroupLogo(request: {
     placeTextUnderLogo?: boolean;
 }): string {
     const updatedRequest = {...request};
-    updatedRequest["cacheBust"]  = getAppLogoCacheInvalidationParameter();
+    updatedRequest["cacheBust"] = getAppLogoCacheInvalidationParameter();
     return buildQueryString(`${baseContext}/retrieveGroupLogo`, updatedRequest);
 }
+
 export function retrieveAppLogo(request: {
     name: string;
     darkMode?: boolean;
@@ -566,10 +577,12 @@ export function retrieveAppLogo(request: {
     placeTextUnderLogo?: boolean;
 }): string {
     const updatedRequest = {...request};
-    updatedRequest["cacheBust"]  = getAppLogoCacheInvalidationParameter();
+    updatedRequest["cacheBust"] = getAppLogoCacheInvalidationParameter();
     return buildQueryString(`${baseContext}/retrieveAppLogo`, updatedRequest);
 }
+
 let appLogoCacheInvalidationParameter: number | null = null;
+
 function getAppLogoCacheInvalidationParameter(): number {
     if (appLogoCacheInvalidationParameter === null) {
         const currentValue = localStorage.getItem("app-logo-cache-bust");
@@ -588,6 +601,7 @@ function getAppLogoCacheInvalidationParameter(): number {
         return appLogoCacheInvalidationParameter;
     }
 }
+
 export function updateAppLogoCacheInvalidationParameter() {
     const newValue = getAppLogoCacheInvalidationParameter() + 1;
     appLogoCacheInvalidationParameter = newValue;
@@ -607,11 +621,11 @@ export function createCategory(request: ApplicationCategorySpecification): APICa
     return apiUpdate(request, baseContext, "createCategory");
 }
 
-export function browseCategories(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
+export function browseStudioCategories(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationCategory>> {
     return apiBrowse(request, baseContext, "categories");
 }
 
-export function retrieveCategory(request: FindByLongId): APICallParameters<unknown, ApplicationCategory> {
+export function retrieveCategory(request: FindByLongId & CatalogDiscovery): APICallParameters<unknown, ApplicationCategory> {
     return apiRetrieve(request, baseContext, "category");
 }
 
@@ -691,7 +705,25 @@ export interface LandingPage {
     spotlight?: Spotlight | null;
     newApplications: ApplicationSummaryWithFavorite[];
     recentlyUpdated: ApplicationSummaryWithFavorite[];
+    curator: CuratorStatus[];
+    availableProviders: string[];
 }
+
+export interface CuratorStatus {
+    projectId: string;
+    canManageCatalog: boolean;
+    mandatedPrefix: string;
+}
+
+export const emptyLandingPage: LandingPage = {
+    carrousel: [],
+    topPicks: [],
+    categories: [],
+    newApplications: [],
+    recentlyUpdated: [],
+    curator: [],
+    availableProviders: [],
+};
 
 // Import/export features
 // =================================================================================================================
@@ -741,7 +773,7 @@ export interface Spotlight {
     id?: number | null;
 }
 
-export function retrieveLandingPage(request: {}): APICallParameters<unknown, LandingPage> {
+export function retrieveLandingPage(request: CatalogDiscovery): APICallParameters<unknown, LandingPage> {
     return apiRetrieve(request, baseContext, "landingPage");
 }
 
@@ -751,3 +783,24 @@ export function retrieveCarrouselImage(request: {
 }): string {
     return buildQueryString(`${baseContext}/retrieveCarrouselImage`, request);
 }
+
+export function findStudioApplication(request: { name: string }): APICallParameters<unknown, {
+    versions: Application[]
+}> {
+    return apiRetrieve(request, baseContext, "studioApplication");
+}
+
+export enum CatalogDiscoveryMode {
+    ALL = "ALL",
+    AVAILABLE = "AVAILABLE",
+    SELECTED = "SELECTED"
+}
+
+export interface CatalogDiscovery {
+    discovery?: CatalogDiscoveryMode;
+    selected?: string;
+}
+
+export const defaultCatalogDiscovery: CatalogDiscovery = {
+    discovery: CatalogDiscoveryMode.ALL,
+};

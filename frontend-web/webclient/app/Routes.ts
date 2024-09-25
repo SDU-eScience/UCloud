@@ -15,7 +15,6 @@ const news = {
 
 const admin = {
     userCreation: () => "/admin/userCreation",
-    applicationStudio: () => "/applications/studio/groups",
     news: () => "/admin/news",
     providers: () => "/admin/providers",
     scripts: () => "/admin/scripts",
@@ -57,19 +56,22 @@ const apps = {
     category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
-    studioGroups: () => "/applications/studio/groups",
-    studioTopPicks: () => "/applications/studio/topPicks",
-    studioHero: () => "/applications/studio/hero",
-    studioSpotlights: () => "/applications/studio/spotlights",
-    studioSpotlightsEditor: (id?: number) => buildQueryString("/applications/studio/spotlights/editor", {id}),
-    studioCategories: () => "/applications/studio/categories",
-    studioApp: (app: string) => `/applications/studio/a/${app}`,
-    studioGroup: (group: string) => `/applications/studio/g/${group}`,
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
     fork: (name?: string, version?: string) => buildQueryString("/applications/fork", {name, version}),
 };
+
+const appStudio = {
+    groups: () => "/applications/studio/groups",
+    topPicks: () => "/applications/studio/topPicks",
+    hero: () => "/applications/studio/hero",
+    spotlights: () => "/applications/studio/spotlights",
+    spotlightsEditor: (id?: number) => buildQueryString("/applications/studio/spotlights/editor", {id}),
+    categories: () => "/applications/studio/categories",
+    app: (app: string) => `/applications/studio/a/${app}`,
+    group: (group: string) => `/applications/studio/g/${group}`,
+}
 
 const jobs = {
     list: () => `/jobs`,
@@ -124,6 +126,7 @@ const files = {
 
 const AppRoutes = {
     apps,
+    appStudio,
     news,
     dashboard,
     users,

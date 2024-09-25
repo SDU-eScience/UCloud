@@ -1,269 +1,353 @@
-import {WSFactory} from "@/Authentication/HttpClientInstance";
-import {Progress, Speed, Task, TaskUpdate} from "@/Services/BackgroundTasks/api";
-import DetailedTask from "@/Services/BackgroundTasks/DetailedTask";
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import {default as ReactModal} from "react-modal";
-import {Icon} from "@/ui-components";
-import Box from "@/ui-components/Box";
+import {useEffect, useMemo} from "react";
+import {Box, Card, Icon} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
-import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
-import ProgressBar from "@/ui-components/Progress";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
-import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {UploadState, useUploads} from "@/Files/Upload";
-import {CardClass} from "@/ui-components/Card";
-import {injectStyle} from "@/Unstyled";
-import {emptyPage} from "@/Utilities/PageUtilities";
+import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
+import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {inDevEnvironment, stopPropagation} from "@/UtilityFunctions";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import {WebSocketConnection} from "@/Authentication/ws";
+import {IconName} from "@/ui-components/Icon";
+import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
+import {addStandardDialog} from "@/UtilityComponents";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
+import {ThemeColor} from "@/ui-components/theme";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import * as icons from "@/ui-components/icons";
 
-function insertTimestamps(speeds: Speed[]): Speed[] {
-    return speeds.map(it => {
-        if (it.clientTimestamp) {
-            return it;
+const iconNames = Object.keys(icons) as IconName[];
+
+function onBeforeUnload(): boolean {
+    snackbarStore.addInformation(
+        "You currently have uploads in progress. Are you sure you want to leave UCloud?",
+        true
+    );
+    return false;
+}
+
+const SpinAnimation = makeKeyframe("spin", `
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }    
+`)
+
+const TasksIconBase = injectStyleSimple("task-icon-base", `
+    animation: ${SpinAnimation} 2s linear infinite;
+`);
+
+const ActiveTasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="24px" width="24px" mb={"16px"} name="heroQueueList" />;
+
+enum TaskState {
+    IN_QUEUE = "IN_QUEUE",
+    SUSPENDED = "SUSPENDED",
+    RUNNING = "RUNNING",
+    CANCELLED = "CANCELLED",
+    FAILURE = "FAILURE",
+    SUCCESS = "SUCCESS",
+};
+
+interface Status {
+    state: TaskState;
+    operation: string;
+    progress: string;
+    progressPercentage: number; // An integer value to signify percentage finished. -1 means indeterminate.
+}
+
+interface Specification {
+    canPause: boolean;
+    canCancel: boolean;
+}
+
+interface BackgroundTask {
+    taskId: number; // number? Also, no need to show end-user.
+    createdAt: number;
+    modifiedAt: number;
+    createdBy: string;
+    provider: string;
+    status: Status;
+    specification: Specification;
+    icon?: IconName;
+}
+
+export const taskStore = new class extends ExternalStoreBase {
+    public addTask(task: BackgroundTask) {
+        if (TaskOperations.isTaskTerminal(task)) {
+            taskStore.addFinishedTask(task);
         } else {
-            return {...it, clientTimestamp: Date.now()};
+            taskStore.addInProgressTask(task);
         }
+    }
+
+    public addTaskList(tasks: BackgroundTask[]) {
+        for (const t of tasks) {
+            this.addTask(t);
+        }
+    }
+
+    public inProgress: Record<number, BackgroundTask> = {};
+    private addInProgressTask(task: BackgroundTask) {
+        this.inProgress[task.taskId] = task;
+        this.emitChange();
+    }
+
+    public finishedTasks: Record<number, BackgroundTask> = {};
+    private addFinishedTask(task: BackgroundTask) {
+        delete this.inProgress[task.taskId];
+        this.finishedTasks[task.taskId] = task;
+        this.emitChange();
+    }
+}();
+
+const DEFAULT_ICON: IconName = "heroRectangleStack";
+
+function TaskItem<T>({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
+    
+    const isFinished = TaskOperations.isTaskTerminal(task);
+    
+    const operations: React.ReactNode[] = [];
+    if (!isFinished) {
+        if (task.specification.canPause) {
+            if (task.status.state === TaskState.SUSPENDED) {
+                operations.push(<Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                    cursor="pointer"
+                    name="play"
+                    color="primaryMain"
+                />);
+            } else {
+                operations.push(<Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                    cursor="pointer"
+                    name="pauseSolid"
+                    color="primaryMain"
+                />);
+            }
+        }
+        
+        if (task.specification.canCancel) {
+            operations.push(<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
+        }
+    }
+
+
+    const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
+
+    return <TaskRow
+        icon={<Icon onClick={() => {
+            console.log("TODO(Jonas): Remove me");
+            ws.call(TaskOperations.calls.retrieve(task.taskId));
+        }} name={icon} size={16} />}
+        text={task.status.operation}
+        status={task.status.progress}
+        operations={operations}
+        error={TaskOperations.taskError(task)}
+        progressInfo={{
+            indeterminate: TaskOperations.isIndeterminate(task),
+            stopped: isFinished,
+            limit: 100,
+            progress: task.status.progressPercentage,
+        }}
+    />
+}
+
+const INDETERMINATE_VALUES = {
+    successes: 1,
+    failures: 0,
+    total: 10
+}
+
+const IndeterminateSpinClass = injectStyleSimple("indeterminate-spinner", `
+    animation: ${SpinAnimation} 2s linear infinite;
+`);
+
+export function ProgressCircle({
+    pendingColor,
+    finishedColor,
+    indeterminate,
+    size,
+    ...stats
+}: {successes: number; failures: number; total: number; size: number; pendingColor: ThemeColor; finishedColor: ThemeColor; indeterminate: boolean;}): React.ReactNode {
+    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
+    const progressValues = indeterminate ? INDETERMINATE_VALUES : stats;
+
+    const successAngle = progressValues.successes / progressValues.total;
+    const failureAngle = (progressValues.failures + progressValues.successes) / progressValues.total;
+    const radius = 61.5;
+    const circumference = 2 * Math.PI * radius;
+    const successDashArray = successAngle * circumference;
+    const failureDashArray = failureAngle * circumference;
+    const successStrokeDasharray = `${successDashArray} ${circumference - successDashArray}`;
+    const failureStrokeDasharray = `${failureDashArray} ${circumference - failureDashArray}`;
+
+    return (<svg className={indeterminate ? IndeterminateSpinClass : undefined} width={size.toString()} height={"auto"} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
+        <circle r={radius} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
+        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
+        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
+    </svg>)
+}
+
+function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
+    addStandardDialog({
+        title: "Cancel task?",
+        message: "This will cancel the task, and will have to be restarted to finish.",
+        onConfirm: () => {
+            ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED))
+        },
+        cancelText: "Back",
+        confirmText: "Cancel task",
+        onCancel: () => void 0,
+        cancelButtonColor: "successMain",
+        confirmButtonColor: "errorMain",
+        stopEvents: true,
     });
 }
 
-const BackgroundTasks: React.FunctionComponent = () => {
-    const [initialTasks, fetchInitialTasks] = useCloudAPI<Page<Task>>({noop: true}, emptyPage);
-    const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
-    const [tasks, setTasks] = useState<Record<string, TaskUpdate>>({});
+export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
-    const [, setUploaderVisible] = useGlobal("uploaderVisible", false);
 
-    const openUploader = useCallback(() => {
-        setUploaderVisible(true);
-    }, [setUploaderVisible]);
+    const [ws, setWs] = React.useState<WebSocketConnection>();
 
-    const handleTaskUpdate = useCallback((update: TaskUpdate) => {
-        setTasks(oldTasks => {
-            const newTasks: Record<string, TaskUpdate> = {...oldTasks};
-            const existingTask = newTasks[update.jobId];
-            if (update.complete) {
-                delete newTasks[update.jobId];
-            } else if (!existingTask) {
-                newTasks[update.jobId] = {
-                    ...update,
-                    speeds: insertTimestamps(update.speeds)
-                };
-            } else {
-                const currentMessage = existingTask.messageToAppend ? existingTask.messageToAppend : "";
-                const messageToAdd = update.messageToAppend ? update.messageToAppend : "";
-                const newMessage = currentMessage + messageToAdd;
-
-                const newStatus = update.newStatus ? update.newStatus : existingTask.newStatus;
-                const newTitle = update.newTitle ? update.newTitle : existingTask.newTitle;
-                const newProgress = update.progress ? update.progress : existingTask.progress;
-                const newSpeed = takeLast((existingTask.speeds || []).concat(update.speeds || []), 500);
-                const newComplete = update.complete ? update.complete : existingTask.complete;
-
-                newTasks[update.jobId] = {
-                    ...existingTask,
-                    messageToAppend: newMessage,
-                    progress: newProgress,
-                    speeds: insertTimestamps(newSpeed),
-                    complete: newComplete,
-                    newStatus,
-                    newTitle
-                };
-            }
-            return newTasks;
-        });
-    }, [setTasks]);
-
-    useEffect(() => {
-        fetchInitialTasks({
-            method: "GET",
-            path: buildQueryString("/tasks", {itemsPerPage: 100, page: 0})
-        });
-    }, []);
-
-    useEffect(() => {
-        setTasks(associateBy(
-            initialTasks.data.items.map(it => ({
-                jobId: it.jobId,
-                speeds: [],
-                messageToAppend: null,
-                progress: null,
-                newTitle: it.title,
-                complete: false,
-                newStatus: it.status
-            }),
-            ),
-            it => it.jobId
-        ));
-    }, [initialTasks.data]);
-
-    useEffect(() => {
-        const wsConnection = WSFactory.open("/tasks", {
-            init: async conn => {
-                await conn.subscribe({
-                    call: "task.listen",
-                    payload: {},
-                    handler: message => {
-                        if (message.type === "message") {
-                            const payload = message.payload as TaskUpdate;
-                            handleTaskUpdate(payload);
-                        }
-                    }
-                });
-            }
-        });
-
-        return () => wsConnection.close();
-    }, []);
-
-    const onDetailedClose = useCallback(() => {
-        setTaskInFocus(null);
-    }, []);
-
-    const activeUploadCount = useMemo(() => {
-        let activeCount = 0;
-        for (let i = 0; i < uploads.length; i++) {
-            if (uploads[i].state === UploadState.UPLOADING) {
-                activeCount++;
-            }
-        }
-        return activeCount;
+    const fileUploads = React.useMemo(() => {
+        const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
+        if (uploadGrouping.finished == null) uploadGrouping.finished = [];
+        if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
+        return uploadGrouping as Record<"finished" | "uploading", Upload[]>;
     }, [uploads]);
 
+    React.useEffect(() => {
+        if (ws) return;
+        setWs(WSFactory.open(
+            "/tasks",
+            {
+                init: async conn => {
+                    try {
+                        await conn.subscribe({
+                            call: "tasks.listen",
+                            payload: {},
+                            handler: message => {
+                                console.log("message", message)
+                                if (message.type === "message") {
+                                    if (message.payload) {
+                                        const task: BackgroundTask = message.payload;
+                                        taskStore.addTask(task);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn(e);
+                    }
+
+                }
+            }
+        ));
+    }, [Client.isLoggedIn, ws]);
+
+    const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
+    const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
+
+    const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
+    const finishedTaskList = Object.values(finishedTasks);
+
+    const anyFinished = finishedTaskList.length + fileUploads.finished.length > 0;
+    const uploadCallbacks: UploadCallback = React.useMemo(() => ({
+        startUploads: () => void 0, // Doesn't make sense in this context
+        clearUploads: b => uploadStore.clearUploads(b, () => void 0),
+        pauseUploads: b => uploadStore.pauseUploads(b),
+        resumeUploads: b => uploadStore.resumeUploads(b, () => void 0),
+        stopUploads: b => uploadStore.stopUploads(b)
+    }), []);
+
+    const activeUploadCount = useMemo(() => {
+        return uploads.filter(it => it.state === UploadState.UPLOADING).length;
+    }, [uploads]);
+
+
     useEffect(() => {
+        window.removeEventListener("beforeunload", onBeforeUnload);
         if (activeUploadCount > 0) {
-            window.onbeforeunload = () => {
-                snackbarStore.addInformation(
-                    "You currently have uploads in progress. Are you sure you want to leave UCloud?",
-                    true
-                );
-                return false;
-            };
+            window.addEventListener("beforeunload", onBeforeUnload);
         }
 
         return () => {
-            window.onbeforeunload = null;
+            window.removeEventListener("beforeunload", onBeforeUnload);
         };
-    }, [uploads]);
+    }, [activeUploadCount]);
 
-    const hasTaskInFocus = taskInFocus && (tasks && tasks[taskInFocus]);
-    const numberOfTasks = Object.keys(tasks).length + activeUploadCount;
-    if (numberOfTasks === 0) return null;
+    const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
+    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !ws  || !inDevEnvironment()) return null;
     return (
-        <>
-            <ClickableDropdown
-                width="600px"
-                left="-400px"
-                top="37px"
-                trigger={<Flex justifyContent="center"><TasksIcon /></Flex>}
-            >
-                {!tasks ? null :
-                    <>
-                        {uploads.length === 0 ? null :
-                            <TaskComponent title={"File uploads"} jobId={"uploads"} onClick={openUploader} />
-                        }
-                        {Object.values(tasks).map(update => (
-                            <TaskComponent
-                                key={update.jobId}
-                                jobId={update.jobId}
-                                onClick={setTaskInFocus}
-                                title={update.newTitle ?? ""}
-                                speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
-                                progress={update.progress ? update.progress : undefined}
-                            />
-                        ))}
-                    </>
-                }
-            </ClickableDropdown>
-
-            <ReactModal
-                style={defaultModalStyle}
-                isOpen={!!hasTaskInFocus}
-                onRequestClose={onDetailedClose}
-                ariaHideApp={false}
-                className={CardClass}
-            >
-                {!hasTaskInFocus ? null : <DetailedTask task={tasks[taskInFocus!]!} />}
-            </ReactModal>
-        </>
+        <ClickableDropdown
+            left="50px"
+            bottom="-168px"
+            colorOnHover={false}
+            trigger={<Flex>{ActiveTasksIcon}</Flex>}
+        >
+            <Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+                <Box height={"526px"} overflowY="auto">
+                    {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
+                    {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={ws!} />)}
+                    {anyFinished ? <Flex>
+                        <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
+                        <Box ml="auto">
+                            <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
+                                <Icon name="close" onClick={() => {
+                                    taskStore.finishedTasks = {};
+                                    uploadStore.clearUploads(fileUploads.finished, () => void 0);
+                                }} />
+                            </TooltipV2>
+                        </Box>
+                    </Flex> : null}
+                    {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={ws!} />)}
+                </Box>
+            </Card>
+        </ClickableDropdown>
     );
-};
-
-interface TaskComponentProps {
-    title: string;
-    progress?: Progress;
-    speed?: Speed;
-    onClick?: (jobId: string) => void;
-    jobId?: string;
 }
 
-const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
-    const label = props.speed?.asText ?? "";
-    const onClickHandler = useCallback(
-        () => {
-            if (props.onClick && props.jobId) {
-                props.onClick(props.jobId);
-            }
+
+const baseContext = "tasks";
+const TaskOperations = new class {
+    public isIndeterminate(task: BackgroundTask): boolean {
+        return task.status.progressPercentage < 0;
+    }
+
+    // TODO(Jonas): not in use. delete? 
+    public didTaskNotFinish(task: BackgroundTask): boolean {
+        return [TaskState.CANCELLED, TaskState.FAILURE].includes(task.status.state);
+    }
+
+    public isTaskTerminal(task: BackgroundTask): boolean {
+        return [TaskState.CANCELLED, TaskState.FAILURE, TaskState.SUCCESS].includes(task.status.state);
+    }
+
+    public taskError(task: BackgroundTask): string | undefined {
+        if (task.status.state === TaskState.FAILURE) return task.status.progress;
+        return undefined;
+    }
+
+    public calls = {
+        browse(pageProps: PaginationRequestV2) {
+            return {call: baseContext + ".browse", payload: pageProps};
         },
-        [props.jobId, props.onClick]
-    );
-
-    return (
-        <Flex className={TaskContainer} onClick={onClickHandler}>
-            <Box mr={16}>
-                <b>{props.title}</b>
-            </Box>
-
-            <Box flexGrow={1}>
-                {!props.progress ?
-                    <IndeterminateProgressBar color="successMain" label={label} /> :
-
-                    (
-                        <ProgressBar
-                            active={true}
-                            color="successMain"
-                            label={label}
-                            percent={(props.progress.current / props.progress.maximum) * 100}
-                        />
-                    )
-                }
-                <Icon name="activity" className="foo" />
-            </Box>
-        </Flex>
-    );
+        retrieve(id: number) {
+            return {call: baseContext + ".retrieve", payload: {id}};
+        },
+        listen() {
+            return baseContext + ".listen";
+        },
+        pauseOrCancel(id: number, requestedState: TaskState) {
+            return {call: baseContext + ".pauseOrCancel", payload: {id, requestedState}};
+        }
+    }
 };
 
-const TaskContainer = injectStyle("task-container", k => `
-    ${k} {
-        padding: 16px;
-        cursor: pointer;
-    }
-
-    ${k} > * {
-        cursor: inherit;
-    }
-`);
-
-const TasksIconBase = injectStyle("task-icon-base", k => `
-    @keyframes spin {
-        0% {
-           transform: rotate(0deg);
-        }
-        100% {
-            transform: rotate(360deg);
-        }
-    }
-
-    ${k} {
-        animation: spin 2s linear infinite;
-        margin-right: 8px;
-    }
-`);
-
-const TasksIcon = (): React.ReactNode => <Icon className={TasksIconBase} name="notchedCircle" />;
-
-export default BackgroundTasks;
+export default TaskList;

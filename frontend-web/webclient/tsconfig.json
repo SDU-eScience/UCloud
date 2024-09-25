@@ -12,7 +12,7 @@
         "allowUnusedLabels": true,
         "module": "esnext",
         "lib": [
-            "es2022",
+            "ESNext",
             "dom"
         ],
         "skipLibCheck": true,

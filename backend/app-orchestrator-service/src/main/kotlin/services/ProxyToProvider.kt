@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.util.IIdCardService
 import dk.sdu.cloud.accounting.util.ProductCache
+import dk.sdu.cloud.accounting.util.ProviderCommunicationsV2
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -16,7 +17,7 @@ class ProxyToProvider<Internal, External>(
     val documents: ResourceStore<Internal>,
     val mapper: DocMapper<Internal, External>,
     val productCache: ProductCache,
-    val providers: ProviderCommunications,
+    val providers: ProviderCommunicationsV2,
 ) {
     data class Entry<External>(
         val items: ArrayList<External> = ArrayList(),

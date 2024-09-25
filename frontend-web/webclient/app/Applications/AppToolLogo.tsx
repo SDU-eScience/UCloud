@@ -9,6 +9,7 @@ interface AppToolLogoProps {
     size?: string;
     type: LogoType;
     isLightOverride?: boolean;
+    cacheBust?: string;
 }
 
 export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
@@ -48,7 +49,7 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         return () => {
             didCancel = true;
         };
-    }, [props.name, isLight]);
+    }, [props.name, isLight, props.cacheBust]);
 
     if (dataUrl == null) return null;
     return <img
@@ -138,13 +139,15 @@ export const SafeLogo: React.FunctionComponent<{
     type: "APPLICATION" | "TOOL" | "GROUP";
     size: string;
     isLightOverride?: boolean;
+    cacheBust?: string;
 }> = props => {
     const sizeInPixels = parseInt(props.size.toString().replace("px", ""));
     const paddingInPixels = sizeInPixels / 8;
     return <div
         style={{padding: `${paddingInPixels}px`, width: `${sizeInPixels + paddingInPixels * 2}px`, textAlign: "center"}}
     >
-        <AppToolLogo size={props.size} name={props.name} type={props.type} isLightOverride={props.isLightOverride}/>
+        <AppToolLogo size={props.size} name={props.name} type={props.type} isLightOverride={props.isLightOverride}
+                     cacheBust={props.cacheBust}/>
     </div>;
 }
 

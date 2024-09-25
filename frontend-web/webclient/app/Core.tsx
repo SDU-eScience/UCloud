@@ -5,7 +5,7 @@ import {Provider, useDispatch} from "react-redux";
 import {BrowserRouter} from "react-router-dom";
 
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
-const ApplicationsOverview = React.lazy(() => import("./Applications/Overview"));
+const ApplicationsOverview = React.lazy(() => import("./Applications/Category"));
 const ApplicationsLanding = React.lazy(() => import("./Applications/Landing"));
 const ApplicationsGroup = React.lazy(() => import("@/Applications/Group"));
 const ApplicationSearch = React.lazy(() => import("@/Applications/Search"));
@@ -144,15 +144,15 @@ const Core = (): React.ReactNode => (
                         <Route path={"/ssh-keys"} element={React.createElement(requireAuth(SSHKeyBrowse))} />
                         <Route path={"/ssh-keys/create"} element={React.createElement(requireAuth(SshKeyCreate))} />
 
-                        <Route path={AppRoutes.apps.studioTopPicks()} element={React.createElement(requireAuth(StudioTopPicks))} />
-                        <Route path={AppRoutes.apps.studioHero()} element={React.createElement(requireAuth(StudioHero))} />
-                        <Route path={AppRoutes.apps.studioSpotlights()} element={React.createElement(requireAuth(StudioSpotlights))} />
-                        <Route path={AppRoutes.apps.studioSpotlightsEditor()} element={React.createElement(requireAuth(StudioSpotlightsEditor))} />
-                        <Route path={AppRoutes.apps.studioCategories()} element={React.createElement(requireAuth(StudioCategories))} />
-                        <Route path={AppRoutes.apps.studioGroups()} element={React.createElement(requireAuth(StudioGroups))} />
-                        <Route path={AppRoutes.apps.studioApp(":name")}
+                        <Route path={AppRoutes.appStudio.topPicks()} element={React.createElement(requireAuth(StudioTopPicks))} />
+                        <Route path={AppRoutes.appStudio.hero()} element={React.createElement(requireAuth(StudioHero))} />
+                        <Route path={AppRoutes.appStudio.spotlights()} element={React.createElement(requireAuth(StudioSpotlights))} />
+                        <Route path={AppRoutes.appStudio.spotlightsEditor()} element={React.createElement(requireAuth(StudioSpotlightsEditor))} />
+                        <Route path={AppRoutes.appStudio.categories()} element={React.createElement(requireAuth(StudioCategories))} />
+                        <Route path={AppRoutes.appStudio.groups()} element={React.createElement(requireAuth(StudioGroups))} />
+                        <Route path={AppRoutes.appStudio.app(":name")}
                             element={React.createElement(requireAuth(App))} />
-                        <Route path={AppRoutes.apps.studioGroup(":id")}
+                        <Route path={AppRoutes.appStudio.group(":id")}
                             element={React.createElement(requireAuth(StudioGroup))} />
 
                         {!inDevEnvironment() ? null : <Route path={"/playground"} element={<Playground />} />}
