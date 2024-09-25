@@ -2,6 +2,7 @@ package slurm
 
 import (
 	"syscall"
+
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/idfreeipa"
@@ -18,6 +19,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	if cfg.Mode == cfg.ServerModeServer {
 		ctrl.InitJobDatabase()
 		ctrl.InitDriveDatabase()
+		ctrl.InitScriptsLogDatabase()
 	}
 
 	ctrl.Files = InitializeFiles()

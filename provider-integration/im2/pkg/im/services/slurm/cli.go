@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/log"
@@ -33,7 +34,11 @@ func HandleCli(command string) {
 
 	case "allocations":
 		HandleAllocationsCommand()
+
+	case "scripts":
+		HandleScriptsCommand()
 	}
+
 }
 
 func InitCliServer() {
@@ -102,6 +107,15 @@ func isDeleteCommand(command string) bool {
 func isReplaceCommand(command string) bool {
 	switch command {
 	case "replace":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHelpCommand(command string) bool {
+	switch command {
+	case "help":
 		return true
 	default:
 		return false
