@@ -460,16 +460,33 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 		_, _ = statFile.WriteString(stats.String())
 
 		if status != nil {
+			percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
+			if !filesDiscoveredDone {
+				percentage = -1
+			}
+
+			readableDataTransferred := sizeToHumanReadableWithUnit(float64(bytesTransferred))
+			readableDiscoveredDataSize := sizeToHumanReadableWithUnit(float64(bytesDiscovered))
+
 			newStatus := &orc.TaskStatus{
-				State:     orc.TaskStateRunning,
-				Operation: initialStatus.Operation,
-				Progress: fmt.Sprintf(
-					"%.2f %v/s | %.2f Files/s",
+				State: orc.TaskStateRunning,
+				Title: initialStatus.Title,
+				Body: util.OptValue(fmt.Sprintf(
+					"%.2f %v/%.2f %v | %v / %v files",
+					readableDataTransferred.Size,
+					readableDataTransferred.Unit,
+					readableDiscoveredDataSize.Size,
+					readableDiscoveredDataSize.Unit,
+					filesCompleted,
+					filesDiscovered,
+				)),
+				Progress: util.OptValue(fmt.Sprintf(
+					"%.2f %v/s | %.2f files/s",
 					readableSpeed.Size,
 					readableSpeed.Unit,
 					filesPerSecond,
-				),
-				ProgressPercentage: int((float64(bytesTransferred) / float64(bytesDiscovered)) * 100),
+				)),
+				ProgressPercentage: util.OptValue(percentage),
 			}
 			status.Store(newStatus)
 		}

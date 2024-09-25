@@ -98,8 +98,8 @@ const featureMap: Record<string, FeatureConfig> = {
 
 function getCurrentEnvironment(): Environment {
     if (inDevEnvironment()) {
-        if (window.location.hostname === "ucloud.localhost.direct") return Environment.LOCAL_DEV_STACK
-        else return Environment.LOCAL_DEV
+        if (window.location.hostname === "ucloud.localhost.direct") return Environment.LOCAL_DEV_STACK;
+        else return Environment.LOCAL_DEV;
     } else if (onDevSite()) {
         return Environment.PUBLIC_DEV;
     } else {

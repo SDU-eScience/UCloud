@@ -226,8 +226,15 @@ export function TaskList(): React.ReactNode {
             {
                 init: async conn => {
                     try {
-                        // TODO(Jonas): This is really not viable
-                        ws.call(TaskOperations.calls.browse({itemsPerPage: 250, itemsToSkip: 0, next: null, consistency: "PREFER"} as any)).then(console.log)
+                        const page: PageV2<BackgroundTask> = (await ws.call(
+                            TaskOperations.calls.browse({
+                                itemsPerPage: 250,
+                            } as any)
+                        )).payload;
+
+                        for (const item of page.items) {
+                            taskStore.addTask(item);
+                        }
                     } catch (e) {
                         console.warn(e);
                     }
@@ -237,7 +244,6 @@ export function TaskList(): React.ReactNode {
                             call: "tasks.listen",
                             payload: {},
                             handler: message => {
-                                console.log("message", message)
                                 if (message.type === "message") {
                                     if (message.payload) {
                                         const task: BackgroundTask = message.payload;

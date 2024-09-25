@@ -23,10 +23,11 @@ type TaskSpecification struct {
 }
 
 type TaskStatus struct {
-	State              TaskState `json:"state"`
-	Operation          string    `json:"operation"`
-	Progress           string    `json:"progress"`
-	ProgressPercentage int       `json:"progressPercentage"`
+	State              TaskState            `json:"state"`
+	Title              util.Option[string]  `json:"title"`
+	Body               util.Option[string]  `json:"body"`
+	Progress           util.Option[string]  `json:"progress"`
+	ProgressPercentage util.Option[float64] `json:"progressPercentage"`
 }
 
 type TaskState string

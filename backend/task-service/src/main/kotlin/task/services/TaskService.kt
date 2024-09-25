@@ -87,11 +87,11 @@ class TaskService(
                         update task.tasks_v2
                         set
                             modified_at = now(),
-                            state = COALESCE(:state, state),
-                            title = COALESCE(:title, title),
-                            body = COALESCE(:body, body),
-                            progress = COALESCE(:progress, progress),
-                            progress_percentage = COALESCE(:progress_percentage, progress_percentage)
+                            state = coalesce(:state, state),
+                            title = coalesce(:title, title),
+                            body = coalesce(:body, body),
+                            progress = coalesce(:progress, progress),
+                            progress_percentage = coalesce(:progress_percentage, progress_percentage)
                         where
                             id = :task_id
                         returning
@@ -197,26 +197,30 @@ class TaskService(
     }
 
     suspend fun browse(actorAndProject: ActorAndProject, request: BrowseRequest): PageV2<BackgroundTask> {
-        return db.paginateV2(
-            actorAndProject.actor,
-            request.normalize(),
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                    },
-                    """
+        val items = db.withSession { session ->
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
                         select
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, title, body, progress, tasks_v2.progress_percentage, can_pause, can_cancel, icon
+                            created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon
                         from task.tasks_v2 
-                        where created_by = :username
+                        where
+                            created_by = :username
+                            and state != 'SUCCESS'
+                            and state != 'CANCELLED'
+                            and state != 'FAILURE'
                         order by created_at desc
+                        limit 100
                     """
-                )
-            },
-            mapper = { session, rows -> rows.map { it.toBackgroundTask() } }
-        )
+            ).rows
+
+            rows.map { it.toBackgroundTask() }
+        }
+
+        return PageV2.of(items)
     }
 
     suspend fun findById(actorAndProject: ActorAndProject, jobId: Long): BackgroundTask {
@@ -229,7 +233,7 @@ class TaskService(
                     """
                         select
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, title, body, progress, tasks_v2.progress_percentage, can_pause, can_cancel, icon
+                            created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon
                         from task.tasks_v2 
                         where id = :task_id
                     """

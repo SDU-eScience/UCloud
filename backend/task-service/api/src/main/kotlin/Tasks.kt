@@ -10,9 +10,9 @@ import kotlinx.serialization.builtins.serializer
 @Serializable
 data class BrowseRequest(
     override val itemsPerPage: Int? = null,
-    override val itemsToSkip: Long?,
-    override val next: String?,
-    override val consistency: PaginationRequestV2Consistency?
+    override val itemsToSkip: Long? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
 ) : WithPaginationRequestV2
 
 typealias ListenRequest = Unit

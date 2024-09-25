@@ -79,15 +79,16 @@ func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
 
 	return orc.TaskStatus{
 		State:              orc.TaskStateRunning,
-		Operation:          operation,
-		Progress:           progress,
-		ProgressPercentage: 0,
+		Title:              util.OptValue(operation),
+		Progress:           util.OptValue(progress),
+		ProgressPercentage: util.OptValue(0.0),
 	}
 }
 
 type TaskStatusUpdate struct {
 	Id            uint64
 	NewOperation  util.Option[string]
+	NewBody       util.Option[string]
 	NewProgress   util.Option[string]
 	NewPercentage util.Option[float64] // 0 - 100 both inclusive
 	NewState      util.Option[orc.TaskState]
@@ -127,8 +128,8 @@ func InitTaskSystem() {
 
 				id, err := orc.CreateTask(
 					ucloudUsername,
-					util.OptValue(status.Operation),
-					util.OptValue(status.Progress),
+					status.Title,
+					status.Progress,
 					spec.Icon,
 					flags,
 				)
@@ -224,9 +225,10 @@ func InitTaskSystem() {
 
 			err := orc.PostTaskStatus(ucloudTaskId, orc.TaskStatus{
 				State:              newState,
-				Operation:          r.Payload.NewOperation.Value,
-				Progress:           r.Payload.NewProgress.Value,
-				ProgressPercentage: int(r.Payload.NewPercentage.Value),
+				Title:              r.Payload.NewOperation,
+				Progress:           r.Payload.NewProgress,
+				ProgressPercentage: r.Payload.NewPercentage,
+				Body:               r.Payload.NewBody,
 			})
 
 			if err != nil {
@@ -373,9 +375,10 @@ func InitTaskSystem() {
 							if newStatus != oldStatus {
 								_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
 									Id:            id,
-									NewOperation:  util.OptValue(newStatus.Operation),
-									NewProgress:   util.OptValue(newStatus.Progress),
-									NewPercentage: util.OptValue(float64(newStatus.ProgressPercentage)),
+									NewOperation:  newStatus.Title,
+									NewProgress:   newStatus.Progress,
+									NewPercentage: newStatus.ProgressPercentage,
+									NewBody:       newStatus.Body,
 									NewState:      util.OptValue(newStatus.State),
 								})
 
@@ -429,9 +432,9 @@ func InitTaskSystem() {
 							currentStatus := task.Status.Load()
 							task.Status.Store(&orc.TaskStatus{
 								State:              orc.TaskStateInQueue,
-								Operation:          currentStatus.Operation,
-								Progress:           fmt.Sprintf("Retrying in %v seconds", seconds),
-								ProgressPercentage: 0,
+								Title:              currentStatus.Title,
+								Progress:           util.OptValue(fmt.Sprintf("Retrying in %v seconds", seconds)),
+								ProgressPercentage: util.OptValue(0.0),
 							})
 
 							time.Sleep(time.Duration(seconds) * time.Second)
@@ -440,7 +443,7 @@ func InitTaskSystem() {
 					}
 
 					shouldPost := true
-					operation := task.DefaultStatus().Operation
+					operation := task.DefaultStatus().Title
 					progress := "Task has been completed."
 					taskState := orc.TaskStateSuccess
 					if result.Error != nil {
@@ -459,7 +462,8 @@ func InitTaskSystem() {
 							NewProgress:   util.OptValue(progress),
 							NewPercentage: util.OptValue(100.0),
 							NewState:      util.OptValue(taskState),
-							NewOperation:  util.OptValue(operation),
+							NewBody:       util.OptValue(""),
+							NewOperation:  operation,
 						})
 
 						if err != nil {
