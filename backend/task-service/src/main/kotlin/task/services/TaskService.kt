@@ -34,12 +34,13 @@ class TaskService(
                     setParameter("progress", request.progress)
                     setParameter("cancel", request.canCancel)
                     setParameter("pause", request.canPause)
+                    setParameter("icon", request.icon)
                 },
                 """
                     insert into task.tasks_v2 
-                        (created_at, modified_at, created_by, owned_by, operation, progress, can_cancel, can_pause) 
+                        (created_at, modified_at, created_by, owned_by, operation, progress, can_cancel, can_pause, icon, progress_percentage) 
                     values 
-                        (now(), now(), :username, :provider, :operation, :progress, :cancel, :pause)
+                        (now(), now(), :username, :provider, :operation, :progress, :cancel, :pause, :icon, -1)
                     returning id
                 """
             ).rows.singleOrNull()?.getLong(0) ?: throw RPCException(
@@ -56,12 +57,14 @@ class TaskService(
             provider = providerId,
             status = BackgroundTask.Status(
                 operation = request.operation ?: DEFAULT_TASK_OPERATION,
-                progress = request.progress ?: DEFAULT_TASK_PROGRESS
+                progress = request.progress ?: DEFAULT_TASK_PROGRESS,
+                progressPercentage = -1,
             ),
             specification = BackgroundTask.Specification(
                 request.canPause,
                 request.canCancel
-            )
+            ),
+            icon = request.icon
         )
     }
 
@@ -86,7 +89,7 @@ class TaskService(
                             id = :task_id
                         returning
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, operation, progress, can_pause, can_cancel 
+                            created_by, owned_by, state, operation, progress, progress_percentage, can_pause, can_cancel, icon 
                     """
                 )
                 .rows
@@ -125,6 +128,7 @@ class TaskService(
                 when (newState) {
                     TaskState.CANCELLED -> "Operation cancelled by user"
                     TaskState.SUSPENDED -> "Operation paused by user"
+                    TaskState.RUNNING -> foundTask.status.operation
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
                 },
                 when (newState) {
@@ -136,9 +140,10 @@ class TaskService(
                             ""
                         }
                     }
-
+                    TaskState.RUNNING -> foundTask.status.progress
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
-                }
+                },
+                foundTask.status.progressPercentage,
             )
         )
 
@@ -165,7 +170,7 @@ class TaskService(
             actorAndProject,
             BackgroundTaskUpdate(
                 taskId = taskId,
-                newStatus = BackgroundTask.Status(state = TaskState.SUCCESS)
+                newStatus = BackgroundTask.Status(state = TaskState.SUCCESS, progressPercentage = 100),
             )
         )
     }
@@ -244,11 +249,13 @@ class TaskService(
         status = BackgroundTask.Status(
             TaskState.valueOf(getString(5)!!),
             getString(6)!!,
-            getString(7)!!
+            getString(7)!!,
+            getInt(8)!!
         ),
         specification = BackgroundTask.Specification(
-            getBoolean(8)!!,
-            getBoolean(9)!!
-        )
+            getBoolean(9)!!,
+            getBoolean(10)!!
+        ),
+        getString(11)
     )
 }

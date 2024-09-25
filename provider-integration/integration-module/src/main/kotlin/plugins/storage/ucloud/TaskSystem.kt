@@ -67,7 +67,8 @@ class TaskSystem(
         operationDescription: String,
         progressDescription: String = "Accepted",
         canPause: Boolean = false,
-        canCancel: Boolean = false
+        canCancel: Boolean = false,
+        icon: String?
     ): BackgroundTask {
         val handler = handlers.find { with(it) { taskContext.canHandle(requestName, request) } } ?: run {
             log.warn("Unable to handle request: $requestName $request")
@@ -82,7 +83,8 @@ class TaskSystem(
                     operation = operationDescription,
                     progress = progressDescription,
                     canPause = canPause,
-                    canCancel = canCancel
+                    canCancel = canCancel,
+                    icon = icon
                 ),
                 client
             ).orThrow()

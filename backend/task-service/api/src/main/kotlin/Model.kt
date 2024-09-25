@@ -25,6 +25,7 @@ data class BackgroundTask(
     val provider: String,
     val status: Status,
     val specification: Specification,
+    val icon: String?
 ) {
 
     @Serializable
@@ -32,6 +33,7 @@ data class BackgroundTask(
         val state: TaskState = TaskState.IN_QUEUE,
         val operation: String = DEFAULT_TASK_OPERATION,
         val progress: String = DEFAULT_TASK_PROGRESS,
+        val progressPercentage: Int = -1,
     )
 
     @Serializable

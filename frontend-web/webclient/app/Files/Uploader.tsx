@@ -932,8 +932,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         border-radius: 10px;
         border: 1px solid rgba(0, 0, 0, 20%);
         height: 64px;
-        width: 398px;
-        max-width: 400px;
+        width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
         box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
@@ -989,8 +988,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         <TaskRow
             error={upload.error}
             icon={icon}
-            top={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
-            bottom={right}
+            text={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
             status={right}
             operations={inProgress ? <>
                 {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
@@ -1000,9 +998,8 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             progressInfo={progressInfo}
         /> : <TaskRow
             error={upload.error}
-            top={title}
             icon={icon}
-            bottom={right}
+            text={title}
             status={right}
             operations={inProgress ? <>
                 {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
@@ -1023,10 +1020,9 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({top, bottom, status, icon, progressInfo, operations, error}: {
+export function TaskRow({text, status, icon, progressInfo, operations, error}: {
     icon: React.ReactNode;
-    top: string | React.ReactNode;
-    bottom: string | React.ReactNode;
+    text: string | React.ReactNode;
     status: string | React.ReactNode;
     operations: React.ReactNode;
     error?: string;
@@ -1042,15 +1038,14 @@ export function TaskRow({top, bottom, status, icon, progressInfo, operations, er
         <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
-                <Truncate>{top}</Truncate>
-                <Truncate>{bottom}</Truncate>
+                <Truncate>{text}</Truncate>
                 <Truncate>{status}</Truncate>
             </div>
             <Box mr="auto" />
             <Box my="auto">{operations}</Box>
-            <Box my="auto" mr="4px" height="32px" >
+            <Box my="auto" mr="12px" height="32px" >
                 <ProgressCircle
-                    indeterminate={!progressInfo.stopped && progressInfo.progress !== progressInfo.limit && progressInfo.indeterminate}
+                    indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
                     failures={progressInfo.stopped ? progressInfo.limit : 0}
                     successes={progressInfo.progress}
                     total={progressInfo.limit}

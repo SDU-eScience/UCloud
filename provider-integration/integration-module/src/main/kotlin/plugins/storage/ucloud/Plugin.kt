@@ -221,6 +221,7 @@ class UCloudFilePlugin : FilePlugin {
                 ) as JsonObject,
                 username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
                 operationDescription = "Creating folder ${reqItem.id}",
+                icon = null
             )
         }
     }
@@ -608,6 +609,7 @@ class UCloudFilePlugin : FilePlugin {
                 ) as JsonObject,
                 username = username,
                 operationDescription = "Moving file to trash",
+                icon = "move"
             )
         }
     }
@@ -623,6 +625,7 @@ class UCloudFilePlugin : FilePlugin {
                 ) as JsonObject,
                 username = username,
                 operationDescription = "Emptying Trash",
+                icon = "trash"
             )
         }
     }
@@ -651,6 +654,7 @@ class UCloudFilePlugin : FilePlugin {
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
                 operationDescription = "Moving file",
+                icon = "move"
             )
         }
     }
@@ -669,6 +673,7 @@ class UCloudFilePlugin : FilePlugin {
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
                 operationDescription = "Copying file",
+                icon = "copy"
             )
         }
     }
@@ -731,6 +736,7 @@ class UCloudFilePlugin : FilePlugin {
             ) as JsonObject,
             username = resource.owner.createdBy,
             operationDescription = "Deleting file",
+            icon = "trash"
         )
     }
 
@@ -1168,7 +1174,8 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 bulkRequestOf(FindByPath("/${resource.id}"))
             ) as JsonObject,
             username = ucloudUsername ?: resource.owner.createdBy,
-            operationDescription = "Deleting ${resource.specification.title}"
+            operationDescription = "Deleting ${resource.specification.title}",
+            icon = "trash"
         )
         val drives = ArrayList<UCloudDrive>()
         dbConnection.withSession { session ->

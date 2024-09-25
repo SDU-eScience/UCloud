@@ -103,7 +103,8 @@ class FileController(
                     operation = request.title,
                     progress = "Accepted",
                     canPause = false,
-                    canCancel = false
+                    canCancel = false,
+                    icon = request.title
                 ),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
