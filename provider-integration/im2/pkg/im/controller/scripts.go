@@ -288,12 +288,19 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		return resp, false
 	}
 
+	reqBytes, err := json.Marshal(req)
+
+	if err != nil {
+		CliScriptsCreate.Invoke(
+			CliScriptsCreateRequest{e.Script, "Unable to read request", "", "", -1, false},
+		)
+		return resp, false
+	}
+
 	requestFile, ok := prepareFile(req)
 	if !ok {
-		reqBytes, _ := json.Marshal(req)
-
 		CliScriptsCreate.Invoke(
-			CliScriptsCreateRequest{e.Script, string(reqBytes), "", "", 0, false},
+			CliScriptsCreateRequest{e.Script, string(reqBytes), "", "", -1, false},
 		)
 		return resp, false
 	}
@@ -305,7 +312,10 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
+
+	exitCode := cmd.ProcessState.ExitCode()
+	statusSuccess := cmd.ProcessState.Success()
 	if err != nil {
 		s := strings.TrimSpace(stderr.String())
 		log.Warn("%v script failed: %s %v", e.Script, s, err)
@@ -313,7 +323,7 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		reqBytes, _ := json.Marshal(req)
 
 		CliScriptsCreate.Invoke(
-			CliScriptsCreateRequest{e.Script, string(reqBytes), stdout.String(), stderr.String(), 0, false},
+			CliScriptsCreateRequest{e.Script, string(reqBytes), stdout.String(), stderr.String(), exitCode, statusSuccess},
 		)
 		return resp, false
 	}
@@ -330,10 +340,8 @@ func (e *Script[Req, Resp]) Invoke(req Req) (Resp, bool) {
 		return resp, false
 	}
 
-	reqBytes, _ := json.Marshal(req)
-
 	CliScriptsCreate.Invoke(
-		CliScriptsCreateRequest{e.Script, string(reqBytes), stdout.String(), stderr.String(), 0, true},
+		CliScriptsCreateRequest{e.Script, string(reqBytes), stdout.String(), stderr.String(), exitCode, statusSuccess},
 	)
 
 	return resp, true
