@@ -37,10 +37,6 @@ const SpinAnimation = makeKeyframe("spin", `
     }    
 `)
 
-const TasksIconBase = injectStyleSimple("task-icon-base", `
-    animation: ${SpinAnimation} 2s linear infinite;
-`);
-
 const ActiveTasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="24px" width="24px" mb={"16px"} name="heroQueueList" />;
 
 enum TaskState {
@@ -54,9 +50,10 @@ enum TaskState {
 
 interface Status {
     state: TaskState;
-    operation: string;
+    title: string;
+    body?: string;
     progress: string;
-    progressPercentage: number; // An integer value to signify percentage finished. -1 means indeterminate.
+    progressPercentage: number;
 }
 
 interface Specification {
@@ -106,10 +103,10 @@ export const taskStore = new class extends ExternalStoreBase {
 
 const DEFAULT_ICON: IconName = "heroRectangleStack";
 
-function TaskItem<T>({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
-    
+function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
+
     const isFinished = TaskOperations.isTaskTerminal(task);
-    
+
     const operations: React.ReactNode[] = [];
     if (!isFinished) {
         if (task.specification.canPause) {
@@ -129,7 +126,7 @@ function TaskItem<T>({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}
                 />);
             }
         }
-        
+
         if (task.specification.canCancel) {
             operations.push(<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
         }
@@ -143,8 +140,9 @@ function TaskItem<T>({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}
             console.log("TODO(Jonas): Remove me");
             ws.call(TaskOperations.calls.retrieve(task.taskId));
         }} name={icon} size={16} />}
-        text={task.status.operation}
-        status={task.status.progress}
+        title={task.status.title}
+        body={task.status.body}
+        progress={task.status.progress}
         operations={operations}
         error={TaskOperations.taskError(task)}
         progressInfo={{
@@ -211,7 +209,7 @@ function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
 export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
 
-    const [ws, setWs] = React.useState<WebSocketConnection>();
+    const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
 
     const fileUploads = React.useMemo(() => {
         const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
@@ -221,11 +219,18 @@ export function TaskList(): React.ReactNode {
     }, [uploads]);
 
     React.useEffect(() => {
-        if (ws) return;
-        setWs(WSFactory.open(
+        if (websocket) return;
+        const ws = WSFactory.open(
             "/tasks",
             {
                 init: async conn => {
+                    try {
+                        // TODO(Jonas): This is really not viable
+                        ws.call(TaskOperations.calls.browse({itemsPerPage: 250, itemsToSkip: 0, next: null, consistency: "PREFER"} as any)).then(console.log)
+                    } catch (e) {
+                        console.warn(e);
+                    }
+
                     try {
                         await conn.subscribe({
                             call: "tasks.listen",
@@ -243,11 +248,12 @@ export function TaskList(): React.ReactNode {
                     } catch (e) {
                         console.warn(e);
                     }
-
                 }
             }
-        ));
-    }, [Client.isLoggedIn, ws]);
+        );
+
+        setWebsocket(ws);
+    }, [Client.isLoggedIn, websocket]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
@@ -281,7 +287,7 @@ export function TaskList(): React.ReactNode {
     }, [activeUploadCount]);
 
     const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
-    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !ws  || !inDevEnvironment()) return null;
+    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !websocket || !inDevEnvironment()) return null;
     return (
         <ClickableDropdown
             left="50px"
@@ -293,7 +299,7 @@ export function TaskList(): React.ReactNode {
                 <Box height={"526px"} overflowY="auto">
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={ws!} />)}
+                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
                         <Box ml="auto">
@@ -306,7 +312,7 @@ export function TaskList(): React.ReactNode {
                         </Box>
                     </Flex> : null}
                     {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={ws!} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                 </Box>
             </Card>
         </ClickableDropdown>
