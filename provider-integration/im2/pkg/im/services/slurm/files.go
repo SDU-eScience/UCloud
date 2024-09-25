@@ -149,21 +149,41 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
-	rootFile, err := os.Open(internalSource)
-	if err != nil {
-		return TaskProcessingResult{
-			Error:           fmt.Errorf("unable to open source file"),
-			AllowReschedule: false,
+	const numberOfAttempts = 10
+	var uploadErr error = nil
+	for i := 0; i < numberOfAttempts; i++ {
+		// NOTE(Dan): The rootFile is automatically closed by the uploader
+		rootFile, err := os.Open(internalSource)
+		if err != nil {
+			return TaskProcessingResult{
+				Error:           fmt.Errorf("unable to open source file"),
+				AllowReschedule: false,
+			}
+		}
+
+		uploaderRoot := &uploaderClientFile{
+			Path: "",
+			File: rootFile,
+		}
+		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status)
+
+		if !report.NormalExit {
+			uploadErr = fmt.Errorf("an abnormal error occured during the transfer process")
+			continue
+		}
+
+		if report.BytesTransferred == 0 && report.NewFilesUploaded == 0 {
+			uploadErr = nil
+			break
+		}
+
+		if i == numberOfAttempts-1 {
+			uploadErr = fmt.Errorf("unable to upload all files")
 		}
 	}
 
-	upload.ProcessClient(uploadSession, &uploaderClientFile{
-		Path: "",
-		File: rootFile,
-	})
-
 	return TaskProcessingResult{
-		Error: nil,
+		Error: uploadErr,
 	}
 }
 

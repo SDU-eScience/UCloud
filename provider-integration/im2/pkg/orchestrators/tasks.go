@@ -22,9 +22,10 @@ type TaskSpecification struct {
 }
 
 type TaskStatus struct {
-	State     TaskState `json:"state"`
-	Operation string    `json:"operation"`
-	Progress  string    `json:"progress"`
+	State              TaskState `json:"state"`
+	Operation          string    `json:"operation"`
+	Progress           string    `json:"progress"`
+	ProgressPercentage float64   `json:"progressPercentage"`
 }
 
 type TaskState string

@@ -242,7 +242,31 @@ outer:
 	output <- nil
 }
 
-func ProcessClient(session ClientSession, rootFile ClientFile) {
+type StatusReport struct {
+	// NewFilesUploaded represents the actual amount of files going onto the wire. The files are not guaranteed to be
+	// completely uploaded.
+	NewFilesUploaded int64
+
+	// TotalFilesProcessed represents the amount of files coming from the source directory. These might be skipped if
+	// the file is determined to already be present at the destination.
+	TotalFilesProcessed int64
+
+	// BytesTransferred represents the actual amount of bytes going onto the wire.
+	BytesTransferred int64
+
+	// TotalBytesProcessed represents the amount of bytes coming from the source files. These might be skipped if the
+	// file is determined to already be present at the destination.
+	TotalBytesProcessed int64
+
+	NormalExit bool
+}
+
+func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Pointer[orc.TaskStatus]) StatusReport {
+	initialStatus := orc.TaskStatus{}
+	if status != nil {
+		initialStatus = *status.Load()
+	}
+
 	const numberOfConnections = 16
 	const enableProfiling = true
 
@@ -286,9 +310,11 @@ func ProcessClient(session ClientSession, rootFile ClientFile) {
 
 	// Stats
 	// -----------------------------------------------------------------------------------------------------------------
-	filesDiscovered := 0
+	bytesDiscovered := int64(0)
+	filesDiscovered := int64(0)
 	filesDiscoveredDone := false
 	var filesCompletedFromServer []int32
+	filesBeingSentOnWire := int64(0)
 
 	filesPerSecond := float64(0)
 	bytesPerSecond := float64(0)
@@ -432,10 +458,27 @@ func ProcessClient(session ClientSession, rootFile ClientFile) {
 
 		//_ = statFile.Truncate(0)
 		_, _ = statFile.WriteString(stats.String())
+
+		if status != nil {
+			newStatus := &orc.TaskStatus{
+				State:     orc.TaskStateRunning,
+				Operation: initialStatus.Operation,
+				Progress: fmt.Sprintf(
+					"%.2f%v/s | %.2f Files/s",
+					readableSpeed.Size,
+					readableSpeed.Unit,
+					filesPerSecond,
+				),
+				ProgressPercentage: float64(bytesTransferred) / float64(bytesDiscovered),
+			}
+			status.Store(newStatus)
+		}
 	}
 
 	// Process input from workers
 	// -----------------------------------------------------------------------------------------------------------------
+
+	normalExit := false
 
 outer:
 	for {
@@ -453,6 +496,7 @@ outer:
 				activeWork[work.Id] = work
 				discoveredWorkForWorkers <- work
 				filesDiscovered++
+				bytesDiscovered += work.Metadata.Size
 			}
 
 		case wsMsg, ok := <-incomingWebsocket:
@@ -477,7 +521,7 @@ outer:
 						totalFilesCompleted += f
 					}
 					if filesDiscoveredDone && int32(filesDiscovered) == totalFilesCompleted {
-						log.Info("Upload complete")
+						normalExit = true
 						break outer
 					}
 
@@ -500,6 +544,7 @@ outer:
 					}
 					delete(activeWork, msg.FileId)
 
+					filesBeingSentOnWire++
 					work.WorkType = 1
 					workers[work.AssignedTo].AssignedWork <- work
 
@@ -529,6 +574,14 @@ outer:
 
 		pprof.StopCPUProfile()
 		_ = cpuProfile.Close()
+	}
+
+	return StatusReport{
+		NewFilesUploaded:    filesBeingSentOnWire,
+		TotalFilesProcessed: filesDiscovered,
+		BytesTransferred:    lastBytesTransferred,
+		TotalBytesProcessed: bytesDiscovered,
+		NormalExit:          normalExit,
 	}
 }
 

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"time"
 	db "ucloud.dk/pkg/database"
-
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -35,9 +35,12 @@ const (
 )
 
 type TaskInfo struct {
-	Id           uint64
-	UCloudTaskId util.Option[uint64]
-	Uid          uint32
+	Id             uint64
+	UCloudTaskId   util.Option[uint64]
+	Uid            uint32
+	BackoffSeconds int
+	Done           atomic.Bool
+	Status         atomic.Pointer[orc.TaskStatus]
 	TaskInfoSpecification
 }
 
@@ -51,6 +54,36 @@ type TaskInfoSpecification struct {
 	HasUCloudTask     bool
 }
 
+func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
+	sourceSimple := util.FileName(spec.UCloudSource.Value)
+	destSimple := util.FileName(spec.UCloudDestination.Value)
+
+	progress := ""
+	operation := ""
+	switch spec.Type {
+	case FileTaskTransfer:
+		operation = fmt.Sprintf("Transferring %s to another provider", sourceSimple)
+	case FileTaskTypeCopy:
+		operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
+
+	case FileTaskTypeEmptyTrash:
+		operation = "Emptying trash"
+
+	case FileTaskTypeMove:
+		operation = "Moving files"
+
+	case FileTaskTypeMoveToTrash:
+		operation = "Trashing files"
+	}
+
+	return orc.TaskStatus{
+		State:              orc.TaskStateRunning,
+		Operation:          operation,
+		Progress:           progress,
+		ProgressPercentage: 0,
+	}
+}
+
 type TaskStatusUpdate struct {
 	Id            uint64
 	NewOperation  util.Option[string]
@@ -61,11 +94,11 @@ type TaskStatusUpdate struct {
 
 var (
 	registerTaskCall    = ipc.NewCall[TaskInfoSpecification, uint64]("tasks.register")
-	listActiveTasksCall = ipc.NewCall[util.Empty, []TaskInfo]("tasks.listActive")
+	listActiveTasksCall = ipc.NewCall[util.Empty, []*TaskInfo]("tasks.listActive")
 	postTaskStatusCall  = ipc.NewCall[TaskStatusUpdate, util.Empty]("tasks.postStatus")
 )
 
-var taskQueue chan TaskInfo
+var taskFrontendQueue chan *TaskInfo
 
 func InitTaskSystem() {
 	if cfg.Mode == cfg.ServerModeServer {
@@ -89,31 +122,12 @@ func InitTaskSystem() {
 				default:
 				}
 
-				sourceSimple := util.FileName(spec.UCloudSource.Value)
-				destSimple := util.FileName(spec.UCloudDestination.Value)
-
-				progress := ""
-				operation := ""
-				switch spec.Type {
-				case FileTaskTransfer:
-					operation = fmt.Sprintf("Transferring %s to another provider", sourceSimple)
-				case FileTaskTypeCopy:
-					operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
-
-				case FileTaskTypeEmptyTrash:
-					operation = "Emptying trash"
-
-				case FileTaskTypeMove:
-					operation = "Moving files"
-
-				case FileTaskTypeMoveToTrash:
-					operation = "Trashing files"
-				}
+				status := spec.DefaultStatus()
 
 				id, err := orc.CreateTask(
 					ucloudUsername,
-					util.OptValue(operation),
-					util.OptValue(progress),
+					util.OptValue(status.Operation),
+					util.OptValue(status.Progress),
 					flags,
 				)
 
@@ -236,10 +250,10 @@ func InitTaskSystem() {
 			}
 		})
 
-		listActiveTasksCall.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]TaskInfo] {
+		listActiveTasksCall.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]*TaskInfo] {
 			uid := r.Uid
 
-			result := db.NewTx(func(tx *db.Transaction) []TaskInfo {
+			result := db.NewTx(func(tx *db.Transaction) []*TaskInfo {
 				rows := db.Select[struct {
 					Id                uint64
 					TaskType          string
@@ -267,9 +281,9 @@ func InitTaskSystem() {
 					},
 				)
 
-				var result []TaskInfo
+				var result []*TaskInfo
 				for _, row := range rows {
-					info := TaskInfo{
+					info := &TaskInfo{
 						Id:           row.Id,
 						UCloudTaskId: util.Option[uint64]{},
 						Uid:          uid,
@@ -297,7 +311,7 @@ func InitTaskSystem() {
 				return result
 			})
 
-			return ipc.Response[[]TaskInfo]{
+			return ipc.Response[[]*TaskInfo]{
 				StatusCode: http.StatusOK,
 				Payload:    result,
 			}
@@ -328,36 +342,97 @@ func InitTaskSystem() {
 			}
 		}
 	} else if cfg.Mode == cfg.ServerModeUser {
-		taskQueue = make(chan TaskInfo)
+		taskFrontendQueue = make(chan *TaskInfo)
+		taskBackendQueue := make(chan *TaskInfo)
+
+		go func() {
+			knownTasks := map[uint64]*TaskInfo{}
+			knownStatus := map[uint64]orc.TaskStatus{}
+			ticker := time.NewTicker(250 * time.Millisecond)
+
+			for util.IsAlive {
+				select {
+				case task := <-taskFrontendQueue:
+					if task.HasUCloudTask {
+						knownTasks[task.Id] = task
+						knownStatus[task.Id] = *task.Status.Load()
+					}
+					taskBackendQueue <- task
+
+				case <-ticker.C:
+					for id, task := range knownTasks {
+						if task.Done.Load() {
+							delete(knownTasks, id)
+							delete(knownStatus, id)
+						} else {
+							newStatus := *task.Status.Load()
+							oldStatus, _ := knownStatus[id]
+							if newStatus != oldStatus {
+								_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
+									Id:            id,
+									NewOperation:  util.OptValue(newStatus.Operation),
+									NewProgress:   util.OptValue(newStatus.Progress),
+									NewPercentage: util.OptValue(newStatus.ProgressPercentage),
+									NewState:      util.OptValue(newStatus.State),
+								})
+
+								if err == nil {
+									knownStatus[id] = newStatus
+								}
+							}
+						}
+					}
+				}
+			}
+		}()
 
 		for i := 0; i < 10; i++ {
 			go func() {
 				for util.IsAlive {
-					task := <-taskQueue
+					task := <-taskBackendQueue
 
 					result := TaskProcessingResult{}
 
 					switch task.Type {
 					case FileTaskTypeMove:
-						result = processMoveTask(&task)
+						result = processMoveTask(task)
 
 					case FileTaskTypeMoveToTrash:
-						result = processMoveToTrash(&task)
+						result = processMoveToTrash(task)
 
 					case FileTaskTypeEmptyTrash:
-						result = processEmptyTrash(&task)
+						result = processEmptyTrash(task)
 
 					case FileTaskTypeCopy:
-						result = processCopyTask(&task)
+						result = processCopyTask(task)
 
 					case FileTaskTransfer:
-						result = processTransferTask(&task)
+						result = processTransferTask(task)
 					}
 
 					reschedule := func() {
 						go func() {
-							time.Sleep(10 * time.Second)
-							taskQueue <- task
+							seconds := task.BackoffSeconds
+							if seconds <= 0 {
+								seconds = 1
+							}
+							task.BackoffSeconds = seconds * 2
+							if task.BackoffSeconds >= 60*5 {
+								task.BackoffSeconds = 60 * 5
+							}
+
+							// NOTE(Dan): Rescheduling skips the frontend queue since the task is still active,
+							// just sleeping for a bit.
+							currentStatus := task.Status.Load()
+							task.Status.Store(&orc.TaskStatus{
+								State:              orc.TaskStateInQueue,
+								Operation:          currentStatus.Operation,
+								Progress:           fmt.Sprintf("Retrying in %v seconds", seconds),
+								ProgressPercentage: 0,
+							})
+
+							time.Sleep(time.Duration(seconds) * time.Second)
+							taskBackendQueue <- task
 						}()
 					}
 
@@ -385,7 +460,11 @@ func InitTaskSystem() {
 						if err != nil {
 							log.Warn("Failed to post final status update for task: %s", err)
 							reschedule()
+						} else {
+							task.Done.Store(true)
 						}
+					} else {
+						task.Done.Store(true)
 					}
 				}
 			}()
@@ -396,7 +475,7 @@ func InitTaskSystem() {
 			log.Warn("Failed to get a list of active background tasks: %s", err)
 		} else {
 			for _, task := range tasks {
-				taskQueue <- task
+				taskFrontendQueue <- task
 			}
 		}
 	}
@@ -408,12 +487,16 @@ func RegisterTask(task TaskInfoSpecification) error {
 		return err
 	}
 
-	taskQueue <- TaskInfo{
+	status := task.DefaultStatus()
+	t := &TaskInfo{
 		Id:                    id,
 		UCloudTaskId:          util.OptNone[uint64](),
 		Uid:                   uint32(os.Getuid()),
 		TaskInfoSpecification: task,
 	}
+	t.Status.Store(&status)
+
+	taskFrontendQueue <- t
 
 	return nil
 }
