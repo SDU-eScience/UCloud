@@ -21,7 +21,8 @@ typealias ListenResponse = BackgroundTask
 @Serializable
 data class CreateRequest(
     val user: String,
-    val operation: String? = null,
+    val title: String? = null,
+    val body: String? = null,
     val progress: String? = null,
     val canPause: Boolean = false,
     val canCancel: Boolean = false,
@@ -65,7 +66,8 @@ Providers use this functionality through one of the Control interfaces. They do 
                 create,
                 CreateRequest(
                     user = username,
-                    operation = "Counting to 3",
+                    title = "Counting to 3",
+                    body = null,
                     progress = "Count: 0",
                     canPause = false,
                     canCancel = false,
@@ -80,8 +82,9 @@ Providers use this functionality through one of the Control interfaces. They do 
                     status = BackgroundTask.Status(
                         TaskState.RUNNING,
                         "Counting to 3",
+                        null,
                         "Count: 0",
-                        -1,
+                        -1.0,
                     ), BackgroundTask.Specification(
                         false,
                         false
@@ -100,8 +103,9 @@ Providers use this functionality through one of the Control interfaces. They do 
                             newStatus = BackgroundTask.Status(
                                 TaskState.RUNNING,
                                 "Counting to 3",
+                                null,
                                 "Count: ${it + 1}",
-                                it
+                                it*1.0
                             )
                         )
                     ),
@@ -137,8 +141,9 @@ Providers use this functionality through one of the Control interfaces. They do 
                                         status = BackgroundTask.Status(
                                             TaskState.RUNNING,
                                             "Counting to 3",
+                                            null,
                                             "Count: ${it + 1}",
-                                            it,
+                                            it*1.0,
                                         ),
                                         BackgroundTask.Specification(
                                             false,
@@ -164,8 +169,9 @@ Providers use this functionality through one of the Control interfaces. They do 
                                     status = BackgroundTask.Status(
                                         TaskState.SUCCESS,
                                         "Counting to 3",
+                                        null,
                                         "Done",
-                                        100,
+                                        100.0,
                                     ),
                                     BackgroundTask.Specification(
                                         false,

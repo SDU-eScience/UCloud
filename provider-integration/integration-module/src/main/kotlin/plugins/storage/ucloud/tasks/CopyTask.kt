@@ -130,15 +130,20 @@ class CopyTask : TaskHandler {
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.oldId))
                 pathConverter.locator.resolveDriveByInternalFile(InternalFile(nextItem.newId))
 
-                try {
-                    postUpdate(
-                        task.taskId.toLong(),
-                        "Copying files",
-                        "$filesCopied/$numberOfFiles copied")
+                if ((filesCopied % 100L) == 0L) {
+                    try {
+                        postUpdate(
+                            task.taskId.toLong(),
+                            "Copying files",
+                            null,
+                            "$filesCopied/$numberOfFiles copied",
+                            (filesCopied.toDouble()/numberOfFiles.toDouble())*100.0
+                        )
 
-                } catch (ex: Exception) {
-                    log.warn("Failed to update status for task: $task")
-                    log.info(ex.message)
+                    } catch (ex: Exception) {
+                        log.warn("Failed to update status for task: $task")
+                        log.info(ex.message)
+                    }
                 }
 
                 val result = try {
@@ -179,7 +184,7 @@ class CopyTask : TaskHandler {
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -187,8 +192,10 @@ class CopyTask : TaskHandler {
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),

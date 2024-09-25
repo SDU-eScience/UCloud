@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2024.1.71"
+version = "2024.1.71-3"
 
 repositories {
     mavenCentral()
@@ -18,7 +18,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2024.1.71"
+        val version = "2024.1.71-3"
 
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 

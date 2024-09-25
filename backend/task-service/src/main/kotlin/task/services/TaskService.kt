@@ -30,7 +30,8 @@ class TaskService(
                 {
                     setParameter("username", request.user)
                     setParameter("provider", providerId)
-                    setParameter("operation", request.operation)
+                    setParameter("title", request.title)
+                    setParameter("body", request.body)
                     setParameter("progress", request.progress)
                     setParameter("cancel", request.canCancel)
                     setParameter("pause", request.canPause)
@@ -38,9 +39,9 @@ class TaskService(
                 },
                 """
                     insert into task.tasks_v2 
-                        (created_at, modified_at, created_by, owned_by, operation, progress, can_cancel, can_pause, icon, progress_percentage) 
+                        (created_at, modified_at, created_by, owned_by, title, body, progress, can_cancel, can_pause, icon, progress_percentage) 
                     values 
-                        (now(), now(), :username, :provider, :operation, :progress, :cancel, :pause, :icon, -1)
+                        (now(), now(), :username, :provider, :title, :body, :progress, :cancel, :pause, :icon, -1.0)
                     returning id
                 """
             ).rows.singleOrNull()?.getLong(0) ?: throw RPCException(
@@ -56,9 +57,11 @@ class TaskService(
             createdBy = request.user,
             provider = providerId,
             status = BackgroundTask.Status(
-                operation = request.operation ?: DEFAULT_TASK_OPERATION,
+                state = TaskState.IN_QUEUE,
+                title = request.title ?: DEFAULT_TASK_TITLE,
+                body = request.body,
                 progress = request.progress ?: DEFAULT_TASK_PROGRESS,
-                progressPercentage = -1,
+                progressPercentage = -1.0,
             ),
             specification = BackgroundTask.Specification(
                 request.canPause,
@@ -75,21 +78,25 @@ class TaskService(
                     {
                         setParameter("task_id", update.taskId)
                         setParameter("state", update.newStatus.state.toString())
-                        setParameter("op", update.newStatus.operation)
+                        setParameter("title", update.newStatus.title)
+                        setParameter("body", update.newStatus.body)
                         setParameter("progress", update.newStatus.progress)
+                        setParameter("progress_percentage", update.newStatus.progressPercentage)
                     },
                     """
                         update task.tasks_v2
                         set
                             modified_at = now(),
-                            state = :state,
-                            operation = :op,
-                            progress = :progress
+                            state = COALESCE(:state, state),
+                            title = COALESCE(:title, title),
+                            body = COALESCE(:body, body),
+                            progress = COALESCE(:progress, progress),
+                            progress_percentage = COALESCE(:progress_percentage, progress_percentage)
                         where
                             id = :task_id
                         returning
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, operation, progress, progress_percentage, can_pause, can_cancel, icon 
+                            created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon 
                     """
                 )
                 .rows
@@ -128,9 +135,22 @@ class TaskService(
                 when (newState) {
                     TaskState.CANCELLED -> "Operation cancelled by user"
                     TaskState.SUSPENDED -> "Operation paused by user"
-                    TaskState.RUNNING -> foundTask.status.operation
+                    TaskState.RUNNING -> foundTask.status.title
                     else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
                 },
+                when (newState) {
+                    TaskState.CANCELLED -> null
+                    TaskState.SUSPENDED -> {
+                        if (foundTask.status.state == TaskState.RUNNING) {
+                            foundTask.status.body
+                        } else {
+                            null
+                        }
+                    }
+                    TaskState.RUNNING -> foundTask.status.body
+                    else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
+                }
+                ,
                 when (newState) {
                     TaskState.CANCELLED -> "Cancelled"
                     TaskState.SUSPENDED -> {
@@ -166,11 +186,12 @@ class TaskService(
     }
 
     suspend fun markAsComplete(actorAndProject: ActorAndProject, taskId: Long) {
+        val task = findById(actorAndProject, taskId)
         postStatus(
             actorAndProject,
             BackgroundTaskUpdate(
                 taskId = taskId,
-                newStatus = BackgroundTask.Status(state = TaskState.SUCCESS, progressPercentage = 100),
+                newStatus = BackgroundTask.Status(state = TaskState.SUCCESS, title = task.status.title, body = null, progress = "Complete", progressPercentage = 100.0),
             )
         )
     }
@@ -187,7 +208,7 @@ class TaskService(
                     """
                         select
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, state, operation, progress, can_pause, can_cancel 
+                            created_by, owned_by, state, title, body, progress, tasks_v2.progress_percentage, can_pause, can_cancel, icon
                         from task.tasks_v2 
                         where created_by = :username
                         order by created_at desc
@@ -208,7 +229,7 @@ class TaskService(
                     """
                         select
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, operation, progress, can_pause, can_cancel 
+                            created_by, owned_by, state, title, body, progress, tasks_v2.progress_percentage, can_pause, can_cancel, icon
                         from task.tasks_v2 
                         where id = :task_id
                     """
@@ -248,14 +269,15 @@ class TaskService(
         provider = getString(4)!!,
         status = BackgroundTask.Status(
             TaskState.valueOf(getString(5)!!),
-            getString(6)!!,
-            getString(7)!!,
-            getInt(8)!!
+            getString(6),
+            getString(7),
+            getString(8),
+            getFloat(9)?.toDouble()
         ),
         specification = BackgroundTask.Specification(
-            getBoolean(9)!!,
-            getBoolean(10)!!
+            getBoolean(10)!!,
+            getBoolean(11)!!
         ),
-        getString(11)
+        getString(12)
     )
 }

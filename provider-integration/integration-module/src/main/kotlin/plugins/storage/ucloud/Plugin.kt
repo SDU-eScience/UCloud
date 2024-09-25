@@ -220,7 +220,8 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
-                operationDescription = "Creating folder ${reqItem.id}",
+                title = "Creating folder ${reqItem.id}",
+                body = null,
                 icon = null
             )
         }
@@ -608,7 +609,8 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(TrashRequestItem(username, reqItem.id))
                 ) as JsonObject,
                 username = username,
-                operationDescription = "Moving file to trash",
+                title = "Moving file to trash",
+                body = null,
                 icon = "move"
             )
         }
@@ -624,7 +626,8 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(EmptyTrashRequestItem(username, requestItem.id))
                 ) as JsonObject,
                 username = username,
-                operationDescription = "Emptying Trash",
+                title = "Emptying Trash",
+                body = null,
                 icon = "trash"
             )
         }
@@ -653,7 +656,8 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
-                operationDescription = "Moving file",
+                title = "Moving file",
+                body = null,
                 icon = "move"
             )
         }
@@ -672,7 +676,8 @@ class UCloudFilePlugin : FilePlugin {
                     bulkRequestOf(reqItem)
                 ) as JsonObject,
                 username = ucloudUsername ?: reqItem.resolvedOldCollection.owner.createdBy,
-                operationDescription = "Copying file",
+                title = "Copying file",
+                body = null,
                 icon = "copy"
             )
         }
@@ -735,7 +740,8 @@ class UCloudFilePlugin : FilePlugin {
                 bulkRequestOf(resource)
             ) as JsonObject,
             username = resource.owner.createdBy,
-            operationDescription = "Deleting file",
+            title = "Deleting file",
+            body = null,
             icon = "trash"
         )
     }
@@ -1174,7 +1180,8 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 bulkRequestOf(FindByPath("/${resource.id}"))
             ) as JsonObject,
             username = ucloudUsername ?: resource.owner.createdBy,
-            operationDescription = "Deleting ${resource.specification.title}",
+            title = "Deleting ${resource.specification.title}",
+            body = null,
             icon = "trash"
         )
         val drives = ArrayList<UCloudDrive>()

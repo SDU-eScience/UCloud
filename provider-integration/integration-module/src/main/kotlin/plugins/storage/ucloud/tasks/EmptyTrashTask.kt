@@ -101,15 +101,19 @@ class EmptyTrashTask(
                         val filesToDelete = nativeFs.listFiles(internalFile)
                         var filesDeleted = 0L
                         filesToDelete.forEach {
-                            try {
-                                postUpdate(
-                                    task.taskId.toLong(),
-                                    "Emptying Trash",
-                                    "$filesDeleted/${filesToDelete.size} deleted"
-                                )
-                            } catch (ex: Exception) {
-                                log.warn("Failed to update status for task: $task")
-                                log.info(ex.message)
+                            if ((filesDeleted % 100) == 0L) {
+                                try {
+                                    postUpdate(
+                                        task.taskId.toLong(),
+                                        "Emptying Trash",
+                                        null,
+                                        "$filesDeleted/${filesToDelete.size} deleted",
+                                        (filesDeleted.toDouble() / filesToDelete.size.toDouble()) * 100.0
+                                    )
+                                } catch (ex: Exception) {
+                                    log.warn("Failed to update status for task: $task")
+                                    log.info(ex.message)
+                                }
                             }
                             try {
                                 val src = internalFile.child(it)
@@ -120,6 +124,7 @@ class EmptyTrashTask(
                                     StandardCopyOption.REPLACE_EXISTING
                                 )
                                 fs.move(src, dst, WriteConflictPolicy.RENAME)
+                                filesDeleted++
                             } catch (ignored: FSException.NotFound) {}
                         }
                     }
@@ -137,7 +142,7 @@ class EmptyTrashTask(
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -145,8 +150,10 @@ class EmptyTrashTask(
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),

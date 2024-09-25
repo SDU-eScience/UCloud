@@ -3,7 +3,7 @@ package dk.sdu.cloud.task.api
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Serializable
 
-const val DEFAULT_TASK_OPERATION = "Background Task"
+const val DEFAULT_TASK_TITLE = "Background task"
 const val DEFAULT_TASK_PROGRESS = "Accepted"
 
 @Serializable
@@ -30,10 +30,11 @@ data class BackgroundTask(
 
     @Serializable
     data class Status(
-        val state: TaskState = TaskState.IN_QUEUE,
-        val operation: String = DEFAULT_TASK_OPERATION,
-        val progress: String = DEFAULT_TASK_PROGRESS,
-        val progressPercentage: Int = -1,
+        val state: TaskState? = TaskState.IN_QUEUE,
+        val title: String? = DEFAULT_TASK_TITLE,
+        val body: String?,
+        val progress: String?,
+        val progressPercentage: Double? = -1.0,
     )
 
     @Serializable

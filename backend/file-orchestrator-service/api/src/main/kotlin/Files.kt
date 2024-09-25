@@ -290,8 +290,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Moving File",
+                                    null,
                                     "Done",
-                                    100,
+                                    100.0,
                                 ),
                                 BackgroundTask.Specification(
                                     canPause = true,
@@ -336,8 +337,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Copying File",
+                                    null,
                                     "Done",
-                                    100,
+                                    100.0,
                                 ),
                                 BackgroundTask.Specification(
                                     canPause = false,
@@ -453,8 +455,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Creating Folder",
+                                    null,
                                     "Done",
-                                    100,
+                                    100.0,
                                 ),
                                 BackgroundTask.Specification(
                                     canPause = false,
@@ -501,8 +504,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Moving Folder To Trash",
+                                    null,
                                     "Done",
-                                    100,
+                                    100.0,
                                 ),
                                 BackgroundTask.Specification(
                                     canPause = false,
@@ -519,8 +523,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                             status = BackgroundTask.Status(
                                 TaskState.SUCCESS,
                                 "Moving File to Trash",
+                                null,
                                 "Done",
-                                100,
+                                100.0,
                             ),
                             BackgroundTask.Specification(
                                 canPause = false,
@@ -566,8 +571,9 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                                 status = BackgroundTask.Status(
                                     TaskState.SUCCESS,
                                     "Emptying Trash",
+                                    null,
                                     "Done",
-                                    100,
+                                    100.0,
                                 ),
                                 BackgroundTask.Specification(
                                     canPause = true,

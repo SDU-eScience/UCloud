@@ -54,14 +54,19 @@ class TrashTask(
             numberOfCoroutines,
             realRequest.items,
             doWork = doWork@{ nextItem ->
-                try {
-                    postUpdate(
-                        task.taskId.toLong(),
-                        "Moving files to Trash",
-                        "$filesMoved/${realRequest.items.size} moved to trash")
-                } catch (ex: Exception) {
-                    log.warn("Failed to update status for task: $task")
-                    log.info(ex.message)
+                if ((filesMoved % 100) == 0L) {
+                    try {
+                        postUpdate(
+                            task.taskId.toLong(),
+                            "Moving files to Trash",
+                            null,
+                            "$filesMoved/${realRequest.items.size} moved to trash",
+                            (filesMoved.toDouble() / realRequest.items.size.toDouble()) * 100.0
+                        )
+                    } catch (ex: Exception) {
+                        log.warn("Failed to update status for task: $task")
+                        log.info(ex.message)
+                    }
                 }
                 try {
                     val file = UCloudFile.create(nextItem.path)
@@ -97,7 +102,7 @@ class TrashTask(
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -105,8 +110,10 @@ class TrashTask(
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),
