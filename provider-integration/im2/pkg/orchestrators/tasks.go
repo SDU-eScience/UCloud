@@ -14,6 +14,7 @@ type Task struct {
 	Provider      string            `json:"provider"`
 	Status        TaskStatus        `json:"status"`
 	Specification TaskSpecification `json:"specification"`
+	Icon          string            `json:"icon"`
 }
 
 type TaskSpecification struct {
@@ -25,7 +26,7 @@ type TaskStatus struct {
 	State              TaskState `json:"state"`
 	Operation          string    `json:"operation"`
 	Progress           string    `json:"progress"`
-	ProgressPercentage float64   `json:"progressPercentage"`
+	ProgressPercentage int       `json:"progressPercentage"`
 }
 
 type TaskState string
@@ -49,13 +50,14 @@ const (
 	TaskFlagCanCancel
 )
 
-func CreateTask(username string, operation, progress util.Option[string], flags TaskFlags) (uint64, error) {
+func CreateTask(username string, operation, progress util.Option[string], icon string, flags TaskFlags) (uint64, error) {
 	type req struct {
 		User      string              `json:"user"`
 		Operation util.Option[string] `json:"operation"`
 		Progress  util.Option[string] `json:"progress"`
 		CanPause  bool                `json:"canPause"`
 		CanCancel bool                `json:"canCancel"`
+		Icon      string              `json:"icon"`
 	}
 
 	res, err := c.ApiCreate[Task](
@@ -66,6 +68,7 @@ func CreateTask(username string, operation, progress util.Option[string], flags 
 			User:      username,
 			Operation: operation,
 			Progress:  progress,
+			Icon:      icon,
 			CanPause:  flags&TaskFlagCanPause != 0,
 			CanCancel: flags&TaskFlagCanCancel != 0,
 		},

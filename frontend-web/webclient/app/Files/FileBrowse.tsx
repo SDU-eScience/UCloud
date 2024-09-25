@@ -434,9 +434,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         FilesApi.move(requestPayload) :
                         FilesApi.copy(requestPayload);
 
-                    callAPI(call).then(it => 
-                        taskStore.addTaskList(it.responses)
-                    ).catch(err => {
+                    callAPI(call).catch(err => {
                         snackbarStore.addFailure(extractErrorMessage(err), false);
                         browser.refresh();
                     });

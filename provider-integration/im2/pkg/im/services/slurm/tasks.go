@@ -52,6 +52,7 @@ type TaskInfoSpecification struct {
 	ConflictPolicy    orc.WriteConflictPolicy
 	MoreInfo          util.Option[string]
 	HasUCloudTask     bool
+	Icon              string
 }
 
 func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
@@ -128,6 +129,7 @@ func InitTaskSystem() {
 					ucloudUsername,
 					util.OptValue(status.Operation),
 					util.OptValue(status.Progress),
+					spec.Icon,
 					flags,
 				)
 
@@ -221,9 +223,10 @@ func InitTaskSystem() {
 			}
 
 			err := orc.PostTaskStatus(ucloudTaskId, orc.TaskStatus{
-				State:     newState,
-				Operation: r.Payload.NewOperation.Value,
-				Progress:  r.Payload.NewProgress.Value,
+				State:              newState,
+				Operation:          r.Payload.NewOperation.Value,
+				Progress:           r.Payload.NewProgress.Value,
+				ProgressPercentage: int(r.Payload.NewPercentage.Value),
 			})
 
 			if err != nil {
@@ -372,7 +375,7 @@ func InitTaskSystem() {
 									Id:            id,
 									NewOperation:  util.OptValue(newStatus.Operation),
 									NewProgress:   util.OptValue(newStatus.Progress),
-									NewPercentage: util.OptValue(newStatus.ProgressPercentage),
+									NewPercentage: util.OptValue(float64(newStatus.ProgressPercentage)),
 									NewState:      util.OptValue(newStatus.State),
 								})
 
@@ -437,6 +440,7 @@ func InitTaskSystem() {
 					}
 
 					shouldPost := true
+					operation := task.DefaultStatus().Operation
 					progress := "Task has been completed."
 					taskState := orc.TaskStateSuccess
 					if result.Error != nil {
@@ -455,6 +459,7 @@ func InitTaskSystem() {
 							NewProgress:   util.OptValue(progress),
 							NewPercentage: util.OptValue(100.0),
 							NewState:      util.OptValue(taskState),
+							NewOperation:  util.OptValue(operation),
 						})
 
 						if err != nil {

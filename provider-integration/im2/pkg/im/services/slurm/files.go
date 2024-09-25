@@ -110,6 +110,7 @@ func transferSourceBegin(request ctrl.FilesTransferRequestStart, session ctrl.Tr
 		UCloudSource:  util.OptValue[string](session.SourcePath),
 		MoreInfo:      util.OptValue[string](session.Id),
 		HasUCloudTask: true,
+		Icon:          "heroPaperAirplane",
 	})
 
 	return err
@@ -165,6 +166,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			Path: "",
 			File: rootFile,
 		}
+
 		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status)
 
 		if !report.NormalExit {
@@ -519,6 +521,7 @@ func moveFiles(request ctrl.MoveFileRequest) error {
 		UCloudDestination: util.OptValue(request.NewPath),
 		ConflictPolicy:    request.Policy,
 		HasUCloudTask:     true,
+		Icon:              "move",
 	}
 
 	return RegisterTask(task)
@@ -532,6 +535,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		UCloudDestination: util.OptValue(request.NewPath),
 		ConflictPolicy:    request.Policy,
 		HasUCloudTask:     true,
+		Icon:              "copy",
 	}
 
 	return RegisterTask(task)
@@ -543,6 +547,7 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 		CreatedAt:     fnd.Timestamp(time.Now()),
 		UCloudSource:  util.OptValue(request.Path),
 		HasUCloudTask: true,
+		Icon:          "trash",
 	}
 
 	return RegisterTask(task)
@@ -554,6 +559,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		CreatedAt:     fnd.Timestamp(time.Now()),
 		UCloudSource:  util.OptValue(request.Path),
 		HasUCloudTask: true,
+		Icon:          "trash",
 	}
 
 	return RegisterTask(task)
@@ -604,6 +610,7 @@ func processMoveToTrash(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
+	//goland:noinspection GoVetCopyLock
 	moveTask := *task
 	moveTask.TaskInfoSpecification = TaskInfoSpecification{
 		Type:              FileTaskTypeMove,
@@ -613,6 +620,7 @@ func processMoveToTrash(task *TaskInfo) TaskProcessingResult {
 		ConflictPolicy:    orc.WriteConflictPolicyRename,
 		MoreInfo:          util.Option[string]{},
 		HasUCloudTask:     task.HasUCloudTask,
+		Icon:              "trash",
 	}
 
 	return processMoveTask(&moveTask)

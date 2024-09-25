@@ -464,12 +464,12 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 				State:     orc.TaskStateRunning,
 				Operation: initialStatus.Operation,
 				Progress: fmt.Sprintf(
-					"%.2f%v/s | %.2f Files/s",
+					"%.2f %v/s | %.2f Files/s",
 					readableSpeed.Size,
 					readableSpeed.Unit,
 					filesPerSecond,
 				),
-				ProgressPercentage: float64(bytesTransferred) / float64(bytesDiscovered),
+				ProgressPercentage: int((float64(bytesTransferred) / float64(bytesDiscovered)) * 100),
 			}
 			status.Store(newStatus)
 		}

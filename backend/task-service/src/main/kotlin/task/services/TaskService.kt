@@ -77,6 +77,7 @@ class TaskService(
                         setParameter("state", update.newStatus.state.toString())
                         setParameter("op", update.newStatus.operation)
                         setParameter("progress", update.newStatus.progress)
+                        setParameter("percentage", update.newStatus.progressPercentage)
                     },
                     """
                         update task.tasks_v2
@@ -84,7 +85,8 @@ class TaskService(
                             modified_at = now(),
                             state = :state,
                             operation = :op,
-                            progress = :progress
+                            progress = :progress,
+                            progress_percentage = :percentage
                         where
                             id = :task_id
                         returning
