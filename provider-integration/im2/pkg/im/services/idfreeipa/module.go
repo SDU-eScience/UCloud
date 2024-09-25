@@ -3,7 +3,7 @@ package idfreeipa
 import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/freeipa"
+	"ucloud.dk/pkg/im/external/freeipa"
 )
 
 var client *freeipa.Client

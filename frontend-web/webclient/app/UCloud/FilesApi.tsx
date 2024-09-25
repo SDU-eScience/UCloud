@@ -504,7 +504,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                                 }))
                                             })
                                         );
-                                        taskStore.addTaskList(result.responses);
                                         cb.reload();
                                         dialogStore.success();
                                         snackbarStore.addSuccess("Files copied", false);
@@ -560,7 +559,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                                 }))
                                             })
                                         );
-                                        taskStore.addTaskList(result.responses);
                                         cb.reload();
                                         dialogStore.success();
                                         snackbarStore.addSuccess("Files are now transferring...", false);
@@ -615,7 +613,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                                 }))
                                             })
                                         );
-                                        taskStore.addTaskList(result.responses);
                                         cb.reload();
                                         dialogStore.success();
                                         snackbarStore.addSuccess("Files moved", false);

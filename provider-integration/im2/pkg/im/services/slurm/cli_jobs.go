@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 	db "ucloud.dk/pkg/database"
+	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/ipc"
-	slurmcli "ucloud.dk/pkg/im/slurm"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/termio"
 )

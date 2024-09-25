@@ -17,6 +17,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as icons from "@/ui-components/icons";
+import {Feature, hasFeature} from "@/Features";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -287,7 +288,7 @@ export function TaskList(): React.ReactNode {
     }, [activeUploadCount]);
 
     const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
-    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !websocket || !inDevEnvironment()) return null;
+    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !websocket || !hasFeature(Feature.NEW_TASKS)) return null;
     return (
         <ClickableDropdown
             left="50px"

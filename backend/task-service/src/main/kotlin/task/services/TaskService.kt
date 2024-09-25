@@ -39,7 +39,7 @@ class TaskService(
                 },
                 """
                     insert into task.tasks_v2 
-                        (created_at, modified_at, created_by, owned_by, title, body, progress, can_cancel, can_pause, icon, progress_percentage) 
+                        (created_at, modified_at, created_by, owned_by, title, body, progress, can_cancel, can_pause, icon, progress_percentage)
                     values 
                         (now(), now(), :username, :provider, :title, :body, :progress, :cancel, :pause, :icon, -1.0)
                     returning id
@@ -96,7 +96,7 @@ class TaskService(
                             id = :task_id
                         returning
                             id, extract(epoch from created_at)::bigint, extract(epoch from modified_at)::bigint,
-                            created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon 
+                            created_by, owned_by, state, title, body, progress, progress_percentage, can_pause, can_cancel, icon
                     """
                 )
                 .rows

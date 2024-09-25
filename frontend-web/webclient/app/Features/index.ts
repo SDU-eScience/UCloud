@@ -14,6 +14,8 @@ export enum Feature {
     COPY_APP_MOCKUP,
 
     APP_CATALOG_FILTER,
+
+    NEW_TASKS
 }
 
 enum Environment {
@@ -85,6 +87,12 @@ const featureMap: Record<string, FeatureConfig> = {
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
         showWithoutFlag: allDevEnvironments,
+    },
+
+    "new-tasks": {
+        feature: Feature.NEW_TASKS,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
     }
 };
 

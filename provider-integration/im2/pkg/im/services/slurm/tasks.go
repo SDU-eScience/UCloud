@@ -1,15 +1,12 @@
 package slurm
 
 import (
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
+	"sync/atomic"
 	"time"
-
+	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -19,164 +16,492 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-/**
- * The Posix Task system is responsible for managing a set of file-system related tasks. A task is started when a
- * command comes from the user. At this point, the task system evaluates the task and decides to either complete it
- * immediately or push it to the background. If a task is pushed to the background, it will automatically be restarted
- * in the case of a restart or failure. Tasks which are completed immediately will not do this.
- *
- * The task system depends on the accompanying posix collection plugin. At the root of each drive, this plugin will
- * store a hidden folder (even if `filterHiddenFiles=false`). This folder contains each file per task which is a JSON
- * serialized version of the task.
- */
+type TaskProcessingResult struct {
+	Error error
 
-const taskFolder string = ".ucloud-tasks"
-const taskPrefix string = "task_"
-const taskSuffix string = ".json"
-
-type FileTaskType string
-
-const (
-	FileTaskTypeMoveToTrash FileTaskType = "move_to_trash"
-	FileTaskTypeEmptyTrash  FileTaskType = "empty_trash"
-	FileTaskTypeMove        FileTaskType = "move"
-	FileTaskTypeCopy        FileTaskType = "copy"
-)
-
-type FileTask struct {
-	Type               FileTaskType
-	Title              string
-	DriveId            string
-	Id                 string
-	Timestamp          fnd.Timestamp
-	MoveToTrashRequest ctrl.MoveToTrashRequest
-	EmptyTrashRequest  ctrl.EmptyTrashRequest
-	MoveRequest        ctrl.MoveFileRequest
-	CopyRequest        ctrl.CopyFileRequest
+	// If Error is not nil then AllowReschedule can be used to reschedule the task at a later point in time. This value
+	// is always ignored if Error is nil.
+	AllowReschedule bool
 }
 
-var registerCall = ipc.NewCall[FileTask, string]("task.register")
-var markAsCompleteCall = ipc.NewCall[string, util.Empty]("task.markAsComplete")
+type TaskType string
+
+const (
+	FileTaskTypeMoveToTrash TaskType = "move_to_trash"
+	FileTaskTypeEmptyTrash  TaskType = "empty_trash"
+	FileTaskTypeMove        TaskType = "move"
+	FileTaskTypeCopy        TaskType = "copy"
+	FileTaskTransfer        TaskType = "file_transfer"
+)
+
+type TaskInfo struct {
+	Id             uint64
+	UCloudTaskId   util.Option[uint64]
+	Uid            uint32
+	BackoffSeconds int
+	Done           atomic.Bool
+	Status         atomic.Pointer[orc.TaskStatus]
+	TaskInfoSpecification
+}
+
+type TaskInfoSpecification struct {
+	Type              TaskType
+	CreatedAt         fnd.Timestamp
+	UCloudSource      util.Option[string]
+	UCloudDestination util.Option[string]
+	ConflictPolicy    orc.WriteConflictPolicy
+	MoreInfo          util.Option[string]
+	HasUCloudTask     bool
+	Icon              string
+}
+
+func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
+	sourceSimple := util.FileName(spec.UCloudSource.Value)
+	destSimple := util.FileName(spec.UCloudDestination.Value)
+
+	progress := ""
+	operation := ""
+	switch spec.Type {
+	case FileTaskTransfer:
+		operation = fmt.Sprintf("Transferring %s to another provider", sourceSimple)
+	case FileTaskTypeCopy:
+		operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
+
+	case FileTaskTypeEmptyTrash:
+		operation = "Emptying trash"
+
+	case FileTaskTypeMove:
+		operation = "Moving files"
+
+	case FileTaskTypeMoveToTrash:
+		operation = "Trashing files"
+	}
+
+	return orc.TaskStatus{
+		State:              orc.TaskStateRunning,
+		Operation:          operation,
+		Progress:           progress,
+		ProgressPercentage: 0,
+	}
+}
+
+type TaskStatusUpdate struct {
+	Id            uint64
+	NewOperation  util.Option[string]
+	NewProgress   util.Option[string]
+	NewPercentage util.Option[float64] // 0 - 100 both inclusive
+	NewState      util.Option[orc.TaskState]
+}
+
+var (
+	registerTaskCall    = ipc.NewCall[TaskInfoSpecification, uint64]("tasks.register")
+	listActiveTasksCall = ipc.NewCall[util.Empty, []*TaskInfo]("tasks.listActive")
+	postTaskStatusCall  = ipc.NewCall[TaskStatusUpdate, util.Empty]("tasks.postStatus")
+)
+
+var taskFrontendQueue chan *TaskInfo
 
 func InitTaskSystem() {
 	if cfg.Mode == cfg.ServerModeServer {
-		registerCall.Handler(func(r *ipc.Request[FileTask]) ipc.Response[string] {
-			drive, ok := RetrieveDrive(r.Payload.DriveId)
+		registerTaskCall.Handler(func(r *ipc.Request[TaskInfoSpecification]) ipc.Response[uint64] {
+			ucloudUsername, ok := ctrl.MapLocalToUCloud(r.Uid)
+			if !ok {
+				return ipc.Response[uint64]{
+					StatusCode: http.StatusForbidden,
+				}
+			}
+
+			spec := r.Payload
+
+			ucloudTaskId := util.OptNone[uint64]()
+			if spec.HasUCloudTask {
+				flags := orc.TaskFlags(0)
+				switch spec.Type {
+				case FileTaskTransfer:
+					flags |= orc.TaskFlagCanCancel | orc.TaskFlagCanPause
+
+				default:
+				}
+
+				status := spec.DefaultStatus()
+
+				id, err := orc.CreateTask(
+					ucloudUsername,
+					util.OptValue(status.Operation),
+					util.OptValue(status.Progress),
+					spec.Icon,
+					flags,
+				)
+
+				if err != nil {
+					return ipc.Response[uint64]{
+						StatusCode:   http.StatusBadGateway,
+						ErrorMessage: fmt.Sprintf("Could not create task in UCloud: %s", err),
+					}
+				}
+
+				ucloudTaskId.Set(id)
+			}
+
+			taskId, ok := db.NewTx2[uint64, bool](func(tx *db.Transaction) (uint64, bool) {
+				result, ok := db.Get[struct{ Id uint64 }](
+					tx,
+					`
+						insert into slurm.tasks(ucloud_task_id, owner_uid, task_type, ucloud_source,
+							ucloud_destination, conflict_policy, more_info) 
+						values (:ucloud_task, :uid, :type, :source, :dest, :conflict, :info)
+						returning id
+				    `,
+					db.Params{
+						"type":        spec.Type,
+						"ucloud_task": ucloudTaskId.GetPtrOrNil(),
+						"uid":         r.Uid,
+						"source":      spec.UCloudSource.GetPtrOrNil(),
+						"dest":        spec.UCloudDestination.GetPtrOrNil(),
+						"conflict":    spec.ConflictPolicy,
+						"info":        spec.MoreInfo.GetPtrOrNil(),
+					},
+				)
+
+				if !ok {
+					return 0, false
+				}
+
+				return result.Id, true
+			})
 
 			if !ok {
-				return ipc.Response[string]{
-					StatusCode: http.StatusNotFound,
-					Payload:    "",
+				return ipc.Response[uint64]{
+					StatusCode:   http.StatusInternalServerError,
+					ErrorMessage: "Failed to register task",
 				}
 			}
 
-			walletOwner := orc.ResourceOwnerToWalletOwner(drive.Resource)
+			return ipc.Response[uint64]{
+				StatusCode: http.StatusOK,
+				Payload:    taskId,
+			}
+		})
 
-			if !ctrl.BelongsToWorkspace(walletOwner, r.Uid) {
-				return ipc.Response[string]{
-					StatusCode: http.StatusNotFound,
-					Payload:    "",
+		postTaskStatusCall.Handler(func(r *ipc.Request[TaskStatusUpdate]) ipc.Response[util.Empty] {
+			ucloudTaskId, ok := db.NewTx2(func(tx *db.Transaction) (uint64, bool) {
+				row, ok := db.Get[struct {
+					UCloudTaskId uint64
+				}](
+					tx,
+					`
+						select
+							ucloud_task_id
+						from
+							slurm.tasks
+						where
+							id = :id
+							and owner_uid = :uid
+							and ucloud_task_id is not null
+				    `,
+					db.Params{
+						"id":  r.Payload.Id,
+						"uid": r.Uid,
+					},
+				)
+
+				return row.UCloudTaskId, ok
+			})
+
+			if !ok {
+				return ipc.Response[util.Empty]{
+					StatusCode:   http.StatusNotFound,
+					ErrorMessage: "Unknown task supplied!",
 				}
 			}
 
-			// TODO(Brian) Do something
+			// TODO: Change this once the API is more stable
 
-			return ipc.Response[string]{
-				StatusCode: http.StatusOK,
-				Payload:    util.RandomToken(16),
+			newState := orc.TaskStateRunning
+			if r.Payload.NewState.Present {
+				newState = r.Payload.NewState.Value
+			}
+
+			err := orc.PostTaskStatus(ucloudTaskId, orc.TaskStatus{
+				State:              newState,
+				Operation:          r.Payload.NewOperation.Value,
+				Progress:           r.Payload.NewProgress.Value,
+				ProgressPercentage: int(r.Payload.NewPercentage.Value),
+			})
+
+			if err != nil {
+				return ipc.Response[util.Empty]{
+					StatusCode:   http.StatusBadGateway,
+					ErrorMessage: err.Error(),
+				}
+			} else {
+				if newState == orc.TaskStateSuccess || newState == orc.TaskStateFailure || newState == orc.TaskStateCancelled {
+					db.NewTx0(func(tx *db.Transaction) {
+						db.Exec(
+							tx,
+							`delete from slurm.tasks where id = :id`,
+							db.Params{
+								"id": r.Payload.Id,
+							},
+						)
+					})
+				}
+
+				return ipc.Response[util.Empty]{
+					StatusCode: http.StatusOK,
+				}
 			}
 		})
 
-		markAsCompleteCall.Handler(func(r *ipc.Request[string]) ipc.Response[util.Empty] {
-			log.Info("markAsComplete got: %s", r.Payload)
-			return ipc.Response[util.Empty]{
+		listActiveTasksCall.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[[]*TaskInfo] {
+			uid := r.Uid
+
+			result := db.NewTx(func(tx *db.Transaction) []*TaskInfo {
+				rows := db.Select[struct {
+					Id                uint64
+					TaskType          string
+					UCloudSource      string
+					UCloudDestination string
+					ConflictPolicy    string
+					MoreInfo          string
+				}](
+					tx,
+					`
+						select
+							id,
+							task_type,
+							coalesce(ucloud_source, '') as ucloud_source,
+							coalesce(ucloud_destination, '') as ucloud_destination,
+							coalesce(conflict_policy, '') as conflict_policy,
+							coalesce(more_info, '') as more_info
+						from
+							slurm.tasks
+						where
+							owner_uid = :uid
+				    `,
+					db.Params{
+						"uid": uid,
+					},
+				)
+
+				var result []*TaskInfo
+				for _, row := range rows {
+					info := &TaskInfo{
+						Id:           row.Id,
+						UCloudTaskId: util.Option[uint64]{},
+						Uid:          uid,
+						TaskInfoSpecification: TaskInfoSpecification{
+							Type:           TaskType(row.TaskType),
+							ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
+						},
+					}
+
+					if row.UCloudSource != "" {
+						info.UCloudSource.Set(row.UCloudSource)
+					}
+
+					if row.UCloudDestination != "" {
+						info.UCloudDestination.Set(row.UCloudDestination)
+					}
+
+					if row.MoreInfo != "" {
+						info.MoreInfo.Set(row.MoreInfo)
+					}
+
+					result = append(result, info)
+				}
+
+				return result
+			})
+
+			return ipc.Response[[]*TaskInfo]{
 				StatusCode: http.StatusOK,
-				Payload:    util.Empty{},
+				Payload:    result,
 			}
 		})
-	}
-}
 
-func RegisterTask(task *FileTask) {
+		// Launch user instances which have pending jobs
+		usersWithPendingJobs := db.NewTx(func(tx *db.Transaction) []uint32 {
+			rows := db.Select[struct{ OwnerUid uint32 }](
+				tx,
+				`
+					select distinct owner_uid
+					from slurm.tasks
+			    `,
+				db.Params{},
+			)
 
-	taskFolder := findAndInitTaskFolder(task.DriveId)
+			var result []uint32
+			for _, row := range rows {
+				result = append(result, row.OwnerUid)
+			}
+			return result
+		})
 
-	// TODO (Brian) Register task through ipc
-	resp, _ := registerCall.Invoke(*task)
-	task.Id = resp
-	task.Timestamp = fnd.Timestamp(time.Now())
+		for _, uid := range usersWithPendingJobs {
+			err := ctrl.LaunchUserInstance(uid)
+			if err != nil {
+				log.Warn("Failed to launch user instance for %v while attempting to restart tasks! Error: %s", uid, err)
+			}
+		}
+	} else if cfg.Mode == cfg.ServerModeUser {
+		taskFrontendQueue = make(chan *TaskInfo)
+		taskBackendQueue := make(chan *TaskInfo)
 
-	file, err := os.OpenFile(
-		taskFolder+"/"+taskPrefix+task.Id+taskSuffix,
-		os.O_CREATE+os.O_RDWR, os.FileMode(0770),
-	)
-	if err != nil {
-		log.Error("Failed to create task file: %v", err)
-		return
-	}
-	defer file.Close()
+		go func() {
+			knownTasks := map[uint64]*TaskInfo{}
+			knownStatus := map[uint64]orc.TaskStatus{}
+			ticker := time.NewTicker(250 * time.Millisecond)
 
-	taskString, _ := json.Marshal(task)
-	_, err = file.WriteString(string(taskString))
+			for util.IsAlive {
+				select {
+				case task := <-taskFrontendQueue:
+					if task.HasUCloudTask {
+						knownTasks[task.Id] = task
+						knownStatus[task.Id] = *task.Status.Load()
+					}
+					taskBackendQueue <- task
 
-	if err != nil {
-		log.Error("Failed to write to task file: %v", err)
-		return
-	}
-}
+				case <-ticker.C:
+					for id, task := range knownTasks {
+						if task.Done.Load() {
+							delete(knownTasks, id)
+							delete(knownStatus, id)
+						} else {
+							newStatus := *task.Status.Load()
+							oldStatus, _ := knownStatus[id]
+							if newStatus != oldStatus {
+								_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
+									Id:            id,
+									NewOperation:  util.OptValue(newStatus.Operation),
+									NewProgress:   util.OptValue(newStatus.Progress),
+									NewPercentage: util.OptValue(float64(newStatus.ProgressPercentage)),
+									NewState:      util.OptValue(newStatus.State),
+								})
 
-func MarkTaskAsComplete(driveId string, taskId string) {
-	log.Info("Marking task %s as complete", taskId)
-	filePath := findAndInitTaskFolder(driveId) + "/" + taskPrefix + taskId + taskSuffix
-	if _, err := markAsCompleteCall.Invoke(taskId); err != nil {
-		log.Error("Failed to mark task as complete %s: %v", taskId, err)
-	}
+								if err == nil {
+									knownStatus[id] = newStatus
+								}
+							}
+						}
+					}
+				}
+			}
+		}()
 
-	log.Info("Removing %s", filePath)
-	os.Remove(filePath)
-}
+		for i := 0; i < 10; i++ {
+			go func() {
+				for util.IsAlive {
+					task := <-taskBackendQueue
 
-func RetrieveCurrentTasks(driveId string) []FileTask {
-	result := []FileTask{}
+					result := TaskProcessingResult{}
 
-	taskFolder := findAndInitTaskFolder(driveId)
+					switch task.Type {
+					case FileTaskTypeMove:
+						result = processMoveTask(task)
 
-	dirEntries, _ := os.ReadDir(taskFolder)
+					case FileTaskTypeMoveToTrash:
+						result = processMoveToTrash(task)
 
-	for _, entry := range dirEntries {
-		if !strings.HasPrefix(entry.Name(), taskPrefix) || !strings.HasSuffix(entry.Name(), taskSuffix) {
-			continue
+					case FileTaskTypeEmptyTrash:
+						result = processEmptyTrash(task)
+
+					case FileTaskTypeCopy:
+						result = processCopyTask(task)
+
+					case FileTaskTransfer:
+						result = processTransferTask(task)
+					}
+
+					reschedule := func() {
+						go func() {
+							seconds := task.BackoffSeconds
+							if seconds <= 0 {
+								seconds = 1
+							}
+							task.BackoffSeconds = seconds * 2
+							if task.BackoffSeconds >= 60*5 {
+								task.BackoffSeconds = 60 * 5
+							}
+
+							// NOTE(Dan): Rescheduling skips the frontend queue since the task is still active,
+							// just sleeping for a bit.
+							currentStatus := task.Status.Load()
+							task.Status.Store(&orc.TaskStatus{
+								State:              orc.TaskStateInQueue,
+								Operation:          currentStatus.Operation,
+								Progress:           fmt.Sprintf("Retrying in %v seconds", seconds),
+								ProgressPercentage: 0,
+							})
+
+							time.Sleep(time.Duration(seconds) * time.Second)
+							taskBackendQueue <- task
+						}()
+					}
+
+					shouldPost := true
+					operation := task.DefaultStatus().Operation
+					progress := "Task has been completed."
+					taskState := orc.TaskStateSuccess
+					if result.Error != nil {
+						if result.AllowReschedule {
+							shouldPost = false
+							reschedule()
+						}
+
+						taskState = orc.TaskStateFailure
+						progress = result.Error.Error()
+					}
+
+					if shouldPost {
+						_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
+							Id:            task.Id,
+							NewProgress:   util.OptValue(progress),
+							NewPercentage: util.OptValue(100.0),
+							NewState:      util.OptValue(taskState),
+							NewOperation:  util.OptValue(operation),
+						})
+
+						if err != nil {
+							log.Warn("Failed to post final status update for task: %s", err)
+							reschedule()
+						} else {
+							task.Done.Store(true)
+						}
+					} else {
+						task.Done.Store(true)
+					}
+				}
+			}()
 		}
 
-		file, _ := os.ReadFile(taskFolder + "/" + entry.Name())
-		task := FileTask{}
-		err := json.Unmarshal(file, &task)
-
+		tasks, err := listActiveTasksCall.Invoke(util.EmptyValue)
 		if err != nil {
-			log.Error("Unable to unmarshal task %s: %v", entry.Name(), err)
-			continue
+			log.Warn("Failed to get a list of active background tasks: %s", err)
+		} else {
+			for _, task := range tasks {
+				taskFrontendQueue <- task
+			}
 		}
-
-		result = append(result, task)
 	}
-
-	return result
 }
 
-func findAndInitTaskFolder(driveId string) string {
-	folder, err := os.UserHomeDir()
-	if err == nil {
-		folder = filepath.Join(folder, taskFolder)
-	} else {
-		dir, _ := UCloudToInternal(fmt.Sprintf("/%s/%s", driveId, taskFolder))
-		folder = dir
+func RegisterTask(task TaskInfoSpecification) error {
+	id, err := registerTaskCall.Invoke(task)
+	if err != nil {
+		return err
 	}
 
-	if _, err := os.Stat(folder); errors.Is(err, os.ErrNotExist) {
-		if err := os.Mkdir(folder, os.FileMode(0770)); err != nil {
-			log.Error("Unable to create folder: %v", err)
-		}
+	status := task.DefaultStatus()
+	t := &TaskInfo{
+		Id:                    id,
+		UCloudTaskId:          util.OptNone[uint64](),
+		Uid:                   uint32(os.Getuid()),
+		TaskInfoSpecification: task,
 	}
+	t.Status.Store(&status)
 
-	return folder
+	taskFrontendQueue <- t
+
+	return nil
 }
