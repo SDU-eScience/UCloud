@@ -24,9 +24,9 @@ function FoolishProgressBar() {
             if (valuesToGive < 0) return;
             a = !a;
             if (a) {
-                setValue(v => valuesToGive + v);
+                setValue(v => 10 + v);
             } else {
-                setFailures(f => f + valuesToGive);
+                setFailures(f => f + 10);
             }
             window.setTimeout(() => update(), 2000);
         }
@@ -51,6 +51,15 @@ const Playground: React.FunctionComponent = () => {
     const main = (
         <>
             <FoolishProgressBar />
+            <ProgressCircle
+                successes={100}
+                failures={100}
+                total={100}
+                size={32}
+                finishedColor="successLight"
+                pendingColor="secondaryDark"
+                indeterminate
+            />
             <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
