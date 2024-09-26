@@ -263,6 +263,13 @@ class DataVisualization(
                                         accounting.product_categories pc on wal.product_category = pc.id
                                     order by wal.id
                                 ),
+                                samples as (
+                                    select *
+                                    from accounting.wallet_samples_v2
+                                    where
+                                        sampled_at >= to_timestamp(:start / 1000.0)
+                                        and sampled_at <= to_timestamp(:end / 1000.0)
+                                ),
                                 data_timestamps as (
                                     select
                                         w.id, w.product_category, w.is_periodic,
@@ -270,10 +277,7 @@ class DataVisualization(
                                         max(s.sampled_at) as newest_data_ts
                                     from
                                         relevant_wallets w
-                                        join accounting.wallet_samples_v2 s on w.id = s.wallet_id
-                                    where
-                                        s.sampled_at >= to_timestamp(:start / 1000.0)
-                                        and s.sampled_at <= to_timestamp(:end / 1000.0)
+                                        join samples s on w.id = s.wallet_id
                                     group by
                                         w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
@@ -289,10 +293,10 @@ class DataVisualization(
                                         end as usage
                                     from
                                         data_timestamps dts
-                                        join accounting.wallet_samples_v2 oldest_sample on
+                                        join samples oldest_sample on
                                             dts.oldest_data_ts = oldest_sample.sampled_at
                                             and dts.id = oldest_sample.wallet_id
-                                        join accounting.wallet_samples_v2 newest_sample on
+                                        join samples newest_sample on
                                             dts.newest_data_ts = newest_sample.sampled_at
                                             and dts.id = newest_sample.wallet_id
                                 )
