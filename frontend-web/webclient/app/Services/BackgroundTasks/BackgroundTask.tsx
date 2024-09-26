@@ -161,6 +161,7 @@ const IndeterminateSpinClass = injectStyleSimple("indeterminate-spinner", `
     animation: ${SpinAnimation} 2s linear infinite;
 `);
 
+const ANIMATION_SPEED = ".3s";
 const FailureExpandAnimation = makeKeyframe("failure-expand", `
     from {
         stroke-dasharray: var(--arrayFrom) var(--arrayTo);
@@ -171,8 +172,22 @@ const FailureExpandAnimation = makeKeyframe("failure-expand", `
 `);
 
 const FailureExpandInterpolate = injectStyleSimple("interpolate", `
-    animation: ${FailureExpandAnimation} .6s ease-out;
+    animation: ${FailureExpandAnimation} ${ANIMATION_SPEED} ease-out;
 `);
+
+const FailureMoveAnimation = makeKeyframe("failure-move", `
+    from {
+        stroke-dashoffset: var(--offsetStart);
+    }
+    to {
+        stroke-dashoffset: var(--offsetEnd);
+    }
+`);
+
+const FailureMoveInterpolate = injectStyleSimple("interpolate", `
+    animation: ${FailureMoveAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
 
 const SuccessAnimation = makeKeyframe("interpolation-fill", `
     from {
@@ -184,7 +199,7 @@ const SuccessAnimation = makeKeyframe("interpolation-fill", `
 `);
 
 const SuccessInterpolate = injectStyleSimple("interpolate", `
-    animation: ${SuccessAnimation} .6s ease-out;
+    animation: ${SuccessAnimation} ${ANIMATION_SPEED} ease-out;
 `);
 
 
@@ -223,11 +238,12 @@ export function ProgressCircle({
     oldValues.current.successes = progressValues.successes;
 
     const successRef = React.useRef<SVGCircleElement>(null);
+    const failureRef = React.useRef<SVGCircleElement>(null);
     React.useEffect(() => {
         successRef.current?.classList.add(SuccessInterpolate);
+        failureRef.current?.classList.add(FailureMoveInterpolate);
     }, [progressValues.successes]);
-    
-    const failureRef = React.useRef<SVGCircleElement>(null);
+
     React.useEffect(() => {
         failureRef.current?.classList.add(FailureExpandInterpolate);
     }, [progressValues.failures]);
@@ -239,13 +255,19 @@ export function ProgressCircle({
     const failuresStyle: React.CSSProperties = {};
     failuresStyle["--arrayFrom"] = failureStrokeDasharray;
     failuresStyle["--arrayTo"] = toStrokeDashArray(oldFailureDashArray);
-    failuresStyle["--offsetStart"] = failureOffset + oldFailureDashArray;
+    failuresStyle["--offsetStart"] = CIRCUMFERENCE - oldFailureDashArray;
     failuresStyle["--offsetEnd"] = failureOffset;
     oldValues.current.failures = progressValues.failures;
 
     return (<svg className={indeterminate ? IndeterminateSpinClass : undefined} width={size.toString()} height={"auto"} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
         <circle r={RADIUS} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
-        <circle ref={failureRef} style={failuresStyle} onAnimationEnd={e => e.currentTarget.classList.remove(FailureExpandInterpolate)} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={failureOffset} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
+        <circle ref={failureRef} style={failuresStyle} onAnimationEnd={e => {
+            if (e.animationName === FailureMoveAnimation) {
+                e.currentTarget.classList.remove(FailureMoveInterpolate);
+            } else {
+                e.currentTarget.classList.remove(FailureExpandInterpolate);
+            }
+        }} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={failureOffset} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
         <circle ref={successRef} style={successStyle} onAnimationEnd={e => e.currentTarget.classList.remove(SuccessInterpolate)} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
     </svg>)
 }
