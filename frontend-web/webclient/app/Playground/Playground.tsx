@@ -8,14 +8,49 @@ import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
+import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
 
 const iconsNames = Object.keys(icons) as IconName[];
+
+let a = false;
+let valuesToGive = 100;
+function FoolishProgressBar() {
+    const [value, setValue] = React.useState(0);
+    const [failures, setFailures] = React.useState(0);
+
+    React.useEffect(() => {
+        function update() {
+            valuesToGive -= 10;
+            if (valuesToGive < 0) return;
+            a = !a;
+            if (a) {
+                setValue(v => valuesToGive + v);
+            } else {
+                setFailures(f => f + valuesToGive);
+            }
+            window.setTimeout(() => update(), 2000);
+        }
+
+        update();
+    }, []);
+
+    return <ProgressCircle
+        successes={value}
+        failures={failures}
+        total={100}
+        size={32}
+        finishedColor="successLight"
+        pendingColor="secondaryDark"
+        indeterminate={false}
+    />
+}
 
 
 const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
+            <FoolishProgressBar />
             <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
