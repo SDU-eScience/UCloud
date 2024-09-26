@@ -71,7 +71,7 @@ class StatisticsService {
         } else {
             emptyList()
         }
-
+        
         coroutineScope {
             launch {
                 // Usage by user
@@ -358,6 +358,7 @@ class StatisticsService {
                             ),
                         jobs as (
                             select distinct
+                                job.resource,
                                 terminal_update.created_at - running_update.created_at as run_time,
                                 running_update.created_at - r.created_at as queue_time,
                                 (
@@ -383,14 +384,18 @@ class StatisticsService {
                                 join provider.resource_update terminal_update on r.id = terminal_update.resource
                                 join provider.resource_update running_update on r.id = running_update.resource
                             where
+                                -- Only select jobs wihtin time range and that have run and completed
                                 r.created_at >= to_timestamp(:start / 1000)
                                 and r.created_at <= to_timestamp(:end / 1000)
-                                and (
-                                    terminal_update.extra->>'state' = 'SUCCESS'
-                                    or terminal_update.extra->>'state' = 'FAILURE'
-                                    or terminal_update.extra->>'state' = 'EXPIRED'
-                                )
-                                and running_update.extra->>'state' = 'RUNNING'
+                                and
+                                    (
+                                        terminal_update.extra->>'state' = 'SUCCESS'
+                                        or terminal_update.extra->>'state' = 'FAILURE'
+                                        or terminal_update.extra->>'state' = 'EXPIRED'
+                                    )
+                                and
+                                running_update.extra->>'state' = 'RUNNING'
+
                         )
                     select
                         category, provider, slot::int4,
@@ -402,7 +407,7 @@ class StatisticsService {
                     group by
                         category, provider, slot
                     order by
-                        category, provider, slot;                       
+                        category, provider, slot                   
                 """
                     ).rows
 
