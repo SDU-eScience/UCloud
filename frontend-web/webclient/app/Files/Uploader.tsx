@@ -945,6 +945,15 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         font-size: 12px; 
     }
 
+    ${k} > div > .text > div:first-child {
+        font-weight: 800;
+    }
+
+    ${k} > div > .text > div:not(:first-child) {
+        font-family: var(--monospace);
+        font-size: 10px;
+    }
+
     ${k}[data-has-error="true"] {
         height: 90px;
     }

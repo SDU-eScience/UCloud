@@ -91,7 +91,6 @@ import {
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {taskStore} from "@/Services/BackgroundTasks/BackgroundTask";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");

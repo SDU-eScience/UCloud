@@ -1,7 +1,7 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon, IconName} from "@/ui-components/Icon";
+import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Box, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
@@ -9,6 +9,7 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
 import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
+import {TaskRow} from "@/Files/Uploader";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -60,6 +61,21 @@ const Playground: React.FunctionComponent = () => {
                 pendingColor="secondaryDark"
                 indeterminate
             />
+
+            <TaskRow
+                icon={<Icon name="activity" />}
+                title={"Title thing here. Copy, maybe."}
+                body={"Barfoo 5|1"}
+                progress={"Foobar 1|5"}
+                operations={undefined}
+                progressInfo={{
+                    indeterminate: true,
+                    stopped: false,
+                    progress: 0,
+                    limit: 0
+                }}
+            />
+
             <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />

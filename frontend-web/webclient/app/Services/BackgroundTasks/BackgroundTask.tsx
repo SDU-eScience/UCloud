@@ -383,7 +383,7 @@ export function TaskList(): React.ReactNode {
             colorOnHover={false}
             trigger={<Flex>{ActiveTasksIcon}</Flex>}
         >
-            <Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+            <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}

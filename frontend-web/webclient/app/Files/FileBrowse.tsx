@@ -70,7 +70,6 @@ import {sidebarFavoriteCache} from "./FavoriteCache";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {Feature, hasFeature} from "@/Features";
-import {taskStore} from "@/Services/BackgroundTasks/BackgroundTask";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
