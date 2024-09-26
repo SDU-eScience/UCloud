@@ -6,7 +6,7 @@ import Flex from "@/ui-components/Flex";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
 import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
-import {inDevEnvironment, stopPropagation} from "@/UtilityFunctions";
+import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection} from "@/Authentication/ws";
 import {IconName} from "@/ui-components/Icon";
@@ -15,7 +15,6 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as icons from "@/ui-components/icons";
 import {Feature, hasFeature} from "@/Features";
 
@@ -137,10 +136,7 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
     const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
 
     return <TaskRow
-        icon={<Icon onClick={() => {
-            console.log("TODO(Jonas): Remove me");
-            ws.call(TaskOperations.calls.retrieve(task.taskId));
-        }} name={icon} size={16} />}
+        icon={<Icon name={icon} size={16} />}
         title={task.status.title}
         body={task.status.body}
         progress={task.status.progress}
@@ -165,6 +161,60 @@ const IndeterminateSpinClass = injectStyleSimple("indeterminate-spinner", `
     animation: ${SpinAnimation} 2s linear infinite;
 `);
 
+const ANIMATION_SPEED = ".3s";
+const FailureExpandAnimation = makeKeyframe("failure-expand", `
+    from {
+        stroke-dasharray: var(--arrayFrom) var(--arrayTo);
+    }
+    to {
+        stroke-dasharray: var(--arrayTo) var(--arrayFrom);
+    }
+`);
+
+const FailureExpandInterpolate = injectStyleSimple("interpolate", `
+    animation: ${FailureExpandAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+const FailureMoveAnimation = makeKeyframe("failure-move", `
+    from {
+        stroke-dashoffset: var(--offsetStart);
+    }
+    to {
+        stroke-dashoffset: var(--offsetEnd);
+    }
+`);
+
+const FailureMoveInterpolate = injectStyleSimple("interpolate", `
+    animation: ${FailureMoveAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+
+const SuccessAnimation = makeKeyframe("interpolation-fill", `
+    from {
+        stroke-dasharray: var(--from) var(--to);
+    }
+    to {
+        stroke-dasharray: var(--to) var(--from);
+    }
+`);
+
+const SuccessInterpolate = injectStyleSimple("interpolate", `
+    animation: ${SuccessAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+
+const RADIUS = 61.5;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function toDashArray(current: number, total: number): number {
+    const angle = current / total;
+    return angle * CIRCUMFERENCE;
+}
+
+function toStrokeDashArray(dashArray: number): string {
+    return `${dashArray} ${CIRCUMFERENCE - dashArray}`
+}
+
 export function ProgressCircle({
     pendingColor,
     finishedColor,
@@ -172,22 +222,53 @@ export function ProgressCircle({
     size,
     ...stats
 }: {successes: number; failures: number; total: number; size: number; pendingColor: ThemeColor; finishedColor: ThemeColor; indeterminate: boolean;}): React.ReactNode {
-    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
     const progressValues = indeterminate ? INDETERMINATE_VALUES : stats;
 
-    const successAngle = progressValues.successes / progressValues.total;
-    const failureAngle = (progressValues.failures + progressValues.successes) / progressValues.total;
-    const radius = 61.5;
-    const circumference = 2 * Math.PI * radius;
-    const successDashArray = successAngle * circumference;
-    const failureDashArray = failureAngle * circumference;
-    const successStrokeDasharray = `${successDashArray} ${circumference - successDashArray}`;
-    const failureStrokeDasharray = `${failureDashArray} ${circumference - failureDashArray}`;
+    const oldValues = React.useRef({successes: progressValues.successes, failures: progressValues.failures});
+
+    const successDashArray = toDashArray(progressValues.successes, progressValues.total);
+    const successStrokeDasharray = toStrokeDashArray(successDashArray);
+    const failureStrokeDasharray = toStrokeDashArray(toDashArray(progressValues.failures, progressValues.total));
+
+    const oldSuccess = oldValues.current.successes;
+    const successStyle: React.CSSProperties = {};
+    const oldSuccessDashArray = toDashArray(oldSuccess, progressValues.total)
+    successStyle["--from"] = toStrokeDashArray(oldSuccessDashArray);
+    successStyle["--to"] = successStrokeDasharray;
+    oldValues.current.successes = progressValues.successes;
+
+    const successRef = React.useRef<SVGCircleElement>(null);
+    const failureRef = React.useRef<SVGCircleElement>(null);
+    React.useEffect(() => {
+        successRef.current?.classList.add(SuccessInterpolate);
+        failureRef.current?.classList.add(FailureMoveInterpolate);
+    }, [progressValues.successes]);
+
+    React.useEffect(() => {
+        failureRef.current?.classList.add(FailureExpandInterpolate);
+    }, [progressValues.failures]);
+
+    const failureOffset = CIRCUMFERENCE - successDashArray;
+
+    const oldFailures = oldValues.current.failures;
+    const oldFailureDashArray = toDashArray(oldFailures, progressValues.total)
+    const failuresStyle: React.CSSProperties = {};
+    failuresStyle["--arrayFrom"] = failureStrokeDasharray;
+    failuresStyle["--arrayTo"] = toStrokeDashArray(oldFailureDashArray);
+    failuresStyle["--offsetStart"] = CIRCUMFERENCE - oldFailureDashArray;
+    failuresStyle["--offsetEnd"] = failureOffset;
+    oldValues.current.failures = progressValues.failures;
 
     return (<svg className={indeterminate ? IndeterminateSpinClass : undefined} width={size.toString()} height={"auto"} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
-        <circle r={radius} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
+        <circle r={RADIUS} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
+        <circle ref={failureRef} style={failuresStyle} onAnimationEnd={e => {
+            if (e.animationName === FailureMoveAnimation) {
+                e.currentTarget.classList.remove(FailureMoveInterpolate);
+            } else {
+                e.currentTarget.classList.remove(FailureExpandInterpolate);
+            }
+        }} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={failureOffset} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
+        <circle ref={successRef} style={successStyle} onAnimationEnd={e => e.currentTarget.classList.remove(SuccessInterpolate)} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
     </svg>)
 }
 
@@ -302,7 +383,7 @@ export function TaskList(): React.ReactNode {
             colorOnHover={false}
             trigger={<Flex>{ActiveTasksIcon}</Flex>}
         >
-            <Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+            <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}

@@ -1,21 +1,81 @@
 import {MainContainer} from "@/ui-components/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
-import {EveryIcon, IconName} from "@/ui-components/Icon";
+import Icon, {EveryIcon, IconName} from "@/ui-components/Icon";
 import {Box, Flex} from "@/ui-components";
 import {ThemeColor} from "@/ui-components/theme";
 import {api as ProjectApi, useProjectId} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as icons from "@/ui-components/icons";
 import {Project} from "@/Project";
+import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
+import {TaskRow} from "@/Files/Uploader";
 
 const iconsNames = Object.keys(icons) as IconName[];
+
+let a = false;
+let valuesToGive = 100;
+function FoolishProgressBar() {
+    const [value, setValue] = React.useState(0);
+    const [failures, setFailures] = React.useState(0);
+
+    React.useEffect(() => {
+        function update() {
+            valuesToGive -= 10;
+            if (valuesToGive < 0) return;
+            a = !a;
+            if (a) {
+                setValue(v => 10 + v);
+            } else {
+                setFailures(f => f + 10);
+            }
+            window.setTimeout(() => update(), 2000);
+        }
+
+        update();
+    }, []);
+
+    return <ProgressCircle
+        successes={value}
+        failures={failures}
+        total={100}
+        size={32}
+        finishedColor="successLight"
+        pendingColor="secondaryDark"
+        indeterminate={false}
+    />
+}
 
 
 const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
+            <FoolishProgressBar />
+            <ProgressCircle
+                successes={100}
+                failures={100}
+                total={100}
+                size={32}
+                finishedColor="successLight"
+                pendingColor="secondaryDark"
+                indeterminate
+            />
+
+            <TaskRow
+                icon={<Icon name="activity" />}
+                title={"Title thing here. Copy, maybe."}
+                body={"Barfoo 5|1"}
+                progress={"Foobar 1|5"}
+                operations={undefined}
+                progressInfo={{
+                    indeterminate: true,
+                    stopped: false,
+                    progress: 0,
+                    limit: 0
+                }}
+            />
+
             <Box mb="60px" />
 
             {/* <NewAndImprovedProgress limitPercentage={20} label="Twenty!" percentage={30} />
