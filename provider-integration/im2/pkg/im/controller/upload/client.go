@@ -54,7 +54,6 @@ type clientWorker struct {
 func (w *clientWorker) Process() {
 	chunkBytes1 := make([]byte, 1024*1024*16)
 	chunkBytes2 := make([]byte, 1024*1024*16)
-	chunkBytes := chunkBytes1
 
 	skipBuffer := util.NewBuffer(&bytes.Buffer{})
 	listingBuffer := util.NewBuffer(&bytes.Buffer{})
@@ -82,6 +81,32 @@ func (w *clientWorker) Process() {
 		}
 	}()
 
+	nextPing := time.Now()
+	pingFailures := 0
+
+	attemptToSendPing := func() bool {
+		now := time.Now()
+		if now.After(nextPing) {
+			log.Info("Sending ping")
+			err := w.Connection.WriteMessage(ws.TextMessage, []byte("ping"))
+			if err != nil {
+				// TODO(Dan): This shouldn't be needed, but it seems like we often fail a ping right as the
+				//   connection is shutting down and this is causing some issues with the entire transfer.
+				pingFailures++
+				if pingFailures >= 10 {
+					_ = w.Connection.Close()
+					log.Warn("Uploader client failed to send ping: %v", err)
+					return false
+				}
+			} else {
+				log.Info("Ping sent!")
+			}
+
+			nextPing = nextPing.Add(chunkIoDeadline / 2)
+		}
+		return true
+	}
+
 outer:
 	for {
 		select {
@@ -89,6 +114,10 @@ outer:
 			break outer
 
 		case <-listingTicker.C:
+			if !attemptToSendPing() {
+				break outer
+			}
+
 			listingMessage := listingBuffer.ReadRemainingBytes()
 			if len(listingMessage) > 0 {
 				err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
@@ -103,6 +132,10 @@ outer:
 			}
 
 		case work := <-combinedTaskQueue:
+			if !attemptToSendPing() {
+				break outer
+			}
+
 			switch work.WorkType {
 			case 0:
 				// Send a listing
@@ -123,7 +156,7 @@ outer:
 				writeBuffers := make(chan []byte, 2)
 
 				go func() {
-					currBuf := chunkBytes1
+					chunkBytes := chunkBytes1
 					nextBuf := chunkBytes2
 					for {
 						// Acquire read permit (in-case writing is too slow, it usually is)
@@ -149,8 +182,8 @@ outer:
 						}
 
 						// Swap buffers
-						tmp := currBuf
-						currBuf = nextBuf
+						tmp := chunkBytes
+						chunkBytes = nextBuf
 						nextBuf = tmp
 					}
 				}()
@@ -172,6 +205,10 @@ outer:
 						}
 
 						break
+					}
+
+					if !attemptToSendPing() {
+						break outer
 					}
 
 					err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
@@ -346,10 +383,14 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 
 			go func() {
 				for {
-					// NOTE(Dan): No read deadline since it is entirely possible that we will not be getting any
-					// messages for a very long time.
+					err := socket.SetReadDeadline(time.Now().Add(chunkIoDeadline * 4))
 					wsType, data, readErr := socket.ReadMessage()
-					if wsType != ws.BinaryMessage || readErr != nil {
+					if wsType == ws.TextMessage {
+						log.Info("Got a ping/pong message!")
+						continue
+					}
+
+					if wsType != ws.BinaryMessage || readErr != nil || err != nil {
 						break
 					}
 

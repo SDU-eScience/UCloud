@@ -139,8 +139,8 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 	incomingWebsocket := make(chan []byte, 1)
 	go func() {
 		for {
-			wsType, data, readErr := socket.ReadMessage()
-			if wsType != ws.BinaryMessage || readErr != nil {
+			_, data, readErr := socket.ReadMessage()
+			if readErr != nil {
 				break
 			}
 
@@ -214,6 +214,15 @@ outer:
 		case data, ok := <-incomingWebsocket:
 			if !ok {
 				break outer
+			}
+
+			if len(data) == 4 && string(data) == "ping" {
+				err := socket.WriteMessage(ws.TextMessage, []byte("pong"))
+				if err != nil {
+					break outer
+				}
+
+				continue
 			}
 
 			buf := util.NewBuffer(bytes.NewBuffer(data))

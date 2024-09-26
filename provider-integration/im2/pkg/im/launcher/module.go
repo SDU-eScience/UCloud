@@ -66,8 +66,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 		migrations.Migrate()
 	}
 
-	svc.Init(args)
 	ctrl.Init(args.ServerMultiplexer)
+	svc.Init(args)
 }
 
 func ModuleExit() []byte {

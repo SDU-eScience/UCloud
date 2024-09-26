@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -209,6 +210,7 @@ func InitTaskSystem() {
 					UCloudDestination string
 					ConflictPolicy    string
 					MoreInfo          string
+					HasUCloudTask     bool
 				}](
 					tx,
 					`
@@ -218,7 +220,8 @@ func InitTaskSystem() {
 							coalesce(ucloud_source, '') as ucloud_source,
 							coalesce(ucloud_destination, '') as ucloud_destination,
 							coalesce(conflict_policy, '') as conflict_policy,
-							coalesce(more_info, '') as more_info
+							coalesce(more_info, '') as more_info,
+							ucloud_task_id is not null as has_ucloud_task
 						from
 							slurm.tasks
 						where
@@ -238,6 +241,7 @@ func InitTaskSystem() {
 						TaskInfoSpecification: TaskInfoSpecification{
 							Type:           TaskType(row.TaskType),
 							ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
+							HasUCloudTask:  row.HasUCloudTask,
 						},
 					}
 
@@ -301,9 +305,17 @@ func InitTaskSystem() {
 			for util.IsAlive {
 				select {
 				case task := <-taskFrontendQueue:
+					b, _ := json.Marshal(task)
+					log.Info(string(b))
+
 					if task.HasUCloudTask {
 						knownTasks[task.Id] = task
-						knownStatus[task.Id] = *task.Status.Load()
+						load := task.Status.Load()
+						if load == nil {
+							defaultStatus := task.DefaultStatus()
+							load = &defaultStatus
+						}
+						knownStatus[task.Id] = *load
 					}
 					taskBackendQueue <- task
 
@@ -313,7 +325,13 @@ func InitTaskSystem() {
 							delete(knownTasks, id)
 							delete(knownStatus, id)
 						} else {
-							newStatus := *task.Status.Load()
+							newStatusPtr := task.Status.Load()
+							if newStatusPtr == nil {
+								defaultStatus := task.DefaultStatus()
+								newStatusPtr = &defaultStatus
+							}
+							newStatus := *newStatusPtr
+
 							oldStatus, _ := knownStatus[id]
 							if newStatus != oldStatus {
 								_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{

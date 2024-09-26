@@ -835,6 +835,8 @@ func controllerFiles(mux *http.ServeMux) {
 				}
 			})
 
+			log.Info("retrieve transfer session %v %v %v", r.Uid, r.Payload.Id, ok)
+
 			if !ok {
 				return ipc.Response[TransferSession]{
 					StatusCode: http.StatusNotFound,
