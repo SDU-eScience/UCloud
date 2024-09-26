@@ -27,11 +27,12 @@ type TaskProcessingResult struct {
 type TaskType string
 
 const (
-	FileTaskTypeMoveToTrash TaskType = "move_to_trash"
-	FileTaskTypeEmptyTrash  TaskType = "empty_trash"
-	FileTaskTypeMove        TaskType = "move"
-	FileTaskTypeCopy        TaskType = "copy"
-	FileTaskTransfer        TaskType = "file_transfer"
+	FileTaskTypeMoveToTrash     TaskType = "move_to_trash"
+	FileTaskTypeEmptyTrash      TaskType = "empty_trash"
+	FileTaskTypeMove            TaskType = "move"
+	FileTaskTypeCopy            TaskType = "copy"
+	FileTaskTransfer            TaskType = "file_transfer"
+	FileTaskTransferDestination TaskType = "file_transfer_destination"
 )
 
 type TaskInfo struct {
@@ -185,73 +186,15 @@ func InitTaskSystem() {
 		})
 
 		postTaskStatusCall.Handler(func(r *ipc.Request[TaskStatusUpdate]) ipc.Response[util.Empty] {
-			ucloudTaskId, ok := db.NewTx2(func(tx *db.Transaction) (uint64, bool) {
-				row, ok := db.Get[struct {
-					UCloudTaskId uint64
-				}](
-					tx,
-					`
-						select
-							ucloud_task_id
-						from
-							slurm.tasks
-						where
-							id = :id
-							and owner_uid = :uid
-							and ucloud_task_id is not null
-				    `,
-					db.Params{
-						"id":  r.Payload.Id,
-						"uid": r.Uid,
-					},
-				)
-
-				return row.UCloudTaskId, ok
-			})
-
-			if !ok {
-				return ipc.Response[util.Empty]{
-					StatusCode:   http.StatusNotFound,
-					ErrorMessage: "Unknown task supplied!",
-				}
-			}
-
-			// TODO: Change this once the API is more stable
-
-			newState := orc.TaskStateRunning
-			if r.Payload.NewState.Present {
-				newState = r.Payload.NewState.Value
-			}
-
-			err := orc.PostTaskStatus(ucloudTaskId, orc.TaskStatus{
-				State:              newState,
-				Title:              r.Payload.NewOperation,
-				Progress:           r.Payload.NewProgress,
-				ProgressPercentage: r.Payload.NewPercentage,
-				Body:               r.Payload.NewBody,
-			})
-
+			err := PostTaskStatusServer(r.Uid, r.Payload)
 			if err != nil {
 				return ipc.Response[util.Empty]{
 					StatusCode:   http.StatusBadGateway,
 					ErrorMessage: err.Error(),
 				}
-			} else {
-				if newState == orc.TaskStateSuccess || newState == orc.TaskStateFailure || newState == orc.TaskStateCancelled {
-					db.NewTx0(func(tx *db.Transaction) {
-						db.Exec(
-							tx,
-							`delete from slurm.tasks where id = :id`,
-							db.Params{
-								"id": r.Payload.Id,
-							},
-						)
-					})
-				}
-
-				return ipc.Response[util.Empty]{
-					StatusCode: http.StatusOK,
-				}
+			}
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
 			}
 		})
 
@@ -414,13 +357,21 @@ func InitTaskSystem() {
 
 					case FileTaskTransfer:
 						result = processTransferTask(task)
+
+					// The following tasks are handled externally and not through a process task. These must register
+					// that they are done through a manual PostTaskStatus.
+					case FileTaskTransferDestination:
+						continue
 					}
 
+					wasRescheduled := false
 					reschedule := func() {
+						wasRescheduled = true
+
 						go func() {
 							seconds := task.BackoffSeconds
 							if seconds <= 0 {
-								seconds = 1
+								seconds = 4
 							}
 							task.BackoffSeconds = seconds * 2
 							if task.BackoffSeconds >= 60*5 {
@@ -429,15 +380,20 @@ func InitTaskSystem() {
 
 							// NOTE(Dan): Rescheduling skips the frontend queue since the task is still active,
 							// just sleeping for a bit.
-							currentStatus := task.Status.Load()
-							task.Status.Store(&orc.TaskStatus{
-								State:              orc.TaskStateInQueue,
-								Title:              currentStatus.Title,
-								Progress:           util.OptValue(fmt.Sprintf("Retrying in %v seconds", seconds)),
-								ProgressPercentage: util.OptValue(0.0),
-							})
+							for seconds > 0 {
+								currentStatus := task.Status.Load()
+								task.Status.Store(&orc.TaskStatus{
+									State:              orc.TaskStateInQueue,
+									Title:              currentStatus.Title,
+									Progress:           util.OptValue(fmt.Sprintf("Retrying in %v seconds", seconds)),
+									Body:               util.OptValue(""),
+									ProgressPercentage: util.OptValue(-1.0),
+								})
 
-							time.Sleep(time.Duration(seconds) * time.Second)
+								time.Sleep(time.Duration(1) * time.Second)
+								seconds--
+							}
+
 							taskBackendQueue <- task
 						}()
 					}
@@ -469,10 +425,10 @@ func InitTaskSystem() {
 						if err != nil {
 							log.Warn("Failed to post final status update for task: %s", err)
 							reschedule()
-						} else {
-							task.Done.Store(true)
 						}
-					} else {
+					}
+
+					if !wasRescheduled {
 						task.Done.Store(true)
 					}
 				}
@@ -483,8 +439,11 @@ func InitTaskSystem() {
 		if err != nil {
 			log.Warn("Failed to get a list of active background tasks: %s", err)
 		} else {
-			for _, task := range tasks {
-				taskFrontendQueue <- task
+			if len(tasks) > 0 {
+				log.Info("Restarting %v tasks", len(tasks))
+				for _, task := range tasks {
+					taskFrontendQueue <- task
+				}
 			}
 		}
 	}
@@ -506,6 +465,83 @@ func RegisterTask(task TaskInfoSpecification) error {
 	t.Status.Store(&status)
 
 	taskFrontendQueue <- t
+
+	return nil
+}
+
+func ListActiveTasks() []*TaskInfo {
+	tasks, _ := listActiveTasksCall.Invoke(util.EmptyValue)
+	return tasks
+}
+
+func PostTaskStatus(status TaskStatusUpdate) error {
+	_, err := postTaskStatusCall.Invoke(status)
+	return err
+}
+
+func PostTaskStatusServer(uid uint32, status TaskStatusUpdate) error {
+	ucloudTaskId, ok := db.NewTx2(func(tx *db.Transaction) (int64, bool) {
+		row, ok := db.Get[struct {
+			UCloudTaskId int64
+		}](
+			tx,
+			`
+				select
+					coalesce(ucloud_task_id, -1) as ucloud_task_id
+				from
+					slurm.tasks
+				where
+					id = :id
+					and (
+						owner_uid = :uid
+					    or :uid = 0
+					)
+			`,
+			db.Params{
+				"id":  status.Id,
+				"uid": uid,
+			},
+		)
+
+		return row.UCloudTaskId, ok
+	})
+
+	if !ok {
+		return fmt.Errorf("unknown task supplied")
+	}
+
+	// TODO: Change this once the API is more stable
+
+	newState := orc.TaskStateRunning
+	if status.NewState.Present {
+		newState = status.NewState.Value
+	}
+
+	if ucloudTaskId >= 0 {
+		err := orc.PostTaskStatus(uint64(ucloudTaskId), orc.TaskStatus{
+			State:              newState,
+			Title:              status.NewOperation,
+			Progress:           status.NewProgress,
+			ProgressPercentage: status.NewPercentage,
+			Body:               status.NewBody,
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	if newState == orc.TaskStateSuccess || newState == orc.TaskStateFailure || newState == orc.TaskStateCancelled {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`delete from slurm.tasks where id = :id`,
+				db.Params{
+					"id": status.Id,
+				},
+			)
+		})
+	}
 
 	return nil
 }

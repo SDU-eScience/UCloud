@@ -2,6 +2,7 @@ package termio
 
 import (
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -20,7 +21,15 @@ func (f *Frame) Title(title string) {
 }
 
 func (f *Frame) AppendField(title string, value string) {
-	f.fields = append(f.fields, frameField{title, value})
+	lines := strings.Split(value, "\n")
+
+	for i := 0; i < len(lines); i++ {
+		if i > 0 {
+			f.fields = append(f.fields, frameField{"", lines[i]})
+		} else {
+			f.fields = append(f.fields, frameField{title, lines[i]})
+		}
+	}
 }
 
 func (f *Frame) AppendSeparator() {
@@ -37,6 +46,9 @@ func (f *Frame) AppendTitle(title string) {
 
 const frameSeparator = "SEPSEPSEP"
 const titleHint = "TTLTTLTTL"
+
+// Regex for stripping ANSI escape codes
+var re, reErr = regexp.Compile("[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]")
 
 func (f *Frame) String() string {
 	ptyCols, _, isPty := safeQueryPtySize()
@@ -158,6 +170,12 @@ func (f *Frame) String() string {
 			builder.WriteString(field.Value)
 
 			spaceRem := ptyCols - (len(field.Title) + 2 + titlePadding + len(field.Value) + 2)
+
+			if reErr == nil {
+				strippedValue := re.ReplaceAllString(field.Value, "")
+				spaceRem = ptyCols - (len(field.Title) + 2 + titlePadding + len(strippedValue) + 2)
+			}
+
 			if spaceRem > 0 {
 				builder.WriteString(strings.Repeat(" ", spaceRem-1))
 			}

@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"time"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
@@ -568,32 +569,43 @@ func LaunchUserInstance(uid uint32) error {
 		}
 		userInstancesLaunched.Inc()
 
+		cluster := &gateway.EnvoyCluster{
+			Name:    ucloudUsername,
+			Address: "127.0.0.1",
+			Port:    port,
+			UseDNS:  false,
+		}
+		route := &gateway.EnvoyRoute{
+			Cluster:        ucloudUsername,
+			Identifier:     ucloudUsername,
+			Type:           gateway.RouteTypeUser,
+			EnvoySecretKey: secret,
+		}
+
 		go func() {
 			err = child.Wait()
 			log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
 			log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
-			log.Warn("The instance will be automatically restarted when the user makes another request.")
+			log.Warn("The instance will be automatically in a few seconds.")
+
+			gateway.SendMessage(gateway.ConfigurationMessage{
+				RouteDown:   route,
+				ClusterDown: cluster,
+			})
 
 			instanceMutex.Lock()
 			delete(runningInstances, uid)
 			instanceMutex.Unlock()
 
 			util.SilentClose(logFile)
+
+			time.Sleep(5 * time.Second)
+			_ = LaunchUserInstance(uid)
 		}()
 
 		gateway.SendMessage(gateway.ConfigurationMessage{
-			ClusterUp: &gateway.EnvoyCluster{
-				Name:    ucloudUsername,
-				Address: "127.0.0.1",
-				Port:    port,
-				UseDNS:  false,
-			},
-			RouteUp: &gateway.EnvoyRoute{
-				Cluster:        ucloudUsername,
-				Identifier:     ucloudUsername,
-				Type:           gateway.RouteTypeUser,
-				EnvoySecretKey: secret,
-			},
+			ClusterUp: cluster,
+			RouteUp:   route,
 		})
 	}
 	return nil

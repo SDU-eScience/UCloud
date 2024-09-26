@@ -87,13 +87,19 @@ func transferDestinationInitiate(request ctrl.FilesTransferRequestInitiateDestin
 		}
 	}
 
-	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, []byte(localDestinationPath))
+	_, target := ctrl.CreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
 
 		target = strings.Replace(target, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl(), cfg.Provider.Hosts.Self.ToWebSocketUrl(), 1)
 	}
+
+	_ = RegisterTask(TaskInfoSpecification{
+		Type:          FileTaskTransferDestination,
+		MoreInfo:      util.OptValue(target),
+		HasUCloudTask: false,
+	})
 
 	return ctrl.FilesTransferResponseInitiateDestination(
 		"built-in",
@@ -171,7 +177,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 
 		if !report.NormalExit {
 			uploadErr = fmt.Errorf("an abnormal error occured during the transfer process")
-			continue
+			break
 		}
 
 		if report.BytesTransferred == 0 && report.NewFilesUploaded == 0 {
@@ -184,8 +190,18 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
+	if uploadErr == nil {
+		if !upload.CloseSessionFromClient(uploadSession) {
+			return TaskProcessingResult{
+				Error:           fmt.Errorf("failed to close upload session"),
+				AllowReschedule: true,
+			}
+		}
+	}
+
 	return TaskProcessingResult{
-		Error: uploadErr,
+		Error:           uploadErr,
+		AllowReschedule: true,
 	}
 }
 
@@ -817,14 +833,14 @@ func createDownload(session ctrl.DownloadSession) error {
 	}
 }
 
-func createUpload(request ctrl.CreateUploadRequest) ([]byte, error) {
+func createUpload(request ctrl.CreateUploadRequest) (string, error) {
 	// TODO(Dan): This can fail if we do not have permissions to write at this path
 	path := UCloudToInternalWithDrive(request.Drive, request.Path)
 
 	if request.ConflictPolicy == orc.WriteConflictPolicyRename && request.Type != ctrl.UploadTypeFolder {
 		path, _ = findAvailableNameOnRename(path)
 	}
-	return []byte(path), nil
+	return path, nil
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
@@ -1002,7 +1018,7 @@ type uploaderFile struct {
 }
 
 func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, fileMeta upload.FileMetadata) upload.ServerFile {
-	rootPath := string(session.UserData)
+	rootPath := session.UserData
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
 	info, err := os.Stat(internalPath)
@@ -1023,6 +1039,22 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	}
 
 	return &uploaderFile{file, fileMeta, nil}
+}
+
+func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, success bool) {
+	if success {
+		tasks := ListActiveTasks()
+		for _, task := range tasks {
+			if task.Type == FileTaskTransferDestination && task.MoreInfo.Present {
+				if strings.Contains(task.MoreInfo.Value, session.Id) {
+					_ = PostTaskStatus(TaskStatusUpdate{
+						Id:       task.Id,
+						NewState: util.OptValue(orc.TaskStateSuccess),
+					})
+				}
+			}
+		}
+	}
 }
 
 func (u *uploaderFile) Write(_ context.Context, data []byte) {

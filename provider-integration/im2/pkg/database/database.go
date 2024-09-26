@@ -2,11 +2,12 @@ package database
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
