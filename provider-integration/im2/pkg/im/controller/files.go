@@ -49,7 +49,7 @@ type FileService struct {
 	EmptyTrash                  func(request EmptyTrashRequest) error
 	CreateDownloadSession       func(request DownloadSession) error
 	Download                    func(request DownloadSession) (io.ReadSeekCloser, int64, error)
-	CreateUploadSession         func(request CreateUploadRequest) ([]byte, error)
+	CreateUploadSession         func(request CreateUploadRequest) (string, error)
 	RetrieveProducts            func() []orc.FSSupport
 	TransferSourceInitiate      func(request FilesTransferRequestInitiateSource) ([]string, error)
 	TransferDestinationInitiate func(request FilesTransferRequestInitiateDestination) (FilesTransferResponse, error)
@@ -609,8 +609,6 @@ func controllerFiles(mux *http.ServeMux) {
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
-				uid := uint32(os.Getuid())
-
 				conn, err := wsUpgrader.Upgrade(w, r, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				token := r.URL.Query().Get("token")
@@ -620,14 +618,16 @@ func controllerFiles(mux *http.ServeMux) {
 					return
 				}
 
-				session, ok := uploadSessions.GetNow(token)
+				session, ok := retrieveUploadSession(token)
 
-				if !ok || uid != session.OwnedBy {
+				if !ok {
 					w.WriteHeader(http.StatusNotFound)
 					return
 				}
 
-				upload.ProcessServer(conn, Files.Uploader, session)
+				if upload.ProcessServer(conn, Files.Uploader, session) {
+					invalidateUploadSession(token)
+				}
 			},
 		)
 
@@ -846,20 +846,119 @@ func controllerFiles(mux *http.ServeMux) {
 				Payload:    session,
 			}
 		})
+
+		createUploadSessionCall.Handler(func(r *ipc.Request[upload.ServerSession]) ipc.Response[util.Empty] {
+			db.NewTx0(func(tx *db.Transaction) {
+				db.Exec(
+					tx,
+					`
+						delete from upload_sessions
+						where created_at < now() - interval '7 days'
+				    `,
+					db.Params{},
+				)
+
+				db.Exec(
+					tx,
+					`
+						insert into upload_sessions(session, owner_uid, conflict_policy, path, user_data)
+						values (:session, :owner_uid, :conflict_policy, :path, :user_data)
+						on conflict do nothing
+				    `,
+					db.Params{
+						"session":         r.Payload.Id,
+						"owner_uid":       r.Uid,
+						"conflict_policy": r.Payload.ConflictPolicy,
+						"path":            r.Payload.Path,
+						"user_data":       r.Payload.UserData,
+					},
+				)
+			})
+
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+			}
+		})
+
+		retrieveUploadSessionCall.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[upload.ServerSession] {
+			res, ok := db.NewTx2(func(tx *db.Transaction) (upload.ServerSession, bool) {
+				row, ok := db.Get[struct {
+					ConflictPolicy string
+					Path           string
+					UserData       string
+				}](
+					tx,
+					`
+						select conflict_policy, path, user_data
+						from upload_sessions
+						where
+							owner_uid = :uid
+							and session = :session
+				    `,
+					db.Params{
+						"uid":     r.Uid,
+						"session": r.Payload.Id,
+					},
+				)
+
+				if !ok {
+					return upload.ServerSession{}, false
+				} else {
+					return upload.ServerSession{
+						Id:             r.Payload.Id,
+						ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
+						Path:           row.Path,
+						UserData:       row.UserData,
+					}, true
+				}
+			})
+
+			if !ok {
+				return ipc.Response[upload.ServerSession]{
+					StatusCode: http.StatusNotFound,
+				}
+			}
+
+			return ipc.Response[upload.ServerSession]{
+				StatusCode: http.StatusOK,
+				Payload:    res,
+			}
+		})
 	}
+
+	invalidateUploadSessionCall.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					delete from upload_sessions
+					where
+						owner_uid = :uid
+						and session = :session
+			    `,
+				db.Params{
+					"uid":     r.Uid,
+					"session": r.Payload.Id,
+				},
+			)
+		})
+
+		return ipc.Response[util.Empty]{
+			StatusCode: http.StatusOK,
+		}
+	})
 }
 
-func CreateFolderUpload(path string, conflictPolicy orc.WriteConflictPolicy, sessionData []byte) (upload.ServerSession, string) {
+func CreateFolderUpload(path string, conflictPolicy orc.WriteConflictPolicy, sessionData string) (upload.ServerSession, string) {
 	session := upload.ServerSession{
 		Id:             util.RandomToken(32),
-		OwnedBy:        uint32(os.Getuid()),
 		ConflictPolicy: conflictPolicy,
 		Path:           path,
 		UserData:       sessionData,
 	}
 
 	uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
-	uploadSessions.Set(session.Id, session)
+	createUploadSession(session)
 	return session, uploadPath
 }
 
@@ -883,8 +982,20 @@ func generateUploadPath(
 	return fmt.Sprintf("%s/ucloud/%s/upload?token=%s&usernameHint=%s", hostPath, providerId, token, base64.URLEncoding.EncodeToString([]byte(username)))
 }
 
+func createUploadSession(session upload.ServerSession) {
+	_, _ = createUploadSessionCall.Invoke(session)
+}
+
+func retrieveUploadSession(id string) (upload.ServerSession, bool) {
+	session, err := retrieveUploadSessionCall.Invoke(fnd.FindByStringId{id})
+	return session, err == nil
+}
+
+func invalidateUploadSession(id string) {
+	_, _ = invalidateUploadSessionCall.Invoke(fnd.FindByStringId{id})
+}
+
 var downloadSessions = util.NewCache[string, DownloadSession](48 * time.Hour)
-var uploadSessions = util.NewCache[string, upload.ServerSession](48 * time.Hour)
 
 type TransferSession struct {
 	Id string
@@ -901,6 +1012,10 @@ type SelectTransferProtocolRequest struct {
 }
 
 var (
+	createUploadSessionCall     = ipc.NewCall[upload.ServerSession, util.Empty]("ctrl.files.createUploadSession")
+	retrieveUploadSessionCall   = ipc.NewCall[fnd.FindByStringId, upload.ServerSession]("ctrl.files.retrieveUploadSession")
+	invalidateUploadSessionCall = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.files.invalidateUploadSession")
+
 	createTransferSessionCall  = ipc.NewCall[FilesTransferRequestInitiateSource, fnd.FindByStringId]("ctrl.files.createTransferSession")
 	selectTransferProtocolCall = ipc.NewCall[SelectTransferProtocolRequest, util.Empty]("ctrl.files.selectTransferProtocol")
 	retrieveTransferSession    = ipc.NewCall[fnd.FindByStringId, TransferSession]("ctrl.files.retrieveTransferSession")

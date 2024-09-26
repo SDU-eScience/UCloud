@@ -12,4 +12,5 @@ func loadMigrations() {
 	addScript(scriptLogV1())
 	addScript(slurmV2())
 	addScript(fileTransfersV1())
+	addScript(uploadsV1())
 }

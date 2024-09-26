@@ -10,13 +10,14 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
-	"strings"
 	"sync/atomic"
 	"time"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
+
+const chunkIoDeadline = 30 * time.Second
 
 type ClientSession struct {
 	Endpoint       string
@@ -90,8 +91,9 @@ outer:
 		case <-listingTicker.C:
 			listingMessage := listingBuffer.ReadRemainingBytes()
 			if len(listingMessage) > 0 {
-				err := w.Connection.WriteMessage(ws.BinaryMessage, listingMessage)
-				if err != nil {
+				err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+				err2 := w.Connection.WriteMessage(ws.BinaryMessage, listingMessage)
+				if err := util.FindError(err1, err2); err != nil {
 					_ = w.Connection.Close()
 					log.Warn("Upload client failed to send message: %v", err)
 					break outer
@@ -160,8 +162,9 @@ outer:
 							skipBuffer.Reset()
 							(&messageSkip{FileId: work.Id}).Marshal(skipBuffer, true)
 
-							err := w.Connection.WriteMessage(ws.BinaryMessage, data)
-							if err != nil {
+							err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+							err2 := w.Connection.WriteMessage(ws.BinaryMessage, data)
+							if err := util.FindError(err1, err2); err != nil {
 								_ = w.Connection.Close()
 								log.Warn("Uploader client failed to send message: %v", err)
 								break outer
@@ -171,8 +174,9 @@ outer:
 						break
 					}
 
-					err := w.Connection.WriteMessage(ws.BinaryMessage, data)
-					if err != nil {
+					err1 := w.Connection.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+					err2 := w.Connection.WriteMessage(ws.BinaryMessage, data)
+					if err := util.FindError(err1, err2); err != nil {
 						_ = w.Connection.Close()
 						log.Warn("Uploader client failed to send message: %v", err)
 						break outer
@@ -264,11 +268,14 @@ type StatusReport struct {
 func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Pointer[orc.TaskStatus]) StatusReport {
 	initialStatus := orc.TaskStatus{}
 	if status != nil {
-		initialStatus = *status.Load()
+		ptr := status.Load()
+		if ptr != nil {
+			initialStatus = *ptr
+		}
 	}
 
 	const numberOfConnections = 16
-	const enableProfiling = true
+	const enableProfiling = false
 
 	// Profiling
 	// -----------------------------------------------------------------------------------------------------------------
@@ -324,28 +331,23 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 
 	lastStatMeasurement := time.Now()
 
-	// Temporary statistics
-	// -----------------------------------------------------------------------------------------------------------------
-	// TODO(Dan): Remove this when task system is done
-
-	statFile, err := os.OpenFile("/tmp/"+profileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0660)
-	if err != nil {
-		log.Warn("cannot do %v", err)
-	}
-
 	// Spawn workers (WebSockets and discovery)
 	// -----------------------------------------------------------------------------------------------------------------
+	activeWorkerCount := atomic.Int32{}
 	for i := 0; i < numberOfConnections; i++ {
 		whoami := i
 		socket, _, err := ws.DefaultDialer.Dial(session.Endpoint, nil)
 		if err != nil {
-			log.Warn("Failed to establish WebSocket connection: %v %v", session.Endpoint, err)
-			close(incomingWebsocket)
+			log.Warn("[%v] Failed to establish WebSocket connection: %v %v", whoami, session.Endpoint, err)
+			cancel()
 		} else {
 			connections = append(connections, socket)
+			activeWorkerCount.Add(1)
 
 			go func() {
 				for {
+					// NOTE(Dan): No read deadline since it is entirely possible that we will not be getting any
+					// messages for a very long time.
 					wsType, data, readErr := socket.ReadMessage()
 					if wsType != ws.BinaryMessage || readErr != nil {
 						break
@@ -357,7 +359,8 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 					}
 				}
 
-				if !filesDiscoveredDone {
+				activeWorkerCount.Add(-1)
+				if !filesDiscoveredDone || activeWorkerCount.Load() == 0 {
 					// NOTE(Dan): This is not always a critical failure since it might just have been closed due to
 					// _this_ connection no longer having any work.
 					cancel()
@@ -374,14 +377,16 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 			workers = append(workers, worker)
 			filesCompletedFromServer = append(filesCompletedFromServer, 0)
 
-			go worker.Process()
+			go func() {
+				worker.Process()
+				cancel()
+			}()
 		}
 	}
 
 	go goDiscoverClientWork(sessionContext, rootFile, discoveredWorkForUs)
 
 	flushStats := func() {
-		stats := strings.Builder{}
 		now := time.Now()
 		dt := now.Sub(lastStatMeasurement)
 		lastStatMeasurement = now
@@ -397,13 +402,6 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 
 		f := float64(bytesTransferred - lastBytesTransferred)
 		seconds := dt.Seconds()
-		stats.WriteString(
-			fmt.Sprintf(
-				"f: %v / seconds: %v\n",
-				f,
-				seconds,
-			),
-		)
 		bytesPerSecond = smoothMeasure(bytesPerSecond, f/seconds)
 
 		lastFilesCompleted = filesCompleted
@@ -414,50 +412,7 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 			totalFilesCompletedServer += f
 		}
 
-		stats.WriteString(
-			fmt.Sprintf(
-				"Files: %d (%d) / %d completed (filesDiscoveredDone=%v)\n",
-				filesCompleted,
-				totalFilesCompletedServer,
-				filesDiscovered,
-				filesDiscoveredDone,
-			),
-		)
-
-		stats.WriteString(
-			fmt.Sprintf(
-				"Files/second: %.2f\n",
-				filesPerSecond,
-			),
-		)
-
 		readableSpeed := sizeToHumanReadableWithUnit(bytesPerSecond)
-		stats.WriteString(
-			fmt.Sprintf(
-				"Speed: %.2f/%v/s\n",
-				readableSpeed.Size,
-				readableSpeed.Unit,
-			),
-		)
-
-		stats.WriteString(
-			fmt.Sprintf(
-				"Bytes transferred: %v\n",
-				bytesTransferred,
-			),
-		)
-
-		stats.WriteString(
-			fmt.Sprintf(
-				"Files completed: %v\n",
-				filesCompleted,
-			),
-		)
-
-		stats.WriteString("\n\n")
-
-		//_ = statFile.Truncate(0)
-		_, _ = statFile.WriteString(stats.String())
 
 		if status != nil {
 			percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
@@ -494,8 +449,6 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 
 	// Process input from workers
 	// -----------------------------------------------------------------------------------------------------------------
-
-	normalExit := false
 
 outer:
 	for {
@@ -538,7 +491,6 @@ outer:
 						totalFilesCompleted += f
 					}
 					if filesDiscoveredDone && int32(filesDiscovered) == totalFilesCompleted {
-						normalExit = true
 						break outer
 					}
 
@@ -579,11 +531,6 @@ outer:
 		_ = c.Close()
 	}
 
-	if statFile != nil {
-		flushStats()
-		_ = statFile.Close()
-	}
-
 	if memProfile != nil && cpuProfile != nil {
 		runtime.GC()
 		_ = pprof.WriteHeapProfile(memProfile)
@@ -593,13 +540,38 @@ outer:
 		_ = cpuProfile.Close()
 	}
 
+	totalFilesCompleted := int64(0)
+	for _, f := range filesCompletedFromServer {
+		totalFilesCompleted += int64(f)
+	}
+
 	return StatusReport{
 		NewFilesUploaded:    filesBeingSentOnWire,
 		TotalFilesProcessed: filesDiscovered,
 		BytesTransferred:    lastBytesTransferred,
 		TotalBytesProcessed: bytesDiscovered,
-		NormalExit:          normalExit,
+		NormalExit:          filesDiscoveredDone && filesDiscovered == totalFilesCompleted,
 	}
+}
+
+func CloseSessionFromClient(session ClientSession) bool {
+	socket, _, err := ws.DefaultDialer.Dial(session.Endpoint, nil)
+	if err != nil {
+		log.Warn("Failed to establish WebSocket connection: %v %v", session.Endpoint, err)
+		return false
+	}
+
+	messageBuffer := util.NewBuffer(&bytes.Buffer{})
+	(&messageClose{}).Marshal(messageBuffer, messageBuffer.IsEmpty())
+
+	err1 := socket.SetWriteDeadline(time.Now().Add(1 * time.Minute))
+	err2 := socket.WriteMessage(ws.BinaryMessage, messageBuffer.ReadRemainingBytes())
+	if err := util.FindError(err1, err2); err != nil {
+		log.Warn("Failed to send closure message to uploader: %v", err)
+		return false
+	}
+
+	return true
 }
 
 type readableSize struct {
