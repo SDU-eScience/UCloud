@@ -52,7 +52,7 @@ import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {JobsOpenInteractiveSessionResponse, WebSession} from "./Web";
+import {WebSession} from "./Web";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -81,6 +81,8 @@ export const jobCache = new class extends ExternalStoreBase {
                 this.cache.items = this.cache.items.filter(it => it.id !== job.id);
             }
         }
+
+        this.cache.items = this.cache.items.sort((a, b) => b.createdAt - a.createdAt);
 
         this.emitChange();
     }
