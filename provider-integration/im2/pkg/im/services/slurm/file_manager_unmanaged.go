@@ -12,6 +12,7 @@ func InitUnmanagedDrives(name string) FileManagementService {
 type UnmanagedDrivesManager struct{}
 
 func (u *UnmanagedDrivesManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
+	log.Info("Unmanaged quota")
 	for _, drive := range drives {
 		err := RegisterDriveInfo(drive)
 		if err != nil {

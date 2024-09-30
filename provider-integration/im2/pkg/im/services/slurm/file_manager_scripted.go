@@ -58,6 +58,7 @@ type scriptedFileManagementService struct {
 }
 
 func (s *scriptedFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
+	log.Info("Scripted quota")
 	for _, drive := range drives {
 		req := scriptedFileManagementQuotaReq{}
 		req.Drive = scriptedFileManagementDrive{
