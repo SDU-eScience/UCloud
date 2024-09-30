@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -104,6 +105,8 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 
 	// Reponse error
 	if resp.StatusCode < 200 || resp.StatusCode > 204 {
+		respBody, _ := io.ReadAll(resp.Body)
+		log.Error("GPFS request failed: %v %v", resp.StatusCode, string(respBody))
 		return false
 	}
 
@@ -150,6 +153,7 @@ func (c *Client) JobWait(response JobResponse) bool {
 		c.Request("GET", url, nil, &jr)
 		status := c.JobWaitOnResponse(response)
 		if status == -1 {
+			log.Error("GPFS job failed: %v %v", response.Status.Code, response.Status.Message)
 			return false
 		} else if status == 1 {
 			return true
