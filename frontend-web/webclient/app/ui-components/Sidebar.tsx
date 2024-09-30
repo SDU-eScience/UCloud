@@ -114,7 +114,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     }
     
     ${k} header h1 {
-        font-weight: bold;
         font-size: 20px;
         flex-grow: 1;
         margin: 0;
@@ -123,10 +122,9 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} header div {
         cursor: pointer;
     }
-    
+
     ${k} h2, ${k} h3 {
         margin: 0;
-        font-weight: bold;
     }
     
     ${k} h3 {

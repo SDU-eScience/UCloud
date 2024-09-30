@@ -87,7 +87,6 @@ func (w *clientWorker) Process() {
 	attemptToSendPing := func() bool {
 		now := time.Now()
 		if now.After(nextPing) {
-			log.Info("Sending ping")
 			err := w.Connection.WriteMessage(ws.TextMessage, []byte("ping"))
 			if err != nil {
 				// TODO(Dan): This shouldn't be needed, but it seems like we often fail a ping right as the
@@ -98,8 +97,6 @@ func (w *clientWorker) Process() {
 					log.Warn("Uploader client failed to send ping: %v", err)
 					return false
 				}
-			} else {
-				log.Info("Ping sent!")
 			}
 
 			nextPing = nextPing.Add(chunkIoDeadline / 2)
@@ -300,9 +297,16 @@ type StatusReport struct {
 	TotalBytesProcessed int64
 
 	NormalExit bool
+
+	WasCancelledByUser bool
 }
 
-func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Pointer[orc.TaskStatus]) StatusReport {
+func ProcessClient(
+	session ClientSession,
+	rootFile ClientFile,
+	status *atomic.Pointer[orc.TaskStatus],
+	requestCancel chan util.Empty,
+) StatusReport {
 	initialStatus := orc.TaskStatus{}
 	if status != nil {
 		ptr := status.Load()
@@ -368,6 +372,20 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 
 	lastStatMeasurement := time.Now()
 
+	wasCancelledByUser := false
+
+	// Immediately set a state in case of connection failure below
+	// -----------------------------------------------------------------------------------------------------------------
+	if status != nil {
+		newStatus := &orc.TaskStatus{
+			State:              orc.TaskStateRunning,
+			Body:               util.OptValue(""),
+			Progress:           util.OptValue("Attempting to establish connection..."),
+			ProgressPercentage: util.OptValue(-1.0),
+		}
+		status.Store(newStatus)
+	}
+
 	// Spawn workers (WebSockets and discovery)
 	// -----------------------------------------------------------------------------------------------------------------
 	activeWorkerCount := atomic.Int32{}
@@ -377,6 +395,7 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 		if err != nil {
 			log.Warn("[%v] Failed to establish WebSocket connection: %v %v", whoami, session.Endpoint, err)
 			cancel()
+			break
 		} else {
 			connections = append(connections, socket)
 			activeWorkerCount.Add(1)
@@ -386,7 +405,6 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 					err := socket.SetReadDeadline(time.Now().Add(chunkIoDeadline * 4))
 					wsType, data, readErr := socket.ReadMessage()
 					if wsType == ws.TextMessage {
-						log.Info("Got a ping/pong message!")
 						continue
 					}
 
@@ -494,6 +512,10 @@ func ProcessClient(session ClientSession, rootFile ClientFile, status *atomic.Po
 outer:
 	for {
 		select {
+		case <-requestCancel:
+			wasCancelledByUser = true
+			break outer
+
 		case <-sessionContext.Done():
 			break outer
 
@@ -505,7 +527,11 @@ outer:
 				filesDiscoveredDone = true
 			} else {
 				activeWork[work.Id] = work
-				discoveredWorkForWorkers <- work
+				select {
+				case discoveredWorkForWorkers <- work:
+				case <-sessionContext.Done():
+					break outer
+				}
 				filesDiscovered++
 				bytesDiscovered += work.Metadata.Size
 			}
@@ -544,7 +570,12 @@ outer:
 					delete(activeWork, msg.FileId)
 
 					work.WorkType = 2
-					workers[work.AssignedTo].AssignedWork <- work
+
+					select {
+					case workers[work.AssignedTo].AssignedWork <- work:
+					case <-sessionContext.Done():
+						break outer
+					}
 
 				case *messageOk:
 					work, ok := activeWork[msg.FileId]
@@ -556,7 +587,12 @@ outer:
 
 					filesBeingSentOnWire++
 					work.WorkType = 1
-					workers[work.AssignedTo].AssignedWork <- work
+
+					select {
+					case workers[work.AssignedTo].AssignedWork <- work:
+					case <-sessionContext.Done():
+						break outer
+					}
 
 				}
 			}
@@ -592,6 +628,7 @@ outer:
 		BytesTransferred:    lastBytesTransferred,
 		TotalBytesProcessed: bytesDiscovered,
 		NormalExit:          filesDiscoveredDone && filesDiscovered == totalFilesCompleted,
+		WasCancelledByUser:  wasCancelledByUser,
 	}
 }
 

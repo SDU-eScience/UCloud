@@ -675,7 +675,7 @@ class Catalog(
                 if (app != null) allResolvedVersions.add(app)
             }
 
-            allResolvedVersions.sortBy { it.metadata.createdAt }
+            allResolvedVersions.sortByDescending { it.metadata.createdAt }
             versions = allResolvedVersions.map { it.metadata.version }
         }
 

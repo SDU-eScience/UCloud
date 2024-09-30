@@ -73,3 +73,18 @@ func slurmV2() migrationScript {
 		},
 	}
 }
+
+func slurmV3() migrationScript {
+	return migrationScript{
+		Id: "slurmV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table slurm.tasks add column paused bool not null default false;
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

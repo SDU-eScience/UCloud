@@ -55,7 +55,7 @@ const ActionContainer = injectStyle("action-container", k => `
     }
     
     ${k} label {
-        font-weight: bolder;
+        font-weight: bold;
         display: block;
         margin-top: 16px;
     }

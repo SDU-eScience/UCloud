@@ -477,7 +477,7 @@ const SelectorDialog = injectStyle("selector-dialog", k => `
     ${k} td[colspan] > div {
         display: flex;
         text-align: center;
-        font-weight: bold;
+        font-weight: 500;
         padding: 16px;
         justify-content: center;
         align-items: center;
@@ -572,7 +572,7 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
 
     ${k} .selected thead th {
         text-align: left;
-        font-weight: bold;
+        font-weight: 500;
     }
 
     ${k} .provider-logo {

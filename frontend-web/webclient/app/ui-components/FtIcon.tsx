@@ -52,7 +52,7 @@ const SvgFtLabel = ({hasExt, ext, type}: { hasExt: boolean, ext: string, type: s
                 style={{
                     fontSize: "15px",
                     textTransform: "uppercase",
-                    fontWeight: "bold",
+                    fontWeight: "500",
                     letterSpacing: "1px"
                 }}
             >

@@ -15,7 +15,7 @@ const SelectClass = injectStyle("select", k => `
         appearance: none;
         display: block;
         font-family: inherit;
-        font-weight: bold;
+        font-weight: 500;
         color: var(--textPrimary);
         background-color: var(--backgroundDefault);
         margin: 0;

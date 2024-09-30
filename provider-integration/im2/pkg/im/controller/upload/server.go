@@ -317,7 +317,6 @@ outer:
 		}
 	}
 
-	log.Info("Closing connection (wasClosed = %v)", wasClosed)
 	fs.OnSessionClose(session, wasClosed)
 	return wasClosed
 }

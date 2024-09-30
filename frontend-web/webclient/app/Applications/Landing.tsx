@@ -432,7 +432,7 @@ const AppCard1Style = injectStyle("app-card-1", k => `
     
     ${k} h2 {
         font-size: 1.0rem;
-        font-weight: bold;
+        font-weight: 500;
         margin: 0;
         margin-top: -0.3rem;
     }
@@ -515,7 +515,6 @@ const AppCard2Style = injectStyle("app-card-2", k => `
     
     ${k} h2 {
         font-size: 1.0rem;
-        font-weight: bold;
         margin: 0;
         margin-top: -0.3rem;
     }

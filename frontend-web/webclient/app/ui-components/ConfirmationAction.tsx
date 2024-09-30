@@ -25,7 +25,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         min-width: 200px;
         background: var(--background, #f00);
         font-size: 16px;
-        font-weight: 700;
+        font-weight: 500;
         transform: scale(1);
     }
     

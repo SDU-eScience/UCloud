@@ -117,7 +117,7 @@ class TaskService(
         val taskId = request.id
         val foundTask = findById(actorAndProject, taskId)
 
-        // NOTE(HENRIK) If task is already finished all good? notify user?
+        // NOTE(Henrik): If task is already finished all good.
         if (foundTask.status.state == TaskState.FAILURE || foundTask.status.state == TaskState.SUCCESS) return
 
         val newState = request.requestedState
@@ -128,56 +128,13 @@ class TaskService(
             throw RPCException("Task cannot be cancelled", HttpStatusCode.BadRequest)
         }
 
-        val normalizedUpdate = BackgroundTaskUpdate(
-            taskId = taskId,
-            newStatus = BackgroundTask.Status(
-                newState,
-                when (newState) {
-                    TaskState.CANCELLED -> "Operation cancelled by user"
-                    TaskState.SUSPENDED -> "Operation paused by user"
-                    TaskState.RUNNING -> foundTask.status.title
-                    else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
-                },
-                when (newState) {
-                    TaskState.CANCELLED -> null
-                    TaskState.SUSPENDED -> {
-                        if (foundTask.status.state == TaskState.RUNNING) {
-                            foundTask.status.body
-                        } else {
-                            null
-                        }
-                    }
-                    TaskState.RUNNING -> foundTask.status.body
-                    else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
-                }
-                ,
-                when (newState) {
-                    TaskState.CANCELLED -> "Cancelled"
-                    TaskState.SUSPENDED -> {
-                        if (foundTask.status.state == TaskState.RUNNING) {
-                            foundTask.status.progress
-                        } else {
-                            ""
-                        }
-                    }
-                    TaskState.RUNNING -> foundTask.status.progress
-                    else -> throw RPCException("Unknown state", HttpStatusCode.BadRequest)
-                },
-                foundTask.status.progressPercentage,
-            )
-        )
-
-        val updatedTask = updateBackgroundTask(actorAndProject, normalizedUpdate)
-
         providerComm.call(
             foundTask.provider,
             actorAndProject,
             { TasksProvider(it).pauseOrCancel },
-            updatedTask,
+            request,
             isUserRequest = true
         )
-
-        subscriptionService.onTaskUpdate(updatedTask.createdBy, updatedTask)
     }
 
     suspend fun postStatus(actorAndProject: ActorAndProject, update: BackgroundTaskUpdate) {
@@ -191,7 +148,13 @@ class TaskService(
             actorAndProject,
             BackgroundTaskUpdate(
                 taskId = taskId,
-                newStatus = BackgroundTask.Status(state = TaskState.SUCCESS, title = task.status.title, body = null, progress = "Complete", progressPercentage = 100.0),
+                newStatus = BackgroundTask.Status(
+                    state = TaskState.SUCCESS,
+                    title = task.status.title,
+                    body = null,
+                    progress = "Complete",
+                    progressPercentage = 100.0
+                ),
             )
         )
     }

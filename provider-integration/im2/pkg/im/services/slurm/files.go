@@ -173,7 +173,25 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			File: rootFile,
 		}
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status)
+		cancelChannel := make(chan util.Empty)
+		go func() {
+			for !task.Done.Load() {
+				newState := task.UserRequestedState.Load()
+				if newState != nil {
+					cancelChannel <- util.Empty{}
+					break
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+		}()
+
+		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status, cancelChannel)
+
+		if report.WasCancelledByUser {
+			uploadErr = nil
+			break
+		}
 
 		if !report.NormalExit {
 			uploadErr = fmt.Errorf("an abnormal error occured during the transfer process")
@@ -479,23 +497,19 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 	return nil
 }
 
-func processMoveTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1 := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2 := UCloudToInternal(task.UCloudDestination.Value)
+func doMoveFiles(ucloudSource, ucloudDest string, conflictPolicy orc.WriteConflictPolicy) error {
+	sourcePath, ok1 := UCloudToInternal(ucloudSource)
+	destPath, ok2 := UCloudToInternal(ucloudDest)
 	if !ok1 || !ok2 {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Unable to resolve files needed for rename"),
-		}
+		return fmt.Errorf("Unable to resolve files needed for rename")
 	}
 
-	if task.ConflictPolicy == orc.WriteConflictPolicyRename {
+	if conflictPolicy == orc.WriteConflictPolicyRename {
 		newPath, err := findAvailableNameOnRename(destPath)
 		destPath = newPath
 
 		if err != nil {
-			return TaskProcessingResult{
-				Error: err,
-			}
+			return err
 		}
 	}
 
@@ -505,42 +519,23 @@ func processMoveTask(task *TaskInfo) TaskProcessingResult {
 		parentStat, err := os.Stat(parentPath)
 		log.Info("path = %v stat=%v err=%v", parentPath, parentStat, err)
 		if err != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to move file. Could not find destination!"),
-			}
+			return fmt.Errorf("Unable to move file. Could not find destination!")
 		} else if !parentStat.IsDir() {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to move file. Destination is not a directory!"),
-			}
+			return fmt.Errorf("Unable to move file. Destination is not a directory!")
 		}
 
 		_, err = os.Stat(destPath)
 		if err == nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to move file. Destination already exists!"),
-			}
+			return fmt.Errorf("Unable to move file. Destination already exists!")
 		}
-
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Unable to move file."),
-		}
+		return fmt.Errorf("Unable to move file.")
 	}
 
-	return TaskProcessingResult{}
+	return nil
 }
 
 func moveFiles(request ctrl.MoveFileRequest) error {
-	task := TaskInfoSpecification{
-		Type:              FileTaskTypeMove,
-		CreatedAt:         fnd.Timestamp(time.Now()),
-		UCloudSource:      util.OptValue(request.OldPath),
-		UCloudDestination: util.OptValue(request.NewPath),
-		ConflictPolicy:    request.Policy,
-		HasUCloudTask:     true,
-		Icon:              "move",
-	}
-
-	return RegisterTask(task)
+	return doMoveFiles(request.OldPath, request.NewPath, request.Policy)
 }
 
 func copyFiles(request ctrl.CopyFileRequest) error {
@@ -552,18 +547,6 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 		ConflictPolicy:    request.Policy,
 		HasUCloudTask:     true,
 		Icon:              "copy",
-	}
-
-	return RegisterTask(task)
-}
-
-func moveToTrash(request ctrl.MoveToTrashRequest) error {
-	task := TaskInfoSpecification{
-		Type:          FileTaskTypeCopy,
-		CreatedAt:     fnd.Timestamp(time.Now()),
-		UCloudSource:  util.OptValue(request.Path),
-		HasUCloudTask: true,
-		Icon:          "trash",
 	}
 
 	return RegisterTask(task)
@@ -601,45 +584,26 @@ func processEmptyTrash(task *TaskInfo) TaskProcessingResult {
 	return TaskProcessingResult{}
 }
 
-func processMoveToTrash(task *TaskInfo) TaskProcessingResult {
-	driveId, _ := DriveIdFromUCloudPath(task.UCloudSource.Value)
+func moveToTrash(request ctrl.MoveToTrashRequest) error {
+	driveId, _ := DriveIdFromUCloudPath(request.Path)
 	expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
 	if !ok {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Could not resolve drive location"),
-		}
+		return fmt.Errorf("Could not resolve drive location")
 	}
 
 	if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
 		err := os.Mkdir(expectedTrashLocation, 0770)
 		if err != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Could not create trash folder"),
-			}
+			return fmt.Errorf("Could not create trash folder")
 		}
 	}
 
-	newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(task.UCloudSource.Value)))
+	newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
 	if !ok {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Could not resolve source file"),
-		}
+		return fmt.Errorf("Could not resolve source file")
 	}
 
-	//goland:noinspection GoVetCopyLock
-	moveTask := *task
-	moveTask.TaskInfoSpecification = TaskInfoSpecification{
-		Type:              FileTaskTypeMove,
-		CreatedAt:         moveTask.CreatedAt,
-		UCloudSource:      task.UCloudSource,
-		UCloudDestination: util.OptValue(newPath),
-		ConflictPolicy:    orc.WriteConflictPolicyRename,
-		MoreInfo:          util.Option[string]{},
-		HasUCloudTask:     task.HasUCloudTask,
-		Icon:              "trash",
-	}
-
-	return processMoveTask(&moveTask)
+	return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
 }
 
 func copyFolder(sourcePath string, destPath string) error {

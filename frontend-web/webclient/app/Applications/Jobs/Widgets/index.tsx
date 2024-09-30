@@ -103,7 +103,7 @@ const InactiveWidgetClass = injectStyle("inactive-widget", k => `
 
     ${k} strong {
         margin-right: 16px;
-        font-weight: bold;
+        font-weight: 500;
         flex-shrink: 0;
     }
 

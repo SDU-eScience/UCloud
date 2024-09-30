@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"sync/atomic"
 	"time"
 	db "ucloud.dk/pkg/database"
@@ -28,21 +27,21 @@ type TaskProcessingResult struct {
 type TaskType string
 
 const (
-	FileTaskTypeMoveToTrash     TaskType = "move_to_trash"
 	FileTaskTypeEmptyTrash      TaskType = "empty_trash"
-	FileTaskTypeMove            TaskType = "move"
 	FileTaskTypeCopy            TaskType = "copy"
 	FileTaskTransfer            TaskType = "file_transfer"
 	FileTaskTransferDestination TaskType = "file_transfer_destination"
 )
 
 type TaskInfo struct {
-	Id             uint64
-	UCloudTaskId   util.Option[uint64]
-	Uid            uint32
-	BackoffSeconds int
-	Done           atomic.Bool
-	Status         atomic.Pointer[orc.TaskStatus]
+	Id                 uint64
+	UCloudTaskId       util.Option[uint64]
+	Uid                uint32
+	BackoffSeconds     int
+	Done               atomic.Bool
+	Status             atomic.Pointer[orc.TaskStatus]
+	UserRequestedState atomic.Pointer[orc.TaskState]
+	Paused             bool
 	TaskInfoSpecification
 }
 
@@ -71,12 +70,6 @@ func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
 
 	case FileTaskTypeEmptyTrash:
 		operation = "Emptying trash"
-
-	case FileTaskTypeMove:
-		operation = "Moving files"
-
-	case FileTaskTypeMoveToTrash:
-		operation = "Trashing files"
 	}
 
 	return orc.TaskStatus{
@@ -97,7 +90,7 @@ type TaskStatusUpdate struct {
 }
 
 var (
-	registerTaskCall    = ipc.NewCall[TaskInfoSpecification, uint64]("tasks.register")
+	registerTaskCall    = ipc.NewCall[TaskInfoSpecification, *TaskInfo]("tasks.register")
 	listActiveTasksCall = ipc.NewCall[util.Empty, []*TaskInfo]("tasks.listActive")
 	postTaskStatusCall  = ipc.NewCall[TaskStatusUpdate, util.Empty]("tasks.postStatus")
 )
@@ -106,10 +99,10 @@ var taskFrontendQueue chan *TaskInfo
 
 func InitTaskSystem() {
 	if cfg.Mode == cfg.ServerModeServer {
-		registerTaskCall.Handler(func(r *ipc.Request[TaskInfoSpecification]) ipc.Response[uint64] {
+		registerTaskCall.Handler(func(r *ipc.Request[TaskInfoSpecification]) ipc.Response[*TaskInfo] {
 			ucloudUsername, ok := ctrl.MapLocalToUCloud(r.Uid)
 			if !ok {
-				return ipc.Response[uint64]{
+				return ipc.Response[*TaskInfo]{
 					StatusCode: http.StatusForbidden,
 				}
 			}
@@ -137,7 +130,7 @@ func InitTaskSystem() {
 				)
 
 				if err != nil {
-					return ipc.Response[uint64]{
+					return ipc.Response[*TaskInfo]{
 						StatusCode:   http.StatusBadGateway,
 						ErrorMessage: fmt.Sprintf("Could not create task in UCloud: %s", err),
 					}
@@ -174,15 +167,22 @@ func InitTaskSystem() {
 			})
 
 			if !ok {
-				return ipc.Response[uint64]{
+				return ipc.Response[*TaskInfo]{
 					StatusCode:   http.StatusInternalServerError,
 					ErrorMessage: "Failed to register task",
 				}
 			}
 
-			return ipc.Response[uint64]{
+			res := &TaskInfo{
+				Id:                    taskId,
+				UCloudTaskId:          ucloudTaskId,
+				Uid:                   r.Uid,
+				TaskInfoSpecification: spec,
+			}
+
+			return ipc.Response[*TaskInfo]{
 				StatusCode: http.StatusOK,
-				Payload:    taskId,
+				Payload:    res,
 			}
 		})
 
@@ -210,7 +210,8 @@ func InitTaskSystem() {
 					UCloudDestination string
 					ConflictPolicy    string
 					MoreInfo          string
-					HasUCloudTask     bool
+					UCloudTaskId      int64
+					Paused            bool
 				}](
 					tx,
 					`
@@ -221,7 +222,8 @@ func InitTaskSystem() {
 							coalesce(ucloud_destination, '') as ucloud_destination,
 							coalesce(conflict_policy, '') as conflict_policy,
 							coalesce(more_info, '') as more_info,
-							ucloud_task_id is not null as has_ucloud_task
+							coalesce(ucloud_task_id, -1) as ucloud_task_id,
+							paused
 						from
 							slurm.tasks
 						where
@@ -236,12 +238,13 @@ func InitTaskSystem() {
 				for _, row := range rows {
 					info := &TaskInfo{
 						Id:           row.Id,
-						UCloudTaskId: util.Option[uint64]{},
+						UCloudTaskId: util.OptValue(uint64(row.UCloudTaskId)),
 						Uid:          uid,
+						Paused:       row.Paused,
 						TaskInfoSpecification: TaskInfoSpecification{
 							Type:           TaskType(row.TaskType),
 							ConflictPolicy: orc.WriteConflictPolicy(row.ConflictPolicy),
-							HasUCloudTask:  row.HasUCloudTask,
+							HasUCloudTask:  row.UCloudTaskId != -1,
 						},
 					}
 
@@ -294,16 +297,76 @@ func InitTaskSystem() {
 			}
 		}
 	} else if cfg.Mode == cfg.ServerModeUser {
-		taskFrontendQueue = make(chan *TaskInfo)
-		taskBackendQueue := make(chan *TaskInfo)
+		type userStateTransition struct {
+			Id    uint64
+			State orc.TaskState
+		}
+		taskStateTransition := make(chan userStateTransition)
+		taskFrontendQueue = make(chan *TaskInfo, 100)
+		taskBackendQueue := make(chan *TaskInfo, 100)
+
+		doTransition := func(id uint64, state orc.TaskState) error {
+			taskStateTransition <- userStateTransition{
+				Id:    id,
+				State: state,
+			}
+			return nil
+		}
+
+		ctrl.Tasks = ctrl.TaskService{
+			OnCancel: func(id uint64) error {
+				return doTransition(id, orc.TaskStateCancelled)
+			},
+			OnPause: func(id uint64) error {
+				return doTransition(id, orc.TaskStateSuspended)
+			},
+			OnResume: func(id uint64) error {
+				return doTransition(id, orc.TaskStateRunning)
+			},
+		}
 
 		go func() {
 			knownTasks := map[uint64]*TaskInfo{}
 			knownStatus := map[uint64]orc.TaskStatus{}
+
 			ticker := time.NewTicker(250 * time.Millisecond)
 
 			for util.IsAlive {
 				select {
+				case transition := <-taskStateTransition:
+					if transition.State == orc.TaskStateRunning {
+						tasks := ListActiveTasks()
+						for _, task := range tasks {
+							if task.UCloudTaskId.Present && task.UCloudTaskId.Value == transition.Id {
+								_ = PostTaskStatus(TaskStatusUpdate{
+									Id:            task.Id,
+									NewBody:       util.OptValue(""),
+									NewProgress:   util.OptValue("Task is being resumed..."),
+									NewPercentage: util.OptValue(-1.0),
+									NewState:      util.OptValue(orc.TaskStateInQueue),
+								})
+								taskFrontendQueue <- task
+								break
+							}
+						}
+					} else {
+						var foundTask *TaskInfo = nil
+						for _, task := range knownTasks {
+							if task.HasUCloudTask && task.UCloudTaskId.Value == transition.Id {
+								foundTask = task
+								break
+							}
+						}
+
+						if foundTask != nil {
+							foundTask.UserRequestedState.Store(&transition.State)
+						} else {
+							// TODO Somehow send a terminate message. This is a bit more complicated since we do not have
+							//   a way of checking permissions. Probably some IPC which terminates the task if it is
+							//   unknown.
+						}
+					}
+
 				case task := <-taskFrontendQueue:
 					b, _ := json.Marshal(task)
 					log.Info(string(b))
@@ -361,12 +424,6 @@ func InitTaskSystem() {
 					result := TaskProcessingResult{}
 
 					switch task.Type {
-					case FileTaskTypeMove:
-						result = processMoveTask(task)
-
-					case FileTaskTypeMoveToTrash:
-						result = processMoveToTrash(task)
-
 					case FileTaskTypeEmptyTrash:
 						result = processEmptyTrash(task)
 
@@ -416,38 +473,73 @@ func InitTaskSystem() {
 						}()
 					}
 
-					shouldPost := true
-					operation := task.DefaultStatus().Title
-					progress := "Task has been completed."
-					taskState := orc.TaskStateSuccess
-					if result.Error != nil {
-						if result.AllowReschedule {
-							shouldPost = false
-							reschedule()
+					requestedState := task.UserRequestedState.Load()
+					if requestedState != nil {
+						if result.Error != nil && !result.AllowReschedule {
+							// Ignore that the user requested a state transition, force an error
+							_, _ = postTaskStatusCall.Invoke(TaskStatusUpdate{
+								Id:            task.Id,
+								NewBody:       util.OptValue(""),
+								NewProgress:   util.OptValue(result.Error.Error()),
+								NewPercentage: util.OptValue(100.0),
+								NewState:      util.OptValue(orc.TaskStateFailure),
+							})
+
+							task.Done.Store(true)
+						} else {
+							// NOTE(Dan): This intentionally ignores the error if we are pausing the task.
+							msg := "Task has been paused"
+							if *requestedState == orc.TaskStateCancelled {
+								msg = "Task has been cancelled"
+								if result.Error != nil {
+									msg = result.Error.Error()
+								}
+							}
+
+							_, _ = postTaskStatusCall.Invoke(TaskStatusUpdate{
+								Id:            task.Id,
+								NewBody:       util.OptValue(""),
+								NewProgress:   util.OptValue(msg),
+								NewPercentage: util.OptValue(0.0),
+								NewState:      util.OptValue(*requestedState),
+							})
+
+							task.Done.Store(true)
+						}
+					} else {
+						shouldPost := true
+						operation := task.DefaultStatus().Title
+						progress := "Task has been completed."
+						taskState := orc.TaskStateSuccess
+						if result.Error != nil {
+							if result.AllowReschedule {
+								shouldPost = false
+								reschedule()
+							}
+
+							taskState = orc.TaskStateFailure
+							progress = result.Error.Error()
 						}
 
-						taskState = orc.TaskStateFailure
-						progress = result.Error.Error()
-					}
+						if shouldPost {
+							_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
+								Id:            task.Id,
+								NewProgress:   util.OptValue(progress),
+								NewPercentage: util.OptValue(100.0),
+								NewState:      util.OptValue(taskState),
+								NewBody:       util.OptValue(""),
+								NewOperation:  operation,
+							})
 
-					if shouldPost {
-						_, err := postTaskStatusCall.Invoke(TaskStatusUpdate{
-							Id:            task.Id,
-							NewProgress:   util.OptValue(progress),
-							NewPercentage: util.OptValue(100.0),
-							NewState:      util.OptValue(taskState),
-							NewBody:       util.OptValue(""),
-							NewOperation:  operation,
-						})
-
-						if err != nil {
-							log.Warn("Failed to post final status update for task: %s", err)
-							reschedule()
+							if err != nil {
+								log.Warn("Failed to post final status update for task: %s", err)
+								reschedule()
+							}
 						}
-					}
 
-					if !wasRescheduled {
-						task.Done.Store(true)
+						if !wasRescheduled {
+							task.Done.Store(true)
+						}
 					}
 				}
 			}()
@@ -460,6 +552,9 @@ func InitTaskSystem() {
 			if len(tasks) > 0 {
 				log.Info("Restarting %v tasks", len(tasks))
 				for _, task := range tasks {
+					if task.Paused {
+						continue
+					}
 					taskFrontendQueue <- task
 				}
 			}
@@ -468,20 +563,13 @@ func InitTaskSystem() {
 }
 
 func RegisterTask(task TaskInfoSpecification) error {
-	id, err := registerTaskCall.Invoke(task)
+	t, err := registerTaskCall.Invoke(task)
 	if err != nil {
 		return err
 	}
 
-	status := task.DefaultStatus()
-	t := &TaskInfo{
-		Id:                    id,
-		UCloudTaskId:          util.OptNone[uint64](),
-		Uid:                   uint32(os.Getuid()),
-		TaskInfoSpecification: task,
-	}
-	t.Status.Store(&status)
-
+	defaultStatus := t.DefaultStatus()
+	t.Status.Store(&defaultStatus)
 	taskFrontendQueue <- t
 
 	return nil
@@ -549,11 +637,31 @@ func PostTaskStatusServer(uid uint32, status TaskStatusUpdate) error {
 		}
 	}
 
-	if newState == orc.TaskStateSuccess || newState == orc.TaskStateFailure || newState == orc.TaskStateCancelled {
+	if newState == orc.TaskStateSuspended {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`update slurm.tasks set paused = true where id = :id`,
+				db.Params{
+					"id": status.Id,
+				},
+			)
+		})
+	} else if newState == orc.TaskStateSuccess || newState == orc.TaskStateFailure || newState == orc.TaskStateCancelled {
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
 				`delete from slurm.tasks where id = :id`,
+				db.Params{
+					"id": status.Id,
+				},
+			)
+		})
+	} else {
+		db.NewTx0(func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`update slurm.tasks set paused = false where id = :id`,
 				db.Params{
 					"id": status.Id,
 				},
