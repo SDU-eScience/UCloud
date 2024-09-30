@@ -91,6 +91,8 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 	req.Header.Set("Accept", "application/json")
 	req.SetBasicAuth(c.username, c.password)
 
+	log.Info("GPFS %v %v %v %v %v", method, url, params, c.username, len(c.password))
+
 	resp, err := c.httpClient.Do(req)
 	if resp != nil {
 		defer resp.Body.Close()

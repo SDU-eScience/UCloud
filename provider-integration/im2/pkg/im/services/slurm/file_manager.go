@@ -4,6 +4,7 @@ import (
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
@@ -48,6 +49,7 @@ func InitFileManagers() {
 type NopFileManagementService struct{}
 
 func (n *NopFileManagementService) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
+	log.Info("nop handle quota update")
 	// Do nothing
 }
 

@@ -35,6 +35,7 @@ type GpfsManager struct {
 }
 
 func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
+	log.Info("handle quota update gpfs %v", drives)
 	for _, drive := range drives {
 		mapping, filesetName, ok := g.resolveLocatedDrive(drive, update.Category.Name)
 		if !ok {
