@@ -5,7 +5,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
-import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection} from "@/Authentication/ws";
@@ -36,8 +36,6 @@ const SpinAnimation = makeKeyframe("spin", `
         transform: rotate(360deg);
     }    
 `)
-
-const ActiveTasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="24px" width="24px" mb={"16px"} name="heroQueueList" />;
 
 enum TaskState {
     IN_QUEUE = "IN_QUEUE",
@@ -87,6 +85,12 @@ export const taskStore = new class extends ExternalStoreBase {
         }
     }
 
+    public removeFinishedTask(task: BackgroundTask) {
+        delete this.finishedTasks[task.taskId];
+        // TODO(Jonas): Mark as read. Needs backend support.
+        this.emitChange();
+    }
+
     public inProgress: Record<number, BackgroundTask> = {};
     private addInProgressTask(task: BackgroundTask) {
         this.inProgress[task.taskId] = task;
@@ -130,8 +134,12 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
         if (task.specification.canCancel) {
             operations.push(<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
         }
+    } else {
+        operations.push(
+            <TooltipV2 tooltip="Clear task" contentWidth={100}>
+                <Icon name="close" cursor="pointer" color="primaryMain" onClick={() => taskStore.removeFinishedTask(task)} />
+            </TooltipV2>)
     }
-
 
     const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
 
@@ -347,7 +355,7 @@ export function TaskList(): React.ReactNode {
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
 
     const finishedTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.finishedTasks);
-    const finishedTaskList = Object.values(finishedTasks);
+    const finishedTaskList = Object.values(finishedTasks).sort((a, b) => a.createdAt - b.createdAt);;
 
     const anyFinished = finishedTaskList.length + fileUploads.finished.length > 0;
     const uploadCallbacks: UploadCallback = React.useMemo(() => ({
@@ -374,14 +382,37 @@ export function TaskList(): React.ReactNode {
         };
     }, [activeUploadCount]);
 
+    const rippleColoring: React.CSSProperties = {};
+
+    const anyFailed = finishedTaskList.find(it => it.status.state === TaskState.FAILURE) != null;
+
+    if (anyFailed)
+        rippleColoring["--ringColor"] = "var(--errorMain)";
+    else {
+        rippleColoring["--ringColor"] = "#fff";
+    }
+
     const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
-    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !websocket || !hasFeature(Feature.NEW_TASKS)) return null;
+
+    const rippleRef = React.useRef<HTMLDivElement>(null);
+
+    if (rippleRef.current) {
+        if (inProgressCount) {
+            rippleRef.current.classList.add(RippleEffect);
+            rippleRef.current.classList.remove(StaticCircle);
+        } else {
+            rippleRef.current.classList.remove(RippleEffect);
+            rippleRef.current.classList.add(StaticCircle);
+        }
+    }
+
+    if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
     return (
         <ClickableDropdown
             left="50px"
             bottom="-168px"
             colorOnHover={false}
-            trigger={<Flex>{ActiveTasksIcon}</Flex>}
+            trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
         >
             <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
@@ -407,6 +438,40 @@ export function TaskList(): React.ReactNode {
     );
 }
 
+const RippleAnimation = makeKeyframe("ripple-animation", `
+    0% {
+        box-shadow: 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor);
+    }
+    100% {
+        box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+    }
+`);
+
+const PULSE_ANIMATION_SPEED = "1.2s";
+
+const RippleCenter = injectStyleSimple("ripple-center", `
+    margin-top: 32px;
+    margin-bottom: 32px;
+    margin-left: 16px;
+    margin-right: 16px;
+    background-color: #FFF;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+`);
+
+const RippleEffect = injectStyle("ripple", k => `
+        ${k} {
+            -webkit-animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
+            animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
+    }
+`);
+
+const StaticCircle = injectStyle(`static-circle`, k => `
+        ${k} {
+            box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+    }
+`);
 
 const baseContext = "tasks";
 const TaskOperations = new class {
@@ -414,10 +479,6 @@ const TaskOperations = new class {
         return task.status.progressPercentage < 0;
     }
 
-    // TODO(Jonas): not in use. delete? 
-    public didTaskNotFinish(task: BackgroundTask): boolean {
-        return [TaskState.CANCELLED, TaskState.FAILURE].includes(task.status.state);
-    }
 
     public isTaskTerminal(task: BackgroundTask): boolean {
         return [TaskState.CANCELLED, TaskState.FAILURE, TaskState.SUCCESS].includes(task.status.state);
