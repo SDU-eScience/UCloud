@@ -106,6 +106,13 @@ type commonErrorMessage struct {
 }
 
 func ParseResponse[T any](r Response) (value T, err error) {
+	if r.Response == nil {
+		err = &util.HttpError{
+			StatusCode:   http.StatusBadGateway,
+			DetailedCode: ErrorUnableToReadResponse,
+		}
+		return
+	}
 	defer util.SilentClose(r.Response)
 	data, err := io.ReadAll(r.Response)
 
