@@ -77,7 +77,8 @@ class DataVisualization(
         val allWallets = accountingSystem
             .sendRequest(
                 AccountingRequest.BrowseWallets(
-                    idCard
+                    idCard,
+                    includeChildren = true
                 )
             ).mapNotNull { wallet ->
                 //get allocations within period
@@ -232,40 +233,39 @@ class DataVisualization(
 
                 val breakDownByProject = launch {
                     // Breakdown by project
+                    val children = mutableListOf<String>()
+                    allWallets.forEach { wallet ->
+                        wallet.children?.forEach {
+                            if (it.child.projectId != null) {
+                                children.add(it.child.projectId!!)
+                            }
+                        }
+                    }
                     db.withSession { session ->
                         val rows = session.sendPreparedStatement(
                             {
-                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                                    w.allocationGroups.map { it.group.id }
-                                })
+                                setParameter("project_ids", children.toSet().toList())
 
                                 setParameter("start", request.start)
                                 setParameter("end", request.end)
                             },
                             """
                             with
-                                project_wallets as (
-                                    select ag.associated_wallet as id
-                                    from
-                                        accounting.allocation_groups ag
-                                    where
-                                        ag.id = some(:allocation_group_ids::int8[])
-                                ),
                                 relevant_wallets as (
                                     select
                                         distinct wal.id,
                                         wal.product_category,
                                         pc.accounting_frequency != 'ONCE' as is_periodic
                                     from
-                                        project_wallets pwal join
-                                        accounting.allocation_groups child on child.parent_wallet = pwal.id join
-                                        accounting.wallets_v2 wal on child.associated_wallet = wal.id join
+                                        accounting.wallets_v2 wal join
+                                        accounting.wallet_owner own on wal.wallet_owner = own.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
+                                    where own.project_id = some(:project_ids::text[])
                                     order by wal.id
                                 ),
                                 samples as (
                                     select *
-                                    from accounting.wallet_samples_v2
+                                    from accounting.wallet_samples_v2 s join relevant_wallets w on s.wallet_id = w.id
                                     where
                                         sampled_at >= to_timestamp(:start / 1000.0)
                                         and sampled_at <= to_timestamp(:end / 1000.0)
@@ -276,8 +276,10 @@ class DataVisualization(
                                         min(s.sampled_at) as oldest_data_ts,
                                         max(s.sampled_at) as newest_data_ts
                                     from
-                                        relevant_wallets w
-                                        join samples s on w.id = s.wallet_id
+                                        accounting.wallet_samples_v2 s join relevant_wallets w on s.wallet_id = w.id
+                                    where
+                                        sampled_at >= to_timestamp(:start / 1000.0)
+                                        and sampled_at <= to_timestamp(:end / 1000.0)
                                     group by
                                         w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
@@ -318,6 +320,7 @@ class DataVisualization(
                                 join accounting.product_categories pc on w.product_category = pc.id
                                 join accounting.accounting_units au on au.id = pc.accounting_unit
                                 left join project.projects p on wo.project_id = p.id
+                            where usage > 0
                             order by product_category;
                         """,
                         ).rows

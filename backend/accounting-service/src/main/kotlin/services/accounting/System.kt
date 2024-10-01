@@ -221,7 +221,6 @@ class AccountingSystem(
                                             Response.ok(Unit)
                                         }
 
-                                        is AccountingRequest.RetrieveDescendants -> retrieveDescendants(msg)
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
@@ -1522,36 +1521,6 @@ class AccountingSystem(
         }
 
         return Response.ok(result)
-    }
-
-    private fun retrieveDescendants(request: AccountingRequest.RetrieveDescendants): Response<List<String>> {
-        val currentProject = request.projectId
-        val owner = ownersByReference[currentProject]
-            ?: return Response.error(
-                HttpStatusCode.Forbidden,
-                "Owner not found"
-            )
-        val wallets = walletsByOwner[owner.id]
-            ?: return Response.error(
-                HttpStatusCode.Forbidden,
-                "Wallet not found"
-            )
-        val descendantsId = ArrayList<String>()
-        val queue = ArrayDeque<InternalWallet>()
-        queue.addAll(wallets)
-        while (queue.isNotEmpty()) {
-            val wal = queue.removeFirst()
-            val childrenId = wal.childrenUsage.keys
-            val childrenWallets = walletsById.filter { childrenId.contains(it.key) }
-            childrenWallets.values.forEach {
-                val childOwner = ownersById[it.ownedBy]
-                if (childOwner != null && childOwner.isProject()) {
-                    descendantsId.add(childOwner.reference)
-                }
-            }
-            queue.addAll(childrenWallets.values)
-        }
-        return Response.ok(descendantsId.toSet().toList())
     }
 
     private fun retrieveScopedUsage(request: AccountingRequest.RetrieveScopedUsage): Response<Long> {

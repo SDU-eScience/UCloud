@@ -63,13 +63,42 @@ class StatisticsService {
         val card = idCards.fetchIdCard(actorAndProject) // This enforces that the user is a member of the specified workspace
         if (card !is IdCard.User) return assembleResult()
 
-        val descendants = if (projectId != null) {
-            AccountingV2.retrieveDescendants.call(
-                AccountingV2.RetrieveDescendants.Request(projectId),
-                serviceClient
-            ).orThrow().descendants + projectId
+        val owner = if (projectId != null) {
+            WalletOwner.Project(projectId)
         } else {
-            emptyList()
+            WalletOwner.User(actorAndProject.actor.safeUsername())
+        }
+
+        val allocationGroupIds = mutableListOf<Int>()
+        AccountingV2.browseWalletsInternal.call(
+            AccountingV2.BrowseWalletsInternal.Request(owner),
+            serviceClient
+        ).orThrow().wallets.forEach { wallet ->
+            wallet.allocationGroups.forEach { allocationGroupIds.add(it.group.id) }
+        }
+
+        val descendants = db.withSession { session ->
+            session.sendPreparedStatement(
+                {setParameter("allocgroups", allocationGroupIds)},
+                """
+                    with recursive children as (
+                        select associated_wallet, parent_wallet, id
+                        from accounting.allocation_groups
+                        where id = some(:allocgroups::int8[])
+        
+                        union
+            
+                        select ag.associated_wallet, ag.parent_wallet, ag.id
+                        from accounting.allocation_groups ag
+                        inner join children c on c.associated_wallet = ag.parent_wallet
+                    )
+                    select distinct wo.project_id, children.id
+                    from children join
+                    accounting.wallets_v2 wall on wall.id = children.associated_wallet join
+                    accounting.wallet_owner wo on wall.wallet_owner = wo.id
+                    where project_id is not null
+                    """
+            ).rows.mapNotNull { it.getString(0) }
         }
         
         coroutineScope {
