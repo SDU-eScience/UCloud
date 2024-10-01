@@ -450,8 +450,8 @@ const RippleAnimation = makeKeyframe("ripple-animation", `
 const PULSE_ANIMATION_SPEED = "1.2s";
 
 const RippleCenter = injectStyleSimple("ripple-center", `
-    margin-top: 32px;
-    margin-bottom: 32px;
+    margin-top: 8px;
+    margin-bottom: 8px;
     margin-left: 16px;
     margin-right: 16px;
     background-color: #FFF;
