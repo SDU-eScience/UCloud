@@ -24,7 +24,6 @@ class GiftService(
         giftId: Long,
     ) {
         val giftIds = findAvailableGifts(actorAndProject, giftId).gifts.map { it.id }
-
         db.withSession(remapExceptions = true) { session ->
             val rows = session.sendPreparedStatement(
                 {
@@ -113,7 +112,8 @@ class GiftService(
                         parentProjectId = sourceProject,
                         revisionComment = "Gifted automatically"
                     ),
-                    comment = "Gift"
+                    comment = "Gift",
+                    alternativeRecipient = GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername())
                 )
             )
         }

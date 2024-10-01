@@ -67,7 +67,7 @@ class GrantsV2Service(
     // `GrantApplication`. For example, a user may command the system to insert a new revision of the application by
     // using `Command.InsertRevision`.
     private sealed class Command {
-        data class InsertRevision(val comment: String, val doc: GrantApplication.Document) : Command()
+        data class InsertRevision(val comment: String, val doc: GrantApplication.Document, val alternativeRecipient: GrantApplication.Recipient? = null) : Command()
         data class UpdateApprovalState(val projectId: String, val newState: GrantApplication.State) : Command()
         data class Transfer(val comment: String, val sourceProjectId: String, val targetProjectId: String) : Command()
         data object Withdraw : Command()
@@ -270,7 +270,7 @@ class GrantsV2Service(
             id = applicationId,
             initialDocument = request.revision.takeIf { applicationId == null },
             block = {
-                runCommand(Command.InsertRevision(request.comment, request.revision))
+                runCommand(Command.InsertRevision(request.comment, request.revision, alternativeRecipient = request.alternativeRecipient))
             }
         ).applicationId.let(::FindByStringId)
     }
@@ -1015,7 +1015,7 @@ class GrantsV2Service(
         private suspend fun isGrantGiver(approverId: String? = null, withCache: Boolean = true): Boolean {
             return when (val idCard = idCard) {
                 is IdCard.Provider -> false
-                IdCard.System -> true
+                is IdCard.System -> true
                 is IdCard.User -> {
                     val projects =
                         if (approverId != null) setOf(ctx.idCardService.lookupPidFromProjectIdOrFail(approverId))
@@ -1137,7 +1137,7 @@ class GrantsV2Service(
 
                         insertRevision(
                             command.comment,
-                            command.doc.copy(parentProjectId = grantGiver)
+                            command.doc.copy(parentProjectId = grantGiver, recipient = command.alternativeRecipient ?: command.doc.recipient)
                         )
 
                         application = application.copy(
