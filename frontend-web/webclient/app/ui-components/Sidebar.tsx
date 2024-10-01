@@ -447,13 +447,12 @@ export function Sidebar(): React.ReactNode {
                     <AutomaticGiftClaim />
                     <ResourceInit />
                     <VersionManager />
-                    <BackgroundTasks />
                 </>
 
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
                     <Downtimes />
-
                     <ThemeToggler />
+                    <BackgroundTasks />
                     <Notification />
                     <Support />
                     <UserMenu avatar={avatar} />
