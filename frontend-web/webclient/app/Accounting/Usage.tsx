@@ -886,7 +886,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
 
                         return <tr key={idx}>
                             <td>{point.key}</td>
-                            <td>{Accounting.addThousandSeparators(Math.floor(usage))} {unit}</td>
+                            <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
                         </tr>
                     })}
                 </tbody>

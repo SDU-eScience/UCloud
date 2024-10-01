@@ -136,11 +136,6 @@ sealed class AccountingRequest<Resp> {
         val chargeId: String
     ) : AccountingRequest<Long>()
 
-    data class RetrieveDescendants(
-        override val idCard: IdCard,
-        val projectId: String
-    ) : AccountingRequest<List<String>>()
-
     // NOTE(Dan): Please do not do anything stupid with this API. You should probably only ever do
     // reads inside the handler. It should not be anything slow since it can stall the entire accounting system if
     // it is.

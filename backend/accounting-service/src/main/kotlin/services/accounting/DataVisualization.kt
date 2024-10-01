@@ -7,10 +7,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import kotlin.time.Duration.Companion.days
 
 class DataVisualization(
@@ -80,7 +77,8 @@ class DataVisualization(
         val allWallets = accountingSystem
             .sendRequest(
                 AccountingRequest.BrowseWallets(
-                    idCard
+                    idCard,
+                    includeChildren = true
                 )
             ).mapNotNull { wallet ->
                 //get allocations within period
@@ -152,20 +150,21 @@ class DataVisualization(
                     it.paysFor.name == category && it.paysFor.provider == provider
                 }
             }
-
+        }
             coroutineScope {
                 val usageOverTime = launch {
                     // Usage over time
-                    val rows = session.sendPreparedStatement(
-                        {
-                            setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                                w.allocationGroups.map { it.group.id }
-                            })
+                    db.withSession { session ->
+                        val rows = session.sendPreparedStatement(
+                            {
+                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
+                                    w.allocationGroups.map { it.group.id }
+                                })
 
-                            setParameter("start", request.start)
-                            setParameter("end", request.end)
-                        },
-                        """
+                                setParameter("start", request.start)
+                                setParameter("end", request.end)
+                            },
+                            """
                         with samples as (
                             select
                                 s.wallet_id,
@@ -203,66 +202,73 @@ class DataVisualization(
                             join samples s on w.id = s.wallet_id
                         order by pc.id, s.sample_time desc 
                     """
-                    ).rows
+                        ).rows
 
-                    var currentProductCategory = -1L
+                        var currentProductCategory = -1L
 
-                    var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
-                    fun flushChart() {
-                        if (currentProductCategory != -1L) {
-                            usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
-                            dataPoints = ArrayList()
-                        }
-                    }
-
-                    for (row in rows) {
-                        val allocCategory = row.getLong(0)!!
-                        val usage = row.getDouble(1)!!
-                        val quota = row.getLong(2)!!
-                        val timestamp = row.getLong(3)!!
-
-                        if (currentProductCategory != allocCategory) {
-                            flushChart() // no-op if currentProductCategory = -1L
-                            currentProductCategory = allocCategory
+                        var dataPoints = ArrayList<UsageOverTimeDatePointAPI>()
+                        fun flushChart() {
+                            if (currentProductCategory != -1L) {
+                                usageOverTimeCharts[currentProductCategory] = UsageOverTimeAPI(dataPoints.toList())
+                                dataPoints = ArrayList()
+                            }
                         }
 
-                        dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                        for (row in rows) {
+                            val allocCategory = row.getLong(0)!!
+                            val usage = row.getDouble(1)!!
+                            val quota = row.getLong(2)!!
+                            val timestamp = row.getLong(3)!!
+
+                            if (currentProductCategory != allocCategory) {
+                                flushChart() // no-op if currentProductCategory = -1L
+                                currentProductCategory = allocCategory
+                            }
+
+                            dataPoints.add(UsageOverTimeDatePointAPI(usage, quota, timestamp))
+                        }
+                        flushChart()
                     }
-                    flushChart()
                 }
 
                 val breakDownByProject = launch {
                     // Breakdown by project
+                    val children = mutableListOf<String>()
+                    allWallets.forEach { wallet ->
+                        wallet.children?.forEach {
+                            if (it.child.projectId != null) {
+                                children.add(it.child.projectId!!)
+                            }
+                        }
+                    }
                     db.withSession { session ->
                         val rows = session.sendPreparedStatement(
                             {
-                                setParameter("allocation_group_ids", allWallets.flatMap { w ->
-                                    w.allocationGroups.map { it.group.id }
-                                })
+                                setParameter("project_ids", children.toSet().toList())
 
                                 setParameter("start", request.start)
                                 setParameter("end", request.end)
                             },
                             """
                             with
-                                project_wallets as (
-                                    select ag.associated_wallet as id
-                                    from
-                                        accounting.allocation_groups ag
-                                    where
-                                        ag.id = some(:allocation_group_ids::int8[])
-                                ),
                                 relevant_wallets as (
                                     select
                                         distinct wal.id,
                                         wal.product_category,
                                         pc.accounting_frequency != 'ONCE' as is_periodic
                                     from
-                                        project_wallets pwal join
-                                        accounting.allocation_groups child on child.parent_wallet = pwal.id join
-                                        accounting.wallets_v2 wal on child.associated_wallet = wal.id join
+                                        accounting.wallets_v2 wal join
+                                        accounting.wallet_owner own on wal.wallet_owner = own.id join
                                         accounting.product_categories pc on wal.product_category = pc.id
+                                    where own.project_id = some(:project_ids::text[])
                                     order by wal.id
+                                ),
+                                samples as (
+                                    select *
+                                    from accounting.wallet_samples_v2 s join relevant_wallets w on s.wallet_id = w.id
+                                    where
+                                        sampled_at >= to_timestamp(:start / 1000.0)
+                                        and sampled_at <= to_timestamp(:end / 1000.0)
                                 ),
                                 data_timestamps as (
                                     select
@@ -270,30 +276,29 @@ class DataVisualization(
                                         min(s.sampled_at) as oldest_data_ts,
                                         max(s.sampled_at) as newest_data_ts
                                     from
-                                        relevant_wallets w
-                                        join accounting.wallet_samples_v2 s on w.id = s.wallet_id
+                                        accounting.wallet_samples_v2 s join relevant_wallets w on s.wallet_id = w.id
                                     where
-                                        s.sampled_at >= to_timestamp(:start / 1000.0)
-                                        and s.sampled_at <= to_timestamp(:end / 1000.0)
+                                        sampled_at >= to_timestamp(:start / 1000.0)
+                                        and sampled_at <= to_timestamp(:end / 1000.0)
                                     group by
                                         w.id, w.product_category, w.id, w.is_periodic, w.is_periodic
                                 ),
-                               with_usage as (
+                                with_usage as (
                                     select
                                         dts.id,
                                         dts.product_category,
-                                        newest_sample.tree_usage,
-                                        oldest_sample.tree_usage,
+                                        newest_sample.tree_usage newest,
+                                        oldest_sample.tree_usage oldest,
                                         case
                                             when dts.is_periodic then newest_sample.tree_usage - oldest_sample.tree_usage
                                             when not dts.is_periodic then newest_sample.tree_usage
                                         end as usage
                                     from
                                         data_timestamps dts
-                                        join accounting.wallet_samples_v2 oldest_sample on
+                                        join samples oldest_sample on
                                             dts.oldest_data_ts = oldest_sample.sampled_at
                                             and dts.id = oldest_sample.wallet_id
-                                        join accounting.wallet_samples_v2 newest_sample on
+                                        join samples newest_sample on
                                             dts.newest_data_ts = newest_sample.sampled_at
                                             and dts.id = newest_sample.wallet_id
                                 )
@@ -302,11 +307,11 @@ class DataVisualization(
                                 p.id,
                                 coalesce(p.title, wo.username),
                                 case
-                                    when au.floating_point = true then u.usage / 1000000.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.usage::double precision
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.usage::double precision / 60.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.usage::double precision / 60.0 / 60.0
-                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.usage::double precision / 60.0 / 60.0 / 24.0
+                                    when au.floating_point = true then u.newest / 1000000.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'ONCE' then u.newest::double precision
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_MINUTE' then u.newest::double precision / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_HOUR' then u.newest::double precision / 60.0 / 60.0
+                                    when au.floating_point = false and pc.accounting_frequency = 'PERIODIC_DAY' then u.newest::double precision / 60.0 / 60.0 / 24.0
                                 end tusage
                             from
                                 with_usage u
@@ -315,6 +320,7 @@ class DataVisualization(
                                 join accounting.product_categories pc on w.product_category = pc.id
                                 join accounting.accounting_units au on au.id = pc.accounting_unit
                                 left join project.projects p on wo.project_id = p.id
+                            where usage > 0
                             order by product_category;
                         """,
                         ).rows
@@ -353,9 +359,6 @@ class DataVisualization(
                     }
                 }
             }
-        }
-
-
         return assembleResult()
     }
 }
