@@ -139,7 +139,33 @@ func handleNotification(nType NotificationMessageType, notification any) {
 		update.ProjectComparison = compareProjects(before, update.Project)
 
 		if projectHandler(update) {
-			saveLastKnownProject(update.Project)
+			project := update.Project
+			realMembers := project.Status.Members
+			var usernames []string
+			for _, member := range realMembers {
+				usernames = append(usernames, member.Username)
+			}
+
+			var knownMembers []apm.ProjectMember
+			mappedUsers := MapUCloudUsersToLocalUsers(usernames)
+			for _, member := range realMembers {
+				_, ok := mappedUsers[member.Username]
+				if !ok {
+					continue
+				}
+
+				knownMembers = append(knownMembers, member)
+			}
+
+			project.Status.Members = knownMembers
+			saveLastKnownProject(project)
+
+			for _, newMember := range update.ProjectComparison.MembersAddedToProject {
+				uid, ok := MapUCloudToLocal(newMember)
+				if ok {
+					RequestUserTermination(uid)
+				}
+			}
 		}
 
 		for _, callback := range projectNotificationCallbacks {

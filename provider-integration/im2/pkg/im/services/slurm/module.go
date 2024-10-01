@@ -7,7 +7,6 @@ import (
 	"ucloud.dk/pkg/im/services/idfreeipa"
 	"ucloud.dk/pkg/im/services/idscripted"
 	"ucloud.dk/pkg/im/services/nopconn"
-	"ucloud.dk/pkg/log"
 )
 
 var ServiceConfig *cfg.ServicesConfigurationSlurm
@@ -71,7 +70,6 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 
 func handleApmNotification(update *ctrl.NotificationWalletUpdated) {
 	drives := EvaluateLocators(update.Owner, update.Category.Name)
-	log.Info("FHJFSDHJKSFDKHJSHJKDFKSHJDF %v", drives)
 	FileManager(update.Category.Name).HandleQuotaUpdate(drives, update)
 	Accounting.OnWalletUpdated(update)
 }

@@ -23,6 +23,7 @@ func Init(mux *http.ServeMux) {
 	controllerJobs(mux)
 	controllerTasks(mux)
 
+	initLiveness()
 	if cfg.Mode == cfg.ServerModeServer {
 		initEvents()
 	}

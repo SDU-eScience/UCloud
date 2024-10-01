@@ -206,6 +206,37 @@ func MapUCloudToLocal(username string) (uint32, bool) {
 	})
 }
 
+func MapUCloudUsersToLocalUsers(usernames []string) map[string]uint32 {
+	return db.NewTx[map[string]uint32](func(tx *db.Transaction) map[string]uint32 {
+		rows := db.Select[struct {
+			Username string
+			Uid      uint32
+		}](
+			tx,
+			`
+				with data as (
+					select unnest(cast(:usernames as text[])) as username
+				)
+				select
+					c.ucloud_username as username,
+					c.uid
+				from
+					data d
+					join connections c on d.username = c.ucloud_username
+			`,
+			db.Params{
+				"usernames": usernames,
+			},
+		)
+
+		result := map[string]uint32{}
+		for _, row := range rows {
+			result[row.Username] = row.Uid
+		}
+		return result
+	})
+}
+
 func MapLocalToUCloud(uid uint32) (string, bool) {
 	return db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
 		val, ok := db.Get[struct{ UCloudUsername string }](
