@@ -1,11 +1,11 @@
 import * as React from "react";
 import {useEffect, useMemo} from "react";
-import {Box, Card, Icon} from "@/ui-components";
+import {Box, Card, Heading, Icon} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
-import {classConcat, injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
 import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection} from "@/Authentication/ws";
@@ -407,15 +407,23 @@ export function TaskList(): React.ReactNode {
     }
 
     if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
+
+    const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
+
     return (
         <ClickableDropdown
-            left="50px"
-            bottom="-168px"
+            left="60px"
+            bottom="-148px"
             colorOnHover={false}
             trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
         >
             <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
+                    {noEntries ? <Flex height="100%">
+                        <Heading m="auto">
+                            No background tasks found
+                        </Heading>
+                    </Flex> : null}
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
                     {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
@@ -461,9 +469,9 @@ const RippleCenter = injectStyleSimple("ripple-center", `
 `);
 
 const RippleEffect = injectStyle("ripple", k => `
-        ${k} {
-            -webkit-animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
-            animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
+    ${k} {
+        -webkit-animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
+                animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} alternate infinite;
     }
 `);
 
