@@ -137,7 +137,12 @@ data class FilesCreateUploadResponseItem(
 @UCloudApiStable
 enum class UploadProtocol {
     CHUNKED,
-    WEBSOCKET
+
+    // NOTE(Dan): Dynamic, if folder then use WEBSOCKET_V2 otherwise use WEBSOCKET_V1
+    WEBSOCKET,
+
+    WEBSOCKET_V1,
+    WEBSOCKET_V2,
 }
 
 typealias FilesCreateDownloadRequest = BulkRequest<FilesCreateDownloadRequestItem>

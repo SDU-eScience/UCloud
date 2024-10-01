@@ -92,4 +92,4 @@ services:
         payment:
           type: Resource
           unit: Cpu
-          interval: Hourly
+          interval: Minutely

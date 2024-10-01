@@ -543,7 +543,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     return res.status.type === "DIRECTORY" &&
                                         (
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
-                                            res.specification.product.provider === "go-slurm"
+                                            res.specification.product.provider === "go-slurm" ||
+                                            res.specification.product.provider === "goslurm1"
                                         );
                                 },
                                 onClick: async (res) => {

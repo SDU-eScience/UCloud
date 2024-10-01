@@ -187,7 +187,7 @@ func EvaluateLocators(owner apm.WalletOwner, category string) []LocatedDrive {
 				return nil
 			}
 			recommendedUserOwner = "root"
-			recommendedPermissions = "0770"
+			recommendedPermissions = "2770"
 			params["localGroupName"] = groupInfo.Name
 			params["ucloudProjectId"] = owner.ProjectId
 			params["gid"] = fmt.Sprint(localGid)

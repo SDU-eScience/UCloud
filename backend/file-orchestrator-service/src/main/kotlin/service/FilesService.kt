@@ -1192,7 +1192,7 @@ class FilesService(
             val destinationProvider = destinationDrive.specification.product.provider
             verifyReadRequest(UFileIncludeFlags(), destinationDrive.status.resolvedSupport!!.support)
 
-            if (sourceProvider != "go-slurm" && sourceProvider == destinationProvider) {
+            if (sourceProvider != "go-slurm" && sourceProvider != "goslurm1" && sourceProvider == destinationProvider) {
                 throw RPCException("Cannot transfer files between the same provider", HttpStatusCode.BadRequest)
             }
 

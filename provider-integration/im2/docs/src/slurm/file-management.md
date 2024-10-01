@@ -52,7 +52,7 @@ managed providers, UCloud/IM will recommend an owner, group and permissions for 
 | Project type | Owner              | Group               | Mode   |
 |--------------|--------------------|---------------------|--------|
 | Personal     | `${localUsername}` | `${localUsername}`  | `0700` |
-| Project      | `root`             | `${localGroupName}` | `0770` |
+| Project      | `root`             | `${localGroupName}` | `2770` |
 
 <figcaption>
 

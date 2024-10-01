@@ -592,7 +592,7 @@ func controllerFiles(mux *http.ServeMux) {
 							resp.Responses,
 							createUploadResponse{
 								Endpoint: uploadPath,
-								Protocol: orc.UploadProtocolWebSocket,
+								Protocol: orc.UploadProtocolWebSocketV2,
 								Token:    session.Id,
 							},
 						)
@@ -959,7 +959,7 @@ func CreateFolderUpload(path string, conflictPolicy orc.WriteConflictPolicy, ses
 		UserData:       sessionData,
 	}
 
-	uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocket, session.Id, UCloudUsername)
+	uploadPath := generateUploadPath(cfg.Provider, cfg.Provider.Id, orc.UploadProtocolWebSocketV2, session.Id, UCloudUsername)
 	createUploadSession(session)
 	return session, uploadPath
 }
@@ -976,7 +976,7 @@ func generateUploadPath(
 		switch protocol {
 		case orc.UploadProtocolChunked:
 			hostPath = config.Hosts.SelfPublic.ToURL()
-		case orc.UploadProtocolWebSocket:
+		case orc.UploadProtocolWebSocketV2:
 			hostPath = config.Hosts.SelfPublic.ToWebSocketUrl()
 		}
 	}

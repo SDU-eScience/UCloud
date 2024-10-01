@@ -102,8 +102,9 @@ const (
 type UploadProtocol string
 
 const (
-	UploadProtocolChunked   UploadProtocol = "CHUNKED"
-	UploadProtocolWebSocket UploadProtocol = "WEBSOCKET"
+	UploadProtocolChunked     UploadProtocol = "CHUNKED"
+	UploadProtocolWebSocketV1 UploadProtocol = "WEBSOCKET_V1"
+	UploadProtocolWebSocketV2 UploadProtocol = "WEBSOCKET_V2"
 )
 
 // API

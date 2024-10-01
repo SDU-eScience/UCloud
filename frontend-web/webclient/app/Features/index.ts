@@ -22,6 +22,7 @@ enum Environment {
     LOCAL_DEV_STACK,
     LOCAL_DEV,
     PUBLIC_DEV,
+    SANDBOX_DEV,
     PROD
 }
 
@@ -29,7 +30,7 @@ const allEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV, Environment.PROD];
 
 const allDevEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV];
+    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
 
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
@@ -91,12 +92,14 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-tasks": {
         feature: Feature.NEW_TASKS,
-        showWithoutFlag: allLocalEnvironments,
+        showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     }
 };
 
 function getCurrentEnvironment(): Environment {
+    if (window.location.hostname === "sandbox.dev.cloud.sdu.dk") return Environment.SANDBOX_DEV;
+
     if (inDevEnvironment()) {
         if (window.location.hostname === "ucloud.localhost.direct") return Environment.LOCAL_DEV_STACK;
         else return Environment.LOCAL_DEV;

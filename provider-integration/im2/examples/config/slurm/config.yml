@@ -59,15 +59,6 @@ services:
           pattern: "/gpfs/work/#{localGroupName}-#{gid}"
           title: "Work"
 
-  # NOTE(Dan): Not obvious how to do this yet, so we are postponing its consideration.
-  #        collections:
-  #          entity: Collection
-  #          pattern: "/collections/#{id}"
-
-  #        memberFiles:
-  #          entity: MemberFiles
-  #          pattern: "/projects/#{project}/#{username}"
-
   ssh:
     enabled: true
     installKeys: true
@@ -124,4 +115,4 @@ services:
         payment:
           type: Resource
           unit: Cpu
-          interval: Hourly
+          interval: Minutely

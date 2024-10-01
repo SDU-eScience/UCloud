@@ -82,20 +82,21 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET") {
+    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET" && strategy.protocol !== "WEBSOCKET_V1" && strategy.protocol !== "WEBSOCKET_V2") {
         upload.error = "Upload not supported for this provider";
         upload.state = UploadState.DONE;
         return;
     }
 
+    if (strategy.protocol === "WEBSOCKET") {
+        if (upload.folderName) {
+            strategy.protocol = "WEBSOCKET_V2";
+        } else {
+            strategy.protocol = "WEBSOCKET_V1";
+        }
+    }
 
-    if (upload.folderName) {
-        upload.initialProgress = 0;
-        // upload.fileSizeInBytes = upload.row.reduce((sum, current) => sum + current.size, 0);
-
-        upload.resume = createResumeableFolder(upload, strategy, upload.folderName);
-        await upload.resume();
-    } else {
+    if (strategy.protocol === "WEBSOCKET_V1" || strategy.protocol === "CHUNKED") {
         const theFile = upload.row!;
         const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
 
@@ -107,7 +108,11 @@ async function processUpload(upload: Upload) {
         upload.initialProgress = reader.offset;
         upload.fileSizeInBytes = reader.fileSize();
 
-        upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+        upload.resume = protocolHandlerChunkedAndWebSocketV1(reader, upload, strategy, fullFilePath);
+        await upload.resume();
+    } else if (strategy.protocol === "WEBSOCKET_V2") {
+        upload.initialProgress = 0;
+        upload.resume = protocolHandlerWebSocketV2(upload, strategy, upload.folderName ?? "");
         await upload.resume();
     }
 }
@@ -145,7 +150,7 @@ function computeFileChecksum(file: PackagedFile, upload: Upload): Promise<string
     });
 }
 
-function createResumeableFolder(
+function protocolHandlerWebSocketV2(
     upload: Upload,
     strategy: FilesCreateUploadResponseItem,
     folderPath: string
@@ -178,7 +183,7 @@ function createResumeableFolder(
                 if (uploadSocket.readyState !== WebSocket.OPEN) {
                     window.setTimeout(loop, 50);
                     return;
-                };
+                }
 
                 if (!didInit) {
                     didInit = true;
@@ -429,12 +434,16 @@ function _sendWsChunk(connection: WebSocket, chunk: ArrayBuffer, onComplete: () 
 }
 
 
-function createResumeable(
+function protocolHandlerChunkedAndWebSocketV1(
     reader: ChunkedFileReader,
     upload: Upload,
     strategy: FilesCreateUploadResponseItem,
     fullFilePath: string
 ) {
+    // NOTE(Dan): I am not sure if this is needed, but it was changed to allow file uploads through WEBSOCKET_V2. I
+    // am just putting this here in case any of the code below actually requires it.
+    upload.filesDiscovered = 1;
+
     return async () => {
         if (strategy.protocol === "CHUNKED") {
             while (!reader.isEof() && !upload.terminationRequested) {
@@ -455,7 +464,7 @@ function createResumeable(
             if (!upload.paused) {
                 localStorage.removeItem(createLocalStorageUploadKey(fullFilePath));
             } else {
-                upload.resume = createResumeable(reader, upload, strategy, fullFilePath);
+                upload.resume = protocolHandlerChunkedAndWebSocketV1(reader, upload, strategy, fullFilePath);
             }
         } else {
             const uploadSocket = new WebSocket(
@@ -653,15 +662,24 @@ const Uploader: React.FunctionComponent = () => {
             switch (u.type) {
                 case "single": {
                     const theFile = await u.file;
+                    let didFetch = false;
                     allUploads.push({
                         name: theFile.name,
                         row: theFile,
                         progressInBytes: 0,
                         filesCompleted: 0,
-                        filesDiscovered: 1,
+                        filesDiscovered: 0,
                         state: UploadState.PENDING,
                         conflictPolicy: "RENAME" as const,
                         targetPath: uploadPath,
+                        fileFetcher: () => {
+                            if (!didFetch) {
+                                didFetch = true;
+                                return Promise.resolve([theFile]);
+                            } else {
+                                return Promise.resolve(null);
+                            }
+                        },
                         initialProgress: 0,
                         uploadEvents: []
                     });
