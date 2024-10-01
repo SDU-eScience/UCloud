@@ -237,7 +237,9 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		directives["chdir"] = orc.EscapeBash(jobFolder)
 		directives["cpus-per-task"] = fmt.Sprint(cpuAllocation)
 		directives["mem"] = memoryAllocation
-		directives["gpus-per-task"] = fmt.Sprint(job.Status.ResolvedProduct.Gpu)
+		if job.Status.ResolvedProduct.Gpu != 0 {
+			directives["gpus-per-task"] = fmt.Sprint(job.Status.ResolvedProduct.Gpu)
+		}
 		directives["time"] = formattedTimeAllocation
 		directives["nodes"] = fmt.Sprint(job.Specification.Replicas)
 		directives["job-name"] = orc.EscapeBash(job.Id)

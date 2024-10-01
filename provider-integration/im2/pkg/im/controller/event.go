@@ -71,6 +71,7 @@ func initEvents() {
 			c, _, err := ws.DefaultDialer.Dial(url, nil)
 			if err != nil {
 				log.Warn("Failed to establish WebSocket connection: %v %v", url, err)
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
