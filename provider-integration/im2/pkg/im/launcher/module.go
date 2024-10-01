@@ -11,9 +11,9 @@ import (
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/migrations"
 	svc "ucloud.dk/pkg/im/services"
 	"ucloud.dk/pkg/log"
-	"ucloud.dk/pkg/migrations"
 	"ucloud.dk/pkg/util"
 )
 
@@ -66,8 +66,8 @@ func ModuleMain(oldModuleData []byte, args *im.ModuleArgs) {
 		migrations.Migrate()
 	}
 
-	svc.Init(args)
 	ctrl.Init(args.ServerMultiplexer)
+	svc.Init(args)
 }
 
 func ModuleExit() []byte {

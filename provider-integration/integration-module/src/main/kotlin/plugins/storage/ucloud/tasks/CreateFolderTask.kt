@@ -58,8 +58,7 @@ class CreateFolderTask : TaskHandler {
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
-        //Not needed here. Should instantly go to success
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -67,8 +66,10 @@ class CreateFolderTask : TaskHandler {
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),

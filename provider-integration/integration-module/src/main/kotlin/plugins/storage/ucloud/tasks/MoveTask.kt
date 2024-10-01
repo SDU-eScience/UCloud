@@ -93,7 +93,9 @@ class MoveTask : TaskHandler {
                             postUpdate(
                                 task.taskId.toLong(),
                                 "Moving Files",
-                                "$filesMoved/$filesToMove files have been moved"
+                                null,
+                                "$filesMoved/$filesToMove files have been moved",
+                                (filesMoved.toDouble()/filesToMove.toDouble())*100.0
                             )
                         } catch (ex: Exception) {
                             log.warn("Failed to update status for task: $task")
@@ -125,7 +127,7 @@ class MoveTask : TaskHandler {
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -133,8 +135,10 @@ class MoveTask : TaskHandler {
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),

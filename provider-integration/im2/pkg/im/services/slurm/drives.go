@@ -76,6 +76,16 @@ func ResolveDriveByUCloudPath(path string) (orc.Drive, bool) {
 	return RetrieveDrive(driveId)
 }
 
+func DriveIdFromUCloudPath(path string) (string, bool) {
+	components := util.Components(path)
+	if len(components) == 0 {
+		return "", false
+	}
+
+	driveId := components[0]
+	return driveId, true
+}
+
 func UCloudToInternal(path string) (string, bool) {
 	components := util.Components(path)
 	if len(components) == 0 {

@@ -14,6 +14,8 @@ export enum Feature {
     COPY_APP_MOCKUP,
 
     APP_CATALOG_FILTER,
+
+    NEW_TASKS
 }
 
 enum Environment {
@@ -85,13 +87,19 @@ const featureMap: Record<string, FeatureConfig> = {
     "transfer-to": {
         feature: Feature.TRANSFER_TO,
         showWithoutFlag: allDevEnvironments,
+    },
+
+    "new-tasks": {
+        feature: Feature.NEW_TASKS,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
     }
 };
 
 function getCurrentEnvironment(): Environment {
     if (inDevEnvironment()) {
-        if (window.location.hostname === "ucloud.localhost.direct") return Environment.LOCAL_DEV_STACK
-        else return Environment.LOCAL_DEV
+        if (window.location.hostname === "ucloud.localhost.direct") return Environment.LOCAL_DEV_STACK;
+        else return Environment.LOCAL_DEV;
     } else if (onDevSite()) {
         return Environment.PUBLIC_DEV;
     } else {

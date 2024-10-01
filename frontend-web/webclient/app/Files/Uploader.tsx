@@ -932,8 +932,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         border-radius: 10px;
         border: 1px solid rgba(0, 0, 0, 20%);
         height: 64px;
-        width: 398px;
-        max-width: 400px;
+        width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
         box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
@@ -944,6 +943,10 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         margin-bottom: auto;
         margin-left: 8px;
         font-size: 12px; 
+    }
+
+    ${k} > div > .text > div:first-child {
+        font-weight: 800;
     }
 
     ${k}[data-has-error="true"] {
@@ -984,14 +987,12 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         }} color={stopped ? "errorMain" : "primaryMain"} />
     </TooltipV2>;
 
-    // TODO(Jonas): There is _some_ overlap that can be reused between the two instead of having to entirely different options
     return upload.folderName ?
         <TaskRow
             error={upload.error}
             icon={icon}
-            top={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
-            bottom={right}
-            status={right}
+            title={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
+            progress={right}
             operations={inProgress ? <>
                 {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
                 <Icon name="close" cursor="pointer" color="errorMain"
@@ -1000,10 +1001,9 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             progressInfo={progressInfo}
         /> : <TaskRow
             error={upload.error}
-            top={title}
             icon={icon}
-            bottom={right}
-            status={right}
+            title={title}
+            progress={right}
             operations={inProgress ? <>
                 {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
                     onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
@@ -1023,11 +1023,11 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({top, bottom, status, icon, progressInfo, operations, error}: {
+export function TaskRow({title, body, progress, icon, progressInfo, operations, error}: {
     icon: React.ReactNode;
-    top: string | React.ReactNode;
-    bottom: string | React.ReactNode;
-    status: string | React.ReactNode;
+    title: string | React.ReactNode;
+    body?: string | React.ReactNode;
+    progress: string | React.ReactNode;
     operations: React.ReactNode;
     error?: string;
     progressInfo: {
@@ -1042,15 +1042,15 @@ export function TaskRow({top, bottom, status, icon, progressInfo, operations, er
         <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
-                <Truncate>{top}</Truncate>
-                <Truncate>{bottom}</Truncate>
-                <Truncate>{status}</Truncate>
+                <Truncate>{title}</Truncate>
+                {body ? <Truncate>{body}</Truncate> : null}
+                <Truncate>{progress}</Truncate>
             </div>
             <Box mr="auto" />
-            <Box my="auto">{operations}</Box>
-            <Box my="auto" mr="4px" height="32px" >
+            <Box my="auto" mr="4px">{operations}</Box>
+            <Box my="auto" mr="12px" height="32px" >
                 <ProgressCircle
-                    indeterminate={!progressInfo.stopped && progressInfo.progress !== progressInfo.limit && progressInfo.indeterminate}
+                    indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
                     failures={progressInfo.stopped ? progressInfo.limit : 0}
                     successes={progressInfo.progress}
                     total={progressInfo.limit}

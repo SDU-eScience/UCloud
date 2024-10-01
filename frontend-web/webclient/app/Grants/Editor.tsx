@@ -1085,7 +1085,7 @@ const style = injectStyle("grant-editor", k => `
     }
     
     ${k} label {
-        font-weight: bold;
+        font-weight: 500;
         user-select: none;
     }
     

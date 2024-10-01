@@ -64,10 +64,12 @@ class TaskSystem(
         requestName: String,
         request: JsonObject,
         username: String,
-        operationDescription: String,
+        title: String,
+        body: String?,
         progressDescription: String = "Accepted",
         canPause: Boolean = false,
-        canCancel: Boolean = false
+        canCancel: Boolean = false,
+        icon: String?
     ): BackgroundTask {
         val handler = handlers.find { with(it) { taskContext.canHandle(requestName, request) } } ?: run {
             log.warn("Unable to handle request: $requestName $request")
@@ -79,10 +81,12 @@ class TaskSystem(
             val task = Tasks.create.call(
                 CreateRequest(
                     user = username,
-                    operation = operationDescription,
+                    title = title,
+                    body = body,
                     progress = progressDescription,
                     canPause = canPause,
-                    canCancel = canCancel
+                    canCancel = canCancel,
+                    icon = icon
                 ),
                 client
             ).orThrow()
@@ -108,8 +112,10 @@ class TaskSystem(
                             Time.now(),
                             BackgroundTask.Status(
                                 TaskState.SUCCESS,
-                                task.status.operation,
-                                "Done"
+                                task.status.title,
+                                null,
+                                "Done",
+                                100.0
                             )
                         )
                     ),
@@ -327,7 +333,7 @@ data class TaskContext(
 
 interface TaskHandler {
     fun TaskContext.canHandle(name: String, request: JsonObject): Boolean
-    suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String)
+    suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?)
     suspend fun TaskContext.collectRequirements(name: String, request: JsonObject, maxTime: Long?): TaskRequirements?
     suspend fun TaskContext.execute(task: StorageTask)
 }

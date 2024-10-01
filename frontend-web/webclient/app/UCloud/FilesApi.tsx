@@ -236,7 +236,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{ id?: string }>();
+        const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -283,9 +283,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (!id) return <h1>Missing file id.</h1>
 
-        if (fileData.loading) return <PredicatedLoadingSpinner loading/>
+        if (fileData.loading) return <PredicatedLoadingSpinner loading />
 
-        if (fileData.error) return <Error error={fileData.error.why}/>;
+        if (fileData.error) return <Error error={fileData.error.why} />;
         if (!file) return <></>;
 
         const isFile = file.status.type === "FILE";
@@ -301,7 +301,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             </div>
             <Flex gap="8px">
                 <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider}/>
+                <ProviderTitle providerId={file.specification.product.provider} />
             </Flex>
             <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
             {file.status.modifiedAt ?
@@ -335,14 +335,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         if (isFile) {
             return <Flex className={FilePropertiesLayout}>
                 <div className="A">
-                    <FilePreview file={file} contentRef={downloadRef}/>
+                    <FilePreview file={file} contentRef={downloadRef} />
                 </div>
                 <div className="B">
                     {fileInfo}
                 </div>
             </Flex>
         } else {
-            return <MainContainer main={fileInfo}/>;
+            return <MainContainer main={fileInfo} />;
         }
     }
 
@@ -424,7 +424,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -492,9 +492,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 },
                                 onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                                    console.log("Target is:", target, "Path ref", pathRef.current, "res.id", res.id);
                                     try {
-                                        await cb.invokeCommand(
+                                        const result = await cb.invokeCommand(
                                             this.copy({
                                                 type: "bulk",
                                                 items: selected.map(file => ({
@@ -516,7 +515,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 filterProvider: selected[0].specification.product.provider
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -544,13 +543,13 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     return res.status.type === "DIRECTORY" &&
                                         (
                                             res.specification.product.provider !== selected[0].specification.product.provider ||
-                                                res.specification.product.provider === "go-slurm"
+                                            res.specification.product.provider === "go-slurm"
                                         );
                                 },
                                 onClick: async (res) => {
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                                     try {
-                                        await cb.invokeCommand(
+                                        const result = await cb.invokeCommand(
                                             this.transfer({
                                                 type: "bulk",
                                                 items: selected.map(file => ({
@@ -568,7 +567,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -603,7 +602,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
 
                                     try {
-                                        await cb.invokeCommand(
+                                        const result = await cb.invokeCommand(
                                             this.move({
                                                 type: "bulk",
                                                 items: selected.map(file => ({
@@ -623,7 +622,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -1093,10 +1092,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1124,7 +1123,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-                                             onUpdated={onUpdated}/>, () => undefined, true);
+        onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1297,7 +1296,7 @@ export function FilePreview({file, contentRef}: {
     }, [type, data]);
 
     if (file.status.type !== "FILE") return null;
-    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading/>
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
 
     let node: React.ReactNode = null;
 
@@ -1309,25 +1308,25 @@ export function FilePreview({file, contentRef}: {
                 setType("markdown");
                 break;
             }
-            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")}/>;
+            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(file.id)} src={data}/>
+            node = <img className={Image} alt={fileName(file.id)} src={data} />
             break;
         case "audio":
-            node = <audio className={Audio} controls src={data}/>;
+            node = <audio className={Audio} controls src={data} />;
             break;
         case "video":
-            node = <video className={Video} src={data} controls/>;
+            node = <video className={Video} src={data} controls />;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data}/>;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
             break;
         case "markdown":
             node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div/>
+            node = <div />
             break;
     }
 

@@ -214,8 +214,10 @@ class JobVerificationService(
         val userParameters = HashMap(specification.parameters)
         val paramKeys = app.invocation!!.parameters.map { it.name }
         userParameters.forEach { (k, _) ->
-            if (!paramKeys.contains(k)) {
-                throw RPCException("Unknown parameter given: $k", HttpStatusCode.BadRequest)
+            if (!k.startsWith(injectedPrefix)) {
+                if (!paramKeys.contains(k)) {
+                    throw RPCException("Unknown parameter given: $k", HttpStatusCode.BadRequest)
+                }
             }
         }
         if (userParameters.isNotEmpty() && app.invocation!!.parameters.isEmpty()) {

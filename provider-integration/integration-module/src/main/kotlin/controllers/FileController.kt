@@ -69,7 +69,7 @@ data class FileListingEntry(
 )
 
 @Serializable
-data class TaskSpecification(val title: String)
+data class TaskSpecification(val title: String, val body: String? = null)
 
 // TODO(Dan): Move this somewhere else
 object TaskIpc : IpcContainer("tasks") {
@@ -100,10 +100,12 @@ class FileController(
             val backgroundTask = Tasks.create.call(
                 CreateRequest(
                     user = username,
-                    operation = request.title,
+                    title = request.title,
+                    body = request.body,
                     progress = "Accepted",
                     canPause = false,
-                    canCancel = false
+                    canCancel = false,
+                    icon = request.title
                 ),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()

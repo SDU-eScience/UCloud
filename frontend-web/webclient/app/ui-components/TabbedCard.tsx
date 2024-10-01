@@ -31,7 +31,6 @@ const ContainerClass = injectStyle("tabbed-card", k => `
         padding: 12px;
         user-select: none;
         -webkit-user-select: none;
-        font-weight: bold;
         flex-shrink: 0;
     }
     

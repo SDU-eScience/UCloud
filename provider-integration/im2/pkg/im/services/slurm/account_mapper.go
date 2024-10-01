@@ -11,8 +11,8 @@ import (
 	db "ucloud.dk/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
+	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/im/ipc"
-	slurmcli "ucloud.dk/pkg/im/slurm"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )

@@ -10,7 +10,7 @@ class TasksProvider(namespace: String) : CallDescriptionContainer("task.provider
 
     val pauseOrCancel = call(
         "pauseOrCancel",
-        BackgroundTask.serializer(),
+        PauseOrCancelRequest.serializer(),
         Unit.serializer(),
         CommonErrorMessage.serializer()
     ) {

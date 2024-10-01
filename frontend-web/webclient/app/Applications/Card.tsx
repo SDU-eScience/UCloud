@@ -29,7 +29,7 @@ export const Tag = ({label, bg = "infoMain"}: { label: string; bg?: ThemeColor }
         color: "var(--infoContrast)",
         textTransform: "uppercase",
         fontSize: "10px",
-        fontWeight: 700,
+        fontWeight: 500,
         borderRadius: "6px",
         padding: "2.5px 6px"
     }}>

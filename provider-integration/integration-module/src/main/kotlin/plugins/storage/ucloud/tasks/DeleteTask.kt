@@ -44,16 +44,21 @@ class DeleteTask : TaskHandler {
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
-                try {
-                    postUpdate(
-                        taskId = task.taskId.toLong(),
-                        "Deleting files",
-                        "$filesDeleted/${realRequest.items.size} deleted"
-                    )
-                } catch (ex: Exception) {
-                log.warn("Failed to update status for task: $task")
-                log.info(ex.message)
-            }
+                if ((filesDeleted % 100 ) == 0L ) {
+                    try {
+                        postUpdate(
+                            taskId = task.taskId.toLong(),
+                            "Deleting files",
+                            null,
+                            "$filesDeleted/${realRequest.items.size} deleted",
+                            (filesDeleted.toDouble()/realRequest.items.size.toDouble())*100.0
+                        )
+                    } catch (ex: Exception) {
+                        log.warn("Failed to update status for task: $task")
+                        log.info(ex.message)
+                    }
+                }
+
                 try {
                     nativeFs.delete(internalFile)
                     filesDeleted++
@@ -67,7 +72,7 @@ class DeleteTask : TaskHandler {
         )
     }
 
-    override suspend fun TaskContext.postUpdate(taskId: Long, operation: String, progress: String) {
+    override suspend fun TaskContext.postUpdate(taskId: Long, title: String?, body: String?, progress: String?, percentage: Double?) {
         Tasks.postStatus.call(
             PostStatusRequest(
                 BackgroundTaskUpdate(
@@ -75,8 +80,10 @@ class DeleteTask : TaskHandler {
                     modifiedAt = Time.now(),
                     newStatus = BackgroundTask.Status(
                         TaskState.RUNNING,
-                        operation,
-                        progress
+                        title,
+                        body,
+                        progress,
+                        percentage
                     ),
                 )
             ),

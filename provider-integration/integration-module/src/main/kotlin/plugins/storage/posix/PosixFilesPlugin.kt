@@ -534,12 +534,15 @@ class PosixFilesPlugin : FilePlugin {
                 status = BackgroundTask.Status(
                     TaskState.SUCCESS,
                     "Folder Creation",
-                    "Done"
+                    "Done",
+                    "Task has been completed",
+                    100.0,
                 ),
                 specification = BackgroundTask.Specification(
                     canPause = false,
                     canCancel = false
-                )
+                ),
+                null
             )
         }
         return result

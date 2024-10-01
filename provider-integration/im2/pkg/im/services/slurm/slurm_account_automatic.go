@@ -7,7 +7,7 @@ import (
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	slurmcli "ucloud.dk/pkg/im/slurm"
+	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/log"
 )
 

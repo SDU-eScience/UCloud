@@ -38,8 +38,8 @@ type ParentOrChildWallet struct {
 
 type WalletOwner struct {
 	Type      WalletOwnerType `json:"type"`
-	Username  string          `json:"username,omitempty"`
-	ProjectId string          `json:"projectId,omitempty"`
+	Username  string          `json:"username"`
+	ProjectId string          `json:"projectId"`
 }
 
 type WalletOwnerType string

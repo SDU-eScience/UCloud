@@ -204,7 +204,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${browserClass.dot} header:not([has-location-bar]) > div.header-first-row > div.location {
-            font-weight: bold;
             cursor: default;
         }
 

@@ -1,5 +1,5 @@
 import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
-import inter from "@/Assets/Inter.woff";
+import inter from "@/Assets/Inter.woff2";
 
 export function injectFonts(): void {
     const styleTag = document.createElement("style");
@@ -463,6 +463,12 @@ html.dark {
     --appLogoBackground: #ffffff;
 }
 
+    
+h1, h2, h3, h4, h5 {
+    font-weight: normal;
+}
+    
+
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 
 /* Document
@@ -623,9 +629,10 @@ abbr[title] {
  * Add the correct font weight in Chrome, Edge, and Safari.
  */
 
+th,
 b,
 strong {
-  font-weight: bolder;
+  font-weight: 500;
 }
 
 /**
@@ -1100,7 +1107,6 @@ h1, h2, h3, h4, h5, h6 {
 
 h3.title {
   font-size: calc(16px * 1.1);
-  font-weight: bold;
 }
 
 `;

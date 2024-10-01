@@ -7,14 +7,14 @@ import (
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	"ucloud.dk/pkg/im/gpfs"
+	gpfs2 "ucloud.dk/pkg/im/external/gpfs"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
 func InitGpfsManager(name string, config *cfg.SlurmFsManagementGpfs) FileManagementService {
 	fs := ServiceConfig.FileSystems[name]
-	client := gpfs.NewClient(config.Server.ToURL(), config.VerifyTls, config.CaCertFile.Get())
+	client := gpfs2.NewClient(config.Server.ToURL(), config.VerifyTls, config.CaCertFile.Get())
 	if !client.Authenticate(config.Username, config.Password) {
 		log.Error("Failed to authenticate with GPFS at %v@%v!", config.Username, config.Server.ToURL())
 	}
@@ -30,11 +30,12 @@ func InitGpfsManager(name string, config *cfg.SlurmFsManagementGpfs) FileManagem
 type GpfsManager struct {
 	name        string
 	config      *cfg.SlurmFsManagementGpfs
-	client      *gpfs.Client
+	client      *gpfs2.Client
 	unitInBytes uint64
 }
 
 func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.NotificationWalletUpdated) {
+	log.Info("handle quota update gpfs %v", drives)
 	for _, drive := range drives {
 		mapping, filesetName, ok := g.resolveLocatedDrive(drive, update.Category.Name)
 		if !ok {
@@ -47,7 +48,7 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 		}
 
 		if !g.client.FilesetExists(mapping.FileSystem, filesetName) {
-			g.client.FilesetCreate(&gpfs.Fileset{
+			g.client.FilesetCreate(&gpfs2.Fileset{
 				Name:        filesetName,
 				Filesystem:  mapping.FileSystem,
 				Description: "UCloud managed drive",
@@ -59,7 +60,7 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 			})
 		}
 
-		g.client.FilesetQuota(&gpfs.Fileset{
+		g.client.FilesetQuota(&gpfs2.Fileset{
 			Name:       filesetName,
 			Filesystem: mapping.FileSystem,
 			QuotaBytes: int(update.CombinedQuota * g.unitInBytes),

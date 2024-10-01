@@ -5,18 +5,20 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import Flex from "@/ui-components/Flex";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Upload, UploadState, uploadStore, useUploads} from "@/Files/Upload";
-import {injectStyle, injectStyleSimple, makeKeyframe} from "@/Unstyled";
-import {inDevEnvironment, prettierString, stopPropagation} from "@/UtilityFunctions";
+import {injectStyleSimple, makeKeyframe} from "@/Unstyled";
+import {stopPropagation} from "@/UtilityFunctions";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {WebSocketConnection} from "@/Authentication/ws";
 import {IconName} from "@/ui-components/Icon";
-import {PrettyFilePath} from "@/Files/FilePath";
-import {sizeToString} from "@/Utilities/FileUtilities";
 import {TaskRow, UploadCallback, UploaderRow, uploadIsTerminal} from "@/Files/Uploader";
 import {addStandardDialog} from "@/UtilityComponents";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
+import * as icons from "@/ui-components/icons";
+import {Feature, hasFeature} from "@/Features";
+
+const iconNames = Object.keys(icons) as IconName[];
 
 function onBeforeUnload(): boolean {
     snackbarStore.addInformation(
@@ -35,287 +37,119 @@ const SpinAnimation = makeKeyframe("spin", `
     }    
 `)
 
-const TasksIconBase = injectStyle("task-icon-base", k => `
-    ${k} {
-        animation: ${SpinAnimation} 2s linear infinite;
-        margin-bottom: 16px;
-    }
-`);
-
-const TasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="20px" width="20px" className={TasksIconBase} name="notchedCircle" />;
-
-let mockMaxUpdateEntries = -1;
-const MOCKING = {
-    id: 0,
-    mockTask(kind: Task["kind"]): Task {
-        switch (kind) {
-            case "COPY": {
-                return MOCKING.mockCopyTask();
-            }
-            case "EMPTY_TRASH": {
-                return MOCKING.mockEmptyTrashTask();
-            }
-            case "TRANSFER": {
-                return MOCKING.mockTransferTask();
-            }
-        }
-    },
-
-    mockCopyTask(): CopyFiles {
-        return {
-            id: ++MOCKING.id,
-            status: TaskState.PENDING,
-            createdAt: new Date().getTime(),
-            updatedAt: new Date().getTime(),
-            kind: "COPY",
-            destination: "/SomePosition" + MOCKING.id,
-            source: "/file" + MOCKING.id,
-            expectedEnd: new Date().getTime() + 100_000_000 * Math.random(),
-            canCancel: true,
-            canPause: true,
-        }
-    },
-
-    mockEmptyTrashTask(): EmptyTrash {
-        return {
-            id: ++MOCKING.id,
-            status: TaskState.PENDING,
-            createdAt: new Date().getTime(),
-            updatedAt: new Date().getTime(),
-            kind: "EMPTY_TRASH",
-            path: `/67126/Trash` + MOCKING.id,
-            canCancel: false,
-            canPause: false,
-        }
-    },
-
-    mockTransferTask(): TransferFiles {
-        return {
-            id: ++MOCKING.id,
-            status: TaskState.PENDING,
-            createdAt: new Date().getTime(),
-            updatedAt: new Date().getTime(),
-            kind: "TRANSFER",
-            source: "/file" + MOCKING.id,
-            destination: "Thing/" + MOCKING.id,
-            canCancel: true,
-            canPause: true,
-        }
-    },
-
-    mockUpdateEntries() {
-        const index = Math.floor(Math.random() * Object.values(taskStore.inProgress).length);
-        const entry = taskStore.inProgress[index];
-        if (entry && entry.status !== TaskState.PAUSED) {
-            const newEntry = {...entry};
-
-            if (entry.fileSizeProgress != null && entry.fileSizeTotal != null) {
-                newEntry.fileSizeProgress = Math.min(Math.max(1000, entry.fileSizeProgress * 2.5), entry.fileSizeTotal);
-            } else {
-                newEntry.fileSizeProgress = 0;
-                newEntry.fileSizeTotal = (Math.random() * 100000) | 0;
-            }
-            let state = TaskState.IN_PROGRESS;
-            if (newEntry.fileSizeProgress === newEntry.fileSizeTotal) {
-                state = TaskState.SUCCEEDED;
-            } else if (Math.random() < 0.05) {
-                state = TaskState.FAILED;
-                newEntry.error = "Failed due to threshold!"
-            }
-            newEntry.status = state;
-            newEntry.updatedAt = new Date().getTime();
-
-            if ([TaskState.CANCELLED, TaskState.FAILED, TaskState.SUCCEEDED].includes(newEntry.status)) {
-                delete taskStore.inProgress[index];
-                taskStore.finishedTasks[index] = newEntry;
-            } else {
-                taskStore.inProgress[index] = newEntry;
-            }
-
-            taskStore.emitChange();
-        }
-
-        if (mockMaxUpdateEntries !== -1) {
-            if (--mockMaxUpdateEntries === 0) {
-                return console.log("maxUpdateEntries reached");
-            }
-        }
-
-        if (Object.values(taskStore.inProgress).length > 0) {
-            window.setTimeout(MOCKING.mockUpdateEntries, 200 + Math.random() * 50);
-        } else {
-            console.log("Not setting timeout.");
-        }
-    },
-
-    mockPause(task: Task) {
-        MOCKING.mockNewState(task, TaskState.PAUSED);
-    },
-
-    mockResume(task: Task) {
-        MOCKING.mockNewState(task, TaskState.IN_PROGRESS);
-    },
-
-    mockCancel(task: Task) {
-        MOCKING.mockNewState(task, TaskState.CANCELLED);
-        const updatedTask = taskStore.inProgress[task.id];
-        delete taskStore.inProgress[task.id];
-        taskStore.finishedTasks[task.id] = updatedTask;
-        taskStore.emitChange();
-    },
-
-    mockNewState(task: Task, state: TaskState) {
-        const newTask = {...task};
-        newTask.status = state;
-        newTask.updatedAt = new Date().getTime();
-        taskStore.inProgress[task.id] = newTask;
-    }
-}
+const ActiveTasksIcon = <Icon color="fixedWhite" color2="fixedWhite" height="24px" width="24px" mb={"16px"} name="heroQueueList" />;
 
 enum TaskState {
-    PENDING, // or ACCEPTED Needed? Could just be if updates.length === 0
-    PAUSED,
-    IN_PROGRESS,
-    CANCELLED,
-    FAILED,
-    SUCCEEDED
+    IN_QUEUE = "IN_QUEUE",
+    SUSPENDED = "SUSPENDED",
+    RUNNING = "RUNNING",
+    CANCELLED = "CANCELLED",
+    FAILURE = "FAILURE",
+    SUCCESS = "SUCCESS",
 };
 
-interface TaskBase {
-    id: number; // number? Also, no need to show end-user.
-    updatedAt: number;
-    createdAt: number;
-    status: TaskState;
-    expectedEnd?: number;
-    fileSizeTotal?: number;
-    fileSizeProgress?: number;
-    error?: string;
+interface Status {
+    state: TaskState;
+    title: string;
+    body?: string;
+    progress: string;
+    progressPercentage: number;
+}
 
-    // Operations for task
+interface Specification {
     canPause: boolean;
     canCancel: boolean;
 }
 
-type Task = CopyFiles | TransferFiles | EmptyTrash; // Upload is handled differently
-
-interface CopyFiles extends TaskBase {
-    kind: "COPY";
-    source: string;
-    destination: string;
-}
-
-interface TransferFiles extends TaskBase {
-    kind: "TRANSFER";
-    source: string;
-    destination: string;
-}
-
-interface EmptyTrash extends TaskBase {
-    kind: "EMPTY_TRASH";
-    path: string; // Path to trash could be neat. User could be deleting multiple trash-folder contents, or just change drive/project during
+interface BackgroundTask {
+    taskId: number; // number? Also, no need to show end-user.
+    createdAt: number;
+    modifiedAt: number;
+    createdBy: string;
+    provider: string;
+    status: Status;
+    specification: Specification;
+    icon?: IconName;
 }
 
 export const taskStore = new class extends ExternalStoreBase {
-    ws: WebSocketConnection;
-    inProgress: Record<number, Task> = {};
-    finishedTasks: Record<number, Task> = {};
-
-    async initConnection(): Promise<void> {}
-
-    mockInitConnection(): void {
-        const kinds: Task["kind"][] = ["COPY", "EMPTY_TRASH", "TRANSFER"];
-        for (let i = 0; i < 8; i++) {
-            const t = MOCKING.mockTask(kinds[i % kinds.length]);
-            this.inProgress[t.id] = t;
+    public addTask(task: BackgroundTask) {
+        if (TaskOperations.isTaskTerminal(task)) {
+            taskStore.addFinishedTask(task);
+        } else {
+            taskStore.addInProgressTask(task);
         }
+    }
 
-        setTimeout(MOCKING.mockUpdateEntries, 1000);
+    public addTaskList(tasks: BackgroundTask[]) {
+        for (const t of tasks) {
+            this.addTask(t);
+        }
+    }
+
+    public inProgress: Record<number, BackgroundTask> = {};
+    private addInProgressTask(task: BackgroundTask) {
+        this.inProgress[task.taskId] = task;
+        this.emitChange();
+    }
+
+    public finishedTasks: Record<number, BackgroundTask> = {};
+    private addFinishedTask(task: BackgroundTask) {
+        delete this.inProgress[task.taskId];
+        this.finishedTasks[task.taskId] = task;
+        this.emitChange();
     }
 }();
 
-function didTaskNotFinish(task: Task): boolean {
-    return [TaskState.CANCELLED, TaskState.FAILED].includes(task.status);
-}
+const DEFAULT_ICON: IconName = "heroRectangleStack";
 
-function iconNameFromTaskType(task: Task): IconName {
-    switch (task.kind) {
-        case "COPY":
-            return "copy";
-        case "EMPTY_TRASH":
-            return "trash";
-        case "TRANSFER":
-            return "move";
-    }
-}
+function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
 
-function TaskItem({task}: {task: Task}): React.JSX.Element {
-    let taskSpecificContent: React.ReactNode = null;
-    const errorText = [TaskState.CANCELLED, TaskState.FAILED].includes(task.status) ? <b>[{prettierString(TaskState[task.status])}]</b> : "";
-    switch (task.kind) {
-        case "COPY": {
-            taskSpecificContent = <>{errorText} Copy: <b>{task.source}</b> to <b>{task.destination}</b></>
-            break;
+    const isFinished = TaskOperations.isTaskTerminal(task);
+
+    const operations: React.ReactNode[] = [];
+    if (!isFinished) {
+        if (task.specification.canPause) {
+            if (task.status.state === TaskState.SUSPENDED) {
+                operations.push(<Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                    cursor="pointer"
+                    name="play"
+                    color="primaryMain"
+                />);
+            } else {
+                operations.push(<Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                    cursor="pointer"
+                    name="pauseSolid"
+                    color="primaryMain"
+                />);
+            }
         }
-        case "EMPTY_TRASH": {
-            taskSpecificContent = <>{errorText} Empty trash: <b><PrettyFilePath path={task.path} /></b></>
-            break;
-        }
-        case "TRANSFER": {
-            taskSpecificContent = <>{errorText} Transfer: <b>{task.source}</b> to <b>{task.destination}</b></>;
-            break;
+
+        if (task.specification.canCancel) {
+            operations.push(<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
         }
     }
 
-    let operations: React.ReactNode = null;
-    const cancel = task.canCancel ? <Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task)} /> : null;
-    const pause = task.canPause ? <Icon cursor="pointer" onClick={() => MOCKING.mockPause(task)} name="pauseSolid" color="primaryMain" /> : null;
 
-    switch (task.status) {
-        case TaskState.FAILED:
-        case TaskState.CANCELLED:
-        case TaskState.SUCCEEDED:
-            break;
-        case TaskState.PENDING:
-            operations = cancel;
-            break;
-        case TaskState.IN_PROGRESS: {
-            operations = <>
-                {pause}
-                {cancel}
-            </>
-            break;
-        }
-        case TaskState.PAUSED: {
-            operations = <>
-                <Icon cursor="pointer" onClick={() => MOCKING.mockResume(task)} name="play" color="primaryMain" />
-                {cancel}
-            </>
-            break;
-        }
-    }
-
-    const progressText = task.fileSizeProgress != null && task.fileSizeTotal != null ? `${sizeToString(task.fileSizeProgress)} / ${sizeToString(task.fileSizeTotal)}` : "";
-
-    indeterminate = !indeterminate;
+    const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;
 
     return <TaskRow
-        icon={<Icon name={iconNameFromTaskType(task)} size={16} />}
-        top={taskSpecificContent}
-        bottom={"So, Some additional task text here"}
-        status={progressText}
+        icon={<Icon name={icon} size={16} />}
+        title={task.status.title}
+        body={task.status.body}
+        progress={task.status.progress}
         operations={operations}
-        error={task.error}
+        error={TaskOperations.taskError(task)}
         progressInfo={{
-            indeterminate,
-            stopped: didTaskNotFinish(task),
-            limit: task.fileSizeTotal ?? 100,
-            progress: task.fileSizeProgress ?? 0
+            indeterminate: TaskOperations.isIndeterminate(task),
+            stopped: isFinished,
+            limit: 100,
+            progress: task.status.progressPercentage,
         }}
     />
 }
-
-let indeterminate = false;
-
 
 const INDETERMINATE_VALUES = {
     successes: 1,
@@ -327,6 +161,60 @@ const IndeterminateSpinClass = injectStyleSimple("indeterminate-spinner", `
     animation: ${SpinAnimation} 2s linear infinite;
 `);
 
+const ANIMATION_SPEED = ".3s";
+const FailureExpandAnimation = makeKeyframe("failure-expand", `
+    from {
+        stroke-dasharray: var(--arrayFrom) var(--arrayTo);
+    }
+    to {
+        stroke-dasharray: var(--arrayTo) var(--arrayFrom);
+    }
+`);
+
+const FailureExpandInterpolate = injectStyleSimple("interpolate", `
+    animation: ${FailureExpandAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+const FailureMoveAnimation = makeKeyframe("failure-move", `
+    from {
+        stroke-dashoffset: var(--offsetStart);
+    }
+    to {
+        stroke-dashoffset: var(--offsetEnd);
+    }
+`);
+
+const FailureMoveInterpolate = injectStyleSimple("interpolate", `
+    animation: ${FailureMoveAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+
+const SuccessAnimation = makeKeyframe("interpolation-fill", `
+    from {
+        stroke-dasharray: var(--from) var(--to);
+    }
+    to {
+        stroke-dasharray: var(--to) var(--from);
+    }
+`);
+
+const SuccessInterpolate = injectStyleSimple("interpolate", `
+    animation: ${SuccessAnimation} ${ANIMATION_SPEED} ease-out;
+`);
+
+
+const RADIUS = 61.5;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+function toDashArray(current: number, total: number): number {
+    const angle = current / total;
+    return angle * CIRCUMFERENCE;
+}
+
+function toStrokeDashArray(dashArray: number): string {
+    return `${dashArray} ${CIRCUMFERENCE - dashArray}`
+}
+
 export function ProgressCircle({
     pendingColor,
     finishedColor,
@@ -334,41 +222,77 @@ export function ProgressCircle({
     size,
     ...stats
 }: {successes: number; failures: number; total: number; size: number; pendingColor: ThemeColor; finishedColor: ThemeColor; indeterminate: boolean;}): React.ReactNode {
-    // inspired/reworked from https://codepen.io/mjurczyk/pen/wvBKOvP
     const progressValues = indeterminate ? INDETERMINATE_VALUES : stats;
 
-    const successAngle = progressValues.successes / progressValues.total;
-    const failureAngle = (progressValues.failures + progressValues.successes) / progressValues.total;
-    const radius = 61.5;
-    const circumference = 2 * Math.PI * radius;
-    const successDashArray = successAngle * circumference;
-    const failureDashArray = failureAngle * circumference;
-    const successStrokeDasharray = `${successDashArray} ${circumference - successDashArray}`;
-    const failureStrokeDasharray = `${failureDashArray} ${circumference - failureDashArray}`;
+    const oldValues = React.useRef({successes: progressValues.successes, failures: progressValues.failures});
+
+    const successDashArray = toDashArray(progressValues.successes, progressValues.total);
+    const successStrokeDasharray = toStrokeDashArray(successDashArray);
+    const failureStrokeDasharray = toStrokeDashArray(toDashArray(progressValues.failures, progressValues.total));
+
+    const oldSuccess = oldValues.current.successes;
+    const successStyle: React.CSSProperties = {};
+    const oldSuccessDashArray = toDashArray(oldSuccess, progressValues.total)
+    successStyle["--from"] = toStrokeDashArray(oldSuccessDashArray);
+    successStyle["--to"] = successStrokeDasharray;
+    oldValues.current.successes = progressValues.successes;
+
+    const successRef = React.useRef<SVGCircleElement>(null);
+    const failureRef = React.useRef<SVGCircleElement>(null);
+    React.useEffect(() => {
+        successRef.current?.classList.add(SuccessInterpolate);
+        failureRef.current?.classList.add(FailureMoveInterpolate);
+    }, [progressValues.successes]);
+
+    React.useEffect(() => {
+        failureRef.current?.classList.add(FailureExpandInterpolate);
+    }, [progressValues.failures]);
+
+    const failureOffset = CIRCUMFERENCE - successDashArray;
+
+    const oldFailures = oldValues.current.failures;
+    const oldFailureDashArray = toDashArray(oldFailures, progressValues.total)
+    const failuresStyle: React.CSSProperties = {};
+    failuresStyle["--arrayFrom"] = failureStrokeDasharray;
+    failuresStyle["--arrayTo"] = toStrokeDashArray(oldFailureDashArray);
+    failuresStyle["--offsetStart"] = CIRCUMFERENCE - oldFailureDashArray;
+    failuresStyle["--offsetEnd"] = failureOffset;
+    oldValues.current.failures = progressValues.failures;
 
     return (<svg className={indeterminate ? IndeterminateSpinClass : undefined} width={size.toString()} height={"auto"} viewBox="-17.875 -17.875 178.75 178.75" version="1.1" xmlns="http://www.w3.org/2000/svg" style={{transform: "rotate(-90deg)"}}>
-        <circle r={radius} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
-        <circle r={radius} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
+        <circle r={RADIUS} cx="71.5" cy="71.5" fill="transparent" stroke={`var(--${pendingColor})`} strokeWidth="20" strokeDasharray="386.22px" strokeDashoffset=""></circle>
+        <circle ref={failureRef} style={failuresStyle} onAnimationEnd={e => {
+            if (e.animationName === FailureMoveAnimation) {
+                e.currentTarget.classList.remove(FailureMoveInterpolate);
+            } else {
+                e.currentTarget.classList.remove(FailureExpandInterpolate);
+            }
+        }} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--errorMain)`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={failureOffset} fill="transparent" strokeDasharray={failureStrokeDasharray}></circle>
+        <circle ref={successRef} style={successStyle} onAnimationEnd={e => e.currentTarget.classList.remove(SuccessInterpolate)} r={RADIUS} cx="71.5" cy="71.5" stroke={`var(--${finishedColor})`} strokeWidth="20" strokeLinecap="butt" strokeDashoffset={0} fill="transparent" strokeDasharray={successStrokeDasharray}></circle>
     </svg>)
 }
 
-function promptCancel(task: Task) {
+function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
     addStandardDialog({
         title: "Cancel task?",
         message: "This will cancel the task, and will have to be restarted to finish.",
-        onConfirm: () => MOCKING.mockCancel(task),
+        onConfirm: () => {
+            ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.CANCELLED))
+        },
         cancelText: "Back",
         confirmText: "Cancel task",
         onCancel: () => void 0,
         cancelButtonColor: "successMain",
         confirmButtonColor: "errorMain",
         stopEvents: true,
-    })
+    });
 }
 
 export function TaskList(): React.ReactNode {
     const [uploads] = useUploads();
+
+    const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
+
     const fileUploads = React.useMemo(() => {
         const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
         if (uploadGrouping.finished == null) uploadGrouping.finished = [];
@@ -377,23 +301,47 @@ export function TaskList(): React.ReactNode {
     }, [uploads]);
 
     React.useEffect(() => {
-        /* if (Client.isLoggedIn) {
-            const conn = WSFactory.open(
-                "/tasks", {
+        if (websocket) return;
+        const ws = WSFactory.open(
+            "/tasks",
+            {
                 init: async conn => {
-                    await conn.subscribe({
-                        call: "tasks.follow",
-                        payload: {},
-                        handler: message => {
-                            // TODO
+                    try {
+                        const page: PageV2<BackgroundTask> = (await ws.call(
+                            TaskOperations.calls.browse({
+                                itemsPerPage: 250,
+                            } as any)
+                        )).payload;
+
+                        for (const item of page.items) {
+                            taskStore.addTask(item);
                         }
-                    });
-                    conn.close();
-                },
-            });
-        } */
-        taskStore.mockInitConnection();
-    }, [Client.isLoggedIn]);
+                    } catch (e) {
+                        console.warn(e);
+                    }
+
+                    try {
+                        await conn.subscribe({
+                            call: "tasks.listen",
+                            payload: {},
+                            handler: message => {
+                                if (message.type === "message") {
+                                    if (message.payload) {
+                                        const task: BackgroundTask = message.payload;
+                                        taskStore.addTask(task);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn(e);
+                    }
+                }
+            }
+        );
+
+        setWebsocket(ws);
+    }, [Client.isLoggedIn, websocket]);
 
     const inProgressTasks = React.useSyncExternalStore(s => taskStore.subscribe(s), () => taskStore.inProgress);
     const inProgressTaskList = Object.values(inProgressTasks).sort((a, b) => a.createdAt - b.createdAt);
@@ -411,20 +359,13 @@ export function TaskList(): React.ReactNode {
     }), []);
 
     const activeUploadCount = useMemo(() => {
-        let activeCount = 0;
-        for (let i = 0; i < uploads.length; i++) {
-            if (uploads[i].state === UploadState.UPLOADING) {
-                activeCount++;
-            }
-        }
-        return activeCount;
+        return uploads.filter(it => it.state === UploadState.UPLOADING).length;
     }, [uploads]);
 
 
     useEffect(() => {
         window.removeEventListener("beforeunload", onBeforeUnload);
         if (activeUploadCount > 0) {
-
             window.addEventListener("beforeunload", onBeforeUnload);
         }
 
@@ -433,18 +374,20 @@ export function TaskList(): React.ReactNode {
         };
     }, [activeUploadCount]);
 
-    if ((Object.values(inProgressTasks).length + activeUploadCount) === 0 || !inDevEnvironment()) return null;
+    const inProgressCount = Object.values(inProgressTasks).length + activeUploadCount;
+    if (inProgressCount + Object.values(finishedTaskList).length === 0 || !websocket || !hasFeature(Feature.NEW_TASKS)) return null;
     return (
         <ClickableDropdown
             left="50px"
             bottom="-168px"
-            trigger={<Flex justifyContent="center">{TasksIcon}</Flex>}
+            colorOnHover={false}
+            trigger={<Flex>{ActiveTasksIcon}</Flex>}
         >
-            <Card onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
-                <Box height={"526px"} overflowY="scroll">
+            <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+                <Box height={"526px"} overflowY="auto">
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
                     {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-                    {inProgressTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+                    {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
                         <Box ml="auto">
@@ -457,13 +400,48 @@ export function TaskList(): React.ReactNode {
                         </Box>
                     </Flex> : null}
                     {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
-                    {finishedTaskList.map(t => <TaskItem key={t.id} task={t} />)}
+                    {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                 </Box>
             </Card>
         </ClickableDropdown>
     );
-
-
 }
+
+
+const baseContext = "tasks";
+const TaskOperations = new class {
+    public isIndeterminate(task: BackgroundTask): boolean {
+        return task.status.progressPercentage < 0;
+    }
+
+    // TODO(Jonas): not in use. delete? 
+    public didTaskNotFinish(task: BackgroundTask): boolean {
+        return [TaskState.CANCELLED, TaskState.FAILURE].includes(task.status.state);
+    }
+
+    public isTaskTerminal(task: BackgroundTask): boolean {
+        return [TaskState.CANCELLED, TaskState.FAILURE, TaskState.SUCCESS].includes(task.status.state);
+    }
+
+    public taskError(task: BackgroundTask): string | undefined {
+        if (task.status.state === TaskState.FAILURE) return task.status.progress;
+        return undefined;
+    }
+
+    public calls = {
+        browse(pageProps: PaginationRequestV2) {
+            return {call: baseContext + ".browse", payload: pageProps};
+        },
+        retrieve(id: number) {
+            return {call: baseContext + ".retrieve", payload: {id}};
+        },
+        listen() {
+            return baseContext + ".listen";
+        },
+        pauseOrCancel(id: number, requestedState: TaskState) {
+            return {call: baseContext + ".pauseOrCancel", payload: {id, requestedState}};
+        }
+    }
+};
 
 export default TaskList;

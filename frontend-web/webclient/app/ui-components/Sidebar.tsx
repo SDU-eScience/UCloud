@@ -61,13 +61,11 @@ import {NewsPost} from "@/NewsPost";
 import {sidebarFavoriteCache} from "@/Files/FavoriteCache";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {projectTitle} from "@/Project/ContextSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
-import {LegacyReduxObject} from "@/DefaultObjects";
 import {useDiscovery} from "@/Applications/Hooks";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
@@ -116,7 +114,6 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     }
     
     ${k} header h1 {
-        font-weight: bold;
         font-size: 20px;
         flex-grow: 1;
         margin: 0;
@@ -125,10 +122,9 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} header div {
         cursor: pointer;
     }
-    
+
     ${k} h2, ${k} h3 {
         margin: 0;
-        font-weight: bold;
     }
     
     ${k} h3 {
@@ -391,14 +387,14 @@ export function Sidebar(): React.ReactNode {
         setHoveredPage(SidebarTabId.NONE);
     }, [setHoveredPage]);
 
+    const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
+    
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
-
-    const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
-
+    
     const sidebar: MenuElement[] = sidebarEntries
-        .filter(it => it.predicate(reduxState))
-        .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
+    .filter(it => it.predicate(reduxState))
+    .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
     return (
         <Flex>

@@ -15,7 +15,7 @@ import (
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
-	slurmcli "ucloud.dk/pkg/im/slurm"
+	slurmcli "ucloud.dk/pkg/im/external/slurm"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"

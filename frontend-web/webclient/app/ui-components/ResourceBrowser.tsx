@@ -3431,7 +3431,7 @@ export class ResourceBrowser<T> {
             this.open(this.currentPath, true);
         }
         if (this.browseFilters["sortBy"] === filter) {
-            wrapper.style.fontWeight = "bold";
+            wrapper.style.fontWeight = "500";
             const [arrow, setArrow] = ResourceBrowser.defaultIconRenderer();
             arrow.style.minWidth = "";
             ResourceBrowser.icons.renderIcon({

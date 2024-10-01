@@ -19,8 +19,7 @@ export const AppHeader: React.FunctionComponent<{
     flavors: Application[];
     title: string;
 }> = props => {
-    /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
-    const newestVersion = props.allVersions[props.allVersions.length - 1];
+    const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
     const close = React.useRef(() => void 0);
 

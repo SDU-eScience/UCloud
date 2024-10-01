@@ -10,6 +10,7 @@ const (
 	messageTypeSkip      messageType = 3
 	messageTypeListing   messageType = 4
 	messageTypeCompleted messageType = 5
+	messageTypeClose     messageType = 6
 
 	// checksum = 1 has not yet been implemented
 )
@@ -111,6 +112,18 @@ func (m *messageCompleted) Marshal(buf *util.UBuffer, writeOpCode bool) {
 	buf.WriteS32(m.NumberOfProcessedFiles)
 }
 
+type messageClose struct {
+}
+
+func (m *messageClose) Unmarshal(buf *util.UBuffer) {
+}
+
+func (m *messageClose) Marshal(buf *util.UBuffer, writeOpCode bool) {
+	if writeOpCode {
+		buf.WriteU8(uint8(messageTypeClose))
+	}
+}
+
 func parseMessage(t messageType, buf *util.UBuffer) message {
 	if buf.Error != nil {
 		return nil
@@ -129,6 +142,8 @@ func parseMessage(t messageType, buf *util.UBuffer) message {
 		msg = &messageListing{}
 	case messageTypeCompleted:
 		msg = &messageCompleted{}
+	case messageTypeClose:
+		msg = &messageClose{}
 	}
 
 	if msg == nil || buf.Error != nil {

@@ -32,6 +32,13 @@ func (s *Option[T]) Get() T {
 	return s.Value
 }
 
+func (s *Option[T]) GetPtrOrNil() *T {
+	if !s.Present {
+		return nil
+	}
+	return &s.Value
+}
+
 func (s *Option[T]) Clear() {
 	var empty T
 	s.Value = empty

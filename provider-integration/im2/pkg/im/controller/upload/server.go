@@ -29,14 +29,14 @@ type FileMetadata struct {
 
 type ServerSession struct {
 	Id             string
-	OwnedBy        uint32
 	ConflictPolicy orc.WriteConflictPolicy
 	Path           string
-	UserData       []byte
+	UserData       string
 }
 
 type ServerFileSystem interface {
 	OpenFileIfNeeded(session ServerSession, fileMeta FileMetadata) ServerFile
+	OnSessionClose(session ServerSession, success bool)
 }
 
 type ServerFile interface {
@@ -118,7 +118,7 @@ func chunkWeight(chunk []byte) int64 {
 	return int64(len(chunk))
 }
 
-func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) {
+func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) bool {
 	uploads := map[int32]*serverFileUpload{}
 
 	// Acquired and released by the serverFileUpload goroutines. This is acquired by the goroutine since we want to keep
@@ -139,15 +139,15 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 	incomingWebsocket := make(chan []byte, 1)
 	go func() {
 		for {
-			wsType, data, readErr := socket.ReadMessage()
-			if wsType != ws.BinaryMessage || readErr != nil {
+			_, data, readErr := socket.ReadMessage()
+			if readErr != nil {
 				break
 			}
 
 			incomingWebsocket <- data
 		}
 
-		close(incomingWebsocket)
+		cancel()
 	}()
 
 	completedFiles := int32(0)
@@ -156,6 +156,8 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 	// NOTE(Dan): Since there will be no chunks or file listings, we can just use a single frame for all the
 	// messages we intend to send.
 	outputBuffer := util.NewBuffer(&bytes.Buffer{})
+
+	wasClosed := false
 
 outer:
 	for {
@@ -212,6 +214,15 @@ outer:
 		case data, ok := <-incomingWebsocket:
 			if !ok {
 				break outer
+			}
+
+			if len(data) == 4 && string(data) == "ping" {
+				err := socket.WriteMessage(ws.TextMessage, []byte("pong"))
+				if err != nil {
+					break outer
+				}
+
+				continue
 			}
 
 			buf := util.NewBuffer(bytes.NewBuffer(data))
@@ -281,6 +292,10 @@ outer:
 
 					upload.ChunksOrSkip <- msg.Data
 
+				case *messageClose:
+					wasClosed = true
+					break outer
+
 				default:
 					break outer
 				}
@@ -293,6 +308,17 @@ outer:
 	// Either the client or the server has decided to close the connection. Terminate everything.
 	cancel()
 	util.SilentClose(socket)
+
+	// Count all completed files before exit
+	for id, upload := range uploads {
+		if upload.Done.Load() {
+			completedFiles++
+			delete(uploads, id)
+		}
+	}
+
+	fs.OnSessionClose(session, wasClosed)
+	return wasClosed
 }
 
 const maintenanceTickRateMs = 50
