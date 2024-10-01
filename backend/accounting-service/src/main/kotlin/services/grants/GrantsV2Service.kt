@@ -1522,7 +1522,8 @@ class GrantsV2Service(
                                 where id = :project_id
                                 on conflict (application_id, project_id) do update set
                                     last_update = excluded.last_update,
-                                    state = excluded.state
+                                    state = excluded.state,
+                                    updated_by = excluded.updated_by
                             """
                         )
                     }
