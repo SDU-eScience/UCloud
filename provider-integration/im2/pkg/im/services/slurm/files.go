@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"golang.org/x/sys/unix"
 	"io"
+	"io/fs"
 	"math"
 	"net/http"
 	"os"
@@ -48,8 +49,51 @@ func InitializeFiles() ctrl.FileService {
 		TransferSourceInitiate:      transferSourceInitiate,
 		TransferDestinationInitiate: transferDestinationInitiate,
 		TransferSourceBegin:         transferSourceBegin,
+		Search:                      search,
 		Uploader:                    &uploaderFileSystem{},
 	}
+}
+
+func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, output chan orc.ProviderFile) {
+	initialFolder, ok := UCloudToInternal(folder)
+	driveId, ok2 := DriveIdFromUCloudPath(folder)
+	defer close(output)
+
+	if !ok || !ok2 {
+		return
+	}
+
+	drive, ok := RetrieveDrive(driveId)
+	if !ok {
+		return
+	}
+
+	normalizedQuery := strings.ToLower(query)
+
+	_ = filepath.WalkDir(initialFolder, func(path string, d fs.DirEntry, err error) error {
+		select {
+		case <-ctx.Done():
+			return filepath.SkipAll
+		default:
+			normalizedName := strings.ToLower(d.Name())
+			if strings.Contains(normalizedName, normalizedQuery) {
+				stat, err := d.Info()
+				if err == nil {
+					var result orc.ProviderFile
+					readMetadata(path, stat, &result, drive)
+
+					select {
+					case <-ctx.Done():
+						return filepath.SkipAll
+					case output <- result:
+						// Do nothing
+					}
+				}
+			}
+
+			return nil
+		}
+	})
 }
 
 func transferSourceInitiate(request ctrl.FilesTransferRequestInitiateSource) ([]string, error) {
@@ -554,7 +598,7 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 
 func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	task := TaskInfoSpecification{
-		Type:          FileTaskTypeCopy,
+		Type:          FileTaskTypeEmptyTrash,
 		CreatedAt:     fnd.Timestamp(time.Now()),
 		UCloudSource:  util.OptValue(request.Path),
 		HasUCloudTask: true,

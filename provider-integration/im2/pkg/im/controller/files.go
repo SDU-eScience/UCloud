@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/controller/upload"
 
@@ -54,12 +56,16 @@ type FileService struct {
 	TransferSourceInitiate      func(request FilesTransferRequestInitiateSource) ([]string, error)
 	TransferDestinationInitiate func(request FilesTransferRequestInitiateDestination) (FilesTransferResponse, error)
 	TransferSourceBegin         func(request FilesTransferRequestStart, session TransferSession) error
+	Search                      func(ctx context.Context, query, folder string, flags FileFlags, outputChannel chan orc.ProviderFile)
 	Uploader                    upload.ServerFileSystem
 }
 
 type FilesBrowseFlags struct {
 	Path string `json:"path"`
+	FileFlags
+}
 
+type FileFlags struct {
 	IncludePermissions bool `json:"includePermissions,omitempty"`
 	IncludeTimestamps  bool `json:"includeTimestamps,omitempty"`
 	IncludeSizes       bool `json:"includeSizes,omitempty"`
@@ -723,6 +729,156 @@ func controllerFiles(mux *http.ServeMux) {
 					return
 				}
 			}),
+		)
+
+		searchCall := fmt.Sprintf("files.provider.%v.streamingSearch", cfg.Provider.Id)
+		mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/files", cfg.Provider.Id),
+			func(writer http.ResponseWriter, request *http.Request) {
+				// Initialize websocket session
+				// -----------------------------------------------------------------------------------------------------
+				searchFn := Files.Search
+				if searchFn == nil {
+					sendError(writer, &util.HttpError{
+						StatusCode: http.StatusNotFound,
+					})
+					return
+				}
+
+				conn, err := HttpUpgradeToWebSocketAuthenticated(writer, request)
+				defer util.SilentCloseIfOk(conn, err)
+				if err != nil {
+					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					return
+				}
+
+				// Initialize reader goroutine
+				// -----------------------------------------------------------------------------------------------------
+				ctx, cancel := context.WithCancel(context.Background())
+				socketMessages := make(chan []byte)
+
+				go func() {
+					for util.IsAlive {
+						_, message, err := conn.ReadMessage()
+						if err != nil {
+							break
+						}
+
+						socketMessages <- message
+					}
+
+					socketMessages <- nil
+				}()
+
+				// Read initial message and parse it
+				// -----------------------------------------------------------------------------------------------------
+				data := <-socketMessages
+				if data == nil {
+					cancel()
+					return
+				}
+
+				requestMessage := WebSocketRequest{}
+				err = json.Unmarshal(data, &requestMessage)
+				if err != nil {
+					log.Info("Failed to unmarshal websocket message: %v", err)
+					cancel()
+					return
+				}
+
+				if requestMessage.Call != searchCall {
+					log.Info("Unexpected call on stream: %v", requestMessage.Call)
+					cancel()
+					return
+				}
+
+				type req struct {
+					Query         string                  `json:"query"`
+					Owner         orc.ResourceOwner       `json:"owner"`
+					Flags         FileFlags               `json:"flags"`
+					Category      apm.ProductCategoryIdV2 `json:"category"`
+					CurrentFolder util.Option[string]     `json:"currentFolder"`
+				}
+				wsRequest := req{}
+				err = json.Unmarshal(requestMessage.Payload, &wsRequest)
+				if err != nil {
+					log.Info("Failed to unmarshal follow message: %v", err)
+					cancel()
+					return
+				}
+
+				if !wsRequest.CurrentFolder.Present {
+					cancel()
+					return
+				}
+
+				// Begin processing of search results
+				// -----------------------------------------------------------------------------------------------------
+
+				outputChannel := make(chan orc.ProviderFile)
+				go searchFn(ctx, wsRequest.Query, wsRequest.CurrentFolder.Value, wsRequest.Flags, outputChannel)
+
+				type result struct {
+					Type  string             `json:"type"`
+					Batch []orc.ProviderFile `json:"batch"`
+				}
+
+				var outputBuffer []orc.ProviderFile
+				ticker := time.NewTicker(100 * time.Millisecond)
+				flushBuffer := func() bool {
+					if len(outputBuffer) == 0 {
+						return true
+					}
+
+					output := result{
+						Type:  "result",
+						Batch: outputBuffer,
+					}
+					outputJson, _ := json.Marshal(output)
+
+					msg := WebSocketResponseMessage{
+						Type:     "message",
+						Payload:  outputJson,
+						StreamId: requestMessage.StreamId,
+					}
+
+					msgBytes, _ := json.Marshal(msg)
+					_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					err = conn.WriteMessage(ws.TextMessage, msgBytes)
+
+					outputBuffer = nil
+					return err == nil
+				}
+
+			outer:
+				for util.IsAlive {
+					select {
+					case <-ctx.Done():
+						break outer
+
+					case <-ticker.C:
+						if !flushBuffer() {
+							break outer
+						}
+
+					case m := <-socketMessages:
+						if m == nil {
+							break outer
+						}
+
+					case output, ok := <-outputChannel:
+						if !ok {
+							break outer
+						}
+
+						outputBuffer = append(outputBuffer, output)
+					}
+				}
+
+				_ = flushBuffer()
+
+				cancel()
+			},
 		)
 	} else if cfg.Mode == cfg.ServerModeServer {
 		type retrieveProductsRequest struct{}

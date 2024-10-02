@@ -65,6 +65,7 @@ func (spec *TaskInfoSpecification) DefaultStatus() orc.TaskStatus {
 	switch spec.Type {
 	case FileTaskTransfer:
 		operation = fmt.Sprintf("Transferring %s to another provider", sourceSimple)
+
 	case FileTaskTypeCopy:
 		operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"ucloud.dk/pkg/util"
@@ -374,7 +375,13 @@ func (c *Client) UserListAccounts(user string) []string {
 	}
 
 	lines := strings.Split(stdout, "\n")
-	return lines
+	var deduped []string
+	for _, line := range lines {
+		if !slices.Contains(deduped, line) {
+			deduped = append(deduped, line)
+		}
+	}
+	return deduped
 }
 
 var billingRegex = regexp.MustCompile("billing=(\\d+)")

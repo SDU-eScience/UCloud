@@ -396,10 +396,6 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	if Mode == ServerModeServer {
 		filePath := filepath.Join(configDir, "secrets.yml")
 		fileBytes, err := os.ReadFile(filePath)
-		if err != nil && !os.IsExist(err) {
-			reportError(filePath, nil, "Could not read secrets.yml file. Underlying error: %v", err)
-			return false
-		}
 
 		if err == nil {
 			var document yaml.Node
@@ -764,20 +760,22 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 		directory := requireChildFolder(filePath, envoy, "directory", FileCheckReadWrite, &success)
 		cfg.Envoy.StateDirectory = directory
 
-		exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
-		cfg.Envoy.Executable = exe
+		managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
+		cfg.Envoy.ManagedExternally = managedExternally
 
-		funceWrapper, _ := optionalChildBool(filePath, envoy, "funceWrapper")
-		cfg.Envoy.FunceWrapper = funceWrapper
+		if !cfg.Envoy.ManagedExternally {
+			exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
+			cfg.Envoy.Executable = exe
+
+			funceWrapper, _ := optionalChildBool(filePath, envoy, "funceWrapper")
+			cfg.Envoy.FunceWrapper = funceWrapper
+		}
 
 		internalAddressToProvider := optionalChildText(filePath, envoy, "internalAddressToProvider", &success)
 		if internalAddressToProvider == "" {
 			internalAddressToProvider = "127.0.0.1"
 		}
 		cfg.Envoy.InternalAddressToProvider = internalAddressToProvider
-
-		managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
-		cfg.Envoy.ManagedExternally = managedExternally
 
 		if !success {
 			return false, cfg
