@@ -109,7 +109,7 @@ class UCloudFilePlugin : FilePlugin {
         pathConverter = PathConverter(config.core.experimental.sensitiveProjects.toSet(), rpcClient, driveLocator)
         fs = NativeFS(pathConverter)
         trash = TrashService(pathConverter)
-        directoryStats = FastDirectoryStats(driveLocator, fs)
+        directoryStats = FastDirectoryStats(driveLocator, fs, config.core.fallbackStorageScan)
         queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, directoryStats)
         downloads = DownloadService(pathConverter, fs)
         limitChecker = LimitChecker(dbConnection, rpcClient, pathConverter)

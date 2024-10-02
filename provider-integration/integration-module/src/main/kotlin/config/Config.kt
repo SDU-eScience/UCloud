@@ -4,12 +4,10 @@ import com.charleskorn.kaml.PolymorphismStyle
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.utils.*
-import dk.sdu.cloud.accounting.api.ProductType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonNames
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -50,6 +48,7 @@ data class ConfigSchema(
 
         val maintenance: Maintenance? = null,
         val experimental: Experimental = Experimental(),
+        val fallbackStorageScan: FallbackStorageScanMethod = FallbackStorageScanMethod.DU
     ) {
         @Serializable
         data class Hosts(
@@ -87,6 +86,11 @@ data class ConfigSchema(
         data class Experimental(
             val sensitiveProjects: List<String> = emptyList()
         )
+
+        enum class FallbackStorageScanMethod {
+            DU,
+            GDU
+        }
     }
 
     @Serializable
