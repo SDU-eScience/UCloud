@@ -5,13 +5,14 @@ import (
 	"os"
 	"time"
 	"ucloud.dk/pkg/im/external/gpfs"
+	"ucloud.dk/pkg/util"
 
 	"ucloud.dk/pkg/im/launcher"
 	"ucloud.dk/pkg/termio"
 )
 
 func main() {
-	exeName := os.Args[0]
+	exeName := util.FileName(os.Args[0])
 	if exeName == "gpfs-mock" {
 		gpfs.RunMockServer()
 		return
