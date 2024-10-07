@@ -978,6 +978,7 @@ func loadStorageProducts() {
 		support.Files.SearchSupported = false
 		support.Files.StreamingSearchSupported = true
 		support.Files.SharesSupported = false
+		support.Files.OpenInTerminal = true
 
 		storageSupport = append(storageSupport, support)
 	}

@@ -64,7 +64,7 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api
 import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
@@ -755,10 +755,20 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Open terminal",
                 primary: true,
                 icon: "terminalSolid",
-                enabled: () => hasFeature(Feature.INLINE_TERMINAL),
+                enabled: (selected, cb) => {
+                    let support = cb.collection?.status?.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.length > 0) return false;
+                    if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
+                    return (support as FileCollectionSupport).files.openInTerminal === true;
+                },
                 onClick: (selected, cb) => {
+                    const providerId = cb.collection?.status?.resolvedProduct?.category?.provider ?? "";
+                    const providerTitle = getProviderTitle(providerId);
+                    const folder = cb.directory?.id ?? "/";
+
                     cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
+                    cb.dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
                 },
                 shortcut: ShortcutKey.O
             },

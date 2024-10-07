@@ -65,7 +65,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithFlag: allLocalEnvironments,
+        showWithoutFlag: allLocalEnvironments,
     },
 
     "copy-app": {

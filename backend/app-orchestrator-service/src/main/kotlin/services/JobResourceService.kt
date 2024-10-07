@@ -25,6 +25,7 @@ import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -263,7 +264,7 @@ class JobResourceService(
     // - `addUpdate`: updates from the provider, primary way for providers to mutate the state of a job
 
     // Validation of user input is implemented in the JobVerificationService:
-    private val validation = JobVerificationService(appCache, this, fileCollections)
+    private val verification = JobVerificationService(appCache, this, fileCollections)
 
     // The create call is invoked when an end-user wishes to start a job. The request contains which application to
     // start and how to run it. This function will authorize, verify the request and proxy it to the provider(s).
@@ -301,7 +302,7 @@ class JobResourceService(
         }
 
         for (job in request.items) {
-            validation.verifyOrThrow(actorAndProject, job)
+            verification.verifyOrThrow(actorAndProject, job)
 
             // We invoke the listeners once all other steps have passed. Be aware that listeners are allowed to throw
             // an exception if they do not believe that processing should proceed.
@@ -404,7 +405,7 @@ class JobResourceService(
 
             actorList.add(onBehalfOf)
 
-            validation.verifyOrThrow(onBehalfOf, reqItem.spec)
+            verification.verifyOrThrow(onBehalfOf, reqItem.spec)
             listeners.forEach { it.onVerified(onBehalfOf, reqItem.spec) }
         }
 
@@ -587,7 +588,7 @@ class JobResourceService(
                                     null
                                 }
 
-                                validation.checkAndReturnValidFiles(
+                                verification.checkAndReturnValidFiles(
                                     ActorAndProject(createdBy, project),
                                     newMounts.map { AppParameterValue.File(it) }
                                 )
@@ -1261,6 +1262,46 @@ class JobResourceService(
 
         if (responses.count { it != null } == 0 && firstException != null) throw firstException!!
         return BulkResponse(responses)
+    }
+
+    suspend fun openTerminalInFolder(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsOpenTerminalInFolderRequestItem>
+    ): BulkResponse<OpenSessionWithProvider> {
+        val files = request.items.map { AppParameterValue.File(it.folder) }
+        val (validFiles, collections) = verification.checkAndReturnValidFilesWithCollections(
+            actorAndProject,
+            files,
+        )
+
+        val filesByCollection = validFiles.groupBy { extractPathMetadata(it.path).collection }
+        val collectionsByProvider = collections.values
+            .groupBy { it.specification.product.provider }
+
+        val responses = Array(request.items.size) { OpenSessionWithProvider("", "", OpenSession.Shell("", 0, "", "")) }
+
+        for ((provider, collectionsForProvider) in collectionsByProvider) {
+            val allFiles = collectionsForProvider
+                .flatMap { filesByCollection[it.id] ?: emptyList() }
+                .map { JobsOpenTerminalInFolderRequestItem(it.path) }
+
+            val providerDomain = providers.retrieveProviderHostInfo(provider).toString()
+            providers
+                .call(
+                    provider,
+                    actorAndProject,
+                    { JobsProvider(it).openTerminalInFolder },
+                    BulkRequest(allFiles),
+                )
+                .responses
+                .asSequence()
+                .forEachIndexed { idx, it ->
+                    val responseIdx = request.items.indexOf(allFiles[idx])
+                    responses[responseIdx] = OpenSessionWithProvider(it.domainOverride ?: providerDomain, provider, it)
+                }
+        }
+
+        return BulkResponse(responses.toList())
     }
 
     // Time extension is supported by some providers. As the name implies, it extends the reservation by some amount. We

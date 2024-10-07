@@ -77,6 +77,10 @@ class JobController(
             ok(jobs.openInteractiveSession(actorAndProject, request))
         }
 
+        implement(Jobs.openTerminalInFolder) {
+            ok(jobs.openTerminalInFolder(actorAndProject, request))
+        }
+
         implement(Jobs.retrieveProducts) {
             ok(jobs.retrieveProducts(actorAndProject))
         }

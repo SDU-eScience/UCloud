@@ -587,6 +587,12 @@ data class JobsOpenInteractiveSessionRequestItem(
 typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
 
 @Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class JobsOpenTerminalInFolderRequestItem(
+    val folder: String,
+)
+
+@Serializable
 @UCloudApiStable
 data class OpenSessionWithProvider(
     val providerDomain: String,
@@ -1688,4 +1694,14 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             }
         )
     }
+
+    val openTerminalInFolder = call(
+        "openTerminalInFolder",
+        BulkRequest.serializer(JobsOpenTerminalInFolderRequestItem.serializer()),
+        BulkResponse.serializer(OpenSessionWithProvider.serializer()),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "openTerminalInFolder")
+        }
+    )
 }

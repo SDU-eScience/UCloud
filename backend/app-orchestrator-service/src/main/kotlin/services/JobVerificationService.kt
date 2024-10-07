@@ -178,6 +178,13 @@ class JobVerificationService(
         actorAndProject: ActorAndProject,
         files: List<AppParameterValue.File>
     ): List<AppParameterValue.File> {
+        return checkAndReturnValidFilesWithCollections(actorAndProject, files).first
+    }
+
+    suspend fun checkAndReturnValidFilesWithCollections(
+        actorAndProject: ActorAndProject,
+        files: List<AppParameterValue.File>
+    ): Pair<List<AppParameterValue.File>, Map<String, FileCollection>> {
         val actualFiles = ArrayList<AppParameterValue.File>()
 
         val translatedFiles = translatePotentialShares(actorAndProject, files)
@@ -200,7 +207,7 @@ class JobVerificationService(
             file.readOnly = !allowWrite
             actualFiles.add(file)
         }
-        return actualFiles
+        return Pair(actualFiles, retrievedCollections)
     }
 
     private fun badValue(param: ApplicationParameter): Nothing {

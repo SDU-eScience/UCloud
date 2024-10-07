@@ -84,7 +84,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${browserClass.dot} {
             width: 100%;
-            height: calc(100vh - 32px);
+            height: calc(100vh - 32px - var(--termsize));
             display: flex;
             flex-direction: column;
             font-size: 16px;

@@ -50,7 +50,7 @@ import (
 	"unsafe"
 )
 
-func CreateAndForkPty(command []string, envArray []string) (*os.File, error) {
+func CreateAndForkPty(command []string, envArray []string) (*os.File, int32, error) {
 	cmd := make([]*C.char, len(command)+1)
 	for i, s := range command {
 		cmd[i] = C.CString(s)
@@ -68,10 +68,10 @@ func CreateAndForkPty(command []string, envArray []string) (*os.File, error) {
 	var masterFd C.int
 	pid := C.createAndForkPty(&cmd[0], &env[0], &masterFd)
 	if pid == 0 {
-		return nil, fmt.Errorf("fork failed")
+		return nil, 0, fmt.Errorf("fork failed")
 	}
 
-	return os.NewFile(uintptr(masterFd), "pty"), nil
+	return os.NewFile(uintptr(masterFd), "pty"), int32(pid), nil
 }
 
 func ResizePty(masterFd *os.File, cols, rows int) {
@@ -82,7 +82,66 @@ func ResizePty(masterFd *os.File, cols, rows int) {
 	C.resizePty(C.int(masterFd.Fd()), C.int(cols), C.int(rows))
 }
 
-func handleShell(session *ctrl.ShellSession, cols, rows int) {
+var folderShellLimiter = util.NewCpuLimiter(100.0, 1024*1024*256)
+
+func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
+	command := []string{"/bin/bash", "--login"}
+	// TODO(Dan): Ideally this shell is launched without job control, since it will be impacted by SIGSTOP from the
+	//   cpu limiter.
+
+	masterFd, pid, err := CreateAndForkPty(command, nil)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	masterFd.Write([]byte("set +m\n"))
+
+	folderShellLimiter.Watch(pid)
+
+	ResizePty(masterFd, cols, rows)
+
+	go func() {
+		readBuffer := make([]byte, 1024*4)
+		for util.IsAlive && session.Alive {
+			_ = masterFd.SetReadDeadline(time.Now().Add(1 * time.Second))
+			count, err := masterFd.Read(readBuffer)
+			if err != nil {
+				session.Alive = false
+				log.Info("Error while reading from master: %v", err)
+				break
+			}
+
+			if count > 0 {
+				session.EmitData(readBuffer[:count])
+			}
+		}
+	}()
+
+	for util.IsAlive && session.Alive {
+		select {
+		case event := <-session.InputEvents:
+			log.Info("Got event: %v", event)
+			switch event.Type {
+			case ctrl.ShellEventTypeInput:
+				_, err = masterFd.Write([]byte(event.Data))
+				if err != nil {
+					session.Alive = false
+					log.Info("Error while writing to master: %v", err)
+					break
+				}
+
+			case ctrl.ShellEventTypeResize:
+				ResizePty(masterFd, event.Cols, event.Rows)
+			}
+
+		case _ = <-time.After(1 * time.Second):
+			continue
+		}
+	}
+}
+
+func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 	parsedId, ok := parseJobProviderId(session.Job.ProviderGeneratedId)
 	if !ok {
 		return
@@ -101,7 +160,7 @@ func handleShell(session *ctrl.ShellSession, cols, rows int) {
 	}
 	// envArray := []string{"VAR1=value1", "VAR2=value2"}
 
-	masterFd, err := CreateAndForkPty(command, nil)
+	masterFd, _, err := CreateAndForkPty(command, nil)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -146,5 +205,13 @@ func handleShell(session *ctrl.ShellSession, cols, rows int) {
 		case _ = <-time.After(1 * time.Second):
 			continue
 		}
+	}
+}
+
+func handleShell(session *ctrl.ShellSession, cols, rows int) {
+	if session.Folder == "" {
+		handleJobShell(session, cols, rows)
+	} else {
+		handleFolderShell(session, cols, rows)
 	}
 }

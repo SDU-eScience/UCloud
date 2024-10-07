@@ -1,7 +1,10 @@
 import {useDispatch, useSelector} from "react-redux";
+import {randomUUID} from "@/UtilityFunctions";
 
 export interface TerminalTab {
     title: string;
+    folder: string;
+    uniqueId?: string;
 }
 
 export interface TerminalState {
@@ -54,7 +57,10 @@ export function terminalReducer(state: TerminalState = initTerminalState(), acti
         }
 
         case "TerminalOpenTab": {
-            const tabs = [...state.tabs, action.tab];
+            const tabWithId = {...action.tab};
+            tabWithId.uniqueId = randomUUID();
+
+            const tabs = [...state.tabs, tabWithId];
             return {...state, tabs, activeTab: state.activeTab < 0 ? 0 : state.activeTab};
         }
 
@@ -62,7 +68,7 @@ export function terminalReducer(state: TerminalState = initTerminalState(), acti
             const tabs = [...state.tabs];
             tabs.splice(action.tabIdx, 1);
             const newActiveTab = Math.min(state.tabs.length - 2, state.activeTab);
-            return {...state, tabs, activeTab: newActiveTab};
+            return {...state, tabs, activeTab: newActiveTab, open: state.open && tabs.length > 0};
         }
 
         case "TerminalSelectTab": {

@@ -156,6 +156,10 @@ export interface OpenInteractiveSessionRequest {
     sessionType: "WEB" | "VNC" | "SHELL";
 }
 
+export interface OpenTerminalInFolderRequest {
+    folder: string;
+}
+
 export interface InteractiveSession {
     providerDomain: string;
     providerId: string;
@@ -333,6 +337,12 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         request: BulkRequest<OpenInteractiveSessionRequest>
     ): APICallParameters<BulkRequest<OpenInteractiveSessionRequest>, BulkResponse<InteractiveSession>> {
         return apiUpdate(request, this.baseContext, "interactiveSession");
+    }
+
+    openTerminalInFolder(
+        request: BulkRequest<OpenTerminalInFolderRequest>
+    ): APICallParameters<BulkRequest<OpenTerminalInFolderRequest>, BulkResponse<InteractiveSession>> {
+        return apiUpdate(request, this.baseContext, "openTerminalInFolder");
     }
 
     requestDynamicParameters(req: {

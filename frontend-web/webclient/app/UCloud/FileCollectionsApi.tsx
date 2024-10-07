@@ -64,6 +64,8 @@ export interface FileCollectionSupport extends ProductSupport {
 
         trashSupported?: boolean;
         isReadOnly?: boolean;
+
+        openInTerminal?: boolean | null;
     }
 }
 

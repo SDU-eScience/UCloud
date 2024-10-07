@@ -519,5 +519,8 @@ data class FSFileSupport(
     @UCloudApiDoc("Declares support for the streamingSearch endpoint")
     val streamingSearchSupported: Boolean = false,
 
-    val sharesSupported: Boolean = false
+    val sharesSupported: Boolean = false,
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    val openInTerminal: Boolean = false,
 )
