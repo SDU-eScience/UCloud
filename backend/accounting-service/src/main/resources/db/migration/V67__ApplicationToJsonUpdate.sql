@@ -1,3 +1,88 @@
+alter table "grant".revisions add column grant_start timestamptz not null default now();
+alter table "grant".revisions add column grant_end timestamptz not null default now();
+
+with times as (
+    select a.id, r.revision_number, rr.start_date, rr.end_date
+    from "grant".applications a join
+        "grant".revisions r on a.id = r.application_id join
+        "grant".requested_resources rr on r.application_id = rr.application_id and r.revision_number = rr.revision_number
+)
+update "grant".revisions
+set grant_start = start_date, grant_end = end_date
+from times
+where application_id = id and revisions.revision_number = times.revision_number;
+
+
+create or replace function "grant".revision_to_json(resources_in jsonb[], form_in "grant".forms, revision_in "grant".revisions) returns jsonb
+    language plpgsql
+as $$
+declare
+    builder jsonb;
+    document jsonb;
+begin
+
+    if form_in.recipient_type = 'personal' then
+        document := jsonb_build_object(
+                'recipient', jsonb_build_object(
+                        'type', 'personalWorkspace',
+                        'username', form_in.recipient
+                             ),
+                'allocationRequests', resources_in,
+                'form', "grant".form_to_json(form_in),
+                'referenceIds', form_in.reference_ids,
+                'revisionComment', revision_in.revision_comment,
+                'parentProjectId', form_in.parent_project_id,
+                'allocationPeriod', jsonb_build_object(
+                    'start', (floor(extract(epoch from revision_in.grant_start) * 1000)),
+                    'end', (floor(extract(epoch from revision_in.grant_end) * 1000))
+                )
+        );
+    elseif form_in.recipient_type = 'existing_project' then
+        document := jsonb_build_object(
+                'recipient', jsonb_build_object(
+                        'type', 'existingProject',
+                        'id', form_in.recipient
+                             ),
+                'allocationRequests', resources_in,
+                'form', "grant".form_to_json(form_in),
+                'referenceIds', form_in.reference_ids,
+                'revisionComment', revision_in.revision_comment,
+                'parentProjectId', form_in.parent_project_id,
+                'allocationPeriod', jsonb_build_object(
+                    'start', (floor(extract(epoch from revision_in.grant_start) * 1000)),
+                    'end', (floor(extract(epoch from revision_in.grant_end) * 1000))
+                )
+        );
+    elseif form_in.recipient_type = 'new_project' then
+        document := jsonb_build_object(
+                'recipient', jsonb_build_object(
+                        'type', 'newProject',
+                        'title', form_in.recipient
+                             ),
+                'allocationRequests', resources_in,
+                'form', "grant".form_to_json(form_in),
+                'referenceIds', form_in.reference_ids,
+                'revisionComment', revision_in.revision_comment,
+                'parentProjectId', form_in.parent_project_id,
+                'allocationPeriod', jsonb_build_object(
+                    'start', (floor(extract(epoch from revision_in.grant_start) * 1000)),
+                    'end', (floor(extract(epoch from revision_in.grant_end) * 1000))
+                )
+        );
+    end if;
+
+    builder := jsonb_build_object(
+            'createdAt', (floor(extract(epoch from revision_in.created_at) * 1000)),
+            'updatedBy', revision_in.updated_by,
+            'revisionNumber', revision_in.revision_number,
+            'document', document
+               );
+
+    return builder;
+end;
+$$;
+
+
 create or replace function "grant".application_to_json(
     app_id_in bigint
 ) returns jsonb language sql as $$
