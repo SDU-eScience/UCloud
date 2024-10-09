@@ -36,6 +36,7 @@ import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {edit} from "@/ui-components/icons";
 
 // State model
 // =====================================================================================================================
@@ -397,6 +398,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         form: {
                             type: "plain_text",
                             text: "",
+                        },
+                        allocationPeriod: {
+                            start: start.getMilliseconds(),
+                            end: Math.max(
+                                3,
+                                ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
+                                (end.getUTCMonth() - start.getUTCMonth())
+                            )
                         }
                     }
                 }
@@ -421,7 +430,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         year: action.year ?? state.allocationPeriod.start.year,
                     },
                     durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
-                }
+                },
+
             };
         }
 
@@ -738,17 +748,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newApplicationDocument["Other"] = otherSection;
         }
 
-        const startDate = new Date(
-            doc.allocationRequests
-                .map(it => new Date(it.period.start ?? Date.now()).getTime())
-                .reduce((a, b) => Math.min(a, b), Number.MAX_SAFE_INTEGER)
-        );
+        const startDate = new Date(doc.allocationPeriod.start ?? Date.now());
 
-        const endDate = new Date(
-            doc.allocationRequests
-                .map(it => new Date(it.period.end ?? Date.now()).getTime())
-                .reduce((a, b) => Math.max(a, b), 0) + 1000
-        ); // Off by one second in some cases, let's just adjust slightly here.
+        const endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        // Off by one second in some cases, let's just adjust slightly here.
 
         const startYear = Math.max(2019, startDate.getUTCFullYear());
         const startMonth = startDate.getUTCMonth();
@@ -1439,6 +1442,9 @@ export function Editor(): React.ReactNode {
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
 
+        const [start, end] = stateToAllocationPeriod(state);
+        const period: Grants.Period = {start, end};
+
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceIds: null,
@@ -1446,6 +1452,7 @@ export function Editor(): React.ReactNode {
             form: stateToApplication(state),
             parentProjectId: checked[0].id,
             allocationRequests: stateToRequests(state),
+            allocationPeriod: period
         };
 
         dispatchEvent({type: "LoadingStateChange", isLoading: true});
@@ -1500,12 +1507,16 @@ export function Editor(): React.ReactNode {
             }
         }
 
+        const [start, end] = stateToAllocationPeriod(state);
+        const period: Grants.Period = {start, end};
+        
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
             allocationRequests: stateToRequests(state),
             form: stateToApplication(state),
-            parentProjectId: currentDoc.parentProjectId
+            parentProjectId: currentDoc.parentProjectId,
+            allocationPeriod: period
         };
 
         if (isGrantGiverInitiated) {

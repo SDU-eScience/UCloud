@@ -169,6 +169,12 @@ export interface Doc {
         Not null if and only if the recipient is a new project.
     */
     parentProjectId?: string | null;
+
+    /*
+        A field to that specifies when every allocation that has been requested
+        should start and end
+     */
+    allocationPeriod: Period
 }
 
 type Form = PlainTextForm | GrantGiverInitiatedForm;

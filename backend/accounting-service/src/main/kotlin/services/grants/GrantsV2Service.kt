@@ -1114,6 +1114,10 @@ class GrantsV2Service(
                 }
 
                 is Command.InsertRevision -> {
+                    val allocationsWithAlignPeriod = command.doc.allocationRequests.map { req ->
+                        req.copy(period = command.doc.allocationPeriod)
+                    }
+
                     if (command.doc.form is GrantApplication.Form.GrantGiverInitiated) {
                         if (application.id != "") genericForbidden()
                         val grantGivers = command.doc.allocationRequests.map { it.grantGiver }.toSet()
@@ -1121,9 +1125,15 @@ class GrantsV2Service(
                         val grantGiver = grantGivers.single()
                         if (!isGrantGiver(grantGiver)) genericForbidden()
 
+                        val newDoc = command.doc.copy(
+                            parentProjectId = grantGiver,
+                            recipient = command.alternativeRecipient ?: command.doc.recipient,
+                            allocationRequests = allocationsWithAlignPeriod
+                        )
+
                         insertRevision(
                             command.comment,
-                            command.doc.copy(parentProjectId = grantGiver, recipient = command.alternativeRecipient ?: command.doc.recipient)
+                            newDoc
                         )
 
                         application = application.copy(
@@ -1136,6 +1146,9 @@ class GrantsV2Service(
                                         GrantApplication.State.APPROVED
                                     )
                                 )
+                            ),
+                            currentRevision = application.currentRevision.copy(
+                                document = newDoc
                             )
                         )
 
@@ -1194,9 +1207,14 @@ class GrantsV2Service(
                                 }
                             }
 
+                            val newDoc = command.doc.copy(
+                                referenceIds = newRefIds,
+                                allocationRequests = allocationsWithAlignPeriod
+                            )
+
                             insertRevision(
                                 command.comment,
-                                command.doc.copy(referenceIds = newRefIds)
+                                newDoc
                             )
                         }
                     }
@@ -1331,14 +1349,11 @@ class GrantsV2Service(
         )
 
         private suspend fun insertRevision(comment: String, newDoc: GrantApplication.Document, newStatus: GrantApplication.Status? = null) {
-            val allocationsWithAlignPeriod = newDoc.allocationRequests.map { req ->
-                req.copy(period = newDoc.allocationPeriod)
-            }
             val rev = GrantApplication.Revision(
                 Time.now(),
                 actorAndProject.actor.safeUsername(),
                 application.currentRevision.revisionNumber + 1,
-                newDoc.copy(revisionComment = comment, allocationRequests = allocationsWithAlignPeriod)
+                newDoc.copy(revisionComment = comment)
             )
 
             val status = if (newStatus != null) {
@@ -1422,11 +1437,11 @@ class GrantsV2Service(
                                 setParameter("comment", action.revision.document.revisionComment)
                                 setParameter("rev_id", revisionNumber)
                                 setParameter("start", action.revision.document.allocationPeriod.start ?: Time.now())
-                                setParameter("end", action.revision.document.allocationPeriod.start ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)))
+                                setParameter("end", action.revision.document.allocationPeriod.end ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)))
                             },
                             """
                                 insert into "grant".revisions (application_id, revision_number, created_at, updated_by, revision_comment, grant_start, grant_end) 
-                                values (:app_id, :rev_id, now(), :created_by, :comment, :start, :end)
+                                values (:app_id, :rev_id, now(), :created_by, :comment, to_timestamp(:start / 1000), to_timestamp(:end / 1000))
                             """
                         )
 
