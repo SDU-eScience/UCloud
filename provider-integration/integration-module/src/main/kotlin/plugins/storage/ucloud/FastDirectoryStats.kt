@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.service.Loggable
@@ -13,10 +14,11 @@ interface FastDirectoryStatsInterface {
 
 class FastDirectoryStats(
     private val locator: DriveLocator,
-    private val fs: NativeFS
+    private val fs: NativeFS,
+    private val fallbackStorageScanMethod: ConfigSchema.Core.FallbackStorageScanMethod?
 ) : FastDirectoryStatsInterface {
     private val ceph = CephFsFastDirectoryStats(fs)
-    private val fallback = DefaultDirectoryStats(fs)
+    private val fallback = DefaultDirectoryStats(fs, fallbackStorageScanMethod)
     private val mockStats = MockStats(fs)
 
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
@@ -41,24 +43,61 @@ class CephFsFastDirectoryStats(private val nativeFs: NativeFS) : Loggable, FastD
     }
 }
 
-class DefaultDirectoryStats(private val fs: NativeFS) : FastDirectoryStatsInterface {
+class DefaultDirectoryStats(
+    private val fs: NativeFS,
+    private val fallbackStorageScanMethod: ConfigSchema.Core.FallbackStorageScanMethod?
+) : FastDirectoryStatsInterface {
     override suspend fun getRecursiveSize(file: InternalFile, allowSlowPath: Boolean): Long? {
         if (!allowSlowPath) {
             return null
         }
-        return try {
-            val (_, stdout, _) = executeCommandToText("/usr/bin/du") {
-                addArg("-sb")
-                addArg(file.path)
+
+        suspend fun useDuMethod(): Long? {
+            return try {
+                val (_, stdout, _) = executeCommandToText("/usr/bin/du") {
+                    addArg("-sb")
+                    addArg(file.path)
+                }
+                val regex = "^\\d+".toRegex()
+                val match = regex.find(stdout) ?: return null
+                val sizeInBytes = stdout.substring(match.range).toLong()
+                sizeInBytes
+            } catch (ex: Throwable) {
+                null
             }
-            val regex = "^\\d+".toRegex()
-            val match = regex.find(stdout) ?: return null
-            val sizeInBytes = stdout.substring(match.range).toLong()
-            sizeInBytes
-        } catch (ex: Throwable) {
-            null
+        }
+
+        return when (fallbackStorageScanMethod) {
+            ConfigSchema.Core.FallbackStorageScanMethod.DU -> {
+                useDuMethod()
+            }
+            ConfigSchema.Core.FallbackStorageScanMethod.GDU -> {
+                try {
+                    val (_, stdout, _) = executeCommandToText("/usr/bin/gdu") {
+                        addArg("-n") //Non-interactive
+                        addArg("-s") //Summarized
+                        addArg("-p") //No progress shown
+                        addArg("--no-prefix") //get size in bytes
+                        addArg(file.path)
+                    }
+                    val regex = "^\\d+".toRegex()
+                    val match = regex.find(stdout) ?: return null
+                    val sizeInBytes = stdout.substring(match.range).toLong()
+                    sizeInBytes
+                } catch (ex: Throwable) {
+                    null
+                }
+            }
+            else -> {
+                useDuMethod()
+            }
         }
     }
+
+    companion object : Loggable {
+        override val log = logger()
+    }
+
 }
 
 class MockStats(private val fs: NativeFS) : FastDirectoryStatsInterface {
@@ -73,3 +112,4 @@ class MockStats(private val fs: NativeFS) : FastDirectoryStatsInterface {
         }
     }
 }
+

@@ -45,6 +45,7 @@ data class VerifiedConfig(
         val maintenance: Maintenance,
         val internalBindAddress: String,
         val experimental: ConfigSchema.Core.Experimental,
+        val fallbackStorageScan: ConfigSchema.Core.FallbackStorageScanMethod
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -422,6 +423,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             maintenance,
             internalBindAddress,
             core.experimental,
+            core.fallbackStorageScan
         )
     }
 
