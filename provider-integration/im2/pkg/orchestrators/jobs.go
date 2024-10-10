@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
 	"ucloud.dk/gonja/v2/exec"
 	"ucloud.dk/pkg/apm"
 	c "ucloud.dk/pkg/client"
@@ -102,8 +103,8 @@ type JobSpecification struct {
 	Name              string                       `json:"name,omitempty"`
 	Replicas          int                          `json:"replicas"`
 	AllowDuplicateJob bool                         `json:"allowDuplicateJob"`
-	Parameters        map[string]AppParameterValue `json:"parameters,omitempty"`
-	Resources         []AppParameterValue          `json:"resources,omitempty"`
+	Parameters        map[string]AppParameterValue `json:"parameters"`
+	Resources         []AppParameterValue          `json:"resources"`
 	TimeAllocation    util.Option[SimpleDuration]  `json:"timeAllocation,omitempty"`
 	OpenedFile        string                       `json:"openedFile,omitempty"`
 	RestartOnExit     bool                         `json:"restartOnExit,omitempty"`
@@ -576,4 +577,13 @@ func UpdateJobs(request fnd.BulkRequest[ResourceUpdateAndId[JobUpdate]]) error {
 		request,
 	)
 	return err
+}
+
+func RegisterJobs(request fnd.BulkRequest[ProviderRegisteredResource[JobSpecification]]) (fnd.BulkResponse[fnd.FindByStringId], error) {
+	return c.ApiRegister[fnd.BulkResponse[fnd.FindByStringId]](
+		jobsCtrlNamespace,
+		jobsCtrlContext,
+		"register",
+		request,
+	)
 }

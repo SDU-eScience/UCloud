@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,9 +12,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+
+	"github.com/golang-jwt/jwt/v5"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
-	"unicode"
 )
 
 type Client struct {
@@ -367,6 +368,14 @@ func ApiUpdateEx(c *Client, name, baseContext, operation string, payload any) Re
 
 func ApiUpdate[T any](name, baseContext, operation string, payload any) (value T, err error) {
 	return ParseResponse[T](ApiUpdateEx(DefaultClient, name, baseContext, operation, payload))
+}
+
+func ApiRegisterEx(c *Client, name, baseContext, operation string, payload any) Response {
+	return callViaJsonBody(c, name, "POST", baseContext, operation, payload)
+}
+
+func ApiRegister[T any](name, baseContext, operation string, payload any) (value T, err error) {
+	return ParseResponse[T](ApiRegisterEx(DefaultClient, name, baseContext, operation, payload))
 }
 
 func ApiDeleteEx(c *Client, name, baseContext string, payload any) Response {

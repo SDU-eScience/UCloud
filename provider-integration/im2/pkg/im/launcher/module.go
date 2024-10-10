@@ -2,11 +2,12 @@ package launcher
 
 import (
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"github.com/jmoiron/sqlx"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
