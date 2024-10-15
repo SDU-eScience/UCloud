@@ -106,6 +106,7 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+    isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
@@ -376,6 +377,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "upload",
                 primary: true,
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -403,6 +405,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "uploadFolder",
                 primary: true,
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -433,9 +436,22 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.O
             },
             {
+                text: "Open parent folder",
+                icon: "ftFolder",
+                enabled(selected, cb) {
+                    return selected.length === 1 && !cb.isModal && !cb.embedded && cb.isSearch;
+                },
+                onClick(selected, extra, all) {
+                    const [file] = selected;
+                    extra.navigate(AppRoutes.files.path(getParentPath(file.id)));
+                },
+                shortcut: ShortcutKey.P,
+            },
+            {
                 text: "Rename",
                 icon: "rename",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -478,7 +494,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
+                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) && 
+                    !cb.isSearch &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
@@ -528,6 +545,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
                     hasFeature(Feature.TRANSFER_TO) &&
+                    !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
@@ -580,6 +598,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "move",
                 text: "Move to...",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -670,6 +689,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
+                    if (cb.isSearch) return false;
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
@@ -745,7 +765,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 // Item row synchronization
                 text: synchronizationOpText,
                 icon: "refresh",
-                enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
+                enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
                     synchronizationOpOnClick(selected, cb)
                 },
@@ -778,6 +798,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 confirm: true,
                 color: "errorMain",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {

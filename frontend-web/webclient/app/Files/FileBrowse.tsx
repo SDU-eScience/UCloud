@@ -127,7 +127,7 @@ const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, 
 const RESOURCE_NAME = "File";
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
-    const location = useLocation();
+    const location = useLocation();    
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
@@ -177,6 +177,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
     useLayoutEffect(() => {
         const mount = mountRef.current;
         let searching = "";
+        let lastActiveFilePath = "";
         if (mount && !browserRef.current) {
             new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts).init(browserRef, features, undefined, browser => {
                 browser.setColumns(rowTitles);
@@ -657,9 +658,13 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 browser.on("fetchOperationsCallback", () => {
                     const path = browser.currentPath ?? "";
                     const components = pathComponents(path);
-                    const collection = collectionCache.retrieveFromCacheOnly(components[0]);
                     const folder = folderCache.retrieveFromCacheOnly(path);
-                    if (!folder || !collection) return null;
+
+                    const isSearch = path === SEARCH;
+                    
+                    const collectionId = isSearch ? pathComponents(lastActiveFilePath)[0] : components[0];
+                    const collection = collectionCache.retrieveFromCacheOnly(collectionId);
+                    if (!collection) return null;
 
                     const supportByProvider: SupportByProvider = {productsByProvider: {}};
                     supportByProvider.productsByProvider[collection.specification.product.provider] = [collection.status.resolvedSupport!];
@@ -667,6 +672,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
                         supportByProvider,
                         collection: collection,
+                        isSearch,
                         directory: folder,
                         dispatch: dispatch,
                         embedded: opts?.embedded,
@@ -813,12 +819,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         icon.append(iconWrapper);
                         const [syncThingIcon, setSyncthingIcon] = ResourceBrowser.defaultIconRenderer();
-                        syncThingIcon.style.height = "8px";
-                        syncThingIcon.style.width = "8px";
-                        syncThingIcon.style.minWidth = syncThingIcon.style.minHeight = "";
-                        syncThingIcon.style.marginLeft = "-2px";
-                        syncThingIcon.style.marginTop = "-2px";
-                        syncThingIcon.style.display = "block";
+                        setIconStyling(syncThingIcon);
                         iconWrapper.appendChild(syncThingIcon);
                         ResourceBrowser.icons.renderIcon({name: "check", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setSyncthingIcon);
                     }
@@ -846,12 +847,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                         icon.append(iconWrapper);
                         const [readonlyIcon, setReadonlyIcon] = ResourceBrowser.defaultIconRenderer();
-                        readonlyIcon.style.height = "8px";
-                        readonlyIcon.style.width = "8px";
-                        readonlyIcon.style.minWidth = readonlyIcon.style.minHeight = "";
-                        readonlyIcon.style.marginLeft = "-2px";
-                        readonlyIcon.style.marginTop = "-2px";
-                        readonlyIcon.style.display = "block";
+                        setIconStyling(readonlyIcon);
                         iconWrapper.appendChild(readonlyIcon);
                         ResourceBrowser.icons.renderIcon({name: "heroInformationCircle", color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setReadonlyIcon);
                     }
@@ -910,7 +906,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                         const badge = div("");
                         badge.classList.add("sensitivity-badge");
                         badge.classList.add(sensitivity.toString().toUpperCase());
-                        badge.innerText = sensitivity.toString()[0];
+                        badge.innerText = sensitivity.toString().charAt(0);
                         badge.style.cursor = "pointer";
                         badge.onclick = () => addFileSensitivityDialog(file, call => callAPI(call), () => {
                             browserRef.current?.refresh();
@@ -1322,6 +1318,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                 browser.on("search", query => {
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
+                    else lastActiveFilePath = pathComponents(currentPath)[0];
 
                     browser.emptyReasons[SEARCH] = {
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
@@ -1333,6 +1330,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     browser.cachedData[SEARCH] = [];
                     browser.searchQuery = query;
                     browser.renderRows();
+                    browser.renderOperations();
                     browser.renderBreadcrumbs();
                     const connection = WSFactory.open(
                         "/files",
@@ -1359,6 +1357,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                                                 const data = browser.cachedData[browser.currentPath] ?? [];
                                                 data.push(...result);
                                                 browser.renderRows();
+                                                browser.renderOperations();
                                             } else if (message.payload["type"] === "end_of_results") {
                                                 connection.close();
                                             }
@@ -1626,4 +1625,13 @@ function temporaryDriveDropdownFunction(browser: ResourceBrowser<unknown>, posX:
     browser.prepareContextMenu(posX, posY, filteredCollections.length, maxHeight);
     browser.addContextMenuSearchField(onKeyUp);
     browser.setToContextMenuEntries(generateElements(undefined), generateHandlers(""), true, maxHeight);
+}
+
+function setIconStyling(icon: HTMLDivElement) {
+    icon.style.height = "8px";
+    icon.style.width = "8px";
+    icon.style.minWidth = icon.style.minHeight = "";
+    icon.style.marginLeft = "-2px";
+    icon.style.marginTop = "-2px";
+    icon.style.display = "block";
 }
