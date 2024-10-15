@@ -25,7 +25,8 @@
         "sourceMap": true,
         "baseUrl": ".",
         "types": [
-            "vite/client"
+            "vite/client",
+            "monaco-editor/monaco",
         ],
         "paths": {
             "@/*": [

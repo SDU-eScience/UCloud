@@ -67,6 +67,7 @@ import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {projectTitle} from "@/Project/ContextSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
+import {CommandPalette} from "@/CommandPalette";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -456,6 +457,7 @@ export function Sidebar(): React.ReactNode {
                     <Notification />
                     <Support />
                     <UserMenu avatar={avatar} />
+                    <CommandPalette />
                 </Flex>
             </div>
 

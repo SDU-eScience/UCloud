@@ -199,7 +199,6 @@ func loopComputeMonitoring() {
 		slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
 
 		if !slurmCfg.Present {
-			log.Warn("Slurm job configuration not available for job %d", slurmJob.JobID)
 			continue
 		}
 

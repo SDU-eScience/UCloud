@@ -1,253 +1,163 @@
 import * as React from "react";
-import {Box, Button, Flex, Icon, MainContainer} from "@/ui-components";
-import {usePage} from "@/Navigation/Redux";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {getQueryParam} from "@/Utilities/URIUtilities";
-import {useLocation} from "react-router";
-import * as AppStore from "@/Applications/AppStoreApi";
-import {Application} from "@/Applications/AppStoreApi";
-import {useState, useEffect, useRef} from "react";
-import {callAPI} from "@/Authentication/DataHook";
-import {SafeLogo} from "@/Applications/AppToolLogo";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
-import Text from "../ui-components/Text";
-import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {isLightThemeStored} from "@/UtilityFunctions";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {useSelector} from "react-redux";
 import {Feature, hasFeature} from "@/Features";
+import {Editor, Vfs, VirtualFile} from "@/Editor/Editor";
+import {useMemo} from "react";
+import {delay} from "@/UtilityFunctions";
 
 const Fork: React.FunctionComponent = () => {
     if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
+    const vfs = useMemo(() => {
+        return new DummyVfs();
+    }, []);
 
-    const location = useLocation();
-    const name = getQueryParam(location.search, "name");
-    const version = getQueryParam(location.search, "version");
-
-    const [title, setTitle] = useState("Fork");
-    const [baseApplication, setBaseApplication] = useState<Application | null>(null);
-    const codeView = useRef<HTMLDivElement>(null);
-
-    usePage(title, SidebarTabId.APPLICATIONS);
-    useEffect(() => {
-        if (!name || !version) return;
-        let didCancel = false;
-
-        (async () => {
-            const app = await callAPI(AppStore.findByNameAndVersion({appName: name, appVersion: version}));
-            if (didCancel || !app) return;
-            setBaseApplication(app);
-        })();
-
-        return () => {
-            didCancel = true;
-        };
-    }, [name, version]);
-
-    useEffect(() => {
-        if (baseApplication) {
-            setTitle("Forking " + baseApplication.metadata.title);
-        }
-    }, [baseApplication]);
-
-    React.useLayoutEffect(() => {
-        const localStorageKey = `fork-${name}`;
-        let initialValue = localStorage.getItem(localStorageKey);
-        if (!initialValue) {
-            initialValue = `name: My fork
-
-features:
-  multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
-
-parameters:
-  input_dir:
-    type: Directory
-    optional: false
-    title: "Input directory"
-    description: |
-      The input directory must contain the following files:
-
-      - \`pw.Si.in\`
-      - \`ph.Si.in\`
-      - \`dynmat.Si.in\`
-
-sbatch:
-  ntasks: "{{ ucloud.machine.cpu * ucloud.nodes }}"
-  cpus-per-task: 1
-
-# TODO Tweak this example to be more realistic. We have all the tools to do it,
-# I am just not an expert in how to run these tools.
-invocation: |
-  echo Running on "$(hostname)" with {{ ucloud.machine.name }}
-  echo Available nodes: "$SLURM_NODELIST"
-  echo Slurm_submit_dir: "$SLURM_SUBMIT_DIR"
-  echo Start time: "$(date)"
-
-  export OMP_NUM_THREADS=1
-
-  cd {{ input_dir }}
-  srun -n $SLURM_NTASKS pw.x < pw.Si.in | tee pw.Si.out
-  srun -n $SLURM_NTASKS ph.x < ph.Si.in | tee ph.Si.out
-  srun -n $SLURM_NTASKS dynmat.x < dynmat.Si.in | tee dynmat.Si.out
-            
-`;
-        }
-
-        // NOTE(Dan): Multiple tries are needed due to the way the tabbed cards work. This will delay the
-        // initialization by some semi-unpredictable amount of time.
-        let didInit = false;
-        function initMonaco(attemptsRemaining: number = 100) {
-            const node = codeView.current;
-            if (!node) {
-                if (attemptsRemaining <= 0) return;
-                window.setTimeout(() => initMonaco(attemptsRemaining - 1), 0);
-                return;
-            }
-            didInit = true;
-            getMonaco().then(monaco => {
-                const count = monaco.editor.getEditors().length;
-                if (count > 0) return;
-                monaco.editor.create(node, {
-                    value: initialValue,
-                    language: "yaml",
-                    readOnly: false,
-                    minimap: {enabled: false},
-                    theme: isLightThemeStored() ? "light" : "vs-dark",
-                });
-                window.onresize = () => {
-                    monaco.editor.getEditors().forEach(it => it.layout());
-                };
-            });
-        }
-
-        initMonaco();
-
-        async function save() {
-            if (!didInit) return;
-
-            const monaco = await getMonaco();
-            const editors = monaco.editor.getEditors();
-            if (editors.length !== 1) return;
-
-            const value = editors[0].getValue();
-            localStorage.setItem(localStorageKey, value);
-        }
-
-        const saveToDisk = window.setInterval(async () => {
-            save();
-        }, 5000);
-
-        return () => {
-            getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
-            save();
-            window.clearInterval(saveToDisk);
-        };
-    }, [name]);
-
-    const lightTheme = useSelector((red: ReduxObject) => red.sidebar.theme)
-    React.useEffect(() => {
-        const theme = lightTheme === "light" ? "light" : "vs-dark";
-        getMonaco().then(monaco => monaco.editor.setTheme(theme));
-    }, [lightTheme]);
-
-
-    if (!name || !version) {
-        return null;
-    }
-
-    if (baseApplication == null) {
-        return <MainContainer
-            main={<HexSpin/>}
-        />
-    }
-
-    return <MainContainer
-        main={<Flex flexDirection={"column"} gap={"32px"}>
-            <Flex flexDirection={"row"} gap={"16px"} alignItems={"end"}>
-                <SafeLogo type={"APPLICATION"} name={baseApplication.metadata.name} size={"64px"}/>
-                <Flex flexDirection={"column"}>
-                    <Text verticalAlign="center" alignItems="center" fontSize={20}>
-                        Creating fork of
-                    </Text>
-                    <Text verticalAlign="center" alignItems="center" fontSize={30}>
-                        {baseApplication.metadata.title} ({baseApplication.metadata.version})
-                    </Text>
-                </Flex>
-                <Box flexGrow={1}/>
-                <Button color={"successMain"}>
-                    <Icon name={"heroCheck"} mr={8}/>
-                    Save
-                </Button>
-            </Flex>
-
-            <TabbedCard style={{minHeight: "1000px", height: "calc(100vh - 155px)"}}>
-                <TabbedCardTab icon={"heroCodeBracket"} name={"Code"}>
-                    <div
-                        style={{
-                            borderBottomLeftRadius: "10px",
-                            borderBottomRightRadius: "10px",
-                            height: "calc(100vh - 155px - 48px)",
-                            width: "calc(100% + 40px)",
-                            marginTop: "-8px",
-                            marginLeft: "-20px",
-                            overflow: "hidden",
-                        }}
-                    >
-                        <div style={{width: "100%", height: "100%"}} ref={codeView}/>
-                    </div>
-                </TabbedCardTab>
-
-                <TabbedCardTab icon={"heroMagnifyingGlass"} name={"Preview"}>
-                    Placeholder. A preview of running the application goes here.
-                </TabbedCardTab>
-
-                <TabbedCardTab icon={"heroPlay"} name={"Dry run"}>
-                    Placeholder. A preview of what would happen if you run the application goes here.
-                </TabbedCardTab>
-            </TabbedCard>
-        </Flex>}
-    />;
+    return <Editor vfs={vfs} title={"Editing application: foobar 2024"} initialPath={"/001_job_init.sh"}/>;
 };
 
-// TODO(Dan): This has been copy & pasted from the file preview. We probably need a more common location for this.
-const monacoCache = new AsyncCache<any>();
+class DummyVfs implements Vfs {
+    async listFiles(path: string): Promise<VirtualFile[]> {
+        let files: VirtualFile[] = [];
+        switch (path) {
+            case "":
+            case "/":
+                files = [
+                    {absolutePath: "/001_job_init.sh", isDirectory: false},
+                    {absolutePath: "/002_job.sh", isDirectory: false},
+                    {absolutePath: "/Examples", isDirectory: true},
+                ];
+                break;
 
-async function getMonaco(): Promise<any> {
-    return monacoCache.retrieve("", async () => {
-        const monaco = await (import("monaco-editor"));
-        self.MonacoEnvironment = {
-            getWorker: function (workerId, label) {
-                switch (label) {
-                    case 'json':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
-                    case 'css':
-                    case 'scss':
-                    case 'less':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
-                    case 'html':
-                    case 'handlebars':
-                    case 'razor':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
-                    case 'typescript':
-                    case 'javascript':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
-                    default:
-                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
-                }
+            case "/Examples":
+                files = [
+                    {absolutePath: "/Examples/A", isDirectory: true},
+                    {absolutePath: "/Examples/B", isDirectory: true},
+                    {absolutePath: "/Examples/C", isDirectory: true},
+                ];
+                break;
 
+            case "/Examples/A":
+                files = [
+                    {absolutePath: "/Examples/A/001_job_init.sh", isDirectory: false},
+                    {absolutePath: "/Examples/A/002_job.sh", isDirectory: false},
+                ];
+                break;
 
-                function getWorkerModule(moduleUrl, label) {
-                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
-                        name: label,
-                        type: 'module'
-                    });
-                }
-            }
-        };
+            case "/Examples/B":
+                files = [
+                    {absolutePath: "/Examples/B/001_job_init.sh", isDirectory: false},
+                    {absolutePath: "/Examples/B/002_job.sh", isDirectory: false},
+                ];
+                break;
 
-        console.log("Got monaco!");
-        return monaco;
-    })
+            case "/Examples/C":
+                files = [
+                    {absolutePath: "/Examples/C/001_job_init.sh", isDirectory: false},
+                    {absolutePath: "/Examples/C/002_job.sh", isDirectory: false},
+                ];
+                break;
+        }
+
+        await delay(Math.random() * 250);
+        return files;
+    }
+
+    async readFile(path: string): Promise<string> {
+        let result = "";
+        switch (path) {
+            case "/001_job_init.sh":
+                // TODO link
+                result = `
+{#
+
+This script will run on a node equivalent to the HPC-frontend. It has outgoing Internet access and should be used to
+download and compile software required for the job.
+
+The script evaluates a Jinja2 template which produces a bash script. You can read more about writing these scripts here:
+https://docs.cloud.sdu.dk.
+
+The following Jinja2 variables are available and populated from the job submission page:
+
+- {{ app.param1 }}: lorem ipsum dolar sit amet
+
+#}
+
+{# The following line will fetch required modules from the job script and automatically install them if needed. #} 
+{{ installRequiredModules() }}
+
+{# Submits the job to the underlying scheduler. The job script is defined in '002_job.sh'. #}
+{{ submitJob() }}
+                `.trim() + "\n";
+                break;
+
+            case "/002_job.sh":
+                result = `
+{#
+
+This script is submitted by 001_job_init.sh and will be interpreted by Slurm.
+
+The following sbatch directives are automatically applied based on job parameters:
+
+#SBATCH --account=...
+#SBATCH --partition=...
+#SBATCH --qos=...
+#SBATCH --constraint=...
+#SBATCH --output=...
+#SBATCH --error=...
+#SBATCH --time=...
+#SBATCH --cpus-per-task=...
+#SBATCH --gpus-per-task=...
+#SBATCH --mem=...
+#SBATCH --nodes=...
+#SBATCH --job-name=...
+#SBATCH --chdir=...
+
+Directives can be overwritten via the following method: {{ sbatch("chdir", "/tmp/new/directory") }} 
+
+#}
+
+{# Preambles start - Avoid touching these unless required. #}
+    {- preamble -}
+    {- quantumEspressoPreamble -}
+{# Preambles end #}
+
+{# Modules start - Change as required #}
+    {{ loadModule("quantum-espresso", ">7.0") }}
+{# Modules end #}
+
+{# =============================================================================================================== #}
+{# Start the job - change as required                                                                              #}
+{# =============================================================================================================== #}
+
+echo Running on "$(hostname)" with {{ ucloud.machine.name }}
+echo Available nodes: "$SLURM_NODELIST"
+echo Slurm_submit_dir: "$SLURM_SUBMIT_DIR"
+echo Start time: "$(date)"
+
+export OMP_NUM_THREADS=1
+
+cd {{ input_dir }}
+srun -n $SLURM_NTASKS pw.x < pw.Si.in | tee pw.Si.out
+srun -n $SLURM_NTASKS ph.x < ph.Si.in | tee ph.Si.out
+srun -n $SLURM_NTASKS dynmat.x < dynmat.Si.in | tee dynmat.Si.out
+
+{# =============================================================================================================== #}
+{# End of job                                                                                                      #}
+{# =============================================================================================================== #}
+
+{# Postambles start - Avoid touching these unless required. #}
+    {- quantumEspressoPostamble -}
+    {- postamble -}
+{# Postambles end #}
+
+                `.trim() + "\n";
+                break;
+        }
+        await delay(Math.random() * 250);
+        return result;
+    }
+
+    async writeFile(path: string, content: string): Promise<void> {
+        await delay(Math.random() * 250);
+    }
 }
 
 export default Fork;

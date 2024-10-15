@@ -1240,6 +1240,11 @@ sealed class ComposeService {
                         reverse_proxy /auth/* backend:8080
                         reverse_proxy / frontend:9000
                         reverse_proxy /avatar.AvatarService/* h2c://backend:11412
+                        
+                        header {
+                            Cross-Origin-Opener-Policy "same-origin"
+                            Cross-Origin-Embedder-Policy "require-corp"
+                        }
                     }
                     
                     https://postgres.localhost.direct {
