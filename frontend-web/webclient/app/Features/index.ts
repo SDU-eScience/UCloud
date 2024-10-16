@@ -77,8 +77,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "component-stored-cut-copy": {
         feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "app-catalog-filter": {

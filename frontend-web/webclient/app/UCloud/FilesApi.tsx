@@ -436,7 +436,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.O
             },
             {
-                text: "Open parent folder",
+                text: "Go to parent folder",
                 icon: "ftFolder",
                 enabled(selected, cb) {
                     return selected.length === 1 && !cb.isModal && !cb.embedded && cb.isSearch;

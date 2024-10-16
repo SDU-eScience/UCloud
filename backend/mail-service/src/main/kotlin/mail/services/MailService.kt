@@ -130,9 +130,12 @@ class MailService(
 
         try {
             val message = MimeMessage(session)
-            message.setFrom("ticketsystem@escience.sdu.dk")
+            message.setFrom("support@escience.sdu.dk")
+            try {
+                message.replyTo = arrayOf(InternetAddress(userEmail))
+            } catch (ignored: Throwable) {}
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = "$userEmail-|-$subject"
+            message.subject = subject
             val multipart = MimeMultipart()
 
             // style paragraphs (not a good solution, but with best support)

@@ -997,12 +997,16 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
 
     const title = upload.folderName ?? upload.name;
     const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
-        <Icon cursor="pointer" name={stopped ? "close" : "check"} onClick={() => {
-            callbacks.clearUploads([upload]);
-            const fullFilePath = upload.targetPath + "/" + upload.name;
-            removeUploadFromStorage(fullFilePath);
-            upload.state = UploadState.DONE;
-        }} color={stopped ? "errorMain" : "primaryMain"} />
+        <Icon
+            cursor="pointer"
+            name={"close"}
+            onClick={() => {
+                callbacks.clearUploads([upload]);
+                const fullFilePath = upload.targetPath + "/" + upload.name;
+                removeUploadFromStorage(fullFilePath);
+                upload.state = UploadState.DONE;
+            }}
+        />
     </TooltipV2>;
 
     return upload.folderName ?

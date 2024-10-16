@@ -63,7 +63,7 @@ const LandingPage: React.FunctionComponent = () => {
 
     const [landingPage] = useGlobal("catalogLandingPage", emptyLandingPage);
 
-    const [starred, fetchStarred] = useCloudAPI<{items: AppStore.Application[]}>(
+    const [starred, fetchStarred] = useCloudAPI<{ items: AppStore.Application[] }>(
         {noop: true},
         {items: []}
     );
@@ -103,7 +103,7 @@ const LandingPage: React.FunctionComponent = () => {
             <MainContainer main={
                 <article className={landingStyle}>
                     <Flex alignItems={"center"}>
-                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher /> : null}
+                        {hasFeature(Feature.APP_CATALOG_FILTER) ? <CatalogDiscoveryModeSwitcher/> : null}
                         <Box flexGrow={1}/>
                         <UtilityBar onSearch={appSearch}/>
                     </Flex>
@@ -122,38 +122,39 @@ const LandingPage: React.FunctionComponent = () => {
                             <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
                                 {landingPage.categories.map((c, idx) =>
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
-                                        categoryTitle={c.specification.title} />
+                                                  categoryTitle={c.specification.title}/>
                                 )}
                             </Grid>
                         </div>
                     }
 
-                    <div>
-                        <h3>Updated applications</h3>
-                        <TabbedCard>
-                            <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
-                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                    {landingPage.newApplications.map((app, idx) => (
-                                        <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                            description={app.metadata.description} fullWidth
-                                            key={app.metadata.name+app.metadata.version}
-                                            isApplication />
-                                    ))}
-                                </Flex>
-                            </TabbedCardTab>
+                    {landingPage.newApplications.length > 0 && landingPage.recentlyUpdated.length > 0 ?
+                        <div>
+                            <h3>Updated applications</h3>
+                            <TabbedCard>
+                                <TabbedCardTab icon={"heroCalendarDays"} name={"New applications"}>
+                                    <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
+                                        {landingPage.newApplications.map((app, idx) => (
+                                            <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                                      description={app.metadata.description} fullWidth
+                                                      key={app.metadata.name + app.metadata.version}
+                                                      isApplication/>
+                                        ))}
+                                    </Flex>
+                                </TabbedCardTab>
 
-                            <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
-                                <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
-                                    {landingPage.recentlyUpdated.map(app => (
-                                        <AppCard1 name={app.metadata.name} title={app.metadata.title}
-                                            description={app.metadata.description} fullWidth
-                                            key={app.metadata.name+app.metadata.version}
-                                            isApplication />
-                                    ))}
-                                </Flex>
-                            </TabbedCardTab>
-                        </TabbedCard>
-                    </div>
+                                <TabbedCardTab icon={"heroCheckCircle"} name={"Recently updated"}>
+                                    <Flex flexGrow={1} flexDirection={"column"} gap={"16px"} mt={"16px"}>
+                                        {landingPage.recentlyUpdated.map(app => (
+                                            <AppCard1 name={app.metadata.name} title={app.metadata.title}
+                                                      description={app.metadata.description} fullWidth
+                                                      key={app.metadata.name + app.metadata.version}
+                                                      isApplication/>
+                                        ))}
+                                    </Flex>
+                                </TabbedCardTab>
+                            </TabbedCard>
+                        </div> : null}
                 </article>}/>
         </div>
     </div>;
@@ -380,8 +381,9 @@ export const Hero: React.FunctionComponent<{
                             {slide.body}
                         </Markdown>
                     </div>
-                    <Box flexGrow={1} />
-                    {(slide.imageCredit != "Unknown") && <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
+                    <Box flexGrow={1}/>
+                    {(slide.imageCredit != "Unknown") &&
+                        <Box mb={8}><b>Image credit:</b> <i>{slide.imageCredit}</i></Box>}
                     {slideLink ?
                         <ReactRouterLink
                             to={slideLink}
@@ -390,20 +392,21 @@ export const Hero: React.FunctionComponent<{
                             rel="noopener"
                         >
                             <Button fullWidth>
-                                <Icon name={"heroPlay"} />
+                                <Icon name={"heroPlay"}/>
                                 <div>
                                     {slide.linkedWebPage ? "Open web-page" : "Open application"}
                                 </div>
                             </Button>
                         </ReactRouterLink>
-                    : <>
-                        <TooltipV2 tooltip={<>This application is not available<br />with your current filter!</>} >
-                            <Button fullWidth disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
-                                <Icon name={"heroPlay"} />
-                                <div>Open application</div>
-                            </Button>
-                        </TooltipV2>
-                    </>}
+                        : <>
+                            <TooltipV2 tooltip={<>This application is not available<br/>with your current filter!</>}>
+                                <Button fullWidth
+                                        disabled={!slide.linkedApplication && !slide.linkedGroup && !slide.linkedWebPage}>
+                                    <Icon name={"heroPlay"}/>
+                                    <div>Open application</div>
+                                </Button>
+                            </TooltipV2>
+                        </>}
                 </div>
             </div>
         </div>
@@ -748,7 +751,7 @@ const LogoCard: React.FunctionComponent<{
     </ReactRouterLink>;
 }
 
-export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({topPicks}) => {
+export const TopPicksCard2: React.FunctionComponent<{ topPicks: TopPick[] }> = ({topPicks}) => {
     return topPicks.length < 1 ? null :
         <div>
             <h3>Top picks</h3>
@@ -761,7 +764,7 @@ export const TopPicksCard2: React.FunctionComponent<{topPicks: TopPick[]}> = ({t
                         }
 
                         return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
-                            title={pick.title} link={link} />;
+                                         title={pick.title} link={link}/>;
                     } else {
                         return null;
                     }
