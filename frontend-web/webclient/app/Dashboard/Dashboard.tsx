@@ -3,7 +3,7 @@ import {usePage} from "@/Navigation/Redux";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, ExternalLink, Flex, Icon, Link, Markdown, Relative, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {DashboardOperations} from ".";
 import {setAllLoading} from "./Redux";
@@ -317,7 +317,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                                 right={<Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>}
                             />
 
-                            <Box maxHeight={190} overflow={"auto"}>
+                            <Box maxHeight={240} overflow={"auto"}>
                                 <Markdown unwrapDisallowed>
                                     {newsItem.body}
                                 </Markdown>
@@ -327,17 +327,6 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                 </div>
                 <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
             </div>
-
-            <Relative>
-                <div className={DeicBanner}>
-                    <Box flexGrow={1} />
-                    <div>Provided by the AAU, AU, SDU consortium in collaboration with</div>
-                    <ExternalLink href={"https://deic.dk"}>
-                        <Icon mx="auto" my="-32px" name="deiCLogo" size="64px" />
-                    </ExternalLink>
-                    <Box flexGrow={1} />
-                </div>
-            </Relative>
         </DashboardCard>
     );
 }
@@ -375,40 +364,6 @@ const NewsClass = injectStyle("with-graphic", k => `
         width: 100%;
     }
 }
-`);
-
-const DeicBanner = injectStyle("deic-banner", k => `
-    ${k} {
-        height: 42px;
-        position: absolute;
-        width: calc(100% + 40px);
-        left: -20px;
-        top: -21px;
-        border-bottom-right-radius: 10px;
-        border-bottom-left-radius: 10px;
-        text-align: center;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    html.light ${k} {
-        background: var(--gray-5);
-    }
-    
-    html.dark ${k} {
-        background: var(--gray-90);
-    }
-   
-    ${k} svg {
-        position: relative;
-        top: -4px;
-    }
-    
-    ${k} a, ${k} svg {
-        z-index: 1;
-    }
 `);
 
 function reduxOperations(dispatch: Dispatch): DashboardOperations {

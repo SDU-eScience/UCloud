@@ -8,7 +8,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
-import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN, LOGIN_SCREEN_PRODUCT_NAME} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
@@ -17,13 +17,17 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
 import {ButtonProps} from "@/ui-components/Button";
 import {Feature, hasFeature} from "@/Features";
+import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 
-const BackgroundImage = injectStyleSimple("background-image", `
-    background: url(${deicBackground}) no-repeat center;
-    background-size: calc(3000px + 80vw);
-    color: black;
-    overflow: hidden;
+const IS_SANDBOX = window.location.host.startsWith("sandbox.dev");
+
+const BackgroundImageClass = injectStyleSimple("background-image", `
+        background: url(${deicBackground}) no-repeat center;
+        background-size: calc(3000px + 80vw);
+        color: black;
+        overflow: hidden;
 `);
+
 
 export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
@@ -236,12 +240,16 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         );
     }
 
-    const [showingWayf, setShowingWayf] = useState(true);
+    const [showingWayf, setShowingWayf] = useState(DEFAULT_LOGIN === "wayf");
+
+    const textColor = IS_SANDBOX ? "#fff" : "#000";
 
     return (
         <LoginWrapper>
-            <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />
-            <Text mx="auto" py="30px" color="#000" fontSize={32}>Integration Portal</Text>
+            {IS_SANDBOX ?
+                <Box mx="auto" paddingTop="80px" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box> :
+                <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />}
+            <Text mx="auto" py="30px" width="fit-content" color={textColor} fontSize={32}>{LOGIN_SCREEN_PRODUCT_NAME}</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
@@ -251,7 +259,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         </Button>
                     </a>
                     {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
-                    <Text color="#000" onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
+                    <Text color={textColor} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
@@ -359,12 +367,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                     </DropdownLike>
                 )}
             </Box>
-            <Box mx="auto" mt="auto" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box>
-            <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
+            {IS_SANDBOX ? <Box height="280px" /> : <Box mx="auto" mt="auto" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box>}
+            {IS_SANDBOX ? <Box height="60px" minHeight="60px" /> : <Flex height="60px" minHeight="60px" backgroundColor="#cecfd1">
                 <Text color="#000" mx="auto" my="auto" fontSize={12}>
                     Delivered by the Danish e-Infrastructure Consortium
                 </Text>
-            </Flex>
+            </Flex>}
         </LoginWrapper >
     );
 };
@@ -430,7 +438,7 @@ function DropdownLike({children}): React.ReactNode {
 
 const DropdownLikeClass = injectStyleSimple("dropdown-like", `
     border-radius: 16px;
-    background-color: #c8dd51;
+    background-color: ${IS_SANDBOX ? "var(--primaryLight)" : "#c8dd51"};
     color: black;
     width: 315px;
     padding: 16px 16px;
@@ -506,13 +514,29 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): Re
                 )}
             </div> : null}
         </Absolute>
-        <div className={BackgroundImage}>
-            <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
-                {props.children}
-            </Flex>
-        </div>
+        <BackgroundImage>{props.children}</BackgroundImage>
     </Box >);
 }
+
+function BackgroundImage({children}: React.PropsWithChildren) {
+    if (IS_SANDBOX) {
+        return <div className={Gradient}>
+            <div className={GradientWithPolygons}>
+                <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
+                    {children}
+                </Flex>
+            </div>
+        </div>
+    } else {
+        return <div className={BackgroundImageClass} data-is-sandbox={IS_SANDBOX}>
+            <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
+                {children}
+            </Flex>
+        </div>
+    }
+}
+
+
 
 interface IdentityProvider {
     id: number;
@@ -547,8 +571,10 @@ const IdpList: React.FunctionComponent = () => {
                 }
             }
 
+            const color = IS_SANDBOX ? "primaryLight" : "wayfGreen";
+
             return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
-                <Button borderRadius="16px" fullWidth color="wayfGreen">
+                <Button borderRadius="16px" fullWidth color={color}>
                     <Text color="fixedWhite">Sign in with {title}</Text>
                 </Button>
             </a>
