@@ -12,6 +12,7 @@ import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN, LOGIN_SCREEN_PRODU
 import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
+import ucloudWhiteText from "@/Assets/Images/ucloud-white-text.svg?url";
 import deicBackground from "@/Assets/Images/deic-cloud.svg?url";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
@@ -28,12 +29,12 @@ const BackgroundImageClass = injectStyleSimple("background-image", `
         overflow: hidden;
 `);
 
-
 export const LOGIN_REDIRECT_KEY = "redirect_on_login";
 
 const inDevEnvironment = DEVELOPMENT_ENV;
 const enabledWayf = true;
 
+const TEXT_COLOR = IS_SANDBOX ? "#fff" : "#000";
 export const LoginPage: React.FC<{initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -242,14 +243,12 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
 
     const [showingWayf, setShowingWayf] = useState(DEFAULT_LOGIN === "wayf");
 
-    const textColor = IS_SANDBOX ? "#fff" : "#000";
-
     return (
         <LoginWrapper>
             {IS_SANDBOX ?
-                <Box mx="auto" paddingTop="80px" width="280px"><img alt="UCloud logo" src={ucloudBlue} /> </Box> :
+                <Box mx="auto" paddingTop="80px" width="280px"><img alt="UCloud logo" src={ucloudWhiteText} /> </Box> :
                 <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />}
-            <Text mx="auto" py="30px" width="fit-content" color={textColor} fontSize={32}>{LOGIN_SCREEN_PRODUCT_NAME}</Text>
+            <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>{LOGIN_SCREEN_PRODUCT_NAME}</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
@@ -259,7 +258,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                         </Button>
                     </a>
                     {!hasFeature(Feature.NEW_IDPS) ? null : <IdpList />}
-                    <Text color={textColor} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
+                    <Text color={TEXT_COLOR} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other login options →</Text>
                 </>) : null}
                 {(!challengeId) ? (
                     !isPasswordReset ? (!showingWayf ? (
