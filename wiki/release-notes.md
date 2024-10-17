@@ -7,10 +7,10 @@ use.
 ## 17-10-24
 
 ```
-UCloud/Core @ 2024.1.65
+UCloud/Core @ 2024.2.0
 UCloud/Frontend @ 2024.2.0
-SDU/K8s @ 2024.2.0
-AAU/K8s @ 2024.2.0
+SDU/K8s @ 2024.2.1
+AAU/K8s @ 2024.2.1
 ```
 
 ## 13-09-24
