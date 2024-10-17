@@ -12,7 +12,6 @@ import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN, LOGIN_SCREEN_PRODU
 import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
-import ucloudWhiteText from "@/Assets/Images/ucloud-white-text.svg?url";
 import deicBackground from "@/Assets/Images/deic-cloud.svg?url";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {InputProps} from "@/ui-components/Input";
@@ -23,10 +22,10 @@ import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground
 const IS_SANDBOX = window.location.host.startsWith("sandbox.dev");
 
 const BackgroundImageClass = injectStyleSimple("background-image", `
-        background: url(${deicBackground}) no-repeat center;
-        background-size: calc(3000px + 80vw);
-        color: black;
-        overflow: hidden;
+    background: url(${deicBackground}) no-repeat center;
+    background-size: calc(3000px + 80vw);
+    color: black;
+    overflow: hidden;
 `);
 
 export const LOGIN_REDIRECT_KEY = "redirect_on_login";
@@ -246,13 +245,13 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     return (
         <LoginWrapper>
             {IS_SANDBOX ?
-                <Box mx="auto" paddingTop="80px" width="280px"><img alt="UCloud logo" src={ucloudWhiteText} /> </Box> :
+                <Flex width="auto" mx="auto" paddingTop="80px"><Icon size={128} name="logoEsc" /><Text my="auto" ml="16px" color="#fff" fontSize={64}>UCloud</Text></Flex> :
                 <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />}
             <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>{LOGIN_SCREEN_PRODUCT_NAME}</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color="wayfGreen">
+                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color="primaryLight">
                             <Image color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
@@ -285,7 +284,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                                     </Link>
                                 </Box>
                             </DropdownLike>
-                            <Text mt="8px" color="#000" cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Wayf login</Text>
+                            <Text mt="8px" color={TEXT_COLOR} cursor="pointer" onClick={() => setShowingWayf(true)} textAlign="center">← Other login</Text>
                         </>
                     ) : null) : (
                         resetToken == null ? (
@@ -479,16 +478,16 @@ function LoginButton(props: ButtonProps): React.ReactNode {
 }
 
 function BlackLoginText(props: React.PropsWithChildren<TextProps>): React.ReactNode {
-    return <Text className={BlackLoginTextClass} {...props} />
+    return <Text className={LoginTextClass} {...props} />
 }
 
-const BlackLoginTextClass = injectStyleSimple("black-login-text", `
-    color: black;
+const LoginTextClass = injectStyleSimple("login-text", `
+    color: ${TEXT_COLOR};
     font-size: var(--interactiveElementsSize);
 `);
 
 function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): React.ReactNode {
-    return (<Box backgroundColor="#fff">
+    return (<Box backgroundColor="#fff" className={"dark"}>
         <Absolute right="1em" top=".5em">
             {!props.selection ? <div>
                 {!SUPPORT_EMAIL ? null : (
@@ -519,15 +518,20 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): Re
 
 function BackgroundImage({children}: React.PropsWithChildren) {
     if (IS_SANDBOX) {
-        return <div className={Gradient}>
-            <div className={GradientWithPolygons}>
+        const overridenColors = {
+            "--gradientStart": "var(--blue-90)",
+            "--gradientEnd": "var(--blue-80)",
+            "--primaryLight": "var(--blue-70)",
+        } as React.CSSProperties;
+        return <div className={Gradient} style={overridenColors}>
+            <div className={GradientWithPolygons + " dark"}>
                 <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
                     {children}
                 </Flex>
             </div>
         </div>
     } else {
-        return <div className={BackgroundImageClass} data-is-sandbox={IS_SANDBOX}>
+        return <div className={BackgroundImageClass}>
             <Flex mx="auto" flexDirection={"column"} minHeight="100vh">
                 {children}
             </Flex>
