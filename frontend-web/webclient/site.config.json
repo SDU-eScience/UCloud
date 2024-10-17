@@ -1,5 +1,4 @@
 {
-    "LOGIN_PRODUCT_NAME": "DeiC Type 1 HPC",
     "PRODUCT_NAME": "UCloud",
     "DEV_SITE": "dev.cloud.sdu.dk",
     "SANDBOX_SITE": "sandbox.dev.cloud.sdu.dk",
@@ -15,6 +14,5 @@
     "SITE_DOCUMENTATION_URL": "https://docs.cloud.sdu.dk/",
     "SITE_FAQ_URL": "https://docs.cloud.sdu.dk/help/faq.html",
     "QUICK_LAUNCH_PRODUCT": "u1-standard-1",
-    "DEFAULT_LOGIN": "wayf",
-    "LOGIN_SCREEN_PRODUCT_NAME": "Integration Portal"
+    "DEFAULT_LOGIN": "wayf"
 }

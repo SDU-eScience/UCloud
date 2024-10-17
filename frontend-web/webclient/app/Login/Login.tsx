@@ -8,7 +8,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
-import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN, LOGIN_SCREEN_PRODUCT_NAME} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
@@ -247,11 +247,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
             {IS_SANDBOX ?
                 <Flex width="auto" mx="auto" paddingTop="80px"><Icon size={128} name="logoEsc" /><Text my="auto" ml="16px" color="#fff" fontSize={64}>UCloud</Text></Flex> :
                 <Icon className={LoginIconClass} mx="auto" hoverColor={"fixedBlack"} name={"deiCLogo"} size="180px" />}
-            <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>{LOGIN_SCREEN_PRODUCT_NAME}</Text>
+            <Text mx="auto" py="30px" width="fit-content" color={TEXT_COLOR} fontSize={32}>{IS_SANDBOX ? "Sandbox Environment" : "Integration Portal"}</Text>
             <Box width="315px" mx="auto" my="auto">
                 {enabledWayf && !challengeId && !isPasswordReset && showingWayf ? (<>
                     <a href={`/auth/saml/login?service=${service}`}>
-                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color="primaryLight">
+                        <Button mb="8px" className={BorderRadiusButton} height={"92px"} disableStandardSizes disabled={loading} fullWidth color={IS_SANDBOX ? "primaryLight" : "wayfGreen"}>
                             <Image color="#fff" width="100px" src={wayfLogo} />
                             <TextSpan className={LoginTextSpanClass} fontSize={2} ml="2.5em">Login</TextSpan>
                         </Button>
