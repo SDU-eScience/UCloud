@@ -244,6 +244,15 @@ export namespace ApplicationParameterNS {
         optional: boolean;
         type: ("network_ip");
     }
+
+    export interface Workflow {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("workflow");
+    }
 }
 
 export type ApplicationParameter =
@@ -259,6 +268,7 @@ export type ApplicationParameter =
     | ApplicationParameterNS.Ingress
     | ApplicationParameterNS.LicenseServer
     | ApplicationParameterNS.NetworkIP
+    | ApplicationParameterNS.Workflow
 
 export interface VncDescription {
     password?: string;
