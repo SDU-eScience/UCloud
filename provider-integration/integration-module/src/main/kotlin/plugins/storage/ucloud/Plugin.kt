@@ -212,18 +212,11 @@ class UCloudFilePlugin : FilePlugin {
             }
         }
 
+
         return checkedItems.map { reqItem ->
-            tasks.submitTask(
-                requestName = Files.createFolder.fullName,
-                request = defaultMapper.encodeToJsonElement(
-                    BulkRequest.serializer(FilesProviderCreateFolderRequestItem.serializer()),
-                    bulkRequestOf(reqItem)
-                ) as JsonObject,
-                username = this.ucloudUsername ?: reqItem.resolvedCollection.owner.createdBy,
-                title = "Creating folder ${reqItem.id}",
-                body = null,
-                icon = null
-            )
+            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
+            fs.createDirectories(internalFile)
+            null
         }
     }
 
