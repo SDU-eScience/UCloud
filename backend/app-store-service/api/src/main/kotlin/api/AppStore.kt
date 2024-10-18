@@ -302,6 +302,7 @@ invocation of the application, but is used solely to visually group applications
     // =================================================================================================================
     val createGroup = CreateGroup.call
     val retrieveGroup = RetrieveGroup.call
+    val retrieveStudioGroup = RetrieveStudioGroup.call
     val browseGroups = BrowseGroups.call
     val updateGroup = UpdateGroup.call
     val deleteGroup = DeleteGroup.call
@@ -698,13 +699,32 @@ invocation of the application, but is used solely to visually group applications
     }
 
     object RetrieveGroup {
+        @Serializable
+        data class Request(
+            val id: Long,
+            override val discovery: CatalogDiscoveryMode? = null,
+            override val selected: String? = null,
+        ) : WithCatalogDiscovery
+
         val call = call(
             "retrieveGroup",
-            FindByIntId.serializer(),
+            Request.serializer(),
             ApplicationGroup.serializer(),
             CommonErrorMessage.serializer(),
             handler = {
                 httpRetrieve(baseContext, "groups")
+            }
+        )
+    }
+
+    object RetrieveStudioGroup {
+        val call = call(
+            "retrieveStudioGroup",
+            FindByIntId.serializer(),
+            ApplicationGroup.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpRetrieve(baseContext, "studioGroups")
             }
         )
     }

@@ -541,6 +541,10 @@ export function retrieveGroup(request: { id: number } & CatalogDiscovery): APICa
     return apiRetrieve(request, baseContext, "groups");
 }
 
+export function retrieveStudioGroup(request: { id: number } & CatalogDiscovery): APICallParameters<unknown, ApplicationGroup> {
+    return apiRetrieve(request, baseContext, "studioGroups");
+}
+
 export function browseGroups(request: PaginationRequestV2): APICallParameters<unknown, PageV2<ApplicationGroup>> {
     return apiBrowse(request, baseContext, "groups");
 }

@@ -123,6 +123,17 @@ class AppStoreController(
         }
 
         implement(AppStore.retrieveGroup) {
+            val group = catalog.retrieveGroup(
+                actorAndProject,
+                request.id,
+                ApplicationFlags(includeStars = true, includeGroups = true, includeApplications = true),
+                request
+            ) ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
+
+            ok(group)
+        }
+
+        implement(AppStore.retrieveStudioGroup) {
             val group = studio.retrieveGroup(actorAndProject, request.id, true)
                 ?: throw RPCException("No such group exists!", HttpStatusCode.NotFound)
 
