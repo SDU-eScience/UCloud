@@ -89,7 +89,7 @@ export const AppGroup: React.FunctionComponent = () => {
     };
 
     const refresh = useCallback(async () => {
-        fetchGroup(AppStore.retrieveGroup({id})).then(doNothing);
+        fetchGroup(AppStore.retrieveStudioGroup({id})).then(doNothing);
         fetchCategories();
         setReloadId(p => p + 1);
         fetchAppList(AppStore.listAllApplications({}));
