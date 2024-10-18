@@ -24,7 +24,7 @@ const enum SupportType {
     BUG = "BUG"
 }
 
-type SystemStatus = "Decomissioned\n" | "Operational\n" | "Degraded\n" | "Down\n";
+type SystemStatus = "Decomissioned" | "Operational" | "Degraded" | "Down";
 
 function submitTicket(request: {subject: string, message: string}): APICallParameters {
     return apiUpdate(request, "/api/support", "ticket")
@@ -61,7 +61,9 @@ export default function Support(): React.ReactNode {
     const fetchStatus = React.useCallback(() => {
         const controller = new AbortController();
         fetch("https://status.cloud.sdu.dk/health/", {signal: controller.signal}).then(it =>
-            it.text().then(it => setUCloudStatus(it as SystemStatus)).catch(e => console.warn(e))
+            it.text().then(it => {
+                setUCloudStatus((it.replace("\n", "")) as SystemStatus)
+            }).catch(e => console.warn(e))
         ).catch(doNothing);
         return controller;
     }, []);
@@ -118,7 +120,7 @@ export default function Support(): React.ReactNode {
                         </>}
                     />
 
-                    {["Operational\n", ""].includes(statusUCloud) ? null : (<Box my="6px">
+                    {["Operational", ""].includes(statusUCloud) ? null : (<Box my="6px">
                         <Error error={<>One or more systems are experiencing issues. See <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
