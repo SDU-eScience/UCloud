@@ -986,11 +986,8 @@ export function uploadIsTerminal(upload: Upload): boolean {
 }
 
 export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
-    const [hoverPause, setHoverPause] = React.useState(false);
     const paused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
-    const showPause = hoverPause && !paused && upload.folderName === undefined;
-    const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || !!upload.error;
 
     const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
@@ -1017,43 +1014,36 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             icon={icon}
             title={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
             progress={right}
-            operations={inProgress ? <>
-                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                <Icon name="close" cursor="pointer" color="errorMain"
-                    onClick={() => callbacks.stopUploads([upload])} />
-            </> : removeOperation}
+            removeOrCancel={inProgress ? <Icon name="close" cursor="pointer" color="errorMain"
+                onClick={() => callbacks.stopUploads([upload])} /> : removeOperation}
             progressInfo={progressInfo}
         /> : <TaskRow
             error={upload.error}
             icon={icon}
             title={title}
             progress={right}
-            operations={inProgress ? <>
-                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                    onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                    color="primaryMain" /> : null}
-                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                    onMouseEnter={() => setHoverPause(true)} /> : null}
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                    onClick={() => callbacks.stopUploads([upload])} />
-            </>
-                : <>
-                    {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                        onClick={() => callbacks.resumeUploads([upload])}
-                        color="primaryMain" /> : null}
-                    {removeOperation}
-                </>}
+            isPaused={paused}
+            pause={inProgress || paused ? (
+                upload.paused ?
+                    <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
+                    <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
+            ) : null}
+            removeOrCancel={inProgress ? <Icon name="close" cursor="pointer" color="errorMain"
+                onClick={() => callbacks.stopUploads([upload])} />
+                : removeOperation}
             progressInfo={progressInfo}
         />;
 }
 
-export function TaskRow({title, body, progress, icon, progressInfo, operations, error}: {
+export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: {
     icon: React.ReactNode;
     title: string | React.ReactNode;
     body?: string | React.ReactNode;
     progress: string | React.ReactNode;
-    operations: React.ReactNode;
     error?: string;
+    removeOrCancel: React.ReactNode;
+    pause?: React.ReactNode;
+    isPaused?: boolean;
     progressInfo: {
         indeterminate: boolean;
         stopped: boolean;
@@ -1062,6 +1052,22 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
     };
 }): React.ReactNode {
     const hasError = error != null;
+    const [hovering, setHovering] = useState(false);
+
+    React.useCallback(() => {
+        setHovering(false);
+    }, [pause != null]);
+
+    const setIsHovering = React.useCallback(() => {
+        if (pause) {
+            setHovering(true);
+        }
+    }, [pause]);
+
+    const setNotHovering = React.useCallback(() => {
+        setHovering(false);
+    }, []);
+
     return (<div className={TaskRowClass} data-has-error={hasError}>
         <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
             <Box ml="8px" my="auto">{icon}</Box>
@@ -1071,18 +1077,19 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
                 <Truncate>{progress}</Truncate>
             </div>
             <Box mr="auto" />
-            <Box my="auto" mr="4px">{operations}</Box>
-            <Box my="auto" mr="12px" height="32px" >
-                <ProgressCircle
-                    indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
-                    failures={progressInfo.stopped ? progressInfo.limit : 0}
-                    successes={progressInfo.progress}
-                    total={progressInfo.limit}
-                    finishedColor="successLight"
-                    pendingColor="secondaryDark"
-                    size={32}
-                />
+            <Box my="auto" mr="4px" height="32px" onMouseEnter={setIsHovering} onMouseLeave={setNotHovering}>
+                {isPaused || hovering ? <Box p="4px" width="32px" onClick={setNotHovering}>{pause}</Box> : (
+                    <ProgressCircle
+                        indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
+                        failures={progressInfo.stopped ? progressInfo.limit : 0}
+                        successes={progressInfo.progress}
+                        total={progressInfo.limit}
+                        finishedColor="successLight"
+                        pendingColor="secondaryDark"
+                        size={32}
+                    />)}
             </Box>
+            <Box mt="19px" mr="8px">{removeOrCancel}</Box>
         </Flex>
         <div className="error-box">
             {hasError ? <div className={ErrorSpan}>{error}</div> : null}
@@ -1092,7 +1099,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
 
 const ErrorSpan = injectStyleSimple("error-span", `
     color: white;
-    border: 1px solid var(-errorMain);
+    border: 1px solid var(--errorMain);
     background-color: var(--errorMain);
     padding-left: 6px;
     padding-right: 6px;
