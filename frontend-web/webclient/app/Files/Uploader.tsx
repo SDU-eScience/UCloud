@@ -948,12 +948,10 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
-        border: 1px solid rgba(0, 0, 0, 20%);
         height: 64px;
         width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
-        box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
     
     ${k} > div > .text {
@@ -975,6 +973,10 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         margin-top: 4px;
         width: 100%;
         border-radius: 10px;
+    }
+
+    ${k}:hover {
+        background-color: var(--rowHover);
     }
 `);
 

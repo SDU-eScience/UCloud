@@ -371,7 +371,7 @@ export function TaskList(): React.ReactNode {
     }), []);
 
     const activeUploadCount = useMemo(() => {
-        return uploads.filter(it => it.state === UploadState.UPLOADING).length;
+        return uploads.filter(it => it.state === UploadState.UPLOADING || it.paused).length;
     }, [uploads]);
 
 
@@ -421,7 +421,7 @@ export function TaskList(): React.ReactNode {
             colorOnHover={false}
             trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
         >
-            <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+            <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
                     {noEntries ? <Flex height="100%">
                         <Heading m="auto">
