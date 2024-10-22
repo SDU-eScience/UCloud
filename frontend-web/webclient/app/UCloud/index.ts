@@ -5,6 +5,7 @@
 import {ProductV2} from "@/Accounting";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Application, NameAndVersion} from "@/Applications/AppStoreApi";
+import {WorkflowSpecification} from "@/Applications/Workflows";
 
 /**
  * A generic error message
@@ -1561,7 +1562,7 @@ export interface ComputeSupport {
  *   used as a resource.
  *
  */
-export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
+export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress | AppParameterValueNS.Workflow
 export interface SimpleDuration {
     hours: number /* int32 */,
     minutes: number /* int32 */,
@@ -2678,6 +2679,11 @@ export interface Network {
 export interface Ingress {
     id: string,
     type: ("ingress"),
+}
+
+export interface Workflow {
+    type: ("workflow"),
+    specification: WorkflowSpecification,
 }
 }
 export namespace NetworkIPSpecificationNS {

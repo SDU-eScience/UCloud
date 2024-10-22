@@ -3,8 +3,11 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
+import io.lettuce.core.dynamic.annotation.Param
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.reflect.KProperty0
 
 data class ApplicationYamlV2(
@@ -88,6 +91,7 @@ data class ApplicationYamlV2(
         JsonSubTypes.Type(value = Parameter.Text::class, name = "Text"),
         JsonSubTypes.Type(value = Parameter.TextArea::class, name = "TextArea"),
         JsonSubTypes.Type(value = Parameter.Enumeration::class, name = "Enumeration"),
+        JsonSubTypes.Type(value = Parameter.Workflow::class, name = "Workflow"),
     )
     sealed class Parameter {
         abstract val title: String
@@ -177,6 +181,16 @@ data class ApplicationYamlV2(
             val defaultValue: String? = null, // references the value
             val options: List<EnumOption>,
         ) : Parameter()
+
+        data class Workflow(
+            override val title: String,
+            override val description: String,
+            override val optional: Boolean = true,
+            val init: String? = null,
+            val job: String? = null,
+            val readme: String? = null,
+            val parameters: Map<String, Parameter> = emptyMap(),
+        ) : Parameter()
     }
 
     data class Features(
@@ -261,6 +275,7 @@ data class ApplicationYamlV2(
                 is Parameter.License,
                 is Parameter.Text,
                 is Parameter.TextArea,
+                is Parameter.Workflow,
                 is Parameter.Job -> {
                     // Nothing else to do
                 }
@@ -405,100 +420,7 @@ data class ApplicationYamlV2(
                 tool = ToolReference(name, version, tool),
                 invocation = listOf(JinjaInvocationParameter(invocation)),
                 parameters = (parameters ?: emptyMap()).map { (name, param) ->
-                    when (param) {
-                        is Parameter.Bool -> ApplicationParameter.Bool(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description
-                        )
-
-                        is Parameter.Directory -> ApplicationParameter.InputDirectory(
-                            name,
-                            param.optional,
-                            null,
-                            param.title,
-                            param.description,
-                        )
-
-                        is Parameter.Enumeration -> ApplicationParameter.Enumeration(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description,
-                            param.options.map { ApplicationParameter.EnumOption(it.value, it.title) }
-                        )
-
-                        is Parameter.File -> ApplicationParameter.InputFile(
-                            name,
-                            param.optional,
-                            null,
-                            param.title,
-                            param.description
-                        )
-
-                        is Parameter.FloatingPoint -> ApplicationParameter.FloatingPoint(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description,
-                            param.min,
-                            param.max,
-                            param.step,
-                            null
-                        )
-                        is Parameter.Integer -> ApplicationParameter.Integer(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description,
-                            param.min,
-                            param.max,
-                            param.step,
-                            null
-                        )
-
-                        is Parameter.Job -> ApplicationParameter.Peer(
-                            name,
-                            param.title,
-                            param.description,
-                            null,
-                        )
-
-                        is Parameter.License -> ApplicationParameter.LicenseServer(
-                            name,
-                            param.title,
-                            param.optional,
-                            param.description,
-                            emptyList(),
-                        )
-
-                        is Parameter.PublicIP -> ApplicationParameter.NetworkIP(
-                            name,
-                            param.title,
-                            param.description,
-                        )
-
-                        is Parameter.Text -> ApplicationParameter.Text(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description,
-                        )
-
-                        is Parameter.TextArea -> ApplicationParameter.TextArea(
-                            name,
-                            param.optional,
-                            param.defaultValue?.let { JsonPrimitive(it) },
-                            param.title,
-                            param.description,
-                        )
-                    }
+                    mapApplicationParameter(param, name)
                 },
                 outputFileGlobs = listOf("*"),
                 applicationType = appType,
@@ -538,5 +460,119 @@ data class ApplicationYamlV2(
         )
 
         return Pair(app, tool)
+    }
+
+    private fun mapApplicationParameter(
+        param: Parameter,
+        name: String
+    ): ApplicationParameter = when (param) {
+        is Parameter.Bool -> ApplicationParameter.Bool(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description
+        )
+
+        is Parameter.Directory -> ApplicationParameter.InputDirectory(
+            name,
+            param.optional,
+            null,
+            param.title,
+            param.description,
+        )
+
+        is Parameter.Enumeration -> ApplicationParameter.Enumeration(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description,
+            param.options.map { ApplicationParameter.EnumOption(it.value, it.title) }
+        )
+
+        is Parameter.File -> ApplicationParameter.InputFile(
+            name,
+            param.optional,
+            null,
+            param.title,
+            param.description
+        )
+
+        is Parameter.FloatingPoint -> ApplicationParameter.FloatingPoint(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description,
+            param.min,
+            param.max,
+            param.step,
+            null
+        )
+
+        is Parameter.Integer -> ApplicationParameter.Integer(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description,
+            param.min,
+            param.max,
+            param.step,
+            null
+        )
+
+        is Parameter.Job -> ApplicationParameter.Peer(
+            name,
+            param.title,
+            param.description,
+            null,
+        )
+
+        is Parameter.License -> ApplicationParameter.LicenseServer(
+            name,
+            param.title,
+            param.optional,
+            param.description,
+            emptyList(),
+        )
+
+        is Parameter.PublicIP -> ApplicationParameter.NetworkIP(
+            name,
+            param.title,
+            param.description,
+        )
+
+        is Parameter.Text -> ApplicationParameter.Text(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description,
+        )
+
+        is Parameter.TextArea -> ApplicationParameter.TextArea(
+            name,
+            param.optional,
+            param.defaultValue?.let { JsonPrimitive(it) },
+            param.title,
+            param.description,
+        )
+
+        is Parameter.Workflow -> ApplicationParameter.Workflow(
+            name,
+            param.title,
+            param.description,
+            Workflow.Specification(
+                "",
+                WorkflowLanguage.JINJA2,
+                param.init,
+                param.job,
+                param.parameters.map { mapApplicationParameter(it.value, it.key) },
+                param.readme,
+            ).let { defaultMapper.encodeToJsonElement(it) },
+            param.optional,
+        )
     }
 }

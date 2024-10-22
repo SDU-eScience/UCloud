@@ -1,0 +1,135 @@
+application: v2
+
+name: native-gromacs
+version: 2024.4
+
+software:
+  type: Native
+
+features:
+  multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
+
+parameters:
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      Change this workflow to customize what the batch script should do.
+
+    init: |
+      {#
+  
+      This script will run on a node equivalent to the HPC-frontend. It has outgoing Internet access and should be used to
+      download and compile software required for the job.
+
+      The script evaluates a Jinja2 template which produces a bash script. You can read more about writing these scripts here:
+      https://docs.cloud.sdu.dk.
+      #}
+      
+      mkdir data
+      cd data
+      wget -q https://files.rcsb.org/download/1AKI.pdb --no-check-certificate
+      wget http://www.mdtutorials.com/gmx/lysozyme/Files/ions.mdp
+      wget http://www.mdtutorials.com/gmx/lysozyme/Files/minim.mdp
+      wget http://www.mdtutorials.com/gmx/lysozyme/Files/nvt.mdp
+      wget http://www.mdtutorials.com/gmx/lysozyme/Files/npt.mdp
+      wget http://www.mdtutorials.com/gmx/lysozyme/Files/md.mdp
+
+      {{ submitJob() }}
+
+    job: |
+      {#
+          
+      This script is submitted by 001_job_init.sh and will be interpreted by Slurm.
+          
+      The following sbatch directives are automatically applied based on job parameters:
+          
+      --account=...           --partition=...           --qos=...
+      --constraint=...        --output=...              --error=...
+      --time=...              --cpus-per-task=...-      --gpus-per-task=...
+      --mem=...               --nodes=...               --job-name=...
+      --chdir=...
+
+      Directives can be overwritten via the following method: {{ sbatch("chdir", "/tmp/new/directory") }}
+            
+      #}
+      
+      {# Sbatch directives start - Change as required #}
+        {{ sbatch("cpus-per-task", 4) }}
+        {{ sbatch("ntasks-per-node", ucloud.machine.cpu / 4) }}
+        {{ sbatch("ntasks", (ucloud.machine.nodes * ucloud.machine.cpu) / 4) }}
+      {# Sbatch directives end #}
+      
+      {# Preambles start - Avoid touching these unless required. #}
+        {- globalPreamble -}
+        {- applicationPreamble -}
+      {# Preambles end #}
+    
+      {# =============================================================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# =============================================================================================================== #}
+    
+      cd data
+      CMD=${CMD:=gmx_mpi}
+      
+      set -x
+      set -e
+      {{ srun }} $CMD pdb2gmx -f 1AKI.pdb -o 1AKI_processed.gro -water spce
+      {{ srun }} $CMD editconf -f 1AKI_processed.gro -o 1AKI_newbox.gro -c -d 1.0 -bt cubic
+      {{ srun }} $CMD solvate -cp 1AKI_newbox.gro -cs spc216.gro -o 1AKI_solv.gro -p topol.top
+      {{ srun }} $CMD grompp -f ions.mdp -c 1AKI_solv.gro  -p topol.top -o ions.tpr
+      {{ srun }} $CMD genion -s ions.tpr -o 1AKI_solv_ions.gro -p topol.top -pname NA -nname CL -neutral
+      {{ srun }} $CMD grompp -f minim.mdp -c 1AKI_solv_ions.gro -p topol.top -o em.tpr
+      {{ srun }} $CMD mdrun -v -deffnm em -nt 32
+      {{ srun }} $CMD grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr
+      {{ srun }} $CMD mdrun -v -deffnm nvt -nt 32
+      {{ srun }} $CMD grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr
+      {{ srun }} $CMD mdrun -v -deffnm npt
+      {{ srun }} $CMD grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_0_1.tpr
+      {{ srun }} $CMD mdrun -v -deffnm md_0_1
+      {{ srun }} $CMD trjconv -s md_0_1.tpr -f md_0_1.xtc -o md_0_1_noPBC.xtc -pbc mol -center
+      {{ srun }} $CMD rms -s md_0_1.tpr -f md_0_1_noPBC.xtc -o rmsd.xvg -tu ns
+      {{ srun }} $CMD rms -s em.tpr -f md_0_1_noPBC.xtc -o rmsd_xtal.xvg -tu ns
+
+      {# =============================================================================================================== #}
+      {# End of job                                                                                                      #}
+      {# =============================================================================================================== #}
+      
+      {# Postambles start - Avoid touching these unless required. #}
+        {- globalPostamble -}
+        {- applicationPostamble -}
+      {# Postambles end #}
+
+    readme: |
+      This is an example workflow using GROMACS.
+
+      ### Some GROMACS Basics
+
+      Rerum ut eos earum neque. Velit molestias illum consectetur blanditiis quis veritatis officiis cupiditate. Ut
+      quis in consequuntur necessitatibus unde.
+      
+      ```
+      gmx help (module)
+      ```
+
+      Commodi nisi non earum cupiditate. Sint ut repudiandae sed provident vel magnam tempora delectus. Consequatur
+      vero sed perspiciatis ut nihil ut. Eligendi quam nulla similique reprehenderit eveniet qui. In nisi dolorum iure
+      fuga ipsam velit nihil repellat.
+
+      Aut odio rerum nostrum rerum eveniet omnis officia. Corporis et omnis molestias quia placeat. Ratione rerum
+      voluptates voluptatem natus error autem aut. Laboriosam ullam vitae accusantium enim.
+      
+      ```
+      gmx pdb2gmx -f 1AKI_clean.pdb -o 1AKI_processed.gro -water spce
+      ```
+
+      Ad vitae ex cum. Qui eum odio minus harum occaecati laudantium totam. Neque dolorum consequuntur quos voluptatem
+      consequatur omnis. Aut necessitatibus unde in. Nobis quasi molestias eius. Ipsam sit error quas officiis voluptas
+      molestiae.
+
+      In molestiae quia eligendi suscipit ut. Aut reiciendis officiis sunt aut libero nobis aut. Et dignissimos omnis
+      voluptate nam incidunt ea porro sint. Exercitationem nesciunt ex distinctio accusamus ipsam. Quos ducimus ut at.
+
+
+invocation: ""

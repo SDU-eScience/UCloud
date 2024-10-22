@@ -84,6 +84,7 @@ private const val TYPE_PEER = "peer"
 private const val TYPE_LICENSE_SERVER = "license_server"
 private const val TYPE_INGRESS = "ingress"
 private const val TYPE_NETWORK_IP = "network_ip"
+private const val TYPE_WORKFLOW = "workflow"
 
 @Serializable
 @UCloudApiDoc("""
@@ -351,6 +352,23 @@ sealed class ApplicationParameter {
         override val optional = false
         override fun referencesResource(): Boolean = true
     }
+
+    @Serializable
+    @SerialName(TYPE_WORKFLOW)
+    @UCloudApiDoc("""
+        An input parameter which accepts a workflow specification
+        
+        __Compatible with:__ $TYPE_REF AppParameterValue.Workflow
+    """, importance = 919)
+    class Workflow(
+        override var name: String = "",
+        override val title: String = "",
+        override val description: String = "",
+        override val defaultValue: JsonElement? = null,
+        override val optional: Boolean = false,
+    ) : ApplicationParameter() {
+        override fun referencesResource(): Boolean = false
+    }
 }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -525,6 +543,18 @@ When this is used with an `Enumeration` it must match the value of one of the as
     @Serializable
     @SerialName("ingress")
     data class Ingress(override val id: String) : AppParameterValue(), WithStringId
+
+    @UCloudApiDoc("""
+        A reference to an HTTP ingress, registered locally at the provider
+    
+        - __Compatible with:__ `ApplicationParameter.Workflow`
+        - __Mountable as a resource:__ ❌ No
+        - __Expands to:__ Rendered workflow, replacing the normal invocation
+    """, importance = 919)
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @Serializable
+    @SerialName("workflow")
+    data class Workflow(val specification: dk.sdu.cloud.app.store.api.Workflow.Specification) : AppParameterValue()
 }
 
 private val hostNameRegex =
@@ -1051,6 +1081,11 @@ interface ArgumentBuilder {
 
                 is ApplicationParameter.NetworkIP -> {
                     return (value as AppParameterValue.Network).id
+                }
+
+                is ApplicationParameter.Workflow -> {
+                    // NOTE(Dan): Not implemented here
+                    return ""
                 }
             }
         }

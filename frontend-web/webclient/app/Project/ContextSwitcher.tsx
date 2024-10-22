@@ -248,14 +248,12 @@ export function ContextSwitcher({managed}: {
                             defaultValue={filter}
                             onClick={stopPropagationAndPreventDefault}
                             enterKeyHint="enter"
-                            onKeyDown={e => {
-                                // Note(Jonas): Not reached for some reason?
+                            onKeyDownCapture={e => {
                                 if (["Escape"].includes(e.code) && e.target["value"]) {
                                     setTitleFilter("");
                                     e.target["value"] = "";
+                                    e.stopPropagation();
                                 }
-                                // Note(Jonas): Stop keypropagation like `Delete`.
-                                e.stopPropagation();
                             }}
                             onKeyUp={e => {
                                 e.stopPropagation();
