@@ -47,7 +47,7 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
-import {Spacer} from "@/ui-components/Spacer";
+import * as Heading from "@/ui-components/Heading";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
@@ -98,7 +98,7 @@ async function processUpload(upload: Upload) {
 
     if (strategy.protocol === "WEBSOCKET_V1" || strategy.protocol === "CHUNKED") {
         const theFile = upload.row!;
-        const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
+        const fullFilePath = (upload.targetPath + (theFile.fullPath.startsWith("/") ? "" : "/") + theFile.fullPath);
 
         const reader = new ChunkedFileReader(theFile.fileObject);
 
@@ -572,8 +572,8 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
 
             const uploadType = upload.folderName ? "FOLDER" : "FILE";
             const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
-                upload.targetPath + "/" + upload.folderName
-                : upload.targetPath + "/" + upload.name;
+                upload.targetPath + "/" + upload.folderName :
+                upload.targetPath + "/" + upload.name;
 
             const item = fetchValidUploadFromLocalStorage(fullFilePath);
             if (item !== null) {
@@ -843,39 +843,32 @@ const Uploader: React.FunctionComponent = () => {
                         marginLeft: "8px",
                         marginRight: "4px"
                     }}>
+                        <Heading.h4>Drag files <b>here</b> to resume upload</Heading.h4>
                         {resumables.map(it =>
-                            <div className={TaskRowClass} key={it}>
-                                <Spacer paddingTop="20px"
-                                    left={<>
-                                        <div>
-                                            <FtIcon
-                                                fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
-                                                size="32px" />
-                                        </div>
-                                        <div>
-                                            <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
-                                        </div>
-                                    </>}
-                                    right={<>
-                                        <label htmlFor="fileUploadBrowseResume">
-                                            <input
-                                                id={"fileUploadBrowseResume"}
-                                                type={"file"}
-                                                style={{display: "none"}}
-                                                onChange={onSelectedFile}
-                                            />
-                                            <Icon cursor="pointer" title="Resume upload" name="play"
-                                                color="primaryMain" mr="12px" />
-                                        </label>
-                                        <Icon cursor="pointer" title="Remove" name="close" color="errorMain"
-                                            mr="12px" onClick={() => {
-                                                setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                                removeUploadFromStorage(it);
-                                            }} />
-                                    </>}
-                                />
-                            </div>
-                        )}
+                            <TaskRow
+                                icon={<FtIcon
+                                    fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
+                                    size="32px" />
+                                }
+                                title={fileName(it)}
+                                progress={null}
+                                isPaused
+                                pause={<label htmlFor="fileUploadBrowseResume">
+                                    <input
+                                        id={"fileUploadBrowseResume"}
+                                        type={"file"}
+                                        style={{display: "none"}}
+                                        onChange={onSelectedFile}
+                                    />
+                                    <Icon cursor="pointer" title="Resume upload" name="play"
+                                        color="primaryMain" mr="12px" />
+                                </label>}
+                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" color="errorMain" onClick={() => {
+                                    setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                    removeUploadFromStorage(it);
+                                }} />}
+                                progressInfo={{stopped: true, indeterminate: true, limit: 1, progress: 0}}
+                            />)}
                     </div>
                 }
             </div>
@@ -986,11 +979,11 @@ export function uploadIsTerminal(upload: Upload): boolean {
 }
 
 export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
-    const paused = upload.paused;
+    const isPaused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const stopped = upload.terminationRequested || !!upload.error;
 
-    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
+    const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
     const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
@@ -1022,8 +1015,8 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             icon={icon}
             title={title}
             progress={right}
-            isPaused={paused}
-            pause={inProgress || paused ? (
+            isPaused={isPaused}
+            pause={inProgress || isPaused ? (
                 upload.paused ?
                     <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
                     <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
