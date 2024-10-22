@@ -82,7 +82,8 @@ import {
     FilesCreateFolderRequestItem,
     FilesCreateUploadRequestItem,
     FilesEmptyTrashRequestItem,
-    FilesMoveRequestItem, FilesTransferRequestItem,
+    FilesMoveRequestItem,
+    FilesTransferRequestItem,
     FilesTrashRequestItem,
     UFile,
     UFileIncludeFlags,
@@ -494,7 +495,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) && 
+                    (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     !cb.isSearch &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
@@ -1199,6 +1200,7 @@ async function getMonaco(): Promise<any> {
 }
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
+const EXPECTED_BINARY_FORMATS = ["mpeg", "m2p", "vob", "mpg"];
 
 export function FilePreview({file, contentRef}: {
     file: UFile,
@@ -1238,10 +1240,19 @@ export function FilePreview({file, contentRef}: {
                 const contentBlob = await content.blob();
                 const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
 
-                const foundFileType = fileType(contentBuffer);
+                const foundFileType = fileType(contentBuffer).filter(it => it.mime);
+                const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
+                const text = tryDecodeText(contentBuffer);
+
+                const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
+
                 if (contentRef) contentRef.current = contentBuffer;
-                if (foundFileType.length === 0) {
-                    const text = tryDecodeText(contentBuffer);
+
+                if (!correctExtension && isMisidentifiedAsBinaryFormat) {
+                    setType("text");
+                    setData(text);
+                    setError(null);
+                } else if (foundFileType.length === 0) {
                     if (text !== null) {
                         setType("text");
                         setData(text);
