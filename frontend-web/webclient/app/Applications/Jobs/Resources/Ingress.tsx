@@ -10,6 +10,7 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {doNothing} from "@/UtilityFunctions";
 
 export function ingressResourceAllowed(app: Application): boolean {
     return !(app.invocation.allowPublicLink === false || app.invocation.applicationType !== "WEB")
@@ -66,6 +67,8 @@ export const IngressResource: React.FunctionComponent<{
                         provider={provider}
                         parameter={entry}
                         errors={errors}
+                        application={application}
+                        injectWorkflowParameters={doNothing}
                         setErrors={setErrors}
                         onRemove={() => {
                             onRemove(entry.name);

@@ -4,6 +4,7 @@ import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {doNothing} from "@/UtilityFunctions";
 
 export function peerResourceAllowed(app: Application) {
     const invocation = app.invocation;
@@ -62,6 +63,8 @@ export const PeerResource: React.FunctionComponent<{
                             <Widget
                                 parameter={entry}
                                 errors={errors}
+                                application={application}
+                                injectWorkflowParameters={doNothing}
                                 setErrors={setErrors}
                                 onRemove={() => {
                                     onRemove(entry.name);

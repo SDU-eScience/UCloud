@@ -1,19 +1,24 @@
 package dk.sdu.cloud.app.store.rpc
 
+import dk.sdu.cloud.app.store.services.Workflows
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.*
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Workflows as ApiWorkflows
 import dk.sdu.cloud.app.store.services.*
 import dk.sdu.cloud.app.store.util.yamlMapper
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.server.KtorAllowCachingKey
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.client.request.*
@@ -38,6 +43,8 @@ class AppStoreController(
     private val data: CatalogData,
     private val catalog: Catalog,
     private val studio: Studio,
+    private val workflows: Workflows,
+    private val db: DBContext,
     private val devMode: Boolean,
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
@@ -375,7 +382,12 @@ class AppStoreController(
 
         implement(AppStore.retrieveCategory) {
             ok(
-                catalog.retrieveCategory(actorAndProject, request.id.toLong(), ApplicationFlags(includeGroups = true), request)
+                catalog.retrieveCategory(
+                    actorAndProject,
+                    request.id.toLong(),
+                    ApplicationFlags(includeGroups = true),
+                    request
+                )
                     ?: throw RPCException("Unknown group", HttpStatusCode.NotFound)
             )
         }
@@ -529,6 +541,53 @@ class AppStoreController(
         implement(AppStore.updateTopPicks) {
             studio.updateTopPicks(actorAndProject, request.newTopPicks)
             ok(Unit)
+        }
+
+        implement(ApiWorkflows.create) {
+            ok(
+                BulkResponse(
+                    db.withSession { session ->
+                        request.items.map { reqItem ->
+                            FindByStringId(workflows.create(actorAndProject, reqItem, session))
+                        }
+                    }
+                )
+            )
+        }
+
+        implement(ApiWorkflows.browse) {
+            ok(workflows.browse(actorAndProject, request))
+        }
+
+        implement(ApiWorkflows.rename) {
+            db.withSession { session ->
+                request.items.forEach { reqItem ->
+                    workflows.rename(actorAndProject, reqItem, session)
+                }
+            }
+            ok(Unit)
+        }
+
+        implement(ApiWorkflows.delete) {
+            db.withSession { session ->
+                request.items.forEach { reqItem ->
+                    workflows.delete(actorAndProject, reqItem.id, session)
+                }
+            }
+            ok(Unit)
+        }
+
+        implement(ApiWorkflows.updateAcl) {
+            db.withSession { session ->
+                request.items.forEach { reqItem ->
+                    workflows.updateAcl(actorAndProject, reqItem, session)
+                }
+            }
+            ok(Unit)
+        }
+
+        implement(ApiWorkflows.retrieve) {
+            ok(workflows.retrieve(actorAndProject, request.id))
         }
     }
 

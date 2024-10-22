@@ -3,10 +3,12 @@ package dk.sdu.cloud.app.store
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
+import dk.sdu.cloud.accounting.util.IdCardService
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.rpc.AppStoreController
 import dk.sdu.cloud.app.store.services.*
+import dk.sdu.cloud.app.store.services.Workflows
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -25,12 +27,14 @@ class Server(override val micro: Micro) : CommonServer {
         val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val distributedState = DistributedStateFactory(micro)
+        val idCardService = IdCardService(db, micro.backgroundScope, serviceClient)
 
         val data = CatalogData(db)
         val projectCache = ProjectCache(distributedState, db)
         val catalog = Catalog(projectCache, micro.backgroundScope, serviceClient, db)
         val studio = Studio(db, projectCache, data, serviceClient)
         val importer = ImportExport(micro.developmentModeEnabled, data, studio)
+        val workflows = Workflows(db, idCardService)
 
         configureJackson(ApplicationParameter::class, yamlMapper)
 
@@ -39,7 +43,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         configureControllers(
-            AppStoreController(importer, data, catalog, studio, micro.developmentModeEnabled),
+            AppStoreController(importer, data, catalog, studio, workflows, db, micro.developmentModeEnabled),
         )
     }
 }

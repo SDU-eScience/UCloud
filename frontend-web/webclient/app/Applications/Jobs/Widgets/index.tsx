@@ -16,9 +16,10 @@ import {ButtonClass} from "@/ui-components/Button";
 import {JobCreateInput} from "./Reservation";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {FlexCProps} from "@/ui-components/Flex";
-import {ApplicationParameter} from "@/Applications/AppStoreApi";
+import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
+import {WorkflowParameter, WorkflowSetter, WorkflowValidator} from "@/Applications/Jobs/Widgets/Workflow";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -47,6 +48,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
             return <IngressParameter {...props} parameter={props.parameter} />;
         case "network_ip":
             return <NetworkIPParameter {...props} parameter={props.parameter} />;
+        case "workflow":
+            return <WorkflowParameter {...props} parameter={props.parameter} />;
     }
 };
 
@@ -59,6 +62,7 @@ const validators: WidgetValidator[] = [
     LicenseValidator,
     IngressValidator,
     NetworkIPValidator,
+    WorkflowValidator,
 ];
 
 const setters: WidgetSetter[] = [
@@ -70,14 +74,19 @@ const setters: WidgetSetter[] = [
     LicenseSetter,
     IngressSetter,
     NetworkIPSetter,
+    WorkflowSetter,
 ];
 
 export interface WidgetProps {
+    application: Application;
     provider?: string;
     parameter: ApplicationParameter;
     errors: Record<string, string>;
     setWarning?: (warning: string) => void;
     setErrors: (errors: Record<string, string>) => void;
+
+    // NOTE(Dan): This can only be done by the workflow parameter (of which there should only be at most one)
+    injectWorkflowParameters: (parameters: ApplicationParameter[]) => void;
 }
 
 interface RootWidgetProps {
@@ -155,6 +164,10 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
     const moveUp = parameter.type === "peer" && (parameter.optional || props.onRemove);
     if (moveUp) {
         body = <Relative top={"-25px"}>{body}</Relative>;
+    }
+
+    if (props.active === true && props.parameter.type === "workflow" && !props.parameter.optional) {
+        return body;
     }
 
     if (props.active !== false) {

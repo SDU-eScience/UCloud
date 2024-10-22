@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
@@ -13,6 +13,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -20,11 +21,15 @@ export interface Vfs {
     readFile(path: string): Promise<string>;
 
     writeFile(path: string, content: string): Promise<void>;
+
+    // Notifies the VFS that a file is dirty, but do not synchronize it yet.
+    notifyDirtyFile(path: string, content: string)
 }
 
 export interface VirtualFile {
     absolutePath: string;
     isDirectory: boolean;
+    requestedSyntax?: string;
 }
 
 export interface EditorState {
@@ -279,7 +284,7 @@ const editorClass = injectStyle("editor", k => `
     }
     
     ${k} > .editor-files {
-        width: 300px;
+        width: 250px;
         height: 100%;
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
@@ -323,13 +328,25 @@ type EditorEngine =
     | "monaco"
     | "vim";
 
-export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialPath: string }> = props => {
+export interface EditorApi {
+    notifyDirtyBuffer: () => Promise<void>;
+}
+
+export const Editor: React.FunctionComponent<{
+    vfs: Vfs;
+    title: string;
+    initialPath: string;
+    toolbarBeforeSettings?: React.ReactNode;
+    toolbar?: React.ReactNode;
+    apiRef?: React.MutableRefObject<EditorApi | null>;
+}> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialPath));
     const editorView = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
+    const monacoRef = useRef<any>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
@@ -358,6 +375,10 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
     useEffect(() => {
         stateRef.current = state;
     }, [state]);
+
+    useEffect(() => {
+        monacoRef.current = monacoInstance;
+    }, [monacoInstance]);
 
     const didUnmount = useDidUnmount();
 
@@ -406,6 +427,8 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
             Promise.resolve(cachedContent) :
             props.vfs.readFile(path);
 
+        const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+
         return dataPromise.then(async content => {
             const editor = editorRef.current;
             const engine = engineRef.current;
@@ -422,6 +445,7 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
                 }
 
                 const oldContent = await readBuffer();
+                props.vfs.notifyDirtyFile(state.currentPath, oldContent);
                 dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
             } else {
                 dispatch({type: "EditorActionOpenFile", path});
@@ -440,6 +464,10 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
             vimRef.current?.focus?.();
             tree.current?.deactivate?.();
             editor?.focus?.();
+            const monaco = monacoRef.current;
+            if (syntax && monaco && editor) {
+                monaco.editor.setModelLanguage(editor.getModel(), syntax);
+            }
             return true;
         });
     }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
@@ -447,11 +475,15 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
             if (ev.defaultPrevented) return;
+            if (ev.code === "Escape") {
+                ev.preventDefault();
+                return;
+            }
 
-            const editor = editorRef.current;
-            vimRef.current?.focus?.();
-            tree.current?.deactivate?.();
-            editor?.focus?.();
+            if (engineRef.current === "vim") {
+                vimRef.current?.focus?.();
+                tree.current?.deactivate?.();
+            }
         };
 
         window.addEventListener("keydown", listener);
@@ -476,8 +508,19 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
 
         const res = await readBuffer();
         if (didUnmount.current) return;
+        props.vfs.notifyDirtyFile(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, []);
+
+    const api: EditorApi = useMemo(() => {
+        return {
+            notifyDirtyBuffer: saveBufferIfNeeded,
+        }
+    }, []);
+
+    useEffect(() => {
+        if (props.apiRef) props.apiRef.current = api;
+    }, [api, props.apiRef]);
 
     useEffect(() => {
         let didCancel = false;
@@ -627,6 +670,13 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
         };
     }, [editor]);
 
+    const onKeyDown: React.KeyboardEventHandler = useCallback(ev => {
+        if (ev.code === "Escape") {
+            ev.preventDefault();
+            ev.stopPropagation();
+        }
+    }, []);
+
     const onOpen = useCallback((path: string, element: HTMLElement) => {
         const root = state.sidebar.root;
         const node = findNode(root, path);
@@ -661,7 +711,7 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
         setIsSettingsOpen(p => !p);
     }, []);
 
-    return <div className={editorClass}>
+    return <div className={editorClass} onKeyDown={onKeyDown}>
         <div className={"editor-files"}>
             <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
@@ -676,9 +726,11 @@ export const Editor: React.FunctionComponent<{ vfs: Vfs, title: string, initialP
                     {fileName(state.currentPath)}
                 </Flex>
                 <Flex alignItems={"center"} gap={"16px"}>
-                    <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings}/>
-                    <Icon name={"floppyDisk"} size={"20px"}/>
-                    <Icon name={"heroPlay"} size={"20px"} color={"successMain"}/>
+                    {props.toolbarBeforeSettings}
+                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings}/>
+                    </TooltipV2>
+                    {props.toolbar}
                 </Flex>
             </div>
             <div className={"panels"}>

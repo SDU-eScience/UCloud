@@ -8,6 +8,7 @@ import Warning from "@/ui-components/Warning";
 import {anyFolderDuplicates} from "../Widgets/GenericFiles";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import AppRoutes from "@/Routes";
+import {doNothing} from "@/UtilityFunctions";
 
 export function folderResourceAllowed(app: Application): boolean {
     if (app.invocation.allowAdditionalMounts != null) return app.invocation.allowAdditionalMounts;
@@ -83,6 +84,8 @@ export const FolderResource: React.FunctionComponent<{
                             errors={errors}
                             setWarning={setWarning}
                             setErrors={setErrors}
+                            application={application}
+                            injectWorkflowParameters={doNothing}
                             onRemove={() => {
                                 onRemove(entry.name);
                                 if (!anyFolderDuplicates()) {

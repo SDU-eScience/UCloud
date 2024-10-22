@@ -64,8 +64,6 @@ import {
     Application,
     ApplicationGroup,
     ApplicationParameter,
-    ApplicationSummaryWithFavorite,
-    ApplicationWithFavoriteAndTags
 } from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -73,7 +71,6 @@ import {UserDetailsState, defaultEmailSettings} from "@/UserSettings/ChangeEmail
 import {mail} from "@/UCloud";
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import AppRoutes from "@/Routes";
 import {useDiscovery} from "@/Applications/Hooks";
 
 interface InsufficientFunds {
@@ -135,6 +132,7 @@ export const Create: React.FunctionComponent = () => {
         {noop: true},
         null
     );
+    const [workflowInjectedParameters, setWorkflowInjectParameters] = useState<ApplicationParameter[]>([]);
 
     const application = applicationResp?.data?.status?.applications?.find(it => it.metadata.name === appName);
 
@@ -259,7 +257,6 @@ export const Create: React.FunctionComponent = () => {
     useUState(connectionState);
 
     useEffect(() => {
-        console.log({discovery});
         if (appName === "syncthing" && !localStorage.getItem("syncthingRedirect")) {
             navigate("/drives");
         }
@@ -293,8 +290,8 @@ export const Create: React.FunctionComponent = () => {
             injected = injectedData.parametersByProvider[provider] ?? [];
         }
         const fromApp = application?.invocation?.parameters ?? [];
-        return [...injected, ...fromApp];
-    }, [application, injectedParameters, estimatedCost]);
+        return [...injected, ...fromApp, ...workflowInjectedParameters];
+    }, [application, injectedParameters, workflowInjectedParameters, estimatedCost]);
 
     React.useEffect(() => {
         if (application && provider) {
@@ -469,8 +466,11 @@ export const Create: React.FunctionComponent = () => {
         );
     }
 
+    let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
+    if (mandatoryWorkflow.length > 1) mandatoryWorkflow = [mandatoryWorkflow[0]];
+
     const mandatoryParameters = parameters.filter(it =>
-        !it.optional
+        !it.optional && it.type !== "workflow"
     );
 
     const activeParameters = parameters.filter(it =>
@@ -514,8 +514,6 @@ export const Create: React.FunctionComponent = () => {
                             </ExternalLink>
                         )}
                         {license ? <TooltipV2 tooltip={`License: ${license}`}><Icon size="24" name="fileSignatureSolid" /></TooltipV2> : null}
-
-                        <ForkButton name={application.metadata.name} version={application.metadata.version} />
                         <UtilityBar />
                     </Flex>
                 </Flex>
@@ -647,6 +645,20 @@ export const Create: React.FunctionComponent = () => {
                             application={application}
                         />
 
+                        {/*Workflow*/}
+                        {mandatoryWorkflow.length === 0 ? null : (
+                            <Card>
+                                <Heading.h4>Workflow</Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                    {mandatoryWorkflow.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors} active application={application} />
+                                    ))}
+                                </Grid>
+                            </Card>
+                        )}
+
                         {/* Parameters */}
                         {mandatoryParameters.length === 0 ? null : (
                             <Card>
@@ -654,8 +666,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            setErrors={setErrors}
-                                            active />
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -667,8 +679,10 @@ export const Create: React.FunctionComponent = () => {
                                     {activeParameters.map(param => (
                                         <Widget
                                             key={param.name} parameter={param} errors={errors} provider={provider}
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
                                             setErrors={setErrors}
                                             active
+                                            application={application}
                                             onRemove={() => {
                                                 if (errors[param.name]) {
                                                     delete errors[param.name];
@@ -687,9 +701,11 @@ export const Create: React.FunctionComponent = () => {
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                         setErrors={setErrors}
                                         active={false}
+                                        application={application}
                                         onActivate={() => {
                                             setActiveOptParams([...activeOptParams, param.name]);
                                         }}
+                                        injectWorkflowParameters={setWorkflowInjectParameters}
                                     />
                                 )} />
                             </Card>
@@ -821,22 +837,5 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
         margin-bottom: 0;
     }
 `);
-
-const ForkButton: React.FunctionComponent<{ name: string, version: string }> = ({name, version}) => {
-    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
-    return <TooltipV2 tooltip={`Create a fork of this application to customize it`}>
-        <Link to={AppRoutes.apps.fork(name, version)} color={"textPrimary"} hoverColor={"textPrimary"} className={ForkButtonStyle}>
-            <Icon size="24" name="fork" />
-        </Link>
-    </TooltipV2>
-}
-
-const ForkButtonStyle = injectStyle("fork-button", k => `
-    ${k}:hover svg {
-        transition: transform 0.2s ease;
-        transform: translateY(-15%);
-    }
-`);
-
 
 export default Create;

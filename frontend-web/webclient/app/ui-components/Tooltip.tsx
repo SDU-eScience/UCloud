@@ -30,6 +30,11 @@ const TooltipVisible = injectStyleSimple("tooltip-visible", `
     opacity: 1;
 `);
 
+const TooltipSlim = injectStyleSimple("tooltip-slim", `
+    padding: 8px;
+    border-radius: 8px;
+    text-align: center;
+`);
 
 function getPortal(): HTMLElement {
     let portal = document.getElementById(tooltipPortalId);
@@ -57,11 +62,12 @@ const Tooltip: React.FunctionComponent<Tooltip> = props => {
 
         tooltip.style.left = ev.clientX + 20 + "px";
 
-        if (ev.clientX + width > window.innerWidth) {
+        if (ev.clientX + width + 20 > window.innerWidth) {
             tooltip.style.left = ev.clientX - width + "px";
         }
 
         tooltip.style.top = ev.clientY - tooltip.getBoundingClientRect().height / 2 + "px";
+        if (width <= 100) tooltip.classList.add(TooltipSlim);
         tooltip.classList.add(TooltipVisible);
     }, []);
 

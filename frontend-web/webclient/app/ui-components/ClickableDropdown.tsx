@@ -181,6 +181,15 @@ function ClickableDropdown<T>({
     let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
     let top = !props.useMousePositioning ? props.top : location[1];
 
+    if (props.rightAligned && !props.width) {
+        width = undefined;
+        const f = dropdownRef.current;
+        let boundingClientRect = f?.getBoundingClientRect();
+        if (boundingClientRect) {
+            top = boundingClientRect.top + boundingClientRect.height;
+        }
+    }
+
     let left = !props.useMousePositioning ? props.left : location[0];
     if (props.useMousePositioning) {
         if (width === undefined) width = 300;
@@ -249,6 +258,7 @@ function ClickableDropdown<T>({
 function extractLeftAlignedPosition(el: HTMLDivElement | null, width: string | number | undefined): string | null {
     if (!el) return null;
     const rect = el.getBoundingClientRect();
+    if (width === undefined || width === "100%") return rect.x + "px";
     return `calc(${rect.x + rect.width}px - ${width})`;
 }
 
