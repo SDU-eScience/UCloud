@@ -5,6 +5,9 @@ version: 2024.4
 
 software:
   type: Native
+  load:
+    - name: gromacs
+      version: 2024.4
 
 features:
   multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
@@ -62,8 +65,8 @@ parameters:
       {# Sbatch directives end #}
       
       {# Preambles start - Avoid touching these unless required. #}
-        {- globalPreamble -}
-        {- applicationPreamble -}
+        {- systemLoad -}
+        {- applicationLoad -}
       {# Preambles end #}
     
       {# =============================================================================================================== #}
@@ -75,30 +78,30 @@ parameters:
       
       set -x
       set -e
-      {{ srun }} $CMD pdb2gmx -f 1AKI.pdb -o 1AKI_processed.gro -water spce
-      {{ srun }} $CMD editconf -f 1AKI_processed.gro -o 1AKI_newbox.gro -c -d 1.0 -bt cubic
-      {{ srun }} $CMD solvate -cp 1AKI_newbox.gro -cs spc216.gro -o 1AKI_solv.gro -p topol.top
-      {{ srun }} $CMD grompp -f ions.mdp -c 1AKI_solv.gro  -p topol.top -o ions.tpr
-      {{ srun }} $CMD genion -s ions.tpr -o 1AKI_solv_ions.gro -p topol.top -pname NA -nname CL -neutral
-      {{ srun }} $CMD grompp -f minim.mdp -c 1AKI_solv_ions.gro -p topol.top -o em.tpr
-      {{ srun }} $CMD mdrun -v -deffnm em -nt 32
-      {{ srun }} $CMD grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr
-      {{ srun }} $CMD mdrun -v -deffnm nvt -nt 32
-      {{ srun }} $CMD grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr
-      {{ srun }} $CMD mdrun -v -deffnm npt
-      {{ srun }} $CMD grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_0_1.tpr
-      {{ srun }} $CMD mdrun -v -deffnm md_0_1
-      {{ srun }} $CMD trjconv -s md_0_1.tpr -f md_0_1.xtc -o md_0_1_noPBC.xtc -pbc mol -center
-      {{ srun }} $CMD rms -s md_0_1.tpr -f md_0_1_noPBC.xtc -o rmsd.xvg -tu ns
-      {{ srun }} $CMD rms -s em.tpr -f md_0_1_noPBC.xtc -o rmsd_xtal.xvg -tu ns
+      {{ srun() }} $CMD pdb2gmx -f 1AKI.pdb -o 1AKI_processed.gro -water spce
+      {{ srun() }} $CMD editconf -f 1AKI_processed.gro -o 1AKI_newbox.gro -c -d 1.0 -bt cubic
+      {{ srun() }} $CMD solvate -cp 1AKI_newbox.gro -cs spc216.gro -o 1AKI_solv.gro -p topol.top
+      {{ srun() }} $CMD grompp -f ions.mdp -c 1AKI_solv.gro  -p topol.top -o ions.tpr
+      {{ srun() }} $CMD genion -s ions.tpr -o 1AKI_solv_ions.gro -p topol.top -pname NA -nname CL -neutral
+      {{ srun() }} $CMD grompp -f minim.mdp -c 1AKI_solv_ions.gro -p topol.top -o em.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm em -nt 32
+      {{ srun() }} $CMD grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm nvt -nt 32
+      {{ srun() }} $CMD grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm npt
+      {{ srun() }} $CMD grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top -o md_0_1.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm md_0_1
+      {{ srun() }} $CMD trjconv -s md_0_1.tpr -f md_0_1.xtc -o md_0_1_noPBC.xtc -pbc mol -center
+      {{ srun() }} $CMD rms -s md_0_1.tpr -f md_0_1_noPBC.xtc -o rmsd.xvg -tu ns
+      {{ srun() }} $CMD rms -s em.tpr -f md_0_1_noPBC.xtc -o rmsd_xtal.xvg -tu ns
 
       {# =============================================================================================================== #}
       {# End of job                                                                                                      #}
       {# =============================================================================================================== #}
       
       {# Postambles start - Avoid touching these unless required. #}
-        {- globalPostamble -}
-        {- applicationPostamble -}
+        {- applicationUnload -}
+        {- systemUnload -}
       {# Postambles end #}
 
     readme: |

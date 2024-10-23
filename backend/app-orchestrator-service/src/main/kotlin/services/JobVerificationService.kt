@@ -46,18 +46,26 @@ class JobVerificationService(
             }
         }
 
+        val appParameters = application.invocation!!.parameters.toMutableList()
+        appParameters.addAll(
+            (specification.parameters ?: emptyMap())
+                .values
+                .filterIsInstance<AppParameterValue.Workflow>()
+                .flatMap { it.specification.inputs }
+        )
+
         val sshMode = application.invocation!!.ssh?.mode ?: SshDescription.Mode.DISABLED
         if (specification.sshEnabled == true && sshMode == SshDescription.Mode.DISABLED) {
             throw JobException.VerificationError("This application does not support SSH but sshEnabled was true")
         }
 
-        val verifiedParameters = verifyParameters(application, specification)
+        val verifiedParameters = verifyParameters(appParameters, specification)
         val resources = specification.resources!!
         val newResources = ArrayList<AppParameterValue>()
 
         // Check peers
         run {
-            val parameterPeers = application.invocation!!.parameters
+            val parameterPeers = appParameters
                 .filterIsInstance<ApplicationParameter.Peer>()
                 .mapNotNull { verifiedParameters[it.name] as AppParameterValue.Peer? }
 
@@ -216,11 +224,12 @@ class JobVerificationService(
     }
 
     private fun verifyParameters(
-        app: Application,
+        appParameters: List<ApplicationParameter>,
         specification: JobSpecification,
     ): Map<String, AppParameterValue> {
         val userParameters = HashMap(specification.parameters)
-        val paramKeys = app.invocation!!.parameters.map { it.name }
+
+        val paramKeys = appParameters.map { it.name }
         userParameters.forEach { (k, _) ->
             if (!k.startsWith(injectedPrefix)) {
                 if (!paramKeys.contains(k)) {
@@ -228,10 +237,10 @@ class JobVerificationService(
                 }
             }
         }
-        if (userParameters.isNotEmpty() && app.invocation!!.parameters.isEmpty()) {
+        if (userParameters.isNotEmpty() && appParameters.isEmpty()) {
             throw RPCException("Unknown parameter(s) given", HttpStatusCode.BadRequest)
         }
-        for (param in app.invocation!!.parameters) {
+        for (param in appParameters) {
             var providedValue = userParameters[param.name]
             if (!param.optional && param.defaultValue == null && providedValue == null) {
                 log.debug("Missing value: param=${param} providedValue=${providedValue}")

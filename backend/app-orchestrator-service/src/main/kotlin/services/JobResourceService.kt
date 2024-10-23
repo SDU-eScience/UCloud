@@ -46,6 +46,7 @@ import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.withHardTimeout
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
@@ -154,10 +155,12 @@ class JobResourceService(
     ): List<Job> {
         val card = idCards.fetchIdCard(actorAndProject)
         val result = ArrayList<Job>()
-        ResourceOutputPool.withInstance { pool ->
-            check(jobIds.size <= pool.size) { "too many items requested at the same time: ${jobIds.size}" }
-            val count = documents.retrieveBulk(card, jobIds, pool, permission)
-            for (i in 0 until count) result.add(docMapper.map(card, pool[i]))
+        withHardTimeout(30_000, { "retrieveBulk(${jobIds.toList()})" }) {
+            ResourceOutputPool.withInstance { pool ->
+                check(jobIds.size <= pool.size) { "too many items requested at the same time: ${jobIds.size}" }
+                val count = documents.retrieveBulk(card, jobIds, pool, permission)
+                for (i in 0 until count) result.add(docMapper.map(card, pool[i]))
+            }
         }
         return result
     }
@@ -224,7 +227,9 @@ class JobResourceService(
             }
         }
 
-        return documents.browseWithStrategy(docMapper, card, request, filterFunction, strategy)
+        return withHardTimeout(30_000, { "jobs.browseBy(${card}, $request, $strategy)" }) {
+            documents.browseWithStrategy(docMapper, card, request, filterFunction, strategy)
+        }
     }
 
     fun listActiveJobs(): List<Long> {

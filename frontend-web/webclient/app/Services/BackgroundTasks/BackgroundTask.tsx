@@ -457,10 +457,10 @@ export function TaskList(): React.ReactNode {
 
 const RippleAnimation = makeKeyframe("ripple-animation", `
     0% {
-        box-shadow: 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor);
+        box-shadow: 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor);
     }
     100% {
-        box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+        box-shadow: 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
     }
 `);
 
@@ -486,7 +486,7 @@ const RippleEffect = injectStyle("ripple", k => `
 
 const StaticCircle = injectStyle(`static-circle`, k => `
         ${k} {
-            box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+            box-shadow: 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
     }
 `);
 

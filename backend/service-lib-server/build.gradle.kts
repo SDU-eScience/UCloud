@@ -34,7 +34,7 @@ dependencies {
     api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
 
     run {
-        val ktorVersion = "2.3.9"
+        val ktorVersion = "2.3.12"
         fun ktor(module: String) {
             api("io.ktor:ktor-$module:$ktorVersion")
         }
@@ -60,13 +60,13 @@ dependencies {
     api("org.jetbrains:annotations:16.0.2")
     api(kotlin("reflect"))
 
-    api("org.apache.logging.log4j:log4j-slf4j-impl:2.20.0")
+    api("org.apache.logging.log4j:log4j-slf4j2-impl:2.24.1")
     api("com.auth0:java-jwt:3.19.4")
 
-    api("org.postgresql:postgresql:42.2.27")
+    api("org.postgresql:postgresql:42.7.2")
     api("org.flywaydb:flyway-core:5.2.4")
 
-    val jasyncVersion = "2.1.24"
+    val jasyncVersion = "2.2.4"
     api("com.github.jasync-sql:jasync-common:$jasyncVersion")
     api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
     api("io.lettuce:lettuce-core:5.1.6.RELEASE")

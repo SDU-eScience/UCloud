@@ -1049,7 +1049,7 @@ class ResourceStore<T>(
             }
             return offset
         } catch (ex: Throwable) {
-            throw RuntimeException("Failure while retrieving ${ids.toList()}", ex)
+            throw RuntimeException("Failure while retrieving resource ${ex.toReadableStacktrace()}: ${ids.toList()}", ex)
         }
     }
 

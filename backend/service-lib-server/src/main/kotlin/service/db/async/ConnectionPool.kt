@@ -14,6 +14,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.withHardTimeout
 import dk.sdu.cloud.systemName
 import io.prometheus.client.Counter
 import io.prometheus.client.Gauge
@@ -183,12 +184,14 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        val result = AsyncDBConnection(
-            pool.take().await().asSuspending as SuspendingConnectionImpl,
-            debug,
-        )
-        inflightTransactions.inc()
-        return result
+        return withHardTimeout(10_000, { "Opening database session" }) {
+            val result = AsyncDBConnection(
+                pool.take().await().asSuspending as SuspendingConnectionImpl,
+                debug,
+            )
+            inflightTransactions.inc()
+            result
+        }
     }
 
     override suspend fun rollback(session: AsyncDBConnection) {
