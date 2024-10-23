@@ -846,13 +846,15 @@ const Uploader: React.FunctionComponent = () => {
                     }}>
                         <Heading.h4>Drag files <b>here</b> to resume upload</Heading.h4>
                         {resumables.map(it =>
-                            <TaskRow
+                            const item = fetchValidUploadFromLocalStorage(it);
+                            return <TaskRow
+                                key={it}
                                 icon={<FtIcon
                                     fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
                                     size="32px" />
                                 }
                                 title={fileName(it)}
-                                progress={null}
+                                progress={item ? uploadProgressText(item.offset, item.size) : null}
                                 isPaused
                                 pause={<label htmlFor="fileUploadBrowseResume">
                                     <input
@@ -979,13 +981,17 @@ export function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 
+function uploadProgressText(progressInBytes: number, fileSizeInBytes: number): string {
+    return `${sizeToString(progressInBytes)} / ${sizeToString(fileSizeInBytes)}`
+}
+
 export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
     const isPaused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const stopped = upload.terminationRequested || !!upload.error;
 
     const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
-    const right = `${sizeToString(upload.progressInBytes)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    const right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
