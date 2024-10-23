@@ -26,40 +26,21 @@ export type CommandIconProvider =
     ;
 
 
-export type CommandScope =
-    | "this-page"
-    | "application"
-    | "job"
-    | "drive"
-    | "file"
-    | "link"
-    | "project"
-    | "accounting"
-    | "go-to"
-    ;
+export enum CommandScope {
+    ThisPage,
+    GoTo,
+    Application,
+    Job,
+    Drive,
+    File,
+    Link,
+    Project,
+    Accounting,
+};
 
 export function scopePriority(scope: CommandScope): number {
     // lower is higher priority
-    switch (scope) {
-        case "this-page":
-            return 0;
-        case "go-to":
-            return 1;
-        case "application":
-            return 2;
-        case "job":
-            return 3;
-        case "drive":
-            return 4;
-        case "file":
-            return 5;
-        case "link":
-            return 6;
-        case "project":
-            return 7;
-        case "accounting":
-            return 8;
-    }
+    return scope;
 }
 
 export interface Command {
@@ -79,7 +60,7 @@ export function staticProvider(commands: Command[]): CommandProvider {
             emit(result);
         }
 
-        return { onCancel: doNothing };
+        return {onCancel: doNothing};
     };
 }
 
@@ -114,4 +95,4 @@ export function useProvideCommands(provider: CommandProvider) {
     }, [provider]);
 }
 
-export { CommandPalette } from "./CommandPalette";
+export {CommandPalette} from "./CommandPalette";
