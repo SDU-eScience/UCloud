@@ -8,7 +8,7 @@ use.
 
 ```
 UCloud/Frontend @ 2024.2.4
-UCloud/Core @ 2024.2.4
+UCloud/Core @ 2024.2.5
 ```
 
 ## 21-10-24

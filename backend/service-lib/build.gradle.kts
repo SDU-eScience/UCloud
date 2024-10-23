@@ -14,17 +14,17 @@ repositories {
 }
 
 dependencies {
-    val ktorVersion = "2.3.9"
+    val ktorVersion = "2.3.12"
 
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.1")
+    api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
 
     api("io.ktor:ktor-client-websockets:$ktorVersion")
     api("io.ktor:ktor-client-cio:$ktorVersion")
     api("io.ktor:ktor-client-core:$ktorVersion")
 
-    api("org.apache.logging.log4j:log4j-api:2.20.0")
-    api("org.apache.logging.log4j:log4j-core:2.20.0")
+    api("org.apache.logging.log4j:log4j-api:2.24.1")
+    api("org.apache.logging.log4j:log4j-core:2.24.1")
     api("com.auth0:java-jwt:3.19.4")
 
     val prometheusVersion = "0.16.0"
