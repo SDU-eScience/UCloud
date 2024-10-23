@@ -564,25 +564,15 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
     if (maxUploadsToRemaining > 0) {
         const creationRequests: FilesCreateUploadRequestItem[] = [];
         const actualUploads: Upload[] = [];
-        const resumingUploads: Upload[] = [];
 
         for (const upload of batch) {
             if (upload.state !== UploadState.PENDING) continue;
-            if (creationRequests.length + resumingUploads.length >= maxUploadsToRemaining) break;
+            if (creationRequests.length >= maxUploadsToRemaining) break;
 
             const uploadType = upload.folderName ? "FOLDER" : "FILE";
             const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
                 upload.targetPath + "/" + upload.folderName :
                 upload.targetPath + "/" + upload.name;
-
-            const item = fetchValidUploadFromLocalStorage(fullFilePath);
-            if (item !== null) {
-                upload.uploadResponse = item.strategy;
-                upload.progressInBytes = item.offset;
-                resumingUploads.push(upload);
-                upload.state = UploadState.UPLOADING;
-                continue;
-            }
 
             upload.state = UploadState.UPLOADING;
             creationRequests.push({
@@ -595,7 +585,7 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
             actualUploads.push(upload);
         }
 
-        if (actualUploads.length + resumingUploads.length === 0) return;
+        if (actualUploads.length === 0) return;
 
         try {
             if (creationRequests.length > 0) {
@@ -609,7 +599,7 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 }
             }
 
-            for (const upload of [...actualUploads, ...resumingUploads]) {
+            for (const upload of actualUploads) {
                 processUpload(upload)
                     .then(() => {
                         upload.state = UploadState.DONE;
@@ -653,7 +643,7 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e) => {
+    const onSelectedFile = useCallback(async (e, isResuming = false) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -702,6 +692,22 @@ const Uploader: React.FunctionComponent = () => {
                         uploadEvents: []
                     });
                     break;
+                }
+            }
+
+            if (isResuming) {
+                const upload = allUploads.at(-1);
+                if (upload) {
+                    const path = uploadPath + "/" + upload.name;
+                    const item = fetchValidUploadFromLocalStorage(path);
+                    if (item !== null) {
+                        upload.uploadResponse = item.strategy;
+                        upload.progressInBytes = item.offset;
+                        upload.fileSizeInBytes = item.size;
+                        continue;
+                    }
+                } else {
+                    console.warn("Failed to find file");
                 }
             }
         }
@@ -762,7 +768,7 @@ const Uploader: React.FunctionComponent = () => {
     useEffect(() => {
         const matches = findResumableUploadsFromUploadPath(uploadPath);
         setPausedFilesInFolder(matches);
-    }, [uploadPath, lookForNewUploads]);
+    }, [uploadPath]);
 
 
     const hasUploads = uploads.length > 0;
@@ -775,9 +781,6 @@ const Uploader: React.FunctionComponent = () => {
     if (uploadTimings.timeRemaining !== 0) {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
-
-    const uploadFilePaths = uploads.map(it => it.name);
-    const resumables = pausedFilesInFolder.filter(it => !uploadFilePaths.includes(fileName(it)));
 
     return <ReactModal
         isOpen={uploaderVisible}
@@ -838,14 +841,14 @@ const Uploader: React.FunctionComponent = () => {
                         </div>
                     </label>
                 </Flex>
-                {resumables.length === 0 ? null :
+                {pausedFilesInFolder.length === 0 ? null :
                     <div style={{
                         marginBottom: "4px",
                         marginLeft: "8px",
                         marginRight: "4px"
                     }}>
-                        <Heading.h4>Drag files <b>here</b> to resume upload</Heading.h4>
-                        {resumables.map(it =>
+                        <Heading.h4>Resumable uploads</Heading.h4>
+                        {pausedFilesInFolder.map(it => {
                             const item = fetchValidUploadFromLocalStorage(it);
                             return <TaskRow
                                 key={it}
@@ -861,7 +864,10 @@ const Uploader: React.FunctionComponent = () => {
                                         id={"fileUploadBrowseResume"}
                                         type={"file"}
                                         style={{display: "none"}}
-                                        onChange={onSelectedFile}
+                                        onChange={e => {
+                                            setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                            onSelectedFile(e, true);
+                                        }}
                                     />
                                     <Icon cursor="pointer" title="Resume upload" name="play"
                                         color="primaryMain" mr="12px" />
@@ -871,7 +877,8 @@ const Uploader: React.FunctionComponent = () => {
                                     removeUploadFromStorage(it);
                                 }} />}
                                 progressInfo={{stopped: true, indeterminate: true, limit: 1, progress: 0}}
-                            />)}
+                            />
+                        })}
                     </div>
                 }
             </div>
