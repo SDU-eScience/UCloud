@@ -63,10 +63,10 @@ dependencies {
     api("org.apache.logging.log4j:log4j-slf4j-impl:2.20.0")
     api("com.auth0:java-jwt:3.19.4")
 
-    api("org.postgresql:postgresql:42.2.27")
+    api("org.postgresql:postgresql:42.7.2")
     api("org.flywaydb:flyway-core:5.2.4")
 
-    val jasyncVersion = "2.1.24"
+    val jasyncVersion = "2.2.4"
     api("com.github.jasync-sql:jasync-common:$jasyncVersion")
     api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
     api("io.lettuce:lettuce-core:5.1.6.RELEASE")
