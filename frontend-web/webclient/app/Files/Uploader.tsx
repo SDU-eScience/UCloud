@@ -578,6 +578,7 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
             const item = fetchValidUploadFromLocalStorage(fullFilePath);
             if (item !== null) {
                 upload.uploadResponse = item.strategy;
+                upload.progressInBytes = item.offset;
                 resumingUploads.push(upload);
                 upload.state = UploadState.UPLOADING;
                 continue;
@@ -670,7 +671,7 @@ const Uploader: React.FunctionComponent = () => {
                         filesCompleted: 0,
                         filesDiscovered: 0,
                         state: UploadState.PENDING,
-                        conflictPolicy: "RENAME" as const,
+                        conflictPolicy: "RENAME",
                         targetPath: uploadPath,
                         fileFetcher: () => {
                             if (!didFetch) {
@@ -695,7 +696,7 @@ const Uploader: React.FunctionComponent = () => {
                         filesCompleted: 0,
                         filesDiscovered: 0,
                         state: UploadState.PENDING,
-                        conflictPolicy: "RENAME" as const,
+                        conflictPolicy: "RENAME",
                         targetPath: uploadPath,
                         initialProgress: 0,
                         uploadEvents: []
@@ -983,8 +984,8 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
     const stopped = upload.terminationRequested || !!upload.error;
 
-    const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
-    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
+    const right = `${sizeToString(upload.progressInBytes)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
