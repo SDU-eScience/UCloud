@@ -70,7 +70,7 @@ func WalletOwnerFromIds(username, projectId string) WalletOwner {
 		result.ProjectId = projectId
 	} else {
 		result.Type = WalletOwnerTypeUser
-		result.ProjectId = username
+		result.Username = username
 	}
 	return result
 }

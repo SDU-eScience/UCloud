@@ -13,9 +13,9 @@ import {default as JobsApi, InteractiveSession} from "@/UCloud/JobsApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {BulkResponse} from "@/UCloud";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {Terminal} from "xterm";
 
 export const Shell: React.FunctionComponent = () => {
-    const {termRef, terminal, fitAddon} = useXTerm();
     const params = useParams<{jobId: string, rank: string}>();
     const jobId = params.jobId!;
     const rank = params.rank!;
@@ -24,8 +24,6 @@ export const Shell: React.FunctionComponent = () => {
         bulkResponseOf()
     );
 
-    const [closed, setClosed] = useState<boolean>(false);
-    const [reconnect, setReconnect] = useState<number>(0);
     usePage(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`, SidebarTabId.APPLICATIONS);
 
     useEffect(() => {
@@ -35,10 +33,27 @@ export const Shell: React.FunctionComponent = () => {
     }, [jobId, rank]);
 
     const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
+    return <ShellWithSession sessionWithProvider={sessionWithProvider} />
+};
+
+export const ShellWithSession: React.FunctionComponent<{
+    sessionWithProvider: InteractiveSession | null;
+    autofit?: boolean;
+    xtermRef?: React.MutableRefObject<Terminal | null>;
+}> = ({sessionWithProvider, autofit, xtermRef}) => {
+    const {termRef, terminal, fitAddon} = useXTerm({autofit});
+    const [closed, setClosed] = useState<boolean>(false);
+    const [reconnect, setReconnect] = useState<number>(0);
     let sessionIdentifier: string | null = null;
     if (sessionWithProvider?.session?.type === "shell") {
         sessionIdentifier = sessionWithProvider.session.sessionIdentifier;
     }
+
+    useEffect(() => {
+        if (xtermRef) {
+            xtermRef.current = terminal;
+        }
+    }, [xtermRef, terminal]);
 
     useEffect(() => {
         if (sessionIdentifier === null || sessionWithProvider === null) return;
@@ -46,7 +61,7 @@ export const Shell: React.FunctionComponent = () => {
         setClosed(false);
 
         const wsConnection = WSFactory.open(
-                `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}&usernameHint=${b64EncodeUnicode(Client.activeUsername!)}`,
+            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}&usernameHint=${b64EncodeUnicode(Client.activeUsername!)}`,
             {
                 reconnect: false,
                 includeAuthentication: false,
@@ -110,7 +125,6 @@ export const Shell: React.FunctionComponent = () => {
 
     return <TermAndShellWrapper addPadding>
         {!closed ? null : (
-            // NOTE(Dan): Theme cannot change in practice, as a result we can safely use the stored value
             <div className={`warn`}>
                 <Box flexGrow={1}>Your connection has been closed!</Box>
                 <Button ml={"16px"} onClick={() => {
@@ -121,6 +135,6 @@ export const Shell: React.FunctionComponent = () => {
 
         <div className={"contents"} ref={termRef} />
     </TermAndShellWrapper>;
-};
+}
 
 export default Shell;

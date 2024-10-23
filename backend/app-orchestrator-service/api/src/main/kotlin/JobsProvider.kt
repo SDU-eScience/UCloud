@@ -990,6 +990,16 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         typeOfIfPossible<CommonErrorMessage>(),
     )
 
+    val openTerminalInFolder = call(
+        "openTerminalInFolder",
+        BulkRequest.serializer(JobsOpenTerminalInFolderRequestItem.serializer()),
+        BulkResponse.serializer(OpenSession.serializer()),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpUpdate(baseContext, "openTerminalInFolder")
+        }
+    )
+
     @UCloudApiExperimental(ExperimentalLevel.BETA)
     @Deprecated("No longer in use. Will likely be replaced by a better endpoint.")
     val retrieveUtilization = call("retrieveUtilization", JobsProviderUtilizationRequest.serializer(), JobsProviderUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {

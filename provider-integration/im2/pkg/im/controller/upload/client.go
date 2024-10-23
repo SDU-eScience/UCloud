@@ -457,11 +457,11 @@ func ProcessClient(
 			bytesTransferred += w.BytesTransferred.Load()
 		}
 
-		filesPerSecond = smoothMeasure(filesPerSecond, float64(filesCompleted-lastFilesCompleted)/dt.Seconds())
+		filesPerSecond = util.SmoothMeasure(filesPerSecond, float64(filesCompleted-lastFilesCompleted)/dt.Seconds())
 
 		f := float64(bytesTransferred - lastBytesTransferred)
 		seconds := dt.Seconds()
-		bytesPerSecond = smoothMeasure(bytesPerSecond, f/seconds)
+		bytesPerSecond = util.SmoothMeasure(bytesPerSecond, f/seconds)
 
 		lastFilesCompleted = filesCompleted
 		lastBytesTransferred = bytesTransferred
@@ -471,7 +471,7 @@ func ProcessClient(
 			totalFilesCompletedServer += f
 		}
 
-		readableSpeed := sizeToHumanReadableWithUnit(bytesPerSecond)
+		readableSpeed := util.SizeToHumanReadableWithUnit(bytesPerSecond)
 
 		if status != nil {
 			percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
@@ -479,8 +479,8 @@ func ProcessClient(
 				percentage = -1
 			}
 
-			readableDataTransferred := sizeToHumanReadableWithUnit(float64(bytesTransferred))
-			readableDiscoveredDataSize := sizeToHumanReadableWithUnit(float64(bytesDiscovered))
+			readableDataTransferred := util.SizeToHumanReadableWithUnit(float64(bytesTransferred))
+			readableDiscoveredDataSize := util.SizeToHumanReadableWithUnit(float64(bytesDiscovered))
 
 			newStatus := &orc.TaskStatus{
 				State: orc.TaskStateRunning,
@@ -650,52 +650,4 @@ func CloseSessionFromClient(session ClientSession) bool {
 	}
 
 	return true
-}
-
-type readableSize struct {
-	Size float64
-	Unit string
-}
-
-func sizeToHumanReadableWithUnit(bytes float64) readableSize {
-	if bytes < 1000 {
-		return readableSize{
-			Size: bytes, Unit: "B",
-		}
-	} else if bytes < 1000*1000 {
-		return readableSize{
-			Size: bytes / 1000,
-			Unit: "KB",
-		}
-	} else if bytes < 1000*1000*1000 {
-		return readableSize{
-			Size: bytes / (1000 * 1000),
-			Unit: "MB",
-		}
-	} else if bytes < 1000*1000*1000*1000 {
-		return readableSize{
-			Size: bytes / (1000 * 1000 * 1000),
-			Unit: "GB",
-		}
-	} else if bytes < 1000*1000*1000*1000*1000 {
-		return readableSize{
-			Size: bytes / (1000 * 1000 * 1000 * 1000),
-			Unit: "TB",
-		}
-	} else if bytes < 1000*1000*1000*1000*1000*1000 {
-		return readableSize{
-			Size: bytes / (1000 * 1000 * 1000 * 1000 * 1000),
-			Unit: "PB",
-		}
-	} else {
-		return readableSize{
-			Size: bytes / (1000 * 1000 * 1000 * 1000 * 1000 * 1000),
-			Unit: "EB",
-		}
-	}
-}
-
-func smoothMeasure(old, new float64) float64 {
-	const smoothing = 0.5
-	return (new * smoothing) + (old * (1.0 - smoothing))
 }

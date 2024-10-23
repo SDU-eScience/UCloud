@@ -1,25 +1,36 @@
 import * as React from "react";
-import {useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
-import {useCallback, useEffect, useRef, useMemo} from "react";
+import {TerminalTab, useTerminalDispatcher, useTerminalState} from "@/Terminal/State";
+import {useCallback, useEffect, useRef, useMemo, useState} from "react";
 import {Icon} from "@/ui-components";
-import {appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
+import {XtermHook, appendToXterm, useXTerm} from "@/Applications/Jobs/XTermLib";
 import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
+import {useParams} from "react-router";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {BulkResponse} from "@/UCloud";
+import JobsApi, {InteractiveSession} from "@/UCloud/JobsApi";
+import {bulkRequestOf, bulkResponseOf, shortUUID} from "@/UtilityFunctions";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {ShellWithSession} from "@/Applications/Jobs/Shell";
+import {Terminal} from "xterm";
+import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
+import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 
 const Wrapper = injectStyle("wrapper", k => `
     ${k} {
         --tc-pad: 16px;
-        width: calc(100vw - 190px);
+        width: calc(100vw - var(--currentSidebarStickyWidth));
         height: var(--termsize, 0px);
         background: var(--backgroundDefault);
         color: var(--textPrimary);
         position: fixed;
-        left: 190px;
+        bottom: 0;
+        left: var(--currentSidebarStickyWidth);
         padding-left: var(--tc-pad);
         padding-right: var(--tc-pad);
         user-select: none;
         -webkit-user-select: none;
-        z-index: 9999999999;
         font-family: 'Jetbrains Mono', 'Ubuntu Mono', courier-new, courier, monospace;
     }
 
@@ -77,7 +88,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     const state = useTerminalState();
     const dispatch = useTerminalDispatcher();
-    const {termRef, terminal, fitAddon} = useXTerm();
 
     const termSizeSaved = useRef<number>(400);
 
@@ -87,36 +97,8 @@ export const TerminalContainer: React.FunctionComponent = () => {
     }, []);
 
     useEffect(() => {
-        setTimeout(() => {
-            appendToXterm(terminal, "┌── Welcome ───────────────────────────────────────────────────────────────────┐\n");
-            appendToXterm(terminal, "│                 Welcome to the DeiC Large Memory HPC system                  │\n");
-            appendToXterm(terminal, "├── Information ───────────────────────────────────────────────────────────────┤\n");
-            appendToXterm(terminal, "│ eScience Center: https://escience.sdu.dk                                     │\n");
-            appendToXterm(terminal, "│ Service desk: https://servicedesk.cloud.sdu.dk                               │\n");
-            appendToXterm(terminal, "│ Documentation: https://docs.hpc-type3.sdu.dk                                 │\n");
-            appendToXterm(terminal, "│                                                                              │\n");
-            appendToXterm(terminal, "├── Software ──────────────────────────────────────────────────────────────────┤\n");
-            appendToXterm(terminal, "│ Use 'module spider' to see the installed software                            │\n");
-            appendToXterm(terminal, "│ Use 'myquota' to see your available resources                                │\n");
-            appendToXterm(terminal, "│                                                                              │\n");
-            appendToXterm(terminal, "├── System Update ─────────────────────────────────────────────────────────────┤\n");
-            appendToXterm(terminal, "│ Welcome back to the new and improved Hippo cluster!                          │\n");
-            appendToXterm(terminal, "│                                                                              │\n");
-            appendToXterm(terminal, "│ Please check the link below for an overview of changes.                      │\n");
-            appendToXterm(terminal, "│ https://docs.hpc-type3.sdu.dk/help/updates.html                              │\n");
-            appendToXterm(terminal, "│                                                                              │\n");
-            appendToXterm(terminal, "│ If you experience any issues, please contact our service desk.               │\n");
-            appendToXterm(terminal, "│                                                                              │\n");
-            appendToXterm(terminal, "└──────────────────────────────────────────────────────────────────────────────┘\n");
-            appendToXterm(terminal, "Last login: Wed Oct  5 09:03:35 2022 from 0.0.0.0\n");
-            appendToXterm(terminal, "[dthrane@hippo-fe ~]$ ")
-        }, 3000);
-    }, []);
-
-    useEffect(() => {
         if (state.open) {
             document.body.style.setProperty("--termsize", `${termSizeSaved.current}px`);
-            fitAddon.fit();
         } else {
             if (state.tabs.length === 0) {
                 document.body.style.setProperty("--termsize", "0px");
@@ -139,7 +121,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
     const onDragStart = useCallback(() => {
         document.body.addEventListener("mousemove", mouseMoveHandler);
         document.body.addEventListener("mouseup", mouseUpHandler);
-        fitAddon.fit();
     }, []);
 
     const toggle = useCallback(() => {
@@ -188,6 +169,55 @@ export const TerminalContainer: React.FunctionComponent = () => {
             </div>
         </div>
 
-        <div className={"contents"} ref={termRef} />
+        {state.tabs.map((tab, idx) =>
+            <IndividualTerminal key={tab.uniqueId ?? idx.toString()} tab={tab} hidden={state.activeTab !== idx} />
+        )}
     </div>;
 };
+
+const IndividualTerminal: React.FunctionComponent<{ tab: TerminalTab, hidden: boolean }> = props => {
+    const [size, setSize] = useState<[number, number]>([80, 40]);
+    const terminal = useRef<Terminal | null>(null);
+    const [sessionResp, openSession] = useCloudAPI<BulkResponse<InteractiveSession>>(
+        {noop: true},
+        bulkResponseOf()
+    );
+
+    useEffect(() => {
+        openSession(JobsApi.openTerminalInFolder(
+            bulkRequestOf({folder: props.tab.folder}))
+        );
+    }, [props.tab.folder]);
+
+    useEffect(() => {
+        const i = window.setInterval(() => {
+            let cssPropertyValue = getCssPropertyValue(CSSVarCurrentSidebarStickyWidth);
+            let stickySidebar = parseInt(cssPropertyValue);
+            if (isNaN(stickySidebar)) stickySidebar = 0;
+            const width = window.innerWidth - stickySidebar;
+
+            let termHeight = parseInt(getCssPropertyValue("--termsize"));
+            if (isNaN(termHeight)) termHeight = 0;
+            termHeight -= 64;
+
+            const cols = Math.floor(width / 10);
+            const rows = Math.floor(termHeight / 20);
+
+            setSize([cols, rows]);
+        }, 100);
+
+        return () => {
+            window.clearInterval(i);
+        }
+    }, []);
+
+    useEffect(() => {
+        const [cols, rows] = size;
+        terminal.current?.resize(cols, rows);
+    }, [size[0], size[1]]);
+
+    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
+    return <div style={{display: props.hidden ? "none" : "block"}}>
+        <ShellWithSession sessionWithProvider={sessionWithProvider} xtermRef={terminal} autofit={false} />;
+    </div>;
+}

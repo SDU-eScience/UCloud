@@ -3,17 +3,34 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
 	"ucloud.dk/pkg/im/external/gpfs"
+	"ucloud.dk/pkg/util"
 
 	"ucloud.dk/pkg/im/launcher"
 	"ucloud.dk/pkg/termio"
 )
 
 func main() {
-	exeName := os.Args[0]
+	exeName := util.FileName(os.Args[0])
 	if exeName == "gpfs-mock" {
 		gpfs.RunMockServer()
+		return
+	}
+
+	if exeName == "limiter" {
+		limiter := util.NewCpuLimiter(20.0, 0.0)
+
+		output, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0)
+		cmd := exec.Command("/usr/bin/yes")
+		cmd.Stdout = output
+		cmd.Stderr = output
+
+		_ = cmd.Start()
+		limiter.Watch(int32(cmd.Process.Pid))
+
+		_ = cmd.Wait()
 		return
 	}
 

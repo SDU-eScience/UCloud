@@ -169,6 +169,8 @@ class AccountingSystem(
     private val toCheck = ArrayList<Int>()
     private var nextRetirementScan = 0L
 
+    private var waitingOn = ""
+
     private suspend fun processMessages(lock: DistributedLock) {
         val didAcquire = disableMasterElection || lock.acquire()
         if (!didAcquire) return
@@ -195,9 +197,10 @@ class AccountingSystem(
                             processPeriodicTasks()
 
                             toCheck.clear()
-                            val timeoutTime = 1000L
+                            val timeoutTime = 2000L
+                            waitingOn = ""
                             var response = try {
-                                withTimeout(timeoutTime) {
+                                withHardTimeout(timeoutTime, { request.message.toString() + "\nWaiting on:" + waitingOn }) {
                                     when (val msg = request.message) {
                                         is AccountingRequest.Charge -> charge(msg)
                                         is AccountingRequest.RootAllocate -> rootAllocate(msg)
@@ -307,7 +310,9 @@ class AccountingSystem(
     private suspend fun fillUpPersonalProviderProject(msg: AccountingRequest.FillUpPersonalProviderProject): Response<Unit> {
         if (msg.idCard != IdCard.System) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
 
+        waitingOn = "productIds"
         val productIds = productCache.productProviderToProductIds(msg.provider) ?: return Response.ok(Unit)
+        waitingOn = "productIds to categories"
         val categories = productIds
             .mapNotNull { productCache.productIdToProduct(it) }
             .map { it.category.toId() }
@@ -365,7 +370,8 @@ class AccountingSystem(
     }
 
     private suspend fun processPeriodicTasks() {
-        withTimeout(15_000) {
+        waitingOn = "persistence"
+        withHardTimeout(15_000, { "persistence.flushChanges()" }) {
             persistence.flushChanges()
         }
 
@@ -378,6 +384,7 @@ class AccountingSystem(
 
     private suspend fun renewLock(lock: DistributedLock): Boolean {
         if (!disableMasterElection) {
+            waitingOn = "lock renewal"
             if (!lock.renew(90_000)) {
                 log.warn("Lock was lost")
                 isActiveProcessor.set(false)
@@ -398,6 +405,8 @@ class AccountingSystem(
     private suspend fun findOwner(owner: String): InternalOwner? {
         val ref = ownersByReference[owner]
         if (ref != null) return ref
+
+        waitingOn = "findOwner"
         val isValid = if (InternalOwner.PROJECT_REGEX.matches(owner)) {
             idCardService.lookupPidFromProjectId(owner) != null
         } else {
@@ -419,6 +428,7 @@ class AccountingSystem(
         type: ActionType,
     ): InternalWallet? {
         val internalOwner = findOwner(owner) ?: return null
+        waitingOn = "productCategory"
         val productCategory = productCache.productCategory(categoryId) ?: return null
         val wallets = walletsByOwner.getOrPut(internalOwner.id) { ArrayList() }
         val existingWallet = wallets.find { it.category.toId() == categoryId }
@@ -426,10 +436,12 @@ class AccountingSystem(
         val ownerUid = if (internalOwner.isProject()) {
             null
         } else {
+            waitingOn = "lookupUidFromUsername"
             idCardService.lookupUidFromUsername(internalOwner.reference)
         }
 
         val ownerPid = if (internalOwner.isProject()) {
+            waitingOn = "lookupPidFromProjectId"
             idCardService.lookupPidFromProjectId(internalOwner.reference)
         } else {
             null
@@ -472,6 +484,7 @@ class AccountingSystem(
 
             ActionType.ROOT_ALLOCATE -> {
                 if (idCard != IdCard.System) {
+                    waitingOn = "retrieveProviderProjectPid"
                     val providerPid = idCardService.retrieveProviderProjectPid(categoryId.provider)
                     if (providerPid == null) return null
                     if (idCard !is IdCard.User) return null
@@ -525,6 +538,7 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Cannot perform a root allocation to a personal workspace!")
         }
 
+        waitingOn = "lookupPid"
         val projectId = idCardService.lookupPid(idCard.activeProject)
             ?: return Response.error(HttpStatusCode.InternalServerError, "Could not lookup project from id card")
 
@@ -585,8 +599,10 @@ class AccountingSystem(
         // NOTE(Dan): Personal provider projects cannot sub-allocate (see #4328)
         val parentOwnerInfo = ownersById.getValue(internalParentWallet.ownedBy)
         if (parentOwnerInfo.isProject()) {
+            waitingOn = "lookupPidFromProjectId"
             val parentPid = idCardService.lookupPidFromProjectId(parentOwnerInfo.reference)
                 ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+            waitingOn = "lookupProjectInformation"
             val projectInfo = idCardService.lookupProjectInformation(parentPid)
                 ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
 
@@ -602,8 +618,10 @@ class AccountingSystem(
             return Response.error(HttpStatusCode.Forbidden, "Only projects are allowed to create sub-allocations")
         }
 
+        waitingOn = "lookupPidFromProjectId"
         val ownerPid = idCardService.lookupPidFromProjectId(owner.reference)
             ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
+        waitingOn = "lookupProjectInformation"
         val ownerProjectInfo = idCardService.lookupProjectInformation(ownerPid)
             ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
 
@@ -622,8 +640,10 @@ class AccountingSystem(
         val childOwner = ownersById.getValue(internalChild.ownedBy)
         if (ownerProjectInfo.canConsumeResources) {
             if (childOwner.isProject()) {
+                waitingOn = "lookupPidFromProjectId"
                 val childPid = idCardService.lookupPidFromProjectId(childOwner.reference)
                     ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
+                waitingOn = "lookupProjectInformation"
                 val childInfo = idCardService.lookupProjectInformation(childPid)
                     ?: return Response.error(HttpStatusCode.InternalServerError, "Unknown project")
 
@@ -941,6 +961,7 @@ class AccountingSystem(
             if (wallet.allocationsByParent.isEmpty()) continue
 
             if (wallet.lastSignificantUpdateAt > request.since) {
+                waitingOn = "forEachWallet handler"
                 request.handler(wallet)
             }
         }
@@ -959,8 +980,10 @@ class AccountingSystem(
         // NOTE(Dan): Charges for personal provider projects are ignored (see #4328)
         val owner = ownersById.getValue(wallet.ownedBy)
         if (owner.isProject()) {
+            waitingOn = "lookupPidFromProjectId"
             val pid = idCardService.lookupPidFromProjectId(owner.reference)
                 ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
+            waitingOn = "lookupProjectInformation"
             val projectInfo = idCardService.lookupProjectInformation(pid)
                 ?: return Response.error(HttpStatusCode.InternalServerError, "unable to lookup project info")
 
@@ -1071,9 +1094,12 @@ class AccountingSystem(
                         val parentWallet = walletsById.getValue(parentWalletId)
                         val parentOwner = ownersById.getValue(parentWallet.ownedBy)
                         val parentIsProject = parentOwner.isProject()
+
+                        waitingOn = "parentPid"
                         val parentPid =
                             if (parentIsProject) idCardService.lookupPidFromProjectId(parentOwner.reference)
                             else null
+                        waitingOn = "lookupProjectInformation"
                         val parentProjectInfo = parentPid?.let { idCardService.lookupProjectInformation(parentPid) }
 
                         ParentOrChildWallet(
@@ -1095,9 +1121,11 @@ class AccountingSystem(
                         val childWallet = walletsById.getValue(childWalletId)
                         val childOwner = ownersById.getValue(childWallet.ownedBy)
                         val childIsProject = childOwner.isProject()
+                        waitingOn = "lookupPidFromProjectId"
                         val childPid =
                             if (childIsProject) idCardService.lookupPidFromProjectId(childOwner.reference)
                             else null
+                        waitingOn = "childProjectInfo"
                         val childProjectInfo = childPid?.let { idCardService.lookupProjectInformation(childPid) }
 
                         val group = childWallet.allocationsByParent.getValue(wallet.id)
@@ -1361,6 +1389,7 @@ class AccountingSystem(
     }
 
     private suspend fun lookupOwner(idCard: IdCard): String? {
+        waitingOn = "lookupOwner"
         if (idCard !is IdCard.User) return null
         if (idCard.activeProject != 0) {
             return idCardService.lookupPid(idCard.activeProject)
@@ -1456,6 +1485,7 @@ class AccountingSystem(
     private suspend fun findRelevantProviders(
         request: AccountingRequest.FindRelevantProviders,
     ): Response<Set<String>> {
+        waitingOn = "fetchIdCard"
         val idCard = idCardService.fetchIdCard(
             ActorAndProject(Actor.SystemOnBehalfOfUser(request.username), request.project)
         )
@@ -1467,6 +1497,7 @@ class AccountingSystem(
             )
         }
 
+        waitingOn = "lookupUid"
         val username = idCardService.lookupUid(idCard.uid)
             ?: return Response.error(HttpStatusCode.InternalServerError, "Could not find user info")
 
@@ -1480,6 +1511,7 @@ class AccountingSystem(
             if (idCard.activeProject == 0) {
                 setOf(username)
             } else {
+                waitingOn = "lookupPid"
                 setOf(idCardService.lookupPid(idCard.activeProject)!!)
             }
         }
@@ -1508,6 +1540,7 @@ class AccountingSystem(
     ): Response<Set<String>> {
         val result = HashSet<String>()
 
+        waitingOn = "productCache.products()"
         for (product in productCache.products()) {
             if (request.filterProductType != null && product.productType != request.filterProductType)  {
                 continue

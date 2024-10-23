@@ -277,7 +277,7 @@ class Studio(
 
             applications[key] = app.copy(
                 metadata = app.metadata.copy(
-                    groupId = currentGroup?.id
+                    groupId = newGroup?.id
                 )
             )
         }

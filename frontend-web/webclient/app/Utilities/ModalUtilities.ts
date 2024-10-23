@@ -18,6 +18,23 @@ export const largeModalStyle: ReactModal.Styles = {
     }
 };
 
+export const fullScreenModalStyle: ReactModal.Styles = {
+    content: {
+        borderRadius: "6px",
+        width: "94vw",
+        height: "94vh",
+        position: "fixed",
+        left: "3vw",
+        top: "3vh",
+        outline: "none",
+        overflow: "auto",
+        padding: 0,
+    },
+    overlay: {
+        backgroundColor: "var(--modalShadow)",
+    }
+}
+
 export const defaultModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",

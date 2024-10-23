@@ -33,9 +33,9 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
     ${k} > .warn {
         position: fixed;
         bottom: 0;
-        left: 0;
+        left: var(--currentSidebarStickyWidth);
         z-index: 1000000;
-        width: 100vw;
+        width: calc(100vw - var(--currentSidebarStickyWidth));
         display: flex;
         padding: 16px;
         align-items: center;

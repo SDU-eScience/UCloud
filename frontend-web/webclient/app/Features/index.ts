@@ -15,7 +15,8 @@ export enum Feature {
 
     APP_CATALOG_FILTER,
 
-    NEW_TASKS
+    NEW_TASKS,
+    COMMAND_PALETTE
 }
 
 enum Environment {
@@ -65,18 +66,18 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithFlag: allLocalEnvironments,
+        showWithoutFlag: allLocalEnvironments,
     },
 
     "copy-app": {
         feature: Feature.COPY_APP_MOCKUP,
         showWithFlag: allDevEnvironments,
+        showWithoutFlag: allLocalEnvironments,
     },
 
     "component-stored-cut-copy": {
         feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "app-catalog-filter": {
@@ -94,7 +95,13 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.NEW_TASKS,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
-    }
+    },
+
+    "command-palette": {
+        feature: Feature.COMMAND_PALETTE,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
 };
 
 function getCurrentEnvironment(): Environment {

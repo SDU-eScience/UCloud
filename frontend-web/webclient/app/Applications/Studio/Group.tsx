@@ -40,7 +40,7 @@ import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
 export const AppGroup: React.FunctionComponent = () => {
     const id = parseInt(useParams<{ id: string }>().id ?? "-1");
 
-    const [group, fetchGroup] = useCloudAPI(AppStore.retrieveGroup({id}), null);
+    const [group, fetchGroup] = useCloudAPI(AppStore.retrieveStudioGroup({id}), null);
     const [filter, setFilter] = useState("");
     const [reloadId, setReloadId] = useState(0);
     const [appUploadError, setAppUploadErr] = useState<string | null>(null);
@@ -89,7 +89,7 @@ export const AppGroup: React.FunctionComponent = () => {
     };
 
     const refresh = useCallback(async () => {
-        fetchGroup(AppStore.retrieveGroup({id})).then(doNothing);
+        fetchGroup(AppStore.retrieveStudioGroup({id})).then(doNothing);
         fetchCategories();
         setReloadId(p => p + 1);
         fetchAppList(AppStore.listAllApplications({}));

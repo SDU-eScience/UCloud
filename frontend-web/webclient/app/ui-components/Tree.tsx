@@ -16,6 +16,7 @@ export enum TreeAction {
 
 export interface TreeApi {
     activate: () => void;
+    deactivate: () => void;
     isActive: () => boolean;
 }
 
@@ -152,9 +153,9 @@ export const Tree: React.FunctionComponent<{
             if (ev.defaultPrevented) return;
             if (!isActive()) return;
 
-            let action: TreeAction | null = KEY_MAP[ev.code];
+            let action: TreeAction | undefined = KEY_MAP[ev.code];
 
-            if (action === null) {
+            if (action === undefined) {
                 if (props.unhandledShortcut) {
                     const row = visibleRows().find(it => it.hasAttribute("data-selected"));
                     if (row) props.unhandledShortcut(row, ev);
@@ -174,6 +175,10 @@ export const Tree: React.FunctionComponent<{
                     root?.current?.setAttribute("data-active", "");
                     handleAction(TreeAction.GO_TO_TOP);
                 },
+                deactivate: () => {
+                    document.body.querySelectorAll(`.${TreeClass}[data-active]`)
+                        .forEach(tree => tree.removeAttribute("data-active"));
+                },
                 isActive,
             };
         }
@@ -182,7 +187,7 @@ export const Tree: React.FunctionComponent<{
         return () => {
             document.body.removeEventListener("keydown", handler);
         }
-    }, [props.apiRef]);
+    }, [props.apiRef, props.onAction]);
 
     return <div ref={root} className={TreeClass}>
         <div data-open={""}>
@@ -239,7 +244,7 @@ export const TreeNode: React.FunctionComponent<{
     children?: React.ReactNode;
     className?: string;
     indent?: number;
-    onActivate?: (open: boolean) => void;
+    onActivate?: (open: boolean, element: HTMLElement) => void;
 }> = props => {
     const ref = useRef<HTMLDivElement>(null);
     const style: CSSProperties = {};
@@ -274,8 +279,8 @@ export const TreeNode: React.FunctionComponent<{
         if (!div) return;
         activate();
         div.toggleAttribute("data-open");
-        props.onActivate?.(div.hasAttribute("data-open"));
-    }, []);
+        props.onActivate?.(div.hasAttribute("data-open"), div);
+    }, [props.onActivate]);
 
     return <div
         className={TreeNodeClass}

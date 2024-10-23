@@ -8,9 +8,11 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -24,6 +26,9 @@ import (
 var Machines []apm.ProductV2
 var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
+
+var jobNameUnsafeRegex *regexp.Regexp = regexp.MustCompile(`[^\w ():_-]`)
+var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
 
 func InitCompute() ctrl.JobsService {
 	loadComputeProducts()
@@ -148,7 +153,6 @@ func loopComputeMonitoring() {
 
 	batch := ctrl.BeginJobUpdates()
 	activeJobs := batch.GetJobs()
-	defer batch.End()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -160,6 +164,8 @@ func loopComputeMonitoring() {
 		jobsBySlurmId[parsed.SlurmId] = jobId
 	}
 
+	unknownJobs := []*slurmcli.Job{}
+
 	for _, job := range jobs {
 		stateInfo, ok := slurmToUCloudState[job.State]
 		if !ok {
@@ -168,6 +174,9 @@ func loopComputeMonitoring() {
 
 		ucloudId, ok := jobsBySlurmId[job.JobID]
 		if !ok {
+			if orc.JobState(job.State) == orc.JobStateInQueue || orc.JobState(job.State) == orc.JobStateRunning {
+				unknownJobs = append(unknownJobs, &job)
+			}
 			continue
 		}
 
@@ -179,6 +188,85 @@ func loopComputeMonitoring() {
 			}
 		}
 	}
+
+	// Register unknown jobs
+	toRegister := []orc.ProviderRegisteredResource[orc.JobSpecification]{}
+	for _, slurmJob := range unknownJobs {
+		if slurmJob.Account == "" {
+			continue
+		}
+
+		slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
+
+		if !slurmCfg.Present {
+			continue
+		}
+
+		desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
+		safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
+
+		timeAllocation := util.Option[orc.SimpleDuration]{}
+		timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
+
+		createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
+		projectId := util.Option[string]{}
+
+		if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
+			projectId.Set(slurmCfg.Value.Owner.ProjectId)
+		}
+
+		providerJobId := util.Option[string]{
+			Value: parsedProviderJobId{
+				BelongsToAccount: slurmJob.Account,
+				SlurmId:          slurmJob.JobID,
+			}.String(),
+			Present: true,
+		}
+
+		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
+			Spec: orc.JobSpecification{
+				Name:                  safeName,
+				Application:           unknownApplication,
+				ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
+				Replicas:              slurmCfg.Value.EstimatedNodeCount,
+				Parameters:            make(map[string]orc.AppParameterValue),
+				Resources:             []orc.AppParameterValue{},
+				TimeAllocation:        timeAllocation,
+			},
+			ProviderGeneratedId: providerJobId,
+			CreatedBy:           createdBy,
+			Project:             projectId,
+		}
+
+		toRegister = append(toRegister, newJobResource)
+	}
+	batch.End()
+
+	for _, chunk := range util.ChunkBy(toRegister, 100) {
+		if len(chunk) > 0 {
+			response, err := orc.RegisterJobs(
+				fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
+					Items: chunk,
+				},
+			)
+
+			if err != nil {
+				log.Warn("Error while registering jobs: %s", err.Error())
+			}
+
+			for _, registeredJob := range response.Responses {
+				job, err := orc.RetrieveJob(registeredJob.Id, orc.BrowseJobsFlags{})
+
+				if err != nil {
+					log.Warn("Error while retrieving job: %s", err.Error())
+				}
+
+				ctrl.TrackNewJob(job)
+			}
+
+		}
+	}
+
 }
 
 type ucloudStateInfo struct {

@@ -10,6 +10,7 @@ import {Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {doNothing} from "@/UtilityFunctions";
 
 export function networkIPResourceAllowed(app: Application): boolean {
     return app.invocation.allowPublicIp;
@@ -66,6 +67,8 @@ export const NetworkIPResource: React.FunctionComponent<{
                     <Widget
                         provider={provider}
                         parameter={entry}
+                        application={application}
+                        injectWorkflowParameters={doNothing}
                         errors={errors}
                         setErrors={setErrors}
                         onRemove={() => {

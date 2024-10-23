@@ -64,7 +64,7 @@ import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api
 import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
@@ -82,7 +82,8 @@ import {
     FilesCreateFolderRequestItem,
     FilesCreateUploadRequestItem,
     FilesEmptyTrashRequestItem,
-    FilesMoveRequestItem, FilesTransferRequestItem,
+    FilesMoveRequestItem,
+    FilesTransferRequestItem,
     FilesTrashRequestItem,
     UFile,
     UFileIncludeFlags,
@@ -106,6 +107,7 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+    isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
@@ -376,6 +378,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "upload",
                 primary: true,
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -403,6 +406,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "uploadFolder",
                 primary: true,
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     if (selected.length !== 0 || cb.startCreation == null) return false;
                     if (cb.isCreating) return "You are already creating a folder";
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -433,9 +437,22 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 shortcut: ShortcutKey.O
             },
             {
+                text: "Go to parent folder",
+                icon: "ftFolder",
+                enabled(selected, cb) {
+                    return selected.length === 1 && !cb.isModal && !cb.embedded && cb.isSearch;
+                },
+                onClick(selected, extra, all) {
+                    const [file] = selected;
+                    extra.navigate(AppRoutes.files.path(getParentPath(file.id)));
+                },
+                shortcut: ShortcutKey.P,
+            },
+            {
                 text: "Rename",
                 icon: "rename",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -479,6 +496,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Copy to...",
                 enabled: (selected, cb) =>
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
+                    !cb.isSearch &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
@@ -528,6 +546,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Transfer to...",
                 enabled: (selected, cb) =>
                     hasFeature(Feature.TRANSFER_TO) &&
+                    !cb.isSearch &&
                     (cb.isModal !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
@@ -580,6 +599,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "move",
                 text: "Move to...",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -670,6 +690,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
+                    if (cb.isSearch) return false;
                     if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
                         return false;
                     }
@@ -745,7 +766,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 // Item row synchronization
                 text: synchronizationOpText,
                 icon: "refresh",
-                enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
+                enabled: (selected, cb) => !cb.isSearch && synchronizationOpEnabled(false, selected, cb),
                 onClick: (selected, cb) => {
                     synchronizationOpOnClick(selected, cb)
                 },
@@ -755,10 +776,20 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Open terminal",
                 primary: true,
                 icon: "terminalSolid",
-                enabled: () => hasFeature(Feature.INLINE_TERMINAL),
+                enabled: (selected, cb) => {
+                    let support = cb.collection?.status?.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.length > 0) return false;
+                    if (!hasFeature(Feature.INLINE_TERMINAL)) return false;
+                    return (support as FileCollectionSupport).files.openInTerminal === true;
+                },
                 onClick: (selected, cb) => {
+                    const providerId = cb.collection?.status?.resolvedProduct?.category?.provider ?? "";
+                    const providerTitle = getProviderTitle(providerId);
+                    const folder = cb.directory?.id ?? "/";
+
                     cb.dispatch({type: "TerminalOpen"});
-                    cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
+                    cb.dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
                 },
                 shortcut: ShortcutKey.O
             },
@@ -768,6 +799,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 confirm: true,
                 color: "errorMain",
                 enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if ((support as FileCollectionSupport).files.isReadOnly) {
@@ -1168,6 +1200,7 @@ async function getMonaco(): Promise<any> {
 }
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
+const EXPECTED_BINARY_FORMATS = ["mpeg", "m2p", "vob", "mpg"];
 
 export function FilePreview({file, contentRef}: {
     file: UFile,
@@ -1207,10 +1240,19 @@ export function FilePreview({file, contentRef}: {
                 const contentBlob = await content.blob();
                 const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
 
-                const foundFileType = fileType(contentBuffer);
+                const foundFileType = fileType(contentBuffer).filter(it => it.mime);
+                const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
+                const text = tryDecodeText(contentBuffer);
+
+                const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
+
                 if (contentRef) contentRef.current = contentBuffer;
-                if (foundFileType.length === 0) {
-                    const text = tryDecodeText(contentBuffer);
+
+                if (!correctExtension && isMisidentifiedAsBinaryFormat) {
+                    setType("text");
+                    setData(text);
+                    setError(null);
+                } else if (foundFileType.length === 0) {
                     if (text !== null) {
                         setType("text");
                         setData(text);

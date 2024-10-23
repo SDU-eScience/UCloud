@@ -48,6 +48,7 @@ type FSSupport struct {
 		SearchSupported          bool `json:"searchSupported"`
 		StreamingSearchSupported bool `json:"streamingSearchSupported"`
 		SharesSupported          bool `json:"sharesSupported"`
+		OpenInTerminal           bool `json:"openInTerminal"`
 	} `json:"files"`
 }
 

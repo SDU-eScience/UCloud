@@ -4,15 +4,15 @@ import bgImageInverted from "@/Assets/Images/background_polygons_inv.png";
 
 export const GradientWithPolygons = injectStyle("polygon-background", k => `
     ${k} {
-        background-image: url(${bgImage});
+        background-image: url(${bgImageInverted});
         background-repeat: repeat;
         background-size: 816px 1028px;
         color: var(--textPrimary);
         min-height: 100vh;
     }
     
-    html.dark ${k} {
-        background-image: url(${bgImageInverted});
+    html.light ${k}:not(.dark) {
+        background-image: url(${bgImage});
     }
     
     html ${k} #search-icon,

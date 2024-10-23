@@ -3,8 +3,8 @@ package slurm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"golang.org/x/sys/unix"
 	"io"
 	"io/fs"
 	"math"
@@ -17,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/controller/upload"
@@ -393,8 +395,6 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		defer util.SilentClose(file)
 
 		if err != nil {
-			// TODO(Dan): Group membership is cached in Linux. We may need to trigger a restart of the IM if the user
-			//   was just added to the project. See the current Kotlin implementation for more details.
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
 				Why:        "Could not find directory",
@@ -582,20 +582,6 @@ func moveFiles(request ctrl.MoveFileRequest) error {
 	return doMoveFiles(request.OldPath, request.NewPath, request.Policy)
 }
 
-func copyFiles(request ctrl.CopyFileRequest) error {
-	task := TaskInfoSpecification{
-		Type:              FileTaskTypeCopy,
-		CreatedAt:         fnd.Timestamp(time.Now()),
-		UCloudSource:      util.OptValue(request.OldPath),
-		UCloudDestination: util.OptValue(request.NewPath),
-		ConflictPolicy:    request.Policy,
-		HasUCloudTask:     true,
-		Icon:              "copy",
-	}
-
-	return RegisterTask(task)
-}
-
 func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	task := TaskInfoSpecification{
 		Type:          FileTaskTypeEmptyTrash,
@@ -650,127 +636,111 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 	return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
 }
 
-func copyFolder(sourcePath string, destPath string) error {
-	sourceFileFd, err := unix.Open(sourcePath, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return err
-	}
-	sourceFile := os.NewFile(uintptr(sourceFileFd), sourcePath)
-	defer util.SilentClose(sourceFile)
-
-	err = os.Mkdir(destPath, 0770)
-	if err != nil {
-		return err
-	}
-
-	// TODO(Dan): This could easily blow the stack, but I don't have time to fix it right now.
-	dirEntries, _ := sourceFile.ReadDir(0)
-	for _, entry := range dirEntries {
-		if entry.IsDir() {
-			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
-			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
-			_ = copyFolder(newSource, newDest)
-		} else {
-			newSource := fmt.Sprintf("%s/%s", sourcePath, entry.Name())
-			newDest := fmt.Sprintf("%s/%s", destPath, entry.Name())
-
-			source, err := os.Open(newSource)
-			if err != nil {
-				continue
-			}
-			dest, err := os.Create(newDest)
-			if err != nil {
-				util.SilentClose(source)
-				continue
-			}
-
-			_, err = io.Copy(dest, source)
-			util.SilentClose(source)
-			util.SilentClose(dest)
-
-			if err != nil {
-				log.Warn("Failed to copy file: %s -> %s (err = %s)", newSource, newDest, err)
-			}
-		}
-	}
-
-	return nil
+type discoveredFile struct {
+	InternalPath   string
+	FileDescriptor *os.File
+	FileInfo       os.FileInfo
+	LinkTo         string
 }
 
-func processCopyTask(task *TaskInfo) TaskProcessingResult {
-	sourcePath, ok1 := UCloudToInternal(task.UCloudSource.Value)
-	destPath, ok2 := UCloudToInternal(task.UCloudDestination.Value)
-	if !ok1 || !ok2 {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source or destination supplied"),
-		}
+func normalFileWalk(ctx context.Context, output chan discoveredFile, rootFile *os.File, rootFileInfo os.FileInfo) {
+	f := discoveredFile{
+		InternalPath:   "",
+		FileDescriptor: rootFile,
+		FileInfo:       rootFileInfo,
 	}
 
-	if task.ConflictPolicy == orc.WriteConflictPolicyRename {
-		newPath, err := findAvailableNameOnRename(destPath)
-		destPath = newPath
-
-		if err != nil {
-			return TaskProcessingResult{
-				Error: err,
-			}
-		}
+	select {
+	case <-ctx.Done():
+	case output <- f:
 	}
 
-	stat, err := os.Stat(sourcePath)
+	if !rootFileInfo.IsDir() {
+		return
+	}
+
+	dir, err := rootFile.Readdirnames(-1)
 	if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
-		}
+		return
 	}
 
-	err = func() error {
-		if stat.IsDir() {
-			return copyFolder(sourcePath, destPath)
-		} else {
-			source, err := os.Open(sourcePath)
-			defer util.SilentClose(source)
+	stack := dir
+
+outer:
+	for util.IsAlive && len(stack) > 0 {
+		select {
+		case <-ctx.Done():
+			break outer
+		default:
+			last := len(stack) - 1
+			entry := stack[last]
+			stack = stack[:last]
+
+			fd, err := unix.Openat(int(rootFile.Fd()), entry, unix.O_RDONLY|unix.O_NOFOLLOW, 0)
 			if err != nil {
-				return err
+				if errors.Is(err, unix.ELOOP) {
+					var stat unix.Stat_t
+					err = unix.Fstatat(int(rootFile.Fd()), entry, &stat, unix.AT_SYMLINK_NOFOLLOW)
+					if err != nil {
+						continue outer
+					}
+
+					bufSize := int(stat.Size)
+
+					// NOTE(Dan): This is one larger in order to be able to detect link target being truncated. We could
+					// in theory retry if it turns out that the link is changed between us reading the stat and the link
+					// being fetched, but this is not a case we truly care about. This function already gives undefined
+					// behavior in case you are actively changing the input.
+					buf := make([]byte, bufSize+1)
+
+					n, err := unix.Readlinkat(int(rootFile.Fd()), entry, buf)
+					if n == bufSize && err == nil {
+						df := discoveredFile{
+							InternalPath: entry,
+							LinkTo:       string(buf[:n]),
+						}
+
+						select {
+						case <-ctx.Done():
+							break outer
+						case output <- df:
+						}
+					}
+				}
+
+				continue outer
 			}
 
-			dest, err := os.Create(destPath)
-			defer util.SilentClose(dest)
+			file := os.NewFile(uintptr(fd), entry)
+			stat, err := file.Stat()
 			if err != nil {
-				return err
-			}
+				util.SilentClose(file)
+			} else {
+				df := discoveredFile{
+					InternalPath:   entry,
+					FileDescriptor: file,
+					FileInfo:       stat,
+				}
 
-			_, err = io.Copy(dest, source)
-			return err
-		}
-	}()
+				if stat.IsDir() {
+					// NOTE(Dan): Ignore errors and just continue. The consumer is left to handle
+					// this edge-case.
+					children, err := file.Readdirnames(-1)
+					if err == nil {
+						for _, child := range children {
+							stack = append(stack, entry+"/"+child)
+						}
+					}
+				}
 
-	if err != nil {
-		parentPath := util.Parent(destPath)
-		parentStat, err := os.Stat(parentPath)
-		if err != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to copy file. Could not find destination!"),
+				select {
+				case <-ctx.Done():
+					break outer
+				case output <- df:
+				}
 			}
-		} else if !parentStat.IsDir() {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to copy file. Destination is not a directory!"),
-			}
-		}
-
-		_, err = os.Stat(destPath)
-		if err == nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to copy file. Destination already exists!"),
-			}
-		}
-
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Unable to copy file."),
 		}
 	}
-
-	return TaskProcessingResult{}
 }
 
 func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile, drive orc.Drive) {
@@ -1009,6 +979,7 @@ func loadStorageProducts() {
 		support.Files.SearchSupported = false
 		support.Files.StreamingSearchSupported = true
 		support.Files.SharesSupported = false
+		support.Files.OpenInTerminal = true
 
 		storageSupport = append(storageSupport, support)
 	}

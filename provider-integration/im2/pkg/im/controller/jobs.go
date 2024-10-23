@@ -47,6 +47,7 @@ type FollowJobSession struct {
 
 type ShellSession struct {
 	Alive       bool
+	Folder      string
 	Job         *orc.Job
 	Rank        int
 	InputEvents chan ShellEvent
@@ -255,6 +256,40 @@ func controllerJobs(mux *http.ServeMux) {
 							Why:        "Not implemented",
 						})
 					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[orc.OpenSession]
+					response.Responses = responses
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		type openTerminalInFolder struct {
+			Folder string `json:"folder"`
+		}
+
+		mux.HandleFunc(jobContext+"openTerminalInFolder", HttpUpdateHandler[fnd.BulkRequest[openTerminalInFolder]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[openTerminalInFolder]) {
+				var errors []error
+				var responses []orc.OpenSession
+
+				for _, item := range request.Items {
+					cleanupShellSessions()
+
+					shellSessionsMutex.Lock()
+					tok := util.RandomToken(32)
+					shellSessions[tok] = &ShellSession{Alive: true, Folder: item.Folder}
+					shellSessionsMutex.Unlock()
+					responses = append(
+						responses,
+						orc.OpenSessionShell(item.Folder, 0, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
+					)
 				}
 
 				if len(errors) > 0 {

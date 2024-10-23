@@ -41,52 +41,36 @@ export const AppHeader: React.FunctionComponent<{
                     </Flex>
                 </Box>
                 <Flex marginTop="2px" gap={"8px"}>
-                    {props.flavors.length <= 1 && !hasFeature(Feature.COPY_APP_MOCKUP) ? null :
-                        <Box>
-                            <ClickableDropdown
-                                closeFnRef={close}
-                                paddingControlledByContent
-                                noYPadding
-                                trigger={
-                                    <Flex className={FlavorSelectorClass}>
-                                        {props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                        {" "}
-                                        <Icon ml="8px" name="chevronDownLight" size={12} />
-                                    </Flex>
-                                }>
+                    <Box>
+                        <ClickableDropdown
+                            closeFnRef={close}
+                            paddingControlledByContent
+                            noYPadding
+                            trigger={
+                                <Flex className={FlavorSelectorClass}>
+                                    {props.application.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
+                                    {" "}
+                                    <Icon ml="8px" name="chevronDownLight" size={12} />
+                                </Flex>
+                            }>
 
-                                {!hasFeature(Feature.COPY_APP_MOCKUP) ? null :
-                                    <Box
+                            {props.flavors.map(f => {
+                                return <Box
                                         cursor="pointer"
+                                        key={f.metadata.name}
                                         minWidth={"300px"}
                                         p={"8px"}
                                         onClick={() => {
                                             close.current();
-                                            snackbarStore.addInformation("This is just a mock up!", false);
+                                            navigate(Pages.runApplicationWithName(f.metadata.name));
                                         }}
                                     >
-                                        My fork
-                                    </Box>
+                                        {f.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
+                                    </Box>;
                                 }
-
-                                {props.flavors.map(f => {
-                                    return <Box
-                                            cursor="pointer"
-                                            key={f.metadata.name}
-                                            minWidth={"300px"}
-                                            p={"8px"}
-                                            onClick={() => {
-                                                close.current();
-                                                navigate(Pages.runApplicationWithName(f.metadata.name));
-                                            }}
-                                        >
-                                            {f.metadata.flavorName ?? DEFAULT_FLAVOR_NAME}
-                                        </Box>;
-                                    }
-                                )}
-                            </ClickableDropdown>
-                        </Box>
-                    }
+                            )}
+                        </ClickableDropdown>
+                    </Box>
                     <ClickableDropdown
                         trigger={
                             <Flex className={FlavorSelectorClass}>

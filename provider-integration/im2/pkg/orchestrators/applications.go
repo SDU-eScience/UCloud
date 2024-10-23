@@ -2,6 +2,7 @@ package orchestrators
 
 import (
 	"encoding/json"
+
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/util"
 )
@@ -12,9 +13,9 @@ type NameAndVersion struct {
 }
 
 type SimpleDuration struct {
-	Hours   int
-	Minutes int
-	Seconds int
+	Hours   int `json:"hours"`
+	Minutes int `json:"minutes"`
+	Seconds int `json:"seconds"`
 }
 
 func (d SimpleDuration) ToMillis() int64 {

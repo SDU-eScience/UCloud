@@ -108,26 +108,29 @@ export const taskStore = new class extends ExternalStoreBase {
 const DEFAULT_ICON: IconName = "heroRectangleStack";
 
 function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
-
     const isFinished = TaskOperations.isTaskTerminal(task);
-
     const operations: React.ReactNode[] = [];
+
     if (!isFinished) {
         if (task.specification.canPause) {
             if (task.status.state === TaskState.SUSPENDED) {
-                operations.push(<Icon
-                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
-                    cursor="pointer"
-                    name="play"
-                    color="primaryMain"
-                />);
+                operations.push(
+                    <Icon
+                        onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                        cursor="pointer"
+                        name="play"
+                        color="primaryMain"
+                    />
+                );
             } else {
-                operations.push(<Icon
-                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
-                    cursor="pointer"
-                    name="pauseSolid"
-                    color="primaryMain"
-                />);
+                operations.push(
+                    <Icon
+                        onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                        cursor="pointer"
+                        name="pauseSolid"
+                        color="primaryMain"
+                    />
+                );
             }
         }
 
@@ -137,8 +140,9 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
     } else {
         operations.push(
             <TooltipV2 tooltip="Clear task" contentWidth={100}>
-                <Icon name="close" cursor="pointer" color="primaryMain" onClick={() => taskStore.removeFinishedTask(task)} />
-            </TooltipV2>)
+                <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)} />
+            </TooltipV2>
+        );
     }
 
     const icon = task.icon && iconNames.indexOf(task.icon) !== -1 ? task.icon : DEFAULT_ICON;

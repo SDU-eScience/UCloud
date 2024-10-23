@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobSpecification
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.provider.api.Permission
@@ -178,6 +179,13 @@ class JobVerificationService(
         actorAndProject: ActorAndProject,
         files: List<AppParameterValue.File>
     ): List<AppParameterValue.File> {
+        return checkAndReturnValidFilesWithCollections(actorAndProject, files).first
+    }
+
+    suspend fun checkAndReturnValidFilesWithCollections(
+        actorAndProject: ActorAndProject,
+        files: List<AppParameterValue.File>
+    ): Pair<List<AppParameterValue.File>, Map<String, FileCollection>> {
         val actualFiles = ArrayList<AppParameterValue.File>()
 
         val translatedFiles = translatePotentialShares(actorAndProject, files)
@@ -200,7 +208,7 @@ class JobVerificationService(
             file.readOnly = !allowWrite
             actualFiles.add(file)
         }
-        return actualFiles
+        return Pair(actualFiles, retrievedCollections)
     }
 
     private fun badValue(param: ApplicationParameter): Nothing {
@@ -291,6 +299,12 @@ class JobVerificationService(
                         }
                     }
 
+                    is ApplicationParameter.Workflow -> {
+                        (param.defaultValue as? JsonObject)?.let { elem ->
+                            defaultMapper.decodeFromJsonElement(AppParameterValue.Workflow.serializer(), elem)
+                        }
+                    }
+
                     else -> error("unknown application parameter: ${param}")
                 }
 
@@ -347,6 +361,10 @@ class JobVerificationService(
                 is ApplicationParameter.NetworkIP -> {
                     if (providedValue !is AppParameterValue.Network) badValue(param)
                 }
+
+                is ApplicationParameter.Workflow -> {
+                    if (providedValue !is AppParameterValue.Workflow) badValue(param)
+                }
             }
         }
 
@@ -362,6 +380,7 @@ class JobVerificationService(
                         throw RPCException("Bad injected parameter", HttpStatusCode.BadGateway)
                     }
 
+                    is AppParameterValue.Workflow,
                     is AppParameterValue.Bool,
                     is AppParameterValue.FloatingPoint,
                     is AppParameterValue.Integer,

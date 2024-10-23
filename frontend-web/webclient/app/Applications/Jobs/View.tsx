@@ -1349,7 +1349,7 @@ function useRedirectToWebLinks(job?: Job): string[] {
                 }
             })();
         }
-    }, [job]);
+    }, [job, job?.status.state]);
 
     return links;
 }
