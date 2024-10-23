@@ -34,44 +34,9 @@ data class ApplicationYamlV2(
     sealed class Software
 
     data class NativeSoftware(
-        val build: Build? = null,
-        val load: Load? = null,
+        val load: List<ApplicationToLoad>
     ) : Software() {
-        @JsonTypeInfo(
-            use = JsonTypeInfo.Id.NAME,
-            include = JsonTypeInfo.As.EXISTING_PROPERTY,
-            property = "type"
-        )
-        @JsonSubTypes(
-            JsonSubTypes.Type(value = Build.EasyBuild::class, name = "EasyBuild"),
-            JsonSubTypes.Type(value = Build.Spack::class, name = "Spack"),
-        )
-        sealed class Build {
-            data class EasyBuild(
-                val repository: String,
-                val files: List<String>,
-            ) : Build()
-
-            data class Spack(
-                val repository: String,
-                val packages: List<String>,
-            ) : Build()
-        }
-
-        @JsonTypeInfo(
-            use = JsonTypeInfo.Id.NAME,
-            include = JsonTypeInfo.As.EXISTING_PROPERTY,
-            property = "type"
-        )
-        @JsonSubTypes(
-            JsonSubTypes.Type(value = Load.Module::class, name = "Module"),
-        )
-        sealed class Load {
-            data class Module(
-                // NOTE: These are jinja templates
-                val modules: List<String>,
-            ) : Load()
-        }
+        data class ApplicationToLoad(val name: String, val version: String)
     }
 
     @JsonTypeInfo(
@@ -372,27 +337,9 @@ data class ApplicationYamlV2(
                         license = "",
                         image = null,
                         supportedProviders = null,
-                        buildInstructions = when (val build = software.build) {
-                            is NativeSoftware.Build.EasyBuild -> {
-                                ToolBuildInstructions.NativeEasyBuild(
-                                    build.repository,
-                                    build.files,
-                                )
-                            }
-                            is NativeSoftware.Build.Spack -> {
-                                ToolBuildInstructions.NativeSpack(
-                                    build.repository,
-                                    build.packages,
-                                )
-                            }
-                            null -> null
-                        },
-                        loadInstructions = when (val load = software.load) {
-                            is NativeSoftware.Load.Module -> {
-                                ToolLoadInstructions.NativeModuleWithJinja(load.modules)
-                            }
-                            null -> null
-                        },
+                        loadInstructions = ToolLoadInstructions.Native(
+                            software.load.map { ToolLoadInstructions.NativeApplication(it.name, it.version) }
+                        ),
                     )
                 )
             }

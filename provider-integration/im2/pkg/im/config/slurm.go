@@ -1,8 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"gopkg.in/yaml.v3"
-	"math"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
 
@@ -19,12 +24,22 @@ type SlurmCompute struct {
 	Machines               map[string]SlurmMachineCategory
 	Web                    SlurmWebConfiguration
 	FakeResourceAllocation bool
-	Applications           SlurmApplications
+	Applications           map[string][]SlurmApplicationConfiguration
+	SystemLoadCommand      util.Option[string]
+	SystemUnloadCommand    util.Option[string]
+	Srun                   util.Option[SrunConfiguration]
 }
 
-type SlurmApplications struct {
-	Variables map[string]any // Primitive types only. Used in variable injection for apps.
-	Templates map[string]string
+type SrunConfiguration struct {
+	Command string
+	Flags   []string
+}
+
+type SlurmApplicationConfiguration struct {
+	Versions []string
+	Load     string
+	Unload   string
+	Srun     util.Option[SrunConfiguration]
 }
 
 type SlurmWebConfiguration struct {
@@ -481,89 +496,26 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			}
 		}
 
-		cfg.Compute.Applications.Templates = map[string]string{}
-		cfg.Compute.Applications.Variables = map[string]any{}
-
-		appNode, _ := getChildOrNil(filePath, slurmNode, "applications")
-		if appNode != nil {
-			variablesNode, _ := getChildOrNil(filePath, appNode, "variables")
-			if variablesNode != nil {
-				if variablesNode.Kind != yaml.MappingNode {
-					reportError(filePath, variablesNode, "expected variables to be a dictionary")
-					success = false
-				}
-
-				vars := cfg.Compute.Applications.Variables
-
-				for i := 0; i < len(variablesNode.Content); i += 2 {
-					varName := ""
-					_ = variablesNode.Content[i].Decode(&varName)
-					varNode := variablesNode.Content[i+1]
-					if varNode.Kind != yaml.ScalarNode {
-						reportError(filePath, varNode, "expected variable '%s' to be a scalar (boolean, number or text)", varName)
-						success = false
-					}
-
-					// NOTE(Dan): YAML is weird in that the type of some scalar really depends on what we expect the
-					// scalar to be. In this case, we are trying to pick the best fit. I am sure that the YAML
-					// specification probably defines some correct way of doing this, I didn't bother to look it up
-					// though. If that turns out to be a problem some day, then I am sorry.
-
-					var asInt int64
-					var asFloat float64
-					var asBool bool
-					var asString string
-
-					err1 := varNode.Decode(&asFloat)
-					err2 := varNode.Decode(&asInt)
-
-					if err1 == nil || err2 == nil {
-						const epsilon = 1e-9
-						if _, frac := math.Modf(math.Abs(asFloat)); frac < epsilon || frac > 1.0-epsilon {
-							vars[varName] = asInt
-							continue
-						} else {
-							vars[varName] = asFloat
-							continue
-						}
-					}
-
-					err1 = varNode.Decode(&asBool)
-					if err1 == nil {
-						vars[varName] = asBool
-						continue
-					}
-
-					_ = varNode.Decode(&asString)
-					vars[varName] = asString
-				}
-			}
-
-			templatesNode, _ := getChildOrNil(filePath, appNode, "templates")
-			if templatesNode != nil {
-				if templatesNode.Kind != yaml.MappingNode {
-					reportError(filePath, variablesNode, "expected templates to be a dictionary")
-					success = false
-				}
-
-				templates := cfg.Compute.Applications.Templates
-
-				for i := 0; i < len(templatesNode.Content); i += 2 {
-					templateName := ""
-					_ = templatesNode.Content[i].Decode(&templateName)
-					templateNode := templatesNode.Content[i+1]
-					if templateNode.Kind != yaml.ScalarNode {
-						reportError(filePath, templateNode, "expected variable '%s' to be a scalar (boolean, number or text)", templateName)
-						success = false
-					}
-
-					var asString string
-					_ = templateNode.Decode(&asString)
-
-					templates[templateName] = asString
-				}
-			}
+		srunChild, _ := getChildOrNil(filePath, slurmNode, "srun")
+		if srunChild != nil {
+			cfg.Compute.Srun.Set(parseSrunConfiguration(filePath, srunChild, &success))
 		}
+
+		globalLoad := optionalChildText(filePath, slurmNode, "systemLoad", &success)
+		globalUnload := optionalChildText(filePath, slurmNode, "systemUnload", &success)
+		if globalLoad != "" {
+			cfg.Compute.SystemLoadCommand.Set(globalLoad)
+		}
+
+		if globalUnload != "" {
+			cfg.Compute.SystemUnloadCommand.Set(globalUnload)
+		}
+
+		apps, ok := parseSlurmApplications(filePath)
+		if !ok {
+			return false, cfg
+		}
+		cfg.Compute.Applications = apps
 
 		cfg.Compute.Machines = make(map[string]SlurmMachineCategory)
 		machinesNode := requireChild(filePath, slurmNode, "machines", &success)
@@ -781,4 +733,111 @@ func parseAccountMapperScripted(filePath string, node *yaml.Node, success *bool)
 	result := SlurmAccountMapperScripted{}
 	result.Script = requireChildFile(filePath, node, "script", FileCheckRead, success)
 	return result
+}
+
+func parseSlurmApplication(filePath string, name string, node *yaml.Node, success *bool) SlurmApplicationConfiguration {
+	result := SlurmApplicationConfiguration{}
+	versionsNode := requireChild(filePath, node, "versions", success)
+	if versionsNode.Kind != yaml.SequenceNode {
+		reportError(filePath, node, "expected versions to be a list")
+		*success = false
+		return result
+	}
+
+	decode(filePath, versionsNode, &result.Versions, success)
+
+	result.Load = optionalChildText(filePath, node, "load", success)
+	result.Unload = optionalChildText(filePath, node, "unload", success)
+	srunChild, _ := getChildOrNil(filePath, node, "srun")
+	if srunChild != nil {
+		result.Srun.Set(parseSrunConfiguration(filePath, srunChild, success))
+	}
+
+	return result
+}
+
+func parseSrunConfiguration(filePath string, node *yaml.Node, success *bool) SrunConfiguration {
+	result := SrunConfiguration{}
+	decode(filePath, node, &result, success)
+	return result
+}
+
+func parseSlurmApplications(filePath string) (map[string][]SlurmApplicationConfiguration, bool) {
+	appDir := filepath.Join(filepath.Dir(filePath), "applications")
+
+	var filesToParse []string
+
+	_ = filepath.WalkDir(appDir, func(path string, d fs.DirEntry, err error) error {
+		ext := filepath.Ext(path)
+		if !d.IsDir() && (ext == ".yml" || ext == ".yaml") {
+			info, err := d.Info()
+			if err == nil {
+				if info.Size() > 1024*1024*16 {
+					log.Info("Skipping abnormally large YAML file (>16MB) at %v", path)
+				} else {
+					filesToParse = append(filesToParse, path)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	apps := map[string][]SlurmApplicationConfiguration{}
+
+	for _, filePath := range filesToParse {
+		fileBytes, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Warn("Failed to read YAML file at %s: %s", filePath, err)
+		} else {
+			fileText := string(fileBytes)
+			documents := strings.Split(fileText, "\n---\n")
+
+			for docIdx, doc := range documents {
+				fakeFilePath := filePath
+				if docIdx > 0 {
+					fakeFilePath += fmt.Sprintf("[%d]", docIdx)
+				}
+
+				var document yaml.Node
+				err = yaml.Unmarshal([]byte(doc), &document)
+				if err != nil {
+					reportError(
+						fakeFilePath,
+						nil,
+						"Failed to parse this configuration file as valid YAML. Please check for errors. "+
+							"Underlying error message: %v.",
+						err,
+					)
+					return apps, false
+				}
+
+				success := true
+				name := requireChildText(fakeFilePath, &document, "name", &success)
+				configs := requireChild(fakeFilePath, &document, "configurations", &success)
+				if !success || configs.Kind != yaml.SequenceNode {
+					return apps, false
+				}
+
+				var appConfigs []SlurmApplicationConfiguration
+				for j := 0; j < len(configs.Content); j++ {
+					varApp := configs.Content[j]
+					if varApp.Kind != yaml.MappingNode {
+						reportError(filePath, varApp, "expected node to be a dictionary")
+						success = false
+					}
+
+					appConfigs = append(appConfigs, parseSlurmApplication(fakeFilePath, name, varApp, &success))
+
+					if !success {
+						return apps, false
+					}
+				}
+
+				apps[name] = appConfigs
+			}
+		}
+	}
+
+	return apps, true
 }

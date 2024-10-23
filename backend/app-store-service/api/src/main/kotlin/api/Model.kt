@@ -1430,7 +1430,6 @@ data class NormalizedToolDescription(
 
     val curator: String? = null,
 
-    val buildInstructions: ToolBuildInstructions? = null,
     val loadInstructions: ToolLoadInstructions? = null,
 ) {
     override fun toString(): String {
@@ -1439,31 +1438,15 @@ data class NormalizedToolDescription(
 }
 
 @Serializable
-sealed class ToolBuildInstructions {
-    @Serializable
-    @SerialName("NativeEasyBuild")
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    data class NativeEasyBuild(
-        val repository: String,
-        val files: List<String>,
-    ) : ToolBuildInstructions()
-
-    @Serializable
-    @SerialName("NativeSpack")
-    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    data class NativeSpack(
-        val repository: String,
-        val packages: List<String>,
-    ) : ToolBuildInstructions()
-}
-
-@Serializable
 sealed class ToolLoadInstructions {
     @Serializable
-    @SerialName("NativeModuleWithJinja")
-    data class NativeModuleWithJinja(
-        val modules: List<String>,
+    @SerialName("Native")
+    data class Native(
+        val applications: List<NativeApplication>,
     ) : ToolLoadInstructions()
+
+    @Serializable
+    data class NativeApplication(val name: String, val version: String)
 }
 
 @Serializable
