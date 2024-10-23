@@ -201,6 +201,7 @@ export interface AllocationRequest {
     grantGiver: string;
     balanceRequested: number;
     period: Period,
+    grantGiverTitle?: string;
 }
 
 export interface Period {

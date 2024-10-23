@@ -12,6 +12,30 @@ set grant_start = start_date, grant_end = end_date
 from times
 where application_id = id and revisions.revision_number = times.revision_number;
 
+create or replace function "grant".resource_allocation_to_json(
+    request_in "grant".requested_resources,
+    product_category_in accounting.product_categories
+) returns jsonb language sql as $$
+    with title as (
+        select id, title
+        from project.projects p
+        where request_in.grant_giver = p.id
+    )
+select jsonb_build_object(
+               'category', product_category_in.category,
+               'provider', product_category_in.provider,
+               'grantGiver', request_in.grant_giver,
+               'balanceRequested', request_in.credits_requested,
+               'period', jsonb_build_object(
+                       'start', provider.timestamp_to_unix(request_in.start_date),
+                       'end', provider.timestamp_to_unix(request_in.end_date)
+                         ),
+               'grantGiverTitle', title.title
+       )
+    from title;
+$$;
+
+
 
 create or replace function "grant".revision_to_json(resources_in jsonb[], form_in "grant".forms, revision_in "grant".revisions) returns jsonb
     language plpgsql

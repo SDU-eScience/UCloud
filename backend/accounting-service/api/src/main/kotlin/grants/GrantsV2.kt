@@ -552,6 +552,7 @@ data class GrantApplication(
         val grantGiver: String,
         val balanceRequested: Long? = null,
         val period: Period,
+        val grantGiverTitle: String? = null
     )
 
     @Serializable
