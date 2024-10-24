@@ -22,6 +22,7 @@ import io.prometheus.client.Summary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.system.exitProcess
 
 sealed class TransactionMode {
     abstract val readWrite: Boolean
@@ -190,6 +191,28 @@ class AsyncDBSessionFactory(
                 debug,
             )
             inflightTransactions.inc()
+
+            //Health check
+            val rand = (0..99).random()
+            //expected 2% hitrate
+            if (rand < 5) {
+                withHardTimeout(5_000, { "Health Check session" }) {
+                    val selectValue = (0..10000).random()
+                    val returnValue = result.sendPreparedStatement(
+                        {
+                            setParameter("select_val", selectValue)
+                        },
+                        """
+                            select :select_val
+                        """
+                    ).rows.firstOrNull().let { it?.getInt(0)!! } ?: -1
+
+                    if (returnValue != selectValue) {
+                        log.error("Not the correct value returned from test")
+                        exitProcess(1)
+                    }
+                }
+            }
             result
         }
     }
