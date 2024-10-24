@@ -66,7 +66,7 @@ export const CommandPalette: React.FunctionComponent = () => {
         }
         return result.sort((a, b) => a.scope - b.scope);
     }, [commandProviders, query]);
-    
+
     useEffect(() => {
         queryRef.current = query;
     }, [query]);
@@ -114,7 +114,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             if (commands.length) {
                 setCurrentIndex(idx => {
                     const newVal = Math.min((idx + 1), commands.length - 1);
-                    scrollEntryIntoView(newVal, "end");
+                    scrollEntryIntoView(newVal);
                     return newVal;
                 })
             }
@@ -122,7 +122,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             if (commands.length) {
                 setCurrentIndex(idx => {
                     const newVal = Math.max((idx - 1), 0);
-                    scrollEntryIntoView(newVal, "start");
+                    scrollEntryIntoView(newVal);
                     return newVal;
                 });
             }
@@ -156,7 +156,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             onChange={onChange}
             value={query}
         />
-        <Box maxHeight="400px" px="8px" overflowY="auto" data-command-pallete>
+        <Box maxHeight="400px" px="8px" pb="8px" overflowY="auto" data-command-pallette>
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="" actionText="" scope={commands.filter(it => it.scope === CommandScope.ThisPage)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Go to" actionText="" scope={commands.filter(it => it.scope === CommandScope.GoTo)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Applications" actionText="Go to" scope={commands.filter(it => it.scope === CommandScope.Application)} />
@@ -170,10 +170,11 @@ export const CommandPalette: React.FunctionComponent = () => {
     </div>;
 };
 
-function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
-    const pallette = document.querySelector("[data-command-pallete]");
-    const entry = pallette?.children.item(index);
-    if (entry) {entry.scrollIntoView({behavior: "smooth", block: scroll});}
+function scrollEntryIntoView(index: number) {
+    const entry = document.querySelector("[data-command-pallette]")?.querySelectorAll("[data-entry]").item(index);;
+    if (entry) {
+        entry.scrollIntoView({behavior: "smooth", block: "nearest"});
+    }
 }
 
 function CommandScopeTitle({count, title}: {count: number; title: string}): React.ReactNode {
@@ -192,7 +193,7 @@ function EntryWrapper({command, active, onClick, actionText}: {command: Command;
     return <Flex onClick={() => {
         onClick();
         command.action();
-    }} height="32px" borderRadius={"6px"} cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined}>
+    }} height="32px" borderRadius={"6px"} cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined} data-entry>
         <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}><CommandIcon key={command.icon.type} icon={command.icon} /></div>
         <Flex my="auto" mx="8px" width="100%">
             <Truncate maxWidth={"250px"} title={command.title}>{command.title}</Truncate>
