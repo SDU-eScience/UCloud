@@ -144,11 +144,23 @@ export const CommandPalette: React.FunctionComponent = () => {
         setCurrentIndex(-1);
     }, [setQuery]);
 
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const closeOnOutsideClick = React.useCallback(e => {
+        if (divRef.current && !divRef.current.contains(e.target)) {
+            onActivate();
+        }
+    }, []);
+
+    React.useEffect(() => {
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    }, []);
+
     if (!visible) return null;
 
     const activeCommand = commands[currentIndex];
 
-    return <div has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
         <input
             autoFocus
             placeholder={"Search for anything on UCloud..."}
@@ -225,10 +237,5 @@ function CommandIcon({icon}: {icon: CommandIconProvider}) {
 }
 
 /* TODO:
-    Scroll into view when element navigated to through keyboard is out of view-port
-    Close on outside click
-    Actually hook up to sidebar
     Test "dom" image
-    Truncate description and title
-    CSS for last element in list.
 */
