@@ -168,7 +168,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             onChange={onChange}
             value={query}
         />
-        <Box maxHeight="400px" px="8px" pb="8px" overflowY="auto" data-command-pallette>
+        <Box maxHeight="400px" px="8px" pb="8px" overflowY="auto" data-command-palette>
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="" actionText="" scope={commands.filter(it => it.scope === CommandScope.ThisPage)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Go to" actionText="" scope={commands.filter(it => it.scope === CommandScope.GoTo)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Applications" actionText="Go to" scope={commands.filter(it => it.scope === CommandScope.Application)} />
@@ -176,14 +176,14 @@ export const CommandPalette: React.FunctionComponent = () => {
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Drives" actionText="Open" scope={commands.filter(it => it.scope === CommandScope.Drive)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Files" actionText="Go to" scope={commands.filter(it => it.scope === CommandScope.File)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Links" actionText="" scope={commands.filter(it => it.scope === CommandScope.Link)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Project" actionText="Activate" scope={commands.filter(it => it.scope === CommandScope.Project)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Project" actionText="Activate project" scope={commands.filter(it => it.scope === CommandScope.Project)} />
             <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Accounting" actionText="View" scope={commands.filter(it => it.scope === CommandScope.Accounting)} />
         </Box>
     </div>;
 };
 
 function scrollEntryIntoView(index: number) {
-    const entry = document.querySelector("[data-command-pallette]")?.querySelectorAll("[data-entry]").item(index);;
+    const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);;
     if (entry) {
         entry.scrollIntoView({behavior: "smooth", block: "nearest"});
     }
@@ -205,7 +205,7 @@ function EntryWrapper({command, active, onClick, actionText}: {command: Command;
     return <Flex onClick={() => {
         onClick();
         command.action();
-    }} height="32px" borderRadius={"6px"} cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined} data-entry>
+    }} height="32px" borderRadius="6px" className={EntryHover} cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined} data-entry>
         <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}><CommandIcon key={command.icon.type} icon={command.icon} /></div>
         <Flex my="auto" mx="8px" width="100%">
             <Truncate maxWidth={"250px"} title={command.title}>{command.title}</Truncate>
@@ -215,6 +215,12 @@ function EntryWrapper({command, active, onClick, actionText}: {command: Command;
         </Flex>
     </Flex>
 }
+
+const EntryHover = injectStyle("entry-hover", k => `
+    ${k}:hover {
+        background-color: var(--primaryMain);
+    }
+`);
 
 const IMAGE_SIZE = 18;
 function CommandIcon({icon}: {icon: CommandIconProvider}) {
