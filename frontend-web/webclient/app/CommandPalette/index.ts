@@ -3,15 +3,13 @@ import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {useEffect, useSyncExternalStore} from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {doNothing} from "@/UtilityFunctions";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface CommandIconProviderSimple {
     type: "simple";
     icon: IconName;
-}
-
-export interface CommandIconProviderDom {
-    type: "dom";
-    dom: (size: number) => HTMLElement;
+    color?: ThemeColor;
+    color2?: ThemeColor;
 }
 
 export interface CommandIconProviderImage {
@@ -21,26 +19,20 @@ export interface CommandIconProviderImage {
 
 export type CommandIconProvider =
     | CommandIconProviderSimple
-    | CommandIconProviderDom
     | CommandIconProviderImage
     ;
 
 
 export enum CommandScope {
-    ThisPage,
-    GoTo,
-    Application,
-    Job,
-    Drive,
-    File,
-    Link,
-    Project,
-    Accounting,
-};
-
-export function scopePriority(scope: CommandScope): number {
-    // lower is higher priority
-    return scope;
+    ThisPage = "On this page",
+    GoTo = "Shortcut",
+    Application = "Applications",
+    Job = "Jobs",
+    Drive = "Drives",
+    File = "Files",
+    Link = "Links",
+    Project = "Projects",
+    Accounting = "Allocations",
 }
 
 export interface Command {
@@ -49,6 +41,7 @@ export interface Command {
     description: string;
     action: () => void;
     scope: CommandScope;
+    actionText?: string;
 }
 
 export type CommandProvider = (query: string, emit: (cmd: Command) => void) => {onCancel: () => void};

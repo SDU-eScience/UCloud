@@ -768,6 +768,10 @@ func parseSlurmApplications(filePath string) (map[string][]SlurmApplicationConfi
 	var filesToParse []string
 
 	_ = filepath.WalkDir(appDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
 		ext := filepath.Ext(path)
 		if !d.IsDir() && (ext == ".yml" || ext == ".yaml") {
 			info, err := d.Info()

@@ -393,7 +393,8 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
             navigate(url);
         },
         icon: {type: "simple", icon},
-        scope: CommandScope.GoTo
+        scope: CommandScope.GoTo,
+        actionText: "Go to"
     }
 }
 
@@ -521,12 +522,13 @@ function useSidebarFilesPage(): [
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({
         title: d.specification.title,
-        icon: {type: "simple", icon: "heroExclamationCircle"},
+        icon: {type: "simple", icon: "heroFolderOpen"},
         action() {
             navigate(AppRoutes.files.drive(d.id));
         },
         description: d.updates[0]?.status ?? "",
-        scope: CommandScope.File
+        scope: CommandScope.File,
+        actionText: "Go to",
     }))));
 
     useProvideCommands(staticProvider(favorites.items.map(f => ({
@@ -540,7 +542,8 @@ function useSidebarFilesPage(): [
             }
         },
         description: "",
-        scope: CommandScope.File
+        scope: CommandScope.File,
+        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -599,7 +602,8 @@ function useSidebarRunsPage(): Job[] {
             navigate(AppRoutes.jobs.view(j.id));
         },
         description: "",
-        scope: CommandScope.Job
+        scope: CommandScope.Job,
+        actionText: "Go to",
     }))));
 
     React.useEffect(() => {
@@ -674,13 +678,14 @@ function SecondarySidebar({
         return projects?.items.map(p => ({
             title: p.specification.title,
             description: "",
-            icon: {type: "simple", icon: "projects"},
+            icon: {type: "simple", icon: "heroUserGroup"},
             scope: CommandScope.Project,
             action() {
                 onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
             },
+            actionText: "Switch to",
         }) as Command).concat(activeProject ? [myWorkspaceProjectCommand(navigate, dispatch)] : []) ?? [];
-    }, [projects?.items, activeProjectId])
+    }, [projects?.items, activeProjectId]);
 
     useProvideCommands(staticProvider(projectCommands));
 
