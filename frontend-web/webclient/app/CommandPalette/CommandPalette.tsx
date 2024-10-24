@@ -66,7 +66,7 @@ export const CommandPalette: React.FunctionComponent = () => {
         }
         return result.sort((a, b) => a.scope - b.scope);
     }, [commandProviders, query]);
-    
+
     useEffect(() => {
         queryRef.current = query;
     }, [query]);
@@ -114,7 +114,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             if (commands.length) {
                 setCurrentIndex(idx => {
                     const newVal = Math.min((idx + 1), commands.length - 1);
-                    scrollEntryIntoView(newVal, "end");
+                    scrollEntryIntoView(newVal);
                     return newVal;
                 })
             }
@@ -122,7 +122,7 @@ export const CommandPalette: React.FunctionComponent = () => {
             if (commands.length) {
                 setCurrentIndex(idx => {
                     const newVal = Math.max((idx - 1), 0);
-                    scrollEntryIntoView(newVal, "start");
+                    scrollEntryIntoView(newVal);
                     return newVal;
                 });
             }
@@ -144,11 +144,23 @@ export const CommandPalette: React.FunctionComponent = () => {
         setCurrentIndex(-1);
     }, [setQuery]);
 
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const closeOnOutsideClick = React.useCallback(e => {
+        if (divRef.current && !divRef.current.contains(e.target)) {
+            onActivate();
+        }
+    }, []);
+
+    React.useEffect(() => {
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+    }, []);
+
     if (!visible) return null;
 
     const activeCommand = commands[currentIndex];
 
-    return <div has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
         <input
             autoFocus
             placeholder={"Search for anything on UCloud..."}
@@ -156,24 +168,25 @@ export const CommandPalette: React.FunctionComponent = () => {
             onChange={onChange}
             value={query}
         />
-        <Box maxHeight="400px" overflowY="auto" data-command-pallete>
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="" scope={commands.filter(it => it.scope === CommandScope.ThisPage)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Go to" scope={commands.filter(it => it.scope === CommandScope.GoTo)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Applications" scope={commands.filter(it => it.scope === CommandScope.Application)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Jobs" scope={commands.filter(it => it.scope === CommandScope.Job)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Drives" scope={commands.filter(it => it.scope === CommandScope.Drive)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Files" scope={commands.filter(it => it.scope === CommandScope.File)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Links" scope={commands.filter(it => it.scope === CommandScope.Link)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Project" scope={commands.filter(it => it.scope === CommandScope.Project)} />
-            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Accounting" scope={commands.filter(it => it.scope === CommandScope.Accounting)} />
+        <Box maxHeight="400px" px="8px" pb="8px" overflowY="auto" data-command-palette>
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="" actionText="" scope={commands.filter(it => it.scope === CommandScope.ThisPage)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Go to" actionText="" scope={commands.filter(it => it.scope === CommandScope.GoTo)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Applications" actionText="Go to" scope={commands.filter(it => it.scope === CommandScope.Application)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Jobs" actionText="View" scope={commands.filter(it => it.scope === CommandScope.Job)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Drives" actionText="Open" scope={commands.filter(it => it.scope === CommandScope.Drive)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Files" actionText="Go to" scope={commands.filter(it => it.scope === CommandScope.File)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Links" actionText="" scope={commands.filter(it => it.scope === CommandScope.Link)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Project" actionText="Activate project" scope={commands.filter(it => it.scope === CommandScope.Project)} />
+            <CommandScopeEntry onClick={onActivate} activeCommand={activeCommand} title="Accounting" actionText="View" scope={commands.filter(it => it.scope === CommandScope.Accounting)} />
         </Box>
     </div>;
 };
 
-function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
-    const pallette = document.querySelector("[data-command-pallete]");
-    const entry = pallette?.children.item(index);
-    if (entry) {entry.scrollIntoView({behavior: "smooth", block: scroll});}
+function scrollEntryIntoView(index: number) {
+    const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);;
+    if (entry) {
+        entry.scrollIntoView({behavior: "smooth", block: "nearest"});
+    }
 }
 
 function CommandScopeTitle({count, title}: {count: number; title: string}): React.ReactNode {
@@ -181,27 +194,33 @@ function CommandScopeTitle({count, title}: {count: number; title: string}): Reac
     return <Text mx="12px" mb="4px" bold style={{borderBottom: "1px solid var(--secondaryDark)"}}>{title}</Text>
 }
 
-function CommandScopeEntry({onClick, scope, title, activeCommand}: {onClick(): void; scope: Command[]; title: string; activeCommand?: Command}): React.ReactNode {
+function CommandScopeEntry({onClick, scope, title, activeCommand, actionText}: {onClick(): void; scope: Command[]; title: string; activeCommand?: Command; actionText: string;}): React.ReactNode {
     return <>
         {title ? <CommandScopeTitle title={title} count={scope.length} /> : null}
-        {scope.map(c => <EntryWrapper onClick={onClick} key={c.title} command={c} active={c === activeCommand} />)}
+        {scope.map(c => <EntryWrapper onClick={onClick} key={c.title} command={c} active={c === activeCommand} actionText={actionText} />)}
     </>
 }
 
-function EntryWrapper({command, active, onClick}: {command: Command; active: boolean; onClick(): void;}): React.ReactNode {
+function EntryWrapper({command, active, onClick, actionText}: {command: Command; active: boolean; onClick(): void; actionText: string;}): React.ReactNode {
     return <Flex onClick={() => {
         onClick();
         command.action();
-    }} height="32px" cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined}>
+    }} height="32px" borderRadius="6px" className={EntryHover} cursor="pointer" backgroundColor={active ? `var(--primaryMain)` : undefined} data-entry>
         <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}><CommandIcon key={command.icon.type} icon={command.icon} /></div>
         <Flex my="auto" mx="8px" width="100%">
             <Truncate maxWidth={"250px"} title={command.title}>{command.title}</Truncate>
             {command.description ? <Truncate maxWidth={"200px"} ml="4px" color={active ? "var(--primaryLight)" : "var(--secondaryDark)"} title={command.description}>― {command.description}</Truncate> : null}
             <Box ml="auto" />
-            <Text>Go to</Text>
+            <Text>{actionText}</Text>
         </Flex>
     </Flex>
 }
+
+const EntryHover = injectStyle("entry-hover", k => `
+    ${k}:hover {
+        background-color: var(--primaryMain);
+    }
+`);
 
 const IMAGE_SIZE = 18;
 function CommandIcon({icon}: {icon: CommandIconProvider}) {
@@ -224,10 +243,5 @@ function CommandIcon({icon}: {icon: CommandIconProvider}) {
 }
 
 /* TODO:
-    Scroll into view when element navigated to through keyboard is out of view-port
-    Close on outside click
-    Actually hook up to sidebar
     Test "dom" image
-    Truncate description and title
-    CSS for last element in list.
 */
