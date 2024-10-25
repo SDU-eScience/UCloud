@@ -185,7 +185,7 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        return withHardTimeout(10_000, { "Opening database session" }) {
+        return withHardTimeout(15_000, { "Opening database session" }, hardDeadline = 10000) {
             val result = AsyncDBConnection(
                 pool.take().await().asSuspending as SuspendingConnectionImpl,
                 debug,
@@ -193,9 +193,9 @@ class AsyncDBSessionFactory(
             inflightTransactions.inc()
 
             //Health check
-            val rand = (0..99).random()
-            //expected 2% hitrate
-            if (rand < 5) {
+            val rand = (0..999).random()
+            //expected 1 hitrate
+            if (rand < 1) {
                 withHardTimeout(5_000, { "Health Check session" }) {
                     val selectValue = (0..10000).random()
                     val returnValue = result.sendPreparedStatement(
