@@ -8,13 +8,14 @@ import kotlin.system.exitProcess
 suspend fun <T> withHardTimeout(
     timeMillis: Long,
     taskInfo: () -> String,
+    hardDeadline: Long = timeMillis * 5,
     block: suspend CoroutineScope.() -> T
 ): T {
     return coroutineScope {
         val done = AtomicBoolean(false)
 
         GlobalScope.launch {
-            delay(timeMillis * 5)
+            delay(hardDeadline)
             if (!done.get()) {
                 val log = Logger("dk.sdu.cloud.service.withHardTimeout")
                 log.error("Could not complete task within 5x ${timeMillis}ms. Information about the task:\n${taskInfo()}")
