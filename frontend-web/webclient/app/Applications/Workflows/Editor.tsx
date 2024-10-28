@@ -11,7 +11,7 @@ import * as WorkflowApi from ".";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as YAML from "yaml";
 import * as AppStore from "@/Applications/AppStoreApi";
-import  {ApplicationParameter} from "@/Applications/AppStoreApi";
+import {ApplicationParameter} from "@/Applications/AppStoreApi";
 import EnumOption = AppStore.ApplicationParameterNS.EnumOption;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -42,28 +42,33 @@ const WorkflowEditor: React.FunctionComponent<{
     }, [props.workflow]);
 
     const readCurrentSpecification = useCallback((): WorkflowSpecification | null => {
-        const params = vfs.dirtyFiles["/003_parameters.yaml"] ?? "";
+        const params = vfs.dirtyFiles["/" + FILE_NAME_PARAMETERS] ?? "";
         let parsed: any;
         let error: string | null = null;
 
         try {
             parsed = YAML.parse(params);
         } catch (e) {
-            error = "Error in 003_parameters.yaml:\nInvalid YAML supplied.";
+            error = `Error in ${FILE_NAME_PARAMETERS}:\nInvalid YAML supplied.`;
         }
 
         const inputs: ApplicationParameter[] = [];
 
         if (parsed != null) {
-            const errPrefix = "Error in 003_parameters.yaml:\n";
-            if (!Array.isArray(parsed)) {
-                error = errPrefix + "expected parameters to contain an array of parameters"
+            const errPrefix = `Error in ${FILE_NAME_PARAMETERS}.yaml:\n`;
+            if (typeof parsed !== "object" || Array.isArray(parsed)) {
+                error = errPrefix + "expected parameters to contain a dictionary of parameters"
             } else {
-                for (let i = 0; i < parsed.length; i++) {
-                    const param = parsed[i];
-                    const validatedOrError = validateParameter(param);
+                for (let [name, param] of Object.entries(parsed)) {
+                    if (typeof param !== "object") {
+                        error = errPrefix + "error in parameter " + name + ": expected an object";
+                        break;
+                    }
+
+                    const withName = {...param, name};
+                    const validatedOrError = validateParameter(withName);
                     if (typeof validatedOrError === "string") {
-                        error = errPrefix + "error in parameter " + i + ": " + validatedOrError;
+                        error = errPrefix + "error in parameter " + name + ": " + validatedOrError;
                         break;
                     }
 
@@ -78,9 +83,9 @@ const WorkflowEditor: React.FunctionComponent<{
             return null;
         }
 
-        const init = vfs.dirtyFiles["/001_job_init.sh"] ?? "";
-        const job = vfs.dirtyFiles["/002_job.sh"] ?? "";
-        const readme = vfs.dirtyFiles["/000_readme.md"] ?? "";
+        const init = vfs.dirtyFiles["/" + FILE_NAME_INIT] ?? "";
+        const job = vfs.dirtyFiles["/" + FILE_NAME_JOB] ?? "";
+        const readme = vfs.dirtyFiles["/" + FILE_NAME_README] ?? "";
         return {
             init,
             job,
@@ -173,7 +178,7 @@ const WorkflowEditor: React.FunctionComponent<{
     return <Editor
         vfs={vfs}
         title={props.applicationName}
-        initialPath={"/001_job_init.sh"}
+        initialPath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
         toolbarBeforeSettings={<>
             {!error ? null :
@@ -238,9 +243,11 @@ const WorkflowEditor: React.FunctionComponent<{
                                     />
                                 </Label>
                                 <Flex gap={"8px"} mt={"8px"}>
-                                    <Box flexGrow={1} />
-                                    <Button color={"errorMain"} type={"button"} onClick={() => setIsSaving(false)}>Cancel</Button>
-                                    <Button color={"successMain"} type={"submit"} onMouseDown={() => savingRef.current = true}>Save</Button>
+                                    <Box flexGrow={1}/>
+                                    <Button color={"errorMain"} type={"button"}
+                                            onClick={() => setIsSaving(false)}>Cancel</Button>
+                                    <Button color={"successMain"} type={"submit"}
+                                            onMouseDown={() => savingRef.current = true}>Save</Button>
                                 </Flex>
                             </form>
                         </div>
@@ -264,7 +271,8 @@ const WorkflowEditor: React.FunctionComponent<{
                                 <Box flexGrow={1}/>
                                 <Button color={"errorMain"} type={"button"}
                                         onClick={() => setIsOverwriting(null)}>No</Button>
-                                <Button color={"successMain"} onMouseDown={() => savingRef.current = true} onClick={saveOverwritten}>Yes</Button>
+                                <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
+                                        onClick={saveOverwritten}>Yes</Button>
                             </Flex>
                         </div>
                     </div>
@@ -278,24 +286,27 @@ const WorkflowEditor: React.FunctionComponent<{
 };
 
 function validateParameter(parameter: any): ApplicationParameter | string {
-     if (typeof parameter !== "object") {
-         return "expected parameter to be an object"
-     }
+    if (typeof parameter !== "object") {
+        return "expected parameter to be an object"
+    }
 
-     const type = parameter["type"];
-     if (typeof type !== "string") return "expected to find a 'type' property";
-
-     const title = parameter["title"];
-     if (typeof title !== "string") return "expected to find a 'title' property";
-
-    const description = parameter["description"];
-    if (typeof description !== "string") return "expected to find a 'description' property";
-
-    const optional = parameter["optional"];
-    if (typeof optional !== "boolean") return "expected to find an 'optional' property";
+    const type = parameter["type"];
+    if (typeof type !== "string") return "expected to find a 'type' property";
 
     const name = parameter["name"];
     if (typeof name !== "string") return "expected to find an 'name' property";
+
+    let title = parameter["title"];
+    if (title === undefined || title === null) title = name;
+    if (typeof title !== "string") return "expected to find a 'title' property";
+
+    let description = parameter["description"];
+    if (description === undefined || description === null) description = "";
+    if (typeof description !== "string") return "expected to find a 'description' property";
+
+    let optional = parameter["optional"];
+    if (optional === undefined || optional === null) optional = false;
+    if (typeof optional !== "boolean") return "expected to find an 'optional' property";
 
     switch (type) {
         case "File":
@@ -484,10 +495,10 @@ class WorkflowVfs implements Vfs {
     dirtyFiles: Record<string, string> = {};
 
     private knownFiles: VirtualFile[] = [
-        {absolutePath: "/000_readme.md", isDirectory: false, requestedSyntax: "markdown"},
-        {absolutePath: "/001_job_init.sh", isDirectory: false, requestedSyntax: "jinja2"},
-        {absolutePath: "/002_job.sh", isDirectory: false, requestedSyntax: "jinja2"},
-        {absolutePath: "/003_parameters.yaml", isDirectory: false, requestedSyntax: "yaml"},
+        {absolutePath: "/" + FILE_NAME_README, isDirectory: false, requestedSyntax: "markdown"},
+        // {absolutePath: "/" + FILE_NAME_INIT, isDirectory: false, requestedSyntax: "jinja2"},
+        {absolutePath: "/" + FILE_NAME_JOB, isDirectory: false, requestedSyntax: "jinja2"},
+        {absolutePath: "/" + FILE_NAME_PARAMETERS, isDirectory: false, requestedSyntax: "yaml"},
     ];
 
     constructor(workflow: WorkflowSpecification) {
@@ -513,13 +524,13 @@ class WorkflowVfs implements Vfs {
 
     async readFile(path: string): Promise<string> {
         switch (path) {
-            case "/000_readme.md":
+            case "/" + FILE_NAME_README:
                 return this.workflow.readme ?? "";
-            case "/001_job_init.sh":
+            case "/" + FILE_NAME_INIT:
                 return this.workflow.init ?? "";
-            case "/002_job.sh":
+            case "/" + FILE_NAME_JOB:
                 return this.workflow.job ?? "";
-            case "/003_parameters.yaml":
+            case "/" + FILE_NAME_PARAMETERS:
                 return this.serializeParameters();
             default:
                 return "";
@@ -527,7 +538,7 @@ class WorkflowVfs implements Vfs {
     }
 
     private serializeParameters(): string {
-        let builder: any[] = [];
+        let builder: Record<string, any> = {};
 
         const parameters = this.workflow.inputs;
         for (const param of parameters) {
@@ -593,14 +604,13 @@ class WorkflowVfs implements Vfs {
                     break;
             }
 
-            builder.push({
+            builder[name] = {
                 type,
                 title,
                 description,
                 optional,
-                name,
                 ...properties
-            });
+            };
         }
 
         return YAML.stringify(builder);
@@ -613,5 +623,10 @@ class WorkflowVfs implements Vfs {
         this.dirtyFiles[path] = content;
     }
 }
+
+const FILE_NAME_INIT = "999_job_init.sh";
+const FILE_NAME_README = "000_readme.md";
+const FILE_NAME_JOB = "001_job.sh";
+const FILE_NAME_PARAMETERS = "002_parameters.yml";
 
 export default WorkflowEditor;

@@ -1,38 +1,52 @@
 # Index of Built-in Applications
 
 This appendix contains an index of all the built-in applications available in UCloud/IM for Slurm. Please refer to the
-[main chapter](./built-in-apps.md) before reading this. This chapter is broken down by the categories which are
-automatically added into the application catalog.
+[main chapter](./built-in-apps.md) before reading this.
 
-## Applied Science
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Notes</th>
+</tr>
+</thead>
 
+<tbody>
 
-## Artificial Intelligence
+<tr>
+<td>
 
+`gromacs`
 
-## Bioinformatics
+</td>
+<td>
 
+Molecular dynamics software package mainly designed for simulations of proteins, lipids and nucleic acids. 
+See their [website](https://gromacs.org) for details.
 
-## Data Analytics
+Example:
 
+```
+name: gromacs
 
-## Development
+configurations:
+- versions: ["2021.5"]
 
+  load: |
+    module load GCC/11.2.0
+    module load OpenMPI/4.1.1
 
-## Digital Humanities
+    {% if ucloud.machine.gpu > 0 %}
+        module load GROMACS/{{ appVersion }}-CUDA-11.4.1
+    {% else %}
+        module load GROMACS/{{ appVersion }}
+    {% endif %}
+```
 
+</td>
+</tr>
 
-## Engineering
-
-
-## Health Science
-
-
-## Natural Science
-
-
-## Quantum Computing
-
-
-## Social Science
-
+</tbody>
+</table>
+</div>

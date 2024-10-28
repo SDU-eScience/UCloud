@@ -8,10 +8,6 @@ infrastructure requirements.
 
 The UCloud application catalog enables users to browse a comprehensive list of available software. Each application
 within the catalog is a UCloud abstraction that defines a piece of software, its parameters, and its startup process.
-Service providers have dedicated storefronts where they can upload applications compatible with the UCloud system. These
-storefronts are customizable, allowing providers to organize applications into categories, post announcements about new
-applications, and highlight important applications. For more information, refer to the 
-[Application Catalog documentation](../ops/app-catalog.md).
 
 UCloud maintains an up-to-date catalog of applications commonly used in high-performance computing systems.
 Detailed instructions on configuring these applications are available [here](./built-in-apps.md).
@@ -54,8 +50,7 @@ being started.
 
 The UCloud user-interface allows users to quickly swap between versions of the same application, as shown in the
 screenshot below. This also means that the name of an application should be considered stable. The name of an
-application is generally not shown directly to end-users. Instead, a title is used which can be managed independently
-via the [management interface](../ops/app-catalog.md).
+application is generally not shown directly to end-users.
 
 Versions are ordered in UCloud based entirely on when they are uploaded to the platform. Thus the newest version is
 always considered to be the most recently uploaded version.
@@ -71,10 +66,6 @@ The version selector allows users to quickly switch between versions of an appli
 
 </figcaption>
 </figure>
-
-### Build Systems and Software Loading
-
-TODO
 
 ### Input Parameters 
 
@@ -114,7 +105,24 @@ Instead please refer to the [dedicated chapter](./interactive-jobs.md).
 
 <div class="tabbed-card">
 
-<div data-title="Hello world">
+<div data-title="Customizable">
+
+This application is customizable, which allows users to change the invocation of the script through the user-interface.
+This is the recommended way of creating applications as they are more flexible.
+
+<figure>
+
+````yaml
+{{#include app_customize.yaml}}
+````
+
+</figure>
+</div>
+
+<div data-title="Non-customizable">
+
+This is an example application showing a non-customizable application using most of the features available in the
+application system.
 
 <figure>
 
@@ -168,88 +176,6 @@ An example showing how to launch an MPI program with through a UCloud applicatio
 </figure>
 </div>
 
-<div data-title="Dynamic loading">
-<figure>
-
-````yaml
-{{#include app_dynamic.yaml}}
-````
-
-</figure>
-</div>
-
-<div data-title="Template injection">
-
-UCloud/IM for Slurm allows for injecting templates from the service configuration into any Jinja2 template. In this
-example, we show how to use this to configure a global preamble and postamble for applications. These have to be
-configured in each application which require them.
-
-Assume that the following template snippets are defined in the configuration:
-
-<figure>
-
-```yaml
-# /etc/ucloud/config.yaml
-slurm:
-  applications:
-    templates:
-      myGlobalPreamble: |
-        {% if requiresOptionalPackages %}
-        module load extra-packages
-        {% endif %}
-
-        {% if ucloud.module.gpu > 0 %}
-        module load gpu-packages
-        {% endif %}
-      
-      myGlobalPostamble: |
-        echo "This is the postamble!"
-```
-
-</figure>
-
-These can be consumed from any application requiring them by using the syntax: `{- templateId -}`.
-
-<figure>
-
-````yaml
-{{#include app_injection.yaml}}
-````
-
-</figure>
-</div>
-
-<div data-title="Variables from configuration">
-
-It is possible to read variables from the global configuration in any of the Jinja2 templates. Keep in mind that all
-variables are publicly available for anyone on the system to read.
-
-Assume that the following template snippets are defined in the configuration:
-
-<figure>
-
-```yaml
-# /etc/ucloud/config.yaml
-slurm:
-  applications:
-    variables:
-      myVariables: 40
-      myOtherVariable: 2
-      myGreeting: "hello user"
-```
-
-</figure>
-
-These can be consumed from any application:
-
-<figure>
-
-````yaml
-{{#include app_configuration.yaml}}
-````
-
-</figure>
-</div>
 </div>
 
 
@@ -495,21 +421,8 @@ Must be `"Native"` for application used in the UCloud/IM for Slurm integration.
 </tr>
 
 <tr>
-<td><code>build</code></td>
-<td><code>object</code><br>(optional, see below)</td>
-<td>
-
-Default value: `null`
-
-Contains information on about how to optionally build the software. If this property is not supplied, then it is
-assumed that no build procedure is required.
-
-</td>
-</tr>
-
-<tr>
 <td><code>load</code></td>
-<td><code>object</code><br>(optional, see below)</td>
+<td><code>object[]</code><br>(optional, see below)</td>
 <td>
 
 Default value: `null`
@@ -524,145 +437,17 @@ assumed that no load procedure is required and that the software can be run with
 </table>
 </div>
 
-### Software - Build
-
-The software build section contains information about how to build software along. It is supplied in the
-`software.build` section. The build procedure itself is optional and only executed when it is not possible to load
-the software. Each method of loading the software is capable of determining if the software is already present, if
-it is not then the build procedure is executed.
-
-The build procedure is always executed on the node running the integration module. For software which is defined by
-a system/built-in repository this is also executed as the `ucloud-software` user. For software defined by a user
-(TODO not currently possible), this is executed in the context of the project launching the job.
-
-_Click the tabs below to switch between different systems for building software._
-
-<div class="tabbed-card">
-
-<div data-title="EasyBuild">
-
-<div class="table-wrapper no-code-wrap">
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-<td><code>type</code></td>
-<td><code>string</code></td>
-<td>
-
-Must be `"EasyBuild"` for applications using EasyBuild.
-
-</td>
-</tr>
-
-<tr>
-<td><code>repository</code></td>
-<td><code>string</code></td>
-<td>
-
-Points to a [repository](./config-reference.md) of EasyBuild files. The value should reference the name of a repository.
-The repository itself, is configured in the configuration files of the integration module. The repository has a pointer
-to a folder which contains the files required for building the software.
-
-</td>
-</tr>
-
-<tr>
-<td><code>file</code></td>
-<td><code>string</code></td>
-<td>
-
-The file to build within the repository.
-
-</td>
-</tr>
-
-</tbody>
-</table>
-</div>
-
-
-</div>
-
-<div data-title="Spack">
-
-<div class="table-wrapper no-code-wrap">
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-
-<tr>
-<td><code>type</code></td>
-<td><code>string</code></td>
-<td>
-
-Must be `"Spack"` for applications using Spack.
-
-</td>
-</tr>
-
-<tr>
-<td><code>repository</code></td>
-<td><code>string</code></td>
-<td>
-
-Points to a [repository](./config-reference.md) of EasyBuild files. The value should reference the name of a repository.
-The repository itself, is configured in the configuration files of the integration module. The repository has a pointer
-to a folder which contains the files required for building the software.
-
-To use the built-in repository set the property to `built-in`.
-
-</td>
-</tr>
-
-<tr>
-<td><code>package</code></td>
-<td><code>string</code></td>
-<td>
-
-The package to build using Spack. This package is expected to be located within the repository specified.
-
-</td>
-</tr>
-
-</tbody>
-</table>
-</div>
-</div>
-</div>
-
-
 ### Software - Load
 
-The software build section contains information about how to build software along. It is supplied in the
-`software.load` section.
+The software load section contains information about how to load software. It is specified as an array of objects. The
+schema for the object is defined in the table below.
 
-The load step is always executed prior to the program invocation. It is executed in the context of project launching the
-job and always within the job itself. That is, the loading step is part of the job submission script. The loading 
-procedure is capable of checking, ahead of time, if a piece of software is going to be available. This is checked prior
-to submission. If a piece of software is not available, the build procedure is invoked. If the application has no build
-procedure associated with it, then the job will fail to launch.
+In non-customizable applications, the load step is always executed prior to the program invocation. In 
+customizable applications, they are loaded when requested via `{- loadApplication("name", "version") -}` (load generic 
+dependency not specified in the application) or `{- applicationLoad -}` (load all dependencies specified in the 
+application).
 
-_Click the tabs below to switch between different systems for loading software._
-
-<div class="tabbed-card">
-
-<div data-title="Module">
-
-This mode of loading software uses [Lmod](https://lmod.readthedocs.io/en/latest/).
+You can learn more about how to configure what happens when software is loaded [here](./built-in-apps.md).
 
 <div class="table-wrapper no-code-wrap">
 <table>
@@ -676,29 +461,28 @@ This mode of loading software uses [Lmod](https://lmod.readthedocs.io/en/latest/
 <tbody>
 
 <tr>
-<td><code>type</code></td>
+<td><code>name</code></td>
 <td><code>string</code></td>
 <td>
 
-Must be `"Module"` for applications using Lmod to load modules.
+The name of the software to load. This is independent from the name of application, but is commonly tightly bound to it.
 
 </td>
 </tr>
 
 <tr>
-<td><code>modules</code></td>
-<td><code>string[]</code></td>
+<td><code>version</code></td>
+<td><code>string</code></td>
 <td>
 
-A list of modules to load prior to submission. These will be passed directly to Lmod.
+The version of the software to load. This version is independent from the version specified in the application, but is
+commonly tightly bound to it.
 
 </td>
 </tr>
 
 </tbody>
 </table>
-</div>
-</div>
 </div>
 
 ### Environment Bindings and Program Invocation
@@ -1098,6 +882,35 @@ print(json.dumps(response))
 </td>
 </tr>
 
+<tr>
+<td><code>sbatch</code></td>
+<td>
+
+**Signature:**
+
+```
+sbatch(directiveName, value) -> void
+```
+
+Changes the sbatch directives used in the application. See the sbatch directives section below.
+
+**Example:**
+
+This example assumes a directory parameter in the application called `inputDir`.
+
+```
+{{ sbatch("chdir", inputDir) }}
+```
+
+This will cause the generated sbatch file to include:
+
+```
+#SBATCH --chdir ${inputDir}
+```
+
+</td>
+</tr>
+
 </tbody>
 </table>
 </div>
@@ -1114,9 +927,6 @@ exceptions:
 - `{% import ... %}` has been disabled
 - `{% include ... %}` has been disabled
 
-Note that as an alternative UCloud offers template injection via the `{- templateId -}` syntax shown in the "Template
-injection" example.
-
 ### Sbatch
 
 [Sbatch directives](./slurm.md#job-submission) are automatically added for most options which are relevant for a job.
@@ -1124,6 +934,9 @@ If an application needs to customize these, then this can also be done at an app
 the top-level `sbatch` property of type `map<string, InvocationString>`. This property follows the same rules of
 environment bindings. The directives generally take precedence over the directives generated by UCloud. Some caveats are
 covered by the table below:
+
+As an alternative, it is possible to override sbatch directives directly from the invocation (either via a customizable
+workflow or in the `invocation` parameter) by using `{{ sbatch("directive-name", "value") }}`.
 
 | Directive                       | Notes                                                                                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1248,36 +1061,6 @@ Default value: `false`
 
 This feature allows a user to add multiple nodes to a single job. This must be explicitly enabled for all applications
 which are capable of doing multi-node processing.
-
-</td>
-</tr>
-
-<tr>
-<td><code>forkable</code></td>
-<td><code>boolean</code> (optional)</td>
-<td>
-
-Default value: `true`
-
-Feature enabling users to customize applications by forking them. This feature is described in detail
-[here](./built-in-apps.md#forkable-applications). Applications using the `Native` software type has this feature enabled
-by default.
-
-</td>
-</tr>
-
-<tr>
-<td><code>requireFork</code></td>
-<td><code>boolean</code> (optional)</td>
-<td>
-
-Default value: `false`
-
-Feature enabling requiring users to fork the application before they can submit it. Such applications cannot be started
-directly by the user without first creating a fork of the application. Anything passed in the invocation will still be
-passed on to the end-user and can be used to explain how to use it.
-
-This property has no effect if `forkable = false`.
 
 </td>
 </tr>

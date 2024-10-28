@@ -14,15 +14,9 @@ parameters:
 software:
   type: Native
 
-  build:
-    type: EasyBuild
-    repository: MyRepository
-    file: jupyter-lab-3-1-6.eb
-
   load:
-    type: Module
-    modules:
-      - "JupyterLab/3.1.6"
+  - name: "JupyterLab"
+    version: "3.1.6"
 
 web:
   enabled: true

@@ -28,7 +28,6 @@ function extractCss(props: TextProps): CSSProperties {
     if (props.italic === true) style.fontStyle = "italic";
     if (props.align !== undefined) style.textAlign = props.align;
     if (props.cursor !== undefined) style.cursor = props.cursor;
-    if (props.color !== undefined) style.color = props.color;
     return style;
 }
 

@@ -33,22 +33,9 @@ parameters:
 software:
   type: Native
 
-  # Building with EasyBuild
-  build:
-    type: EasyBuild
-    repository: MyRepository
-    file: example-module.eb
-
-  # Building with Spack
-  # build:
-  #   type: Spack
-  #   repository: MyRepository
-  #   package: example-module
-
   load:
-    type: Module
-    modules:
-      - "example-module/1.32"
+  - name: example-module
+    version: 1.32
 
 environment:
   COUNT: "{{ count }}"
