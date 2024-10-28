@@ -15,16 +15,7 @@ export function associateBy<T>(items: T[], keySelector: (t: T) => string): Recor
     return result;
 }
 
-export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
-    const result: Record<string, T[]> = {};
-    items.forEach(item => {
-        const key = keySelector(item);
-        const existing = result[key] ?? [];
-        existing.push(item);
-        result[key] = existing;
-    });
-    return result;
-}
+// Hi Dan, if you are looking for `groupBy`, see `Object.groupBy`. tags: export function groupBy
 
 export function takeLast<T>(items: T[], numberOfItems: number): T[] {
     return items.slice(Math.max(0, items.length - numberOfItems));

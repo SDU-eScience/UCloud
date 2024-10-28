@@ -35,6 +35,34 @@ export enum CommandScope {
     Accounting = "Allocations",
 }
 
+export function scopeCompare(a: CommandScope, b: CommandScope): number {
+    return toScopeValue(a) - toScopeValue(b);
+}
+
+function toScopeValue(cs: CommandScope): number {
+    switch (cs) {
+        case CommandScope.ThisPage:
+            return 0;
+        case CommandScope.GoTo:
+            return 1;
+        case CommandScope.Application:
+            return 2;
+        case CommandScope.Job:
+            return 3;
+        case CommandScope.Drive:
+            return 4;
+        case CommandScope.File:
+            return 5;
+        case CommandScope.Link:
+            return 6;
+        case CommandScope.Project:
+            return 7;
+        case CommandScope.Accounting:
+            return 8;
+    }
+}
+
+
 export interface Command {
     icon: CommandIconProvider;
     title: string;

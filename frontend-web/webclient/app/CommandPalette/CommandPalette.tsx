@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Command, CommandIconProvider, CommandScope, useCommandProviderList} from "@/CommandPalette/index";
+import {Command, CommandIconProvider, CommandScope, scopeCompare, useCommandProviderList} from "@/CommandPalette/index";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 import {Feature, hasFeature} from "@/Features";
@@ -8,9 +8,8 @@ import Flex from "@/ui-components/Flex";
 import Image from "@/ui-components/Image";
 import Text from "@/ui-components/Text";
 import {Box, Truncate} from "@/ui-components";
-import {groupBy} from "@/Utilities/CollectionUtilities";
 
-const wrapper = injectStyle("command-palette", k => `
+const Wrapper = injectStyle("command-palette", k => `
     ${k} {
         --own-width: 600px;
         --own-base-height: 48px;
@@ -18,22 +17,15 @@ const wrapper = injectStyle("command-palette", k => `
         width: var(--own-width);
         min-height: var(--own-base-height);
         height: auto;
-        
-        
         position: fixed;
-        top: calc(50vh - var(--own-base-height));
+        top: 25%;
         left: calc(50vw - (var(--own-width) / 2));
-        
         border-radius: 16px;
         color: var(--textPrimary);
         z-index: 99999999;
         
         box-shadow: var(--defaultShadow);
         background: var(--backgroundCardHover);
-
-        &[has-items] {
-            top: 25%
-        }
 
         & input {
             width: calc(100% - 2 * 16px);
@@ -65,7 +57,7 @@ export const CommandPalette: React.FunctionComponent = () => {
         for (const p of commandProviders) {
             p(query, c => result.push(c));
         }
-        return result;
+        return result.sort((a, b) => scopeCompare(a.scope, b.scope));
     }, [commandProviders, query]);
 
     useEffect(() => {
@@ -94,6 +86,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     const close = useCallback(() => {
         setVisible(false);
+        setCurrentIndex(-1); 
     }, []);
 
     const onActivate = useCallback(() => {
@@ -148,7 +141,7 @@ export const CommandPalette: React.FunctionComponent = () => {
     }, [setQuery]);
 
     const groupedCommands = useMemo(() => {
-        return groupBy(commands, it => it.scope);
+        return Object.groupBy(commands, it => it.scope);
     }, [commands]);
 
     const divRef = React.useRef<HTMLDivElement>(null);
@@ -167,7 +160,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     const activeCommand = commands[currentIndex];
 
-    return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
+    return <div ref={divRef} className={Wrapper}>
         <input
             autoFocus
             placeholder={"Search for anything on UCloud..."}
@@ -189,7 +182,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 };
 
 function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
-    const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);;
+    const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);
     if (entry) {
         entry.scrollIntoView({block: scroll});
     }
@@ -272,7 +265,7 @@ function CommandIcon({icon, active}: {icon: CommandIconProvider; active: boolean
             return <Image src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
-            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" :"iconColor2")} />
+            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />
         }
     }
 }
