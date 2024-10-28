@@ -687,7 +687,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 
 	builder := &strings.Builder{}
 	{
-		appendLine(builder, "#!/usr/bin/env bash")
+		appendLine(builder, "#!/usr/bin/env bash --logint ")
 		for k, v := range directives {
 			appendLine(builder, "#SBATCH --%v %v", k, v)
 		}
