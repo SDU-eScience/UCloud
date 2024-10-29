@@ -255,11 +255,11 @@ function stateReducer(state: State, action: UIAction): State {
         }
 
         case "UpdateSearchQuery": {
-            const newState = {
+            const newState: State = {
                 ...state,
+                searchQuery: action.newQuery,
                 subAllocations: {
                     ...state.subAllocations,
-                    searchQuery: action.newQuery
                 },
             };
 
