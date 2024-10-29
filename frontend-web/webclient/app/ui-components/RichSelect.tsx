@@ -54,7 +54,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                 <Icon name="chevronDownLight"/>
             </div>
         }
-        onTriggerClick={onTriggerClick}
+        onOpeningTriggerClick={onTriggerClick}
         rightAligned
         closeFnRef={closeFn}
         paddingControlledByContent

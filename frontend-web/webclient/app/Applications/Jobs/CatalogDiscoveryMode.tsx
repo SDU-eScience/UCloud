@@ -86,7 +86,7 @@ export const CatalogDiscoveryModeSwitcher: React.FunctionComponent = () => {
         hoverColor={"rowHover"}
         onSelect={onKeyboardSelect}
         closeFnRef={closeFn}
-        onTriggerClick={resetFilter}
+        onOpeningTriggerClick={resetFilter}
         onClose={resetFilter}
 
         trigger={

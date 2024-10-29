@@ -17,6 +17,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
 import * as icons from "@/ui-components/icons";
 import {Feature, hasFeature} from "@/Features";
+import {SidebarDialog} from "@/ui-components/Sidebar";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -305,7 +306,7 @@ function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
     });
 }
 
-export function TaskList(): React.ReactNode {
+export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [uploads] = useUploads();
 
     const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
@@ -418,12 +419,17 @@ export function TaskList(): React.ReactNode {
     if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
 
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
+    
+    const isOpen = dialog === "BackgroundTask";
 
     return (
         <ClickableDropdown
             left="60px"
             bottom="-148px"
             colorOnHover={false}
+            open={isOpen}
+            onOpeningTriggerClick={() => setOpenDialog("BackgroundTask")}
+            onClose={() => setOpenDialog("")}
             trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
         >
             <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>

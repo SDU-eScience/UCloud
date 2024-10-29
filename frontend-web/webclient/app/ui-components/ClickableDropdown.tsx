@@ -16,7 +16,7 @@ export interface ClickableDropdownProps<T> {
     keepOpenOnClick?: boolean;
     keepOpenOnOutsideClick?: boolean;
     onChange?: (value: T) => void;
-    onTriggerClick?: () => void;
+    onOpeningTriggerClick?: () => void;
     onClose?: () => void;
     open?: boolean;
 
@@ -65,7 +65,7 @@ export interface ClickableDropdownProps<T> {
 const dropdownPortal = "dropdown-portal";
 
 function ClickableDropdown<T>({
-    keepOpenOnClick, onChange, onTriggerClick, ...props
+    keepOpenOnClick, onChange, onOpeningTriggerClick, ...props
 }: PropsWithChildren<ClickableDropdownProps<T>>): React.ReactNode {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(props.open ?? false);
@@ -96,9 +96,9 @@ function ClickableDropdown<T>({
     if (props.closeFnRef) props.closeFnRef.current = close;
 
     const doOpen = useCallback(() => {
-        onTriggerClick?.();
+        onOpeningTriggerClick?.();
         if (!isControlled) setOpen(true);
-    }, [onTriggerClick]);
+    }, [onOpeningTriggerClick]);
 
     const forceOpen = useCallback((left: number, top: number) => {
         setLocation([left, top]);

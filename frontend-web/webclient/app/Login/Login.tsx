@@ -8,7 +8,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
 import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
-import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL, DEFAULT_LOGIN} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router";
 import wayfLogo from "@/Assets/Images/WAYFLogo.svg?url";
 import ucloudBlue from "@/Assets/Images/ucloud-blue.svg?url";
@@ -240,7 +240,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
         );
     }
 
-    const [showingWayf, setShowingWayf] = useState(DEFAULT_LOGIN === "wayf");
+    const [showingWayf, setShowingWayf] = useState(!IS_SANDBOX);
 
     return (
         <LoginWrapper>
