@@ -22,7 +22,7 @@ import {WebSocketConnection} from "@/Authentication/ws";
 import AppRoutes from "@/Routes";
 import {classConcatArray, injectStyle} from "@/Unstyled";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
-import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
+import {SidebarDialog} from "@/ui-components/Sidebar";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
@@ -390,12 +390,13 @@ let normalizationDependencies: {
 // the navigation header. Here it leaves a bell icon, which can be clicked to open the notification tray. This
 // function is responsible for initializing the notification store. It is also responsible for mounting the popup
 // component.
-export const Notifications: React.FunctionComponent = () => {
+export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
     const dispatch = useDispatch();
     const location = useLocation();
     const navigate = useNavigate();
     const rerender = useForcedRender();
-    const [notificationsVisible, setNotificationsVisible] = React.useState(false);
+    
+    const isOpen = props.dialog === "Notifications";
 
     const globalRefresh = useRefresh();
     const globalRefreshRef = React.useRef<(() => void) | undefined>(undefined);
@@ -405,12 +406,11 @@ export const Notifications: React.FunctionComponent = () => {
 
     const toggleNotifications = React.useCallback((ev: React.SyntheticEvent) => {
         ev.stopPropagation();
-        setNotificationsVisible(prev => !prev);
+        props.setOpenDialog(d => d === "Notifications" ? "" : "Notifications");
     }, []);
 
     React.useEffect(() => {
-        const evHandler = () => {setNotificationsVisible(false)};
-        document.addEventListener("click", evHandler);
+        const evHandler = () => {props.setOpenDialog("")};
 
         function closeOnEscape(e: KeyboardEvent) {
             if (e.key === "Escape") {
@@ -419,7 +419,6 @@ export const Notifications: React.FunctionComponent = () => {
         }
         window.addEventListener("keydown", closeOnEscape);
         return () => {
-            document.removeEventListener("click", evHandler);
             window.removeEventListener("keydown", closeOnEscape);
         };
     }, []);
@@ -460,21 +459,6 @@ export const Notifications: React.FunctionComponent = () => {
 
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
-    const divRef = React.useRef<HTMLDivElement>(null);
-    const closeOnOutsideClick = React.useCallback(e => {
-        if (
-            divRef.current && !divRef.current.contains(e.target) &&
-            findDomAttributeFromAncestors(e.target, "data-key") !== "notifications-icon"
-        ) {
-            setNotificationsVisible(false);
-        }
-    }, []);
-
-    React.useEffect(() => {
-        document.addEventListener("mousedown", closeOnOutsideClick);
-        return () => document.removeEventListener("mousedown", closeOnOutsideClick);
-    }, []);
-
     return <>
         <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" data-key="notifications-icon" cursor="pointer">
@@ -507,8 +491,8 @@ export const Notifications: React.FunctionComponent = () => {
             </Relative>
         </Flex>
 
-        {!notificationsVisible ? null :
-            <div ref={divRef} className={ContentWrapper} onClick={UF.stopPropagation}>
+        {!isOpen ? null :
+            <div className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"

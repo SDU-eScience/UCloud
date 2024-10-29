@@ -301,9 +301,10 @@ function UserMenuExternalLink(props: {
     </div>
 }
 
-function UserMenu({avatar}: {
+function UserMenu({avatar, dialog, setOpenDialog}: {
     avatar: AvatarType;
-}) {
+} & SidebarDialog) {
+
     const close = React.useRef(() => undefined);
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
@@ -315,13 +316,18 @@ function UserMenu({avatar}: {
         return () => {
             window.removeEventListener("keydown", closeOnEscape);
         }
-    }, [])
+    }, []);
+
+    const isOpen = dialog === "UserMenu";
 
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
         left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
+        open={isOpen}
+        onOpeningTriggerClick={() => setOpenDialog("UserMenu")}
+        onClose={() => setOpenDialog("")}
         closeFnRef={close}
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
@@ -424,6 +430,7 @@ export function Sidebar(): React.ReactNode {
     const navigate = useNavigate();
 
     useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate)));
+    const [dialog, setOpenDialog] = React.useState<DialogOptions>("");
 
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
@@ -488,10 +495,10 @@ export function Sidebar(): React.ReactNode {
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
                     <Downtimes />
                     <ThemeToggler />
-                    <BackgroundTasks />
-                    <Notification />
-                    <Support />
-                    <UserMenu avatar={avatar} />
+                    <BackgroundTasks dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Notification dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Support dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <UserMenu avatar={avatar} dialog={dialog} setOpenDialog={setOpenDialog} />
                     <CommandPalette />
                 </Flex>
             </div>
@@ -508,6 +515,13 @@ export function Sidebar(): React.ReactNode {
             />
         </Flex>
     );
+}
+
+type DialogOptions = "BackgroundTask" | "Notifications" | "Support" | "UserMenu" | "";
+type SetOpenDialog = React.Dispatch<React.SetStateAction<DialogOptions>>;
+export interface SidebarDialog {
+    dialog: DialogOptions;
+    setOpenDialog: SetOpenDialog;
 }
 
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}

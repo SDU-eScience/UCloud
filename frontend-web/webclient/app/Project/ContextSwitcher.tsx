@@ -236,7 +236,7 @@ export function ContextSwitcher({managed}: {
                     setTitleFilter("");
                 }}
                 colorOnHover={false}
-                onTriggerClick={reload}
+                onOpeningTriggerClick={reload}
                 width="500px"
             >
                 <div style={{maxHeight: "385px"}}>
