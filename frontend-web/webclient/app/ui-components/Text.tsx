@@ -1,5 +1,5 @@
 import * as React from "react";
-import {classConcat, classConcatMult, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
+import {classConcat, classConcatMult, extractDataTags, extractEventHandlers, injectStyle, injectStyleSimple, unbox} from "@/Unstyled";
 import {CSSProperties} from "react";
 import {FontWeightProps} from "styled-system";
 import {BoxProps} from "./Types";
@@ -32,7 +32,7 @@ function extractCss(props: TextProps): CSSProperties {
 }
 
 const Text: React.FunctionComponent<React.PropsWithChildren<TextProps>> = props => {
-    return <div className={classConcat(TextClass, props.className)} style={extractCss({cursor: props.cursor ?? "inherit", ...props})} {...extractEventHandlers(props)}
+    return <div className={classConcat(TextClass, props.className)} style={extractCss({cursor: props.cursor ?? "inherit", ...props})} {...extractDataTags(props)} {...extractEventHandlers(props)}
         title={props.title} children={props.children} />;
 };
 

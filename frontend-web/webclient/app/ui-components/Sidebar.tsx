@@ -68,7 +68,7 @@ import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ContextSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
-import {Command, CommandPalette, CommandScope, staticProvider, useCommandProviderList, useProvideCommands} from "@/CommandPalette";
+import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 import {NavigateFunction, useNavigate} from "react-router";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
@@ -219,33 +219,31 @@ const sideBarMenuElements: [
     SidebarMenuElements,
     SidebarMenuElements,
     SidebarMenuElements,
-] = [
-        {
-            items: [
-                {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
-                {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
-                {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
-                {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-                {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.jobs.list()}
-            ],
-            predicate: () => Client.isLoggedIn
-        },
-        {
-            items: [
-                {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
-            ],
-            predicate: () => Client.userIsAdmin
-        },
-        {
-            items: [
-                {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
-            ],
-            predicate: (state) => {
-                const curatorStatus = state.catalogLandingPage?.curator;
-                return curatorStatus != null && curatorStatus.length > 0;
-            }
-        }
-    ];
+] = [{
+    items: [
+        {icon: "heroFolder", label: SidebarTabId.FILES, to: AppRoutes.files.drives()},
+        {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
+        {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
+        {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
+        {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.jobs.list()}
+    ],
+    predicate: () => Client.isLoggedIn
+},
+{
+    items: [
+        {icon: "heroBolt", label: SidebarTabId.ADMIN, to: AppRoutes.admin.userCreation()},
+    ],
+    predicate: () => Client.userIsAdmin
+},
+{
+    items: [
+        {icon: "heroBuildingStorefront", label: SidebarTabId.APPLICATION_STUDIO, to: AppRoutes.appStudio.groups()}
+    ],
+    predicate: (state) => {
+        const curatorStatus = state.catalogLandingPage?.curator;
+        return curatorStatus != null && curatorStatus.length > 0;
+    }
+}];
 
 interface SidebarStateProps {
     loggedIn: boolean;
@@ -595,16 +593,19 @@ function useSidebarRunsPage(): Job[] {
 
     const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
 
-    useProvideCommands(staticProvider(cache.items.map(j => ({
-        title: j.id,
-        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
-        action() {
-            navigate(AppRoutes.jobs.view(j.id));
-        },
-        description: "",
-        scope: CommandScope.Job,
-        actionText: "Go to",
-    }))));
+    useProvideCommands((() => {
+        const scope = window.location.pathname === "/app/jobs" ? CommandScope.ThisPage : CommandScope.Job;
+        return staticProvider(cache.items.map(j => ({
+            title: j.id,
+            icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
+            action() {
+                navigate(AppRoutes.jobs.view(j.id));
+            },
+            description: "",
+            scope,
+            actionText: "Go to",
+        })))
+    })());
 
     React.useEffect(() => {
         callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {

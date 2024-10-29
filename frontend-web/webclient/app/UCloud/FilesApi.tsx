@@ -61,7 +61,7 @@ import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useParams} from "react-router";
+import {useNavigate, useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
@@ -92,6 +92,7 @@ import {
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
+import {Command, CommandScope, staticProvider, useProvideCommands} from "@/CommandPalette";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -256,6 +257,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         const prettyPath = usePrettyFilePath(id ?? "");
         const downloadRef = React.useRef(new Uint8Array());
         usePage(prettyPath, SidebarTabId.FILES);
+        const navigate = useNavigate();
 
         const [, invokeCommand] = useCloudCommand();
 
@@ -282,6 +284,34 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 downloadFunction.onClick([file], {invokeCommand} as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks);
             }
         }, [downloadRef, file, id]);
+
+        const commands: Command[] = [{
+            icon: {type: "simple", icon: "ftFolder"},
+            title: "Go to parent folder",
+            description: "",
+            action() {
+                if (file) {
+                    navigate(AppRoutes.files.path(getParentPath(file.id)));
+                }
+            },
+            scope: CommandScope.ThisPage,
+            actionText: ""
+        }];
+
+        if (downloadRef.current) {
+            commands.push({
+                icon: {type: "simple", icon: "download"},
+                title: "Download file",
+                description: "",
+                action() {
+                    downloadFile();
+                },
+                scope: CommandScope.ThisPage,
+                actionText: ""
+            });
+        }
+
+        useProvideCommands(staticProvider(commands));
 
         if (!id) return <h1>Missing file id.</h1>
 
@@ -325,7 +355,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 null
             }
             <Box mt={"16px"} mb={"8px"}>
-                <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
+                <Link to={AppRoutes.files.path(getParentPath(file.id))}>
                     <Button fullWidth>View in folder</Button>
                 </Link>
             </Box>
@@ -1213,7 +1243,8 @@ export function FilePreview({file, contentRef}: {
         return () => {
             window.onresize = oldOnResize
         }
-    }, [])
+    }, []);
+
     const [type, setType] = useState<ExtensionType>(null);
     const [loading, invokeCommand] = useCloudCommand();
 
