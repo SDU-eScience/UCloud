@@ -58,7 +58,6 @@
 - [Troubleshooting](./ops/troubleshooting.md)
 - [Metrics and Alerts](./ops/metrics.md)
 - [Resource Allocations](./ops/resource-allocation.md)
-- [Managing the Application Catalog](./ops/app-catalog.md)
 
 # Local Development
 

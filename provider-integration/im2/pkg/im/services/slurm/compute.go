@@ -190,55 +190,59 @@ func loopComputeMonitoring() {
 	}
 
 	// Register unknown jobs
+	// NOTE(Dan): Disabled for now since this in practice creates a lot of registrations of the same job. I suspect
+	// this code has an issue where it does not realise instantly that this job is actually tracked.
 	toRegister := []orc.ProviderRegisteredResource[orc.JobSpecification]{}
-	for _, slurmJob := range unknownJobs {
-		if slurmJob.Account == "" {
-			continue
+	if false {
+		for _, slurmJob := range unknownJobs {
+			if slurmJob.Account == "" {
+				continue
+			}
+
+			slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
+
+			if !slurmCfg.Present {
+				continue
+			}
+
+			desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
+			safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
+
+			timeAllocation := util.Option[orc.SimpleDuration]{}
+			timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
+
+			createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
+			projectId := util.Option[string]{}
+
+			if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
+				projectId.Set(slurmCfg.Value.Owner.ProjectId)
+			}
+
+			providerJobId := util.Option[string]{
+				Value: parsedProviderJobId{
+					BelongsToAccount: slurmJob.Account,
+					SlurmId:          slurmJob.JobID,
+				}.String(),
+				Present: true,
+			}
+
+			newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
+				Spec: orc.JobSpecification{
+					Name:                  safeName,
+					Application:           unknownApplication,
+					ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
+					Replicas:              slurmCfg.Value.EstimatedNodeCount,
+					Parameters:            make(map[string]orc.AppParameterValue),
+					Resources:             []orc.AppParameterValue{},
+					TimeAllocation:        timeAllocation,
+				},
+				ProviderGeneratedId: providerJobId,
+				CreatedBy:           createdBy,
+				Project:             projectId,
+			}
+
+			toRegister = append(toRegister, newJobResource)
 		}
-
-		slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
-
-		if !slurmCfg.Present {
-			continue
-		}
-
-		desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
-		safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
-
-		timeAllocation := util.Option[orc.SimpleDuration]{}
-		timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
-
-		createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
-		projectId := util.Option[string]{}
-
-		if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
-			projectId.Set(slurmCfg.Value.Owner.ProjectId)
-		}
-
-		providerJobId := util.Option[string]{
-			Value: parsedProviderJobId{
-				BelongsToAccount: slurmJob.Account,
-				SlurmId:          slurmJob.JobID,
-			}.String(),
-			Present: true,
-		}
-
-		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
-			Spec: orc.JobSpecification{
-				Name:                  safeName,
-				Application:           unknownApplication,
-				ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
-				Replicas:              slurmCfg.Value.EstimatedNodeCount,
-				Parameters:            make(map[string]orc.AppParameterValue),
-				Resources:             []orc.AppParameterValue{},
-				TimeAllocation:        timeAllocation,
-			},
-			ProviderGeneratedId: providerJobId,
-			CreatedBy:           createdBy,
-			Project:             projectId,
-		}
-
-		toRegister = append(toRegister, newJobResource)
 	}
 	batch.End()
 
@@ -263,10 +267,8 @@ func loopComputeMonitoring() {
 
 				ctrl.TrackNewJob(job)
 			}
-
 		}
 	}
-
 }
 
 type ucloudStateInfo struct {

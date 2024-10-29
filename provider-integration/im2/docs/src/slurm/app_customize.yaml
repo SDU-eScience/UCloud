@@ -1,0 +1,155 @@
+application: v2
+
+# The name of the application in UCloud
+name: native-gromacs  
+
+# The version of the application in UCloud. Should generally match the version
+# specified in the software section.
+version: 2021.5       
+
+software:
+  type: Native
+
+  # The software to be loaded. These are matched with the files located at the
+  # service provider (see service-provider-config)
+  load: 
+    - name: gromacs
+
+      # Does a heuristics-based lookup to find the best version. Dont't 
+      # include patch releases. For example, use "1.2" even if the real version 
+      # might be "1.2.54". The integration software will automatically
+      # find the best match based on what is available at the service-provider.
+      version: 2021.5   
+
+features:
+  multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
+
+parameters:
+  # The most important parameter is the Workflow parameter added below. But for
+  # now, we will add an input directory parameter called "dir" which will be 
+  # consumed by the workflow below.
+
+  dir:
+    type: Directory
+    title: "Input directory"
+    optional: false
+    description: "This is an input directory used by the workflow"
+
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      Change this workflow to customize what the batch script should do.
+
+    # This is a Jinja2 template presented to the end-user and can be changed 
+    # by them. Remember, that these files are service-provider agnostic and 
+    # should not contain information specific to any service-provider. The 
+    # service-provider is capable of configuring what happens at various 
+    # points. For example the {- systemLoad -} and {- applicationLoad -} 
+    # commands below are configured by the service-provider to actually load 
+    # the software onto the machine.
+
+    job: |
+      {#
+          
+      This script is submitted to Slurm via the sbatch command.
+          
+      The following sbatch directives are automatically applied based on job parameters:
+          
+      --account=...           --partition=...           --qos=...
+      --constraint=...        --output=...              --error=...
+      --time=...              --cpus-per-task=...-      --gpus-per-task=...
+      --mem=...               --nodes=...               --job-name=...
+      --chdir=...
+
+      Directives can be overwritten via the following method: 
+      {{ sbatch("chdir", "/tmp/new/directory") }}
+            
+      #}
+      
+      {# Sbatch directives start - Change as required #}
+        {{ sbatch("cpus-per-task", 4) }}
+        {{ sbatch("ntasks-per-node", ucloud.machine.cpu / 4) }}
+        {{ sbatch("ntasks", (ucloud.machine.nodes * ucloud.machine.cpu) / 4) }}
+      {# Sbatch directives end #}
+      
+      {# Preambles start - Avoid touching these unless required. #}
+        {- systemLoad -}
+        {- applicationLoad -}
+      {# Preambles end #}
+    
+      {# ==================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# ==================================================================== #}
+    
+      {# NOTE: the data input parameter is bound to the Jinja2 variable of the same name. #} 
+      {# This value is automatically escaped. #}
+
+      cd {{ dir }}
+      CMD=${CMD:=gmx_mpi}
+      
+      set -x
+      set -e
+
+      {# NOTE: srun() will expand to the correct invocation (configurable by #}
+      {# service-provider) of srun in a given context #}
+      {{ srun() }} $CMD pdb2gmx -f 1AKI.pdb -o 1AKI_processed.gro -water spce
+      {{ srun() }} $CMD editconf -f 1AKI_processed.gro -o 1AKI_newbox.gro -c \
+          -d 1.0 -bt cubic
+      {{ srun() }} $CMD solvate -cp 1AKI_newbox.gro -cs spc216.gro \
+          -o 1AKI_solv.gro -p topol.top
+      {{ srun() }} $CMD grompp -f ions.mdp -c 1AKI_solv.gro  -p topol.top -o ions.tpr
+      {{ srun() }} $CMD genion -s ions.tpr -o 1AKI_solv_ions.gro -p topol.top \
+          -pname NA -nname CL -neutral
+      {{ srun() }} $CMD grompp -f minim.mdp -c 1AKI_solv_ions.gro -p topol.top \
+          -o em.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm em -nt 32
+      {{ srun() }} $CMD grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top \
+          -o nvt.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm nvt -nt 32
+      {{ srun() }} $CMD grompp -f npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt \
+          -p topol.top -o npt.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm npt
+      {{ srun() }} $CMD grompp -f md.mdp -c npt.gro -t npt.cpt -p topol.top \
+          -o md_0_1.tpr
+      {{ srun() }} $CMD mdrun -v -deffnm md_0_1
+      {{ srun() }} $CMD trjconv -s md_0_1.tpr -f md_0_1.xtc \
+          -o md_0_1_noPBC.xtc -pbc mol -center
+      {{ srun() }} $CMD rms -s md_0_1.tpr -f md_0_1_noPBC.xtc -o rmsd.xvg -tu ns
+      {{ srun() }} $CMD rms -s em.tpr -f md_0_1_noPBC.xtc -o rmsd_xtal.xvg -tu ns
+
+      {# ==================================================================== #}
+      {# End of job                                                                                                      #}
+      {# ==================================================================== #}
+      
+      {# Postambles start - Avoid touching these unless required. #}
+        {- applicationUnload -}
+        {- systemUnload -}
+      {# Postambles end #}
+
+    # This is a README visible to the user before they launch the application.
+    readme: |
+      This is an example workflow using GROMACS.
+
+      ### Some GROMACS Basics
+
+      Rerum ut eos earum neque. Velit molestias illum consectetur blanditiis 
+      quis veritatis officiis cupiditate. Ut quis in consequuntur 
+      necessitatibus unde.
+      
+      ```
+      gmx help (module)
+      ```
+
+      Commodi nisi non earum cupiditate. Sint ut repudiandae sed provident vel 
+      magnam tempora delectus. Consequatur vero sed perspiciatis ut nihil ut. 
+      Eligendi quam nulla similique reprehenderit eveniet qui. In nisi dolorum
+      iure fuga ipsam velit nihil repellat.
+
+      ```
+      gmx pdb2gmx -f 1AKI_clean.pdb -o 1AKI_processed.gro -water spce
+      ```
+
+# Keep this empty for now. Will become optional later.
+invocation: ""
