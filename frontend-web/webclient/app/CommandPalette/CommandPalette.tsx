@@ -86,7 +86,7 @@ export const CommandPalette: React.FunctionComponent = () => {
 
     const close = useCallback(() => {
         setVisible(false);
-        setCurrentIndex(-1); 
+        setCurrentIndex(-1);
     }, []);
 
     const onActivate = useCallback(() => {
@@ -118,7 +118,11 @@ export const CommandPalette: React.FunctionComponent = () => {
             if (commands.length) {
                 setCurrentIndex(idx => {
                     const newVal = Math.max((idx - 1), 0);
-                    scrollEntryIntoView(newVal, "start");
+                    if (newVal === 0) {
+                        scrollEntryRootIntoView();
+                    } else {
+                        scrollEntryIntoView(newVal, "start");
+                    }
                     return newVal;
                 });
             }
@@ -181,6 +185,10 @@ export const CommandPalette: React.FunctionComponent = () => {
     </div>;
 };
 
+function scrollEntryRootIntoView() {
+    document.querySelector("[data-command-palette")?.querySelector("[data-scope-title]")?.scrollIntoView();
+}
+
 function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
     const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);
     if (entry) {
@@ -190,7 +198,7 @@ function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
 
 function CommandScopeTitle({count, title}: {count: number; title: string}): React.ReactNode {
     if (!count) return null;
-    return <Text mx="12px" my="8px" bold style={{borderBottom: "1px solid var(--secondaryDark)"}}>
+    return <Text mx="12px" my="8px" bold data-scope-title style={{borderBottom: "1px solid var(--secondaryDark)"}}>
         {title}
     </Text>
 }
