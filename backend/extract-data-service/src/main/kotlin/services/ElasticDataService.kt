@@ -1,6 +1,7 @@
 package dk.sdu.cloud.extract.data.services
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.Time
 import co.elastic.clients.elasticsearch._types.aggregations.Aggregation
 import co.elastic.clients.elasticsearch._types.aggregations.CardinalityAggregation
@@ -13,12 +14,14 @@ import co.elastic.clients.elasticsearch._types.query_dsl.QueryStringQuery
 import co.elastic.clients.elasticsearch._types.query_dsl.RangeQuery
 import co.elastic.clients.elasticsearch._types.query_dsl.WildcardQuery
 import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.search.FieldCollapse
 import co.elastic.clients.json.JsonData
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.ElasticAudit
+import dk.sdu.cloud.calls.server.HttpCallLogEntry
 import dk.sdu.cloud.extract.data.api.UCloudUser
 import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.serialization.SerialName
@@ -31,6 +34,8 @@ class ElasticDataService(
     val elasticHighLevelClient: ElasticsearchClient,
     val db: DBContext
 ) {
+    private val FIVE_MINUTES = 1000L * 60 * 5
+
     fun maxSimultaneousUsers(startDate: LocalDateTime, endDate: LocalDateTime) {
         val searchRequest = SearchRequest.Builder()
             .index("http_logs*")
@@ -111,6 +116,107 @@ class ElasticDataService(
             .build()
         val searchResponse = elasticHighLevelClient.search(searchRequest, ElasticAudit::class.java)
         return searchResponse.aggregations()["UserCount"]?.cardinality()?.value() ?: 0L
+    }
+
+    fun uniqueActiveProjectsInPeriod(start: Long, end: Long):List<String> {
+        var currentStart = start
+        var currentEnd = start + FIVE_MINUTES
+        val results = mutableSetOf<String>()
+        while (currentEnd < end) {
+            val searchRequest = SearchRequest.Builder()
+                .query(
+                    BoolQuery.Builder()
+                        .must(
+                            WildcardQuery.Builder()
+                                .field("project.keyword")
+                                .value("*")
+                                .build()._toQuery()
+                        )
+                        .mustNot(
+                            WildcardQuery.Builder()
+                                .field("requestName")
+                                .value("accounting.v2.reportUsage")
+                                .build()._toQuery()
+                        )
+                        .mustNot(
+                            WildcardQuery.Builder()
+                                .field("requestName")
+                                .value("news.listDowntimes")
+                                .build()._toQuery()
+                        )
+                        .filter(
+                            RangeQuery.Builder()
+                                .field("timestamp")
+                                .gte(JsonData.of(currentStart))
+                                .lte(JsonData.of(currentEnd))
+                                .build()._toQuery()
+                        )
+                        .build()._toQuery()
+                )
+                .collapse(
+                    FieldCollapse.Builder()
+                        .field("project.keyword")
+                        .build()
+                )
+                .build()
+            val searchResponse = elasticHighLevelClient.search(searchRequest, ElasticAudit::class.java)
+            val hits = searchResponse.hits().hits().mapNotNull { it.source()?.project }
+            results.addAll(hits)
+            currentStart = currentEnd
+            currentEnd += FIVE_MINUTES
+        }
+        return results.toList().sorted()
+    }
+
+    fun uniqueUsersInPeriod(start: Long, end: Long): List<String> {
+        var currentStart = start
+        var currentEnd = start + FIVE_MINUTES
+        val results = mutableSetOf<String>()
+        while (currentEnd < end) { 
+            val searchRequest = SearchRequest.Builder()
+                .query(
+                    BoolQuery.Builder()
+                        .must(
+                            WildcardQuery.Builder()
+                                .field("token.principal.username.keyword")
+                                .value("*")
+                                .build()._toQuery()
+                        )
+                        .mustNot(
+                            WildcardQuery.Builder()
+                                .field("requestName")
+                                .value("accounting.v2.reportUsage")
+                                .build()._toQuery()
+                        )
+                        .mustNot(
+                            WildcardQuery.Builder()
+                                .field("requestName")
+                                .value("news.listDowntimes")
+                                .build()._toQuery()
+                        )
+                        .filter(
+                            RangeQuery.Builder()
+                                .field("timestamp")
+                                .gte(JsonData.of(currentStart))
+                                .lte(JsonData.of(currentEnd))
+                                .build()._toQuery()
+                        )
+                        .build()._toQuery()
+                )
+                .collapse(
+                    FieldCollapse.Builder()
+                        .field("token.principal.username.keyword")
+                        .build()
+                )
+                .build()
+
+            val searchResponse = elasticHighLevelClient.search(searchRequest, ElasticAudit::class.java)
+            val hits = searchResponse.hits().hits().mapNotNull { it.source()?.token?.principal?.username }
+            results.addAll(hits)
+            currentStart = currentEnd
+            currentEnd += FIVE_MINUTES
+        }
+        return results.toList().sorted()
     }
 
     fun activityPeriod(users: List<UCloudUser>) {

@@ -139,6 +139,20 @@ class Server(override val micro: Micro) : CommonServer {
                             exitProcess(0)
                         }
 
+                        args.contains("--uniqueUsersInPeriod") -> {
+                            getDates(args)
+                            val users = userActivityReport.uniqueUsersInPeriod(start.toTimestamp(), end.toTimestamp())
+                            println(users)
+                            exitProcess(0)
+                        }
+
+                        args.contains("--uniqueActiveProjectsInPeriod") -> {
+                            getDates(args)
+                            val projects = userActivityReport.uniqueActiveProjectsInPeriod(start.toTimestamp(), end.toTimestamp())
+                            println(projects)
+                            exitProcess(0)
+                        }
+
                         args.contains("--usersActive") -> {
                             getDates(args)
 
@@ -149,7 +163,7 @@ class Server(override val micro: Micro) : CommonServer {
                                 movingEnd = start.plusMonths(4)
                                 println(
                                     "${start}->${movingEnd}: Users Active = ${
-                                        userActivityReport.elasticDataService.activeUsers(
+                                        userActivityReport.userActivity(
                                             start.toTimestamp(),
                                             movingEnd.toTimestamp()
                                         )
@@ -166,7 +180,7 @@ class Server(override val micro: Micro) : CommonServer {
                                 movingEnd = start.plusMonths(1)
                                 println(
                                     "${start}->${movingEnd}: Users Active = ${
-                                        userActivityReport.elasticDataService.activeUsers(
+                                        userActivityReport.userActivity(
                                             start.toTimestamp(),
                                             movingEnd.toTimestamp()
                                         )
