@@ -21,7 +21,7 @@ import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SafeLogo} from "../AppToolLogo";
-import {doNothing} from "@/UtilityFunctions";
+import {doNothing, stopPropagation} from "@/UtilityFunctions";
 import ReactModal from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import List, {ListRow} from "@/ui-components/List";
@@ -30,23 +30,25 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {fetchAll} from "@/Utilities/PageUtilities";
-import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {useDidUnmount, useForcedRender} from "@/Utilities/ReactUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {Toggle} from "@/ui-components/Toggle";
 import {UploadAppAndTool} from "@/Applications/Studio/Uploader";
+import {injectStyle, makeKeyframe} from "@/Unstyled";
 
 export const AppGroup: React.FunctionComponent = () => {
-    const id = parseInt(useParams<{ id: string }>().id ?? "-1");
+    const id = parseInt(useParams<{id: string}>().id ?? "-1");
 
     const [group, fetchGroup] = useCloudAPI(AppStore.retrieveStudioGroup({id}), null);
+
     const [filter, setFilter] = useState("");
     const [reloadId, setReloadId] = useState(0);
     const [appUploadError, setAppUploadErr] = useState<string | null>(null);
     const [appList, fetchAppList] = useCloudAPI<Page<AppStore.NameAndVersion>>(
-        { noop: true },
-        { items: [], itemsInTotal: 0, itemsPerPage: 0, pageNumber: 0 },
+        {noop: true},
+        {items: [], itemsInTotal: 0, itemsPerPage: 0, pageNumber: 0},
     );
 
     usePage("Edit group", SidebarTabId.APPLICATION_STUDIO);
@@ -129,6 +131,31 @@ export const AppGroup: React.FunctionComponent = () => {
 
     const navigate = useNavigate();
 
+    const currentApp = useRef(-1);
+    const forceRender = useForcedRender()
+    const swapAppPositions = React.useCallback((draggedAppIndex: number, droppedAppIndex: number) => {
+        if (draggedAppIndex === -1) return;
+        if (!group.data?.status.applications) return;
+        const draggedApp = group.data.status.applications[draggedAppIndex];
+        const droppedApp = group.data.status.applications[droppedAppIndex];
+        group.data.status.applications[draggedAppIndex] = droppedApp;
+        group.data.status.applications[droppedAppIndex] = draggedApp;
+
+        const list = document.querySelector("[data-app-list]");
+        const dragEl = list?.querySelector<HTMLDivElement>(`[data-idx="${draggedAppIndex}"]`)
+        if (dragEl) {
+            dragEl.classList.add(MovedAnimation);
+            dragEl.onanimationend = () => dragEl.classList.remove(MovedAnimation);
+        }
+        const dropEl = list?.querySelector<HTMLDivElement>(`[data-idx="${droppedAppIndex}"]`)
+        if (dropEl) {
+            dropEl.classList.add(MovedAnimation);
+            dropEl.onanimationend = () => dropEl.classList.remove(MovedAnimation);
+        }
+
+        forceRender();
+    }, [group]);
+
     useSetRefreshFunction(refresh);
 
     return (
@@ -153,16 +180,16 @@ export const AppGroup: React.FunctionComponent = () => {
                             setFilter(searchValue);
                         }}>
                             <Flex>
-                                <Input placeholder="Search..." inputRef={appSearchField} width="300px" type="text"/>
+                                <Input placeholder="Search..." inputRef={appSearchField} width="300px" type="text" />
                                 <Relative right="30px" top="8px" width="0px" height="0px">
                                     <button type="submit" style={{border: "none", background: "none"}}><Icon
-                                        name="search"/></button>
+                                        name="search" /></button>
                                 </Relative>
                             </Flex>
                         </form>
                     </Flex>
 
-                    {!uniqueApps? <>No apps found</> : (
+                    {!uniqueApps ? <>No apps found</> : (
                         <List width="100%" height="calc(80vh - 75px)" minHeight="325px" overflow="auto">
                             {uniqueApps.map(appName => (
                                 group.data?.status?.applications?.map(app => app.metadata.name).includes(appName) ? null : (
@@ -170,7 +197,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                         key={appName}
                                         left={
                                             <Flex gap="10px">
-                                                <SafeLogo name={appName} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/>
+                                                <SafeLogo name={appName} type="APPLICATION" size="30px" cacheBust={reloadId.toString()} />
                                                 {appName}
                                             </Flex>
                                         }
@@ -208,12 +235,12 @@ export const AppGroup: React.FunctionComponent = () => {
                             <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                                 <Label>Title
                                     <Input mb="20px" inputRef={groupTitleField} type="text"
-                                           defaultValue={group.data?.specification.title}/>
+                                        defaultValue={group.data?.specification.title} />
                                 </Label>
 
                                 <Label>Description
                                     <TextArea mb="20px" inputRef={groupDescriptionField}
-                                              defaultValue={group.data?.specification.description}/>
+                                        defaultValue={group.data?.specification.description} />
                                 </Label>
 
                                 <Flex justifyContent="right" mb="30px">
@@ -241,6 +268,7 @@ export const AppGroup: React.FunctionComponent = () => {
                                             newDefaultFlavor: defaultApplication,
                                             newLogoHasText: logoHasText
                                             // tags
+                                            // app ordering
                                         }));
                                         refresh();
 
@@ -252,7 +280,7 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                 <Heading.h4>Logo</Heading.h4>
                                 <Flex justifyContent="space-between">
-                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"} cacheBust={reloadId.toString()}/></Box>
+                                    <Box><SafeLogo name={id.toString()} type="GROUP" size={"32px"} cacheBust={reloadId.toString()} /></Box>
                                     <Flex justifyContent="right" gap={"8px"}>
                                         <label className={ButtonClass}>
                                             Upload
@@ -309,8 +337,8 @@ export const AppGroup: React.FunctionComponent = () => {
 
                                         return <Flex alignItems={"center"} key={cat}>
                                             <div>{resolved.specification.title}</div>
-                                            <Box flexGrow={1}/>
-                                            <ConfirmationButton icon={"heroTrash"} color={"errorMain"} actionKey={cat.toString()} onAction={removeCategory}/>
+                                            <Box flexGrow={1} />
+                                            <ConfirmationButton icon={"heroTrash"} color={"errorMain"} actionKey={cat.toString()} onAction={removeCategory} />
                                         </Flex>
                                     })}
                                 </Flex>
@@ -336,22 +364,30 @@ export const AppGroup: React.FunctionComponent = () => {
                                                 style={{marginLeft: "8px", height: "25px"}}
                                             />
                                         </Flex>
-                                        <Box mt="25px" mr="60px">Default</Box>
                                     </Flex>
 
+                                    <Flex width="max-content" ml="auto" mr="68px">Default</Flex>
                                     {appUploadError ?
                                         <Error error={appUploadError} clearError={() => setAppUploadErr(null)} />
                                         : null
                                     }
 
-                                    <List width="100%">
-                                        {group.data.status?.applications?.map(app => (
+                                    <List width="100%" data-app-list>
+                                        {group.data.status?.applications?.map((app, index) => (
                                             <ListRow
                                                 key={app.metadata.name}
+                                                onDrop={() => swapAppPositions(currentApp.current, index)}
+                                                data-idx={index}
                                                 navigate={() => navigate(`/applications/studio/a/${app.metadata.name}`)}
                                                 left={
-                                                    <Flex justifyContent="left" gap="15px">
-                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px" cacheBust={reloadId.toString()}/></Box>
+                                                    <Flex
+                                                        draggable
+                                                        onDrag={() => currentApp.current = index}
+                                                        onDragEnd={() => currentApp.current = -1}
+                                                        justifyContent="left" gap="15px"
+                                                    >
+                                                        <Box height="32px" onClick={stopPropagation} onDrag={stopPropagation} marginLeft="12px" fontSize={"24px"}>=</Box>
+                                                        <Box><SafeLogo name={app.metadata.name} type="APPLICATION" size="30px" cacheBust={reloadId.toString()} /></Box>
                                                         <Box mt="6px">{app.metadata.title}</Box>
                                                     </Flex>
                                                 }
@@ -395,5 +431,24 @@ export const AppGroup: React.FunctionComponent = () => {
             </>
     );
 };
+
+
+const RippleAnimation = makeKeyframe("ripple-animation", `
+    0% {
+        background-color: var(--rowActive);
+    }
+    100% {
+        background-color: unset;
+    }
+`);
+
+const PULSE_ANIMATION_SPEED = "1.2s";
+
+const MovedAnimation = injectStyle("highlight", k => `
+    ${k} {
+        -webkit-animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} ease-out;
+                animation: ${RippleAnimation} ${PULSE_ANIMATION_SPEED} ease-out;
+    }
+`);
 
 export default AppGroup;

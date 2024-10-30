@@ -13,6 +13,7 @@ export type FlexCProps =
         flexWrap?: CSSProperties["flexWrap"];
         className?: string;
         style?: CSSProperties;
+        draggable?: boolean;
     };
 
 export const FlexClass = injectStyleSimple("flex", `
@@ -36,6 +37,7 @@ const Flex: React.FunctionComponent<React.PropsWithChildren<FlexCProps>> = props
         }}
         {...extractEventHandlers(props)}
         {...extractDataTags(props as Record<string, string>)}
+        draggable={props.draggable}
         children={props.children}
     />
 };

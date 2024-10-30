@@ -537,7 +537,7 @@ export class UsageAndQuota {
         } else {
             usage = uqRaw.usage - uqRaw.retiredAmount;
         }
-
+        
         const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + uqRaw.usage) / uqRaw.quota) * 100;
         const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
         const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, uqRaw.usage);
