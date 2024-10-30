@@ -6,16 +6,9 @@ version: v1.32
 software:
   type: Native
 
-  # TODO Modules and package names have not been tested and might not work in practice.
-  build:
-    type: Spack
-    repository: built-in
-    package: quantum-espresso@7.3
-
   load:
-    type: Module
-    modules:
-    - "quantum-espresso/7.3"
+  - name: "quantum-espresso"
+    version: "7.3"
 
 features:
   multiNode: true # NOTE: Without this, you will not be able to select multiple nodes
@@ -47,6 +40,6 @@ invocation: |
   export OMP_NUM_THREADS=1
 
   cd {{ input_dir }}
-  srun -n $SLURM_NTASKS pw.x < pw.Si.in | tee pw.Si.out
-  srun -n $SLURM_NTASKS ph.x < ph.Si.in | tee ph.Si.out
-  srun -n $SLURM_NTASKS dynmat.x < dynmat.Si.in | tee dynmat.Si.out
+  {{ srun() }} -n $SLURM_NTASKS pw.x < pw.Si.in | tee pw.Si.out
+  {{ srun() }} -n $SLURM_NTASKS ph.x < ph.Si.in | tee ph.Si.out
+  {{ srun() }} -n $SLURM_NTASKS dynmat.x < dynmat.Si.in | tee dynmat.Si.out

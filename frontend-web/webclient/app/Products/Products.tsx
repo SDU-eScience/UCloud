@@ -51,10 +51,9 @@ function Products(): React.ReactNode {
 
     if (!Client.isLoggedIn) return (<>
         <NonAuthenticatedHeader />
-        <Box mb="72px" />
-        <Box m={[0, 0, "15px"]}>
-            {main}
-        </Box>
+        <MainContainer
+            main={main}
+        />
     </>);
 
     return (<MainContainer main={main} />);

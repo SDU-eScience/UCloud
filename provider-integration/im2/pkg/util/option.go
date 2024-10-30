@@ -28,6 +28,13 @@ func (s *Option[T]) Set(v T) {
 	s.Present = true
 }
 
+func (s *Option[T]) GetOrDefault(t T) T {
+	if s.Present {
+		return s.Value
+	}
+	return t
+}
+
 func (s *Option[T]) Get() T {
 	return s.Value
 }

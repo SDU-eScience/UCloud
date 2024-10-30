@@ -18,6 +18,7 @@ import TextArea from "./TextArea";
 import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import Error from "./Error";
 import Input from "./Input";
+import {SidebarDialog} from "./Sidebar";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
@@ -30,7 +31,7 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
     return apiUpdate(request, "/api/support", "ticket")
 }
 
-export default function Support(): React.ReactNode {
+export default function Support({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [textArea, setTextArea] = useState("");
     const [titleArea, setTitleArea] = useState("");
     const [type, setType] = useState(SupportType.SUGGESTION);
@@ -84,12 +85,19 @@ export default function Support(): React.ReactNode {
         }
     }, []);
 
+    const isOpen = dialog === "Support";
+
     return (
         <ClickableDropdown
             colorOnHover={false}
             keepOpenOnClick
             closeFnRef={closeRef}
-            onTriggerClick={fetchStatus}
+            open={isOpen}
+            onOpeningTriggerClick={() => {
+                fetchStatus();
+                setOpenDialog("Support");
+            }}
+            onClose={() => setOpenDialog("")}
             trigger={(
                 <Flex width="48px" justifyContent="center">
                     <Icon name={"heroChatBubbleLeftEllipsis"} size="24px" color="fixedWhite" />

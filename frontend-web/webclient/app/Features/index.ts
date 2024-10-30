@@ -72,7 +72,7 @@ const featureMap: Record<string, FeatureConfig> = {
     "copy-app": {
         feature: Feature.COPY_APP_MOCKUP,
         showWithFlag: allDevEnvironments,
-        showWithoutFlag: allLocalEnvironments,
+        showWithoutFlag: allDevEnvironments,
     },
 
     "component-stored-cut-copy": {

@@ -236,7 +236,7 @@ export function ContextSwitcher({managed}: {
                     setTitleFilter("");
                 }}
                 colorOnHover={false}
-                onTriggerClick={reload}
+                onOpeningTriggerClick={reload}
                 width="500px"
             >
                 <div style={{maxHeight: "385px"}}>
@@ -328,7 +328,7 @@ function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavo
     return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
 }
 
-function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
+export function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
     const {pathname} = window.location;
     runThisFunction();
     let doRefresh = true;

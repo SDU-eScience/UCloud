@@ -5,25 +5,348 @@ import (
 	"math/rand"
 	"net/http"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 	"ucloud.dk/gonja/v2/exec"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
+	"unicode"
 )
 
-func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (string, error) {
-	application := &job.Status.ResolvedApplication.Invocation
-	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+type appCfgAndVersion struct {
+	Version string
+	Cfg     cfg.SlurmApplicationConfiguration
+}
 
-	machineConfig, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
-	if !ok {
-		return "", &util.HttpError{
-			StatusCode: http.StatusInternalServerError,
-			Why:        "Unknown product requested",
+type sbatchTemplateSession struct {
+	Applications         map[string][]cfg.SlurmApplicationConfiguration
+	RequiredApplications []orc.NativeApplication
+	VersionPolicy        string
+	VersionTarget        util.Option[string]
+	Error                error
+	PreviouslyLoaded     map[orc.NativeApplication]appCfgAndVersion
+	SrunOverride         util.Option[cfg.SrunConfiguration]
+}
+
+func (s *sbatchTemplateSession) compareVersions(a, b string, missingComponentIsEquality bool) int {
+	a = strings.ReplaceAll(a, "version", "")
+	a = strings.ReplaceAll(a, "Version", "")
+
+	b = strings.ReplaceAll(b, "version", "")
+	b = strings.ReplaceAll(b, "Version", "")
+
+	if len(a) >= 2 && a[0] == 'v' && unicode.IsDigit(rune(a[1])) {
+		a = a[1:]
+	}
+
+	if len(b) >= 2 && b[0] == 'v' && unicode.IsDigit(rune(b[1])) {
+		b = b[1:]
+	}
+
+	a = strings.TrimSpace(a)
+	b = strings.TrimSpace(b)
+
+	aTokens := strings.Split(a, ".")
+	bTokens := strings.Split(b, ".")
+
+	maxLen := max(len(aTokens), len(bTokens))
+	for i := 0; i < maxLen; i++ {
+		aTok := ""
+		bTok := ""
+
+		if i < len(aTokens) {
+			aTok = aTokens[i]
+		} else {
+			aTok = "0"
+			if missingComponentIsEquality {
+				break
+			}
+		}
+
+		if i < len(bTokens) {
+			bTok = bTokens[i]
+		} else {
+			bTok = "0"
+			if missingComponentIsEquality {
+				break
+			}
+		}
+
+		aSepIdx := strings.Index(aTok, "-")
+		if aSepIdx != -1 {
+			aTok = aTok[:aSepIdx-1]
+		}
+
+		bSepIdx := strings.Index(bTok, "-")
+		if bSepIdx != -1 {
+			bTok = bTok[:bSepIdx-1]
+		}
+
+		aNumeric, err1 := strconv.Atoi(aTok)
+		bNumeric, err2 := strconv.Atoi(bTok)
+
+		if err1 == nil && err2 == nil {
+			if aNumeric > bNumeric {
+				return 1
+			} else if aNumeric < bNumeric {
+				return -1
+			}
+		} else {
+			cmp := strings.Compare(aTok, bTok)
+			if cmp != 0 {
+				return cmp
+			}
 		}
 	}
+
+	return 0
+}
+
+func (s *sbatchTemplateSession) findConfig(version string, configs []cfg.SlurmApplicationConfiguration) cfg.SlurmApplicationConfiguration {
+	for _, c := range configs {
+		for _, v := range c.Versions {
+			if version == v {
+				return c
+			}
+		}
+	}
+
+	return cfg.SlurmApplicationConfiguration{}
+}
+
+func (s *sbatchTemplateSession) FindApplication(name, version string) (cfg.SlurmApplicationConfiguration, string, bool) {
+	key := orc.NativeApplication{Name: name, Version: version}
+	existing, ok := s.PreviouslyLoaded[key]
+	if ok {
+		return existing.Cfg, existing.Version, true
+	}
+
+	res, resVersion, ok := (func() (cfg.SlurmApplicationConfiguration, string, bool) {
+		apps, ok := s.Applications[name]
+		if !ok {
+			return cfg.SlurmApplicationConfiguration{}, "", false
+		}
+
+		var allVersions []string
+		for _, app := range apps {
+			for _, thisVersion := range app.Versions {
+				allVersions = append(allVersions, thisVersion)
+			}
+		}
+
+		slices.SortFunc(allVersions, func(a, b string) int {
+			cmp := s.compareVersions(a, b, false)
+			if cmp > 0 {
+				return -1
+			} else if cmp < 0 {
+				return 1
+			} else {
+				return 0
+			}
+		})
+
+		if len(allVersions) == 0 {
+			return cfg.SlurmApplicationConfiguration{}, "", false
+		}
+
+		versionPolicy := s.VersionPolicy
+		if s.VersionTarget.Present && s.VersionTarget.Value != name {
+			versionPolicy = "loose"
+		}
+
+		switch versionPolicy {
+		case "loose":
+			for _, candidate := range allVersions {
+				if s.compareVersions(version, candidate, true) == 0 {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+
+			return s.findConfig(allVersions[0], apps), allVersions[0], true
+
+		case "loose-forward":
+			for _, candidate := range allVersions {
+				if s.compareVersions(version, candidate, true) == 0 {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+			candidate := allVersions[0]
+			if s.compareVersions(candidate, version, true) < 0 {
+				return cfg.SlurmApplicationConfiguration{}, "", false
+			} else {
+				return s.findConfig(candidate, apps), candidate, true
+			}
+
+		case "loose-backward":
+			for _, candidate := range allVersions {
+				if s.compareVersions(version, candidate, true) == 0 {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+
+			for _, candidate := range allVersions {
+				if s.compareVersions(candidate, version, false) <= 0 {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+			return cfg.SlurmApplicationConfiguration{}, "", false
+
+		case "strict":
+			for _, candidate := range allVersions {
+				if s.compareVersions(version, candidate, true) == 0 {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+			return cfg.SlurmApplicationConfiguration{}, "", false
+
+		default:
+			for _, candidate := range allVersions {
+				if candidate == version {
+					return s.findConfig(candidate, apps), candidate, true
+				}
+			}
+
+			return cfg.SlurmApplicationConfiguration{}, "", false
+		}
+	})()
+
+	if ok {
+		s.PreviouslyLoaded[key] = appCfgAndVersion{Cfg: res, Version: resVersion}
+		if res.Srun.Present && !s.SrunOverride.Present {
+			s.SrunOverride.Set(res.Srun.Value)
+		}
+	}
+
+	return res, resVersion, ok
+}
+
+func (s *sbatchTemplateSession) LoadApplication(name string, version string) string {
+	if s.Error != nil {
+		return ""
+	}
+
+	appCfg, appVersion, ok := s.FindApplication(name, version)
+	if !ok {
+		s.Error = fmt.Errorf("failed to load application %s@%s", name, version)
+		return fmt.Sprintf("\necho '%s'\nexit 1\n", s.Error)
+	}
+
+	builder := ""
+	builder += "{% set __appVersionOld = appVersion %}\n"
+	builder += "{% set appVersion = \"" + appVersion + "\" %}\n"
+	builder += appCfg.Load
+	builder += "\n"
+	builder += "{% set appVersion = __appVersionOld %}\n"
+
+	return builder
+}
+
+func (s *sbatchTemplateSession) UnloadApplication(name string, version string) string {
+	if s.Error != nil {
+		return ""
+	}
+
+	appCfg, appVersion, ok := s.FindApplication(name, version)
+	if !ok {
+		s.Error = fmt.Errorf("failed to load application '%s'@'%s'", name, version)
+		return fmt.Sprintf("\n# %s\n", s.Error)
+	}
+
+	builder := ""
+	builder += "{% set __appVersionOld = appVersion %}\n"
+	builder += "{% set appVersion = \"" + appVersion + "\" %}\n"
+	builder += appCfg.Unload
+	builder += "\n"
+	builder += "{% set appVersion = __appVersionOld %}\n"
+
+	return builder
+}
+
+func sbatchTemplate(session any, fn string, args []string) string {
+	templateSession := session.(*sbatchTemplateSession)
+
+	switch fn {
+	case "versionResolver":
+		target := util.Option[string]{}
+		policy := ""
+		if len(args) == 1 {
+			policy = args[0]
+		} else if len(args) == 2 {
+			target.Set(args[0])
+			policy = args[1]
+		} else {
+			templateSession.Error = fmt.Errorf("invalid use of versionResolver([name], policy)")
+			return fmt.Sprintf("\n# %s\n", templateSession.Error)
+		}
+
+		templateSession.VersionTarget = target
+		templateSession.VersionPolicy = policy
+		return ""
+
+	case "applicationLoad":
+		result := ""
+		for _, app := range templateSession.RequiredApplications {
+			result += sbatchTemplate(session, "loadApplication", []string{app.Name, app.Version})
+			result += "\n"
+		}
+		return result
+
+	case "applicationUnload":
+		result := ""
+		for _, app := range templateSession.RequiredApplications {
+			result += sbatchTemplate(session, "unloadApplication", []string{app.Name, app.Version})
+			result += "\n"
+		}
+		return result
+
+	case "loadApplication":
+		if len(args) != 2 {
+			templateSession.Error = fmt.Errorf("invalid use of loadApplication(name, version)")
+			return fmt.Sprintf("\n# %s\n", templateSession.Error)
+		}
+
+		return templateSession.LoadApplication(args[0], args[1])
+
+	case "unloadApplication":
+		if len(args) != 2 {
+			templateSession.Error = fmt.Errorf("invalid use of unloadApplication(name, version)")
+			return fmt.Sprintf("\n# %s\n", templateSession.Error)
+		}
+
+		return templateSession.UnloadApplication(args[0], args[1])
+
+	case "systemLoad":
+		return ServiceConfig.Compute.SystemLoadCommand.GetOrDefault("")
+
+	case "systemUnload":
+		return ServiceConfig.Compute.SystemUnloadCommand.GetOrDefault("")
+
+	default:
+		templateSession.Error = fmt.Errorf("unknown function %s", fn)
+		return fmt.Sprintf("\n# %s\n", templateSession.Error)
+	}
+}
+
+func prepareDefaultEnvironment(
+	job *orc.Job,
+	jobFolder string,
+	accountName string,
+	parametersAndValues map[string]orc.ParamAndValue,
+	argBuilder orc.ArgBuilder,
+	allocatedPort util.Option[int],
+) (directives map[string]string, jinjaContextParameters map[string]any) {
+	directives = make(map[string]string)
+	jinjaContextParameters = make(map[string]any)
+
+	// SBatch directives
+	// =================================================================================================================
+	application := &job.Status.ResolvedApplication.Invocation
+	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	machineConfig, _ := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 
 	formattedTimeAllocation := ""
 	{
@@ -41,25 +364,55 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		formattedTimeAllocation += formatTimeNumber(timeAllocation.Seconds)
 	}
 
-	parametersAndValues := orc.ReadParameterValuesFromJob(job, application)
+	memoryAllocation := ""
+	{
+		allocInGigs := job.Status.ResolvedProduct.MemoryInGigs
+		if allocInGigs <= 0 {
+			allocInGigs = 1
+		}
 
-	appTemplates := ServiceConfig.Compute.Applications.Templates
-	appVars := ServiceConfig.Compute.Applications.Variables
-
-	cli := ""
-	invocation := application.Invocation
-
-	argBuilder := orc.DefaultArgBuilder(func(ucloudPath string) string {
-		internalPath, _ := UCloudToInternal(ucloudPath)
-		return internalPath
-	})
-
-	jinjaContextParameters := map[string]any{}
-
-	for k, v := range appVars {
-		jinjaContextParameters[k] = v
+		memoryAllocation = fmt.Sprintf("%d", allocInGigs*1000)
 	}
 
+	cpuAllocation := job.Status.ResolvedProduct.Cpu
+	{
+		if cpuAllocation <= 0 {
+			cpuAllocation = 1
+		}
+	}
+
+	if ServiceConfig.Compute.FakeResourceAllocation {
+		cpuAllocation = 1
+		memoryAllocation = "50"
+	}
+
+	{
+		// Pre-defined directives which can be overridden
+		// -------------------------------------------------------------------------------------------------------------
+		directives["chdir"] = orc.EscapeBash(jobFolder)
+		directives["cpus-per-task"] = fmt.Sprint(cpuAllocation)
+		directives["mem"] = memoryAllocation
+		if job.Status.ResolvedProduct.Gpu != 0 {
+			directives["gpus-per-task"] = fmt.Sprint(job.Status.ResolvedProduct.Gpu)
+		}
+		directives["time"] = formattedTimeAllocation
+		directives["nodes"] = fmt.Sprint(job.Specification.Replicas)
+		directives["job-name"] = orc.EscapeBash(job.Id)
+		directives["output"] = orc.EscapeBash("stdout.txt")
+		directives["error"] = orc.EscapeBash("stderr.txt")
+		if machineConfig.Qos.IsSet() {
+			directives["qos"] = orc.EscapeBash(machineConfig.Qos.Get())
+		}
+
+		// Pre-defined directives which cannot be overridden
+		// -------------------------------------------------------------------------------------------------------------
+		directives["account"] = orc.EscapeBash(accountName)
+		directives["partition"] = orc.EscapeBash(machineConfig.Partition)
+		directives["parsable"] = ""
+	}
+
+	// Jinja context
+	// =================================================================================================================
 	for name, pv := range parametersAndValues {
 		param := pv.Parameter
 		value := pv.Value
@@ -99,6 +452,9 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		case orc.ApplicationParameterTypeIngress:
 			output = value.Id
 
+		case orc.ApplicationParameterTypeWorkflow:
+			output = nil
+
 		default:
 			log.Warn("Unhandled value type: %v", param.Type)
 		}
@@ -106,34 +462,6 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		if output != nil {
 			jinjaContextParameters[name] = output
 		}
-	}
-
-	jinjaContextParameters["script"] = func(path string) *exec.Value {
-		type OutputStruct struct {
-			Output string `json:"output"`
-		}
-
-		copiedParameters := map[string]any{}
-		for k, v := range jinjaContextParameters {
-			if k == "script" {
-				continue
-			}
-			copiedParameters[k] = v
-		}
-
-		ext := ctrl.NewScript[any, OutputStruct]()
-		ext.Script = path
-
-		res, ok := ext.Invoke(copiedParameters)
-		if !ok {
-			return exec.AsValue(fmt.Errorf("failed to invoke script: %s", path))
-		}
-		return exec.AsSafeValue(res.Output)
-	}
-
-	allocatedPort := util.Option[int]{}
-	if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
-		allocatedPort.Set(10000 + rand.Intn(40000))
 	}
 
 	{
@@ -182,10 +510,143 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		jinjaContextParameters["ucloud"] = ucloudCtx
 	}
 
+	jinjaContextParameters["script"] = func(path string) *exec.Value {
+		type OutputStruct struct {
+			Output string `json:"output"`
+		}
+
+		copiedParameters := map[string]any{}
+		for k, v := range jinjaContextParameters {
+			if k == "script" {
+				continue
+			}
+			copiedParameters[k] = v
+		}
+
+		ext := ctrl.NewScript[any, OutputStruct]()
+		ext.Script = path
+
+		res, ok := ext.Invoke(copiedParameters)
+		if !ok {
+			return exec.AsValue(fmt.Errorf("failed to invoke script: %s", path))
+		}
+		return exec.AsSafeValue(res.Output)
+	}
+
+	jinjaContextParameters["sbatch"] = func(param string, value any) *exec.Value {
+		if !slices.Contains(directivesWhichCannotBeChanged, param) {
+			directives[param] = fmt.Sprint(value)
+		}
+		return exec.AsSafeValue("")
+	}
+
+	// Directives from the application
+	// -------------------------------------------------------------------------------------------------------------
+	// These need a Jinja context available so we do it quite a bit later
+
 	jinjaContext := exec.NewContext(jinjaContextParameters)
+	for k, v := range application.Sbatch {
+		if !slices.Contains(directivesWhichCannotBeChanged, k) {
+			directive := strings.Join(orc.BuildParameter(v, parametersAndValues, false, argBuilder, jinjaContext), " ")
+			directive = strings.TrimSpace(directive)
+			if directive != "" {
+				directive = orc.EscapeBash(directive)
+			}
+
+			directives[k] = directive
+		}
+	}
+
+	return
+}
+
+func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (string, error) {
+	application := &job.Status.ResolvedApplication.Invocation
+	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+
+	_, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+	if !ok {
+		return "", &util.HttpError{
+			StatusCode: http.StatusInternalServerError,
+			Why:        "Unknown product requested",
+		}
+	}
+
+	parametersAndValues := orc.ReadParameterValuesFromJob(job, application)
+	cli := ""
+	invocation := application.Invocation
+
+	argBuilder := orc.DefaultArgBuilder(func(ucloudPath string) string {
+		internalPath, _ := UCloudToInternal(ucloudPath)
+		return internalPath
+	})
+
+	allocatedPort := util.Option[int]{}
+	if application.ApplicationType == orc.ApplicationTypeWeb || application.ApplicationType == orc.ApplicationTypeVnc {
+		allocatedPort.Set(10000 + rand.Intn(40000))
+	}
+
+	directives, jinjaContextParameters := prepareDefaultEnvironment(
+		job,
+		jobFolder,
+		accountName,
+		parametersAndValues,
+		argBuilder,
+		allocatedPort,
+	)
+
+	var jinjaContext *exec.Context = nil
 
 	if len(invocation) == 1 && invocation[0].Type == orc.InvocationParameterTypeJinja {
-		output, ok := orc.ExecuteJinjaTemplate(invocation[0].InvocationParameterJinja.Template, appTemplates, jinjaContext, 0)
+		tpl := invocation[0].InvocationParameterJinja.Template
+		for _, v := range parametersAndValues {
+			if v.Value.Type == orc.AppParameterValueTypeWorkflow {
+				jobTpl := v.Value.Specification.Job
+				if jobTpl.Present {
+					if len(tpl) > 0 {
+						tpl += "\n"
+					}
+					tpl += jobTpl.Value
+				}
+			}
+		}
+
+		sbatchTplSession := &sbatchTemplateSession{
+			Applications:     ServiceConfig.Compute.Applications,
+			VersionPolicy:    "loose",
+			VersionTarget:    util.Option[string]{},
+			Error:            nil,
+			PreviouslyLoaded: make(map[orc.NativeApplication]appCfgAndVersion),
+			SrunOverride:     ServiceConfig.Compute.Srun,
+		}
+
+		load := tool.Description.LoadInstructions.Get()
+		if load.Type == orc.ToolLoadInstructionsNative {
+			sbatchTplSession.RequiredApplications = load.Applications
+		}
+
+		tpl = orc.PreprocessJinjaTemplate(tpl, sbatchTplSession, sbatchTemplate)
+
+		srunConfig := sbatchTplSession.SrunOverride.GetOrDefault(
+			ServiceConfig.Compute.Srun.GetOrDefault(cfg.SrunConfiguration{
+				Command: "srun",
+				Flags:   nil,
+			}),
+		)
+
+		srunCommand := srunConfig.Command
+		for _, flag := range srunConfig.Flags {
+			srunCommand += " "
+			srunCommand += orc.EscapeBash(flag)
+		}
+		srunCommand += " "
+
+		jinjaContextParameters["srun"] = func() *exec.Value {
+			return exec.AsSafeValue(srunCommand)
+		}
+
+		jinjaContext = exec.NewContext(jinjaContextParameters)
+		output, ok := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
 		if !ok {
 			log.Warn("Jinja generation failure for %s %s",
 				job.Specification.Application.Name, job.Specification.Application.Version)
@@ -194,10 +655,11 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 			cli = output
 		}
 	} else {
+		jinjaContext = exec.NewContext(jinjaContextParameters)
 		var cliInvocation []string
 
 		for _, invParam := range invocation {
-			newCliArgs := orc.BuildParameter(invParam, parametersAndValues, false, argBuilder, appTemplates, jinjaContext)
+			newCliArgs := orc.BuildParameter(invParam, parametersAndValues, false, argBuilder, jinjaContext)
 			for _, cliArg := range newCliArgs {
 				cliInvocation = append(cliInvocation, orc.EscapeBash(cliArg))
 			}
@@ -206,95 +668,10 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		cli = strings.Join(cliInvocation, " ")
 	}
 
-	memoryAllocation := ""
-	{
-		allocInGigs := job.Status.ResolvedProduct.MemoryInGigs
-		if allocInGigs <= 0 {
-			allocInGigs = 1
-		}
-
-		memoryAllocation = fmt.Sprintf("%d", allocInGigs*1000)
-	}
-
-	cpuAllocation := job.Status.ResolvedProduct.Cpu
-	{
-		if cpuAllocation <= 0 {
-			cpuAllocation = 1
-		}
-	}
-
-	devComment := ""
-	if ServiceConfig.Compute.FakeResourceAllocation {
-		devComment = fmt.Sprintf("# Real CPU = %v, Real mem = %v", cpuAllocation, memoryAllocation)
-		cpuAllocation = 1
-		memoryAllocation = "50"
-	}
-
-	directives := map[string]string{}
-	{
-		// Pre-defined directives which can be overridden
-		// -------------------------------------------------------------------------------------------------------------
-		directives["chdir"] = orc.EscapeBash(jobFolder)
-		directives["cpus-per-task"] = fmt.Sprint(cpuAllocation)
-		directives["mem"] = memoryAllocation
-		if job.Status.ResolvedProduct.Gpu != 0 {
-			directives["gpus-per-task"] = fmt.Sprint(job.Status.ResolvedProduct.Gpu)
-		}
-		directives["time"] = formattedTimeAllocation
-		directives["nodes"] = fmt.Sprint(job.Specification.Replicas)
-		directives["job-name"] = orc.EscapeBash(job.Id)
-		directives["output"] = orc.EscapeBash("stdout.txt")
-		directives["error"] = orc.EscapeBash("stderr.txt")
-		if machineConfig.Qos.IsSet() {
-			directives["qos"] = orc.EscapeBash(machineConfig.Qos.Get())
-		}
-
-		// Directives from the application
-		// -------------------------------------------------------------------------------------------------------------
-		for k, v := range application.Sbatch {
-			directive := strings.Join(orc.BuildParameter(v, parametersAndValues, false, argBuilder, appTemplates, jinjaContext), " ")
-			directive = strings.TrimSpace(directive)
-			if directive != "" {
-				directive = orc.EscapeBash(directive)
-			}
-			directives[k] = directive
-		}
-
-		// Pre-defined directives which cannot be overridden
-		// -------------------------------------------------------------------------------------------------------------
-		directives["account"] = orc.EscapeBash(accountName)
-		directives["partition"] = orc.EscapeBash(machineConfig.Partition)
-		directives["parsable"] = ""
-	}
-
-	var modulesToLoad []string
-	{
-		// Modules come both from the legacy RequiredModules but also from the new load instructions. We start by
-		// loading the old modules first followed by the load instructions. In practice, it shouldn't be possible to see
-		// both but technically the API supports it.
-
-		for _, module := range tool.Description.RequiredModules {
-			modulesToLoad = append(modulesToLoad, module)
-		}
-
-		load := tool.Description.LoadInstructions.Get()
-		if load.Type == orc.ToolLoadInstructionsNativeModuleWithJinja {
-			for _, moduleTemplate := range load.Modules {
-				output, ok := orc.ExecuteJinjaTemplate(moduleTemplate, appTemplates, jinjaContext, orc.JinjaFlagsNoEscape)
-				if !ok {
-					continue
-				}
-
-				output = strings.TrimSpace(output)
-				modulesToLoad = append(modulesToLoad, output)
-			}
-		}
-	}
-
 	boundEnvironment := map[string]string{}
 	{
 		for key, param := range application.Environment {
-			args := orc.BuildParameter(param, parametersAndValues, true, argBuilder, appTemplates, jinjaContext)
+			args := orc.BuildParameter(param, parametersAndValues, true, argBuilder, jinjaContext)
 			value := orc.EscapeBash(strings.Join(args, " "))
 			boundEnvironment[key] = value
 		}
@@ -303,18 +680,18 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		bindUCloudEnvironmentVariables("UCLOUD", boundEnvironment, ucloudCtx)
 	}
 
+	var modulesToLoad []string
+	for _, module := range tool.Description.RequiredModules {
+		modulesToLoad = append(modulesToLoad, module)
+	}
+
 	builder := &strings.Builder{}
 	{
-		appendLine(builder, "#!/usr/bin/env bash")
+		appendLine(builder, "#!/usr/bin/env -S bash --login")
 		for k, v := range directives {
 			appendLine(builder, "#SBATCH --%v %v", k, v)
 		}
 		appendLine(builder, "")
-
-		if devComment != "" {
-			appendLine(builder, devComment)
-			appendLine(builder, "")
-		}
 
 		if allocatedPort.Present {
 			appendLine(builder, "export UCLOUD_PORT=%d", allocatedPort.Get())
@@ -371,4 +748,10 @@ func formatTimeNumber(value int) string {
 	} else {
 		return fmt.Sprint(value)
 	}
+}
+
+var directivesWhichCannotBeChanged = []string{
+	"account",
+	"partition",
+	"parsable",
 }

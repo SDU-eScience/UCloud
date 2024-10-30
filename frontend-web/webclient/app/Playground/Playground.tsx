@@ -21,13 +21,14 @@ const Playground: React.FunctionComponent = () => {
                 title={"Title thing here. Copy, maybe."}
                 body={"Barfoo 5|1"}
                 progress={"Foobar 1|5"}
-                operations={undefined}
+                removeOrCancel={<Icon name="close" />}
                 progressInfo={{
                     indeterminate: true,
                     stopped: false,
                     progress: 0,
                     limit: 0
                 }}
+                pause={"hey"}
             />
 
             <Box mb="60px" />

@@ -155,7 +155,7 @@ class JobResourceService(
     ): List<Job> {
         val card = idCards.fetchIdCard(actorAndProject)
         val result = ArrayList<Job>()
-        withHardTimeout(10_000, { "retrieveBulk(${jobIds.toList()})" }) {
+        withHardTimeout(30_000, { "retrieveBulk(${jobIds.toList()})" }) {
             ResourceOutputPool.withInstance { pool ->
                 check(jobIds.size <= pool.size) { "too many items requested at the same time: ${jobIds.size}" }
                 val count = documents.retrieveBulk(card, jobIds, pool, permission)

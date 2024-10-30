@@ -3,6 +3,8 @@ package dk.sdu.cloud.calls.server
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.service.ElasticServiceInstance
@@ -40,7 +42,41 @@ data class ElasticAudit(
     @JsonProperty("_index")
     val index: String?,
     @JsonProperty("_score")
-    val score: String?
+    val score: String?,
+    @JsonProperty("token")
+    val token: ElasticToken?,
+    @JsonProperty("project")
+    val project: String?,
+)
+
+
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticToken(
+    @JsonProperty("principal")
+    val principal: ElasticSecurityPrincipal?
+)
+
+@Serializable
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class ElasticSecurityPrincipal(
+    @JsonProperty("username")
+    val username: String?,
+
+    @JsonProperty("role")
+    val role: Role?,
+
+    @JsonProperty("firstname")
+    val firstName: String?,
+
+    @JsonProperty("lastname")
+    val lastName: String?,
+
+    @JsonProperty("email")
+    val email: String? = null,
+
+    @JsonProperty("organization")
+    val organization: String? = null
 )
 
 @Serializable

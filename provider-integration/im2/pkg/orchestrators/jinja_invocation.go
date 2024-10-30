@@ -20,26 +20,47 @@ type JinjaFlags int
 
 const (
 	JinjaFlagsNoEscape JinjaFlags = 1 << iota
+	JinjaFlagsNoPreProcess
 )
 
 var (
-	templateRegex = regexp.MustCompile(`{-\s*(\w+)\s*-}`)
+	templateRegex    = regexp.MustCompile("{- ([^-{}()]*)(\\(([^)]*)\\))? -}")
+	templateArgRegex = regexp.MustCompile("\"([^\"]*)\"")
 )
 
-func createJinjaTemplate(source string, templates map[string]string, flags JinjaFlags) (*exec.Template, error) {
+type TemplateInvocation = func(session any, fn string, args []string) string
+
+func PreprocessJinjaTemplate(source string, templateSession any, templates TemplateInvocation) string {
+	return templateRegex.ReplaceAllStringFunc(source, func(s string) string {
+		fn := ""
+		var args []string
+
+		matches := templateRegex.FindStringSubmatch(s)
+		if len(matches) == 4 {
+			fn = matches[1]
+			rawArgs := matches[2]
+			innerMatches := templateArgRegex.FindAllStringSubmatch(rawArgs, -1)
+			for _, m := range innerMatches {
+				if len(m) == 2 {
+					args = append(args, m[1])
+				}
+			}
+
+			return templates(templateSession, fn, args)
+		}
+
+		return s
+	})
+}
+
+func PrepareJinjaTemplate(source string, templateSession any, templates TemplateInvocation, flags JinjaFlags) (*exec.Template, error) {
 	if cfg.Mode != cfg.ServerModeUser {
 		return nil, fmt.Errorf("this function is only implemented for user mode")
 	}
 
-	source = templateRegex.ReplaceAllStringFunc(source, func(match string) string {
-		templateId := templateRegex.FindStringSubmatch(match)
-		replace, ok := templates[templateId[1]]
-		if !ok {
-			return ""
-		} else {
-			return replace
-		}
-	})
+	if flags&JinjaFlagsNoPreProcess == 0 {
+		source = PreprocessJinjaTemplate(source, templateSession, templates)
+	}
 
 	filters := exec.NewFilterSet(map[string]exec.FilterFunction{
 		"flag": func(e *exec.Evaluator, in *exec.Value, params *exec.VarArgs) *exec.Value {
@@ -141,55 +162,22 @@ func createJinjaTemplate(source string, templates map[string]string, flags Jinja
 	return template, err
 }
 
-func ExecuteJinjaTemplate(templateSource string, templates map[string]string, ctx *exec.Context, flags JinjaFlags) (string, bool) {
-	tpl, err := createJinjaTemplate(templateSource, templates, flags)
+func ExecuteJinjaTemplate(templateSource string, templateSession any, templates TemplateInvocation, ctx *exec.Context, flags JinjaFlags) (string, bool) {
+	tpl, err := PrepareJinjaTemplate(templateSource, templateSession, templates, flags)
 	if err != nil {
 		log.Warn("Invalid jinja template generated from %v: %v", util.GetCaller(), err)
 		return "", false
 	} else {
-		output, err := tpl.ExecuteToString(ctx)
-		if err != nil {
-			log.Warn("Failure during jinja exec generated from %v: %v", util.GetCaller(), err)
-			return "", false
-		} else {
-			return output, true
-		}
+		return ExecutePreparedJinjaTemplate(tpl, ctx, flags)
 	}
 }
 
-func RunJinjaInvocation() {
-	template, err := createJinjaTemplate(`
-{{ None | option("--an-optional-option") }}   -> ""
-{{ 42 | option("--count") }}                  -> "--count '42'"
-{{ 42 | option("--count=") }}                 -> "'--count=42'"
-{{ 42 | option("--count", false) }}           -> "'--count42'"
-{{ 42 | option("--count=", true) }}           -> "--count= '42'"
-{{ "/path/with spaces" | option("--file") }}  -> "--file '/path/with spaces'"
-
-		{% if nested.property.bool %}
-			{{ nested.property.a }}
-		{% else %}
-			{{ nested.property.b }}
-		{% endif %}
-
-		{{ script("fp") }}
-		{{ unscript("fp") }}
-	`, nil, 0)
-
+func ExecutePreparedJinjaTemplate(tpl *exec.Template, ctx *exec.Context, flags JinjaFlags) (string, bool) {
+	output, err := tpl.ExecuteToString(ctx)
 	if err != nil {
-		panic(err)
+		log.Warn("Failure during jinja exec generated from %v: %v", util.GetCaller(), err)
+		return "", false
+	} else {
+		return output, true
 	}
-
-	data, err := template.ExecuteToString(exec.NewContext(map[string]any{
-		"nested": map[string]any{
-			"property": map[string]any{
-				"bool": false,
-				"a":    "This is a",
-				"b":    "This is the b property",
-			},
-		},
-	}))
-
-	fmt.Printf("%s\n", data)
-	fmt.Printf("Error is %s\n", err)
 }

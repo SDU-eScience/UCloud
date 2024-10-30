@@ -3,15 +3,13 @@ import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {useEffect, useSyncExternalStore} from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {doNothing} from "@/UtilityFunctions";
+import {ThemeColor} from "@/ui-components/theme";
 
 export interface CommandIconProviderSimple {
     type: "simple";
     icon: IconName;
-}
-
-export interface CommandIconProviderDom {
-    type: "dom";
-    dom: (size: number) => HTMLElement;
+    color?: ThemeColor;
+    color2?: ThemeColor;
 }
 
 export interface CommandIconProviderImage {
@@ -21,45 +19,20 @@ export interface CommandIconProviderImage {
 
 export type CommandIconProvider =
     | CommandIconProviderSimple
-    | CommandIconProviderDom
     | CommandIconProviderImage
     ;
 
 
-export type CommandScope =
-    | "this-page"
-    | "application"
-    | "job"
-    | "drive"
-    | "file"
-    | "link"
-    | "project"
-    | "accounting"
-    | "go-to"
-    ;
-
-export function scopePriority(scope: CommandScope): number {
-    // lower is higher priority
-    switch (scope) {
-        case "this-page":
-            return 0;
-        case "go-to":
-            return 1;
-        case "application":
-            return 2;
-        case "job":
-            return 3;
-        case "drive":
-            return 4;
-        case "file":
-            return 5;
-        case "link":
-            return 6;
-        case "project":
-            return 7;
-        case "accounting":
-            return 8;
-    }
+export enum CommandScope {
+    ThisPage = "On this page",
+    GoTo = "Shortcut",
+    Application = "Applications",
+    Job = "Jobs",
+    Drive = "Drives",
+    File = "Files",
+    Link = "Links",
+    Project = "Projects",
+    Accounting = "Allocations",
 }
 
 export interface Command {
@@ -68,6 +41,7 @@ export interface Command {
     description: string;
     action: () => void;
     scope: CommandScope;
+    actionText?: string;
 }
 
 export type CommandProvider = (query: string, emit: (cmd: Command) => void) => {onCancel: () => void};
@@ -79,7 +53,7 @@ export function staticProvider(commands: Command[]): CommandProvider {
             emit(result);
         }
 
-        return { onCancel: doNothing };
+        return {onCancel: doNothing};
     };
 }
 
@@ -114,4 +88,4 @@ export function useProvideCommands(provider: CommandProvider) {
     }, [provider]);
 }
 
-export { CommandPalette } from "./CommandPalette";
+export {CommandPalette} from "./CommandPalette";

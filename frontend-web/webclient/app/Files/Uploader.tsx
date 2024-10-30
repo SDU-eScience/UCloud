@@ -47,7 +47,7 @@ import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TextClass} from "@/ui-components/Text";
 import {formatDistance} from "date-fns";
 import {removeUploadFromStorage} from "@/Files/ChunkedFileReader";
-import {Spacer} from "@/ui-components/Spacer";
+import * as Heading from "@/ui-components/Heading";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {useRefresh} from "@/Utilities/ReduxUtilities";
@@ -98,7 +98,7 @@ async function processUpload(upload: Upload) {
 
     if (strategy.protocol === "WEBSOCKET_V1" || strategy.protocol === "CHUNKED") {
         const theFile = upload.row!;
-        const fullFilePath = (upload.targetPath + "/" + theFile.fullPath);
+        const fullFilePath = (upload.targetPath + (theFile.fullPath.startsWith("/") ? "" : "/") + theFile.fullPath);
 
         const reader = new ChunkedFileReader(theFile.fileObject);
 
@@ -564,24 +564,15 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
     if (maxUploadsToRemaining > 0) {
         const creationRequests: FilesCreateUploadRequestItem[] = [];
         const actualUploads: Upload[] = [];
-        const resumingUploads: Upload[] = [];
 
         for (const upload of batch) {
             if (upload.state !== UploadState.PENDING) continue;
-            if (creationRequests.length + resumingUploads.length >= maxUploadsToRemaining) break;
+            if (creationRequests.length >= maxUploadsToRemaining) break;
 
             const uploadType = upload.folderName ? "FOLDER" : "FILE";
             const fullFilePath = uploadType === "FOLDER" && upload.folderName ?
-                upload.targetPath + "/" + upload.folderName
-                : upload.targetPath + "/" + upload.name;
-
-            const item = fetchValidUploadFromLocalStorage(fullFilePath);
-            if (item !== null) {
-                upload.uploadResponse = item.strategy;
-                resumingUploads.push(upload);
-                upload.state = UploadState.UPLOADING;
-                continue;
-            }
+                upload.targetPath + "/" + upload.folderName :
+                upload.targetPath + "/" + upload.name;
 
             upload.state = UploadState.UPLOADING;
             creationRequests.push({
@@ -594,7 +585,7 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
             actualUploads.push(upload);
         }
 
-        if (actualUploads.length + resumingUploads.length === 0) return;
+        if (actualUploads.length === 0) return;
 
         try {
             if (creationRequests.length > 0) {
@@ -608,7 +599,7 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 }
             }
 
-            for (const upload of [...actualUploads, ...resumingUploads]) {
+            for (const upload of actualUploads) {
                 processUpload(upload)
                     .then(() => {
                         upload.state = UploadState.DONE;
@@ -652,7 +643,7 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e) => {
+    const onSelectedFile = useCallback(async (e, isResuming = false) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -670,7 +661,7 @@ const Uploader: React.FunctionComponent = () => {
                         filesCompleted: 0,
                         filesDiscovered: 0,
                         state: UploadState.PENDING,
-                        conflictPolicy: "RENAME" as const,
+                        conflictPolicy: "RENAME",
                         targetPath: uploadPath,
                         fileFetcher: () => {
                             if (!didFetch) {
@@ -695,12 +686,28 @@ const Uploader: React.FunctionComponent = () => {
                         filesCompleted: 0,
                         filesDiscovered: 0,
                         state: UploadState.PENDING,
-                        conflictPolicy: "RENAME" as const,
+                        conflictPolicy: "RENAME",
                         targetPath: uploadPath,
                         initialProgress: 0,
                         uploadEvents: []
                     });
                     break;
+                }
+            }
+
+            if (isResuming) {
+                const upload = allUploads.at(-1);
+                if (upload) {
+                    const path = uploadPath + "/" + upload.name;
+                    const item = fetchValidUploadFromLocalStorage(path);
+                    if (item !== null) {
+                        upload.uploadResponse = item.strategy;
+                        upload.progressInBytes = item.offset;
+                        upload.fileSizeInBytes = item.size;
+                        continue;
+                    }
+                } else {
+                    console.warn("Failed to find file");
                 }
             }
         }
@@ -761,7 +768,7 @@ const Uploader: React.FunctionComponent = () => {
     useEffect(() => {
         const matches = findResumableUploadsFromUploadPath(uploadPath);
         setPausedFilesInFolder(matches);
-    }, [uploadPath, lookForNewUploads]);
+    }, [uploadPath]);
 
 
     const hasUploads = uploads.length > 0;
@@ -774,9 +781,6 @@ const Uploader: React.FunctionComponent = () => {
     if (uploadTimings.timeRemaining !== 0) {
         uploadingText += ` - Approximately ${formatDistance(uploadTimings.timeRemaining * 1000, 0)}`;
     }
-
-    const uploadFilePaths = uploads.map(it => it.name);
-    const resumables = pausedFilesInFolder.filter(it => !uploadFilePaths.includes(fileName(it)));
 
     return <ReactModal
         isOpen={uploaderVisible}
@@ -837,45 +841,44 @@ const Uploader: React.FunctionComponent = () => {
                         </div>
                     </label>
                 </Flex>
-                {resumables.length === 0 ? null :
+                {pausedFilesInFolder.length === 0 ? null :
                     <div style={{
                         marginBottom: "4px",
                         marginLeft: "8px",
                         marginRight: "4px"
                     }}>
-                        {resumables.map(it =>
-                            <div className={TaskRowClass} key={it}>
-                                <Spacer paddingTop="20px"
-                                    left={<>
-                                        <div>
-                                            <FtIcon
-                                                fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
-                                                size="32px" />
-                                        </div>
-                                        <div>
-                                            <Truncate maxWidth="270px" fontSize="18px">{fileName(it)}</Truncate>
-                                        </div>
-                                    </>}
-                                    right={<>
-                                        <label htmlFor="fileUploadBrowseResume">
-                                            <input
-                                                id={"fileUploadBrowseResume"}
-                                                type={"file"}
-                                                style={{display: "none"}}
-                                                onChange={onSelectedFile}
-                                            />
-                                            <Icon cursor="pointer" title="Resume upload" name="play"
-                                                color="primaryMain" mr="12px" />
-                                        </label>
-                                        <Icon cursor="pointer" title="Remove" name="close" color="errorMain"
-                                            mr="12px" onClick={() => {
-                                                setPausedFilesInFolder(files => files.filter(file => file !== it));
-                                                removeUploadFromStorage(it);
-                                            }} />
-                                    </>}
-                                />
-                            </div>
-                        )}
+                        <Heading.h4>Resumable uploads</Heading.h4>
+                        {pausedFilesInFolder.map(it => {
+                            const item = fetchValidUploadFromLocalStorage(it);
+                            return <TaskRow
+                                key={it}
+                                icon={<FtIcon
+                                    fileIcon={{type: "FILE", ext: extensionFromPath(fileName(it))}}
+                                    size="32px" />
+                                }
+                                title={fileName(it)}
+                                progress={item ? uploadProgressText(item.offset, item.size) : null}
+                                isPaused
+                                pause={<label htmlFor="fileUploadBrowseResume">
+                                    <input
+                                        id={"fileUploadBrowseResume"}
+                                        type={"file"}
+                                        style={{display: "none"}}
+                                        onChange={e => {
+                                            setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                            onSelectedFile(e, true);
+                                        }}
+                                    />
+                                    <Icon cursor="pointer" title="Resume upload" name="play"
+                                        color="primaryMain" mr="12px" />
+                                </label>}
+                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" color="errorMain" onClick={() => {
+                                    setPausedFilesInFolder(files => files.filter(file => file !== it));
+                                    removeUploadFromStorage(it);
+                                }} />}
+                                progressInfo={{stopped: true, indeterminate: true, limit: 1, progress: 0}}
+                            />
+                        })}
                     </div>
                 }
             </div>
@@ -948,12 +951,10 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
-        border: 1px solid rgba(0, 0, 0, 20%);
         height: 64px;
         width: 100%;
         margin-top: 12px;
         margin-bottom: 12px;
-        box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 20%);
     }
     
     ${k} > div > .text {
@@ -976,6 +977,10 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         width: 100%;
         border-radius: 10px;
     }
+
+    ${k}:hover {
+        background-color: var(--rowHover);
+    }
 `);
 
 
@@ -983,16 +988,17 @@ export function uploadIsTerminal(upload: Upload): boolean {
     return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
 }
 
+function uploadProgressText(progressInBytes: number, fileSizeInBytes: number): string {
+    return `${sizeToString(progressInBytes)} / ${sizeToString(fileSizeInBytes)}`
+}
+
 export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: UploadCallback}): React.ReactNode {
-    const [hoverPause, setHoverPause] = React.useState(false);
-    const paused = upload.paused;
+    const isPaused = upload.paused;
     const inProgress = !upload.terminationRequested && !upload.paused && !upload.error && upload.state !== UploadState.DONE;
-    const showPause = hoverPause && !paused && upload.folderName === undefined;
-    const showCircle = !hoverPause && !paused;
     const stopped = upload.terminationRequested || !!upload.error;
 
-    const progressInfo = {stopped: stopped && !paused, progress: upload.progressInBytes + upload.initialProgress, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
-    const right = `${sizeToString(upload.progressInBytes + upload.initialProgress)} / ${sizeToString(upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
+    const progressInfo = {stopped: stopped && !isPaused, progress: upload.progressInBytes, limit: upload.fileSizeInBytes ?? 1, indeterminate: false};
+    const right = `${uploadProgressText(upload.progressInBytes, upload.fileSizeInBytes ?? 0)} (${sizeToString(uploadCalculateSpeed(upload))}/s)`;
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
@@ -1015,43 +1021,36 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             icon={icon}
             title={`${title} - Uploaded ${upload.filesCompleted} of ${upload.filesDiscovered} ${upload.filesDiscovered > 1 ? "files" : "file"}`}
             progress={right}
-            operations={inProgress ? <>
-                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin /> : null}
-                <Icon name="close" cursor="pointer" color="errorMain"
-                    onClick={() => callbacks.stopUploads([upload])} />
-            </> : removeOperation}
+            removeOrCancel={inProgress ? <Icon name="close" cursor="pointer" color="errorMain"
+                onClick={() => callbacks.stopUploads([upload])} /> : removeOperation}
             progressInfo={progressInfo}
         /> : <TaskRow
             error={upload.error}
             icon={icon}
             title={title}
             progress={right}
-            operations={inProgress ? <>
-                {showPause ? <Icon cursor="pointer" onMouseLeave={() => setHoverPause(false)}
-                    onClick={() => callbacks.pauseUploads([upload])} name="pauseSolid"
-                    color="primaryMain" /> : null}
-                {showCircle ? <Icon color="primaryMain" name="notchedCircle" spin
-                    onMouseEnter={() => setHoverPause(true)} /> : null}
-                <Icon name="close" cursor="pointer" ml="8px" color="errorMain"
-                    onClick={() => callbacks.stopUploads([upload])} />
-            </>
-                : <>
-                    {paused ? <Icon cursor="pointer" mr="8px" name="play"
-                        onClick={() => callbacks.resumeUploads([upload])}
-                        color="primaryMain" /> : null}
-                    {removeOperation}
-                </>}
+            isPaused={isPaused}
+            pause={inProgress || isPaused ? (
+                upload.paused ?
+                    <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
+                    <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
+            ) : null}
+            removeOrCancel={inProgress ? <Icon name="close" cursor="pointer" color="errorMain"
+                onClick={() => callbacks.stopUploads([upload])} />
+                : removeOperation}
             progressInfo={progressInfo}
         />;
 }
 
-export function TaskRow({title, body, progress, icon, progressInfo, operations, error}: {
+export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: {
     icon: React.ReactNode;
     title: string | React.ReactNode;
     body?: string | React.ReactNode;
     progress: string | React.ReactNode;
-    operations: React.ReactNode;
     error?: string;
+    removeOrCancel: React.ReactNode;
+    pause?: React.ReactNode;
+    isPaused?: boolean;
     progressInfo: {
         indeterminate: boolean;
         stopped: boolean;
@@ -1060,6 +1059,22 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
     };
 }): React.ReactNode {
     const hasError = error != null;
+    const [hovering, setHovering] = useState(false);
+
+    React.useCallback(() => {
+        setHovering(false);
+    }, [pause != null]);
+
+    const setIsHovering = React.useCallback(() => {
+        if (pause) {
+            setHovering(true);
+        }
+    }, [pause]);
+
+    const setNotHovering = React.useCallback(() => {
+        setHovering(false);
+    }, []);
+
     return (<div className={TaskRowClass} data-has-error={hasError}>
         <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
             <Box ml="8px" my="auto">{icon}</Box>
@@ -1069,18 +1084,19 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
                 <Truncate>{progress}</Truncate>
             </div>
             <Box mr="auto" />
-            <Box my="auto" mr="4px">{operations}</Box>
-            <Box my="auto" mr="12px" height="32px" >
-                <ProgressCircle
-                    indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
-                    failures={progressInfo.stopped ? progressInfo.limit : 0}
-                    successes={progressInfo.progress}
-                    total={progressInfo.limit}
-                    finishedColor="successLight"
-                    pendingColor="secondaryDark"
-                    size={32}
-                />
+            <Box my="auto" mr="4px" height="32px" onMouseEnter={setIsHovering} onMouseLeave={setNotHovering}>
+                {isPaused || hovering ? <Box p="4px" width="32px" onClick={setNotHovering}>{pause}</Box> : (
+                    <ProgressCircle
+                        indeterminate={!progressInfo.stopped && progressInfo.indeterminate}
+                        failures={progressInfo.stopped ? progressInfo.limit : 0}
+                        successes={progressInfo.progress}
+                        total={progressInfo.limit}
+                        finishedColor="successLight"
+                        pendingColor="secondaryDark"
+                        size={32}
+                    />)}
             </Box>
+            <Box mt="19px" mr="8px">{removeOrCancel}</Box>
         </Flex>
         <div className="error-box">
             {hasError ? <div className={ErrorSpan}>{error}</div> : null}
@@ -1090,7 +1106,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, operations, 
 
 const ErrorSpan = injectStyleSimple("error-span", `
     color: white;
-    border: 1px solid var(-errorMain);
+    border: 1px solid var(--errorMain);
     background-color: var(--errorMain);
     padding-left: 6px;
     padding-right: 6px;

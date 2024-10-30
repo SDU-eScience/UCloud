@@ -17,6 +17,7 @@ import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {ThemeColor} from "@/ui-components/theme";
 import * as icons from "@/ui-components/icons";
 import {Feature, hasFeature} from "@/Features";
+import {SidebarDialog} from "@/ui-components/Sidebar";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -109,36 +110,39 @@ const DEFAULT_ICON: IconName = "heroRectangleStack";
 
 function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): React.JSX.Element {
     const isFinished = TaskOperations.isTaskTerminal(task);
-    const operations: React.ReactNode[] = [];
+    const isPaused = task.status.state === TaskState.SUSPENDED;
 
-    if (!isFinished) {
-        if (task.specification.canPause) {
-            if (task.status.state === TaskState.SUSPENDED) {
-                operations.push(
-                    <Icon
-                        onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
-                        cursor="pointer"
-                        name="play"
-                        color="primaryMain"
-                    />
-                );
-            } else {
-                operations.push(
-                    <Icon
-                        onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
-                        cursor="pointer"
-                        name="pauseSolid"
-                        color="primaryMain"
-                    />
-                );
-            }
+    let pauseOrResume: React.ReactNode;
+    if (task.specification.canPause) {
+        if (task.status.state === TaskState.SUSPENDED) {
+            pauseOrResume = (
+                <Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.RUNNING))}
+                    cursor="pointer"
+                    name="play"
+                    color="primaryMain"
+                />
+            );
+        } else {
+            pauseOrResume = (
+                <Icon
+                    onClick={() => ws.call(TaskOperations.calls.pauseOrCancel(task.taskId, TaskState.SUSPENDED))}
+                    cursor="pointer"
+                    name="pauseSolid"
+                    color="primaryMain"
+                />
+            );
         }
+    }
 
+
+    let resumeOrCancel: React.ReactNode;
+    if (isFinished) {
         if (task.specification.canCancel) {
-            operations.push(<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
+            resumeOrCancel = (<Icon name="close" cursor="pointer" ml="8px" color="errorMain" onClick={() => promptCancel(task, ws)} />);
         }
     } else {
-        operations.push(
+        resumeOrCancel = (
             <TooltipV2 tooltip="Clear task" contentWidth={100}>
                 <Icon name="close" cursor="pointer" onClick={() => taskStore.removeFinishedTask(task)} />
             </TooltipV2>
@@ -152,7 +156,8 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
         title={task.status.title}
         body={task.status.body}
         progress={task.status.progress}
-        operations={operations}
+        isPaused={isPaused}
+        pause={pauseOrResume}
         error={TaskOperations.taskError(task)}
         progressInfo={{
             indeterminate: TaskOperations.isIndeterminate(task),
@@ -160,6 +165,7 @@ function TaskItem({task, ws}: {task: BackgroundTask; ws: WebSocketConnection}): 
             limit: 100,
             progress: task.status.progressPercentage,
         }}
+        removeOrCancel={resumeOrCancel}
     />
 }
 
@@ -300,7 +306,7 @@ function promptCancel(task: BackgroundTask, ws: WebSocketConnection) {
     });
 }
 
-export function TaskList(): React.ReactNode {
+export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [uploads] = useUploads();
 
     const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
@@ -371,7 +377,7 @@ export function TaskList(): React.ReactNode {
     }), []);
 
     const activeUploadCount = useMemo(() => {
-        return uploads.filter(it => it.state === UploadState.UPLOADING).length;
+        return uploads.filter(it => it.state === UploadState.UPLOADING || it.paused).length;
     }, [uploads]);
 
 
@@ -413,15 +419,20 @@ export function TaskList(): React.ReactNode {
     if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
 
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
+    
+    const isOpen = dialog === "BackgroundTask";
 
     return (
         <ClickableDropdown
             left="60px"
             bottom="-148px"
             colorOnHover={false}
+            open={isOpen}
+            onOpeningTriggerClick={() => setOpenDialog("BackgroundTask")}
+            onClose={() => setOpenDialog("")}
             trigger={<div ref={rippleRef} className={RippleCenter} style={rippleColoring} />}
         >
-            <Card cursor="default" onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+            <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
                     {noEntries ? <Flex height="100%">
                         <Heading m="auto">
@@ -452,10 +463,10 @@ export function TaskList(): React.ReactNode {
 
 const RippleAnimation = makeKeyframe("ripple-animation", `
     0% {
-        box-shadow: 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor);
+        box-shadow: 0 0 0 0px var(--sidebarColor), 0 0 0 0px var(--sidebarColor);
     }
     100% {
-        box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+        box-shadow: 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
     }
 `);
 
@@ -481,7 +492,7 @@ const RippleEffect = injectStyle("ripple", k => `
 
 const StaticCircle = injectStyle(`static-circle`, k => `
         ${k} {
-            box-shadow: 0 0 0 4px var(--sidebarColor), 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
+            box-shadow: 0 0 0 6px var(--sidebarColor), 0 0 0 8px var(--ringColor);
     }
 `);
 

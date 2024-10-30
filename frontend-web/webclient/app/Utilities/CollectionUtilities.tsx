@@ -5,13 +5,23 @@ import {
     precomputeStringSimilarityProfile,
     StringSimilarityProfile
 } from "@/Utilities/StringSimilarity";
-import {projectRoleToStringIcon} from "@/Project/Api";
 
 export function associateBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T> {
     const result: Record<string, T> = {};
     items.forEach(item => {
         const key = keySelector(item);
         result[key] = item;
+    });
+    return result;
+}
+
+export function groupBy<T>(items: T[], keySelector: (t: T) => string): Record<string, T[]> {
+    const result: Record<string, T[]> = {};
+    items.forEach(item => {
+        const key = keySelector(item);
+        const existing = result[key] ?? [];
+        existing.push(item);
+        result[key] = existing;
     });
     return result;
 }

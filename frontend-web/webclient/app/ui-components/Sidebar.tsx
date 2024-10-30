@@ -6,6 +6,7 @@ import {
     bulkRequestOf,
     copyToClipboard,
     displayErrorMessageOrDefault, doNothing,
+    isLightThemeStored,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -64,10 +65,13 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
-import {projectTitle} from "@/Project/ContextSwitcher";
+import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ContextSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
-import {CommandPalette} from "@/CommandPalette";
+import {Command, CommandPalette, CommandScope, staticProvider, useCommandProviderList, useProvideCommands} from "@/CommandPalette";
+import {NavigateFunction, useNavigate} from "react-router";
+import {dispatchSetProjectAction} from "@/Project/ReduxState";
+import {Dispatch} from "redux";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -297,9 +301,10 @@ function UserMenuExternalLink(props: {
     </div>
 }
 
-function UserMenu({avatar}: {
+function UserMenu({avatar, dialog, setOpenDialog}: {
     avatar: AvatarType;
-}) {
+} & SidebarDialog) {
+
     const close = React.useRef(() => undefined);
     React.useEffect(() => {
         function closeOnEscape(e: KeyboardEvent) {
@@ -311,13 +316,18 @@ function UserMenu({avatar}: {
         return () => {
             window.removeEventListener("keydown", closeOnEscape);
         }
-    }, [])
+    }, []);
+
+    const isOpen = dialog === "UserMenu";
 
     return <ClickableDropdown
         width="230px"
         paddingControlledByContent
         left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
+        open={isOpen}
+        onOpeningTriggerClick={() => setOpenDialog("UserMenu")}
+        onClose={() => setOpenDialog("")}
         closeFnRef={close}
         colorOnHover={false}
         trigger={Client.isLoggedIn ?
@@ -366,6 +376,34 @@ const HoverClass = injectStyle("hover-class", k => `
     }
 `);
 
+function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Command[] {
+    const result: Command[] = []
+
+    for (const group of sideBarMenuElements) {
+        if (group.predicate(state)) {
+            for (const it of group.items) {
+                const to = typeof it.to === "string" ? it.to : it.to();
+                result.push(sidebarCommand(it.label, "", to, it.icon, navigate))
+            }
+        }
+    };
+
+    return result;
+}
+
+function sidebarCommand(title: string, description: string, url: string, icon: IconName, navigate: NavigateFunction): Command {
+    return {
+        title,
+        description,
+        action() {
+            navigate(url);
+        },
+        icon: {type: "simple", icon},
+        scope: CommandScope.GoTo,
+        actionText: "Go to"
+    }
+}
+
 export function Sidebar(): React.ReactNode {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
@@ -389,13 +427,17 @@ export function Sidebar(): React.ReactNode {
     }, [setHoveredPage]);
 
     const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
-    
+    const navigate = useNavigate();
+
+    useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate)));
+    const [dialog, setOpenDialog] = React.useState<DialogOptions>("");
+
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
-    
+
     const sidebar: MenuElement[] = sidebarEntries
-    .filter(it => it.predicate(reduxState))
-    .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
+        .filter(it => it.predicate(reduxState))
+        .flatMap(category => category.items.filter((it: MenuElement) => it?.show?.() ?? true));
 
     return (
         <Flex>
@@ -453,10 +495,10 @@ export function Sidebar(): React.ReactNode {
                 <Flex flexDirection={"column"} gap={"18px"} alignItems={"center"}>
                     <Downtimes />
                     <ThemeToggler />
-                    <BackgroundTasks />
-                    <Notification />
-                    <Support />
-                    <UserMenu avatar={avatar} />
+                    <BackgroundTasks dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Notification dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <Support dialog={dialog} setOpenDialog={setOpenDialog} />
+                    <UserMenu avatar={avatar} dialog={dialog} setOpenDialog={setOpenDialog} />
                     <CommandPalette />
                 </Flex>
             </div>
@@ -475,6 +517,13 @@ export function Sidebar(): React.ReactNode {
     );
 }
 
+type DialogOptions = "BackgroundTask" | "Notifications" | "Support" | "UserMenu" | "";
+type SetOpenDialog = React.Dispatch<React.SetStateAction<DialogOptions>>;
+export interface SidebarDialog {
+    dialog: DialogOptions;
+    setOpenDialog: SetOpenDialog;
+}
+
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}
 function useSidebarFilesPage(): [
     APICallState<PageV2<FileCollection>>,
@@ -483,6 +532,36 @@ function useSidebarFilesPage(): [
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+    const navigate = useNavigate();
+
+    useProvideCommands(staticProvider(drives.data.items.map(d => ({
+        title: d.specification.title,
+        icon: {type: "simple", icon: "heroFolderOpen"},
+        action() {
+            navigate(AppRoutes.files.drive(d.id));
+        },
+        description: d.updates[0]?.status ?? "",
+        scope: CommandScope.File,
+        actionText: "Go to",
+    }))));
+
+    useProvideCommands(staticProvider(favorites.items.map(f => ({
+        title: fileName(f.path),
+        icon: {type: "simple", icon: "starFilled"},
+        action() {
+            if (fileTypeCache[f.path] === "DIRECTORY") {
+                navigate(AppRoutes.files.path(f.path));
+            } else {
+                navigate(AppRoutes.files.path(getParentPath(f.path)));
+            }
+        },
+        description: "",
+        scope: CommandScope.File,
+        actionText: "Go to",
+    }))));
+
+    React.useEffect(() => {
+    }, [favorites])
 
     React.useEffect(() => {
         favorites.items.filter(it => fileTypeCache[it.path] == null).forEach(async file => {
@@ -514,7 +593,7 @@ function useSidebarFilesPage(): [
     const projectId = useProjectId();
 
     React.useEffect(() => {
-        fetchDrives(FileCollectionsApi.browse({itemsPerPage: 10/* , filterMemberFiles: "all" */}))
+        fetchDrives(FileCollectionsApi.browse({itemsPerPage: 250/* , filterMemberFiles: "all" */}))
     }, [projectId]);
 
     return [
@@ -525,8 +604,21 @@ function useSidebarFilesPage(): [
 
 function useSidebarRunsPage(): Job[] {
     const projectId = useProjectId();
+    const isLight = isLightThemeStored();
+    const navigate = useNavigate();
 
     const cache = React.useSyncExternalStore(s => jobCache.subscribe(s), () => jobCache.getSnapshot());
+
+    useProvideCommands(staticProvider(cache.items.map(j => ({
+        title: j.id,
+        icon: {type: "image", imageUrl: AppStore.retrieveAppLogo({name: j.specification.application.name, includeText: false, darkMode: !isLight})},
+        action() {
+            navigate(AppRoutes.jobs.view(j.id));
+        },
+        description: "",
+        scope: CommandScope.Job,
+        actionText: "Go to",
+    }))));
 
     React.useEffect(() => {
         callAPI(JobsApi.browse({itemsPerPage: 100, filterState: "RUNNING"})).then(result => {
@@ -551,6 +643,18 @@ interface SecondarySidebarProps {
 
 function isShare(d: FileCollection) {
     return d.specification.product.id === "share";
+}
+
+function myWorkspaceProjectCommand(navigate: NavigateFunction, dispatch: Dispatch): Command {
+    return {
+        title: "My workspace",
+        action() {
+            onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, undefined), () => void 0, undefined)
+        },
+        icon: {type: "simple", icon: "user"},
+        description: "",
+        scope: CommandScope.Project
+    }
 }
 
 function SecondarySidebar({
@@ -578,6 +682,26 @@ function SecondarySidebar({
         AppStore.retrieveStars({}),
         {items: []}
     );
+
+    const projects = projectCache.retrieveFromCacheOnly("");
+    const navigate = useNavigate();
+    const activeProject = useProjectId();
+    const dispatch = useDispatch();
+
+    const projectCommands: Command[] = React.useMemo(() => {
+        return projects?.items.map(p => ({
+            title: p.specification.title,
+            description: "",
+            icon: {type: "simple", icon: "heroUserGroup"},
+            scope: CommandScope.Project,
+            action() {
+                onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
+            },
+            actionText: "Switch to",
+        }) as Command).concat(activeProject ? [myWorkspaceProjectCommand(navigate, dispatch)] : []) ?? [];
+    }, [projects?.items, activeProjectId]);
+
+    useProvideCommands(staticProvider(projectCommands));
 
     const [discoveryMode] = useDiscovery();
     const [landingPage, setLandingPage] = useGlobal("catalogLandingPage", AppStore.emptyLandingPage);
@@ -607,7 +731,6 @@ function SecondarySidebar({
         fetchFavoriteApps(AppStore.retrieveStars({})).then(doNothing);
     }, [projectId]);
 
-    const dispatch = useDispatch();
     React.useEffect(() => {
         if (favoriteApps.loading) return;
         dispatch(setAppFavorites(favoriteApps.data.items));

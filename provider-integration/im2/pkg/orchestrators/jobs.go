@@ -276,6 +276,9 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 		case ApplicationParameterTypeIngress:
 			return value.Id
 
+		case ApplicationParameterTypeWorkflow:
+			return ""
+
 		default:
 			log.Warn("Unhandled value type: %v", param.Type)
 			return ""
@@ -288,7 +291,6 @@ func BuildParameter(
 	values map[string]ParamAndValue,
 	environmentVariable bool,
 	builder ArgBuilder,
-	templates map[string]string,
 	jinjaCtx *exec.Context,
 ) []string {
 	switch param.Type {
@@ -298,7 +300,15 @@ func BuildParameter(
 			flags |= JinjaFlagsNoEscape
 		}
 
-		output, ok := ExecuteJinjaTemplate(param.InvocationParameterJinja.Template, templates, jinjaCtx, flags)
+		output, ok := ExecuteJinjaTemplate(
+			param.InvocationParameterJinja.Template,
+			0,
+			func(session any, fn string, args []string) string {
+				return ""
+			},
+			jinjaCtx,
+			flags,
+		)
 		if !ok {
 			return nil
 		} else {
@@ -466,7 +476,18 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 
 func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDescription) map[string]ParamAndValue {
 	parameters := make(map[string]ParamAndValue)
-	for _, param := range application.Parameters {
+
+	allParameters := application.Parameters
+	for _, value := range job.Specification.Parameters {
+		if value.Type == AppParameterValueTypeWorkflow {
+			inputs := value.Specification.Inputs
+			for _, input := range inputs {
+				allParameters = append(allParameters, input)
+			}
+		}
+	}
+
+	for _, param := range allParameters {
 		if param.DefaultValue == nil {
 			continue
 		}
@@ -489,7 +510,7 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 
 	for paramName, value := range job.Specification.Parameters {
 		var parameter util.Option[ApplicationParameter]
-		for _, jobParam := range application.Parameters {
+		for _, jobParam := range allParameters {
 			if jobParam.Name == paramName {
 				parameter.Set(jobParam)
 				break

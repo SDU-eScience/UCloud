@@ -48,44 +48,34 @@ const (
 )
 
 type ToolDescription struct {
-	Info                  NameAndVersion                     `json:"info"`
-	DefaultNumberOfNodes  int                                `json:"defaultNumberOfNodes"`
-	DefaultTimeAllocation SimpleDuration                     `json:"defaultTimeAllocation"`
-	RequiredModules       []string                           `json:"requiredModules"`
-	Authors               []string                           `json:"authors"`
-	Title                 string                             `json:"title"`
-	Description           string                             `json:"description"`
-	Backend               ToolBackend                        `json:"backend"`
-	License               string                             `json:"license"`
-	Image                 string                             `json:"image,omitempty"`
-	SupportedProviders    []string                           `json:"supportedProviders,omitempty"`
-	BuildInstructions     util.Option[ToolBuildInstructions] `json:"buildInstructions"`
-	LoadInstructions      util.Option[ToolLoadInstructions]  `json:"loadInstructions"`
-}
-
-type ToolBuildInstructionsType string
-
-const (
-	ToolBuildInstructionsTypeNativeEasyBuild ToolBuildInstructionsType = "NativeEasyBuild"
-	ToolBuildInstructionsTypeNativeSpack     ToolBuildInstructionsType = "NativeSpack"
-)
-
-type ToolBuildInstructions struct {
-	Type       ToolBuildInstructionsType `json:"type"`
-	Repository string                    `json:"repository"`
-	Files      []string                  `json:"files"`
-	Packages   []string                  `json:"packages"`
+	Info                  NameAndVersion                    `json:"info"`
+	DefaultNumberOfNodes  int                               `json:"defaultNumberOfNodes"`
+	DefaultTimeAllocation SimpleDuration                    `json:"defaultTimeAllocation"`
+	RequiredModules       []string                          `json:"requiredModules"`
+	Authors               []string                          `json:"authors"`
+	Title                 string                            `json:"title"`
+	Description           string                            `json:"description"`
+	Backend               ToolBackend                       `json:"backend"`
+	License               string                            `json:"license"`
+	Image                 string                            `json:"image,omitempty"`
+	SupportedProviders    []string                          `json:"supportedProviders,omitempty"`
+	LoadInstructions      util.Option[ToolLoadInstructions] `json:"loadInstructions"`
 }
 
 type ToolLoadInstructionsType string
 
 const (
-	ToolLoadInstructionsNativeModuleWithJinja ToolLoadInstructionsType = "NativeModuleWithJinja"
+	ToolLoadInstructionsNative ToolLoadInstructionsType = "Native"
 )
 
 type ToolLoadInstructions struct {
-	Type    ToolLoadInstructionsType `json:"type"`
-	Modules []string                 `json:"modules"`
+	Type         ToolLoadInstructionsType `json:"type"`
+	Applications []NativeApplication      `json:"applications"`
+}
+
+type NativeApplication struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 type Tool struct {
@@ -300,6 +290,7 @@ const (
 	ApplicationParameterTypeLicenseServer  ApplicationParameterType = "license_server"
 	ApplicationParameterTypeIngress        ApplicationParameterType = "ingress"
 	ApplicationParameterTypeNetworkIp      ApplicationParameterType = "network_ip"
+	ApplicationParameterTypeWorkflow       ApplicationParameterType = "workflow"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -442,13 +433,14 @@ func ApplicationParameterNetworkIp(name string, optional bool, title string, des
 // AppParameterValue
 
 type AppParameterValue struct {
-	Type     AppParameterValueType
-	Path     string
-	ReadOnly bool
-	Value    any
-	Hostname string
-	JobId    string
-	Id       string
+	Type          AppParameterValueType
+	Path          string
+	ReadOnly      bool
+	Value         any
+	Hostname      string
+	JobId         string
+	Id            string
+	Specification WorkflowSpecification
 }
 
 type AppParameterValueType string
@@ -466,6 +458,7 @@ const (
 	AppParameterValueTypeEnumeration   AppParameterValueType = "enumeration"
 	AppParameterValueTypeNetwork       AppParameterValueType = "network"
 	AppParameterValueTypeIngress       AppParameterValueType = "ingress"
+	AppParameterValueTypeWorkflow      AppParameterValueType = "workflow"
 )
 
 func AppParameterValueFile(path string, readOnly bool) AppParameterValue {
