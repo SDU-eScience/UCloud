@@ -172,7 +172,7 @@ class ElasticDataService(
         var currentStart = start
         var currentEnd = start + FIVE_MINUTES
         val results = mutableSetOf<String>()
-        while (currentEnd < end) {
+        while (currentEnd < end) { 
             val searchRequest = SearchRequest.Builder()
                 .query(
                     BoolQuery.Builder()
