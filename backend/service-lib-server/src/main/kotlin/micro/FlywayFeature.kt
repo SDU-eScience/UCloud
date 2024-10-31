@@ -83,9 +83,10 @@ fun DatabaseConfig.migrateAll() {
         "provider" to 10002,
         "task" to 10003,
         "file_orchestrator" to 10004,
-        "app_orchestrator" to 10005,
-        "file_ucloud" to 10006,
-        "app_kubernetes" to 10007,
+        "app_store" to 10005,
+        "app_orchestrator" to 10006,
+        "file_ucloud" to 10007,
+        "app_kubernetes" to 10008,
     )
     var priorityDontCareCounter = 0
 
