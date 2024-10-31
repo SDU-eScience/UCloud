@@ -169,13 +169,6 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                 </form>
 
                 <Divider my={32} />
-                <Heading.h3>What does this do?</Heading.h3>
-                <p>
-                    Your public SSH key is automaticially made available to any provider, for which you have been
-                    allocated resources, to use. The providers will use these keys to authenticate your identity
-                    when using any of their SSH enabled services.
-                </p>
-
                 <p>
                     Not all providers support SSH through this method. The following table summarizes which
                     providers support SSH services:
