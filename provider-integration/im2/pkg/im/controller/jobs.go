@@ -101,7 +101,7 @@ type JobOpenInteractiveSessionRequest struct {
 }
 
 func controllerJobs(mux *http.ServeMux) {
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		jobsIpcServer()
 	}
 
@@ -112,7 +112,7 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
 
-	if cfg.Mode == cfg.ServerModeUser {
+	if RunsUserCode() {
 		creationUrl, _ := strings.CutSuffix(jobContext, "/")
 		mux.HandleFunc(creationUrl, HttpUpdateHandler[fnd.BulkRequest[*orc.Job]](
 			0,
@@ -535,7 +535,8 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(w, dynamicParametersResponse{Parameters: resp}, nil)
 			}),
 		)
-	} else if cfg.Mode == cfg.ServerModeServer {
+	}
+	if RunsServerCode() {
 		mux.HandleFunc(
 			fmt.Sprintf("/ucloud/%v/authorize-app", cfg.Provider.Id),
 			func(writer http.ResponseWriter, request *http.Request) {
@@ -753,7 +754,7 @@ func jobsIpcServer() {
 }
 
 func RegisterWebIngress(job *orc.Job, rank int, target cfg.HostInfo) (string, error) {
-	if cfg.Mode == cfg.ServerModeUser {
+	if RunsUserCode() {
 		return jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
 			JobId:  job.Id,
 			Target: target,

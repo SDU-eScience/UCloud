@@ -8,7 +8,6 @@ import (
 
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
-	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -38,7 +37,7 @@ type JobUpdateBatch struct {
 }
 
 func InitJobDatabase() {
-	if cfg.Mode != cfg.ServerModeServer {
+	if !RunsServerCode() {
 		return
 	}
 
@@ -101,15 +100,13 @@ func InitJobDatabase() {
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
 
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
 		activeJobsMutex.Unlock()
 
 		trackJobUpdateServer(&job)
-	}
-
-	if cfg.Mode == cfg.ServerModeUser {
+	} else if RunsUserCode() {
 		_, _ = trackRequest.Invoke(trackRequestType{job.Id, job.ProviderGeneratedId})
 	}
 }
@@ -145,7 +142,7 @@ func trackJobUpdateServer(job *orc.Job) {
 }
 
 func RetrieveJob(jobId string) (*orc.Job, bool) {
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		job, ok := activeJobs[jobId]
 		activeJobsMutex.Unlock()

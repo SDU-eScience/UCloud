@@ -899,7 +899,7 @@ func loadStorageProducts() {
 		productCategory := apm.ProductCategory{
 			Name:                categoryName,
 			Provider:            cfg.Provider.Id,
-			ProductType:         apm.ProductTypeCompute,
+			ProductType:         apm.ProductTypeStorage,
 			AccountingFrequency: apm.AccountingFrequencyPeriodicMinute,
 			FreeToUse:           false,
 			AllowSubAllocations: true,

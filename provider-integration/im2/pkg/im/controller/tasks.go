@@ -17,7 +17,7 @@ type TaskService struct {
 }
 
 func controllerTasks(mux *http.ServeMux) {
-	if cfg.Mode == cfg.ServerModeUser {
+	if RunsUserCode() {
 		baseContext := fmt.Sprintf("/ucloud/%v/tasks/", cfg.Provider.Id)
 
 		type pauseReq struct {

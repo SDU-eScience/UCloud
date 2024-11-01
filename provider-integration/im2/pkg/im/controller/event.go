@@ -501,7 +501,7 @@ func saveLastKnownProject(project apm.Project) {
 var getLastKnownProjectIpc = ipc.NewCall[string, apm.Project]("event.getlastknownproject")
 
 func GetLastKnownProject(projectId string) (apm.Project, bool) {
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		jsonData, ok := db.NewTx2[string, bool](func(tx *db.Transaction) (string, bool) {
 			jsonData, ok := db.Get[struct{ UCloudProject string }](
 				tx,

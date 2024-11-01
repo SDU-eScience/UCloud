@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
-	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
@@ -25,7 +24,7 @@ func RequestUserTermination(uid uint32) {
 }
 
 func initLiveness() {
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		requestLiveness.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[LivenessResponse] {
 			usersToTerminateMutex.Lock()
 			restartBefore, ok := usersToTerminate[r.Uid]
@@ -42,7 +41,7 @@ func initLiveness() {
 				},
 			}
 		})
-	} else if cfg.Mode == cfg.ServerModeUser {
+	} else if RunsUserCode() {
 		startedAt := time.Now()
 		knownVersion := ""
 

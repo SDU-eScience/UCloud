@@ -17,6 +17,14 @@ import (
 var LaunchUserInstances = false
 var UCloudUsername = ""
 
+func RunsUserCode() bool {
+	return cfg.Mode == cfg.ServerModeUser || (!LaunchUserInstances && cfg.Mode == cfg.ServerModeServer)
+}
+
+func RunsServerCode() bool {
+	return cfg.Mode == cfg.ServerModeServer
+}
+
 func Init(mux *http.ServeMux) {
 	controllerFiles(mux)
 	controllerConnection(mux)
@@ -24,7 +32,7 @@ func Init(mux *http.ServeMux) {
 	controllerTasks(mux)
 
 	initLiveness()
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		initEvents()
 	}
 }

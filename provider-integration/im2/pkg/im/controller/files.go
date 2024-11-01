@@ -103,11 +103,12 @@ type MoveFileRequest struct {
 }
 
 type CopyFileRequest struct {
-	OldDrive orc.Drive
-	NewDrive orc.Drive
-	OldPath  string
-	NewPath  string
-	Policy   orc.WriteConflictPolicy
+	UCloudUsername string
+	OldDrive       orc.Drive
+	NewDrive       orc.Drive
+	OldPath        string
+	NewPath        string
+	Policy         orc.WriteConflictPolicy
 }
 
 type MoveToTrashRequest struct {
@@ -251,7 +252,7 @@ func controllerFiles(mux *http.ServeMux) {
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
-	if cfg.Mode == cfg.ServerModeUser {
+	if RunsUserCode() {
 		mux.HandleFunc(fileContext+"browse", HttpUpdateHandler[filesProviderBrowseRequest](
 			0,
 			func(w http.ResponseWriter, r *http.Request, request filesProviderBrowseRequest) {
@@ -475,11 +476,12 @@ func controllerFiles(mux *http.ServeMux) {
 						TrackDrive(&item.NewDrive)
 
 						err := Files.Copy(CopyFileRequest{
-							OldDrive: item.OldDrive,
-							NewDrive: item.NewDrive,
-							OldPath:  item.OldPath,
-							NewPath:  item.NewPath,
-							Policy:   item.ConflictPolicy,
+							UCloudUsername: GetUCloudUsername(r),
+							OldDrive:       item.OldDrive,
+							NewDrive:       item.NewDrive,
+							OldPath:        item.OldPath,
+							NewPath:        item.NewPath,
+							Policy:         item.ConflictPolicy,
 						})
 
 						if err != nil {
@@ -880,7 +882,8 @@ func controllerFiles(mux *http.ServeMux) {
 				cancel()
 			},
 		)
-	} else if cfg.Mode == cfg.ServerModeServer {
+	}
+	if RunsServerCode() {
 		type retrieveProductsRequest struct{}
 		mux.HandleFunc(
 			driveContext+"retrieveProducts",
@@ -1137,7 +1140,11 @@ func generateUploadPath(
 		}
 	}
 
-	return fmt.Sprintf("%s/ucloud/%s/upload?token=%s&usernameHint=%s", hostPath, providerId, token, base64.URLEncoding.EncodeToString([]byte(username)))
+	if LaunchUserInstances {
+		return fmt.Sprintf("%s/ucloud/%s/upload?token=%s&usernameHint=%s", hostPath, providerId, token, base64.URLEncoding.EncodeToString([]byte(username)))
+	} else {
+		return fmt.Sprintf("%s/ucloud/%s/upload?token=%s", hostPath, providerId, token)
+	}
 }
 
 func createUploadSession(session upload.ServerSession) {

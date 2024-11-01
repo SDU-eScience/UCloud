@@ -36,11 +36,12 @@ func createConfigurationSnapshot(
 	// NOTE(Dan): Welcome to a file where the noise-to-signal ratio is horrible. Nothing we can do about this, this
 	// is simply how Envoy has chosen to do things.
 
+	configuration := createRoutes(routes)
 	snap, _ := cache.NewSnapshot(
 		util.RandomToken(16),
 		map[resource.Type][]types.Resource{
 			resource.ClusterType:  createClusters(clusters),
-			resource.RouteType:    {createRoutes(routes)},
+			resource.RouteType:    {configuration},
 			resource.ListenerType: {createListener(listenAddress, port)},
 		},
 	)
