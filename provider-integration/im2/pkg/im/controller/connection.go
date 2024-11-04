@@ -341,7 +341,7 @@ var redirectStore = make(map[string]redirectEntry)
 
 func controllerConnection(mux *http.ServeMux) {
 	providerId := cfg.Provider.Id
-	if cfg.Mode == cfg.ServerModeServer {
+	if RunsServerCode() {
 		baseContext := fmt.Sprintf("/ucloud/%v/integration/", providerId)
 
 		type connectRequest struct {

@@ -1,10 +1,14 @@
 package slurm
 
 import (
+	"bytes"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"math/rand"
 	"net/http"
+	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -331,6 +335,33 @@ func sbatchTemplate(session any, fn string, args []string) string {
 	}
 }
 
+// sanitizeMapForSerialization recursively removes non-serializable values from a map[string]any
+func sanitizeMapForSerialization(input map[string]any) map[string]any {
+	safeMap := make(map[string]any)
+	for key, value := range input {
+		if isSerializable(value) {
+			switch v := value.(type) {
+			case map[string]any:
+				safeMap[key] = sanitizeMapForSerialization(v)
+			default:
+				safeMap[key] = v
+			}
+		}
+	}
+	return safeMap
+}
+
+// isSerializable checks if a value is serializable by JSON or YAML
+func isSerializable(value any) bool {
+	v := reflect.ValueOf(value)
+	switch v.Kind() {
+	case reflect.Func, reflect.Chan, reflect.Complex64, reflect.Complex128, reflect.Invalid:
+		return false
+	default:
+		return true
+	}
+}
+
 func prepareDefaultEnvironment(
 	job *orc.Job,
 	jobFolder string,
@@ -643,6 +674,17 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 
 		jinjaContextParameters["srun"] = func() *exec.Value {
 			return exec.AsSafeValue(srunCommand)
+		}
+
+		jinjaContextParameters["debug"] = func() *exec.Value {
+			safeMap := sanitizeMapForSerialization(jinjaContextParameters)
+			buf := &bytes.Buffer{}
+			yamlEncoder := yaml.NewEncoder(buf)
+			_ = yamlEncoder.Encode(safeMap)
+			_ = os.WriteFile(filepath.Join(jobFolder, "jinja-context.yml"), buf.Bytes(), 0660)
+			_ = os.WriteFile(filepath.Join(jobFolder, "job.jinja"), []byte(tpl), 0660)
+
+			return exec.AsSafeValue("")
 		}
 
 		jinjaContext = exec.NewContext(jinjaContextParameters)

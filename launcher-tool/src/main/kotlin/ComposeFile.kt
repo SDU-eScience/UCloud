@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.ComposeService.GoSlurm.service
 import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
 import java.util.Base64
 
@@ -73,7 +74,7 @@ class ComposeBuilder(val environment: Environment) {
 
     fun createComposeFile(): String {
         return StringBuilder().apply {
-            append("""{ "version": "3.9", "services": {""")
+            append("""{ "services": {""")
             for ((index, service) in services.entries.withIndex()) {
                 if (index != 0) append(", ")
                 append('"')
@@ -136,6 +137,7 @@ sealed class ComposeService {
             Kubernetes,
             Slurm,
             GoSlurm,
+            GoKubernetes,
         )
     }
 
@@ -691,6 +693,225 @@ sealed class ComposeService {
             compose.exec(
                 currentEnvironment,
                 "k8",
+                listOf("rm", "/tmp/pvc.yml"),
+                tty = false
+            ).streamOutput().executeToText()
+
+            installMarker.writeText("done")
+        }
+    }
+
+    object GoKubernetes : Provider() {
+        override val name = "gok8s"
+        override val title = "Kubernetes (IM2)"
+
+        override fun ComposeBuilder.build() {
+            val k8Provider = environment.dataDirectory.child("im2k8").also { it.mkdirs() }
+            val k3sDir = k8Provider.child("k3s").also { it.mkdirs() }
+            val k3sOutput = k3sDir.child("output").also { it.mkdirs() }
+
+            val k3sData = "im2k3sdata".also { volumes.add(it) }
+            val k3sCni = "im2k3scni".also { volumes.add(it) }
+            val k3sKubelet = "im2k3skubelet".also { volumes.add(it) }
+            val k3sEtc = "im2k3setc".also { volumes.add(it) }
+
+            val imDir = k8Provider.child("im").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+            val imStorage = imDir.child("storage").also { it.mkdirs() }
+            listOf("home", "projects", "collections", "trash").forEach {
+                imStorage.child(it).mkdirs()
+            }
+
+            service(
+                "im2k3",
+                "K8 Provider: K3s Node",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "rancher/k3s:v1.21.6-rc2-k3s1",
+                        "privileged": true,
+                        "tmpfs": ["/run", "/var/run"],
+                        "environment": [
+                          "K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
+                          "K3S_KUBECONFIG_MODE=666"
+                        ],
+                        "command": ["server"],
+                        "hostname": "im2k3",
+                        "restart": "always",
+                        "volumes": [
+                          "${k3sOutput.absolutePath}:/output",
+                          "${k3sData}:/var/lib/rancher/k3s",
+                          "${k3sCni}:/var/lib/cni",
+                          "${k3sKubelet}:/var/lib/kubelet",
+                          "${k3sEtc}:/etc/rancher",
+                          "${imStorage.absolutePath}:/mnt/storage"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+                serviceConvention = false
+            )
+
+            service(
+                "gok8s",
+                "K8 Provider: Integration module",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "$imDevImage",
+                        "command": ["sleep", "inf"],
+                        "hostname": "gok8s",
+                        "ports": ["${portAllocator.allocate(51240)}:51233"],
+                        "volumes": [
+                          "${imData.absolutePath}:/etc/ucloud",
+                          "${k3sOutput.absolutePath}:/mnt/k3s",
+                          "${imStorage.absolutePath}:/mnt/storage",
+                          "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/gonja:/opt/gonja"
+                        ]
+                      }
+                    """.trimIndent(),
+                ),
+                serviceConvention = true
+            )
+
+            val postgresDataDir = environment.dataDirectory.child("go-slurm-pg-data").also { it.mkdirs() }
+            service(
+                "go-k8s-postgres",
+                "Kubernetes (IM2): Postgres",
+                Json(
+                    //language=json
+                    """
+                      {
+                        "image": "postgres:15.0",
+                        "hostname": "go-k8s-postgres",
+                        "restart": "always",
+                        "environment": {
+                          "POSTGRES_PASSWORD": "postgrespassword"
+                        },
+                        "volumes": [
+                          "${postgresDataDir.absolutePath}:/var/lib/postgresql/data",
+                          "${environment.repoRoot}/provider-integration/im2:/opt/ucloud",
+                          "${environment.repoRoot}/provider-integration/gonja:/opt/gonja"
+                        ],
+                        "ports": [
+                          "${portAllocator.allocate(51241)}:5432"
+                        ]
+                      }
+                    """.trimIndent()
+                ),
+
+                serviceConvention = false,
+            )
+        }
+
+        override fun install(credentials: ProviderCredentials) {
+            val k8Provider = currentEnvironment.child("im2k8").also { it.mkdirs() }
+            val imDir = k8Provider.child("im").also { it.mkdirs() }
+            val imData = imDir.child("data").also { it.mkdirs() }
+
+            val installMarker = imData.child(".install-marker")
+            if (installMarker.exists()) return
+
+            imData.child("ucloud_crt.pem").writeText(credentials.publicKey)
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
+                listOf(
+                    "sh", "-c", """
+                    while ! test -e "/mnt/k3s/kubeconfig.yaml"; do
+                      sleep 1
+                      echo "Waiting for Kubernetes to be ready..."
+                    done
+                """.trimIndent()
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
+                listOf(
+                    "sed",
+                    "-i",
+                    "s/127.0.0.1/im2k3/g",
+                    "/mnt/k3s/kubeconfig.yaml"
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
+                listOf(
+                    "kubectl",
+                    "--kubeconfig",
+                    "/mnt/k3s/kubeconfig.yaml",
+                    "create",
+                    "namespace",
+                    "ucloud-apps"
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
+                listOf(
+                    "sh",
+                    "-c",
+                    """
+                        cat > /tmp/pvc.yml << EOF
+                        ---
+                        apiVersion: v1
+                        kind: PersistentVolume
+                        metadata:
+                            name: cephfs
+                            namespace: ucloud-apps
+                        spec:
+                            capacity:
+                                storage: 1000Gi
+                            volumeMode: Filesystem
+                            accessModes:
+                                - ReadWriteMany
+                            persistentVolumeReclaimPolicy: Retain
+                            storageClassName: ""
+                            hostPath:
+                                path: "/mnt/storage"
+                        
+                        ---
+                        apiVersion: v1
+                        kind: PersistentVolumeClaim
+                        metadata:
+                            name: cephfs
+                            namespace: ucloud-apps
+                        spec:
+                            accessModes:
+                                - ReadWriteMany
+                            storageClassName: ""
+                            volumeName: cephfs
+                            resources:
+                                requests:
+                                    storage: 1000Gi
+                        EOF
+                    """.trimIndent()
+                ),
+                tty = false
+            ).streamOutput().executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
+                listOf("kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"),
+                tty = false
+            ).streamOutput().executeToText()
+
+            compose.exec(
+                currentEnvironment,
+                "gok8s",
                 listOf("rm", "/tmp/pvc.yml"),
                 tty = false
             ).streamOutput().executeToText()
@@ -1267,6 +1488,10 @@ sealed class ComposeService {
                         reverse_proxy go-slurm:8889
                     }
                     
+                    https://go-k8s.localhost.direct {
+                        reverse_proxy gok8s:8889
+                    }
+                    
                     https://slurm-pg.localhost.direct {
                         reverse_proxy slurmpgweb:8081
                     }
@@ -1306,6 +1531,11 @@ sealed class ComposeService {
                             header_regexp goslurmapp Host ^goslurm-.*
                         }
                         reverse_proxy @goslurmapps go-slurm:8889
+                        
+                        @gok8sapps {
+                            header_regexp gok8sapp Host ^gok8s-.*
+                        }
+                        reverse_proxy @gok8sapps gok8s:8889
 
                     }
                 """.trimIndent()

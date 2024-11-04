@@ -55,6 +55,7 @@ chmod 777 /var/log/ucloud/structured
 ! (test -f /etc/ucloud/core.yaml) || chmod 644 /etc/ucloud/core.yaml
 ! (test -f /etc/ucloud/server.yaml) || chmod 600 /etc/ucloud/server.yaml
 ! (test -f /etc/ucloud/ucloud_crt.pem) || chmod 644 /etc/ucloud/ucloud_crt.pem
+! (test -d /work) && mkdir /work
 ! (test -d /gpfs) && mkdir /gpfs
 ! (test -d /gpfs/home) && ln -s /home /gpfs/home
 ! (test -d /gpfs/work) && ln -s /work /gpfs/work
@@ -71,7 +72,7 @@ startsvc() {
     fi
 
     if ! [ -f "/usr/bin/gpfs-mock" ]; then
-        ln -s /usr/bin/ucloud /usr/bin/gpfs-mock
+        ln -s /usr/bin/ucloud /usr/bin/gpfs-mock || true
     fi
 
     if ! isrunning; then

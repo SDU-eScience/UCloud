@@ -7,7 +7,6 @@ import (
 	"sync"
 	db "ucloud.dk/pkg/database"
 	fnd "ucloud.dk/pkg/foundation"
-	cfg "ucloud.dk/pkg/im/config"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -28,7 +27,7 @@ import (
 // - Changes in timestamps (IM generally has no use for these)
 
 func InitDriveDatabase() {
-	if cfg.Mode != cfg.ServerModeServer {
+	if !RunsServerCode() {
 		return
 	}
 
@@ -103,7 +102,7 @@ func trackDrive(drive *orc.Drive, allowRegistration bool) {
 
 		if allowRegistration {
 			go func() {
-				if cfg.Mode == cfg.ServerModeServer {
+				if RunsServerCode() {
 					jsonified, _ := json.Marshal(&copiedDrive)
 
 					db.NewTx0(func(tx *db.Transaction) {
@@ -172,7 +171,7 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	activeDrivesMutex.Unlock()
 
 	if !ok {
-		if cfg.Mode == cfg.ServerModeServer {
+		if RunsServerCode() {
 			res, err := orc.RetrieveDrive(id)
 			if err == nil {
 				trackDrive(&res, true)
@@ -223,7 +222,7 @@ outer:
 	activeDrivesMutex.Unlock()
 
 	if result == nil {
-		if cfg.Mode == cfg.ServerModeServer {
+		if RunsServerCode() {
 			lookupFromDatabase := func(tx *db.Transaction) *orc.Drive {
 				rows := db.Select[struct{ Resource string }](
 					tx,

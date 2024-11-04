@@ -827,7 +827,6 @@ func (cfg *ServicesConfiguration) Puhuri() *ServicesConfigurationPuhuri {
 	return nil
 }
 
-type ServicesConfigurationKubernetes struct{}
 type ServicesConfigurationPuhuri struct{}
 
 type MachineResourceType = string
@@ -930,6 +929,14 @@ func parseServices(serverMode ServerMode, filePath string, services *yaml.Node) 
 	switch kind {
 	case ServicesSlurm:
 		success, slurm := parseSlurmServices(result.Unmanaged, serverMode, filePath, services)
+		if !success {
+			return false, result
+		}
+
+		result.Configuration = &slurm
+
+	case ServicesKubernetes:
+		success, slurm := parseKubernetesServices(result.Unmanaged, serverMode, filePath, services)
 		if !success {
 			return false, result
 		}
