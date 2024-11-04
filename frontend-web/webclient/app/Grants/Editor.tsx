@@ -1999,7 +1999,6 @@ export function Editor(): React.ReactNode {
 
                                         return checkedAllocators.length !== 0;
                                     } else {
-                                        console.log("HELLO")
                                         let useCategory = false;
                                         category.allocators.forEach(allocator => {
                                             if (category.totalBalanceRequested[allocator.grantGiverId] > 0) {
@@ -2009,7 +2008,6 @@ export function Editor(): React.ReactNode {
                                         return useCategory;
                                     }
                                 });
-                                console.log(relevantCategories.length === 0)
                                 if (relevantCategories.length === 0) return null;
 
                                 return <React.Fragment key={providerId}>
@@ -2020,7 +2018,6 @@ export function Editor(): React.ReactNode {
 
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
-                                            console.log("P ", category)
                                             let checkedAllocators: GrantGiverIdAndTitle[]
                                             if(!isViewingHistoricEntry) {
                                                 checkedAllocators = Array.from(category.allocators).filter(needle =>
