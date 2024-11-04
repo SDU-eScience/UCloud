@@ -8,12 +8,12 @@ import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {file, PageV2} from "@/UCloud";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
 import * as Accounting from "@/Accounting";
 import * as Projects from "@/Project/Api";
-import ProjectAPI, {api as ProjectApi, useProjectId} from "@/Project/Api";
+import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {fetchAll} from "@/Utilities/PageUtilities";
@@ -31,14 +31,11 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
-import {Project, isAdminOrPI} from "@/Project";
+import {isAdminOrPI, Project} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {edit} from "@/ui-components/icons";
-import {projectCache, projectTitleFromCache} from "@/Project/ContextSwitcher";
-import ucloud = file.orchestrator.ucloud;
 
 // State model
 // =====================================================================================================================
@@ -725,8 +722,17 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                category.allocators.add({grantGiverId: request.grantGiver, grantGiverTitle: request.grantGiverTitle ?? ""});
-                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                if (alreadyThere) {
+                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+
+                } else {
+                    category.allocators.add({
+                        grantGiverId: request.grantGiver,
+                        grantGiverTitle: request.grantGiverTitle ?? ""
+                    });
+                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                }
             }
         }
 
@@ -1986,11 +1992,9 @@ export function Editor(): React.ReactNode {
                             {Object.entries(state.resources).map(([providerId, categories]) => {
                                 if (categories.length === 0) return null;
                                 const relevantCategories = categories.filter(category => {
-                                    console.log("Cheinging categories: ", category);
                                     if (!isViewingHistoricEntry) {
-                                        console.log("MOIJN")
                                         const checkedAllocators = Array.from(category.allocators).filter(needle =>
-                                            state.allocators.find(hay => hay.id === needle.grantGiverId)?.checked === true
+                                            state.allocators.find(hay => hay.id === needle.grantGiverId && hay.title === needle.grantGiverTitle)?.checked === true
                                         );
 
                                         return checkedAllocators.length !== 0;
@@ -2040,28 +2044,27 @@ export function Editor(): React.ReactNode {
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={false}
                                             >
-                                                {checkedAllocators.map(allocatorId => {
-console.log("AID" , allocatorId)
+                                                {checkedAllocators.map(allocator => {
                                                     const unit = Accounting.explainUnit(category.category);
                                                     const freq = category.category.accountingFrequency;
-                                                    const errorMessage = category.error?.allocator === allocatorId.grantGiverId ?
+                                                    const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
 
-                                                    const value: number | undefined = category.totalBalanceRequested[allocatorId.grantGiverId];
+                                                    const value: number | undefined = category.totalBalanceRequested[allocator.grantGiverId];
                                                     if (hideZeroFields && (value === 0 || value == null)) return null;
                                                     if (isViewingHistoricEntry) {
-                                                        return <React.Fragment key={allocatorId.grantGiverId}>
+                                                        return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
-                                                                    {checkedAllocators.length > 1 && <> from {allocatorId.grantGiverTitle}</>}
+                                                                    {checkedAllocators.length > 1 && <> from {allocator.grantGiverTitle}</>}
 
                                                                     <Input
-                                                                        id={`${providerId}/${category.category.name}/${allocatorId}`}
+                                                                        id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
                                                                         min={0}
-                                                                        value={category.totalBalanceRequested[allocatorId.grantGiverId] ?? ""}
+                                                                        value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed}/>
                                                                 </label>
 
@@ -2070,20 +2073,20 @@ console.log("AID" , allocatorId)
                                                             </div>
                                                         </React.Fragment>;
                                                     } else {
-                                                        const allocatorName = state.allocators.find(all => all.id === allocatorId.grantGiverId)!.title;
+                                                        const allocatorName = state.allocators.find(all => all.id === allocator.grantGiverId)!.title;
 
-                                                        return <React.Fragment key={allocatorId.grantGiverId}>
+                                                        return <React.Fragment key={allocator.grantGiverId}>
                                                             <div className={"allocation-row"}>
                                                                 <label>
                                                                     {unit.name} requested
                                                                     {checkedAllocators.length > 1 && <> from {allocatorName}</>}
 
                                                                     <Input
-                                                                        id={`${providerId}/${category.category.name}/${allocatorId}`}
+                                                                        id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
                                                                         type={"number"} placeholder={"0"}
                                                                         onInput={onResourceInput}
                                                                         min={0}
-                                                                        value={category.totalBalanceRequested[allocatorId.grantGiverId] ?? ""}
+                                                                        value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
                                                                         disabled={state.locked || isClosed}/>
                                                                 </label>
 
