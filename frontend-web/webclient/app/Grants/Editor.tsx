@@ -223,7 +223,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "AllocatorsLoaded": {
             const newAllocators: EditorState["allocators"] = state.allocators
-                .filter(it => action.allocators.some(other => it.id === other.id));
+                .filter(it => action.allocators.some(other => it.id === other.id && it.title === other.title));
 
             const newResources: EditorState["resources"] = {...state.resources};
 
@@ -276,10 +276,17 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
+                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                            //DO NOTHING
+                        } else {
+                            existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
+                        }
                     } else {
                         const allocators = new Set<GrantGiverIdAndTitle>();
-                        allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title });
+                        const exists = Array.from(allocators.entries()).find(grantgiver => grantgiver.grantGiverId === allocator.id && grantgiver.grantGiverTitle === allocator.title);
+                        if (!exists) {
+                            allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
+                        }
                         sectionForProvider.push({category, allocators, totalBalanceRequested: {}});
                     }
                 }
@@ -2021,7 +2028,7 @@ export function Editor(): React.ReactNode {
                                             let checkedAllocators: GrantGiverIdAndTitle[]
                                             if(!isViewingHistoricEntry) {
                                                 checkedAllocators = Array.from(category.allocators).filter(needle =>
-                                                    state.allocators.find(hay => hay.id === needle.grantGiverId)?.checked === true
+                                                    state.allocators.find(hay => hay.id === needle.grantGiverId && hay.title === needle.grantGiverTitle)?.checked === true
                                                 );
                                             } else {
                                                 checkedAllocators = Array.from(category.allocators);
