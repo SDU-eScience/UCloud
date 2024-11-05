@@ -283,10 +283,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         }
                     } else {
                         const allocators = new Set<GrantGiverIdAndTitle>();
-                        const exists = Array.from(allocators.entries()).find(grantgiver => grantgiver.grantGiverId === allocator.id && grantgiver.grantGiverTitle === allocator.title);
-                        if (!exists) {
-                            allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
-                        }
+                        allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
                         sectionForProvider.push({category, allocators, totalBalanceRequested: {}});
                     }
                 }
