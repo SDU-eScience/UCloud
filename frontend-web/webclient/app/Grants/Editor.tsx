@@ -2003,7 +2003,6 @@ export function Editor(): React.ReactNode {
 
                                         return checkedAllocators.length !== 0;
                                     } else {
-                                        let useCategory = false;
                                         const useCategory = category.allocators.find(allocator => 
                                             category.totalBalanceRequested[allocator.grantGiverId] > 0
                                         ) != null;
