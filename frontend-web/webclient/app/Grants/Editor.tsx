@@ -2021,7 +2021,7 @@ export function Editor(): React.ReactNode {
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
                                             let checkedAllocators: GrantGiverIdAndTitle[]
-                                            if(!isViewingHistoricEntry) {
+                                            if (!isViewingHistoricEntry) {
                                                 checkedAllocators = Array.from(category.allocators).filter(needle =>
                                                     state.allocators.find(hay => hay.id === needle.grantGiverId && hay.title === needle.grantGiverTitle)?.checked === true
                                                 );
