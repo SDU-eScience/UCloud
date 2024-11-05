@@ -368,6 +368,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const start = new Date(Math.max(timestampUnixMs(), action.start));
             const end = new Date(action.end + 1000);
 
+            const minimumDurationInMonths = 1
+
             const newState: EditorState = {
                 ...state,
                 allocationPeriod: {
@@ -376,7 +378,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         year: start.getUTCFullYear()
                     },
                     durationInMonths: Math.max(
-                        3,
+                        minimumDurationInMonths,
                         ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                         (end.getUTCMonth() - start.getUTCMonth()),
                     )
@@ -410,7 +412,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         allocationPeriod: {
                             start: start.getMilliseconds(),
                             end: Math.max(
-                                3,
+                                minimumDurationInMonths,
                                 ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                                 (end.getUTCMonth() - start.getUTCMonth())
                             )
