@@ -729,7 +729,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 if (alreadyThere) {
                     category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
-
                 } else {
                     category.allocators.add({
                         grantGiverId: request.grantGiver,
