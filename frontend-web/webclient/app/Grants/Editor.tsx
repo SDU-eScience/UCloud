@@ -441,7 +441,6 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
                 },
-
             };
         }
 
