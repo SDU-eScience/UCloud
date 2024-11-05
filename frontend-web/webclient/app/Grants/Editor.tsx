@@ -2004,11 +2004,9 @@ export function Editor(): React.ReactNode {
                                         return checkedAllocators.length !== 0;
                                     } else {
                                         let useCategory = false;
-                                        category.allocators.forEach(allocator => {
-                                            if (category.totalBalanceRequested[allocator.grantGiverId] > 0) {
-                                                useCategory = true;
-                                            }
-                                        })
+                                        const useCategory = category.allocators.find(allocator => 
+                                            category.totalBalanceRequested[allocator.grantGiverId] > 0
+                                        ) != null;
                                         return useCategory;
                                     }
                                 });
