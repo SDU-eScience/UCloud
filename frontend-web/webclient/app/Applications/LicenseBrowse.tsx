@@ -4,26 +4,32 @@ import {usePage} from "@/Navigation/Redux";
 import {
     EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts,
     addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, getFilterStorageValue,
-    providerIcon, resourceCreationWithProductSelector, setFilterStorageValue
+    providerIcon, setFilterStorageValue
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import LicenseApi, {License, LicenseSupport} from "@/UCloud/LicenseApi";
 import {
+    CREATE_TAG,
+    Permission,
+    ResourceAclEntry,
     ResourceBrowseCallbacks, retrieveSupportV2,
-    SupportByProviderV2,
-    supportV2ProductMatch
+    SupportByProviderV2
 } from "@/UCloud/ResourceApi";
 import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import AppRoutes from "@/Routes";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {productTypeToIcon, ProductV2, ProductV2License} from "@/Accounting";
+import {productTypeToIcon, ProductV2License} from "@/Accounting";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -45,14 +51,18 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2License, L
     globalTtl: 60_000
 });
 
+const PROJECT_CHANGE_LISTENER_ID = "license-project-listener";
 export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<License> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState<React.ReactNode>(<></>);
     usePage("Licenses", SidebarTabId.RESOURCES);
+
+    React.useEffect(() => {
+        return () => removeProjectListener(PROJECT_CHANGE_LISTENER_ID);
+    }, []);
 
     const dateRanges = dateRangeFilters("Date created");
 
@@ -64,66 +74,9 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
 
                 browser.setColumns([{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
 
-                supportByProvider.retrieve("", () => retrieveSupportV2(LicenseApi)).then(res => {
-                    const creatableProducts: ProductV2[] = [];
-                    for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product} of provider) {
-                            creatableProducts.push(supportV2ProductMatch(product, res));
-                        }
-                    }
-
-                    const dummyEntry = {
-                        id: DUMMY_ENTRY_ID,
-                        specification: {product: {id: "string"}}
-                    } as License;
-
-                    const resourceCreator = resourceCreationWithProductSelector(
-                        browser,
-                        creatableProducts,
-                        dummyEntry,
-                        async product => {
-                            const productReference = {
-                                id: product.name,
-                                category: product.category.name,
-                                provider: product.category.provider
-                            };
-
-                            const activatedLicense = {
-                                ...dummyEntry,
-                                id: "",
-                                specification: {
-                                    product: productReference
-                                },
-                                owner: {createdBy: "", },
-                            } as License;
-
-                            browser.insertEntryIntoCurrentPage(activatedLicense);
-                            browser.renderRows();
-                            browser.selectAndShow(it => it === activatedLicense);
-
-                            try {
-                                const response = (await callAPI(
-                                    LicenseApi.create(
-                                        bulkRequestOf({
-                                            product: productReference,
-                                            domain: "",
-                                        })
-                                    )
-                                )).responses[0] as unknown as FindByStringId;
-
-                                activatedLicense.id = response.id;
-                                browser.renderRows();
-                            } catch (e) {
-                                snackbarStore.addFailure("Failed to activate license. " + extractErrorMessage(e), false);
-                                browser.refresh();
-                                return;
-                            }
-                        },
-                        "LICENSE"
-                    )
-
-                    startCreation = resourceCreator.startCreation;
-                    setProductSelectorPortal(resourceCreator.portal);
+                supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(LicenseApi));
+                addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
+                    supportByProvider.retrieve(p ?? "", () => retrieveSupportV2(LicenseApi));
                 });
 
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -272,13 +225,68 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return LicenseApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
+                    const operations = LicenseApi.retrieveOperations();
+                    const create = operations.find(it => it.tag === CREATE_TAG);
+                    if (create) {
+                        create.enabled = () => true;
+                        create.onClick = () => {
+                            dialogStore.addDialog(
+                                <ProductSelectorWithPermissions products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={LicenseApi.title} onCreate={async (entry, product) => {
+                                    try {
+                                        const response = (await callAPI(
+                                            LicenseApi.create(
+                                                bulkRequestOf({
+                                                    product: {
+                                                        id: product.name,
+                                                        category: product.category.name,
+                                                        provider: product.category.provider
+                                                    },
+                                                    domain: "",
+                                                })
+                                            )
+                                        )).responses[0] as unknown as FindByStringId;
+
+                                        /* Note(Jonas): I can't find the creation function in the backend,
+                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
+                                           
+                                           Seems to be ignored in the backend.
+                                        */
+                                        if (response) {
+                                            for (const permission of entry.permissions.others ?? []) {
+                                                const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                                const newEntry: ResourceAclEntry = {
+                                                    entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                    permissions: fixedPermissions
+                                                };
+
+                                                await callAPI(
+                                                    LicenseApi.updateAcl(bulkRequestOf(
+                                                        {
+                                                            id: response.id,
+                                                            added: [newEntry],
+                                                            deleted: [permission.entity]
+                                                        }
+                                                    ))
+                                                );
+                                            };
+
+                                            dialogStore.success();
+                                            browser.refresh();
+                                        }
+                                    } catch (e) {
+                                        snackbarStore.addFailure("Failed to create license. " + extractErrorMessage(e), false);
+                                        browser.refresh();
+                                        return;
+                                    }
+                                }} />, () => {}
+                            );
+                        }
+                    }
+                    return operations.filter(it => it.enabled(entries, callbacks as any, entries))
                 });
                 browser.on("pathToEntry", f => f.id);
                 browser.on("nameOfEntry", f => f.specification.product.id);
                 browser.on("sort", page => page.sort((a, b) => {
-                    if (a.id === "dummy" && b.id !== "dummy") return -1;
-                    if (a.id !== "dummy" && b.id === "dummy") return 1;
                     return a.specification.product.id.localeCompare(b.specification.product.id);
                 }));
             });
@@ -296,7 +304,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
         main={<>
             <div ref={mountRef} />
             {switcher}
-            {productSelectorPortal}
         </>}
     />
 }
+
+const dummyEntry: License = {
+    id: DUMMY_ENTRY_ID,
+    specification: {product: {id: "string"}}
+} as License;

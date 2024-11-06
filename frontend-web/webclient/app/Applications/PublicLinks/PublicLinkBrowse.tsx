@@ -83,7 +83,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                 ]);
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));
-
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
                     supportByProvider.retrieve(p ?? "", () => retrieveSupportV2(PublicLinkApi));
                 });
@@ -368,6 +367,7 @@ const dummyEntry: PublicLink = {
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Ingress, PublicLinkSupport>>({
     globalTtl: 60_000
 });
+
 interface CreationWithProductSelectorProps<T extends Resource> {
     onCreate(entry: T, product: ProductV2, support?: PublicLinkSupport): Promise<void>;
     dummyEntry: T;
@@ -378,7 +378,7 @@ interface CreationWithProductSelectorProps<T extends Resource> {
 }
 
 // Has to work for licenses also.
-function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntry, title, placeholder, isPublicLink, products}: CreationWithProductSelectorProps<T>) {
+export function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntry, title, placeholder, isPublicLink, products}: CreationWithProductSelectorProps<T>) {
     const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
     const [support, setSupport] = React.useState<PublicLinkSupport | LicenseSupport>();
     const [entryId, setEntryId] = React.useState("");
@@ -443,35 +443,6 @@ function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntr
                 </TabbedCard>
             </Box>)}
         </Box>)}
-        <Flex mt="12px" justifyContent="end"><Button disabled={product == null || !entryId} type="submit">Create</Button></Flex>
-    </form>);
-}
-
-
-function ProductSelectorWithFirewall<T extends Resource>({onCreate, dummyEntry, title, placeholder}: CreationWithProductSelectorProps<T>) {
-    const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
-    const availableProducts = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? [];
-    const [entryId, setEntryId] = React.useState("");
-    const projectId = useProjectId();
-
-    return (<form onKeyDown={stopPropagation} onSubmit={e => {
-        e.preventDefault();
-        if (!product) return;
-        onCreate({...dummyEntry} as T, product);
-    }}>
-        <ProductSelector onSelect={setSelectedProduct} products={availableProducts} selected={product} />
-        {!product ? null : (<Box mt="12px" style={{border: "1px solid black"}}>
-            <Label>
-                Public link url:
-                <Input placeholder={placeholder} onChange={e => setEntryId(e.target.value)} />
-            </Label>
-            {!Client.hasActiveProject ? null : (<Box mt="12px">
-                This is the permissions for the {title.toLocaleLowerCase()}. This can be changed later through 'Properties'.
-                <Box mt="12px" maxHeight="400px" overflowY="auto">
-                    {/* <FirewallTable didChange={false} /> */}
-                </Box>
-            </Box>)}
-            <Flex mt="12px" justifyContent="end"><Button disabled={product == null || !entryId} type="submit">Create</Button></Flex>
-        </Box>)}
+        <Flex mt="12px" justifyContent="end"><Button disabled={product == null || (isPublicLink && !entryId)} type="submit">Create</Button></Flex>
     </form>);
 }
