@@ -1,26 +1,41 @@
-import {productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
+import {Product, productTypeToIcon, ProductV2, ProductV2Ingress} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {FindByStringId} from "@/UCloud";
 import PublicLinkApi, {PublicLink, PublicLinkSupport} from "@/UCloud/PublicLinkApi";
 import {
+    CREATE_TAG,
+    Permission,
+    Resource,
+    ResourceAclEntry,
     ResourceBrowseCallbacks,
     retrieveSupportV2,
     SupportByProviderV2,
-    supportV2ProductMatch
 } from "@/UCloud/ResourceApi";
-import {AsyncCache} from "@/Utilities/AsyncCache";
-import {createHTMLElements, doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {bulkRequestOf, createHTMLElements, doNothing, extractErrorMessage, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {AsyncCache} from "@/Utilities/AsyncCache";
+import {ProductSelector} from "@/Products/Selector";
+import {PermissionsTable} from "@/Resource/PermissionEditor";
+import {Client} from "@/Authentication/HttpClientInstance";
+import Flex from "@/ui-components/Flex";
+import Button from "@/ui-components/Button";
+import Input from "@/ui-components/Input";
+import Text from "@/ui-components/Text";
+import {Box, Label} from "@/ui-components";
+import {useProjectId} from "@/Project/Api";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {FindByStringId} from "@/UCloud";
+import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {LicenseSupport} from "@/UCloud/LicenseApi";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -38,11 +53,8 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-
-const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Ingress, PublicLinkSupport>>({
-    globalTtl: 60_000
-});
-
+const RESOURCE_NAME = "Public Links";
+const PROJECT_CHANGE_LISTENER_ID = "public-links";
 export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<PublicLink> | null>(null);
@@ -52,14 +64,17 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         usePage("Public links", SidebarTabId.RESOURCES);
     }
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
-    const [productSelectorPortal, setProductSelectorPortal] = React.useState(<></>);
 
     const dateRanges = dateRangeFilters("Date created");
+
+    React.useEffect(() => {
+        return () => removeProjectListener(PROJECT_CHANGE_LISTENER_ID);
+    }, []);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<PublicLink>(mount, "Public Links", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PublicLink>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([
                     {name: "Domain"},
                     {name: "", columnWidth: 0},
@@ -67,93 +82,10 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                     {name: "In use with", columnWidth: 250},
                 ]);
 
-                let startCreation: () => void = doNothing;
-                const ingressBeingCreated = "$$collectionBeingCreated$$___$$";
-                const isCreatingPrefix = "$$creating-";
-                const dummyEntry = {
-                    createdAt: timestampUnixMs(),
-                    status: {createdAt: 0, boundTo: [], state: "PREPARING"},
-                    specification: {domain: "", product: {category: "", id: "", provider: ""}},
-                    id: ingressBeingCreated,
-                    owner: {createdBy: ""},
-                    updates: [],
-                    permissions: {myself: []},
-                    domain: ""
-                } as PublicLink;
+                supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PublicLinkApi));
 
-                const supportPromise = supportByProvider.retrieve("", () => retrieveSupportV2(PublicLinkApi));
-
-                supportPromise.then(res => {
-                    browser.renderOperations();
-
-                    const creatableProducts: ProductV2[] = [];
-                    const ingressSupport: PublicLinkSupport[] = [];
-                    for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product, support} of provider) {
-                            creatableProducts.push(supportV2ProductMatch(product, res));
-                            ingressSupport.push(support);
-                        }
-                    }
-
-                    const resourceCreator = resourceCreationWithProductSelector(
-                        browser,
-                        creatableProducts,
-                        dummyEntry,
-                        async product => {
-                            const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
-                            const productReference = {
-                                id: product.name,
-                                category: product.category.name,
-                                provider: product.category.provider
-                            };
-
-                            const ingressBeingCreated: PublicLink = {
-                                ...dummyEntry,
-                                id: temporaryFakeId,
-                                specification: {
-                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
-                                    product: productReference
-                                },
-                            };
-
-                            browser.insertEntryIntoCurrentPage(ingressBeingCreated);
-                            browser.renderRows();
-                            browser.selectAndShow(it => it === ingressBeingCreated);
-
-                            try {
-                                if (browser.renameValue.length < 1) {
-                                    browser.refresh();
-                                    return;
-                                }
-
-                                const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
-                                    domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
-                                    product: productReference
-                                })))).responses[0] as unknown as FindByStringId;
-
-                                ingressBeingCreated.id = response.id;
-                                browser.renderRows();
-                            } catch (e) {
-                                snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
-                                browser.refresh();
-                                return;
-                            }
-                        },
-                        "INGRESS",
-                        product => {
-                            const support = ingressSupport.find(it =>
-                                it.product.id === product.category.name &&
-                                it.product.provider === product.category.provider
-                            );
-                            if (!support) return;
-                            browser.renamePrefix = support.domainPrefix;
-                            browser.renameSuffix = support.domainSuffix;
-                        }
-                    );
-
-                    startCreation = resourceCreator.startCreation;
-
-                    setProductSelectorPortal(resourceCreator.portal);
+                addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
+                    supportByProvider.retrieve(p ?? "", () => retrieveSupportV2(PublicLinkApi));
                 });
 
                 browser.setEmptyIcon(productTypeToIcon("INGRESS"));
@@ -287,13 +219,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         const [boundTo] = link.status.boundTo;
                         row.stat3.innerText = boundTo;
                     }
-
-                    if (opts?.selection && link.id !== ingressBeingCreated) {
-                        const button = browser.defaultButtonRenderer(opts.selection, link);
-                        if (button) {
-                            row.stat3.replaceChildren(button);
-                        }
-                    }
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -333,9 +258,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
-                        startCreation(): void {
-                            startCreation();
-                        },
+                        startCreation: undefined, // Note(Jonas): This is to disable normal creation operation
                         cancelCreation: doNothing,
                         startRenaming(): void {},
                         viewProperties(res: PublicLink): void {
@@ -353,7 +276,63 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn());
-                    return PublicLinkApi.retrieveOperations().filter(it => it.enabled(entries, callbacks as any, entries))
+                    const operations = PublicLinkApi.retrieveOperations();
+                    const create = operations.find(it => it.tag === CREATE_TAG);
+                    if (create) {
+                        create.enabled = () => true;
+                        create.onClick = () => {
+                            dialogStore.addDialog(
+                                <ProductSelectorWithPermissions isPublicLink products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={PublicLinkApi.title} onCreate={async (entry, product) => {
+                                    try {
+                                        const domain = entry.id;
+                                        const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
+                                            domain,
+                                            product: {
+                                                id: product.name,
+                                                category: product.category.name,
+                                                provider: product.category.provider
+                                            }
+                                        })))).responses[0] as unknown as FindByStringId;
+
+                                        snackbarStore.addSuccess("Public link created for " + domain, false);
+
+                                        /* Note(Jonas): I can't find the creation function in the backend,
+                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
+                                           
+                                           Seems to be ignored in the backend
+                                        */
+                                        if (response) {
+                                            for (const permission of entry.permissions.others ?? []) {
+                                                const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                                const newEntry: ResourceAclEntry = {
+                                                    entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                    permissions: fixedPermissions
+                                                };
+
+                                                await callAPI(
+                                                    PublicLinkApi.updateAcl(bulkRequestOf(
+                                                        {
+                                                            id: response.id,
+                                                            added: [newEntry],
+                                                            deleted: [permission.entity]
+                                                        }
+                                                    ))
+                                                );
+                                            };
+
+                                            dialogStore.success();
+                                            browser.refresh();
+                                        }
+                                    } catch (e) {
+                                        snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
+                                        browser.refresh();
+                                        return;
+                                    }
+                                }} />, () => {}
+                            );
+                        }
+                    }
+                    return operations.filter(it => it.enabled(entries, callbacks as any, entries))
                 });
 
                 browser.on("pathToEntry", entry => entry.id);
@@ -372,7 +351,127 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
         main={<>
             <div ref={mountRef} />
             {switcher}
-            {productSelectorPortal}
         </>}
     />
+}
+
+const dummyEntry: PublicLink = {
+    createdAt: timestampUnixMs(),
+    status: {boundTo: [], state: "PREPARING"},
+    specification: {domain: "", product: {category: "", id: "", provider: ""}},
+    id: "$$$__ingressBeingCreated__$$$$",
+    owner: {createdBy: ""},
+    updates: [],
+    permissions: {myself: []},
+};
+
+const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Ingress, PublicLinkSupport>>({
+    globalTtl: 60_000
+});
+interface CreationWithProductSelectorProps<T extends Resource> {
+    onCreate(entry: T, product: ProductV2, support?: PublicLinkSupport): Promise<void>;
+    dummyEntry: T;
+    title: string;
+    placeholder: string;
+    products: ProductV2[];
+    isPublicLink?: boolean;
+}
+
+// Has to work for licenses also.
+function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntry, title, placeholder, isPublicLink, products}: CreationWithProductSelectorProps<T>) {
+    const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
+    const [support, setSupport] = React.useState<PublicLinkSupport | LicenseSupport>();
+    const [entryId, setEntryId] = React.useState("");
+    const [acls, setAcls] = React.useState<ResourceAclEntry[]>([]);
+    const projectId = useProjectId();
+
+    const setProductAndSupport = React.useCallback((p: ProductV2) => {
+        setSelectedProduct(p);
+
+        const availableProducts = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "");
+
+        for (const provider of Object.values(availableProducts?.productsByProvider ?? [])) {
+            for (const {support} of provider) {
+                if (support.product.id === p.category.name && support.product.provider === p.category.provider) {
+                    setSupport(support);
+                    return;
+                }
+            }
+        }
+    }, []);
+
+    return (<form onKeyDown={stopPropagation} onSubmit={e => {
+        e.preventDefault();
+        if (!product) return;
+        let domain = entryId;
+        if (isPublicLink && support) {
+            const s = support as PublicLinkSupport;
+            domain = s.domainPrefix + entryId + s.domainSuffix;
+        }
+        onCreate({...dummyEntry, id: domain, permissions: {others: acls}} as T, product);
+    }}>
+        <ProductSelector onSelect={setProductAndSupport} products={products} selected={product} />
+        {!product ? null : (<Box mt="12px">
+            {isPublicLink ? <TabbedCard>
+                <TabbedCardTab name="Public link URL" icon="heroLink">
+                    <Input placeholder={placeholder} onChange={e => setEntryId(e.target.value)} />
+                    {entryId ? <Text mt="12px"> Will be available at <b>{(support?.["domainPrefix"] ?? "") + entryId + (support?.["domainSuffix"] ?? "")}</b></Text> : null}
+                </TabbedCardTab>
+            </TabbedCard> : null}
+            {!Client.hasActiveProject ? null : (<Box mt="12px">
+                <TabbedCard>
+                    <TabbedCardTab name={"Permissions"} icon={"heroShare"}>
+                        <Box mt="12px" maxHeight="400px" overflowY="auto">
+                            <Text mb="12px">This is the permissions for the {title.toLocaleLowerCase()}. This can be changed later through 'Properties'.</Text>
+                            <PermissionsTable acl={acls} anyGroupHasPermission={false} showMissingPermissionHelp={false} title={title} updateAcl={async (group, permission) => {
+                                const acl = acls.find(it => it.entity["group"] === group);
+                                if (acl) {
+                                    if (acl.entity.type === "project_group") {
+                                        if (permission) { // READ, EDIT, ADMIN
+                                            acl.permissions = [permission]
+                                        } else { // None
+                                            acl.permissions = [];
+                                        }
+                                    }
+                                } else if (permission) {
+                                    acls.push({entity: {type: "project_group", group, projectId: projectId!}, permissions: [permission]})
+                                }
+                                setAcls([...acls]);
+                            }} warning="Warning" />
+                        </Box>
+                    </TabbedCardTab>
+                </TabbedCard>
+            </Box>)}
+        </Box>)}
+        <Flex mt="12px" justifyContent="end"><Button disabled={product == null || !entryId} type="submit">Create</Button></Flex>
+    </form>);
+}
+
+
+function ProductSelectorWithFirewall<T extends Resource>({onCreate, dummyEntry, title, placeholder}: CreationWithProductSelectorProps<T>) {
+    const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
+    const availableProducts = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? [];
+    const [entryId, setEntryId] = React.useState("");
+    const projectId = useProjectId();
+
+    return (<form onKeyDown={stopPropagation} onSubmit={e => {
+        e.preventDefault();
+        if (!product) return;
+        onCreate({...dummyEntry} as T, product);
+    }}>
+        <ProductSelector onSelect={setSelectedProduct} products={availableProducts} selected={product} />
+        {!product ? null : (<Box mt="12px" style={{border: "1px solid black"}}>
+            <Label>
+                Public link url:
+                <Input placeholder={placeholder} onChange={e => setEntryId(e.target.value)} />
+            </Label>
+            {!Client.hasActiveProject ? null : (<Box mt="12px">
+                This is the permissions for the {title.toLocaleLowerCase()}. This can be changed later through 'Properties'.
+                <Box mt="12px" maxHeight="400px" overflowY="auto">
+                    {/* <FirewallTable didChange={false} /> */}
+                </Box>
+            </Box>)}
+            <Flex mt="12px" justifyContent="end"><Button disabled={product == null || !entryId} type="submit">Create</Button></Flex>
+        </Box>)}
+    </form>);
 }
