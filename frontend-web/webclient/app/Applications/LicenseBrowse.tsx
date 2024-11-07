@@ -229,58 +229,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
-                        create.onClick = () => {
-                            dialogStore.addDialog(
-                                <ProductSelectorWithPermissions products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={LicenseApi.title} onCreate={async (entry, product) => {
-                                    try {
-                                        const response = (await callAPI(
-                                            LicenseApi.create(
-                                                bulkRequestOf({
-                                                    product: {
-                                                        id: product.name,
-                                                        category: product.category.name,
-                                                        provider: product.category.provider
-                                                    },
-                                                    domain: "",
-                                                })
-                                            )
-                                        )).responses[0] as unknown as FindByStringId;
-
-                                        /* Note(Jonas): I can't find the creation function in the backend,
-                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
-                                           
-                                           Seems to be ignored in the backend.
-                                        */
-                                        if (response) {
-                                            for (const permission of entry.permissions.others ?? []) {
-                                                const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
-                                                const newEntry: ResourceAclEntry = {
-                                                    entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
-                                                    permissions: fixedPermissions
-                                                };
-
-                                                await callAPI(
-                                                    LicenseApi.updateAcl(bulkRequestOf(
-                                                        {
-                                                            id: response.id,
-                                                            added: [newEntry],
-                                                            deleted: [permission.entity]
-                                                        }
-                                                    ))
-                                                );
-                                            };
-
-                                            dialogStore.success();
-                                            browser.refresh();
-                                        }
-                                    } catch (e) {
-                                        snackbarStore.addFailure("Failed to create license. " + extractErrorMessage(e), false);
-                                        browser.refresh();
-                                        return;
-                                    }
-                                }} />, () => {}
-                            );
-                        }
+                        create.onClick = onCreateStart
                     }
                     return operations.filter(it => it.enabled(entries, callbacks as any, entries))
                 });
@@ -289,9 +238,69 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                 browser.on("sort", page => page.sort((a, b) => {
                     return a.specification.product.id.localeCompare(b.specification.product.id);
                 }));
+
+                function onCreateStart() {
+                    dialogStore.addDialog(
+                        <ProductSelectorWithPermissions
+                            products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={LicenseApi.title} onCreate={async (entry, product) => {
+                                try {
+                                    const license = {
+                                        product: {
+                                            id: product.name,
+                                            category: product.category.name,
+                                            provider: product.category.provider
+                                        },
+                                        domain: "",
+                                    }
+
+                                    const response = (await callAPI(
+                                        LicenseApi.create(
+                                            bulkRequestOf(license)
+                                        )
+                                    )).responses[0] as unknown as FindByStringId;
+
+                                    /* Note(Jonas): I can't find the creation function in the backend,
+                                       but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
+                                       
+                                       Seems to be ignored in the backend.
+                                    */
+                                    if (response) {
+                                        for (const permission of entry.permissions.others ?? []) {
+                                            const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                            const newEntry: ResourceAclEntry = {
+                                                entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                permissions: fixedPermissions
+                                            };
+
+                                            await callAPI(
+                                                LicenseApi.updateAcl(bulkRequestOf(
+                                                    {
+                                                        id: response.id,
+                                                        added: [newEntry],
+                                                        deleted: [permission.entity]
+                                                    }
+                                                ))
+                                            );
+                                        };
+
+                                        // TODO(Jonas): Insert into browser instead of full refresh
+                                        dialogStore.success();
+                                        browser.refresh();
+                                    }
+                                } catch (e) {
+                                    snackbarStore.addFailure("Failed to create license. " + extractErrorMessage(e), false);
+                                    browser.refresh();
+                                    return;
+                                }
+                            }} />, () => {}
+                    );
+                }
             });
+
+
         }
         addContextSwitcherInPortal(browserRef, setSwitcherWorkaround);
+
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
