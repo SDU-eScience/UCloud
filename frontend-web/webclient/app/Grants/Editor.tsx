@@ -7,7 +7,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {PageV2} from "@/UCloud";
+import {file, PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
@@ -31,7 +31,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import AppRoutes from "@/Routes";
-import {Project, isAdminOrPI} from "@/Project";
+import {isAdminOrPI, Project} from "@/Project";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
@@ -105,9 +105,14 @@ interface SimpleRevision {
     changeLog?: string | null;
 }
 
+interface GrantGiverIdAndTitle {
+    grantGiverId: string;
+    grantGiverTitle: string;
+}
+
 interface ResourceCategory {
     category: Accounting.ProductCategoryV2;
-    allocators: Set<string>;
+    allocators: Set<GrantGiverIdAndTitle>;
     totalBalanceRequested: Record<string, number>;
     error?: {
         allocator: string;
@@ -218,7 +223,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
         case "AllocatorsLoaded": {
             const newAllocators: EditorState["allocators"] = state.allocators
-                .filter(it => action.allocators.some(other => it.id === other.id));
+                .filter(it => action.allocators.some(other => it.id === other.id && it.title === other.title));
 
             const newResources: EditorState["resources"] = {...state.resources};
 
@@ -271,10 +276,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        existing.allocators.add(allocator.id);
+                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                            //DO NOTHING
+                        } else {
+                            existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
+                        }
                     } else {
-                        const allocators = new Set<string>();
-                        allocators.add(allocator.id);
+                        const allocators = new Set<GrantGiverIdAndTitle>();
+                        allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
                         sectionForProvider.push({category, allocators, totalBalanceRequested: {}});
                     }
                 }
@@ -359,6 +368,8 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const start = new Date(Math.max(timestampUnixMs(), action.start));
             const end = new Date(action.end + 1000);
 
+            const minimumDurationInMonths = 1
+
             const newState: EditorState = {
                 ...state,
                 allocationPeriod: {
@@ -367,7 +378,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         year: start.getUTCFullYear()
                     },
                     durationInMonths: Math.max(
-                        3,
+                        minimumDurationInMonths,
                         ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                         (end.getUTCMonth() - start.getUTCMonth()),
                     )
@@ -397,6 +408,14 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         form: {
                             type: "plain_text",
                             text: "",
+                        },
+                        allocationPeriod: {
+                            start: start.getMilliseconds(),
+                            end: Math.max(
+                                minimumDurationInMonths,
+                                ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
+                                (end.getUTCMonth() - start.getUTCMonth())
+                            )
                         }
                     }
                 }
@@ -421,7 +440,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         year: action.year ?? state.allocationPeriod.start.year,
                     },
                     durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
-                }
+                },
             };
         }
 
@@ -708,8 +727,16 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                category.allocators.add(request.grantGiver);
-                category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                if (alreadyThere) {
+                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                } else {
+                    category.allocators.add({
+                        grantGiverId: request.grantGiver,
+                        grantGiverTitle: request.grantGiverTitle ?? ""
+                    });
+                    category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
+                }
             }
         }
 
@@ -738,17 +765,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newApplicationDocument["Other"] = otherSection;
         }
 
-        const startDate = new Date(
-            doc.allocationRequests
-                .map(it => new Date(it.period.start ?? Date.now()).getTime())
-                .reduce((a, b) => Math.min(a, b), Number.MAX_SAFE_INTEGER)
-        );
+        const startDate = new Date(doc.allocationPeriod.start ?? Date.now());
 
-        const endDate = new Date(
-            doc.allocationRequests
-                .map(it => new Date(it.period.end ?? Date.now()).getTime())
-                .reduce((a, b) => Math.max(a, b), 0) + 1000
-        ); // Off by one second in some cases, let's just adjust slightly here.
+        const endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        // Off by one second in some cases, let's just adjust slightly here.
 
         const startYear = Math.max(2019, startDate.getUTCFullYear());
         const startMonth = startDate.getUTCMonth();
@@ -1439,6 +1459,9 @@ export function Editor(): React.ReactNode {
         const checked = state.allocators.filter(it => it.checked);
         if (checked.length === 0) return;
 
+        const [start, end] = stateToAllocationPeriod(state);
+        const period: Grants.Period = {start, end};
+
         const doc: Grants.Doc = {
             recipient: stateToCreationRecipient(state)!,
             referenceIds: null,
@@ -1446,6 +1469,7 @@ export function Editor(): React.ReactNode {
             form: stateToApplication(state),
             parentProjectId: checked[0].id,
             allocationRequests: stateToRequests(state),
+            allocationPeriod: period
         };
 
         dispatchEvent({type: "LoadingStateChange", isLoading: true});
@@ -1500,12 +1524,16 @@ export function Editor(): React.ReactNode {
             }
         }
 
+        const [start, end] = stateToAllocationPeriod(state);
+        const period: Grants.Period = {start, end};
+        
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
             allocationRequests: stateToRequests(state),
             form: stateToApplication(state),
-            parentProjectId: currentDoc.parentProjectId
+            parentProjectId: currentDoc.parentProjectId,
+            allocationPeriod: period
         };
 
         if (isGrantGiverInitiated) {
@@ -1968,13 +1996,19 @@ export function Editor(): React.ReactNode {
                             {Object.entries(state.resources).map(([providerId, categories]) => {
                                 if (categories.length === 0) return null;
                                 const relevantCategories = categories.filter(category => {
-                                    const checkedAllocators = Array.from(category.allocators).filter(needle =>
-                                        state.allocators.find(hay => hay.id === needle)?.checked === true
-                                    );
+                                    if (!isViewingHistoricEntry) {
+                                        const checkedAllocators = Array.from(category.allocators).filter(needle =>
+                                            state.allocators.find(hay => hay.id === needle.grantGiverId && hay.title === needle.grantGiverTitle)?.checked === true
+                                        );
 
-                                    return checkedAllocators.length !== 0;
+                                        return checkedAllocators.length !== 0;
+                                    } else {
+                                        const useCategory = Array.from(category.allocators).find(allocator =>
+                                            category.totalBalanceRequested[allocator.grantGiverId] > 0
+                                        ) != null;
+                                        return useCategory;
+                                    }
                                 });
-
                                 if (relevantCategories.length === 0) return null;
 
                                 return <React.Fragment key={providerId}>
@@ -1985,14 +2019,18 @@ export function Editor(): React.ReactNode {
 
                                     <div className={"select-resources"}>
                                         {relevantCategories.map(category => {
-                                            const checkedAllocators: string[] = Array.from(category.allocators).filter(needle =>
-                                                state.allocators.find(hay => hay.id === needle)?.checked === true
-                                            );
-
+                                            let checkedAllocators: GrantGiverIdAndTitle[]
+                                            if (!isViewingHistoricEntry) {
+                                                checkedAllocators = Array.from(category.allocators).filter(needle =>
+                                                    state.allocators.find(hay => hay.id === needle.grantGiverId && hay.title === needle.grantGiverTitle)?.checked === true
+                                                );
+                                            } else {
+                                                checkedAllocators = Array.from(category.allocators);
+                                            }
                                             const hideZeroFields = state.locked;
 
                                             const anyNonZeroValues = checkedAllocators
-                                                .reduce((acc, allocatorId) => acc + (category.totalBalanceRequested[allocatorId] ?? 0), 0);
+                                                .reduce((acc, allocatorId) => acc + (category.totalBalanceRequested[allocatorId.grantGiverId] ?? 0), 0);
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
@@ -2004,36 +2042,57 @@ export function Editor(): React.ReactNode {
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
                                                 showDescriptionInEditMode={false}
                                             >
-                                                {checkedAllocators.map(allocatorId => {
-                                                    const allocatorName = state.allocators.find(all => all.id === allocatorId)!.title;
+                                                {checkedAllocators.map(allocator => {
                                                     const unit = Accounting.explainUnit(category.category);
-
                                                     const freq = category.category.accountingFrequency;
-
-                                                    const errorMessage = category.error?.allocator === allocatorId ?
+                                                    const errorMessage = category.error?.allocator === allocator.grantGiverId ?
                                                         category.error?.message : undefined;
 
-                                                    const value: number | undefined = category.totalBalanceRequested[allocatorId];
+                                                    const value: number | undefined = category.totalBalanceRequested[allocator.grantGiverId];
                                                     if (hideZeroFields && (value === 0 || value == null)) return null;
+                                                    if (isViewingHistoricEntry) {
+                                                        return <React.Fragment key={allocator.grantGiverId}>
+                                                            <div className={"allocation-row"}>
+                                                                <label>
+                                                                    {unit.name} requested
+                                                                    {checkedAllocators.length > 1 && <> from {allocator.grantGiverTitle}</>}
 
-                                                    return <React.Fragment key={allocatorId}>
-                                                        <div className={"allocation-row"}>
-                                                            <label>
-                                                                {unit.name} requested
-                                                                {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+                                                                    <Input
+                                                                        id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
+                                                                        type={"number"} placeholder={"0"}
+                                                                        onInput={onResourceInput}
+                                                                        min={0}
+                                                                        value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
+                                                                        disabled={state.locked || isClosed}/>
+                                                                </label>
 
-                                                                <Input
-                                                                    id={`${providerId}/${category.category.name}/${allocatorId}`}
-                                                                    type={"number"} placeholder={"0"}
-                                                                    onInput={onResourceInput}
-                                                                    min={0}
-                                                                    value={category.totalBalanceRequested[allocatorId] ?? ""}
-                                                                    disabled={state.locked || isClosed} />
-                                                            </label>
+                                                                {errorMessage && <div
+                                                                    style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
+                                                            </div>
+                                                        </React.Fragment>;
+                                                    } else {
+                                                        const allocatorName = state.allocators.find(all => all.id === allocator.grantGiverId)!.title;
 
-                                                            {errorMessage && <div style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
-                                                        </div>
-                                                    </React.Fragment>;
+                                                        return <React.Fragment key={allocator.grantGiverId}>
+                                                            <div className={"allocation-row"}>
+                                                                <label>
+                                                                    {unit.name} requested
+                                                                    {checkedAllocators.length > 1 && <> from {allocatorName}</>}
+
+                                                                    <Input
+                                                                        id={`${providerId}/${category.category.name}/${allocator.grantGiverId}`}
+                                                                        type={"number"} placeholder={"0"}
+                                                                        onInput={onResourceInput}
+                                                                        min={0}
+                                                                        value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
+                                                                        disabled={state.locked || isClosed}/>
+                                                                </label>
+
+                                                                {errorMessage && <div
+                                                                    style={{color: "var(--errorMain)"}}>{errorMessage}</div>}
+                                                            </div>
+                                                        </React.Fragment>;
+                                                    }
                                                 })}
                                             </FormField>;
                                         })}
