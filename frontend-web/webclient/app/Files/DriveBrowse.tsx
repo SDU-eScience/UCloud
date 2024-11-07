@@ -19,6 +19,7 @@ import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {doNothing, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
 import {
+    CREATE_TAG,
     DELETE_TAG,
     ResourceBrowseCallbacks,
     retrieveSupportV2,
@@ -37,6 +38,10 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useProject} from "@/Project/cache";
 import {isAdminOrPI} from "@/Project";
 import {Feature, hasFeature} from "@/Features";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {ProductSelector} from "@/Products/Selector";
+import {Box, Button, Flex, Input} from "@/ui-components";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -122,78 +127,9 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
-                let startCreation: () => void = doNothing;
-                const collectionBeingCreated = "collectionBeingCreated$$___$$";
-                const isCreatingPrefix = "creating-";
-                const dummyEntry: FileCollection = {
-                    createdAt: timestampUnixMs(),
-                    status: {},
-                    specification: {title: "", product: {id: "", category: "", provider: ""}},
-                    id: collectionBeingCreated,
-                    owner: {createdBy: Client.username ?? "", },
-                    updates: [],
-                    permissions: {myself: []}
-                };
 
                 function fetchSupport(projectId?: string) {
-                    supportByProvider.retrieve(projectId ?? "", () => retrieveSupportV2(FileCollectionsApi)).then(res => {
-                        const creatableProducts: ProductV2[] = [];
-                        for (const provider of Object.values(res.productsByProvider)) {
-                            for (const {product, support} of provider) {
-                                if (support.collection.usersCanCreate) {
-                                    creatableProducts.push(supportV2ProductMatch(product, res));
-                                }
-                            }
-                        }
-
-                        const resourceCreator = resourceCreationWithProductSelector(
-                            browser,
-                            creatableProducts,
-                            dummyEntry,
-                            async product => {
-                                const temporaryFakeId = isCreatingPrefix + browser.renameValue + "-" + timestampUnixMs();
-                                const productReference = {
-                                    id: product.name,
-                                    category: product.category.name,
-                                    provider: product.category.provider
-                                };
-
-                                const driveBeingCreated = {
-                                    ...dummyEntry,
-                                    id: temporaryFakeId,
-                                    specification: {
-                                        title: browser.renameValue,
-                                        product: productReference
-                                    },
-                                } as FileCollection;
-
-                                if (!browser.renameValue) return;
-
-                                browser.insertEntryIntoCurrentPage(driveBeingCreated);
-                                browser.renderRows();
-                                browser.selectAndShow(it => it === driveBeingCreated);
-
-                                try {
-                                    const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
-                                        product: productReference,
-                                        title: browser.renameValue
-                                    })))).responses[0] as unknown as FindByStringId;
-
-                                    driveBeingCreated.id = response.id;
-                                    browser.renderRows();
-                                } catch (e) {
-                                    snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
-                                    browser.refresh();
-                                    return;
-                                }
-                            },
-                            "STORAGE"
-                        );
-
-                        startCreation = resourceCreator.startCreation;
-                        setProductSelectorPortal(resourceCreator.portal);
-                        browser.renderOperations();
-                    });
+                    supportByProvider.retrieve(projectId ?? "", () => retrieveSupportV2(FileCollectionsApi));
                 }
 
                 fetchSupport(Client.projectId);
@@ -253,10 +189,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                     );
                 };
 
-                browser.on("skipOpen", (oldPath, newPath, drive) =>
-                    drive?.id === dummyEntry.id
-                );
-
                 browser.on("fetchFilters", () => {
                     if (Client.hasActiveProject) {
                         return [{type: "checkbox", key: memberFilesKey, icon: "user", text: "View member files"}];
@@ -273,9 +205,6 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         isWorkspaceAdmin: isWorkspaceAdmin.current,
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
-                        startCreation(): void {
-                            startCreation();
-                        },
                         cancelCreation: doNothing,
                         startRenaming(resource: FileCollection): void {
                             startRenaming(resource);
@@ -296,7 +225,65 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    return FileCollectionsApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const operations = FileCollectionsApi.retrieveOperations();
+                    const create = operations.find(it => it.tag === CREATE_TAG);
+                    if (create) {
+                        create.onClick = () => {
+                            const res = supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "");
+                            const creatableProducts: ProductV2[] = [];
+                            if (res) {
+                                for (const provider of Object.values(res.productsByProvider)) {
+                                    for (const {product, support} of provider) {
+                                        if (support.collection.usersCanCreate) {
+                                            creatableProducts.push(supportV2ProductMatch(product, res));
+                                        }
+                                    }
+                                }
+                            }
+
+                            dialogStore.addDialog(<ProductSelectorWithInput products={creatableProducts} onCreate={async (product, title) => {
+                                const productReference = {
+                                    id: product.name,
+                                    category: product.category.name,
+                                    provider: product.category.provider
+                                };
+
+                                const driveBeingCreated = {
+                                    owner: {createdBy: Client.username ?? "", },
+                                    updates: [],
+                                    createdAt: timestampUnixMs(),
+                                    status: {},
+                                    permissions: {myself: []},
+                                    id: title,
+                                    specification: {
+                                        title,
+                                        product: productReference
+                                    },
+                                } as FileCollection;
+
+                                browser.insertEntryIntoCurrentPage(driveBeingCreated);
+                                browser.renderRows();
+                                browser.selectAndShow(it => it === driveBeingCreated);
+
+                                try {
+                                    const response = (await callAPI(FileCollectionsApi.create(bulkRequestOf({
+                                        product: productReference,
+                                        title
+                                    })))).responses[0] as unknown as FindByStringId;
+
+                                    driveBeingCreated.id = response.id;
+                                    browser.renderRows();
+                                    dialogStore.success();
+                                } catch (e) {
+                                    snackbarStore.addFailure("Failed to create new drive. " + extractErrorMessage(e), false);
+                                    browser.refresh();
+                                    return;
+                                }
+                            }} />, () => {});
+
+                        }
+                    }
+                    return operations.filter(op => op.enabled(selected, callbacks, selected));
                 });
 
                 browser.on("unhandledShortcut", (ev) => {
@@ -517,6 +504,28 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
 
 function isShare(d: FileCollection) {
     return d.specification.product.id === "share";
+}
+
+interface CreationWithInputFieldProps {
+    onCreate(product: ProductV2, driveName: string): void;
+    products: ProductV2[];
+}
+
+export function ProductSelectorWithInput({onCreate, products}: CreationWithInputFieldProps) {
+    const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
+    const [entryId, setEntryId] = React.useState("");
+
+    return (<>
+        <ProductSelector onSelect={setSelectedProduct} products={products} selected={product} />
+        {!product ? null : (<Box mt="12px">
+            <TabbedCard>
+                <TabbedCardTab name="Drive name" icon="hdd">
+                    <Input placeholder="Enter drive name..." onKeyDown={e => e.stopPropagation()} onChange={e => setEntryId(e.target.value)} />
+                </TabbedCardTab>
+            </TabbedCard>
+        </Box>)}
+        <Flex mt="12px" justifyContent="end"><Button disabled={product == null || !entryId} onClick={() => onCreate(product!, entryId)} type="submit">Create</Button></Flex>
+    </>);
 }
 
 export default DriveBrowse;
