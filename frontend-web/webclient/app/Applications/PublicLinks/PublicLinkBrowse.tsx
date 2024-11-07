@@ -319,6 +319,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                                 );
                                             };
 
+                                            browser.insertEntryIntoCurrentPage({...entry, id: domain});
                                             dialogStore.success();
                                             browser.refresh();
                                         }

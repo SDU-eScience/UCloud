@@ -282,7 +282,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                                                 ))
                                             );
                                         };
-
+                                        
                                         // TODO(Jonas): Insert into browser instead of full refresh
                                         dialogStore.success();
                                         browser.refresh();

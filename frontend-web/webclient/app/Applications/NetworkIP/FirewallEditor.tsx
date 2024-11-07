@@ -10,41 +10,18 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {classConcat} from "@/Unstyled";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {compute} from "@/UCloud";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
     reload: () => void;
 }> = ({inspecting, reload}) => {
-    const portFirstRef = useRef<HTMLInputElement>(null);
-    const portLastRef = useRef<HTMLInputElement>(null);
-    const protocolRef = useRef<HTMLSelectElement>(null);
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [didChange, setDidChange] = useState(false);
 
-    const onAddRow = useCallback(async (e: React.SyntheticEvent) => {
-        e.preventDefault();
-
-        const first = portFirstRef.current!.value;
-        const last = portLastRef.current!.value;
-        const protocol = protocolRef.current!.value as "TCP" | "UDP";
-
-        const firstPort = parseInt(first, 10);
-        const lastPort = blankOrUndefined(last) ? firstPort : parseInt(last, 10);
-
-        if (isNaN(firstPort) || firstPort < 1) {
-            snackbarStore.addFailure("Port (First) is not a valid positive number", false);
-            return;
-        }
-
-        if (isNaN(lastPort) || lastPort < 1) {
-            snackbarStore.addFailure("Port (Last) is not a valid positive number", false);
-            return;
-        }
-
-        if (firstPort > lastPort) {
-            snackbarStore.addFailure("The first port is larger than the last port", false);
-            return;
-        }
+    const onAddRow = useCallback(async (first: string, last: string, protocol: "UDP" | "TCP") => {
+        const {valid, firstPort, lastPort} = parseAndValidatePorts(first, last);
+        if (!valid) return;
 
         await invokeCommand(NetworkIPApi.updateFirewall({
             type: "bulk",
@@ -60,9 +37,6 @@ export const FirewallEditor: React.FunctionComponent<{
         }));
         reload();
 
-        if (portFirstRef.current) portFirstRef.current.value = "";
-        if (portLastRef.current) portLastRef.current.value = "";
-        if (protocolRef.current) protocolRef.current.value = "TCP";
         setDidChange(true);
     }, [inspecting, reload]);
 
@@ -78,6 +52,45 @@ export const FirewallEditor: React.FunctionComponent<{
         setDidChange(true);
     }, [inspecting, reload]);
 
+    return <FirewallTable didChange={didChange} onAddRow={onAddRow} onRemoveRow={onRemoveRow} openPorts={inspecting.specification.firewall?.openPorts ?? []} />
+};
+
+export function parseAndValidatePorts(first: string, last: string) {
+    const firstPort = parseInt(first, 10);
+    const lastPort = blankOrUndefined(last) ? firstPort : parseInt(last, 10);
+    let valid = true;
+
+    if (isNaN(firstPort) || firstPort < 1) {
+        snackbarStore.addFailure("Port (First) is not a valid positive number", false);
+        valid = false;
+    }
+
+    if (isNaN(lastPort) || lastPort < 1) {
+        snackbarStore.addFailure("Port (Last) is not a valid positive number", false);
+        valid = false;
+    }
+
+    if (firstPort > lastPort) {
+        snackbarStore.addFailure("The first port is larger than the last port", false);
+        valid = false;
+    }
+
+    return {firstPort, lastPort, valid}
+}
+
+interface FirewallTableProps {
+    openPorts: compute.PortRangeAndProto[];
+    isCreating?: boolean;
+    didChange: boolean;
+    onAddRow: (first: string, last: string, protocol: "TCP" | "UDP") => void;
+    onRemoveRow: (idx: number) => void;
+}
+
+export function FirewallTable({isCreating, didChange, onAddRow, onRemoveRow, openPorts}: FirewallTableProps) {
+    const portFirstRef = useRef<HTMLInputElement>(null);
+    const portLastRef = useRef<HTMLInputElement>(null);
+    const protocolRef = useRef<HTMLSelectElement>(null);
+
     return <TabbedCard>
         <TabbedCardTab name={"Firewall"} icon={"verified"}>
             {!didChange ?
@@ -92,7 +105,10 @@ export const FirewallEditor: React.FunctionComponent<{
                 </Box>
             }
 
-            <form onSubmit={onAddRow}>
+            <form onSubmit={e => {
+                e.preventDefault();
+                onAddRow(portFirstRef.current!.value, portLastRef.current!.value, protocolRef.current!.value as "TCP" | "UDP");
+            }}>
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -102,37 +118,40 @@ export const FirewallEditor: React.FunctionComponent<{
                         </TableRow>
                     </TableHeader>
                     <tbody>
-                        {(inspecting.specification.firewall?.openPorts ?? []).map((row, idx) => {
+                        {openPorts.map((row, idx) => {
                             return <TableRow key={idx}>
                                 <TableCell>{row.start}</TableCell>
                                 <TableCell>{row.end}</TableCell>
                                 <TableCell>{row.protocol}</TableCell>
                                 <TableCell>
-                                    <ConfirmationButton
-                                        type={"button"}
-                                        color={"errorMain"}
-                                        fullWidth
-                                        icon={"close"}
-                                        actionText={"Remove"}
-                                        onAction={() => onRemoveRow(idx)}
-                                    />
+                                    {isCreating ?
+                                        <Button width="100%" color="errorMain" onClick={() => onRemoveRow(idx)}>
+                                            Remove
+                                        </Button> : <ConfirmationButton
+                                            type={"button"}
+                                            color={"errorMain"}
+                                            fullWidth
+                                            icon={"close"}
+                                            actionText={"Remove"}
+                                            onAction={() => onRemoveRow(idx)}
+                                        />}
                                 </TableCell>
                             </TableRow>
                         })}
                         <TableRow>
-                            <TableCell pr={"16px"}><Input inputRef={portFirstRef} /></TableCell>
-                            <TableCell pr={"16px"}><Input inputRef={portLastRef} /></TableCell>
+                            <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portFirstRef} /></TableCell>
+                            <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portLastRef} /></TableCell>
                             <TableCell pr={"16px"}>
                                 <Select selectRef={protocolRef}>
                                     <option>TCP</option>
                                     <option>UDP</option>
                                 </Select>
                             </TableCell>
-                            <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
+                            <TableCell><Button type={"submit"} fullWidth><Text fontSize={"18px"}>Add </Text></Button></TableCell>
                         </TableRow>
                     </tbody>
                 </Table>
             </form>
         </TabbedCardTab>
     </TabbedCard>
-};
+}

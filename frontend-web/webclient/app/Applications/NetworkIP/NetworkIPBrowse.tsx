@@ -1,26 +1,33 @@
 import {productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {bulkRequestOf, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {FindByStringId} from "@/UCloud";
 import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {
+    CREATE_TAG,
     ResourceBrowseCallbacks,
     retrieveSupportV2,
     SupportByProviderV2,
-    supportV2ProductMatch
 } from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon, resourceCreationWithProductSelector} from "@/ui-components/ResourceBrowser";
+import {doNothing} from "@/UtilityFunctions";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addContextSwitcherInPortal, checkIsWorkspaceAdmin, dateRangeFilters, providerIcon} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {addProjectListener} from "@/Project/ReduxState";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {ProductSelector} from "@/Products/Selector";
+import {Box, Button, Flex, Text} from "@/ui-components";
+import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
+import {FirewallTable, parseAndValidatePorts} from "./FirewallEditor";
+import {compute, FindByStringId} from "@/UCloud";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -42,6 +49,7 @@ const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2NetworkIP,
     globalTtl: 60_000
 });
 
+const PROJECT_CHANGE_LISTENER_ID = "public-links";
 export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<NetworkIP> | null>(null);
@@ -64,74 +72,19 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     {name: "In use with", columnWidth: 250},
                 ]);
 
-                let startCreation = doNothing;
+                addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
+                    supportByProvider.retrieve("", () => retrieveSupportV2(NetworkIPApi));
+                })
 
-                supportByProvider.retrieve("", () => retrieveSupportV2(NetworkIPApi)).then(res => {
-                    const creatableProducts: ProductV2[] = [];
-                    for (const provider of Object.values(res.productsByProvider)) {
-                        for (const {product} of provider) {
-                            creatableProducts.push(supportV2ProductMatch(product, res));
-                        }
-                    }
-
-                    const dummyEntry: NetworkIP = {
-                        id: DUMMY_ENTRY_ID,
-                        specification: {product: {category: "", id: "", provider: ""}},
-                        createdAt: new Date().getTime(),
-                        owner: {createdBy: ""},
-                        status: {boundTo: [], state: "PREPARING"},
-                        permissions: {myself: []},
-                        updates: [],
-                    };
-
-                    const resourceCreator = resourceCreationWithProductSelector(
-                        browser,
-                        creatableProducts,
-                        dummyEntry,
-                        async product => {
-                            const productReference = {
-                                id: product.name,
-                                category: product.category.name,
-                                provider: product.category.provider
-                            };
-
-                            const activatedLicense = {
-                                ...dummyEntry,
-                                id: "",
-                                specification: {
-                                    product: productReference
-                                },
-                                owner: {createdBy: ""},
-                            } as NetworkIP;
-
-                            browser.insertEntryIntoCurrentPage(activatedLicense);
-                            browser.renderRows();
-                            browser.selectAndShow(it => it === activatedLicense);
-
-                            try {
-                                const response = (await callAPI(
-                                    NetworkIPApi.create(
-                                        bulkRequestOf({
-                                            product: productReference,
-                                            domain: "",
-                                        })
-                                    )
-                                )).responses[0] as unknown as FindByStringId;
-
-                                activatedLicense.id = response.id;
-                                browser.renderRows();
-                            } catch (e) {
-                                snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
-                                browser.refresh();
-                                return;
-                            }
-                        },
-                        "NETWORK_IP"
-                    )
-
-                    startCreation = resourceCreator.startCreation;
-                    setProductSelectorPortal(resourceCreator.portal);
-                });
+                const dummyEntry: NetworkIP = {
+                    id: DUMMY_ENTRY_ID,
+                    specification: {product: {category: "", id: "", provider: ""}},
+                    createdAt: new Date().getTime(),
+                    owner: {createdBy: ""},
+                    status: {boundTo: [], state: "PREPARING"},
+                    permissions: {myself: []},
+                    updates: [],
+                };
 
                 browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {
@@ -252,9 +205,6 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate,
                         reload: () => browser.refresh(),
-                        startCreation(): void {
-                            startCreation();
-                        },
                         cancelCreation: doNothing,
                         viewProperties(res: NetworkIP): void {
                             navigate(AppRoutes.resource.properties("public-ips", res.id));
@@ -270,7 +220,67 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                 browser.on("fetchOperations", () => {
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP>;
-                    return NetworkIPApi.retrieveOperations().filter(it => it.enabled(entries, callbacks, entries));
+
+                    const operations = NetworkIPApi.retrieveOperations();
+                    const create = operations.find(it => it.tag === CREATE_TAG);
+                    if (create) {
+                        create.enabled = () => true;
+                        create.onClick = () => dialogStore.addDialog(
+                            <ProductSelectorWithFilewall
+                                products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                                onCreate={async (product, ports) => {
+                                    const productReference = {
+                                        id: product.name,
+                                        category: product.category.name,
+                                        provider: product.category.provider
+                                    };
+
+                                    const networkIP = {
+                                        ...dummyEntry,
+                                        id: "",
+                                        specification: {
+                                            product: productReference
+                                        },
+                                        owner: {createdBy: ""},
+                                    } as NetworkIP;
+
+                                    browser.insertEntryIntoCurrentPage(networkIP);
+                                    browser.renderRows();
+                                    browser.selectAndShow(it => it === networkIP);
+
+                                    try {
+                                        const response = (await callAPI(
+                                            NetworkIPApi.create(
+                                                bulkRequestOf({
+                                                    product: productReference,
+                                                    domain: "",
+                                                })
+                                            )
+                                        )).responses[0] as unknown as FindByStringId;
+
+                                        networkIP.id = response.id;
+
+                                        await callAPI(NetworkIPApi.updateFirewall({
+                                            type: "bulk",
+                                            items: [{
+                                                id: networkIP.id,
+                                                firewall: {
+                                                    openPorts: ports,
+                                                }
+                                            }]
+                                        }));
+
+                                        browser.renderRows();
+                                    } catch (e) {
+                                        snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
+                                        browser.refresh();
+                                        return;
+                                    }
+                                }}
+                            />, () => {}
+                        );
+                    }
+                    return operations.filter(it => it.enabled(entries, callbacks, entries));
                 });
             });
         }
@@ -290,4 +300,37 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
             {productSelectorPortal}
         </>}
     />
+}
+
+interface CreationWithFirewallProps {
+    onCreate(product: ProductV2, ports: compute.PortRangeAndProto[]): void;
+    products: ProductV2NetworkIP[];
+}
+
+export function ProductSelectorWithFilewall({onCreate, products}: CreationWithFirewallProps) {
+    const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
+    const [ports, setPorts] = React.useState<compute.PortRangeAndProto[]>([])
+
+    const onAddRow = React.useCallback((first: string, last: string, protocol: "TCP" | "UDP") => {
+        const {valid, firstPort, lastPort} = parseAndValidatePorts(first, last);
+        if (!valid) return;
+        setPorts(ports => {
+            ports.push({start: firstPort, end: lastPort, protocol});
+            return [...ports];
+        });
+    }, []);
+
+    const onRemoveRow = React.useCallback((idx: number) => {
+        setPorts(p => p.filter((_, i) => i !== idx));
+    }, []);
+
+    return (<>
+        <ProductSelector onSelect={p => setSelectedProduct(p)} products={products} selected={product} />
+        {!product ? null : (<div>
+            <Box mt="12px" onSubmit={e => {e.stopPropagation(); e.preventDefault();}}>
+                <FirewallTable isCreating didChange={false} onAddRow={onAddRow} onRemoveRow={onRemoveRow} openPorts={ports} />
+            </Box>
+            <Flex mt="12px" justifyContent="end"><Button disabled={product == null} onClick={() => onCreate(product, ports)} type="submit">Create</Button></Flex>
+        </div>)}
+    </>);
 }
