@@ -205,6 +205,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         isWorkspaceAdmin: isWorkspaceAdmin.current,
                         navigate: to => {navigate(to)},
                         reload: () => browser.refresh(),
+                        startCreation: () => undefined,
                         cancelCreation: doNothing,
                         startRenaming(resource: FileCollection): void {
                             startRenaming(resource);
@@ -372,10 +373,7 @@ const DriveBrowse: React.FunctionComponent<{opts?: ResourceBrowserOpts<FileColle
                         createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
                         row.stat2.append(createdByElement);
                     }
-                    if (drive.id.startsWith(isCreatingPrefix)) {
-                        row.stat2.append(browser.createSpinner(30));
-                    }
-
+                    
                     row.stat3.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                 });
 
