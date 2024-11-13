@@ -178,7 +178,7 @@ const WorkflowEditor: React.FunctionComponent<{
     return <Editor
         vfs={vfs}
         title={props.applicationName}
-        initialPath={"/" + FILE_NAME_JOB}
+        initialFolder={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
         toolbarBeforeSettings={<>
             {!error ? null :
@@ -490,6 +490,7 @@ function validateParameter(parameter: any): ApplicationParameter | string {
     }
 }
 
+/* TODO(Jonas): Hello. Hopefully this is not in the pull-request, but fixed before, but this very much needs to be tested with the changes. */
 class WorkflowVfs implements Vfs {
     workflow: WorkflowSpecification;
     dirtyFiles: Record<string, string> = {};

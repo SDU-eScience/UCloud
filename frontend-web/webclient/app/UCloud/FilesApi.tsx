@@ -30,6 +30,7 @@ import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
     doNothing,
+    errorMessageOrDefault,
     extensionFromPath,
     ExtensionType,
     extensionType,
@@ -46,7 +47,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
@@ -92,6 +93,8 @@ import {
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
+import {Editor, Vfs, VirtualFile} from "@/Editor/Editor";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1202,6 +1205,12 @@ async function getMonaco(): Promise<any> {
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 const EXPECTED_BINARY_FORMATS = ["mpeg", "m2p", "vob", "mpg"];
 
+function isDownloadAllowed(file: UFile) {
+    if (file.status.type !== "FILE") return false;
+    const size = file.status.sizeInBytes;
+    return size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
+}
+
 export function FilePreview({file, contentRef}: {
     file: UFile,
     contentRef?: React.MutableRefObject<Uint8Array>
@@ -1213,9 +1222,15 @@ export function FilePreview({file, contentRef}: {
         return () => {
             window.onresize = oldOnResize
         }
-    }, [])
+    }, []);
+
+    const [vfs, setVfs] = React.useState<PreviewVfs | null>(null);
     const [type, setType] = useState<ExtensionType>(null);
-    const [loading, invokeCommand] = useCloudCommand();
+    const [vfsTitle, setTitle] = useState(getParentPath(file.id));
+
+    React.useEffect(() => {
+        prettyFilePath(getParentPath(file.id)).then(setTitle)
+    }, []);
 
     const codePreview = React.useRef<HTMLDivElement>(null);
 
@@ -1224,73 +1239,62 @@ export function FilePreview({file, contentRef}: {
 
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
-        if (file.status.type !== "FILE") return;
-        if (!loading && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
+        if (isDownloadAllowed(file)) {
+            let contentBlob: Blob;
             try {
-                const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                    api.createDownload(bulkRequestOf({id: file.id})),
-                    {defaultErrorHandler: false}
-                );
-                const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
-                if (!downloadEndpoint) {
-                    setError("Unable to display preview. Try again later or with a different file.");
-                    return;
-                }
-                const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
-                const contentBlob = await content.blob();
-                const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+                contentBlob = await downloadFileContent(file.id);
+            } catch (e) {
+                setError(errorMessageOrDefault(e, "Failed to download file"));
+                return;
+            }
+            const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
 
-                const foundFileType = fileType(contentBuffer).filter(it => it.mime);
-                const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
-                const text = tryDecodeText(contentBuffer);
+            const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
+            const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
+            const text = tryDecodeText(contentBuffer);
 
-                const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
+            const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
 
-                if (contentRef) contentRef.current = contentBuffer;
+            if (contentRef) contentRef.current = contentBuffer;
 
-                if (!correctExtension && isMisidentifiedAsBinaryFormat) {
+            if (!correctExtension && isMisidentifiedAsBinaryFormat) {
+                setType("text");
+                setData(text);
+                setError(null);
+            } else if (foundFileType.length === 0) {
+                if (text !== null) {
                     setType("text");
                     setData(text);
                     setError(null);
-                } else if (foundFileType.length === 0) {
-                    if (text !== null) {
-                        setType("text");
-                        setData(text);
-                        setError(null);
-                    } else {
-                        setError("Preview is not supported for this file.");
-                    }
                 } else {
-                    const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
-
-                    switch (typeFromFileType) {
-                        case "image":
-                        case "audio":
-                        case "video":
-                        case "pdf":
-                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                            setError(null);
-                            break;
-                        case "code":
-                        case "text":
-                        case "application":
-                        case "markdown":
-                        default:
-                            const text = tryDecodeText(contentBuffer);
-                            if (text !== null) {
-                                setType("text");
-                                setData(text);
-                                setError(null);
-                            } else {
-                                setError("Preview is not supported for this file.");
-                            }
-                            break;
-                    }
-
-                    setType(typeFromFileType);
+                    setError("Preview is not supported for this file.");
                 }
-            } catch (e) {
-                setError("Unable to display preview. Try again later or with a different file.");
+            } else {
+                const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
+
+                switch (typeFromFileType) {
+                    case "image":
+                    case "audio":
+                    case "video":
+                    case "pdf":
+                        setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                        setError(null);
+                        break;
+                    case "code":
+                    case "text":
+                    case "application":
+                    case "markdown":
+                    default:
+                        const text = tryDecodeText(contentBuffer);
+                        if (text !== null) {
+                            setType("text");
+                            setData(text);
+                            setError(null);
+                        } else {
+                            setError("Preview is not supported for this file.");
+                        }
+                        break;
+                }
             }
         } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
             setError("File is too large to preview");
@@ -1339,7 +1343,7 @@ export function FilePreview({file, contentRef}: {
     }, [type, data]);
 
     if (file.status.type !== "FILE") return null;
-    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
+    if (data === "" && !error) return <PredicatedLoadingSpinner loading />
 
     let node: React.ReactNode = null;
 
@@ -1351,7 +1355,18 @@ export function FilePreview({file, contentRef}: {
                 setType("markdown");
                 break;
             }
-            node = <div ref={codePreview} className={classConcat(Editor, "fullscreen")} />;
+
+            let vfsVar = vfs;
+            if (!vfsVar) {
+                vfsVar = new PreviewVfs(file.id, data);
+                setVfs(vfsVar);
+            }
+
+            node = <Editor toolbarBeforeSettings={
+                <TooltipV2 tooltip={"Send error back"} contentWidth={100}>
+                    <Icon name={"share"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar)} />
+                </TooltipV2>} initialFolder={removeTrailingSlash(getParentPath(file.id))} initialFile={file.id} title={vfsTitle} vfs={vfsVar}
+            />;
             break;
         case "image":
             node = <img className={Image} alt={fileName(file.id)} src={data} />
@@ -1380,6 +1395,38 @@ export function FilePreview({file, contentRef}: {
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
+function saveDialog(vfs: PreviewVfs) {
+    const activePath = vfs.activePath;
+    if (!vfs.dirtyFiles[activePath]) {
+        snackbarStore.addFailure("File has not been modified.", false);
+        return;
+    }
+
+    addStandardDialog({
+        title: "Save file?",
+        message: `Overwrite existing contents of file ${vfs.activePath}`,
+        onConfirm() {
+            vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]);
+            snackbarStore.addSuccess("Missing functionality for ACTUALLY saving the contents", false);
+        },
+        onCancel() {
+            dialogStore.failure();
+        }
+    });
+}
+
+async function downloadFileContent(path: string): Promise<Blob> {
+    const download = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+        api.createDownload(bulkRequestOf({id: path}))
+    );
+    const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
+    if (!downloadEndpoint) {
+        throw window.Error("Unable to display preview. Try again later or with a different file.");
+    }
+    const content = await fetch(normalizeDownloadEndpoint(downloadEndpoint));
+    return await content.blob();
+}
+
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
 const HEIGHT = "calc(100vh - 30px);"
 
@@ -1392,11 +1439,6 @@ const MarkdownStyling = injectStyleSimple("markdown-styling", `
 const Audio = injectStyleSimple("preview-audio", `
     margin-top: auto;
     margin-bottom: auto;
-`);
-
-const Editor = injectStyleSimple("m-editor", `
-    height: ${HEIGHT}
-    width: 100%;
 `);
 
 const Image = injectStyleSimple("preview-image", `
@@ -1434,6 +1476,82 @@ function tryDecodeText(buf: Uint8Array): string | null {
     } catch (e) {
         return null;
     }
+}
+
+function getFileTypesFromContentBuffer(contentBuffer: Uint8Array) {
+    return fileType(contentBuffer).filter(it => it.mime);
+}
+
+class PreviewVfs implements Vfs {
+    private fetchedFiles: Record<string, string> = {};
+    private folders: Record<string, VirtualFile[]> = {};
+    public dirtyFiles: Record<string, string> = {};
+    public activePath: string = "";
+
+    constructor(previewedFilePath: string, content: string) {
+        this.fetchedFiles[previewedFilePath] = content;
+        this.activePath = previewedFilePath;
+    }
+
+    async listFiles(path: string): Promise<VirtualFile[]> {
+        console.log("listFiles", path);
+        if (this.folders[path]) return this.folders[path];
+        try {
+            return this.folders[path] = await this.fetchFiles(path);
+        } catch (e) {
+            return [];
+        }
+    }
+
+    async fetchFiles(path: string, next?: string): Promise<VirtualFile[]> {
+        const result = await callAPI(api.browse({
+            path,
+            itemsPerPage: 250,
+            next
+        }));
+
+        if (result.next) {
+            return toVirtualFiles(result).concat(await this.fetchFiles(path, next));
+        }
+
+        return toVirtualFiles(result);
+    }
+
+    notifyDirtyFile(path: string, content: string) {
+        console.log("notify dirty file");
+        this.dirtyFiles[path] = content;
+    }
+
+    async readFile(path: string): Promise<string> {
+        console.log("readFile", path);
+        if (this.dirtyFiles[path]) return this.dirtyFiles[path];
+        if (this.fetchedFiles[path]) return this.fetchedFiles[path];
+
+        const contentBlob = await downloadFileContent(path);
+        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+        const text = tryDecodeText(contentBuffer);
+
+        return text ?? "Invalid file for text preview";
+    }
+
+    async writeFile(path: string, content: string): Promise<void> {
+        console.log("writeFile", path);
+        try {
+            // TODO(Jonas): Upload
+            this.fetchedFiles[path] = content;
+            delete this.dirtyFiles[path];
+        } catch (e) {
+            errorMessageOrDefault(e, "Failed to upload file");
+        }
+    }
+}
+
+function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
+    return page.items.map(i => ({
+        absolutePath: i.id,
+        isDirectory: i.status.type === "DIRECTORY",
+        requestedSyntax: ""
+    }));
 }
 
 export {api};

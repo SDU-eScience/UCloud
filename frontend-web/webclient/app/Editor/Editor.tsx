@@ -5,7 +5,7 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Input, Label, Select} from "@/ui-components";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -14,6 +14,7 @@ import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {PrettyFileName} from "@/Files/FilePath";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -23,7 +24,7 @@ export interface Vfs {
     writeFile(path: string, content: string): Promise<void>;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
-    notifyDirtyFile(path: string, content: string)
+    notifyDirtyFile(path: string, content: string): void;
 }
 
 export interface VirtualFile {
@@ -87,18 +88,18 @@ export type EditorAction =
     | EditorActionSaveState
     ;
 
-function defaultEditor(vfs: Vfs, title: string, initialPath: string): EditorState {
+function defaultEditor(vfs: Vfs, title: string, initialFolder: string, initialFile?: string): EditorState {
     return {
         sidebar: {
             root: {
                 file: {
-                    absolutePath: "/",
+                    absolutePath: initialFolder,
                     isDirectory: true,
                 },
                 children: [],
             }
         },
-        currentPath: initialPath,
+        currentPath: initialFile ?? initialFolder,
         viewState: {},
         cachedFiles: {},
         title,
@@ -156,7 +157,9 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
         return selfCopy;
     }
 
-    const newRoot = traverseAndCopy(root, 0);
+    /* Note(Jonas): pathComponents length is to see how much needs to be skipped, as it is considered the current root. */
+    /* A depth/i-value of 0 means it starts at the root (/, ). */
+    const newRoot = traverseAndCopy(root, pathComponents(root.file.absolutePath).length);
     return [newRoot, leafNode!];
 }
 
@@ -285,7 +288,10 @@ const editorClass = injectStyle("editor", k => `
     
     ${k} > .editor-files {
         width: 250px;
-        height: 100%;
+        /* TODO(Jonas): scroll on overflow-x */
+        height: min(calc(100vh - 32px), 100%);
+        overflow-y: auto;
+        
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
     }
@@ -335,13 +341,14 @@ export interface EditorApi {
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
-    initialPath: string;
+    initialFile?: string;
+    initialFolder: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
     apiRef?: React.MutableRefObject<EditorApi | null>;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
-    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialPath));
+    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolder, props.initialFile));
     const editorView = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
@@ -458,7 +465,7 @@ export const Editor: React.FunctionComponent<{
                 editor.restoreViewState(restoredState);
             }
 
-            if (engine === "monaco" && editor == null)  return false;
+            if (engine === "monaco" && editor == null) return false;
             if (engine === "vim" && vimRef.current == null) return false;
 
             vimRef.current?.focus?.();
@@ -503,7 +510,7 @@ export const Editor: React.FunctionComponent<{
         if (state.currentPath === "" || state.currentPath === "/") return;
 
         if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return;
-        if (engine === "monaco" && editor == null)  return;
+        if (engine === "monaco" && editor == null) return;
         if (engine === "vim" && vimRef.current == null) return;
 
         const res = await readBuffer();
@@ -524,10 +531,9 @@ export const Editor: React.FunctionComponent<{
 
     useEffect(() => {
         let didCancel = false;
-        props.vfs.listFiles("/").then(files => {
+        props.vfs.listFiles(props.initialFolder).then(files => {
             if (didCancel) return;
-
-            dispatch({type: "EditorActionFilesLoaded", path: "/", files});
+            dispatch({type: "EditorActionFilesLoaded", path: props.initialFolder, files});
         });
 
         return () => {
@@ -558,59 +564,7 @@ export const Editor: React.FunctionComponent<{
         m.languages.register({id: 'jinja2'});
 
         // Define the syntax highlighting rules for Jinja2
-        m.languages.setMonarchTokensProvider('jinja2', {
-            tokenizer: {
-                root: [
-                    // Jinja2 variable tags: {{ variable }}
-                    [/\{\{/, 'keyword.control', '@variable'],
-
-                    // Jinja2 statement tags: {% statement %}
-                    [/\{%/, 'keyword.control', '@statement'],
-
-                    [/\{-/, 'keyword.control', '@template'],
-
-                    // Jinja2 comment tags: {# comment #}
-                    [/\{#/, 'comment.jinja2', '@comment'],
-
-                    // Strings inside the templates
-                    [/["']/, 'string'],
-
-                    [/#.*$/, 'comment'],
-                ],
-
-                variable: [
-                    // Closing of Jinja2 variable tags
-                    [/}}/, 'keyword.control', '@pop'],
-
-                    // Inside variables
-                    [/./, 'variable'],
-                ],
-
-                statement: [
-                    // Closing of Jinja2 statement tags
-                    [/%}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ],
-
-                comment: [
-                    // Closing of Jinja2 comment tags
-                    [/#}/, 'comment', '@pop'],
-
-                    // Inside comments
-                    [/./, 'comment'],
-                ],
-
-                template: [
-                    // Closing of Jinja2 statement tags
-                    [/-}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ]
-            }
-        });
+        m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
@@ -680,6 +634,7 @@ export const Editor: React.FunctionComponent<{
     const onOpen = useCallback((path: string, element: HTMLElement) => {
         const root = state.sidebar.root;
         const node = findNode(root, path);
+        console.log(path, root, node);
         if (!node || node.file.isDirectory) {
             props.vfs.listFiles(path).then(files => {
                 if (didUnmount.current) return;
@@ -715,20 +670,20 @@ export const Editor: React.FunctionComponent<{
         <div className={"editor-files"}>
             <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode node={state.sidebar.root} onAction={onNodeActivated}/>
+                <SidebarNode node={state.sidebar.root} onAction={onNodeActivated} />
             </Tree>
         </div>
 
         <div className={"main-content"}>
             <div className={"title-bar-code"}>
                 <Flex alignItems={"center"} gap={"8px"} flexGrow={1}>
-                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"}/>
+                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"} />
                     {fileName(state.currentPath)}
                 </Flex>
                 <Flex alignItems={"center"} gap={"16px"}>
                     {props.toolbarBeforeSettings}
                     <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings}/>
+                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
                     </TooltipV2>
                     {props.toolbar}
                 </Flex>
@@ -751,7 +706,7 @@ export const Editor: React.FunctionComponent<{
                                 <Heading.h4>Monaco Engine</Heading.h4>
                                 <p>
                                     The <ExternalLink
-                                    href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
+                                        href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
                                     engine provides an easy-to-use and familiar editor. It is best known from
                                     <ExternalLink href={"https://github.com/microsoft/vscode"}>VS Code</ExternalLink>.
                                     This engine is recommended for most users and is expected to work without any
@@ -798,11 +753,11 @@ export const Editor: React.FunctionComponent<{
                     </Flex> :
                     <>
                         {engine !== "monaco" ? null :
-                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()}/>
+                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
                         }
 
                         {engine !== "vim" ? null :
-                            <VimEditor vim={vimRef} onInit={doNothing}/>
+                            <VimEditor vim={vimRef} onInit={doNothing} />
                         }
                     </>
                 }
@@ -817,7 +772,7 @@ const SidebarNode: React.FunctionComponent<{
 }> = props => {
     let children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
-            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction}/>
+            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction} />
         ))}
     </>;
 
@@ -841,9 +796,64 @@ const SidebarNode: React.FunctionComponent<{
                         />
                     </Box>
                 }
-                {fileName(props.node.file.absolutePath)}
+                <PrettyFileName path={props.node.file.absolutePath} />
             </Flex>
         }
         children={children}
     />;
 }
+
+/* Note(Jonas): I'm not sure */
+const jinja2monarchTokens = {
+    tokenizer: {
+        root: [
+            // Jinja2 variable tags: {{ variable }}
+            [/\{\{/, 'keyword.control', '@variable'],
+
+            // Jinja2 statement tags: {% statement %}
+            [/\{%/, 'keyword.control', '@statement'],
+
+            [/\{-/, 'keyword.control', '@template'],
+
+            // Jinja2 comment tags: {# comment #}
+            [/\{#/, 'comment.jinja2', '@comment'],
+
+            // Strings inside the templates
+            [/["']/, 'string'],
+
+            [/#.*$/, 'comment'],
+        ],
+
+        variable: [
+            // Closing of Jinja2 variable tags
+            [/}}/, 'keyword.control', '@pop'],
+
+            // Inside variables
+            [/./, 'variable'],
+        ],
+
+        statement: [
+            // Closing of Jinja2 statement tags
+            [/%}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ],
+
+        comment: [
+            // Closing of Jinja2 comment tags
+            [/#}/, 'comment', '@pop'],
+
+            // Inside comments
+            [/./, 'comment'],
+        ],
+
+        template: [
+            // Closing of Jinja2 statement tags
+            [/-}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ]
+    }
+};
