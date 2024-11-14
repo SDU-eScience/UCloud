@@ -115,8 +115,11 @@ function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | nu
     let currentPath = "/";
     for (let i = 0; i < components.length; i++) {
         currentPath += components[i];
-        const node = currentNode.children.find(it => it.file.absolutePath === currentPath);
+        const node = currentNode.children.find(it => it.file.absolutePath === currentPath || it.file.absolutePath === path);
         if (!node) return null;
+        else if (node.file.absolutePath === path) {
+            return node;
+        }
         currentNode = node;
     }
     return currentNode;
@@ -634,7 +637,6 @@ export const Editor: React.FunctionComponent<{
     const onOpen = useCallback((path: string, element: HTMLElement) => {
         const root = state.sidebar.root;
         const node = findNode(root, path);
-        console.log(path, root, node);
         if (!node || node.file.isDirectory) {
             props.vfs.listFiles(path).then(files => {
                 if (didUnmount.current) return;
