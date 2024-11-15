@@ -56,6 +56,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
 import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -643,7 +644,7 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e, isResuming = false) => {
+    const onSelectedFile = useCallback(async (e: {stopPropagation(): void; preventDefault(): void}, isResuming = false) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -716,11 +717,48 @@ const Uploader: React.FunctionComponent = () => {
         startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
+    const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((e: CustomEvent) => {
+        const {path, content} = e["detail"];
+        const f = new File([content], path);
+        const allUploads: Upload[] = uploads;
+        const fP: PackagedFile = {
+            fileObject: f,
+            fullPath: path,
+            size: f.size,
+            type: "FILE",
+            isDirectory: false,
+            lastModified: new Date().getTime(),
+            lastModifiedDate: getStartOfDay(new Date()),
+            name: fileName(path),
+            webkitRelativePath: f.name,
+        };
+
+        allUploads.push({
+            name: fileName(path),
+            row: fP,
+            progressInBytes: 0,
+            filesCompleted: 0,
+            filesDiscovered: 0,
+            state: UploadState.PENDING,
+            conflictPolicy: "REPLACE",
+            targetPath: uploadPath,
+            fileFetcher: () => {
+                return Promise.resolve([fP]);
+            },
+            initialProgress: 0,
+            uploadEvents: []
+        });
+
+        setUploads(allUploads);
+        startUploads(allUploads, setLookForNewUploads);
+    }, [uploads]);
+
     useEffect(() => {
         const oldOnDrop = document.ondrop;
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
+        window.addEventListener("write-file", stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;

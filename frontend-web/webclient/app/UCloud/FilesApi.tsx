@@ -95,6 +95,8 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {Editor, Vfs, VirtualFile} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {UploadState, uploadStore} from "@/Files/Upload";
+import {PackagedFile} from "@/Files/HTML5FileSelector";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1409,9 +1411,7 @@ function saveDialog(vfs: PreviewVfs) {
             vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]);
             snackbarStore.addSuccess("Missing functionality for ACTUALLY saving the contents", false);
         },
-        onCancel() {
-            dialogStore.failure();
-        }
+        onCancel() {}
     });
 }
 
@@ -1518,7 +1518,6 @@ class PreviewVfs implements Vfs {
     }
 
     notifyDirtyFile(path: string, content: string) {
-        console.log("notify dirty file");
         this.dirtyFiles[path] = content;
     }
 
@@ -1535,9 +1534,8 @@ class PreviewVfs implements Vfs {
     }
 
     async writeFile(path: string, content: string): Promise<void> {
-        console.log("writeFile", path);
         try {
-            // TODO(Jonas): Upload
+            window.dispatchEvent(new CustomEvent<{path: string, content: string}>("write-file", {detail: {path, content}}));
             this.fetchedFiles[path] = content;
             delete this.dirtyFiles[path];
         } catch (e) {
@@ -1550,7 +1548,7 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
     return page.items.map(i => ({
         absolutePath: i.id,
         isDirectory: i.status.type === "DIRECTORY",
-        requestedSyntax: ""
+        requestedSyntax: extensionFromPath(i.id),
     }));
 }
 
