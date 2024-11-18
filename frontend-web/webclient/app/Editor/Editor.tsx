@@ -672,7 +672,7 @@ export const Editor: React.FunctionComponent<{
         <div className={"editor-files"}>
             <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode node={state.sidebar.root} onAction={onNodeActivated} />
+                <SidebarNode initialFilePath={props.initialFilePath} node={state.sidebar.root} onAction={onNodeActivated} />
             </Tree>
         </div>
 
@@ -769,8 +769,9 @@ export const Editor: React.FunctionComponent<{
 };
 
 const SidebarNode: React.FunctionComponent<{
-    node: EditorSidebarNode,
-    onAction: (open: boolean, row: HTMLElement) => void
+    node: EditorSidebarNode;
+    onAction: (open: boolean, row: HTMLElement) => void;
+    initialFilePath?: string;
 }> = props => {
     let children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
@@ -781,9 +782,13 @@ const SidebarNode: React.FunctionComponent<{
     const absolutePath = props.node.file.absolutePath;
     if (absolutePath === "" || absolutePath === "/") return children;
 
+    const isInitiallyOpen = props.node.file.isDirectory &&
+        props.initialFilePath?.startsWith(props.node.file.absolutePath);
+
     return <TreeNode
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
+        data-open={isInitiallyOpen}
         left={
             <Flex gap={"8px"} alignItems={"center"}>
                 {props.node.file.isDirectory ? null :
@@ -791,8 +796,7 @@ const SidebarNode: React.FunctionComponent<{
                         <FtIcon
                             fileIcon={{
                                 type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath
-                                )
+                                ext: extensionFromPath(props.node.file.absolutePath)
                             }}
                             size={"16px"}
                         />
