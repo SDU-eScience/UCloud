@@ -1494,7 +1494,6 @@ class PreviewVfs implements Vfs {
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {
-        console.log("listFiles", path);
         if (this.folders[path]) return this.folders[path];
         try {
             return this.folders[path] = await this.fetchFiles(path);
@@ -1535,7 +1534,8 @@ class PreviewVfs implements Vfs {
 
     async writeFile(path: string, content: string): Promise<void> {
         try {
-            window.dispatchEvent(new CustomEvent<{path: string, content: string}>("write-file", {detail: {path, content}}));
+            // TOOD(Jonas): Ensure that the user has resources to upload.
+            window.dispatchEvent(new CustomEvent<{path: string, content: string}>(WriteToFileEvent, {detail: {path, content}}));
             this.fetchedFiles[path] = content;
             delete this.dirtyFiles[path];
         } catch (e) {
@@ -1551,6 +1551,8 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
         requestedSyntax: extensionFromPath(i.id),
     }));
 }
+
+export const WriteToFileEvent = "write-to-file-event";
 
 export {api};
 export default api;

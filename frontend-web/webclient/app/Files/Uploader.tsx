@@ -29,7 +29,7 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, WriteToFileEvent} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
@@ -718,6 +718,9 @@ const Uploader: React.FunctionComponent = () => {
     }, [uploads]);
 
     const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((e: CustomEvent) => {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
         const {path, content} = e["detail"];
         const f = new File([content], path);
         const allUploads: Upload[] = uploads;
@@ -758,7 +761,7 @@ const Uploader: React.FunctionComponent = () => {
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
-        window.addEventListener("write-file", stopGapMethodForUploadingFilesFromTheEditor);
+        window.addEventListener(WriteToFileEvent, stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;
