@@ -1535,7 +1535,7 @@ class PreviewVfs implements Vfs {
     async writeFile(path: string, content: string): Promise<void> {
         try {
             // TOOD(Jonas): Ensure that the user has resources to upload.
-            window.dispatchEvent(new CustomEvent<{path: string, content: string}>(WriteToFileEvent, {detail: {path, content}}));
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {detail: {path, content}}));
             this.fetchedFiles[path] = content;
             delete this.dirtyFiles[path];
         } catch (e) {
@@ -1552,7 +1552,11 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
     }));
 }
 
-export const WriteToFileEvent = "write-to-file-event";
+export const WriteToFileEventKey = "write-to-file-event";
+export interface WriteToFileEventProps {
+    path: string;
+    content: string;
+}
 
 export {api};
 export default api;
