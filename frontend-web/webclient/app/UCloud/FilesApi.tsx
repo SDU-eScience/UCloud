@@ -1404,15 +1404,17 @@ function saveDialog(vfs: PreviewVfs) {
         return;
     }
 
-    addStandardDialog({
-        title: "Save file?",
-        message: `Overwrite existing contents of file ${vfs.activePath}`,
-        onConfirm() {
-            vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]);
-            snackbarStore.addSuccess("Missing functionality for ACTUALLY saving the contents", false);
-        },
-        onCancel() {}
-    });
+    prettyFilePath(vfs.activePath).then(p =>
+        addStandardDialog({
+            title: "Save file?",
+            message: `Upload changes to existing file ${p}?`,
+            onConfirm() {
+                vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]);
+                snackbarStore.addSuccess("Missing functionality for ACTUALLY saving the contents", false);
+            },
+            onCancel() {}
+        })
+    );
 }
 
 async function downloadFileContent(path: string): Promise<Blob> {
