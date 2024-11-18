@@ -178,7 +178,7 @@ const WorkflowEditor: React.FunctionComponent<{
     return <Editor
         vfs={vfs}
         title={props.applicationName}
-        initialFolder={"/" + FILE_NAME_JOB}
+        initialFolderPath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
         toolbarBeforeSettings={<>
             {!error ? null :

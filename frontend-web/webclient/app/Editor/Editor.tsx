@@ -344,14 +344,14 @@ export interface EditorApi {
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
-    initialFile?: string;
-    initialFolder: string;
+    initialFilePath?: string;
+    initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
     apiRef?: React.MutableRefObject<EditorApi | null>;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
-    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolder, props.initialFile));
+    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
@@ -534,9 +534,9 @@ export const Editor: React.FunctionComponent<{
 
     useEffect(() => {
         let didCancel = false;
-        props.vfs.listFiles(props.initialFolder).then(files => {
+        props.vfs.listFiles(props.initialFolderPath).then(files => {
             if (didCancel) return;
-            dispatch({type: "EditorActionFilesLoaded", path: props.initialFolder, files});
+            dispatch({type: "EditorActionFilesLoaded", path: props.initialFolderPath, files});
         });
 
         return () => {

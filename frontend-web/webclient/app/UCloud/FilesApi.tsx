@@ -1367,7 +1367,7 @@ export function FilePreview({file, contentRef}: {
             node = <Editor toolbarBeforeSettings={
                 <TooltipV2 tooltip={"Send error back"} contentWidth={100}>
                     <Icon name={"share"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar)} />
-                </TooltipV2>} initialFolder={removeTrailingSlash(getParentPath(file.id))} initialFile={file.id} title={vfsTitle} vfs={vfsVar}
+                </TooltipV2>} initialFolderPath={removeTrailingSlash(getParentPath(file.id))} initialFilePath={file.id} title={vfsTitle} vfs={vfsVar}
             />;
             break;
         case "image":
