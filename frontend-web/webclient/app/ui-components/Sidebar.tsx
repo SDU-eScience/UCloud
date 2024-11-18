@@ -432,6 +432,15 @@ export function Sidebar(): React.ReactNode {
     useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate)));
     const [dialog, setOpenDialog] = React.useState<DialogOptions>("");
 
+    React.useEffect(() => {
+        window.addEventListener("open-task-window", (e: CustomEvent<DialogOptions>) => {
+            e.stopImmediatePropagation();
+            e.stopPropagation();
+            e.preventDefault()
+            setOpenDialog(e.detail);
+        });
+    }, []);
+
     if (useFrameHidden()) return null;
     if (!loggedIn) return null;
 
