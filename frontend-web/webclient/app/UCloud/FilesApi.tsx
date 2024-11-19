@@ -1280,6 +1280,7 @@ export function FilePreview({file, contentRef}: {
                     case "video":
                     case "pdf":
                         setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                        setType(typeFromFileType)
                         setError(null);
                         break;
                     case "code":
@@ -1287,7 +1288,6 @@ export function FilePreview({file, contentRef}: {
                     case "application":
                     case "markdown":
                     default:
-                        const text = tryDecodeText(contentBuffer);
                         if (text !== null) {
                             setType("text");
                             setData(text);
