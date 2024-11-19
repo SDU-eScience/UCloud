@@ -1530,8 +1530,8 @@ class PreviewVfs implements Vfs {
         const contentBlob = await downloadFileContent(path);
         const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
         const text = tryDecodeText(contentBuffer);
-
-        return text ?? "Invalid file for text preview";
+        if (!text) throw window.Error("Invalid file for preview");
+        return text;
     }
 
     async writeFile(path: string, content: string): Promise<void> {

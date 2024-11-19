@@ -15,6 +15,7 @@ import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {PrettyFileName} from "@/Files/FilePath";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -479,6 +480,9 @@ export const Editor: React.FunctionComponent<{
                 monaco.editor.setModelLanguage(editor.getModel(), syntax);
             }
             return true;
+        }).catch(error => {
+            snackbarStore.addFailure(error, false);
+            return true; // What does true or false mean in this context?
         });
     }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
 
@@ -809,7 +813,7 @@ const SidebarNode: React.FunctionComponent<{
     />;
 }
 
-/* Note(Jonas): I'm not sure */
+/* Note(Jonas): I'm not sure this should be pushed down here, but I can't put it into a .JSON file due to the regexes */
 const jinja2monarchTokens = {
     tokenizer: {
         root: [
