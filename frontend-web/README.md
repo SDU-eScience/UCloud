@@ -89,7 +89,7 @@ The `e` in the event of a failing promise, matches the structure of `{ request, 
 
 Calls made to the backend are prefixed with `api/` followed by the service called, followed by the operation.
 
-Websockets are also supported. This is used for both the Task system (TODO add link) and Notifications (TODO: Add link). It uses the same authentication system as for common HTTP-requests.
+Websockets are also supported. This is used for both the Task system and Notifications. It uses the same authentication system as for common HTTP-requests.
 
 ### Styling
 
@@ -138,7 +138,7 @@ The life-time of the AsyncCache is intended to be longer than the components usi
 
 The ResourceBrowser-component is built for speed and consistent interaction possibilites like keyboard-input and context menus on mouse right-clicks. It is used to render lists, e.g. Files, Drives, Project Members, Public Links, etc.
 
-The ResourceBrowser-component handles the keyboard input, and mouse input for a consistent experience between different instances of the ResourceBrowser. It is written as a Javascript class, and must be instantiated in a React-component, that handles initialization in a `useLayoutEffect` hook. (TODO: Required handlers for implementing ResourceBrowser using component).
+The ResourceBrowser-component handles the keyboard input, and mouse input for a consistent experience between different instances of the ResourceBrowser. It is written as a Javascript class, and must be instantiated in a React-component, that handles initialization in a `useLayoutEffect` hook.
 
 The ResourceBrowser-component works by creating elements using the DOM-api and modifying the contents. Each single representation of a resource is rendered in a `row` that contains:
 
