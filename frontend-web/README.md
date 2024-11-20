@@ -8,9 +8,9 @@ This repository contains the frontend components used in UCloud, logic for conta
 
 ## Code Structure
 
-Of notable npm-packages, the frontend uses the `React`-frameworks, along with the `Redux` library for handling data<sup>\*</sup>, and the `Styled-Components` library for styling of components. Addtionally, the application uses the `React-Router` for navigation, `jest` for testing. The project is written in `TypeScript`.
+Of notable npm-packages, the frontend uses the `React`-frameworks, along with the `Redux` library for managing some state<sup>\*</sup>. Additionally, the application uses the `React-Router` for navigation. The project is written in `TypeScript`.
 
-Each category (category meaning e.g. Files, Applications, Dashboard, Activity), groups components by their association, i.e. every component referring to a category, will be found in the corresponding folder. Additionally, if a component has a reducer, it will be placed in a folder named `Redux`, along with the associated reducer actions, using the naming convention `<ComponentName>Reducer` and `<ComponentName>Actions`
+Each category (category meaning e.g. Files, Applications, Dashboard, Activity), groups components by their association, i.e. every component referring to a category, will be found in the corresponding folder. Additionally, if a component has a reducer, it will be placed in a folder named `Redux`, along with the associated reducer actions, using the naming convention `<ComponentName>Reducer` and `<ComponentName>Actions`.
 
 Data is retrieved from the backend by contacting the corresponding backend-services in charge of the data.
 
@@ -31,7 +31,7 @@ To run the project run the following commands, in the directory `./webclient/`:
 - `npm install`
 - `npm run start`
 
-When the terminal outputs `Compiled successfully.`, the project is available at `http://localhost:9000/app`.
+When the terminal outputs a list of entries, including `Local` and `Network`, the project is available at `http://localhost:9mast000/app`.
 
 `npm install` will only be necessary to run on subsequent runs, if the package.json file has been updated since the last
 time.
@@ -88,3 +88,42 @@ Here, the request in the deconstruction of the object is the XMLHttpRequest made
 The `e` in the event of a failing promise, matches the structure of `{ request, response }` but lacks type safety.
 
 Calls made to the backend are prefixed with `api/` followed by the service called, followed by the operation.
+
+Websockets are also supported. This is used for both the Task system (TODO add link) and Notifications (TODO: Add link). It uses the same authentication system as for common HTTP-requests.
+
+### Styling
+
+Most of the styling is written using the Unstyled-functions `./frontend-web/webclient/app/Unstyled/index.ts/`. This is is written as normal CSS in strings, and is injected at runtime.
+
+Using CSS-variables in the components can be done setting them in the `style` object-prop.
+
+(TODO: Reasoning?)
+
+### Custom stores
+
+Instead of Redux, some components instead utilize an external store that's connected to the component using the `useSyncExternalStore`-hook. This allows the programmer more flexibility for fetching and emitting updates, without having to use middleware libraries for Redux. (TODO: Examples?). Examples of this are the TaskStore (TODO: link) and Notifications.
+
+### AsyncCache store
+
+The AsyncCache is used for caching stuff like drives/collections to be used between non-React focused components like the [ResourceBrowser-component](#Resource-Browser-component) (see below). They can be invalidated and stores resources in records, usually based on the `id` as key, e.g. using the folder id/path as key, will return the contents of the folder. 
+
+The AsyncCache allows for fetching resources from the backend to the cache, retrieving from the cache locally and invalidating the cache. 
+Invalidating of the cache is done on page-reload and can be done by the programmer.
+
+### Resource Browser-component
+
+The ResourceBrowser-component is built for speed and consistent interaction possibilites like keyboard-input and context menus on mouse right-clicks. It is used to render lists, e.g. Files, Drives, Project Members, Public Links, etc.
+
+The ResourceBrowser-component handles the keyboard input, and mouse input for a consistent experience between different instances of the ResourceBrowser. It is written as a Javascript class, and must be instantiated in a React-component, that handles initialization in a `useLayoutEffect` hook. (TODO: Required handlers for implementing ResourceBrowser using component).
+
+The ResourceBrowser-component works by creating elements using the DOM-api and modifying the contents. Each single representation of a resource is rendered in a `row` that contains:
+
+- `star`: If any favoriting mechanism exists for the resource instance in question, this 
+- `icon`: The icon to be rendered on the left-most side.
+- `title`: The title contents to be rendered immediately to the right of the icon. This is commonly the resource name, e.g. file name for files, IP for public IP, etc.
+- `stat1`, `stat2`, `stat3`: Fields with meta data on the resource. For a file it can be `modified at`, `sensitivity` or similar. How many `stats` are shown depends on the ResourceBrowser component props. If the component is in a modal, only 2 `stat`-columns will be shown. (TODO: WHICH ONES???). When the modal is used as a selector (e.g. "Move to..."-operation), usually the content of `stat3` is replaced with the button to perform the selection.
+
+The ResourceBrowser components supports navigating resources by typing the name, arrow keys, enter, among others.
+
+Operations applicable to a resource instance will be presented to the user when one or more is selected. These operations are usually provided by the corresponding resource API. They will be presented both above the list-view, and also be presented on right-clicking on of the selected elements. Some operations, like creation, will be shown when no element is selected.
+
