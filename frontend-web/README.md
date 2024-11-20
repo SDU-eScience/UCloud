@@ -93,13 +93,37 @@ Websockets are also supported. This is used for both the Task system (TODO add l
 
 ### Styling
 
-Most of the styling is written using the Unstyled-functions `./frontend-web/webclient/app/Unstyled/index.ts/`. This is is written as normal CSS in strings, and is injected at runtime.
+Most of the styling is written using the Unstyled-functions `./frontend-web/webclient/app/Unstyled/index.ts/`. This is is written as normal CSS in strings, and is injected at runtime. The full API for `Unstyled` is:
 
-Overriding CSS-variables in the components is done by setting them in the `style` object-prop.
+#### `injectStyleSimple(title: string, fn: (k: string) => string)): string`:
+
+The most commonly used. `title` is the classname, which is appended and with a unique number id, and passed as the argument for `fn`. E.g.
+```
+const nameOfClass = injectStyle("className", k => `
+    ${k} {
+        width: auto;
+    }
+`);
+```
+
+The function returns the name of the class, with no dot prefix.
+
+- `injectStyleSimple(title: string, css: string): string`:
+
+This is a short-hand for the above one. This wraps the content inside the name of the class and curly braces, so this is equivalent to the above example.
+```
+const nameOfClass = injectStyleSimple("className", `
+    width: auto;
+`);
+```
+
+The [&-operator](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_nesting/Using_CSS_nesting) could in theory be used in both, but is not in use, due to relatively low support as of this writing (<90%) and it being a working draft.
+
+Overriding CSS-variables in the components is done by setting them in the `style` object property.
 
 ### Custom stores
 
-Instead of Redux, some components instead utilize an external store that's connected to the component using the `useSyncExternalStore`-hook. This allows the programmer more flexibility for fetching and emitting updates, without having to use middleware libraries for Redux for async operations, for instance. Examples of this are the TaskStore (TODO: link) and Notifications.
+Instead of Redux, some components instead utilize an external store that's connected to the component using the `useSyncExternalStore`-hook. This allows the programmer more flexibility for fetching and emitting updates, without having to use middleware libraries for Redux for async operations, for instance. Examples of this are the [TaskStore](webclient/app/Services/BackgroundTasks/BackgroundTask.tsx) and [Notifications](webclient/app/Notifications/index.tsx).
 
 ### AsyncCache store
 
