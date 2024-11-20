@@ -1365,8 +1365,8 @@ export function FilePreview({file, contentRef}: {
             }
 
             node = <Editor toolbarBeforeSettings={
-                <TooltipV2 tooltip={"Send error back"} contentWidth={100}>
-                    <Icon name={"share"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar)} />
+                <TooltipV2 tooltip={"Upload"} contentWidth={80}>
+                    <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar)} />
                 </TooltipV2>} initialFolderPath={removeTrailingSlash(getParentPath(file.id))} initialFilePath={file.id} title={vfsTitle} vfs={vfsVar}
             />;
             break;
@@ -1409,8 +1409,9 @@ function saveDialog(vfs: PreviewVfs) {
             title: "Save file?",
             message: `Upload changes to existing file ${p}?`,
             onConfirm() {
-                vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]);
-                snackbarStore.addSuccess("Missing functionality for ACTUALLY saving the contents", false);
+                vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]).then(() =>
+                    vfs.updateLocalCache(vfs.activePath)
+                );
             },
             onCancel() {}
         })
@@ -1536,13 +1537,15 @@ class PreviewVfs implements Vfs {
 
     async writeFile(path: string, content: string): Promise<void> {
         try {
-            // TOOD(Jonas): Ensure that the user has resources to upload.
             window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {detail: {path, content}}));
-            this.fetchedFiles[path] = content;
-            delete this.dirtyFiles[path];
         } catch (e) {
             errorMessageOrDefault(e, "Failed to upload file");
         }
+    }
+
+    updateLocalCache(path: string): void {
+        this.fetchedFiles[path] = this.dirtyFiles[path];
+        delete this.dirtyFiles[path];
     }
 }
 

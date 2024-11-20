@@ -126,10 +126,10 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                     return;
                                 }
 
-                                const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
+                                const response = (await callAPI<{responses: FindByStringId[]}>(PublicLinkApi.create(bulkRequestOf({
                                     domain: browser.renamePrefix + browser.renameValue + browser.renameSuffix,
                                     product: productReference
-                                })))).responses[0] as unknown as FindByStringId;
+                                })))).responses[0];
 
                                 ingressBeingCreated.id = response.id;
                                 browser.renderRows();
