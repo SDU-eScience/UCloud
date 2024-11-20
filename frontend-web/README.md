@@ -95,20 +95,20 @@ Websockets are also supported. This is used for both the Task system (TODO add l
 
 Most of the styling is written using the Unstyled-functions `./frontend-web/webclient/app/Unstyled/index.ts/`. This is is written as normal CSS in strings, and is injected at runtime.
 
-Using CSS-variables in the components can be done setting them in the `style` object-prop.
-
-(TODO: Reasoning?)
+Overriding CSS-variables in the components is done by setting them in the `style` object-prop.
 
 ### Custom stores
 
-Instead of Redux, some components instead utilize an external store that's connected to the component using the `useSyncExternalStore`-hook. This allows the programmer more flexibility for fetching and emitting updates, without having to use middleware libraries for Redux. (TODO: Examples?). Examples of this are the TaskStore (TODO: link) and Notifications.
+Instead of Redux, some components instead utilize an external store that's connected to the component using the `useSyncExternalStore`-hook. This allows the programmer more flexibility for fetching and emitting updates, without having to use middleware libraries for Redux for async operations, for instance. Examples of this are the TaskStore (TODO: link) and Notifications.
 
 ### AsyncCache store
 
-The AsyncCache is used for caching stuff like drives/collections to be used between non-React focused components like the [ResourceBrowser-component](#Resource-Browser-component) (see below). They can be invalidated and stores resources in records, usually based on the `id` as key, e.g. using the folder id/path as key, will return the contents of the folder. 
+The AsyncCache is used for caching stuff like drives/collections to be used between non-React focused components like the [ResourceBrowser-component](#Resource-Browser-component) (see below). They can be invalidated and stores resources in records, usually based on the `id` as key, e.g. using the folder `id`/`path` as key, will return the contents of the folder. 
 
 The AsyncCache allows for fetching resources from the backend to the cache, retrieving from the cache locally and invalidating the cache. 
 Invalidating of the cache is done on page-reload and can be done by the programmer.
+
+The life-time of the AsyncCache is intended to be longer than the components using it, similar to the contents of the Redux-store.
 
 ### Resource Browser-component
 
@@ -121,9 +121,9 @@ The ResourceBrowser-component works by creating elements using the DOM-api and m
 - `star`: If any favoriting mechanism exists for the resource instance in question, this 
 - `icon`: The icon to be rendered on the left-most side.
 - `title`: The title contents to be rendered immediately to the right of the icon. This is commonly the resource name, e.g. file name for files, IP for public IP, etc.
-- `stat1`, `stat2`, `stat3`: Fields with meta data on the resource. For a file it can be `modified at`, `sensitivity` or similar. How many `stats` are shown depends on the ResourceBrowser component props. If the component is in a modal, only 2 `stat`-columns will be shown. (TODO: WHICH ONES???). When the modal is used as a selector (e.g. "Move to..."-operation), usually the content of `stat3` is replaced with the button to perform the selection.
+- `stat1`, `stat2`, `stat3`: Fields with meta data on the resource. For a file it can be `modified at`, `sensitivity` or similar. How many `stats` are shown depends on the ResourceBrowser component props. When the modal is used as a selector (e.g. "Move to..."-operation), usually the content of `stat3` is replaced with the button to perform the selection.
 
-The ResourceBrowser components supports navigating resources by typing the name, arrow keys, enter, among others.
+The ResourceBrowser components supports navigating resources by typing the name, arrow keys, enter, among others. A context menu showing resource instance operations is shown on right-click.
 
 Operations applicable to a resource instance will be presented to the user when one or more is selected. These operations are usually provided by the corresponding resource API. They will be presented both above the list-view, and also be presented on right-clicking on of the selected elements. Some operations, like creation, will be shown when no element is selected.
 
