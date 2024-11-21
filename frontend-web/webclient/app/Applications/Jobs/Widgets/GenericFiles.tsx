@@ -16,6 +16,7 @@ import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
+import {getParentPath} from "@/Utilities/FileUtilities";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -53,12 +54,11 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
 
     const onActivate = useCallback(() => {
         // Note(Jonas): Not meaningfully in use?
-        const pathRef = {current: ""};
         const provider = getProviderField();
         const additionalFilters: {filterProvider: string} | {} = provider ? {filterProvider: provider} : {};
 
         async function onClick(res: UFile) {
-            const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+            const target = removeTrailingSlash(res.id);
             if (props.errors[props.parameter.name]) {
                 delete props.errors[props.parameter.name];
                 props.setErrors({...props.errors});
@@ -66,6 +66,8 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
             WidgetSetProvider(props.parameter, res.specification.product.provider);
             dialogStore.success();
+
+            setLastActivePath(res.status.type === "DIRECTORY" ? res.id : getParentPath(res.id));
             if (anyFolderDuplicates()) {
                 props.setWarning?.("Duplicate folders selected. This is not always supported.");
             }
@@ -90,7 +92,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             onClick,
             show: providerRestriction
         };
-        
+
         const navigateToFolder = (path: string, projectId?: string) => {
             dialogStore.failure();
             dialogStore.addDialog(
@@ -100,14 +102,14 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                         isModal: true,
                         managesLocalProject: true,
                         initialPath: path,
-                        initialProject: projectId, 
+                        initialProject: projectId,
                         additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
                         selection,
                     }} />,
                 doNothing,
                 true,
                 FilesApi.fileSelectorModalStyle
-            );    
+            );
         }
 
         dialogStore.addDialog(
@@ -116,7 +118,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     additionalFilters,
                     isModal: true,
                     managesLocalProject: true,
-                    initialPath: "",
+                    initialPath: getLastActivePath(),
                     additionalOperations: [isDirectoryInput ? folderFavoriteSelection(onClick, providerRestriction, navigateToFolder) : fileFavoriteSelection(onClick, providerRestriction, navigateToFolder)],
                     selection,
                 }} />,
@@ -185,4 +187,13 @@ function findAllFolderNames(): string[] {
 export function anyFolderDuplicates(): boolean {
     const dirs = findAllFolderNames();
     return new Set(dirs).size !== dirs.length;
+}
+
+function getLastActivePath(): string {
+    return document.querySelector<HTMLDivElement>("[data-last-used-file-path]")?.innerText ?? "";
+}
+
+function setLastActivePath(path: string) {
+    const pathNode = document.querySelector<HTMLDivElement>("[data-last-used-file-path]")
+    if (pathNode) pathNode.innerText = path;
 }
