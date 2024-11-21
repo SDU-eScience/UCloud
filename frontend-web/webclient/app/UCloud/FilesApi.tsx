@@ -62,7 +62,7 @@ import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {useParams} from "react-router";
+import {NavigateFunction, useNavigate, useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
@@ -208,6 +208,7 @@ const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
     ${k} > ${classA.dot} {
         padding: 15px;
         width: 100%;
+        height: max(100vh, 600px);
     }
 
     ${k} > ${classB.dot} {
@@ -215,7 +216,7 @@ const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
         width: 340px;
         min-width: 240px;
         padding: 15px;
-        height: 100vh;
+        height: max(100vh, 600px);
     }
 `);
 
@@ -1198,7 +1199,7 @@ async function getMonaco(): Promise<any> {
                         type: 'module'
                     });
                 }
-            }
+            },
         };
         return monaco;
     })
@@ -1215,8 +1216,11 @@ function isDownloadAllowed(file: UFile) {
 
 export function FilePreview({file, contentRef}: {
     file: UFile,
-    contentRef?: React.MutableRefObject<Uint8Array>
+    contentRef: React.MutableRefObject<Uint8Array>
 }): React.ReactNode {
+
+    const navigate = useNavigate();
+
     let oldOnResize: typeof window.onresize;
 
     React.useEffect(() => {
@@ -1249,6 +1253,7 @@ export function FilePreview({file, contentRef}: {
                 setError(errorMessageOrDefault(e, "Failed to download file"));
                 return;
             }
+
             const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
 
             const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
@@ -1280,14 +1285,14 @@ export function FilePreview({file, contentRef}: {
                     case "video":
                     case "pdf":
                         setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                        setType(typeFromFileType)
+                        setType(typeFromFileType);
                         setError(null);
                         break;
                     case "code":
                     case "text":
                     case "application":
                     case "markdown":
-                    default:
+                    default: {
                         if (text !== null) {
                             setType("text");
                             setData(text);
@@ -1296,6 +1301,7 @@ export function FilePreview({file, contentRef}: {
                             setError("Preview is not supported for this file.");
                         }
                         break;
+                    }
                 }
             }
         } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
@@ -1360,7 +1366,7 @@ export function FilePreview({file, contentRef}: {
 
             let vfsVar = vfs;
             if (!vfsVar) {
-                vfsVar = new PreviewVfs(file.id, data);
+                vfsVar = new PreviewVfs(file, data, navigate);
                 setVfs(vfsVar);
             }
 
@@ -1399,6 +1405,7 @@ export function FilePreview({file, contentRef}: {
 
 function saveDialog(vfs: PreviewVfs) {
     const activePath = vfs.activePath;
+
     if (!vfs.dirtyFiles[activePath]) {
         snackbarStore.addFailure("File has not been modified.", false);
         return;
@@ -1488,12 +1495,16 @@ function getFileTypesFromContentBuffer(contentBuffer: Uint8Array) {
 class PreviewVfs implements Vfs {
     private fetchedFiles: Record<string, string> = {};
     private folders: Record<string, VirtualFile[]> = {};
+    private ufiles: Record<string, UFile> = {};
     public dirtyFiles: Record<string, string> = {};
     public activePath: string = "";
+    private navigate: NavigateFunction;
 
-    constructor(previewedFilePath: string, content: string) {
-        this.fetchedFiles[previewedFilePath] = content;
-        this.activePath = previewedFilePath;
+    constructor(previewedFile: UFile, content: string, navigate: NavigateFunction) {
+        this.ufiles[previewedFile.id] = previewedFile;
+        this.fetchedFiles[previewedFile.id] = content;
+        this.activePath = previewedFile.id;
+        this.navigate = navigate;
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {
@@ -1524,15 +1535,37 @@ class PreviewVfs implements Vfs {
     }
 
     async readFile(path: string): Promise<string> {
-        console.log("readFile", path);
         if (this.dirtyFiles[path]) return this.dirtyFiles[path];
         if (this.fetchedFiles[path]) return this.fetchedFiles[path];
+
+        const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
+        this.ufiles[path] = file;
+
+        if (!isDownloadAllowed(file)) {
+            throw window.Error("File cannot be viewed in editor");
+        }
 
         const contentBlob = await downloadFileContent(path);
         const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
         const text = tryDecodeText(contentBuffer);
-        if (!text) throw window.Error("Invalid file for preview");
-        return text;
+        if (!text) {
+            addStandardDialog({
+                title: "Invalid file for preview",
+                message: "Preview different file type?",
+                onConfirm: () => {
+                    // AWFUL solution
+                    this.navigate(AppRoutes.files.preview(path));
+                },
+                onCancel() {}
+            });
+            return "";
+        } else {
+            return text;
+        }
+    }
+
+    slowIsDirty(path: string, newContent: string): boolean {
+        return this.fetchedFiles[path] !== newContent;
     }
 
     async writeFile(path: string, content: string): Promise<void> {

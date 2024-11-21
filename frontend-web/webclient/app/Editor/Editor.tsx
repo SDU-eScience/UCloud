@@ -286,14 +286,13 @@ const editorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
-        height: 100%;
+        max-height: calc(100vh - 32px), 100%);
         --borderThickness: 2px;
     }
     
     ${k} > .editor-files {
         width: 250px;
         /* TODO(Jonas): scroll on overflow-x */
-        height: min(calc(100vh - 32px), 100%);
         overflow-y: auto;
         
         flex-shrink: 0;
