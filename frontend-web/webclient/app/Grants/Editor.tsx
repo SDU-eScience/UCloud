@@ -765,9 +765,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             newApplicationDocument["Other"] = otherSection;
         }
 
-        const startDate = new Date(doc.allocationPeriod.start ?? Date.now());
+        let startDate = new Date(Date.now())
+        if (doc.allocationPeriod?.start != null) {
+            startDate = new Date(doc.allocationPeriod.start);
+        }
 
-        const endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        let endDate = new Date(Date.now() + 1000);
+        if (doc.allocationPeriod?.end != null ) {
+            endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
+        }
         // Off by one second in some cases, let's just adjust slightly here.
 
         const startYear = Math.max(2019, startDate.getUTCFullYear());
