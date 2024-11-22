@@ -174,7 +174,7 @@ export interface Doc {
         A field to that specifies when every allocation that has been requested
         should start and end
      */
-    allocationPeriod: Period
+    allocationPeriod?: Period | null
 }
 
 type Form = PlainTextForm | GrantGiverInitiatedForm;
