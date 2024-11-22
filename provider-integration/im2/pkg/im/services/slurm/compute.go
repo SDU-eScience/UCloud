@@ -113,10 +113,29 @@ func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
 		billing := Accounting.FetchUsageInMinutes()
-		// TODO convert this to correct UCloud unit
 
 		var reportItems []apm.UsageReportItem
-		for owner, usage := range billing {
+		for owner, minutesUsed := range billing {
+			machine := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
+
+			var usageMillis float64 = float64(minutesUsed) * 60000
+			var usage float64 = 0
+
+			if machine.Payment.Type == cfg.PaymentTypeMoney {
+				switch machine.Payment.Interval {
+				case cfg.PaymentIntervalMinutely:
+					usage = usageMillis / 1000.0 / 60.0
+				case cfg.PaymentIntervalHourly:
+					usage = usageMillis / 1000 / 60 / 60
+				case cfg.PaymentIntervalDaily:
+					usage = usageMillis / 1000 / 60 / 60 / 24
+				}
+
+				usage *= machine.Payment.Price
+			} else {
+				usage = usageMillis / 1000.0 / 60.0
+			}
+
 			reportItems = append(reportItems,
 				apm.UsageReportItem{
 					IsDeltaCharge: false,
@@ -125,7 +144,7 @@ func loopAccounting() {
 						Name:     owner.AssociatedWithCategory,
 						Provider: cfg.Provider.Id,
 					},
-					Usage: usage,
+					Usage: int64(usage),
 				},
 			)
 
