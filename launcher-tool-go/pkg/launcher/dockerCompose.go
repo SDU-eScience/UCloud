@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+var compose DockerCompose
+
 type DockerCompose interface {
 	Up(directory LFile, noRecreate bool)
 	Down(directory LFile, noRecreate bool)

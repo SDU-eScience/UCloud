@@ -13,7 +13,6 @@ import (
 
 var repoRoot string
 var isHeadLess bool = false
-var compose launcher.DockerCompose
 
 func regexpCheck(s string) bool {
 	exists, _ := regexp.MatchString("^[t][0-9]+$", s)

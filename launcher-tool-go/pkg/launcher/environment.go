@@ -16,7 +16,7 @@ var blacklistedEnvNames = [...]string{
 }
 
 var localEnvironment *os.File
-var currentEnvironment *os.File
+var currentEnvironment LFile
 var environmentIsRemote bool
 var portAllocator PortAllocator
 var composeName string
