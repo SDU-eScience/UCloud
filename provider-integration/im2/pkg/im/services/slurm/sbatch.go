@@ -3,7 +3,6 @@ package slurm
 import (
 	"bytes"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"math/rand"
 	"net/http"
 	"os"
@@ -12,13 +11,15 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
+
+	"gopkg.in/yaml.v3"
 	"ucloud.dk/gonja/v2/exec"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
-	"unicode"
 )
 
 type appCfgAndVersion struct {

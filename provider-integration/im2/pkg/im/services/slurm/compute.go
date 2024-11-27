@@ -112,17 +112,42 @@ var nextComputeAccountingTime = time.Now()
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
-		billing := Accounting.FetchUsageInMinutes()
+		billing := make(map[SlurmAccountOwner]int64)
+
+		activeJobs := ctrl.GetJobs()
+		slurmJobs := SlurmClient.JobList()
 
 		var reportItems []apm.UsageReportItem
+		for _, job := range activeJobs {
+			parsed, ok := parseJobProviderId(job.ProviderGeneratedId)
+			if !ok {
+				continue
+			}
+
+			owner := SlurmAccountOwner{
+				AssociatedWithCategory: job.Status.ResolvedProduct.Category.Name,
+				Owner:                  apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
+			}
+
+			// Lookup slurmjob
+			var minutes int64 = 0
+			for _, sjob := range slurmJobs {
+				if parsed.SlurmId == sjob.JobID {
+					minutes += int64(sjob.Elapsed * job.Status.ResolvedProduct.Cpu)
+				}
+			}
+
+			billing[owner] += minutes
+		}
+
 		for owner, minutesUsed := range billing {
-			machine := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
+			machineCategory := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
 
 			var usageMillis float64 = float64(minutesUsed) * 60000
 			var usage float64 = 0
 
-			if machine.Payment.Type == cfg.PaymentTypeMoney {
-				switch machine.Payment.Interval {
+			if machineCategory.Payment.Type == cfg.PaymentTypeMoney {
+				switch machineCategory.Payment.Interval {
 				case cfg.PaymentIntervalMinutely:
 					usage = usageMillis / 1000.0 / 60.0
 				case cfg.PaymentIntervalHourly:
@@ -131,7 +156,7 @@ func loopAccounting() {
 					usage = usageMillis / 1000 / 60 / 60 / 24
 				}
 
-				usage *= machine.Payment.Price
+				usage *= machineCategory.Payment.Price
 			} else {
 				usage = usageMillis / 1000.0 / 60.0
 			}
@@ -162,16 +187,25 @@ func loopAccounting() {
 				log.Warn("Failed to report usage: %v", err)
 			}
 		}
+		//batch.End()
 
 		nextComputeAccountingTime = now.Add(30 * time.Second)
 	}
 }
 
+// Lists jobs in slurm.
+// Starts in-memory representation of active jobs
+// Get active jobs (from memory)
+// Generate list of jobsIds by Slurm id
+// For every job in the list of slurm jobs
+//   Get the state info
+//
+
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
 	batch := ctrl.BeginJobUpdates()
-	activeJobs := batch.GetJobs()
+	activeJobs := ctrl.GetJobs()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -193,7 +227,7 @@ func loopComputeMonitoring() {
 
 		ucloudId, ok := jobsBySlurmId[job.JobID]
 		if !ok {
-			if orc.JobState(job.State) == orc.JobStateInQueue || orc.JobState(job.State) == orc.JobStateRunning {
+			if stateInfo.State == orc.JobStateInQueue || stateInfo.State == orc.JobStateRunning {
 				unknownJobs = append(unknownJobs, &job)
 			}
 			continue
@@ -212,57 +246,57 @@ func loopComputeMonitoring() {
 	// NOTE(Dan): Disabled for now since this in practice creates a lot of registrations of the same job. I suspect
 	// this code has an issue where it does not realise instantly that this job is actually tracked.
 	toRegister := []orc.ProviderRegisteredResource[orc.JobSpecification]{}
-	if false {
-		for _, slurmJob := range unknownJobs {
-			if slurmJob.Account == "" {
-				continue
-			}
-
-			slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
-
-			if !slurmCfg.Present {
-				continue
-			}
-
-			desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
-			safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
-
-			timeAllocation := util.Option[orc.SimpleDuration]{}
-			timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
-
-			createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
-			projectId := util.Option[string]{}
-
-			if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
-				projectId.Set(slurmCfg.Value.Owner.ProjectId)
-			}
-
-			providerJobId := util.Option[string]{
-				Value: parsedProviderJobId{
-					BelongsToAccount: slurmJob.Account,
-					SlurmId:          slurmJob.JobID,
-				}.String(),
-				Present: true,
-			}
-
-			newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
-				Spec: orc.JobSpecification{
-					Name:                  safeName,
-					Application:           unknownApplication,
-					ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
-					Replicas:              slurmCfg.Value.EstimatedNodeCount,
-					Parameters:            make(map[string]orc.AppParameterValue),
-					Resources:             []orc.AppParameterValue{},
-					TimeAllocation:        timeAllocation,
-				},
-				ProviderGeneratedId: providerJobId,
-				CreatedBy:           createdBy,
-				Project:             projectId,
-			}
-
-			toRegister = append(toRegister, newJobResource)
+	//if false {
+	for _, slurmJob := range unknownJobs {
+		if slurmJob.Account == "" {
+			continue
 		}
+
+		slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
+
+		if !slurmCfg.Present {
+			continue
+		}
+
+		desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
+		safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
+
+		timeAllocation := util.Option[orc.SimpleDuration]{}
+		timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
+
+		createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
+		projectId := util.Option[string]{}
+
+		if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
+			projectId.Set(slurmCfg.Value.Owner.ProjectId)
+		}
+
+		providerJobId := util.Option[string]{
+			Value: parsedProviderJobId{
+				BelongsToAccount: slurmJob.Account,
+				SlurmId:          slurmJob.JobID,
+			}.String(),
+			Present: true,
+		}
+
+		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
+			Spec: orc.JobSpecification{
+				Name:                  safeName,
+				Application:           unknownApplication,
+				ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
+				Replicas:              slurmCfg.Value.EstimatedNodeCount,
+				Parameters:            make(map[string]orc.AppParameterValue),
+				Resources:             []orc.AppParameterValue{},
+				TimeAllocation:        timeAllocation,
+			},
+			ProviderGeneratedId: providerJobId,
+			CreatedBy:           createdBy,
+			Project:             projectId,
+		}
+
+		toRegister = append(toRegister, newJobResource)
 	}
+	//}
 	batch.End()
 
 	for _, chunk := range util.ChunkBy(toRegister, 100) {
