@@ -546,6 +546,10 @@ class WorkflowVfs implements Vfs {
         this.isDirty[path] = true;
     }
 
+    isFileDirty(path: string): boolean {
+        return this.isDirty[path] === true;
+    }
+
     private serializeParameters(): string {
         let builder: Record<string, any> = {};
 

@@ -7,7 +7,7 @@ import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {doNothing, extensionFromPath} from "@/UtilityFunctions";
+import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
@@ -25,6 +25,8 @@ export interface Vfs {
     readFile(path: string): Promise<string>;
 
     writeFile(path: string, content: string): Promise<void>;
+
+    isFileDirty(path: string): boolean;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
     setDirtyFileContent(path: string, content: string): void;
@@ -454,7 +456,13 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback((path: string, saveState: boolean): Promise<boolean> => {
+        if (path === props.vfs.path) return new Promise(res => res(true));
+        else if (props.vfs.isFileDirty(path)) {
+            const oldPath = path;
+            readBuffer().then(content => props.vfs.setDirtyFileContent(oldPath, content));
+        }
         props.vfs.path = path;
+
         const cachedContent = state.cachedFiles[path];
         const dataPromise = cachedContent !== undefined ?
             Promise.resolve(cachedContent) :
@@ -503,7 +511,7 @@ export const Editor: React.FunctionComponent<{
             }
             return true;
         }).catch(error => {
-            snackbarStore.addFailure(error, false);
+            snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         });
     }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);

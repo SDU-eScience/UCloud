@@ -95,8 +95,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {Editor, Vfs, VirtualFile} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {UploadState, uploadStore} from "@/Files/Upload";
-import {PackagedFile} from "@/Files/HTML5FileSelector";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1406,7 +1404,7 @@ export function FilePreview({file, contentRef}: {
 function saveDialog(vfs: PreviewVfs) {
     const activePath = vfs.path;
 
-    if (!vfs.isDirty(activePath)) {
+    if (!vfs.isFileDirty(activePath)) {
         snackbarStore.addFailure("File has not been modified.", false);
         return;
     }
@@ -1532,7 +1530,7 @@ class PreviewVfs implements Vfs {
         return toVirtualFiles(result);
     }
 
-    setDirtyFileContent(path: string, content: string): void {    
+    setDirtyFileContent(path: string, content: string): void {
         this.dirtyFileContent[path] = content;
     }
 
@@ -1543,12 +1541,13 @@ class PreviewVfs implements Vfs {
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
 
+
         if (!isDownloadAllowed(file)) {
             throw window.Error("File cannot be viewed in editor");
         }
 
         const contentBlob = await downloadFileContent(path);
-        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());9
+        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
         const text = tryDecodeText(contentBuffer);
         if (!text) {
             addStandardDialog({
@@ -1570,7 +1569,7 @@ class PreviewVfs implements Vfs {
         this.dirtyFiles[path] = true;
     }
 
-    isDirty(path: string): boolean {
+    isFileDirty(path: string): boolean {
         return this.dirtyFiles[path];
     }
 
