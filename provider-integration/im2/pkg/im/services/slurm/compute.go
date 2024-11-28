@@ -130,20 +130,20 @@ func loopAccounting() {
 			}
 
 			// Lookup slurmjob
-			var minutes int64 = 0
+			var seconds int64 = 0
 			for _, sjob := range slurmJobs {
 				if parsed.SlurmId == sjob.JobID {
-					minutes += int64(sjob.Elapsed * job.Status.ResolvedProduct.Cpu)
+					seconds += int64(sjob.Elapsed * job.Status.ResolvedProduct.Cpu)
 				}
 			}
 
-			billing[owner] += minutes
+			billing[owner] += seconds
 		}
 
-		for owner, minutesUsed := range billing {
+		for owner, seconds := range billing {
 			machineCategory := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
 
-			var usageMillis float64 = float64(minutesUsed) * 60000
+			var usageMillis float64 = float64(seconds) * 1000
 			var usage float64 = 0
 
 			if machineCategory.Payment.Type == cfg.PaymentTypeMoney {
