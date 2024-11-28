@@ -1404,20 +1404,20 @@ export function FilePreview({file, contentRef}: {
 }
 
 function saveDialog(vfs: PreviewVfs) {
-    const activePath = vfs.activePath;
+    const activePath = vfs.path;
 
-    if (!vfs.dirtyFiles[activePath]) {
+    if (!vfs.isDirty(activePath)) {
         snackbarStore.addFailure("File has not been modified.", false);
         return;
     }
 
-    prettyFilePath(vfs.activePath).then(p =>
+    prettyFilePath(vfs.path).then(p =>
         addStandardDialog({
             title: "Save file?",
             message: `Upload changes to existing file ${p}?`,
             onConfirm() {
-                vfs.writeFile(vfs.activePath, vfs.dirtyFiles[vfs.activePath]).then(() =>
-                    vfs.updateLocalCache(vfs.activePath)
+                vfs.writeFile(vfs.path, vfs.dirtyFileContent[vfs.path]).then(() =>
+                    vfs.updateLocalCache(vfs.path)
                 );
             },
             onCancel() {}
@@ -1496,14 +1496,16 @@ class PreviewVfs implements Vfs {
     private fetchedFiles: Record<string, string> = {};
     private folders: Record<string, VirtualFile[]> = {};
     private ufiles: Record<string, UFile> = {};
-    public dirtyFiles: Record<string, string> = {};
-    public activePath: string = "";
+    private dirtyFiles: Record<string, boolean> = {};
+    public dirtyFileContent: Record<string, string> = {};
+
+    public path: string = "";
     private navigate: NavigateFunction;
 
     constructor(previewedFile: UFile, content: string, navigate: NavigateFunction) {
         this.ufiles[previewedFile.id] = previewedFile;
         this.fetchedFiles[previewedFile.id] = content;
-        this.activePath = previewedFile.id;
+
         this.navigate = navigate;
     }
 
@@ -1530,12 +1532,12 @@ class PreviewVfs implements Vfs {
         return toVirtualFiles(result);
     }
 
-    notifyDirtyFile(path: string, content: string) {
-        this.dirtyFiles[path] = content;
+    setDirtyFileContent(path: string, content: string): void {    
+        this.dirtyFileContent[path] = content;
     }
 
     async readFile(path: string): Promise<string> {
-        if (this.dirtyFiles[path]) return this.dirtyFiles[path];
+        if (this.dirtyFiles[path]) return this.dirtyFileContent[path];
         if (this.fetchedFiles[path]) return this.fetchedFiles[path];
 
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
@@ -1546,7 +1548,7 @@ class PreviewVfs implements Vfs {
         }
 
         const contentBlob = await downloadFileContent(path);
-        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
+        const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());9
         const text = tryDecodeText(contentBuffer);
         if (!text) {
             addStandardDialog({
@@ -1564,8 +1566,12 @@ class PreviewVfs implements Vfs {
         }
     }
 
-    slowIsDirty(path: string, newContent: string): boolean {
-        return this.fetchedFiles[path] !== newContent;
+    setFileAsDirty(path: string): void {
+        this.dirtyFiles[path] = true;
+    }
+
+    isDirty(path: string): boolean {
+        return this.dirtyFiles[path];
     }
 
     async writeFile(path: string, content: string): Promise<void> {
@@ -1577,7 +1583,7 @@ class PreviewVfs implements Vfs {
     }
 
     updateLocalCache(path: string): void {
-        this.fetchedFiles[path] = this.dirtyFiles[path];
+        this.fetchedFiles[path] = this.dirtyFileContent[path];
         delete this.dirtyFiles[path];
     }
 }

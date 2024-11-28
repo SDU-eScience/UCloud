@@ -215,7 +215,7 @@ const WorkflowEditor: React.FunctionComponent<{
         </>}
         toolbar={<>
             <TooltipV2 tooltip={"Save copy"} contentWidth={100}>
-                <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => setIsSaving(true)}/>
+                <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => setIsSaving(true)} />
                 {!isSaving ? null :
                     <div style={{position: "absolute"}} onMouseMove={stopPropagation}>
                         <div style={{
@@ -243,11 +243,11 @@ const WorkflowEditor: React.FunctionComponent<{
                                     />
                                 </Label>
                                 <Flex gap={"8px"} mt={"8px"}>
-                                    <Box flexGrow={1}/>
+                                    <Box flexGrow={1} />
                                     <Button color={"errorMain"} type={"button"}
-                                            onClick={() => setIsSaving(false)}>Cancel</Button>
+                                        onClick={() => setIsSaving(false)}>Cancel</Button>
                                     <Button color={"successMain"} type={"submit"}
-                                            onMouseDown={() => savingRef.current = true}>Save</Button>
+                                        onMouseDown={() => savingRef.current = true}>Save</Button>
                                 </Flex>
                             </form>
                         </div>
@@ -268,18 +268,18 @@ const WorkflowEditor: React.FunctionComponent<{
                         }}>
                             This workflow already exists, do you want to overwrite it?
                             <Flex gap={"8px"} mt={"8px"}>
-                                <Box flexGrow={1}/>
+                                <Box flexGrow={1} />
                                 <Button color={"errorMain"} type={"button"}
-                                        onClick={() => setIsOverwriting(null)}>No</Button>
+                                    onClick={() => setIsOverwriting(null)}>No</Button>
                                 <Button color={"successMain"} onMouseDown={() => savingRef.current = true}
-                                        onClick={saveOverwritten}>Yes</Button>
+                                    onClick={saveOverwritten}>Yes</Button>
                             </Flex>
                         </div>
                     </div>
                 }
             </TooltipV2>
             <TooltipV2 tooltip={"Use"} contentWidth={100}>
-                <Icon name={"heroPlay"} color={"successMain"} size={"20px"} cursor={"pointer"} onClick={onUse}/>
+                <Icon name={"heroPlay"} color={"successMain"} size={"20px"} cursor={"pointer"} onClick={onUse} />
             </TooltipV2>
         </>}
     />;
@@ -494,6 +494,8 @@ function validateParameter(parameter: any): ApplicationParameter | string {
 class WorkflowVfs implements Vfs {
     workflow: WorkflowSpecification;
     dirtyFiles: Record<string, string> = {};
+    isDirty: Record<string, boolean> = {};
+    path: string;
 
     private knownFiles: VirtualFile[] = [
         {absolutePath: "/" + FILE_NAME_README, isDirectory: false, requestedSyntax: "markdown"},
@@ -536,6 +538,12 @@ class WorkflowVfs implements Vfs {
             default:
                 return "";
         }
+    }
+
+    async writeFile(path: string, content: string): Promise<void> {}
+
+    setFileAsDirty(path: string): void {
+        this.isDirty[path] = true;
     }
 
     private serializeParameters(): string {
@@ -617,10 +625,7 @@ class WorkflowVfs implements Vfs {
         return YAML.stringify(builder);
     }
 
-    async writeFile(path: string, content: string): Promise<void> {
-    }
-
-    notifyDirtyFile(path: string, content: string) {
+    setDirtyFileContent(path: string, content: string) {
         this.dirtyFiles[path] = content;
     }
 }

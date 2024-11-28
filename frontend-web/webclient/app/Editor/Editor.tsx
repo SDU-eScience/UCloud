@@ -18,6 +18,8 @@ import {PrettyFileName} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface Vfs {
+    path: string;
+
     listFiles(path: string): Promise<VirtualFile[]>;
 
     readFile(path: string): Promise<string>;
@@ -25,7 +27,9 @@ export interface Vfs {
     writeFile(path: string, content: string): Promise<void>;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
-    notifyDirtyFile(path: string, content: string): void;
+    setDirtyFileContent(path: string, content: string): void;
+
+    setFileAsDirty(path: string): void;
 }
 
 export interface VirtualFile {
@@ -108,7 +112,9 @@ function defaultEditor(vfs: Vfs, title: string, initialFolder: string, initialFi
     }
 }
 
-function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
+
+// Initial version for reference
+/* function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
     const components = pathComponents(path);
     if (components.length === 0) return root;
 
@@ -116,12 +122,28 @@ function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | nu
     let currentPath = "/";
     for (let i = 0; i < components.length; i++) {
         currentPath += components[i];
-        const node = currentNode.children.find(it => it.file.absolutePath === currentPath || it.file.absolutePath === path);
+        const node = currentNode.children.find(it => it.file.absolutePath === currentPath);
         if (!node) return null;
-        else if (node.file.absolutePath === path) {
-            return node;
-        }
         currentNode = node;
+    }
+    return currentNode;
+}*/
+
+
+function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
+    const components = pathComponents(path.replace(root.file.absolutePath, ""));
+    if (components.length === 0) return root;
+
+    let currentNode = root;
+    let currentPath = root.file.absolutePath + "/";
+    for (let i = 0; i < components.length; i++) {
+        currentPath += components[i]; // TODO(Jonas): Missing adding "/" where applicable
+        const node = currentNode.children.find(it => [currentPath, path].includes(it.file.absolutePath));
+        if (!node) return null;
+        currentNode = node;
+        if (currentNode.file.absolutePath === path) break;
+        // Note(Jonas): If we haven't found the wanted file or directory, the current path must be a directory, and we add the slash
+        currentPath += "/";
     }
     return currentNode;
 }
@@ -432,6 +454,7 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback((path: string, saveState: boolean): Promise<boolean> => {
+        props.vfs.path = path;
         const cachedContent = state.cachedFiles[path];
         const dataPromise = cachedContent !== undefined ?
             Promise.resolve(cachedContent) :
@@ -455,7 +478,7 @@ export const Editor: React.FunctionComponent<{
                 }
 
                 const oldContent = await readBuffer();
-                props.vfs.notifyDirtyFile(state.currentPath, oldContent);
+                props.vfs.setDirtyFileContent(state.currentPath, oldContent);
                 dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
             } else {
                 dispatch({type: "EditorActionOpenFile", path});
@@ -521,7 +544,7 @@ export const Editor: React.FunctionComponent<{
 
         const res = await readBuffer();
         if (didUnmount.current) return;
-        props.vfs.notifyDirtyFile(state.currentPath, res);
+        props.vfs.setDirtyFileContent(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, []);
 
@@ -584,6 +607,10 @@ export const Editor: React.FunctionComponent<{
         });
 
         setEditor(editor);
+
+        m.editor.getEditors().forEach(ed => {
+            ed.onDidChangeModelContent(ev => props.vfs.setFileAsDirty(props.vfs.path));
+        });
     }, [monacoInstance, isSettingsOpen]);
 
     useLayoutEffect(() => {
