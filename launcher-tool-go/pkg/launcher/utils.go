@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -62,6 +63,18 @@ func DebugCommandsGiven() bool {
 func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
+	var composeList []ComposeService
+	Environment{
+		name:        filepath.Base(currentEnvironment.GetAbsolutePath()),
+		repoRoot:    currentEnvironment.Child("../../"),
+		doWriteFile: doWriteFile,
+	}.createComposeFile(
+		[]ComposeService{
+			UCloudBackend{},
+			UCloudFrontend{},
+			ProviderFromName("k8"),
+		},
+	)
 	//TODO
 }
 

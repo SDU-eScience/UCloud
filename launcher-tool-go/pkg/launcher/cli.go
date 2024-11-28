@@ -143,7 +143,7 @@ func cliIntercept(args []string) {
 				PrintHelp()
 			}
 
-			if !slices.Contains(provider.addons, addonName) {
+			if provider.addons[addonName] == "" {
 				fmt.Println("Unknown addon:", addonName, "! Try on of the following:")
 				for _, addon := range provider.addons {
 					fmt.Println(" - ", addon)
@@ -155,10 +155,19 @@ func cliIntercept(args []string) {
 			GenerateComposeFile(true)
 			SyncRepository()
 
-			err := termio.LoadingIndicator("starting addon containers", func tail() {compose.up(currentEnvironment, true).executeToText()})
+			err := termio.LoadingIndicator("starting addon containers", func(output *os.File) error {
+				compose.Up(currentEnvironment, true).executeToText()
+				return nil
+			})
 			SoftCheck(err)
 
-			err = termio.LoadingIndicator(strings.Join("Installing addon ", providerName, "/", addonName), func tail() {provider.installAddon(addonName); provider.startAddon(addonName)})
+			err = termio.LoadingIndicator(strings.Join([]string{"Installing addon ", providerName, "/", addonName}, ""), func(output *os.File) error {
+				if provider.name == "go-slurm" {
+					goSlurm.installAddon(addonName)
+					goSlurm.startAddon(addonName)
+				}
+				return nil
+			})
 			SoftCheck(err)
 		}
 	case "env", "environment":

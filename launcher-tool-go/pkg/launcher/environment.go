@@ -122,7 +122,7 @@ func AddProvider(providerId string) {
 	//TODO()
 }
 
-func ListAddons() {
+func ListAddons() map[string]map[string]string {
 	//TODO()
 }
 

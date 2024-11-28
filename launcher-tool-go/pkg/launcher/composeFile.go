@@ -1,13 +1,11 @@
 package launcher
 
 import (
-	"context"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -27,23 +25,18 @@ type PortAllocator interface {
 	Allocate(port int) int
 }
 
-type abstractPortAllocator struct{ PortAllocator }
+type Direct struct {}
 
-type Direct struct {
-	abstractPortAllocator
-}
-
-func (d Direct) allocate(port int) int {
+func (d Direct) Allocate(port int) int {
 	return port
 }
 
 type Remapped struct {
-	abstractPortAllocator
 	portAllocator  int
 	allocatedPorts map[int]int
 }
 
-func (r Remapped) allocate(port int) int {
+func (r Remapped) Allocate(port int) int {
 	r.allocatedPorts[port] = r.portAllocator
 	r.portAllocator++
 	return r.portAllocator
@@ -56,7 +49,7 @@ type Environment struct {
 }
 
 func GetDataDirectory() string {
-	path, _ := filepath.Abs(currentEnvironment.Name())
+	path := currentEnvironment.GetAbsolutePath()
 	exists, _ := os.Stat(path)
 	if exists == nil {
 		HardCheck(os.MkdirAll(path, 644))
@@ -70,7 +63,7 @@ type ComposeBuilder struct {
 	services    map[string]Json
 }
 
-func (c ComposeBuilder) createComposeFile() string {
+func (c ComposeBuilder) CreateComposeFile() string {
 	sb := strings.Builder{}
 	sb.WriteString(`{ "services": {`)
 	var index = 0
@@ -110,7 +103,7 @@ func (c ComposeBuilder) createComposeFile() string {
 	return sb.String()
 }
 
-func (c ComposeBuilder) service(
+func (c ComposeBuilder) Service(
 	name string,
 	title string,
 	compose Json,
@@ -132,7 +125,7 @@ func (c ComposeBuilder) service(
 	}
 }
 
-func (e Environment) createComposeFile(services []ComposeService) LFile {
+func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 	disableRemoteFileWriting := !e.doWriteFile
 	loadingTitle := ""
 	if e.doWriteFile {
@@ -147,13 +140,20 @@ func (e Environment) createComposeFile(services []ComposeService) LFile {
 		func(output *os.File) error {
 			var err error
 			cb := ComposeBuilder{e, map[string]string{}, map[string]Json{}}
-			for _, service := range cb.services {
-				context.TODO()
+			for _, service := range services {
+				service.Build(cb)
 			}
 
 			allAddons := ListAddons()
-			for providerName, addons := range allAddons {
-				context.TODO()
+			for _, allAddon := range allAddons {
+				for providerName, addon := range allAddon {
+					provider := ProviderFromName(providerName)
+					v, ok := provider.(GoSlurm)
+					if ok {
+						v.BuildAddon(cb, addon)
+					}
+
+				}
 			}
 
 			file, err := os.Open(GetDataDirectory())
@@ -163,7 +163,7 @@ func (e Environment) createComposeFile(services []ComposeService) LFile {
 			}
 			lfile := LocalFile{file, abstractLFile{}}
 			childFile := lfile.Child("docker-compose.yaml")
-			childFile.File.WriteString(cb.createComposeFile())
+			childFile.File.WriteString(cb.CreateComposeFile())
 			return err
 		},
 	)
@@ -171,48 +171,45 @@ func (e Environment) createComposeFile(services []ComposeService) LFile {
 	return lfile.LFile
 }
 
-type ComposeService struct {
+type ComposeService interface {
+	Build(cb ComposeBuilder)
 }
 
-type Provider struct {
-	ComposeService
-	name                string
-	title               string
-	canRegisterProducts bool
-	addons              map[string]string
+type Provider interface {
+	Name() string
+	Title() string
+	CanRegisterProducts() bool
+	Addons() map[string]string
 }
 
-func NewProvider() *Provider {
-	return &Provider{
-		name:                "",
-		title:               "",
-		canRegisterProducts: false,
-		addons:              map[string]string{},
-	}
+var kubernetes Kubernetes
+var slurm Slurm
+var goSlurm GoSlurm
+var goKubernetes GoKubernetes
+
+var AllProviders []Provider
+
+var AllProviderNames = []string {
+	"k8",
+	"slurm",
+	"go-slurm",
+	"gok8s",
 }
 
-var AllProviders = []Provider{
-	Kubernetes,
-	Slurm,
-	GoSlurm,
-	GoKubernetes,
-}
-
-func providerFromName(name string) *Provider {
+func ProviderFromName(name string) Provider {
+	if !slices.Contains(AllProviderNames, name) { log.Fatal("Unknown Provider " + name)}
 	found := slices.IndexFunc(AllProviders, func(provider Provider) bool {
-		return provider.name == name
+		return provider.Name() == name
 	})
 	if found == -1 {
 		log.Fatal("No such provider: " + name)
 	}
-	return &AllProviders[found]
+	return AllProviders[found]
 }
 
-type UCloudBackend struct {
-	ComposeService
-}
+type UCloudBackend struct {}
 
-func (uc UCloudBackend) build(cb ComposeBuilder) {
+func (uc UCloudBackend) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	logs := LocalFile{File: dataDirectory}.Child("logs")
@@ -221,7 +218,7 @@ func (uc UCloudBackend) build(cb ComposeBuilder) {
 	gradleDir := LocalFile{File: dataDirectory}.Child("backend-gradle")
 	postgresDataDir := LocalFile{File: dataDirectory}.Child("pg-data")
 
-	cb.service(
+	cb.Service(
 		"backend",
 		"UCloud/Core: Backend",
 		Json{
@@ -254,7 +251,7 @@ func (uc UCloudBackend) build(cb ComposeBuilder) {
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"postgres",
 		"UCloud/Core: Postgres",
 		Json{
@@ -283,7 +280,7 @@ func (uc UCloudBackend) build(cb ComposeBuilder) {
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"pgweb",
 		"UCloud/Core: Postgres UI",
 		Json{
@@ -316,7 +313,7 @@ func (uc UCloudBackend) build(cb ComposeBuilder) {
 	)
 
 	redisDataDir := LocalFile{File: dataDirectory}.Child("redis-data")
-	cb.service(
+	cb.Service(
 		"redis",
 		"UCloud/Core: Redis",
 		Json{
@@ -340,12 +337,10 @@ func (uc UCloudBackend) build(cb ComposeBuilder) {
 	)
 }
 
-type UCloudFrontend struct {
-	ComposeService
-}
+type UCloudFrontend struct {}
 
-func (uf UCloudFrontend) build(cb ComposeBuilder) {
-	cb.service(
+func (uf UCloudFrontend) Build(cb ComposeBuilder) {
+	cb.Service(
 		"frontend",
 		"UCloud/Core: Frontend",
 		Json{
@@ -383,16 +378,38 @@ type ProviderCredentials struct {
 }
 
 type Kubernetes struct {
-	Provider
+	name string
+	title string
+	canRegisterProducts bool
+	addons map[string]string
 }
 
 func NewKubernetes() Kubernetes {
 	return Kubernetes{
-		Provider{name: "k8", title: "Kubernetes", canRegisterProducts: true, addons: map[string]string{}},
+		name: "k8",
+		title: "Kubernetes",
+		canRegisterProducts: true,
+		addons: map[string]string{},
 	}
 }
 
-func (k Kubernetes) build(cb ComposeBuilder) {
+func (k Kubernetes) Name() string  {
+	return k.name
+}
+
+func (k Kubernetes) Title() string {
+	return k.title
+}
+
+func (k Kubernetes) CanRegisterProducts() bool {
+	return k.canRegisterProducts
+}
+
+func (k Kubernetes) Addons() map[string]string {
+	return k.addons
+}
+
+func (k Kubernetes) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	k8Provider := LocalFile{File: dataDirectory}.Child("k8")
@@ -444,7 +461,7 @@ func (k Kubernetes) build(cb ComposeBuilder) {
 		)
 	}
 
-	cb.service(
+	cb.Service(
 		"k3",
 		"K8 Provider: K3s Node",
 		Json{
@@ -479,7 +496,7 @@ func (k Kubernetes) build(cb ComposeBuilder) {
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"k8",
 		"K8 Provider: Integration module",
 		Json{
@@ -509,7 +526,7 @@ func (k Kubernetes) build(cb ComposeBuilder) {
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"k8pgweb",
 		"K8 Provider: Postgres UI",
 		Json{
@@ -533,13 +550,13 @@ func (k Kubernetes) build(cb ComposeBuilder) {
 	)
 }
 
-func (k Kubernetes) install(credentials ProviderCredentials) {
-	k8Provider := LocalFile{File: currentEnvironment}.Child("k8")
+func (k Kubernetes) Install(credentials ProviderCredentials) {
+	k8Provider := currentEnvironment.Child("k8")
 	imDir := k8Provider.Child("im")
 	imData := imDir.Child("data")
 
 	installMarker := imData.Child(".install-marker")
-	info, err := os.Stat(installMarker.File.Name())
+	info, err := os.Stat(installMarker.Name())
 	HardCheck(err)
 	if info != nil {
 		return
@@ -813,22 +830,38 @@ func (k Kubernetes) install(credentials ProviderCredentials) {
 }
 
 type GoKubernetes struct {
-	Provider
+	name string
+	title string
+	canRegisterProducts bool
+	addons map[string]string
 }
 
 func NewGoKubernetes() *GoKubernetes {
 	return &GoKubernetes{
-		Provider{
-			ComposeService:      ComposeService{},
-			name:                "gok8s",
-			title:               "Kubernetes (IM2)",
-			canRegisterProducts: true,
-			addons: make(map[string]string),
-		},
+		name:                "gok8s",
+		title:               "Kubernetes (IM2)",
+		canRegisterProducts: true,
+		addons:              make(map[string]string),
 	}
 }
 
-func (k *GoKubernetes) build(cb ComposeBuilder) {
+func (g GoKubernetes) Name() string {
+	return g.name
+}
+
+func (g GoKubernetes) Title() string {
+	return g.title
+}
+
+func (g GoKubernetes) CanRegisterProducts() bool {
+	return g.canRegisterProducts
+}
+
+func (g GoKubernetes) Addons() map[string]string {
+	return g.addons
+}
+
+func (k GoKubernetes) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	k8Provider := LocalFile{File: dataDirectory}.Child("im2k8")
@@ -852,7 +885,7 @@ func (k *GoKubernetes) build(cb ComposeBuilder) {
 	imStorage.Child("collections")
 	imStorage.Child("trash")
 
-	cb.service(
+	cb.Service(
 		"im2k3",
 		"K8 Provider: K3s Node",
 		Json{
@@ -887,7 +920,7 @@ func (k *GoKubernetes) build(cb ComposeBuilder) {
 		"",
 		)
 
-	cb.service(
+	cb.Service(
 		"gok8s",
 		"K8 Provider: Integration module",
 		Json{
@@ -916,7 +949,7 @@ func (k *GoKubernetes) build(cb ComposeBuilder) {
 	)
 
 	postgresDataDir := cb.environment.repoRoot.Child("go-slurm-pg-data")
-	cb.service(
+	cb.Service(
 		"go-k8s-postgres",
 		"Kubernetes (IM2): Postgres",
 		Json{
@@ -948,7 +981,7 @@ func (k *GoKubernetes) build(cb ComposeBuilder) {
 	)
 }
 
-func (k *GoKubernetes) install() {
+func (k GoKubernetes) Install() {
 	k8Provider := currentEnvironment.Child("im2k8")
 	imDir := k8Provider.Child("im")
 	imData := imDir.Child("data")
@@ -1066,26 +1099,42 @@ func (k *GoKubernetes) install() {
 }
 
 type Slurm struct {
-	Provider
+	name string
+	title string
+	canRegisterProducts bool
+	addons map[string]string
 	// NOTE(Dan): Please keep this number relatively stable. This will break existing installations if it moves
 	// around too much.
 	numberOfSlurmNodes int
 }
 
-func newSlurmProvider(numberOfSlurmNodes int) *Slurm {
+func NewSlurmProvider(numberOfSlurmNodes int) *Slurm {
 	return &Slurm{
-		Provider{
-			ComposeService:      ComposeService{},
-			name:                "slurm",
-			title:               "slurm",
-			canRegisterProducts: true,
-			addons: make(map[string]string),
-		},
-		numberOfSlurmNodes,
+		name:                "slurm",
+		title:               "slurm",
+		canRegisterProducts: true,
+		addons:              make(map[string]string),
+		numberOfSlurmNodes:  numberOfSlurmNodes,
 	}
 }
 
-func (s Slurm) build(cb ComposeBuilder)  {
+func (s Slurm) Name() string {
+	return s.name
+}
+
+func (s Slurm) Title() string {
+	return s.title
+}
+
+func (s Slurm) CanRegisterProducts() bool {
+	return s.canRegisterProducts
+}
+
+func (s Slurm) Addons() map[string]string {
+	return s.addons
+}
+
+func (s Slurm) Build(cb ComposeBuilder)  {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	slurmProvider := LocalFile{File: dataDirectory}.Child("slurm")
@@ -1105,12 +1154,12 @@ func (s Slurm) build(cb ComposeBuilder)  {
 		shadowFile.WriteText("")
 	}
 
-	info := slurmBuild(cb, s, imDir)
+	info := SlurmBuild(cb, s, imDir)
 	imHome := info.imHome
 	imWork := info.imWork
 	etcSlurm := info.etcSlurm
 
-	cb.service(
+	cb.Service(
 		"slurm",
 		"Slurm Provider: Integration module",
 		Json{
@@ -1142,7 +1191,7 @@ func (s Slurm) build(cb ComposeBuilder)  {
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"slurmpgweb",
 		"Slurm Provider: Postgres UI",
 		Json{
@@ -1166,7 +1215,7 @@ func (s Slurm) build(cb ComposeBuilder)  {
 	)
 }
 
-func (s Slurm) install(credentials ProviderCredentials) {
+func (s Slurm) Install(credentials ProviderCredentials) {
 	slurmProvider := currentEnvironment.Child("slurm")
 	imDir := slurmProvider.Child("im")
 	imData := imDir.Child("data")
@@ -1294,30 +1343,44 @@ func (s Slurm) install(credentials ProviderCredentials) {
 		`,
 	)
 
-	slurmInstall("slurm")
+	SlurmInstall("slurm")
 	installMarker.WriteText("done")
 
 }
 
 type GoSlurm struct {
-	Provider
+	name string
+	title string
 	canRegisterProducts bool
+	addons map[string]string
 }
 
-func NewGoSlurm(canRegisterProducts bool) *GoSlurm  {
-	return &GoSlurm{
-		Provider{
-			ComposeService:      ComposeService{},
-			name:                "go-slurm",
-			title:               "Slurm (Go test)",
-			canRegisterProducts: true,
-			addons: make(map[string]string),
-		},
-		canRegisterProducts,
+func NewGoSlurm(canRegisterProducts bool) GoSlurm  {
+	return GoSlurm{
+		name:                "go-slurm",
+		title:               "Slurm (Go test)",
+		canRegisterProducts: canRegisterProducts,
+		addons:              make(map[string]string),
 	}
 }
 
-func (gs GoSlurm) build(cb ComposeBuilder) {
+func (g GoSlurm) Name() string {
+	return g.name
+}
+
+func (g GoSlurm) Title() string {
+	return g.title
+}
+
+func (g GoSlurm) CanRegisterProducts() bool {
+	return g.canRegisterProducts
+}
+
+func (g GoSlurm) Addons() map[string]string {
+	return g.addons
+}
+
+func (gs GoSlurm) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	provider := LocalFile{File: dataDirectory}.Child("go-slurm")
@@ -1351,12 +1414,12 @@ func (gs GoSlurm) build(cb ComposeBuilder) {
 		)
 	}
 
-	info := slurmBuild(cb, gs, imDir)
+	info := SlurmBuild(cb, gs, imDir)
 	imHome := info.imHome
 	imWork := info.imWork
 	etcSlurm := info.etcSlurm
 
-	cb.service(
+	cb.Service(
 		"go-slurm",
 		"Slurm (Go test)",
 		Json{
@@ -1401,7 +1464,7 @@ func (gs GoSlurm) build(cb ComposeBuilder) {
 
 	postgresDataDir := LocalFile{ File: dataDirectory }.Child("go-slurm-pg-data")
 
-	cb.service(
+	cb.Service(
 		"go-slurm-postgres",
 		"Slurm (Go): Postgres",
 		Json{
@@ -1433,7 +1496,7 @@ func (gs GoSlurm) build(cb ComposeBuilder) {
 	)
 }
 
-func (gs GoSlurm) install(credentials ProviderCredentials)  {
+func (gs GoSlurm) Install(credentials ProviderCredentials)  {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	slurmProvider := LocalFile{File: dataDirectory}.Child("go-slurm")
@@ -1452,7 +1515,7 @@ func (gs GoSlurm) install(credentials ProviderCredentials)  {
 
 	imDataDir.Child("ucloud_crt.pem").WriteText(credentials.publicKey)
 
-	slurmInstall("go-slurm")
+	SlurmInstall("go-slurm")
 
 	installMarker.WriteText("done")
 }
@@ -1460,17 +1523,17 @@ func (gs GoSlurm) install(credentials ProviderCredentials)  {
 const FREE_IPA_ADDON = "free-ipa"
 
 
-func (gs GoSlurm) Addons() {
+func (gs GoSlurm) AddFreeIpaAddon() {
 	gs.addons[FREE_IPA_ADDON] = FREE_IPA_ADDON
 }
 
-func (gs GoSlurm) buildAddon(cb ComposeBuilder, addon string) {
+func (gs GoSlurm) BuildAddon(cb ComposeBuilder, addon string) {
 	switch addon {
 		case FREE_IPA_ADDON: {
 			freeIpa := "freeipaDataDir"
 			cb.volumes[freeIpa] = freeIpa
 
-			cb.service(
+			cb.Service(
 				"free-ipa",
 				"FreeIPA",
 				Json{
@@ -1511,7 +1574,7 @@ func (gs GoSlurm) buildAddon(cb ComposeBuilder, addon string) {
 	}
 }
 
-func (gs GoSlurm) installAddon(addon string)  {
+func (gs GoSlurm) InstallAddon(addon string)  {
 	switch addon {
 		case FREE_IPA_ADDON: {
 			compose.Exec(
@@ -1549,7 +1612,7 @@ func (gs GoSlurm) installAddon(addon string)  {
 	}
 }
 
-func enrollClient( client string) {
+func EnrollClient( client string) {
 	fmt.Println("Enrolling " + client + " in FreeIPA...")
 
 	// NOTE(Dan): This will "fail" with a bunch of errors and warnings because of systemd.
@@ -1582,7 +1645,7 @@ func enrollClient( client string) {
 	).streamOutput().executeToText()
 }
 
-func (gs GoSlurm) startAddon(addon string) {
+func (gs GoSlurm) StartAddon(addon string) {
 	switch addon {
 		case FREE_IPA_ADDON: {
 			clientsToEnroll := []string{
@@ -1595,16 +1658,14 @@ func (gs GoSlurm) startAddon(addon string) {
 			wg := sync.WaitGroup{}
 			wg.Add(len(clientsToEnroll))
 			for _, client := range clientsToEnroll {
-				go enrollClient(client)
+				go EnrollClient(client)
 			}
 			wg.Wait()
 		}
 	}
 }
 
-type GateWay struct {
-	ComposeService
-}
+type GateWay struct {}
 
 //go:embed tls.crt
 var crt []byte
@@ -1612,7 +1673,7 @@ var crt []byte
 //go:embed tls.key
 var key []byte
 
-func (gw GateWay) build(cb ComposeBuilder) {
+func (gw GateWay) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	gatewayDir := LocalFile{File: dataDirectory}.Child("gateway")
@@ -1743,7 +1804,7 @@ func (gw GateWay) build(cb ComposeBuilder) {
 		`,
 	)
 
-	cb.service(
+	cb.Service(
 		"gateway",
 		"Gateway",
 		Json{
@@ -1781,7 +1842,7 @@ type SlurmInfo struct {
 	etcSlurm string
 }
 
-func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInfo {
+func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInfo {
 	imHome := imDir.Child("home")
 	imWork := imDir.Child("work")
 	imMySQLDb := "immysql"
@@ -1804,7 +1865,7 @@ func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile
 		shadowFile.WriteText("")
 	}
 
-	cb.service(
+	cb.Service(
 		"mysql",
 		"Slurm Provider: MySQL (SlurmDB)",
 		Json{
@@ -1836,7 +1897,7 @@ func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"slurmdbd",
 		"Slurm Provider: slurmdbd",
 		Json{
@@ -1867,7 +1928,7 @@ func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile
 		"",
 	)
 
-	cb.service(
+	cb.Service(
 		"slurmctld",
 		"Slurm Provider: slurmctld",
 		Json{
@@ -1898,13 +1959,15 @@ func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile
 		"",
 	)
 
-	for id := range s.numberOfSlurmNodes {
-		cb.service(
-			"c" + strconv.Itoa(id),
-			"Slurm Provider: Compute node $id",
-			Json{
-				//language=json
-				`
+	v, ok := service.(Slurm)
+	if (ok) {
+		for id := range v.numberOfSlurmNodes {
+			cb.Service(
+				"c"+strconv.Itoa(id),
+				"Slurm Provider: Compute node $id",
+				Json{
+					//language=json
+					`
 				{
 					"image": "` + slurmImage + `",
 					"command": ["slurmd", "sshd", "user-sync"],
@@ -1922,18 +1985,19 @@ func (s Slurm) slurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile
 					"restart": "always"
 				}
 				`,
-			},
-			true,
-			true,
-			false,
-			"",
-			"",
-		)
+				},
+				true,
+				true,
+				false,
+				"",
+				"",
+			)
+		}
 	}
 	return SlurmInfo{ imHome: imHome, imWork: imWork, etcSlurm: etcSlurm}
 }
 
-func slurmInstall(providerContainer string)  {
+func SlurmInstall(providerContainer string)  {
 	for range 30 {
 		success := compose.Exec(
 			currentEnvironment,

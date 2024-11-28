@@ -15,6 +15,7 @@ type LFile interface {
 	AppendText(text string)
 	Delete()
 	MkDirs()
+	Name() string
 }
 
 type abstractLFile struct {
