@@ -28,7 +28,6 @@ type ExecutableCommand struct {
 	postProcessor    string
 	allowFailure     bool
 	deadlineInMillis int64
-	streamOutput     bool
 }
 
 func NewExecutableCommand(
@@ -45,7 +44,6 @@ func NewExecutableCommand(
 		postProcessor:    postProcessor,
 		allowFailure:     allowFailure,
 		deadlineInMillis: deadlineInMillis,
-		streamOutput:     streamOutput,
 	}
 }
 
