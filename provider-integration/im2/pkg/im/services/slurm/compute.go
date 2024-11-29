@@ -109,41 +109,17 @@ const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
 
 var nextComputeAccountingTime = time.Now()
 
+// Get jobs and report usage to UCloud core
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
-		billing := make(map[SlurmAccountOwner]int64)
-
-		activeJobs := ctrl.GetJobs()
-		slurmJobs := SlurmClient.JobList()
+		billing := Accounting.FetchUsageInMinutes()
 
 		var reportItems []apm.UsageReportItem
-		for _, job := range activeJobs {
-			parsed, ok := parseJobProviderId(job.ProviderGeneratedId)
-			if !ok {
-				continue
-			}
-
-			owner := SlurmAccountOwner{
-				AssociatedWithCategory: job.Status.ResolvedProduct.Category.Name,
-				Owner:                  apm.WalletOwnerFromIds(job.Owner.CreatedBy, job.Owner.Project),
-			}
-
-			// Lookup slurmjob
-			var seconds int64 = 0
-			for _, sjob := range slurmJobs {
-				if parsed.SlurmId == sjob.JobID {
-					seconds += int64(sjob.Elapsed * job.Status.ResolvedProduct.Cpu)
-				}
-			}
-
-			billing[owner] += seconds
-		}
-
 		for owner, seconds := range billing {
 			machineCategory := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
 
-			var usageMillis float64 = float64(seconds) * 1000
+			var usageMillis float64 = float64(seconds) * 1000 * 60
 			var usage float64 = 0
 
 			if machineCategory.Payment.Type == cfg.PaymentTypeMoney {
@@ -187,20 +163,12 @@ func loopAccounting() {
 				log.Warn("Failed to report usage: %v", err)
 			}
 		}
-		//batch.End()
 
 		nextComputeAccountingTime = now.Add(30 * time.Second)
 	}
 }
 
-// Lists jobs in slurm.
-// Starts in-memory representation of active jobs
-// Get active jobs (from memory)
-// Generate list of jobsIds by Slurm id
-// For every job in the list of slurm jobs
-//   Get the state info
-//
-
+// Monitor running jobs, and register unknown jobs to UCloud
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
