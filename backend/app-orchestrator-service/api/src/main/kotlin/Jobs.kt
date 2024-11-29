@@ -582,6 +582,7 @@ data class JobsOpenInteractiveSessionRequestItem(
     val id: String,
     val rank: Int,
     val sessionType: InteractiveSessionType,
+    val target: String? = null,
 )
 
 typealias JobsOpenInteractiveSessionResponse = BulkResponse<OpenSessionWithProvider?>
