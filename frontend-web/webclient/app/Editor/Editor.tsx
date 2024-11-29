@@ -455,8 +455,8 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const openFile = useCallback((path: string, saveState: boolean): Promise<boolean> => {
-        if (path === props.vfs.path) return new Promise(res => res(true));
+    const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
+        if (path === props.vfs.path) return true;
         else if (props.vfs.isFileDirty(path)) {
             const oldPath = path;
             readBuffer().then(content => props.vfs.setDirtyFileContent(oldPath, content));
@@ -470,7 +470,8 @@ export const Editor: React.FunctionComponent<{
 
         const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
 
-        return dataPromise.then(async content => {
+        try {
+            const content = await dataPromise;
             const editor = editorRef.current;
             const engine = engineRef.current;
             const isSettingsOpen = settingsOpenRef.current;
@@ -510,10 +511,10 @@ export const Editor: React.FunctionComponent<{
                 monaco.editor.setModelLanguage(editor.getModel(), syntax);
             }
             return true;
-        }).catch(error => {
+        } catch (error) {
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
-        });
+        }
     }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
 
     useEffect(() => {
@@ -552,7 +553,7 @@ export const Editor: React.FunctionComponent<{
 
         const res = await readBuffer();
         if (didUnmount.current) return;
-        props.vfs.setDirtyFileContent(state.currentPath, res);
+        if (props.vfs.isFileDirty(state.currentPath)) props.vfs.setDirtyFileContent(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, []);
 
@@ -617,7 +618,10 @@ export const Editor: React.FunctionComponent<{
         setEditor(editor);
 
         m.editor.getEditors().forEach(ed => {
-            ed.onDidChangeModelContent(ev => props.vfs.setFileAsDirty(props.vfs.path));
+            ed.onDidChangeModelContent(ev => {
+                if (ev.isFlush) return;
+                props.vfs.setFileAsDirty(props.vfs.path)
+            });
         });
     }, [monacoInstance, isSettingsOpen]);
 

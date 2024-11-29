@@ -93,7 +93,7 @@ import {
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {Editor, Vfs, VirtualFile} from "@/Editor/Editor";
+import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
@@ -1348,6 +1348,8 @@ export function FilePreview({file, contentRef}: {
         return () => void 0;
     }, [type, data]);
 
+    const editorRef = React.useRef<EditorApi>(null);
+
     if (file.status.type !== "FILE") return null;
     if (data === "" && !error) return <PredicatedLoadingSpinner loading />
 
@@ -1368,9 +1370,9 @@ export function FilePreview({file, contentRef}: {
                 setVfs(vfsVar);
             }
 
-            node = <Editor toolbarBeforeSettings={
+            node = <Editor apiRef={editorRef} toolbarBeforeSettings={
                 <TooltipV2 tooltip={"Upload"} contentWidth={80}>
-                    <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar)} />
+                    <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar, editorRef?.current?.notifyDirtyBuffer)} />
                 </TooltipV2>} initialFolderPath={removeTrailingSlash(getParentPath(file.id))} initialFilePath={file.id} title={vfsTitle} vfs={vfsVar}
             />;
             break;
@@ -1401,7 +1403,7 @@ export function FilePreview({file, contentRef}: {
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
-function saveDialog(vfs: PreviewVfs) {
+function saveDialog(vfs: PreviewVfs, saveBufferContent?: () => void) {
     const activePath = vfs.path;
 
     if (!vfs.isFileDirty(activePath)) {
@@ -1409,6 +1411,12 @@ function saveDialog(vfs: PreviewVfs) {
         return;
     }
 
+    if (!saveBufferContent) {
+        snackbarStore.addFailure("Cannot read text contents.", false);
+        return;
+    }
+
+    saveBufferContent();
     prettyFilePath(vfs.path).then(p =>
         addStandardDialog({
             title: "Save file?",
