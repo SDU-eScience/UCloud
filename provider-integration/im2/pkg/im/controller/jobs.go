@@ -212,6 +212,7 @@ func controllerJobs(mux *http.ServeMux) {
 			Job         *orc.Job                   `json:"job"`
 			Rank        int                        `json:"rank"`
 			SessionType orc.InteractiveSessionType `json:"sessionType"`
+			Target      string                     `json:"target",omitempty`
 		}
 
 		mux.HandleFunc(jobContext+"interactiveSession", HttpUpdateHandler[fnd.BulkRequest[openInteractiveSessionRequest]](
