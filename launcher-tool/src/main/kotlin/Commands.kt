@@ -9,6 +9,7 @@ import java.net.URI
 import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import kotlin.system.exitProcess
 
 object Commands {
     fun portForward() {
@@ -32,6 +33,50 @@ object Commands {
                 sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null $forward ${conn.username}@${conn.host} sleep inf  
             """.trimIndent()
         )
+    }
+
+    fun installCertificates() {
+        postExecFile.appendText(
+            """
+                HERE=${"$"}PWD
+                TEMP_DIR=${'$'}(mktemp -d)
+                cd ${"$"}TEMP_DIR
+                
+                echo;
+                echo;
+                echo;
+                echo "This command will install a root certificate required for local development. You will be prompted for your local sudo password during the installation."
+                echo "This process has several dependencies. See https://github.com/FiloSottile/mkcert for more information."
+                echo;
+                echo;
+                echo;
+                sleep 2;
+                
+                git clone https://github.com/FiloSottile/mkcert && cd mkcert
+                git checkout v1.4.4
+                go build -ldflags "-X main.Version=${'$'}(git describe --tags)"
+                ./mkcert localhost.direct "*.localhost.direct"
+                ./mkcert -install
+                mv *key.pem tls.key
+                mv *.pem tls.crt
+                
+                cd ${"$"}HERE
+                ./launcher write-certs ${"$"}TEMP_DIR
+                
+            """.trimIndent()
+        )
+    }
+
+    fun writeCertificates(localPath: String) {
+        val gw = currentEnvironment.also { it.mkdirs() }.child("gateway").also { it.mkdirs() }.child("certs").also { it.mkdirs() }
+        val dest = File(localPath, "mkcert")
+
+        val key = File(dest, "tls.key").readBytes()
+        val cert = File(dest, "tls.crt").readBytes()
+
+        gw.child("tls.key").writeBytes(key)
+        gw.child("tls.crt").writeBytes(cert)
+        exitProcess(0)
     }
 
     fun openUserInterface(serviceName: String) {
