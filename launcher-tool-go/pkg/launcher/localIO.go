@@ -44,7 +44,7 @@ func (lf LocalFile) Exists() bool {
 	}
 }
 
-func (lf LocalFile) Child(subPath string) LocalFile {
+func (lf LocalFile) Child(subPath string) LFile {
 	var file *os.File
 	file, err := os.Open(lf.GetAbsolutePath() + subPath)
 	if err != nil {
