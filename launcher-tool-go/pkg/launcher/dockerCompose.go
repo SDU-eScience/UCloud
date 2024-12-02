@@ -1,7 +1,6 @@
 package launcher
 
 import (
-	"log"
 	"strings"
 )
 
@@ -9,7 +8,7 @@ var compose DockerCompose
 
 type DockerCompose interface {
 	Up(directory LFile, noRecreate bool)
-	Down(directory LFile, noRecreate bool)
+	Down(directory LFile, deleteVolumes bool)
 	Ps(directory LFile)
 	Logs(directory LFile, container string)
 	Start(directory LFile, container string)
@@ -49,6 +48,8 @@ func (c Classic) Up(directory LFile, noRecreate bool) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
+
 	}
 }
 
@@ -64,6 +65,7 @@ func (c Classic) Down(directory LFile, deleteVolumes bool) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -76,6 +78,7 @@ func (c Classic) Ps(directory LFile) {
 		"",
 		true,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -91,6 +94,7 @@ func (c Classic) Logs(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -110,6 +114,7 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -123,6 +128,7 @@ func (c Classic) Start(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -136,6 +142,7 @@ func (c Classic) Stop(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -175,6 +182,7 @@ func (p Plugin) Up(directory LFile, noRecreate bool) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -194,6 +202,7 @@ func (p Plugin) Down(directory LFile, deleteVolumes bool) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -206,6 +215,7 @@ func (p Plugin) Ps(directory LFile) {
 		"",
 		true,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -221,6 +231,7 @@ func (p Plugin) Logs(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -240,6 +251,7 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -253,6 +265,7 @@ func (p Plugin) Start(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 
@@ -266,6 +279,7 @@ func (p Plugin) Stop(directory LFile, container string) {
 		"",
 		false,
 		1000 * 60 * 5,
+		false,
 	}
 }
 

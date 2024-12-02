@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+type StringPair struct {
+	first, second string
+}
+
 func SoftCheck(e error) {
 	if e != nil {
 		log.Println(e)

@@ -18,33 +18,18 @@ type LFile interface {
 	Name() string
 }
 
-type abstractLFile struct {
-	LFile
+type ExecutableCommandInterface interface {
+	ToBashScript() string
+	ExecuteToText() StringPair
 }
 
 type ExecutableCommand struct {
 	args             []string
 	workingDir       LFile
-	postProcessor    string
+	fn               postProcessor
 	allowFailure     bool
 	deadlineInMillis int64
-}
-
-func NewExecutableCommand(
-	args []string,
-	workingDir LFile,
-	postProcessor string,
-	allowFailure bool,
-	deadlineInMillis int64,
-	streamOutput bool,
-) ExecutableCommand {
-	return ExecutableCommand{
-		args:             args,
-		workingDir:       workingDir,
-		postProcessor:    postProcessor,
-		allowFailure:     allowFailure,
-		deadlineInMillis: deadlineInMillis,
-	}
+	streamOutput     bool
 }
 
 func (e ExecutableCommand) setStreamOutput() ExecutableCommand {

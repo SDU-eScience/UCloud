@@ -126,11 +126,11 @@ func cliIntercept(args []string) {
 				PrintHelp()
 			}
 
-			provider := NewProvider() //TODO()
+			provider := ProviderFromName(providerName)
 			if provider == nil {
 				fmt.Println("Unknown provider:", providerName, "! Try on of the following:")
 				for _, pro := range AllProviders {
-					fmt.Println("  - ", pro.name, ": ", pro.title)
+					fmt.Println("  - ", pro.Name(), ": ", pro.Title())
 				}
 				os.Exit(0)
 			}
@@ -143,9 +143,9 @@ func cliIntercept(args []string) {
 				PrintHelp()
 			}
 
-			if provider.addons[addonName] == "" {
+			if provider.Addons()[addonName] == "" {
 				fmt.Println("Unknown addon:", addonName, "! Try on of the following:")
-				for _, addon := range provider.addons {
+				for _, addon := range provider.Addons() {
 					fmt.Println(" - ", addon)
 				}
 				os.Exit(0)
@@ -156,15 +156,15 @@ func cliIntercept(args []string) {
 			SyncRepository()
 
 			err := termio.LoadingIndicator("starting addon containers", func(output *os.File) error {
-				compose.Up(currentEnvironment, true).executeToText()
+				compose.Up(currentEnvironment, true).ExecuteToText()
 				return nil
 			})
 			SoftCheck(err)
 
 			err = termio.LoadingIndicator(strings.Join([]string{"Installing addon ", providerName, "/", addonName}, ""), func(output *os.File) error {
-				if provider.name == "go-slurm" {
-					goSlurm.installAddon(addonName)
-					goSlurm.startAddon(addonName)
+				if provider.Name() == "go-slurm" {
+					goSlurm.InstallAddon(addonName)
+					goSlurm.StartAddon(addonName)
 				}
 				return nil
 			})

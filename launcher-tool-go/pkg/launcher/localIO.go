@@ -10,22 +10,16 @@ import (
 )
 
 type LocalFile struct {
+	path string
 	File *os.File
-	abstractLFile
-}
-
-func (lf LocalFile) GetFile() *os.File {
-	file, err := os.Open(lf.File.Name())
-	HardCheck(err)
-	return file
 }
 
 func NewLocalFile(path string) LocalFile {
 	newFile, err := os.Create(path)
 	HardCheck(err)
 	return LocalFile{
-		newFile,
-		abstractLFile{},
+		path: path,
+		File: newFile,
 	}
 }
 
@@ -33,6 +27,12 @@ func (lf LocalFile) GetAbsolutePath() string {
 	abs, err := filepath.Abs(lf.File.Name())
 	HardCheck(err)
 	return abs
+}
+
+func (lf LocalFile) GetFile() *os.File {
+	file, err := os.Open(lf.File.Name())
+	HardCheck(err)
+	return file
 }
 
 func (lf LocalFile) Exists() bool {
@@ -88,8 +88,34 @@ func (lf LocalFile) MkDirs() {
 	HardCheck(err)
 }
 
+func (lf LocalFile) Name() string {
+	return filepath.Base(lf.path)
+}
+
 type LocalExecutableCommand struct {
 	ExecutableCommand
+}
+
+type postProcessor func(text ProcessResultText) string
+
+func NewLocalExecutableCommand(
+	args []string,
+	workingDir LFile,
+	fn postProcessor,
+	allowFailure bool,
+	deadlineInMillies int64,
+	streamOutput bool,
+) LocalExecutableCommand {
+	return LocalExecutableCommand{
+		ExecutableCommand: ExecutableCommand{
+			args:             args,
+			workingDir:       workingDir,
+			fn:               fn,
+			allowFailure:     allowFailure,
+			deadlineInMillis: deadlineInMillies,
+			streamOutput:     streamOutput,
+		},
+	}
 }
 
 func (lec LocalExecutableCommand) ToBashScript() string {
