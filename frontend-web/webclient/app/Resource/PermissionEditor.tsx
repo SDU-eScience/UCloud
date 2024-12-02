@@ -95,13 +95,35 @@ export function ResourcePermissionEditor<T extends Resource>(
         return <Spinner />;
     }
 
+    return <PermissionsTable
+        acl={acl}
+        updateAcl={updateAcl}
+        warning={warning}
+        anyGroupHasPermission={anyGroupHasPermission}
+        showMissingPermissionHelp={props.showMissingPermissionHelp ?? true}
+        title={api.title.toLocaleLowerCase()}
+    />
+}
+
+
+interface PermissionsProps {
+    warning: string;
+    anyGroupHasPermission: boolean;
+    showMissingPermissionHelp: boolean;
+    title: string;
+    acl: ResourceAclEntry[];
+    updateAcl: (group: string, permission: Permission | null) => Promise<void>;
+}
+export function PermissionsTable({warning, anyGroupHasPermission, showMissingPermissionHelp, title, updateAcl, acl}: PermissionsProps) {
+    const projectId = useProjectId();
+    const project = useProject();
     const groups = project.fetch().status.groups ?? [];
 
     return <>
         {groups.length !== 0 ? null : (
             <Flex width={"100%"} alignItems={"center"} justifyContent={"center"}
                 flexDirection={"column"}>
-                <Box className={classConcat(ShakingBox,"shaking")} mb={"10px"}>
+                <Box className={classConcat(ShakingBox, "shaking")} mb={"10px"}>
                     No groups exist for this project.{" "}
                     <TextSpan bold>{warning}</TextSpan>
                 </Box>
@@ -110,12 +132,12 @@ export function ResourcePermissionEditor<T extends Resource>(
             </Flex>
         )}
         <>
-            {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
+            {anyGroupHasPermission || !(showMissingPermissionHelp ?? true) ? null :
                 <Box className={classConcat(ShakingBox, "shaking")} mb={16}>
                     <Text bold>{warning}</Text>
                     <Text>
                         You must assign permissions to one or more group, if your collaborators need to use this
-                        {" "}{api.title.toLowerCase()}.
+                        {" "}{title.toLowerCase()}.
                     </Text>
                 </Box>
             }

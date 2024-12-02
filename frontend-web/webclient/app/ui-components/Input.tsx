@@ -53,16 +53,12 @@ export const InputClass = injectStyle("input", k => `
         border-color: var(--primaryMain);
     }
 
-    ${k}::placeholder {
+    ${k}:placeholder {
         color: var(--textSecondary);
     }
     
     ${k}[data-error="true"], ${k}:invalid:not(:placeholder-shown) {
         border-color: var(--errorMain, #f00);
-    }
-    
-    ${k}::placeholder {
-        color: var(--textPrimary, #f00);
     }
     
     ${k}:disabled {
