@@ -383,35 +383,24 @@ class GrantsV2Service(
                 },
                 """
                     with
-                        max_revision_and_id as (
-                            select a.id, max(r.revision_number) max_revision
-                            from
-                                "grant".applications a
-                                join "grant".revisions r on a.id = r.application_id
-                            group by id
-                            order by id
-                        ),
                         accessible_as_grant_giver as (
-                            select rr.application_id as id
+                            select app.id as id
                             from
-                                "grant".requested_resources rr
-                                join max_revision_and_id mri on
-                                    rr.application_id = id
-                                    and rr.revision_number = max_revision
-                                join project.project_members pm on rr.grant_giver = pm.project_id
+                                "grant".grant_giver_approvals gga join
+                                "grant".applications app on app.id = gga.application_id join
+                                 project.project_members pm on gga.project_id = pm.project_id
                             where
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
                                 and pm.username = :username
-                                and (:filter_id::bigint is null or rr.application_id = :filter_id)
+                                and (:filter_id::bigint is null or app.id = :filter_id)
                                 and :include_ingoing
-                                and (not :use_project_filter or :project_id::text is not distinct from rr.grant_giver)
+                                and (not :use_project_filter or :project_id::text is not distinct from gga.project_id)
                         ),
                         accessible_as_sender as (
                             select app.id as id
                             from
                                 "grant".applications app
-                                join max_revision_and_id mri on app.id = mri.id
-                                join "grant".forms f on f.application_id = app.id and mri.max_revision = f.revision_number
+                                join "grant".forms f on f.application_id = app.id
                             where
                                 f.application_id = app.id
                                 and app.requested_by = :username
@@ -433,9 +422,6 @@ class GrantsV2Service(
                             select f.application_id as id
                             from
                                 "grant".forms f
-                                join max_revision_and_id mri on
-                                    f.application_id = mri.id
-                                    and f.revision_number = mri.max_revision
                                 join project.projects p on f.recipient = p.id
                                 left join project.project_members pm on p.id = pm.project_id
                             where
@@ -1128,6 +1114,10 @@ class GrantsV2Service(
                 }
 
                 is Command.InsertRevision -> {
+                    val allocationsWithAlignPeriod = command.doc.allocationRequests.map { req ->
+                        req.copy(period = command.doc.allocationPeriod ?: req.period)
+                    }
+
                     if (command.doc.form is GrantApplication.Form.GrantGiverInitiated) {
                         if (application.id != "") genericForbidden()
                         val grantGivers = command.doc.allocationRequests.map { it.grantGiver }.toSet()
@@ -1135,9 +1125,15 @@ class GrantsV2Service(
                         val grantGiver = grantGivers.single()
                         if (!isGrantGiver(grantGiver)) genericForbidden()
 
+                        val newDoc = command.doc.copy(
+                            parentProjectId = grantGiver,
+                            recipient = command.alternativeRecipient ?: command.doc.recipient,
+                            allocationRequests = allocationsWithAlignPeriod
+                        )
+
                         insertRevision(
                             command.comment,
-                            command.doc.copy(parentProjectId = grantGiver, recipient = command.alternativeRecipient ?: command.doc.recipient)
+                            newDoc
                         )
 
                         application = application.copy(
@@ -1150,6 +1146,9 @@ class GrantsV2Service(
                                         GrantApplication.State.APPROVED
                                     )
                                 )
+                            ),
+                            currentRevision = application.currentRevision.copy(
+                                document = newDoc
                             )
                         )
 
@@ -1208,9 +1207,14 @@ class GrantsV2Service(
                                 }
                             }
 
+                            val newDoc = command.doc.copy(
+                                referenceIds = newRefIds,
+                                allocationRequests = allocationsWithAlignPeriod
+                            )
+
                             insertRevision(
                                 command.comment,
-                                command.doc.copy(referenceIds = newRefIds)
+                                newDoc
                             )
                         }
                     }
@@ -1248,16 +1252,15 @@ class GrantsV2Service(
                     val requestsWhichAreMoving = originalRequests.filter { it.grantGiver == command.sourceProjectId }
                     val requestsWhichAreNotMoving = originalRequests.filter { it.grantGiver != command.sourceProjectId }
                     val requestsAfterMove = requestsWhichAreMoving.mapNotNull { req ->
-                        targetWallets.find {
+                        val found = targetWallets.find {
                             it.paysFor.provider == req.provider && it.paysFor.name == req.category
-                        } ?: return@mapNotNull null
-
-                        req.copy(grantGiver = command.targetProjectId)
+                        }
+                        if (found != null) {
+                            req.copy(grantGiver = command.targetProjectId)
+                        } else {
+                            null
+                        }
                     }
-                    if (requestsAfterMove.isEmpty()) throw RPCException.fromStatusCode(
-                        HttpStatusCode.UnprocessableEntity,
-                        "Receiving grant giver does not have any of the applied resources"
-                    )
                     val newBreakdown = application.status.stateBreakdown.filter {
                         it.projectId != command.sourceProjectId
                     } + GrantApplication.GrantGiverApprovalState(
@@ -1433,10 +1436,12 @@ class GrantsV2Service(
                                 setParameter("created_by", action.revision.updatedBy)
                                 setParameter("comment", action.revision.document.revisionComment)
                                 setParameter("rev_id", revisionNumber)
+                                setParameter("start", action.revision.document.allocationPeriod?.start ?: Time.now())
+                                setParameter("end", action.revision.document.allocationPeriod?.end ?: (Time.now() + (1000L * 60 * 60 * 24 * 365)))
                             },
                             """
-                                insert into "grant".revisions (application_id, revision_number, created_at, updated_by, revision_comment) 
-                                values (:app_id, :rev_id, now(), :created_by, :comment)
+                                insert into "grant".revisions (application_id, revision_number, created_at, updated_by, revision_comment, grant_start, grant_end) 
+                                values (:app_id, :rev_id, now(), :created_by, :comment, to_timestamp(:start / 1000), to_timestamp(:end / 1000))
                             """
                         )
 
@@ -1658,10 +1663,18 @@ class GrantsV2Service(
                         session.sendQuery("begin")
 
                         var failed = false
+                        var start = application.currentRevision.document.allocationPeriod?.start
+                        var end = application.currentRevision.document.allocationPeriod?.end
                         doc.allocationRequests.forEachIndexed { i, req ->
                             // TODO(Dan): We should not be doing this while we are holding a DB session, this can cause
                             //  (temporary) deadlocks. We should be saved by the timeout in the accounting system, but that is
                             //  not really a great solution.
+                            if (start == null) {
+                                start = req.period.start
+                            }
+                            if (end == null) {
+                                end = req.period.end
+                            }
                             try {
                                 ctx.accountingService.sendRequest(
                                     AccountingRequest.SubAllocate(
@@ -1669,8 +1682,8 @@ class GrantsV2Service(
                                         ProductCategoryIdV2(req.category, req.provider),
                                         walletOwner.reference(),
                                         req.balanceRequested!!,
-                                        req.period.start ?: Time.now(),
-                                        req.period.end ?: Time.now(),
+                                        start ?: Time.now(),
+                                        end ?: Time.now(),
                                         ownerOverride = req.grantGiver,
                                         grantedIn = application.id.toLongOrNull(),
                                     )

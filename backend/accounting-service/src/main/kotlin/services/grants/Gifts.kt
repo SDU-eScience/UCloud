@@ -80,13 +80,15 @@ class GiftService(
 
             val resourceRequests = mutableListOf<GrantApplication.AllocationRequest>()
             var sourceProject = ""
+            var start = 0L
+            var end = 0L
             rows.forEach { row ->
                 val balance = row.getLong(0)!!
                 val category = ProductCategoryIdV2(row.getString(1)!!, row.getString(2)!!)
                 sourceProject = row.getString(3)!!
                 val renewalPolicy = row.getInt(4)!!
-                val start = DateTime.now().millis
-                val end = DateTime.now().plusMonths((if (renewalPolicy == 0) 12 else renewalPolicy)).millis
+                start = DateTime.now().millis
+                end = DateTime.now().plusMonths((if (renewalPolicy == 0) 12 else renewalPolicy)).millis
 
                 resourceRequests.add(
                     GrantApplication.AllocationRequest(
@@ -110,7 +112,11 @@ class GiftService(
                         resourceRequests,
                         GrantApplication.Form.GrantGiverInitiated("Gifted automatically", false),
                         parentProjectId = sourceProject,
-                        revisionComment = "Gifted automatically"
+                        revisionComment = "Gifted automatically",
+                        allocationPeriod = GrantApplication.Period(
+                            start,
+                            end
+                        )
                     ),
                     comment = "Gift",
                     alternativeRecipient = GrantApplication.Recipient.PersonalWorkspace(actorAndProject.actor.safeUsername())

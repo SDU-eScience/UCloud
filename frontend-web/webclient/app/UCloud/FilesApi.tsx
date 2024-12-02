@@ -1275,16 +1275,18 @@ export function FilePreview({file, contentRef}: {
                         case "text":
                         case "application":
                         case "markdown":
-                        default:
+                        default: {
                             const text = tryDecodeText(contentBuffer);
                             if (text !== null) {
                                 setType("text");
                                 setData(text);
                                 setError(null);
+                                // Note(Jonas): If we don't find a valid `typeFromMime`, we set text and should not continue and set type again.
+                                return;
                             } else {
                                 setError("Preview is not supported for this file.");
                             }
-                            break;
+                        }
                     }
 
                     setType(typeFromFileType);

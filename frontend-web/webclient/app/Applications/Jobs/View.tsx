@@ -954,6 +954,9 @@ const RunningContent: React.FunctionComponent<{
                     <TabbedCardTab icon={"heroClock"} name={"Time allocation"}>
                         <Flex flexDirection={"column"} height={"calc(100% - 57px)"}>
                             <Box>
+                                <b>Job submitted at: </b> {dateToString(job.createdAt)}
+                            </Box>
+                            <Box>
                                 <b>Job start: </b> {status.startedAt ? dateToString(status.startedAt) : "Not started yet"}
                             </Box>
                             {!expiresAt && !localStorage.getItem("useFakeState") ? null :
@@ -1119,7 +1122,7 @@ const StandardPanelBody: React.FunctionComponent<{
     children: React.ReactNode;
     divRef?: React.RefObject<HTMLDivElement>;
 }> = ({divRef, children}) => {
-    return <div style={{height: "150px", overflowY: "auto"}} ref={divRef}>{children}</div>;
+    return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
 
 const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `

@@ -499,7 +499,10 @@ data class GrantApplication(
                 When creating a new project the user should choose one of the affiliations to be its parent.
             """
         )
-        val parentProjectId: String? = null
+        val parentProjectId: String? = null,
+
+        @UCloudApiDoc("Active period for the every requested resource")
+        val allocationPeriod: Period?
     )
 
     @Serializable
@@ -549,6 +552,7 @@ data class GrantApplication(
         val grantGiver: String,
         val balanceRequested: Long? = null,
         val period: Period,
+        val grantGiverTitle: String? = null
     )
 
     @Serializable
