@@ -441,6 +441,7 @@ func prepareDefaultEnvironment(
 		directives["account"] = orc.EscapeBash(accountName)
 		directives["partition"] = orc.EscapeBash(machineConfig.Partition)
 		directives["parsable"] = ""
+		directives["comment"] = orc.EscapeBash(ucloudSlurmComment)
 	}
 
 	// Jinja context
@@ -797,4 +798,7 @@ var directivesWhichCannotBeChanged = []string{
 	"account",
 	"partition",
 	"parsable",
+	"comment",
 }
+
+const ucloudSlurmComment = "UCloud job"

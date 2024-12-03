@@ -187,23 +187,23 @@ func loopComputeMonitoring() {
 
 	unknownJobs := []*slurmcli.Job{}
 
-	for _, job := range jobs {
-		stateInfo, ok := slurmToUCloudState[job.State]
+	for _, slurmJob := range jobs {
+		stateInfo, ok := slurmToUCloudState[slurmJob.State]
 		if !ok {
 			continue
 		}
 
-		ucloudId, ok := jobsBySlurmId[job.JobID]
+		ucloudId, ok := jobsBySlurmId[slurmJob.JobID]
 		if !ok {
 			if stateInfo.State == orc.JobStateInQueue || stateInfo.State == orc.JobStateRunning {
-				unknownJobs = append(unknownJobs, &job)
+				unknownJobs = append(unknownJobs, &slurmJob)
 			}
 			continue
 		}
 
 		didUpdate := batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
 		if didUpdate {
-			nodeList := SlurmClient.JobGetNodeList(job.JobID)
+			nodeList := SlurmClient.JobGetNodeList(slurmJob.JobID)
 			if len(nodeList) > 0 {
 				batch.TrackAssignedNodes(ucloudId, nodeList)
 			}
@@ -211,10 +211,7 @@ func loopComputeMonitoring() {
 	}
 
 	// Register unknown jobs
-	// NOTE(Dan): Disabled for now since this in practice creates a lot of registrations of the same job. I suspect
-	// this code has an issue where it does not realise instantly that this job is actually tracked.
 	toRegister := []orc.ProviderRegisteredResource[orc.JobSpecification]{}
-	//if false {
 	for _, slurmJob := range unknownJobs {
 		if slurmJob.Account == "" {
 			continue
@@ -262,9 +259,11 @@ func loopComputeMonitoring() {
 			Project:             projectId,
 		}
 
-		toRegister = append(toRegister, newJobResource)
+		comment, _ := SlurmClient.JobComment(slurmJob.JobID)
+		if comment != ucloudSlurmComment {
+			toRegister = append(toRegister, newJobResource)
+		}
 	}
-	//}
 	batch.End()
 
 	for _, chunk := range util.ChunkBy(toRegister, 100) {
