@@ -33,12 +33,6 @@ func (lf LocalFile) GetAbsolutePath() string {
 	return abs
 }
 
-func (lf LocalFile) GetFile() *os.File {
-	file, err := os.Open(lf.File.Name())
-	HardCheck(err)
-	return file
-}
-
 func (lf LocalFile) Exists() bool {
 	_, err := lf.File.Stat()
 	if err != nil {
@@ -124,12 +118,12 @@ func NewLocalExecutableCommand(
 	}
 }
 
-func (l LocalExecutableCommand) setAllowFailure(allowFailure bool) {
-	l.allowFailure = allowFailure
+func (l LocalExecutableCommand) setAllowFailure() {
+	l.allowFailure = true
 }
 
-func (l LocalExecutableCommand) setStreamOutput(streamOutput bool) {
-	l.streamOutput = streamOutput
+func (l LocalExecutableCommand) setStreamOutput() {
+	l.streamOutput = true
 }
 
 func (l LocalExecutableCommand) ToBashScript() string {

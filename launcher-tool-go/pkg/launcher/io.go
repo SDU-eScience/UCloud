@@ -2,12 +2,10 @@ package launcher
 
 import (
 	"fmt"
-	"os"
 )
 
 type LFile interface {
 	GetAbsolutePath() string
-	GetFile() *os.File
 	Exists() bool
 	Child(subPath string) LFile
 	WriteText(text string)

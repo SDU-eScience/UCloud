@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var commandType ExecutableCommandInterface
+
 type StringPair struct {
 	first, second string
 }
