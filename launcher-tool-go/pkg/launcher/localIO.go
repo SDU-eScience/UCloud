@@ -1,11 +1,15 @@
 package launcher
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -93,49 +97,139 @@ func (lf LocalFile) Name() string {
 }
 
 type LocalExecutableCommand struct {
-	ExecutableCommand
+	args             []string
+	workingDir       LFile
+	fn               postProcessor
+	allowFailure     bool
+	deadlineInMillis int64
+	streamOutput     bool
 }
 
-type postProcessor func(text ProcessResultText) string
-
+// Old Factory
 func NewLocalExecutableCommand(
 	args []string,
 	workingDir LFile,
 	fn postProcessor,
 	allowFailure bool,
-	deadlineInMillies int64,
+	deadlineInMillis int64,
 	streamOutput bool,
-) LocalExecutableCommand {
-	return LocalExecutableCommand{
-		ExecutableCommand: ExecutableCommand{
-			args:             args,
-			workingDir:       workingDir,
-			fn:               fn,
-			allowFailure:     allowFailure,
-			deadlineInMillis: deadlineInMillies,
-			streamOutput:     streamOutput,
-		},
+) *LocalExecutableCommand {
+	return &LocalExecutableCommand{
+		args:             args,
+		workingDir:       workingDir,
+		fn:               fn,
+		allowFailure:     allowFailure,
+		deadlineInMillis: deadlineInMillis,
+		streamOutput:     streamOutput,
 	}
 }
 
-func (lec LocalExecutableCommand) ToBashScript() string {
+func (l LocalExecutableCommand) setAllowFailure(allowFailure bool) {
+	l.allowFailure = allowFailure
+}
+
+func (l LocalExecutableCommand) setStreamOutput(streamOutput bool) {
+	l.streamOutput = streamOutput
+}
+
+func (l LocalExecutableCommand) ToBashScript() string {
 	sb := new(strings.Builder)
-	if lec.workingDir != nil {
-		sb.WriteString("cd " + lec.workingDir.GetAbsolutePath())
+	if l.workingDir != nil {
+		sb.WriteString("cd " + l.workingDir.GetAbsolutePath())
 	}
-	for _, arg := range lec.args {
+	for _, arg := range l.args {
 		sb.WriteString(escapeBash(arg) + " ")
 	}
 	return sb.String()
 }
 
-func (lec LocalExecutableCommand) ExecuteToText() {
+func logBuilderThread(buf *bufio.Reader, stringBuilder *strings.Builder, deadline int64) {
+	for time.Now().UnixMilli() < deadline {
+		line, _, err := buf.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				panic(err)
+			}
+		}
+		stringBuilder.Write(line)
+	}
+}
+
+func (l LocalExecutableCommand) ExecuteToText() StringPair {
 	if DebugCommandsGiven() {
-		fmt.Println("Command: " + strings.Join(lec.args, " "))
+		fmt.Println("Command: " + strings.Join(l.args, " "))
 	}
 
-	deadline := time.Now().UnixMilli() + lec.deadlineInMillis
+	deadline := time.Now().UnixMilli() + l.deadlineInMillis
 
-	//TODO()
-	fmt.Println(deadline)
+	//TODO(PROCESS BUILDER)
+	var procAttr *os.ProcAttr
+	if l.workingDir != nil {
+		procAttr.Dir = l.workingDir.GetAbsolutePath()
+	}
+	procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
+
+	proc, err := os.StartProcess("name", l.args, procAttr)
+	HardCheck(err)
+
+	err = os.Stdout.Close()
+	HardCheck(err)
+	outputReader := bufio.NewReader(os.Stdin)
+	errorReader := bufio.NewReader(os.Stderr)
+
+	outputBuilder := &strings.Builder{}
+	errBuilder := &strings.Builder{}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go logBuilderThread(outputReader, outputBuilder, deadline)
+	wg.Add(1)
+	go logBuilderThread(errorReader, errBuilder, deadline)
+	wg.Wait()
+
+	err = os.Stdout.Close()
+	SoftCheck(err)
+	err = os.Stderr.Close()
+	SoftCheck(err)
+	procStat, err := proc.Wait()
+	SoftCheck(err)
+	if !procStat.Exited() {
+		err = proc.Kill()
+		SoftCheck(err)
+	}
+	exitCode := procStat.ExitCode()
+
+	if DebugCommandsGiven() {
+		fmt.Println("  Exit code ", strconv.Itoa(exitCode))
+		fmt.Println("  Stdout ", outputBuilder.String())
+		fmt.Println("  Stderr ", errBuilder.String())
+	}
+
+	if exitCode != 0 {
+		if l.allowFailure {
+			return StringPair{first: "", second: outputBuilder.String() + errBuilder.String()}
+		}
+
+		fmt.Println("Command failed!")
+		fmt.Println("Command ", strings.Join(l.args, " "))
+		fmt.Println("Directory: ", l.workingDir.GetAbsolutePath())
+		fmt.Println("Exit code: ", strconv.Itoa(exitCode))
+		fmt.Println("Stdout ", outputBuilder.String())
+		fmt.Println("Stderr ", errBuilder.String())
+		os.Exit(exitCode)
+	}
+
+	return StringPair{
+		l.fn(
+			ProcessResultText{
+				statusCode: exitCode,
+				stdout:     outputBuilder.String(),
+				stderr:     errBuilder.String(),
+			},
+		),
+		"",
+	}
 }

@@ -21,26 +21,11 @@ type LFile interface {
 type ExecutableCommandInterface interface {
 	ToBashScript() string
 	ExecuteToText() StringPair
+	setStreamOutput()
+	setAllowFailure()
 }
 
-type ExecutableCommand struct {
-	args             []string
-	workingDir       LFile
-	fn               postProcessor
-	allowFailure     bool
-	deadlineInMillis int64
-	streamOutput     bool
-}
-
-func (e ExecutableCommand) setStreamOutput() ExecutableCommand {
-	e.streamOutput = true
-	return e
-}
-
-func (e ExecutableCommand) setAllowFailure() ExecutableCommand {
-	e.allowFailure = true
-	return e
-}
+type postProcessor func(text ProcessResultText) string
 
 type ProcessResultText struct {
 	statusCode int
