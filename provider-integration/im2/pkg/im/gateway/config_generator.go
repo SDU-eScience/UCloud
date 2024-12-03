@@ -407,6 +407,24 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 
 	case RouteTypeVnc:
 		result.RequestHeadersToRemove = nil
+
+		result.Action = &route.Route_Route{
+			Route: &route.RouteAction{
+				ClusterSpecifier: &route.RouteAction_Cluster{
+					Cluster: r.Cluster,
+				},
+				Timeout: &duration.Duration{
+					Seconds: 0,
+				},
+				UpgradeConfigs: []*route.RouteAction_UpgradeConfig{{
+					UpgradeType: "websocket",
+				}},
+				PrefixRewrite: "/websockify",
+			},
+		}
+
+		disableJwtFilter(result)
+
 		result.Match = &route.RouteMatch{
 			PathSpecifier: &route.RouteMatch_Prefix{
 				Prefix: fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
@@ -414,7 +432,7 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 			QueryParameters: []*route.QueryParameterMatcher{{
 				Name: "token",
 				QueryParameterMatchSpecifier: &route.QueryParameterMatcher_StringMatch{
-					StringMatch: exactString(r.Identifier),
+					StringMatch: exactString(r.AuthTokens[0]),
 				},
 			}},
 		}

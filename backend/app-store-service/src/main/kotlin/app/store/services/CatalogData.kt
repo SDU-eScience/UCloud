@@ -494,6 +494,16 @@ class CatalogData(
             throw RPCException("This tool does not exist: ${app.invocation?.tool}", HttpStatusCode.BadRequest)
         }
 
+        val ports = listOfNotNull(inputApp.invocation?.web?.port, inputApp.invocation?.vnc?.port)
+        for (port in ports) {
+            if (port < 1 || port > 65535) {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.BadRequest,
+                    "Port must be between 1 and 65535. Port given: $port"
+                )
+            }
+        }
+
         val groupId = app.metadata.groupId ?: previousApp?.metadata?.groupId
         if (groupId != null) {
             groups[groupId]!!.addApplications(setOf(key))

@@ -176,7 +176,7 @@ class ImportExport(
                     try {
                         studio.createTool(a, tool)
                     } catch (ex: Throwable) {
-                        error("Could not create tool: ${tool.description.info}\n${ex.toReadableStacktrace()}")
+                        log.info("Could not create tool: ${tool.description.info}\n${ex.toReadableStacktrace()}")
                     }
                 }
             }
@@ -188,7 +188,7 @@ class ImportExport(
                     try {
                         studio.createApplication(a, Application(app.metadata.copy(groupId = null), app.invocation))
                     } catch (ex: Throwable) {
-                        error("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
+                        log.info("Could not create tool: ${app.metadata}\n${ex.toReadableStacktrace()}")
                     }
                 }
             }
