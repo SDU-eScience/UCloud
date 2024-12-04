@@ -925,6 +925,10 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                     combinedQuota += alloc.quota;
                 }
             });
+            const maxUsable = combineBalances([{
+                balance: wallet.maxUsable,
+                category: wallet.paysFor
+            }]);
             const combinedRetired = childGroup.group.allocations.reduce((acc, val) => acc + (val.retiredUsage ?? 0), 0);
             // Need to have total usage in case retired should be included in final result
             let combinedUsage = childGroup.group.usage;
@@ -942,7 +946,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
                 usageAndQuota: new UsageAndQuota({
                     usage: usage?.[0]?.normalizedBalance ?? 0,
                     quota: quota?.[0]?.normalizedBalance ?? 0,
-                    maxUsable: 0,
+                    maxUsable: maxUsable[0]?.normalizedBalance ?? 0,
                     unit: usage?.[0]?.unit ?? "",
                     retiredAmount: retiredAmount?.[0]?.normalizedBalance ?? 0,
                     retiredAmountStillCounts: shouldUseRetired,

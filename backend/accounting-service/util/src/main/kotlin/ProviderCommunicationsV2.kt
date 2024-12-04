@@ -265,14 +265,15 @@ class ProviderCommunicationsV2(
 
     suspend fun findRelevantProviders(
         actorAndProject: ActorAndProject,
-        filterProductType: ProductType? = null
+        filterProductType: ProductType? = null,
+        useProject: Boolean = true,
     ): List<String> {
         return AccountingV2.findRelevantProviders.call(
             bulkRequestOf(
                 AccountingV2.FindRelevantProviders.RequestItem(
                     actorAndProject.actor.safeUsername(),
                     actorAndProject.project,
-                    true,
+                    useProject,
                     filterProductType,
                 )
             ),
@@ -289,9 +290,10 @@ class ProviderCommunicationsV2(
         actorAndProject: ActorAndProject,
         deadlineMs: Long = 10_000L,
         filterProductType: ProductType? = null,
+        useProject: Boolean = true,
         fn: suspend (providerId: String) -> Unit,
     ) {
-        val (providers, time) = measureTimedValue { findRelevantProviders(actorAndProject, filterProductType) }
+        val (providers, time) = measureTimedValue { findRelevantProviders(actorAndProject, filterProductType, useProject) }
         Prometheus.measureBackgroundDuration("find_relevant_providers", time.inWholeMilliseconds)
 
         coroutineScope {

@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/im/ipc"
 
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
@@ -30,6 +32,8 @@ var SlurmClient *slurmcli.Client
 var jobNameUnsafeRegex *regexp.Regexp = regexp.MustCompile(`[^\w ():_-]`)
 var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
 
+var ipcRegisterJobUpdate = ipc.NewCall[[]orc.ResourceUpdateAndId[orc.JobUpdate], util.Empty]("slurm.register_job_update")
+
 func InitCompute() ctrl.JobsService {
 	loadComputeProducts()
 
@@ -39,6 +43,35 @@ func InitCompute() ctrl.JobsService {
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
+		ipcRegisterJobUpdate.Handler(func(r *ipc.Request[[]orc.ResourceUpdateAndId[orc.JobUpdate]]) ipc.Response[util.Empty] {
+			length := len(r.Payload)
+			for i := 0; i < length; i++ {
+				item := &r.Payload[i]
+				job, ok := ctrl.RetrieveJob(item.Id)
+
+				if !ok {
+					continue
+				}
+
+				if !ctrl.BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
+					continue
+				}
+			}
+
+			err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{Items: r.Payload})
+			code := http.StatusOK
+			errorMessage := ""
+			if err != nil {
+				code = http.StatusBadGateway
+				errorMessage = err.Error()
+			}
+
+			return ipc.Response[util.Empty]{
+				StatusCode:   code,
+				ErrorMessage: errorMessage,
+			}
+		})
+
 		go func() {
 			if len(Machines) == 0 {
 				return
@@ -109,14 +142,34 @@ const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
 
 var nextComputeAccountingTime = time.Now()
 
+// Get jobs and report usage to UCloud core
 func loopAccounting() {
 	now := time.Now()
 	if now.After(nextComputeAccountingTime) {
 		billing := Accounting.FetchUsageInMinutes()
-		// TODO convert this to correct UCloud unit
 
 		var reportItems []apm.UsageReportItem
-		for owner, usage := range billing {
+		for owner, seconds := range billing {
+			machineCategory := cfg.Services.Slurm().Compute.Machines[owner.AssociatedWithCategory]
+
+			var usageMillis float64 = float64(seconds) * 1000 * 60
+			var usage float64 = 0
+
+			if machineCategory.Payment.Type == cfg.PaymentTypeMoney {
+				switch machineCategory.Payment.Interval {
+				case cfg.PaymentIntervalMinutely:
+					usage = usageMillis / 1000.0 / 60.0
+				case cfg.PaymentIntervalHourly:
+					usage = usageMillis / 1000 / 60 / 60
+				case cfg.PaymentIntervalDaily:
+					usage = usageMillis / 1000 / 60 / 60 / 24
+				}
+
+				usage *= machineCategory.Payment.Price
+			} else {
+				usage = usageMillis / 1000.0 / 60.0
+			}
+
 			reportItems = append(reportItems,
 				apm.UsageReportItem{
 					IsDeltaCharge: false,
@@ -125,7 +178,7 @@ func loopAccounting() {
 						Name:     owner.AssociatedWithCategory,
 						Provider: cfg.Provider.Id,
 					},
-					Usage: usage,
+					Usage: int64(usage),
 				},
 			)
 
@@ -148,11 +201,12 @@ func loopAccounting() {
 	}
 }
 
+// Monitor running jobs, and register unknown jobs to UCloud
 func loopComputeMonitoring() {
 	jobs := SlurmClient.JobList()
 
 	batch := ctrl.BeginJobUpdates()
-	activeJobs := batch.GetJobs()
+	activeJobs := ctrl.GetJobs()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -166,23 +220,23 @@ func loopComputeMonitoring() {
 
 	unknownJobs := []*slurmcli.Job{}
 
-	for _, job := range jobs {
-		stateInfo, ok := slurmToUCloudState[job.State]
+	for _, slurmJob := range jobs {
+		stateInfo, ok := slurmToUCloudState[slurmJob.State]
 		if !ok {
 			continue
 		}
 
-		ucloudId, ok := jobsBySlurmId[job.JobID]
+		ucloudId, ok := jobsBySlurmId[slurmJob.JobID]
 		if !ok {
-			if orc.JobState(job.State) == orc.JobStateInQueue || orc.JobState(job.State) == orc.JobStateRunning {
-				unknownJobs = append(unknownJobs, &job)
+			if stateInfo.State == orc.JobStateInQueue || stateInfo.State == orc.JobStateRunning {
+				unknownJobs = append(unknownJobs, &slurmJob)
 			}
 			continue
 		}
 
 		didUpdate := batch.TrackState(ucloudId, stateInfo.State, util.OptValue(stateInfo.Message))
 		if didUpdate {
-			nodeList := SlurmClient.JobGetNodeList(job.JobID)
+			nodeList := SlurmClient.JobGetNodeList(slurmJob.JobID)
 			if len(nodeList) > 0 {
 				batch.TrackAssignedNodes(ucloudId, nodeList)
 			}
@@ -190,57 +244,56 @@ func loopComputeMonitoring() {
 	}
 
 	// Register unknown jobs
-	// NOTE(Dan): Disabled for now since this in practice creates a lot of registrations of the same job. I suspect
-	// this code has an issue where it does not realise instantly that this job is actually tracked.
 	toRegister := []orc.ProviderRegisteredResource[orc.JobSpecification]{}
-	if false {
-		for _, slurmJob := range unknownJobs {
-			if slurmJob.Account == "" {
-				continue
-			}
+	for _, slurmJob := range unknownJobs {
+		if slurmJob.Account == "" {
+			continue
+		}
 
-			slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
+		slurmCfg := AccountMapper.ServerSlurmJobToConfiguration(slurmJob)
 
-			if !slurmCfg.Present {
-				continue
-			}
+		if !slurmCfg.Present {
+			continue
+		}
 
-			desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
-			safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
+		desiredName := fmt.Sprintf("%s (SlurmID: %d)", slurmJob.Name, slurmJob.JobID)
+		safeName := jobNameUnsafeRegex.ReplaceAllString(desiredName, "")
 
-			timeAllocation := util.Option[orc.SimpleDuration]{}
-			timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
+		timeAllocation := util.Option[orc.SimpleDuration]{}
+		timeAllocation.Set(orc.SimpleDurationFromMillis(int64(slurmJob.TimeLimit) * 1000))
 
-			createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
-			projectId := util.Option[string]{}
+		createdBy := util.Option[string]{Value: slurmCfg.Value.UCloudUsername, Present: true}
+		projectId := util.Option[string]{}
 
-			if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
-				projectId.Set(slurmCfg.Value.Owner.ProjectId)
-			}
+		if slurmCfg.Value.Owner.Type == apm.WalletOwnerTypeProject {
+			projectId.Set(slurmCfg.Value.Owner.ProjectId)
+		}
 
-			providerJobId := util.Option[string]{
-				Value: parsedProviderJobId{
-					BelongsToAccount: slurmJob.Account,
-					SlurmId:          slurmJob.JobID,
-				}.String(),
-				Present: true,
-			}
+		providerJobId := util.Option[string]{
+			Value: parsedProviderJobId{
+				BelongsToAccount: slurmJob.Account,
+				SlurmId:          slurmJob.JobID,
+			}.String(),
+			Present: true,
+		}
 
-			newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
-				Spec: orc.JobSpecification{
-					Name:                  safeName,
-					Application:           unknownApplication,
-					ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
-					Replicas:              slurmCfg.Value.EstimatedNodeCount,
-					Parameters:            make(map[string]orc.AppParameterValue),
-					Resources:             []orc.AppParameterValue{},
-					TimeAllocation:        timeAllocation,
-				},
-				ProviderGeneratedId: providerJobId,
-				CreatedBy:           createdBy,
-				Project:             projectId,
-			}
+		newJobResource := orc.ProviderRegisteredResource[orc.JobSpecification]{
+			Spec: orc.JobSpecification{
+				Name:                  safeName,
+				Application:           unknownApplication,
+				ResourceSpecification: orc.ResourceSpecification{Product: slurmCfg.Value.EstimatedProduct},
+				Replicas:              slurmCfg.Value.EstimatedNodeCount,
+				Parameters:            make(map[string]orc.AppParameterValue),
+				Resources:             []orc.AppParameterValue{},
+				TimeAllocation:        timeAllocation,
+			},
+			ProviderGeneratedId: providerJobId,
+			CreatedBy:           createdBy,
+			Project:             projectId,
+		}
 
+		comment, _ := SlurmClient.JobComment(slurmJob.JobID)
+		if comment != ucloudSlurmComment {
 			toRegister = append(toRegister, newJobResource)
 		}
 	}
@@ -427,7 +480,9 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		accountName = accounts[0]
 	}
 
-	sbatchFileContent, err := CreateSBatchFile(request.JobToSubmit, jobFolder, accountName)
+	sbatchResult := CreateSBatchFile(request.JobToSubmit, jobFolder, accountName)
+	err = sbatchResult.Error
+	sbatchFileContent := sbatchResult.Content
 	if err != nil {
 		return util.OptNone[string](), err
 	}
@@ -454,6 +509,58 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	job := request.JobToSubmit
 	job.ProviderGeneratedId = providerId
 	ctrl.TrackNewJob(*job)
+
+	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+	outputFolder, ok := InternalToUCloud(jobFolder)
+	updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+		Id: job.Id,
+		Update: orc.JobUpdate{
+			OutputFolder: util.Option[string]{Present: ok, Value: outputFolder},
+			Status:       util.OptValue(fmt.Sprintf("Your job has been submitted to the queue (Slurm ID: %v)", slurmId)),
+		},
+	})
+
+	for _, target := range sbatchResult.DynamicTargets {
+		targetAsJson, _ := json.Marshal(target)
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id: job.Id,
+			Update: orc.JobUpdate{
+				Status: util.OptValue(fmt.Sprintf("Target: %s", string(targetAsJson))),
+			},
+		})
+	}
+
+	if ServiceConfig.Ssh.Enabled {
+		portString := ""
+		host := ServiceConfig.Ssh.Host
+		if host.Port != 22 {
+			portString = fmt.Sprintf(" -p %d", host.Port)
+		}
+
+		uinfo, err := user.Current()
+		username := ""
+		if err == nil {
+			username = uinfo.Username
+		} else {
+			username = fmt.Sprint(os.Getuid())
+		}
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id: job.Id,
+			Update: orc.JobUpdate{
+				Status: util.OptValue(
+					fmt.Sprintf("SSH: Connected! Available at: ssh %s@%s"+portString, username, host.Address),
+				),
+			},
+		})
+	}
+
+	if len(updates) > 0 {
+		// NOTE(Dan): Error is ignored since there is no obvious way to recover here. Ignoring the error is probably
+		// the best we can do.
+		_, _ = ipcRegisterJobUpdate.Invoke(updates)
+	}
 
 	return util.OptValue(providerId), nil
 }

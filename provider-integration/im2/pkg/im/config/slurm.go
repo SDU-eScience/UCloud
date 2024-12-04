@@ -427,6 +427,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			}
 		}
 
+		cfg.Ssh.InstallKeys = cfg.Ssh.Enabled && cfg.Ssh.InstallKeys
+
 		if !success {
 			return false, cfg
 		}

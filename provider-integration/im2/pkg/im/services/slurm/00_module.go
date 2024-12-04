@@ -24,6 +24,7 @@ func Init(config *cfg.ServicesConfigurationSlurm) {
 	ctrl.Files = InitializeFiles()
 	InitTaskSystem()
 	ctrl.Jobs = InitCompute()
+	ctrl.SshKeys = InitializeSshKeys()
 	InitAccountManagement()
 
 	if cfg.Mode == cfg.ServerModeUser {
