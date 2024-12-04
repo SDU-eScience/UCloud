@@ -1,6 +1,7 @@
 package slurm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"ucloud.dk/pkg/im/ipc"
 
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
@@ -30,6 +32,8 @@ var SlurmClient *slurmcli.Client
 var jobNameUnsafeRegex *regexp.Regexp = regexp.MustCompile(`[^\w ():_-]`)
 var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
 
+var ipcRegisterJobUpdate = ipc.NewCall[[]orc.ResourceUpdateAndId[orc.JobUpdate], util.Empty]("slurm.register_job_update")
+
 func InitCompute() ctrl.JobsService {
 	loadComputeProducts()
 
@@ -39,6 +43,35 @@ func InitCompute() ctrl.JobsService {
 	}
 
 	if cfg.Mode == cfg.ServerModeServer {
+		ipcRegisterJobUpdate.Handler(func(r *ipc.Request[[]orc.ResourceUpdateAndId[orc.JobUpdate]]) ipc.Response[util.Empty] {
+			length := len(r.Payload)
+			for i := 0; i < length; i++ {
+				item := &r.Payload[i]
+				job, ok := ctrl.RetrieveJob(item.Id)
+
+				if !ok {
+					continue
+				}
+
+				if !ctrl.BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
+					continue
+				}
+			}
+
+			err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{Items: r.Payload})
+			code := http.StatusOK
+			errorMessage := ""
+			if err != nil {
+				code = http.StatusBadGateway
+				errorMessage = err.Error()
+			}
+
+			return ipc.Response[util.Empty]{
+				StatusCode:   code,
+				ErrorMessage: errorMessage,
+			}
+		})
+
 		go func() {
 			if len(Machines) == 0 {
 				return
@@ -447,7 +480,9 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		accountName = accounts[0]
 	}
 
-	sbatchFileContent, err := CreateSBatchFile(request.JobToSubmit, jobFolder, accountName)
+	sbatchResult := CreateSBatchFile(request.JobToSubmit, jobFolder, accountName)
+	err = sbatchResult.Error
+	sbatchFileContent := sbatchResult.Content
 	if err != nil {
 		return util.OptNone[string](), err
 	}
@@ -474,6 +509,25 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	job := request.JobToSubmit
 	job.ProviderGeneratedId = providerId
 	ctrl.TrackNewJob(*job)
+
+	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+
+	for _, target := range sbatchResult.DynamicTargets {
+		targetAsJson, _ := json.Marshal(target)
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id: job.Id,
+			Update: orc.JobUpdate{
+				Status: util.OptValue(fmt.Sprintf("Target: %s", string(targetAsJson))),
+			},
+		})
+	}
+
+	if len(updates) > 0 {
+		// NOTE(Dan): Error is ignored since there is no obvious way to recover here. Ignoring the error is probably
+		// the best we can do.
+		_, _ = ipcRegisterJobUpdate.Invoke(updates)
+	}
 
 	return util.OptValue(providerId), nil
 }

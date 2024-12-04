@@ -370,9 +370,11 @@ func prepareDefaultEnvironment(
 	parametersAndValues map[string]orc.ParamAndValue,
 	argBuilder orc.ArgBuilder,
 	allocatedPort util.Option[int],
-) (directives map[string]string, jinjaContextParameters map[string]any) {
+) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]DynamicTarget) {
 	directives = make(map[string]string)
 	jinjaContextParameters = make(map[string]any)
+
+	targets = &[]DynamicTarget{} // needed to avoid a nil dereference
 
 	// SBatch directives
 	// =================================================================================================================
@@ -573,6 +575,29 @@ func prepareDefaultEnvironment(
 		return exec.AsSafeValue("")
 	}
 
+	jinjaContextParameters["dynamicInterface"] = func(rank int, interactiveType string, target string, port int) *exec.Value {
+		if rank < 0 {
+			return exec.AsSafeValue("\n# Rank must be > 0\n")
+		}
+
+		if interactiveType != string(orc.InteractiveSessionTypeVnc) && interactiveType != string(orc.InteractiveSessionTypeWeb) {
+			return exec.AsSafeValue("\n# Interactive type must be VNC or WEB\n")
+		}
+
+		if port < 0 {
+			return exec.AsSafeValue("\n# Port must be > 0\n")
+		}
+
+		*targets = append(*targets, DynamicTarget{
+			Rank:   rank,
+			Type:   orc.InteractiveSessionType(interactiveType),
+			Target: target,
+			Port:   port,
+		})
+
+		return exec.AsSafeValue("")
+	}
+
 	// Directives from the application
 	// -------------------------------------------------------------------------------------------------------------
 	// These need a Jinja context available so we do it quite a bit later
@@ -593,15 +618,30 @@ func prepareDefaultEnvironment(
 	return
 }
 
-func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (string, error) {
+type SBatchResult struct {
+	Content        string
+	Error          error
+	DynamicTargets []DynamicTarget
+}
+
+type DynamicTarget struct {
+	Rank   int                        `json:"rank"`
+	Type   orc.InteractiveSessionType `json:"type"`
+	Target string                     `json:"target"`
+	Port   int                        `json:"port"`
+}
+
+func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatchResult {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
 	_, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 	if !ok {
-		return "", &util.HttpError{
-			StatusCode: http.StatusInternalServerError,
-			Why:        "Unknown product requested",
+		return SBatchResult{
+			Error: &util.HttpError{
+				StatusCode: http.StatusInternalServerError,
+				Why:        "Unknown product requested",
+			},
 		}
 	}
 
@@ -619,7 +659,7 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		allocatedPort.Set(10000 + rand.Intn(40000))
 	}
 
-	directives, jinjaContextParameters := prepareDefaultEnvironment(
+	directives, jinjaContextParameters, targets := prepareDefaultEnvironment(
 		job,
 		jobFolder,
 		accountName,
@@ -765,7 +805,10 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) (strin
 		appendLine(builder, cli)
 	}
 
-	return builder.String(), nil
+	return SBatchResult{
+		Content:        builder.String(),
+		DynamicTargets: *targets,
+	}
 }
 
 func bindUCloudEnvironmentVariables(prefix string, environment map[string]string, ctx map[string]any) {
