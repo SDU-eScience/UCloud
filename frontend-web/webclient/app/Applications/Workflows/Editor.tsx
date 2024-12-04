@@ -178,7 +178,8 @@ const WorkflowEditor: React.FunctionComponent<{
     return <Editor
         vfs={vfs}
         title={props.applicationName}
-        initialFolderPath={"/" + FILE_NAME_JOB}
+        initialFolderPath={"/"}
+        initialFilePath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
         toolbarBeforeSettings={<>
             {!error ? null :
@@ -499,7 +500,6 @@ class WorkflowVfs implements Vfs {
 
     private knownFiles: VirtualFile[] = [
         {absolutePath: "/" + FILE_NAME_README, isDirectory: false, requestedSyntax: "markdown"},
-        // {absolutePath: "/" + FILE_NAME_INIT, isDirectory: false, requestedSyntax: "jinja2"},
         {absolutePath: "/" + FILE_NAME_JOB, isDirectory: false, requestedSyntax: "jinja2"},
         {absolutePath: "/" + FILE_NAME_PARAMETERS, isDirectory: false, requestedSyntax: "yaml"},
     ];
@@ -529,8 +529,6 @@ class WorkflowVfs implements Vfs {
         switch (path) {
             case "/" + FILE_NAME_README:
                 return this.workflow.readme ?? "";
-            case "/" + FILE_NAME_INIT:
-                return this.workflow.init ?? "";
             case "/" + FILE_NAME_JOB:
                 return this.workflow.job ?? "";
             case "/" + FILE_NAME_PARAMETERS:
@@ -540,15 +538,7 @@ class WorkflowVfs implements Vfs {
         }
     }
 
-    async writeFile(path: string, content: string): Promise<void> {}
-
-    setFileAsDirty(path: string): void {
-        this.isDirty[path] = true;
-    }
-
-    isFileDirty(path: string): boolean {
-        return this.isDirty[path] === true;
-    }
+    async writeFile(path: string): Promise<void> {}
 
     private serializeParameters(): string {
         let builder: Record<string, any> = {};

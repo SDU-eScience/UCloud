@@ -242,7 +242,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{id?: string}>();
+        const {id} = useParams<{ id?: string }>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -289,9 +289,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
         if (!id) return <h1>Missing file id.</h1>
 
-        if (fileData.loading) return <PredicatedLoadingSpinner loading />
+        if (fileData.loading) return <PredicatedLoadingSpinner loading/>
 
-        if (fileData.error) return <Error error={fileData.error.why} />;
+        if (fileData.error) return <Error error={fileData.error.why}/>;
         if (!file) return <></>;
 
         const isFile = file.status.type === "FILE";
@@ -307,7 +307,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             </div>
             <Flex gap="8px">
                 <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider} />
+                <ProviderTitle providerId={file.specification.product.provider}/>
             </Flex>
             <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
             {file.status.modifiedAt ?
@@ -341,14 +341,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         if (isFile) {
             return <Flex className={FilePropertiesLayout}>
                 <div className="A">
-                    <FilePreview file={file} contentRef={downloadRef} />
+                    <FilePreview file={file} contentRef={downloadRef}/>
                 </div>
                 <div className="B">
                     {fileInfo}
                 </div>
             </Flex>
         } else {
-            return <MainContainer main={fileInfo} />;
+            return <MainContainer main={fileInfo}/>;
         }
     }
 
@@ -432,7 +432,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -537,7 +537,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 filterProvider: selected[0].specification.product.provider
                             },
                             initialPath: pathRef.current,
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -591,7 +591,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -647,7 +647,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />,
+                        }}/>,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -1129,10 +1129,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1160,7 +1160,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-        onUpdated={onUpdated} />, () => undefined, true);
+                                             onUpdated={onUpdated}/>, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1277,32 +1277,31 @@ export function FilePreview({file, contentRef}: {
             } else {
                 const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
 
-                    switch (typeFromFileType) {
-                        case "image":
-                        case "audio":
-                        case "video":
-                        case "pdf":
-                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                            setType(typeFromFileType);
+                switch (typeFromFileType) {
+                    case "image":
+                    case "audio":
+                    case "video":
+                    case "pdf":
+                        setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                        setType(typeFromFileType);
+                        setError(null);
+                        break;
+                    case "code":
+                    case "text":
+                    case "application":
+                    case "markdown":
+                    default: {
+                        const text = tryDecodeText(contentBuffer);
+                        if (text !== null) {
+                            setType("text");
+                            setData(text);
                             setError(null);
-                            break;
-                        case "code":
-                        case "text":
-                        case "application":
-                        case "markdown":
-                        default: {
-                            const text = tryDecodeText(contentBuffer);
-                            if (text !== null) {
-                                setType("text");
-                                setData(text);
-                                setError(null);
-                                // Note(Jonas): If we don't find a valid `typeFromMime`, we set text and should not continue and set type again.
-                                return;
-                            } else {
-                                setError("Preview is not supported for this file.");
-                            }
-                            break;
+                            // Note(Jonas): If we don't find a valid `typeFromMime`, we set text and should not continue and set type again.
+                            return;
+                        } else {
+                            setError("Preview is not supported for this file.");
                         }
+                        break;
                     }
                 }
             }
@@ -1355,7 +1354,7 @@ export function FilePreview({file, contentRef}: {
     const editorRef = React.useRef<EditorApi>(null);
 
     if (file.status.type !== "FILE") return null;
-    if (data === "" && !error) return <PredicatedLoadingSpinner loading />
+    if (data === "" && !error) return <PredicatedLoadingSpinner loading/>
 
     let node: React.ReactNode = null;
 
@@ -1367,36 +1366,47 @@ export function FilePreview({file, contentRef}: {
                 setType("markdown");
                 break;
             }
-
             let vfsVar = vfs;
             if (!vfsVar) {
                 vfsVar = new PreviewVfs(file, data, navigate);
                 setVfs(vfsVar);
             }
 
-            node = <Editor apiRef={editorRef} toolbarBeforeSettings={
-                <TooltipV2 tooltip={"Upload"} contentWidth={80}>
-                    <Icon name={"floppyDisk"} size={"20px"} cursor={"pointer"} onClick={() => saveDialog(vfsVar, editorRef?.current?.notifyDirtyBuffer)} />
-                </TooltipV2>} initialFolderPath={removeTrailingSlash(getParentPath(file.id))} initialFilePath={file.id} title={vfsTitle} vfs={vfsVar}
+            node = <Editor
+                apiRef={editorRef}
+                toolbarBeforeSettings={
+                    <TooltipV2 tooltip={"Save"} contentWidth={80}>
+                        <Icon
+                            name={"floppyDisk"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={() => saveDialog(vfsVar!, editorRef?.current ?? undefined)}
+                        />
+                    </TooltipV2>
+                }
+                initialFolderPath={removeTrailingSlash(getParentPath(file.id))}
+                initialFilePath={file.id}
+                title={vfsTitle}
+                vfs={vfsVar!}
             />;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(file.id)} src={data} />
+            node = <img className={Image} alt={fileName(file.id)} src={data}/>
             break;
         case "audio":
-            node = <audio className={Audio} controls src={data} />;
+            node = <audio className={Audio} controls src={data}/>;
             break;
         case "video":
-            node = <video className={Video} src={data} controls />;
+            node = <video className={Video} src={data} controls/>;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data} />;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data}/>;
             break;
         case "markdown":
             node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div />
+            node = <div/>
             break;
     }
 
@@ -1407,32 +1417,11 @@ export function FilePreview({file, contentRef}: {
     return <div className={ItemWrapperClass}>{node}</div>;
 }
 
-function saveDialog(vfs: PreviewVfs, saveBufferContent?: () => void) {
-    const activePath = vfs.path;
+async function saveDialog(vfs: Vfs, editor?: EditorApi) {
+    if (!editor) return;
 
-    if (!vfs.isFileDirty(activePath)) {
-        snackbarStore.addFailure("File has not been modified.", false);
-        return;
-    }
-
-    if (!saveBufferContent) {
-        snackbarStore.addFailure("Cannot read text contents.", false);
-        return;
-    }
-
-    saveBufferContent();
-    prettyFilePath(vfs.path).then(p =>
-        addStandardDialog({
-            title: "Save file?",
-            message: `Upload changes to existing file ${p}?`,
-            onConfirm() {
-                vfs.writeFile(vfs.path, vfs.dirtyFileContent[vfs.path]).then(() =>
-                    vfs.updateLocalCache(vfs.path)
-                );
-            },
-            onCancel() {}
-        })
-    );
+    await editor.notifyDirtyBuffer();
+    await vfs.writeFile(editor.path);
 }
 
 async function downloadFileContent(path: string): Promise<Blob> {
@@ -1506,10 +1495,8 @@ class PreviewVfs implements Vfs {
     private fetchedFiles: Record<string, string> = {};
     private folders: Record<string, VirtualFile[]> = {};
     private ufiles: Record<string, UFile> = {};
-    private dirtyFiles: Record<string, boolean> = {};
     public dirtyFileContent: Record<string, string> = {};
 
-    public path: string = "";
     private navigate: NavigateFunction;
 
     constructor(previewedFile: UFile, content: string, navigate: NavigateFunction) {
@@ -1547,12 +1534,12 @@ class PreviewVfs implements Vfs {
     }
 
     async readFile(path: string): Promise<string> {
-        if (this.dirtyFiles[path]) return this.dirtyFileContent[path];
+        const dirty = this.dirtyFileContent[path];
+        if (dirty !== undefined) return dirty;
         if (this.fetchedFiles[path]) return this.fetchedFiles[path];
 
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
-
 
         if (!isDownloadAllowed(file)) {
             throw window.Error("File cannot be viewed in editor");
@@ -1569,7 +1556,8 @@ class PreviewVfs implements Vfs {
                     // AWFUL solution
                     this.navigate(AppRoutes.files.preview(path));
                 },
-                onCancel() {}
+                onCancel() {
+                }
             });
             return "";
         } else {
@@ -1577,25 +1565,20 @@ class PreviewVfs implements Vfs {
         }
     }
 
-    setFileAsDirty(path: string): void {
-        this.dirtyFiles[path] = true;
-    }
+    async writeFile(path: string): Promise<void> {
+        const content = this.dirtyFileContent[path];
+        if (content === undefined) return;
 
-    isFileDirty(path: string): boolean {
-        return this.dirtyFiles[path];
-    }
-
-    async writeFile(path: string, content: string): Promise<void> {
         try {
-            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {detail: {path, content}}));
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+                detail: {
+                    path,
+                    content
+                }
+            }));
         } catch (e) {
-            errorMessageOrDefault(e, "Failed to upload file");
+            errorMessageOrDefault(e, "Failed to save file");
         }
-    }
-
-    updateLocalCache(path: string): void {
-        this.fetchedFiles[path] = this.dirtyFileContent[path];
-        delete this.dirtyFiles[path];
     }
 }
 
@@ -1608,6 +1591,7 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
 }
 
 export const WriteToFileEventKey = "write-to-file-event";
+
 export interface WriteToFileEventProps {
     path: string;
     content: string;

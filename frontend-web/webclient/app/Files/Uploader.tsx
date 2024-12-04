@@ -738,8 +738,9 @@ const Uploader: React.FunctionComponent = () => {
         e.preventDefault();
         const {path, content} = e.detail;
         const allUploads: Upload[] = uploads;
+        let didFetch = false;
         const packaged = toPackagedFile(path, content);
-        
+
         allUploads.push({
             name: fileName(path),
             row: packaged,
@@ -749,8 +750,10 @@ const Uploader: React.FunctionComponent = () => {
             state: UploadState.PENDING,
             conflictPolicy: "REPLACE",
             targetPath: getParentPath(path),
-            fileFetcher: () => {
-                return Promise.resolve([packaged]);
+            fileFetcher: async () => {
+                if (didFetch) return null;
+                didFetch = true;
+                return [packaged];
             },
             initialProgress: 0,
             uploadEvents: []
@@ -758,8 +761,7 @@ const Uploader: React.FunctionComponent = () => {
 
         setUploads(allUploads);
         startUploads(allUploads, setLookForNewUploads);
-        window.dispatchEvent(new CustomEvent<"BackgroundTask">("open-task-window", {detail: "BackgroundTask"}));
-        
+        // window.dispatchEvent(new CustomEvent<"BackgroundTask">("open-task-window", {detail: "BackgroundTask"}));
     }, [uploads]);
 
     useEffect(() => {

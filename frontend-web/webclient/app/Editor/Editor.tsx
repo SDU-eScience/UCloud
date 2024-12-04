@@ -18,20 +18,14 @@ import {PrettyFileName} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface Vfs {
-    path: string;
-
     listFiles(path: string): Promise<VirtualFile[]>;
 
     readFile(path: string): Promise<string>;
 
-    writeFile(path: string, content: string): Promise<void>;
-
-    isFileDirty(path: string): boolean;
+    writeFile(path: string): Promise<void>;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
     setDirtyFileContent(path: string, content: string): void;
-
-    setFileAsDirty(path: string): void;
 }
 
 export interface VirtualFile {
@@ -310,7 +304,8 @@ const editorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
-        max-height: calc(100vh - 32px), 100%);
+        max-height: calc(100vh - 32px);
+        height: 100%;
         --borderThickness: 2px;
     }
     
@@ -362,6 +357,7 @@ type EditorEngine =
     | "vim";
 
 export interface EditorApi {
+    path: string;
     notifyDirtyBuffer: () => Promise<void>;
 }
 
@@ -414,6 +410,12 @@ export const Editor: React.FunctionComponent<{
         monacoRef.current = monacoInstance;
     }, [monacoInstance]);
 
+    useEffect(() => {
+        const ref = props.apiRef;
+        if (!ref || !ref.current) return;
+        ref.current.path = state.currentPath;
+    }, [props.apiRef, state.currentPath]);
+
     const didUnmount = useDidUnmount();
 
     const reloadBuffer = useCallback((name: string, content: string) => {
@@ -456,13 +458,6 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
-        if (path === props.vfs.path) return true;
-        else if (props.vfs.isFileDirty(path)) {
-            const oldPath = path;
-            readBuffer().then(content => props.vfs.setDirtyFileContent(oldPath, content));
-        }
-        props.vfs.path = path;
-
         const cachedContent = state.cachedFiles[path];
         const dataPromise = cachedContent !== undefined ?
             Promise.resolve(cachedContent) :
@@ -553,12 +548,14 @@ export const Editor: React.FunctionComponent<{
 
         const res = await readBuffer();
         if (didUnmount.current) return;
-        if (props.vfs.isFileDirty(state.currentPath)) props.vfs.setDirtyFileContent(state.currentPath, res);
+
+        props.vfs.setDirtyFileContent(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, []);
 
     const api: EditorApi = useMemo(() => {
         return {
+            path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
         }
     }, []);
@@ -616,13 +613,6 @@ export const Editor: React.FunctionComponent<{
         });
 
         setEditor(editor);
-
-        m.editor.getEditors().forEach(ed => {
-            ed.onDidChangeModelContent(ev => {
-                if (ev.isFlush) return;
-                props.vfs.setFileAsDirty(props.vfs.path)
-            });
-        });
     }, [monacoInstance, isSettingsOpen]);
 
     useLayoutEffect(() => {
@@ -851,7 +841,6 @@ const SidebarNode: React.FunctionComponent<{
     />;
 }
 
-/* Note(Jonas): I'm not sure this should be pushed down here, but I can't put it into a .JSON file due to the regexes */
 const jinja2monarchTokens = {
     tokenizer: {
         root: [
