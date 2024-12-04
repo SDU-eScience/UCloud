@@ -511,6 +511,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 	ctrl.TrackNewJob(*job)
 
 	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+	outputFolder, ok := InternalToUCloud(jobFolder)
+	updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+		Id: job.Id,
+		Update: orc.JobUpdate{
+			OutputFolder: util.Option[string]{Present: ok, Value: outputFolder},
+			Status:       util.OptValue(fmt.Sprintf("Your job has been submitted to the queue (Slurm ID: %v)", slurmId)),
+		},
+	})
 
 	for _, target := range sbatchResult.DynamicTargets {
 		targetAsJson, _ := json.Marshal(target)
