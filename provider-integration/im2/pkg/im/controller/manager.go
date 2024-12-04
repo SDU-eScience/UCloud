@@ -30,6 +30,7 @@ func Init(mux *http.ServeMux) {
 	controllerConnection(mux)
 	controllerJobs(mux)
 	controllerTasks(mux)
+	controllerSshKeys(mux)
 
 	initLiveness()
 	if RunsServerCode() {

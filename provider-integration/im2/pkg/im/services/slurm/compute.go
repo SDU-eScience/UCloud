@@ -523,6 +523,31 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		})
 	}
 
+	if ServiceConfig.Ssh.Enabled {
+		portString := ""
+		host := ServiceConfig.Ssh.Host
+		if host.Port != 22 {
+			portString = fmt.Sprintf(" -p %d", host.Port)
+		}
+
+		uinfo, err := user.Current()
+		username := ""
+		if err == nil {
+			username = uinfo.Username
+		} else {
+			username = fmt.Sprint(os.Getuid())
+		}
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id: job.Id,
+			Update: orc.JobUpdate{
+				Status: util.OptValue(
+					fmt.Sprintf("SSH: Connected! Available at: ssh %s@%s"+portString, username, host.Address),
+				),
+			},
+		})
+	}
+
 	if len(updates) > 0 {
 		// NOTE(Dan): Error is ignored since there is no obvious way to recover here. Ignoring the error is probably
 		// the best we can do.
