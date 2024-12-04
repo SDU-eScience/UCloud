@@ -1,8 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.ComposeService.GoSlurm.service
 import dk.sdu.cloud.ComposeService.Slurm.numberOfSlurmNodes
-import java.util.Base64
 
 @JvmInline
 value class Json(val encoded: String)
@@ -1414,26 +1412,20 @@ sealed class ComposeService {
     }
 
     object Gateway : ComposeService() {
+        private var didAppendInstall = false
+
         override fun ComposeBuilder.build() {
             val gatewayDir = environment.dataDirectory.child("gateway").also { it.mkdirs() }
             val gatewayData = gatewayDir.child("data").also { it.mkdirs() }
             val certificates = gatewayDir.child("certs").also { it.mkdirs() }
 
-            // See https://get.localhost.direct for details about this. Base64 just to avoid showing up in search
-            // results.
-            certificates.child("tls.crt").writeBytes(
-                Base64.getDecoder().decode(
-                    Gateway::class.java.getResourceAsStream("/tlsc.txt")!!.readAllBytes()
-                        .decodeToString().replace("\r", "").replace("\n", "")
-                )
-            )
+            val certFile = certificates.child("tls.crt")
+            val keyFile = certificates.child("tls.key")
 
-            certificates.child("tls.key").writeBytes(
-                Base64.getDecoder().decode(
-                    Gateway::class.java.getResourceAsStream("/tlsk.txt")!!.readAllBytes()
-                        .decodeToString().replace("\r", "").replace("\n", "")
-                )
-            )
+            if ((!certFile.exists() || !keyFile.exists()) && !didAppendInstall) {
+                didAppendInstall = true
+                postExecFile.appendText("\n./launcher install-certs\n\n")
+            }
 
             val gatewayConfig = gatewayDir.child("Caddyfile")
             gatewayConfig.writeText(

@@ -143,6 +143,14 @@ fun cliIntercept(args: List<String>) {
             Commands.portForward()
         }
 
+        "install-certs" -> {
+            Commands.installCertificates()
+        }
+
+        "write-certs" -> {
+            Commands.writeCertificates(args.getOrNull(1) ?: printHelp())
+        }
+
         "import-apps" -> {
             Commands.importApps()
         }

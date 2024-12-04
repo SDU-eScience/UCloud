@@ -60,7 +60,7 @@ class SshKeyService {
     ) {
         ctx.withSession { session ->
             val allKeys = browse(actorAndProject, null, session)
-            providers.forEachRelevantProvider(actorAndProject.copy(project = null)) { providerId ->
+            providers.forEachRelevantProvider(actorAndProject, useProject = false) { providerId ->
                 runCatching {
                     providers.call(
                         providerId,

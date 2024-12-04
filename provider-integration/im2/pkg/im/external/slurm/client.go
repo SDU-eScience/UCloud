@@ -238,7 +238,7 @@ func (c *Client) JobQuery(id int) *Job {
 }
 
 func (c *Client) JobList() []Job {
-	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist"}
+	cmd := []string{"sacct", "-XPa", "-o", "jobid,state,user,account,jobname,partition,elapsed,timelimit,alloctres,qos,nodelist,comment"}
 	stdout, ok := util.RunCommand(cmd)
 	if !ok {
 		return nil
@@ -291,6 +291,21 @@ func (c *Client) JobSubmit(pathToScript string) (int, error) {
 	}
 
 	return jobId, nil
+}
+
+func (c *Client) JobComment(jobId int) (string, bool) {
+	cmd := []string{"squeue", fmt.Sprintf("--job=%d", jobId), "--format=%k"}
+	stdout, ok := util.RunCommand(cmd)
+	if !ok {
+		return "", false
+	}
+	split := strings.Split(stdout, "\n")
+	if len(split) >= 2 {
+		split = split[1:]
+		return strings.Join(split, "\n"), true
+	} else {
+		return "", false
+	}
 }
 
 func (c *Client) JobCancel(id int) bool {

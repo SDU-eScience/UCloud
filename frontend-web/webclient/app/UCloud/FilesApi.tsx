@@ -1277,28 +1277,32 @@ export function FilePreview({file, contentRef}: {
             } else {
                 const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
 
-                switch (typeFromFileType) {
-                    case "image":
-                    case "audio":
-                    case "video":
-                    case "pdf":
-                        setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                        setType(typeFromFileType);
-                        setError(null);
-                        break;
-                    case "code":
-                    case "text":
-                    case "application":
-                    case "markdown":
-                    default: {
-                        if (text !== null) {
-                            setType("text");
-                            setData(text);
+                    switch (typeFromFileType) {
+                        case "image":
+                        case "audio":
+                        case "video":
+                        case "pdf":
+                            setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
+                            setType(typeFromFileType);
                             setError(null);
-                        } else {
-                            setError("Preview is not supported for this file.");
+                            break;
+                        case "code":
+                        case "text":
+                        case "application":
+                        case "markdown":
+                        default: {
+                            const text = tryDecodeText(contentBuffer);
+                            if (text !== null) {
+                                setType("text");
+                                setData(text);
+                                setError(null);
+                                // Note(Jonas): If we don't find a valid `typeFromMime`, we set text and should not continue and set type again.
+                                return;
+                            } else {
+                                setError("Preview is not supported for this file.");
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
