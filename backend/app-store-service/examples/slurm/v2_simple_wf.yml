@@ -1,0 +1,46 @@
+application: v2
+
+name: simple-wf
+version: 1
+
+software:
+  type: Native
+  load: []
+
+features:
+  multiNode: true
+
+parameters:
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      Change this workflow to customize what the batch script should do.
+
+    init: ""
+
+    job: |
+      {# Preambles start - Avoid touching these unless required. #}
+        {- systemLoad -}
+        {- applicationLoad -}
+      {# Preambles end #}
+      
+      {# =============================================================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# =============================================================================================================== #}
+      
+      hostname
+      
+      {# =============================================================================================================== #}
+      {# End of job                                                                                                      #}
+      {# =============================================================================================================== #}
+      
+      {# Postambles start - Avoid touching these unless required. #}
+        {- applicationUnload -}
+        {- systemUnload -}
+      {# Postambles end #}
+
+    readme: This is a minimal example.
+
+invocation: ""
