@@ -341,6 +341,8 @@ type EditorEngine =
 export interface EditorApi {
     path: string;
     notifyDirtyBuffer: () => Promise<void>;
+    openFile: (path: string) => void;
+    invalidateTree: (path: string) => void;
 }
 
 export const Editor: React.FunctionComponent<{
@@ -560,10 +562,26 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, [props.onOpenFile]);
 
+    const invalidateTree = useCallback((folder: string) => {
+        let didCancel = false;
+        props.vfs.listFiles(folder).then(files => {
+            if (didCancel) return;
+            dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+        });
+
+        return () => {
+            didCancel = true;
+        };
+    }, [props.vfs]);
+
     const api: EditorApi = useMemo(() => {
         return {
             path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
+            openFile: path => {
+                openFile(path, true);
+            },
+            invalidateTree,
         }
     }, []);
 
@@ -572,15 +590,7 @@ export const Editor: React.FunctionComponent<{
     }, [api, props.apiRef]);
 
     useEffect(() => {
-        let didCancel = false;
-        props.vfs.listFiles(props.initialFolderPath).then(files => {
-            if (didCancel) return;
-            dispatch({type: "EditorActionFilesLoaded", path: props.initialFolderPath, files});
-        });
-
-        return () => {
-            didCancel = true;
-        };
+        invalidateTree(props.initialFolderPath);
     }, []);
 
     useLayoutEffect(() => {
@@ -659,10 +669,13 @@ export const Editor: React.FunctionComponent<{
             editor.layout();
         };
 
+        const interval = window.setInterval(listener, 200);
+
         window.addEventListener("resize", listener);
 
         return () => {
             window.removeEventListener("resize", listener);
+            window.clearInterval(interval);
         };
     }, [editor]);
 

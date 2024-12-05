@@ -8,7 +8,7 @@ import {
     ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
-import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
+import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {
     Box,
     Button,
@@ -49,7 +49,7 @@ import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
-import {addStandardDialog} from "@/UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -67,7 +67,6 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
-import {PredicatedLoadingSpinner} from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
@@ -92,6 +91,8 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {useDispatch} from "react-redux";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1130,6 +1131,28 @@ export function FilePreview({initialFile}: {
 }): React.ReactNode {
     const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
+    const [drive, setDrive] = useState<FileCollection | null>(null);
+    const didUnmount = useDidUnmount();
+
+    useEffect(() => {
+        (async () => {
+            const collection = await callAPI(
+                FileCollectionsApi.retrieve({
+                    id: initialFile.specification.collection,
+                    includeSupport: true,
+                })
+            );
+
+            if (!didUnmount.current) {
+                setDrive(collection);
+            }
+        })();
+    }, [initialFile]);
+
+    const dispatch = useDispatch();
+
+    const supportsTerminal = (drive?.status?.resolvedSupport?.support as FileCollectionSupport)
+        ?.files?.openInTerminal === true;
 
     const vfs = useMemo(() => {
         return new PreviewVfs(initialFile);
@@ -1278,22 +1301,66 @@ export function FilePreview({initialFile}: {
         node = <div>{mediaFileMetadata?.error}</div>;
     }
 
-    if (node) {
-        node = <div>
-            {node}
-        </div>;
-    }
-
     const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
         setOpenFile([path, data]);
     }, []);
+
+    const openTerminal = useCallback(() => {
+        if (!drive) return;
+        const providerId = drive.specification.product.provider;
+        const providerTitle = getProviderTitle(providerId) ?? providerId;
+        const folder = getParentPath(initialFile.id);
+
+        dispatch({type: "TerminalOpen"});
+        dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
+    }, [drive, initialFile]);
+
+    const newFolder = useCallback(async () => {
+        const path = openFile[0];
+        const name = (await addStandardInputDialog({
+            title: "What should the folder be called?",
+            confirmText: "Create folder",
+        })).result;
+
+        await callAPI(api.createFolder(bulkRequestOf({
+            id: getParentPath(path) + name,
+            conflictPolicy: "REJECT",
+        })));
+
+        editorRef.current?.invalidateTree?.(getParentPath(path));
+
+        // TODO Invalidate something in the tree view
+    }, [openFile[0]]);
+
+    const newFile = useCallback(async () => {
+        const path = openFile[0];
+        const name = (await addStandardInputDialog({
+            title: "What should the file be called?",
+            confirmText: "Create file",
+        })).result;
+
+        const newPath = getParentPath(path) + name;
+        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+            detail: {
+                path: newPath,
+                content: "",
+            }
+        }));
+
+        setTimeout(() => {
+            editorRef.current?.invalidateTree?.(getParentPath(path));
+            editorRef.current?.openFile?.(newPath);
+        }, 200);
+
+        // TODO Invalidate something in the tree view
+    }, [openFile[0]]);
 
     return <Editor
         apiRef={editorRef}
         toolbarBeforeSettings={
             <>
                 {ext === "markdown" ?
-                    <TooltipV2 tooltip={"Preview"} contentWidth={80}>
+                    <TooltipV2 tooltip={"Preview (ctrl+b)"} contentWidth={80}>
                         <Icon
                             name={"heroMagnifyingGlass"}
                             size={"20px"}
@@ -1302,7 +1369,7 @@ export function FilePreview({initialFile}: {
                         />
                     </TooltipV2> : null}
 
-                <TooltipV2 tooltip={"Save"} contentWidth={80}>
+                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
                     <Icon
                         name={"floppyDisk"}
                         size={"20px"}
@@ -1310,6 +1377,36 @@ export function FilePreview({initialFile}: {
                         onClick={onSave}
                     />
                 </TooltipV2>
+            </>
+        }
+        toolbar={
+            <>
+                <TooltipV2 tooltip={"New file"} contentWidth={130}>
+                    <Icon
+                        name={"heroDocumentPlus"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={newFile}
+                    />
+                </TooltipV2>
+                <TooltipV2 tooltip={"New folder"} contentWidth={130}>
+                    <Icon
+                        name={"heroFolderPlus"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={newFolder}
+                    />
+                </TooltipV2>
+                {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
+                    <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
+                        <Icon
+                            name={"terminalSolid"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={openTerminal}
+                        />
+                    </TooltipV2>
+                }
             </>
         }
         initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
@@ -1388,7 +1485,6 @@ class PreviewVfs implements Vfs {
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {
-        if (this.folders[path]) return this.folders[path];
         try {
             return this.folders[path] = await this.fetchFiles(path);
         } catch (e) {
