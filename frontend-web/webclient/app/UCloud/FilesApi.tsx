@@ -24,7 +24,7 @@ import {
     Truncate
 } from "@/ui-components";
 import * as React from "react";
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
@@ -35,8 +35,6 @@ import {
     ExtensionType,
     extensionType,
     inDevEnvironment,
-    isLightThemeStored,
-    languageFromExtension,
     onDevSite,
     prettierString,
     removeTrailingSlash,
@@ -74,7 +72,6 @@ import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {useSelector} from "react-redux";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {
     FilesCopyRequestItem,
@@ -258,98 +255,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         }, [id]);
 
         const prettyPath = usePrettyFilePath(id ?? "");
-        const downloadRef = React.useRef(new Uint8Array());
         usePage(prettyPath, SidebarTabId.FILES);
-
-        const [, invokeCommand] = useCloudCommand();
-
-        const downloadFunction = React.useMemo(() => {
-            return this.retrieveOperations().find(it => it.text === "Download");
-        }, []);
 
         const file = fileData.data;
 
-        const downloadFile = React.useCallback(() => {
-            if (!id || !downloadFunction || !file) return;
-            if (downloadRef.current.length > 0) {
-                const url = window.URL.createObjectURL(
-                    new Blob([new Uint8Array(downloadRef.current, 0, downloadRef.current.length)])
-                );
-                const a = document.createElement("a");
-                a.style.display = "none";
-                a.href = url;
-                a.download = fileName(id);
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-            } else {
-                downloadFunction.onClick([file], {invokeCommand} as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks);
-            }
-        }, [downloadRef, file, id]);
-
-        if (!id) return <h1>Missing file id.</h1>
-
-        if (fileData.loading) return <PredicatedLoadingSpinner loading/>
-
-        if (fileData.error) return <Error error={fileData.error.why}/>;
+        if (!id) return <h1>Missing file id.</h1>;
         if (!file) return <></>;
 
-        const isFile = file.status.type === "FILE";
-
-        const fileInfo = <>
-            <div><b>Path:</b> <Truncate title={prettyPath}>{prettyPath}</Truncate></div>
-            <div>
-                <b>Product: </b>
-                {file.specification.product.id === file.specification.product.category ?
-                    <>{file.specification.product.id}</> :
-                    <>{file.specification.product.id} / {file.specification.product.category}</>
-                }
-            </div>
-            <Flex gap="8px">
-                <b>Provider: </b>
-                <ProviderTitle providerId={file.specification.product.provider}/>
-            </Flex>
-            <div><b>Created at:</b> {dateToString(file.createdAt)}</div>
-            {file.status.modifiedAt ?
-                <div><b>Modified at:</b> {dateToString(file.status.modifiedAt)}</div> : null}
-            {file.status.accessedAt ?
-                <div><b>Accessed at:</b> {dateToString(file.status.accessedAt)}</div> : null}
-            {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeInBytes)}</div> : null}
-            {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><b>Size:</b> {sizeToString(file.status.sizeIncludingChildrenInBytes)}
-                </div> : null
-            }
-            {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><b>UID/GID</b>: {file.status.unixOwner}/{file.status.unixGroup}</div> :
-                null
-            }
-            {file.status.unixMode != null ?
-                <div><b>Unix mode:</b> {readableUnixMode(file.status.unixMode)}</div> :
-                null
-            }
-            <Box mt={"16px"} mb={"8px"}>
-                <Link to={buildQueryString(`/${this.routingNamespace}`, {path: getParentPath(file.id)})}>
-                    <Button fullWidth>View in folder</Button>
-                </Link>
-            </Box>
-            {isFile ? <Box mt={"16px"} mb={"8px"} onClick={downloadFile}>
-                <Button fullWidth>Download file</Button>
-            </Box> : null}
-        </>
-
-        if (isFile) {
-            return <Flex className={FilePropertiesLayout}>
-                <div className="A">
-                    <FilePreview file={file} contentRef={downloadRef}/>
-                </div>
-                <div className="B">
-                    {fileInfo}
-                </div>
-            </Flex>
-        } else {
-            return <MainContainer main={fileInfo}/>;
-        }
+        return <FilePreview initialFile={file}/>
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -1212,216 +1125,201 @@ function isDownloadAllowed(file: UFile) {
     return size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
 }
 
-export function FilePreview({file, contentRef}: {
-    file: UFile,
-    contentRef: React.MutableRefObject<Uint8Array>
+export function FilePreview({initialFile}: {
+    initialFile: UFile,
 }): React.ReactNode {
+    const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
+    const [previewRequested, setPreviewRequested] = useState(false);
 
-    const navigate = useNavigate();
-
-    let oldOnResize: typeof window.onresize;
-
-    React.useEffect(() => {
-        oldOnResize = window.onresize;
-        return () => {
-            window.onresize = oldOnResize
-        }
+    const vfs = useMemo(() => {
+        return new PreviewVfs(initialFile);
     }, []);
 
-    const [vfs, setVfs] = React.useState<PreviewVfs | null>(null);
-    const [type, setType] = useState<ExtensionType>(null);
-    const [vfsTitle, setTitle] = useState(getParentPath(file.id));
+    const [vfsTitle, setTitle] = useState(getParentPath(initialFile.id));
 
     React.useEffect(() => {
-        prettyFilePath(getParentPath(file.id)).then(setTitle)
+        prettyFilePath(getParentPath(initialFile.id)).then(t => {
+            setTitle(t);
+        })
     }, []);
-
-    const codePreview = React.useRef<HTMLDivElement>(null);
-
-    const [data, setData] = useState("");
-    const [error, setError] = useState<string | null>(null);
-
-    const fetchData = React.useCallback(async () => {
-        const size = file.status.sizeInBytes;
-        if (isDownloadAllowed(file)) {
-            let contentBlob: Blob;
-            try {
-                contentBlob = await downloadFileContent(file.id);
-            } catch (e) {
-                setError(errorMessageOrDefault(e, "Failed to download file"));
-                return;
-            }
-
-            const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
-
-            const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
-            const correctExtension = foundFileType.some(it => it.extension === extensionFromPath(file.id));
-            const text = tryDecodeText(contentBuffer);
-
-            const isMisidentifiedAsBinaryFormat = text !== null && foundFileType.length > 0 && EXPECTED_BINARY_FORMATS.includes(foundFileType[0].typename);
-
-            if (contentRef) contentRef.current = contentBuffer;
-
-            if (!correctExtension && isMisidentifiedAsBinaryFormat) {
-                setType("text");
-                setData(text);
-                setError(null);
-            } else if (foundFileType.length === 0) {
-                if (text !== null) {
-                    setType("text");
-                    setData(text);
-                    setError(null);
-                } else {
-                    setError("Preview is not supported for this file.");
-                }
-            } else {
-                const typeFromFileType = typeFromMime(foundFileType[0].mime ?? "") ?? extensionType(foundFileType[0].typename);
-
-                switch (typeFromFileType) {
-                    case "image":
-                    case "audio":
-                    case "video":
-                    case "pdf":
-                        setData(URL.createObjectURL(new Blob([contentBlob], {type: foundFileType[0].mime})));
-                        setType(typeFromFileType);
-                        setError(null);
-                        break;
-                    case "code":
-                    case "text":
-                    case "application":
-                    case "markdown":
-                    default: {
-                        const text = tryDecodeText(contentBuffer);
-                        if (text !== null) {
-                            setType("text");
-                            setData(text);
-                            setError(null);
-                            // Note(Jonas): If we don't find a valid `typeFromMime`, we set text and should not continue and set type again.
-                            return;
-                        } else {
-                            setError("Preview is not supported for this file.");
-                        }
-                        break;
-                    }
-                }
-            }
-        } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
-            setError("File is too large to preview");
-        } else if (!size || size <= 0) {
-            setError("File is empty");
-        } else {
-            setError("Preview is not supported for this file.");
-        }
-    }, [file]);
 
     useEffect(() => {
-        fetchData();
-    }, [file]);
+        setPreviewRequested(false);
+    }, [openFile[0]]);
 
-    const lightTheme = useSelector((red: ReduxObject) => red.sidebar.theme)
-    React.useEffect(() => {
-        if (type === "text" || type === "code") {
-            const theme = lightTheme === "light" ? "light" : "vs-dark";
-            getMonaco().then(monaco => monaco.editor.setTheme(theme));
-        }
-    }, [lightTheme, type]);
-
-    React.useLayoutEffect(() => {
-        const node = codePreview.current;
-        if (!node) return;
-        if (type === "text" || type === "code") {
-            getMonaco().then(monaco => {
-                const count = monaco.editor.getEditors().length;
-                if (count > 0) return;
-                monaco.editor.create(node, {
-                    value: data,
-                    language: languageFromExtension(extensionFromPath(file.id)),
-                    readOnly: true,
-                    minimap: {enabled: false},
-                    theme: isLightThemeStored() ? "light" : "vs-dark",
-                });
-                window.onresize = () => {
-                    monaco.editor.getEditors().forEach(it => it.layout());
-                };
-            });
-            return () => {
-                getMonaco().then(monaco => monaco.editor.getEditors().forEach(it => it.dispose()));
+    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
+        let [file, contentBuffer] = openFile;
+        if (typeof contentBuffer === "string") {
+            if (previewRequested) {
+                contentBuffer = new TextEncoder().encode(contentBuffer);
+            } else {
+                return null;
             }
         }
-        return () => void 0;
-    }, [type, data]);
+        const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
+        let typeFromFileType =
+            foundFileType.length > 0 ?
+            typeFromMime(foundFileType[0].mime ?? "") : null;
+
+        if (!typeFromFileType) {
+            typeFromFileType = extensionType(extensionFromPath(file));
+        }
+
+        switch (typeFromFileType) {
+            case "image":
+            case "audio":
+            case "video":
+            case "pdf":
+                return {
+                    type: typeFromFileType,
+                    data: URL.createObjectURL(
+                        new Blob(
+                            [contentBuffer],
+                            {type: foundFileType[0].mime}
+                        )
+                    ),
+                    error: null,
+                };
+
+            case "code":
+            case "text":
+            case "application":
+            case "markdown":
+            default: {
+                const text = tryDecodeText(contentBuffer);
+                if (text !== null) {
+                    return {
+                        type: typeFromFileType,
+                        data: text,
+                        error: null
+                    };
+                } else {
+                    return {
+                        type: "text",
+                        data: "",
+                        error: "Preview is not supported for this file.",
+                    };
+                }
+            }
+        }
+    }, [openFile, previewRequested]);
 
     const editorRef = React.useRef<EditorApi>(null);
 
-    if (file.status.type !== "FILE") return null;
-    if (data === "" && !error) return <PredicatedLoadingSpinner loading/>
+    const requestPreviewToggle = useCallback(() => {
+        editorRef.current?.notifyDirtyBuffer().then(() => {
+            setPreviewRequested(p => !p);
+        });
+    }, []);
+
+    const onSave = useCallback(async () => {
+        const editor = editorRef.current;
+        if (!editor) return;
+
+        await editor.notifyDirtyBuffer();
+        await vfs.writeFile(editor.path);
+
+        snackbarStore.addSuccess("File has been saved", false, 800);
+    }, [vfs]);
+
+    useEffect(() => {
+        const listener = (ev: KeyboardEvent) => {
+            const hasCtrl = ev.ctrlKey || ev.metaKey;
+            if (ev.code === "KeyS" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                onSave().then(doNothing);
+            }
+            if (ev.code === "KeyB" && hasCtrl) {
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                requestPreviewToggle();
+            }
+        };
+
+        window.addEventListener("keydown", listener);
+        return () => {
+            window.removeEventListener("keydown", listener);
+        }
+    }, [onSave, requestPreviewToggle]);
+
+
+    if (initialFile.status.type !== "FILE") return null;
 
     let node: React.ReactNode = null;
 
-    switch (type) {
+    const ext = extensionType(extensionFromPath(openFile[0]));
+
+    switch (mediaFileMetadata?.type) {
         case "text":
         case "code":
-            // Note(Jonas): In the special case that Markdown starts with `[`, this will be considered `type = "code"`. We handle this at the last minute here.
-            if ([".md", ".markdown"].some(ending => file.id.endsWith(ending))) {
-                setType("markdown");
-                break;
-            }
-            let vfsVar = vfs;
-            if (!vfsVar) {
-                vfsVar = new PreviewVfs(file, data, navigate);
-                setVfs(vfsVar);
-            }
-
-            node = <Editor
-                apiRef={editorRef}
-                toolbarBeforeSettings={
-                    <TooltipV2 tooltip={"Save"} contentWidth={80}>
-                        <Icon
-                            name={"floppyDisk"}
-                            size={"20px"}
-                            cursor={"pointer"}
-                            onClick={() => saveDialog(vfsVar!, editorRef?.current ?? undefined)}
-                        />
-                    </TooltipV2>
-                }
-                initialFolderPath={removeTrailingSlash(getParentPath(file.id))}
-                initialFilePath={file.id}
-                title={vfsTitle}
-                vfs={vfsVar!}
-            />;
+            node = null;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(file.id)} src={data}/>
+            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data}/>
             break;
         case "audio":
-            node = <audio className={Audio} controls src={data}/>;
+            node = <audio className={Audio} controls src={mediaFileMetadata.data}/>;
             break;
         case "video":
-            node = <video className={Video} src={data} controls/>;
+            node = <video className={Video} src={mediaFileMetadata.data} controls/>;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={data}/>;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
             break;
         case "markdown":
-            node = <div className={MarkdownStyling}><Markdown>{data}</Markdown></div>;
-            break;
-        default:
-            node = <div/>
+            node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
             break;
     }
 
-    if (error !== null) {
-        node = <div>{error}</div>;
+    if (mediaFileMetadata && mediaFileMetadata.error !== null) {
+        node = <div>{mediaFileMetadata?.error}</div>;
     }
 
-    return <div className={ItemWrapperClass}>{node}</div>;
-}
+    if (node) {
+        node = <div>
+            {node}
+        </div>;
+    }
 
-async function saveDialog(vfs: Vfs, editor?: EditorApi) {
-    if (!editor) return;
+    const onOpenFile = useCallback((path: string, data: string | Uint8Array) => {
+        setOpenFile([path, data]);
+    }, []);
 
-    await editor.notifyDirtyBuffer();
-    await vfs.writeFile(editor.path);
+    return <Editor
+        apiRef={editorRef}
+        toolbarBeforeSettings={
+            <>
+                {ext === "markdown" ?
+                    <TooltipV2 tooltip={"Preview"} contentWidth={80}>
+                        <Icon
+                            name={"heroMagnifyingGlass"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={requestPreviewToggle}
+                        />
+                    </TooltipV2> : null}
+
+                <TooltipV2 tooltip={"Save"} contentWidth={80}>
+                    <Icon
+                        name={"floppyDisk"}
+                        size={"20px"}
+                        cursor={"pointer"}
+                        onClick={onSave}
+                    />
+                </TooltipV2>
+            </>
+        }
+        initialFolderPath={removeTrailingSlash(getParentPath(initialFile.id))}
+        initialFilePath={initialFile.id}
+        title={vfsTitle}
+        vfs={vfs}
+        showCustomContent={node != null}
+        customContent={node}
+        onOpenFile={onOpenFile}
+    />;
 }
 
 async function downloadFileContent(path: string): Promise<Blob> {
@@ -1437,12 +1335,11 @@ async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 30px);"
+const HEIGHT = "calc(100vh - 100px);"
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
-    max-width: ${MAX_HEIGHT};
+    max-width: 900px;
     width: 100%;
-    margin: 32px;
 `);
 
 const Audio = injectStyleSimple("preview-audio", `
@@ -1458,6 +1355,7 @@ const Image = injectStyleSimple("preview-image", `
 
 const Video = injectStyleSimple("preview-video", `
     max-width: ${MAX_HEIGHT}
+    max-height: ${HEIGHT}
 `);
 
 const PreviewObject = injectStyleSimple("preview-pdf", `
@@ -1465,18 +1363,6 @@ const PreviewObject = injectStyleSimple("preview-pdf", `
     width: 100%;
     max-height: ${HEIGHT}
 `)
-
-const ItemWrapperClass = injectStyle("item-wrapper", k => `
-    ${k} {
-        display: flex;
-        justify-content: center;
-        height: 100%;
-        width: 100%;
-        border-radius: 6px;
-        overflow: hidden;
-        box-shadow: var(--defaultShadow);
-    }
-`);
 
 function tryDecodeText(buf: Uint8Array): string | null {
     try {
@@ -1495,15 +1381,10 @@ class PreviewVfs implements Vfs {
     private fetchedFiles: Record<string, string> = {};
     private folders: Record<string, VirtualFile[]> = {};
     private ufiles: Record<string, UFile> = {};
-    public dirtyFileContent: Record<string, string> = {};
+    private dirtyFileContent: Record<string, string> = {};
 
-    private navigate: NavigateFunction;
-
-    constructor(previewedFile: UFile, content: string, navigate: NavigateFunction) {
+    constructor(previewedFile: UFile) {
         this.ufiles[previewedFile.id] = previewedFile;
-        this.fetchedFiles[previewedFile.id] = content;
-
-        this.navigate = navigate;
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {
@@ -1533,7 +1414,7 @@ class PreviewVfs implements Vfs {
         this.dirtyFileContent[path] = content;
     }
 
-    async readFile(path: string): Promise<string> {
+    async readFile(path: string): Promise<string | Uint8Array> {
         const dirty = this.dirtyFileContent[path];
         if (dirty !== undefined) return dirty;
         if (this.fetchedFiles[path]) return this.fetchedFiles[path];
@@ -1541,25 +1422,19 @@ class PreviewVfs implements Vfs {
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
 
-        if (!isDownloadAllowed(file)) {
+        if (!isDownloadAllowed(file) && file.status.sizeInBytes !== 0) {
             throw window.Error("File cannot be viewed in editor");
+        }
+
+        if (file.status.sizeInBytes === 0) {
+            return "";
         }
 
         const contentBlob = await downloadFileContent(path);
         const contentBuffer = new Uint8Array(await contentBlob.arrayBuffer());
         const text = tryDecodeText(contentBuffer);
         if (!text) {
-            addStandardDialog({
-                title: "Invalid file for preview",
-                message: "Preview different file type?",
-                onConfirm: () => {
-                    // AWFUL solution
-                    this.navigate(AppRoutes.files.preview(path));
-                },
-                onCancel() {
-                }
-            });
-            return "";
+            return contentBuffer;
         } else {
             return text;
         }

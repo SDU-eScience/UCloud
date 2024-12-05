@@ -20,7 +20,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
 
-    readFile(path: string): Promise<string>;
+    readFile(path: string): Promise<string | Uint8Array>;
 
     writeFile(path: string): Promise<void>;
 
@@ -38,7 +38,7 @@ export interface EditorState {
     vfs: Vfs;
     title: string;
     sidebar: EditorSidebar;
-    cachedFiles: Record<string, string>;
+    cachedFiles: Record<string, string | Uint8Array>;
     viewState: Record<string, monaco.editor.ICodeEditorViewState>;
     currentPath: string;
 }
@@ -107,24 +107,6 @@ function defaultEditor(vfs: Vfs, title: string, initialFolder: string, initialFi
         vfs,
     }
 }
-
-
-// Initial version for reference
-/* function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
-    const components = pathComponents(path);
-    if (components.length === 0) return root;
-
-    let currentNode = root;
-    let currentPath = "/";
-    for (let i = 0; i < components.length; i++) {
-        currentPath += components[i];
-        const node = currentNode.children.find(it => it.file.absolutePath === currentPath);
-        if (!node) return null;
-        currentNode = node;
-    }
-    return currentNode;
-}*/
-
 
 function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
     const components = pathComponents(path.replace(root.file.absolutePath, ""));
@@ -208,18 +190,21 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
                 sidebar: {
                     root: newRoot,
                 }
-            }
+            };
         }
 
         case "EditorActionUpdateTitle": {
-            break;
+            return {
+                ...state,
+                title: action.title,
+            };
         }
 
         case "EditorActionOpenFile": {
             return {
                 ...state,
                 currentPath: action.path
-            }
+            };
         }
 
         case "EditorActionSaveState": {
@@ -237,8 +222,6 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
             };
         }
     }
-
-    return state;
 }
 
 const monacoCache = new AsyncCache<any>();
@@ -304,7 +287,6 @@ const editorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
-        max-height: calc(100vh - 32px);
         height: 100%;
         --borderThickness: 2px;
     }
@@ -346,7 +328,7 @@ const editorClass = injectStyle("editor", k => `
         height: 100%;
     }
     
-    ${k} .panels > .code {
+    ${k} .panels > div > .code {
         flex-grow: 1;
         height: 100%;
     }
@@ -369,6 +351,9 @@ export const Editor: React.FunctionComponent<{
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
     apiRef?: React.MutableRefObject<EditorApi | null>;
+    customContent?: React.ReactNode;
+    showCustomContent?: boolean;
+    onOpenFile?: (path: string, content: string | Uint8Array) => void;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -387,6 +372,19 @@ export const Editor: React.FunctionComponent<{
     const vimRef = useRef<VimWasm | null>(null);
     const tree = useRef<TreeApi | null>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
+    const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
+
+    useEffect(() => {
+        showingCustomContent.current = props.showCustomContent === true;
+    }, [props.showCustomContent]);
+
+    useEffect(() => {
+        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+    }, [props.title]);
+
+    useEffect(() => {
+        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+    }, [props.title]);
 
     useEffect(() => {
         engineRef.current = engine;
@@ -467,6 +465,7 @@ export const Editor: React.FunctionComponent<{
 
         try {
             const content = await dataPromise;
+            props.onOpenFile?.(path, content);
             const editor = editorRef.current;
             const engine = engineRef.current;
             const isSettingsOpen = settingsOpenRef.current;
@@ -474,43 +473,50 @@ export const Editor: React.FunctionComponent<{
             if (isSettingsOpen) return true;
             if (didUnmount.current) return true;
 
-            if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
-                let editorState: monaco.editor.ICodeEditorViewState | null = null;
-                const model = editor?.getModel();
-                if (editor && model) {
-                    editorState = editor.saveViewState();
-                }
+            if (!showingCustomContent.current) {
+                if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
+                    let editorState: monaco.editor.ICodeEditorViewState | null = null;
+                    const model = editor?.getModel();
+                    if (editor && model) {
+                        editorState = editor.saveViewState();
+                    }
 
-                const oldContent = await readBuffer();
-                props.vfs.setDirtyFileContent(state.currentPath, oldContent);
-                dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                    const oldContent = await readBuffer();
+                    props.vfs.setDirtyFileContent(state.currentPath, oldContent);
+                    dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                } else {
+                    dispatch({type: "EditorActionOpenFile", path});
+                }
             } else {
                 dispatch({type: "EditorActionOpenFile", path});
             }
 
             if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return false;
-            reloadBuffer(fileName(path), content);
-            const restoredState = state.viewState[path];
-            if (editor && restoredState) {
-                editor.restoreViewState(restoredState);
+            if (typeof content === "string") {
+                reloadBuffer(fileName(path), content);
+                const restoredState = state.viewState[path];
+                if (editor && restoredState) {
+                    editor.restoreViewState(restoredState);
+                }
+
+                if (engine === "monaco" && editor == null) return false;
+                if (engine === "vim" && vimRef.current == null) return false;
+
+                vimRef.current?.focus?.();
+                tree.current?.deactivate?.();
+                editor?.focus?.();
+                const monaco = monacoRef.current;
+                if (syntax && monaco && editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                }
             }
 
-            if (engine === "monaco" && editor == null) return false;
-            if (engine === "vim" && vimRef.current == null) return false;
-
-            vimRef.current?.focus?.();
-            tree.current?.deactivate?.();
-            editor?.focus?.();
-            const monaco = monacoRef.current;
-            if (syntax && monaco && editor) {
-                monaco.editor.setModelLanguage(editor.getModel(), syntax);
-            }
             return true;
         } catch (error) {
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -550,8 +556,9 @@ export const Editor: React.FunctionComponent<{
         if (didUnmount.current) return;
 
         props.vfs.setDirtyFileContent(state.currentPath, res);
+        props.onOpenFile?.(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
-    }, []);
+    }, [props.onOpenFile]);
 
     const api: EditorApi = useMemo(() => {
         return {
@@ -659,6 +666,14 @@ export const Editor: React.FunctionComponent<{
         };
     }, [editor]);
 
+    useLayoutEffect(() => {
+        if (!props.showCustomContent && editor) {
+            editor.layout();
+            editor.render(true);
+            editor.focus();
+        }
+    }, [props.showCustomContent]);
+
     const onKeyDown: React.KeyboardEventHandler = useCallback(ev => {
         if (ev.code === "Escape") {
             ev.preventDefault();
@@ -685,7 +700,7 @@ export const Editor: React.FunctionComponent<{
 
     const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
         const path = row.getAttribute("data-path");
-        if (open && path) onOpen(path, row);
+        if (path) onOpen(path, row);
     }, [onOpen]);
 
     const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
@@ -704,7 +719,12 @@ export const Editor: React.FunctionComponent<{
         <div className={"editor-files"}>
             <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode initialFilePath={props.initialFilePath} node={state.sidebar.root} onAction={onNodeActivated} />
+                <SidebarNode
+                    initialFolder={props.initialFolderPath}
+                    initialFilePath={props.initialFilePath}
+                    node={state.sidebar.root}
+                    onAction={onNodeActivated}
+                />
             </Tree>
         </div>
 
@@ -786,13 +806,28 @@ export const Editor: React.FunctionComponent<{
 
                     </Flex> :
                     <>
-                        {engine !== "monaco" ? null :
-                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                        }
+                        <div style={{
+                            display: props.showCustomContent ? "none" : "block",
+                            width: "100%",
+                            height: "100%"
+                        }}>
+                            {engine !== "monaco" ? null :
+                                <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
+                            }
 
-                        {engine !== "vim" ? null :
-                            <VimEditor vim={vimRef} onInit={doNothing} />
-                        }
+                            {engine !== "vim" ? null :
+                                <VimEditor vim={vimRef} onInit={doNothing} />
+                            }
+                        </div>
+
+                        <div style={{
+                            display: props.showCustomContent ? "block" : "none",
+                            width: "100%",
+                            height: "100%",
+                            maxHeight: "calc(100vh - 64px)",
+                            padding: "16px",
+                            overflow: "auto",
+                        }}>{props.customContent}</div>
                     </>
                 }
             </div>
@@ -804,6 +839,7 @@ const SidebarNode: React.FunctionComponent<{
     node: EditorSidebarNode;
     onAction: (open: boolean, row: HTMLElement) => void;
     initialFilePath?: string;
+    initialFolder?: string;
 }> = props => {
     let children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
@@ -812,7 +848,7 @@ const SidebarNode: React.FunctionComponent<{
     </>;
 
     const absolutePath = props.node.file.absolutePath;
-    if (absolutePath === "" || absolutePath === "/") return children;
+    if (absolutePath === "" || absolutePath === "/" || absolutePath === props.initialFolder) return children;
 
     const isInitiallyOpen = props.node.file.isDirectory &&
         props.initialFilePath?.startsWith(props.node.file.absolutePath);
@@ -821,18 +857,17 @@ const SidebarNode: React.FunctionComponent<{
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
+        slim
         left={
             <Flex gap={"8px"} alignItems={"center"}>
                 {props.node.file.isDirectory ? null :
-                    <Box ml={"8px"}>
-                        <FtIcon
-                            fileIcon={{
-                                type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath)
-                            }}
-                            size={"16px"}
-                        />
-                    </Box>
+                    <FtIcon
+                        fileIcon={{
+                            type: "FILE",
+                            ext: extensionFromPath(props.node.file.absolutePath)
+                        }}
+                        size={"16px"}
+                    />
                 }
                 <PrettyFileName path={props.node.file.absolutePath} />
             </Flex>
