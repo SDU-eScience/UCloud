@@ -8,14 +8,14 @@ import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
 import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Select, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import {MarginProps} from "styled-system";
+import {MarginProps, right} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {pageV2Of} from "@/UtilityFunctions";
@@ -53,6 +53,8 @@ import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -509,7 +511,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} interfaceLinks={interfaceLinks} />
+                                <RunningText job={job} state={jobUpdateState} interfaceLinks={interfaceLinks} />
                             </div>
                         </Flex>
 
@@ -723,7 +725,10 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: string[]}> = ({job, interfaceLinks}) => {
+const RunningText: React.FunctionComponent<{job: Job; state: React.RefObject<JobUpdates>; interfaceLinks: string[]}> = ({job, state, interfaceLinks}) => {
+    const interfaceAccessItems: InterfaceTarget[] = useMemo(() => parseUpdatesForInterfaceTargets(job.updates), [job.updates.length]);
+    const [selectedInterface, setSelectedInterface] = useState(0);
+
     return <>
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
@@ -735,10 +740,67 @@ const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: string[]}>
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} rank={0} redirectToWeb={interfaceLinks[0]} />
+            {interfaceAccessItems.length > 0 ? (
+                <Flex>
+                    <ClickableDropdown
+                        width={200}
+                        trigger={
+                            <div className={InterfaceSelectorTrigger}> 
+                                {interfaceAccessItems[selectedInterface].target}
+                                <Icon name="chevronDownLight"/>
+                            </div>
+                        }
+                    >
+                        {interfaceAccessItems.map((element, k) =>
+                            <Flex key={k} justifyContent={"space-between"} alignItems={"center"} p={8} onClick={() => setSelectedInterface(k)}>
+                                {element.target}
+                                <div style={{color: "var(--textSecondary)"}}>
+                                    Node {element.rank}
+                                </div>
+                            </Flex>
+                        )}
+                    </ClickableDropdown>
+                    <Button attached><Icon name="heroArrowTopRightOnSquare" /></Button>
+                </Flex>
+            ) : (
+                <RunningButtonGroup job={job} rank={0} redirectToWeb={interfaceLinks[0]} />
+            )}
         </Flex>
     </>;
 };
+
+const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => `
+    ${k} {
+        position: relative;
+        cursor: pointer;
+        max-width: 300px;
+        min-width: 200px;
+        border-radius: 5px;
+        border: 1px solid var(--borderColor, #f00);
+        user-select: none;
+        -webkit-user-select: none;
+        background: var(--backgroundDefault);
+        box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
+        padding: 6px;
+        border-top-right-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }
+
+    ${k}:hover {
+        border-color: var(--borderColorHover);
+    }
+
+    ${k}[data-omit-border="true"] {
+        border: unset;
+    }
+
+    ${k} > svg {
+        position: absolute;
+        bottom: 9px;
+        right: 15px;
+        height: 16px;
+    }
+`);
 
 const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
     ${k} {
@@ -825,6 +887,34 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
         }
     }
     return null;
+}
+
+interface InterfaceTarget {
+    rank: number,
+    type: "WEB" | "VNC" | "SHELL";
+    target: string,
+    port: number,
+}
+
+function parseUpdatesForInterfaceTargets(updates: JobUpdate[]): InterfaceTarget[] {
+    var result: InterfaceTarget[] = [];
+
+    for (let i = updates.length - 1; i >= 0; i--) {
+        const status = updates[i].status;
+        if (!status) continue;
+
+        const messages = status.split("\n");
+        for (const message of messages) {
+            if (message.startsWith("Target: ")) {
+                const parser = new SillyParser(message);
+                parser.consumeToken("Target: ");
+
+                const target = JSON.parse(parser.remaining()) as InterfaceTarget;
+                result.push(target)
+            }
+        }
+    }
+    return result.reverse();
 }
 
 const RunningContent: React.FunctionComponent<{
