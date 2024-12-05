@@ -1541,6 +1541,7 @@ const ProviderUpdates: React.FunctionComponent<{
 
     const appendUpdate = useCallback((update: JobUpdate) => {
         if (update.status && update.status.startsWith("SSH:")) return;
+        if (update.status && update.status.startsWith("Target:")) return;
 
         if (!update.status && !update.state) {
             setUpdates(u => {
