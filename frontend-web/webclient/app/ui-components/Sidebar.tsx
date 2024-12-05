@@ -442,7 +442,7 @@ export function Sidebar(): React.ReactNode {
     return (
         <Flex>
             <div className={classConcat(SidebarContainerClass, SIDEBAR_IDENTIFIER)}>
-                <Link data-component={"logo"} to="/" onClick={onLogoClick}>
+                <Link data-component={"logo"} title={`Go to dashboard`} aria-label={`Go to dashboard`} to="/" onClick={onLogoClick}>
                     <Icon name="logoEsc" mt="10px" size="34px" />
                 </Link>
 
@@ -456,7 +456,7 @@ export function Sidebar(): React.ReactNode {
                 >
                     {sidebar.map(({label, icon, to}) =>
                         to ? (
-                            <Link hoverColor="fixedWhite" key={label} to={typeof to === "function" ? to() : to}>
+                            <Link hoverColor="fixedWhite" title={`Go to ${label}`} aria-label={`Go to ${label}`} key={label} to={typeof to === "function" ? to() : to}>
                                 <div
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
