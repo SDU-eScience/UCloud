@@ -10,7 +10,7 @@ export const ImageClass = injectStyle("image", k => `
     }
 `);
 
-const Image: React.FunctionComponent<SpaceProps & BoxProps & React.ImgHTMLAttributes<HTMLImageElement>> = props => {
+const Image: React.FunctionComponent<SpaceProps & BoxProps & React.ImgHTMLAttributes<HTMLImageElement> & {alt: string}> = props => {
     const className = ImageClass + " " + (props.className ?? "")
     const style = {...unbox(props), ...(props.style ?? {})};
     // noinspection HtmlRequiredAltAttribute
