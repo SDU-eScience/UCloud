@@ -440,7 +440,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                         </Heading>
                     </Flex> : null}
                     {fileUploads.uploading.length + inProgressTaskList.length ? <h4>Tasks in progress</h4> : null}
-                    {fileUploads.uploading.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {fileUploads.uploading.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                     {anyFinished ? <Flex>
                         <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
@@ -453,7 +453,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                             </TooltipV2>
                         </Box>
                     </Flex> : null}
-                    {fileUploads.finished.map(u => <UploaderRow key={u.name} upload={u} callbacks={uploadCallbacks} />)}
+                    {fileUploads.finished.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {finishedTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                 </Box>
             </Card>

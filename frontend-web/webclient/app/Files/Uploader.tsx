@@ -29,11 +29,11 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, WriteToFileEventKey, WriteToFileEventProps} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
-import {fileName, sizeToString} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath, sizeToString} from "@/Utilities/FileUtilities";
 import {
     ChunkedFileReader,
     createLocalStorageFolderUploadKey,
@@ -56,12 +56,28 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {NewAndImprovedProgress} from "@/ui-components/Progress";
 import {UploadConfig} from "@/Files/Upload";
 import {ProgressCircle} from "@/Services/BackgroundTasks/BackgroundTask";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 
 interface LocalStorageFileUploadInfo {
     offset: number;
     size: number;
     strategy: FilesCreateUploadResponseItem;
     expiration: number;
+}
+
+function toPackagedFile(path: string, content: string): PackagedFile {
+    const file = new File([content], path);
+    return {
+        fileObject: file,
+        fullPath: fileName(path),
+        name: fileName(path),
+        webkitRelativePath: file.name,
+        size: file.size,
+        type: "FILE",
+        isDirectory: false,
+        lastModified: new Date().getTime(),
+        lastModifiedDate: getStartOfDay(new Date()),
+    };
 }
 
 function fetchValidUploadFromLocalStorage(path: string): LocalStorageFileUploadInfo | null {
@@ -643,7 +659,7 @@ const Uploader: React.FunctionComponent = () => {
         clearUploads: b => uploadStore.clearUploads(b, setPausedFilesInFolder),
     }), [startUploads]);
 
-    const onSelectedFile = useCallback(async (e, isResuming = false) => {
+    const onSelectedFile = useCallback(async (e: {stopPropagation(): void; preventDefault(): void}, isResuming = false) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -716,11 +732,44 @@ const Uploader: React.FunctionComponent = () => {
         startUploads(allUploads, setLookForNewUploads);
     }, [uploads]);
 
+    const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((e: CustomEvent<WriteToFileEventProps>) => {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
+        const {path, content} = e.detail;
+        const allUploads: Upload[] = uploads;
+        let didFetch = false;
+        const packaged = toPackagedFile(path, content);
+
+        allUploads.push({
+            name: fileName(path),
+            row: packaged,
+            progressInBytes: 0,
+            filesCompleted: 0,
+            filesDiscovered: 0,
+            state: UploadState.PENDING,
+            conflictPolicy: "REPLACE",
+            targetPath: getParentPath(path),
+            fileFetcher: async () => {
+                if (didFetch) return null;
+                didFetch = true;
+                return [packaged];
+            },
+            initialProgress: 0,
+            uploadEvents: []
+        });
+
+        setUploads(allUploads);
+        startUploads(allUploads, setLookForNewUploads);
+        // window.dispatchEvent(new CustomEvent<"BackgroundTask">("open-task-window", {detail: "BackgroundTask"}));
+    }, [uploads]);
+
     useEffect(() => {
         const oldOnDrop = document.ondrop;
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
+        window.addEventListener(WriteToFileEventKey, stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;
