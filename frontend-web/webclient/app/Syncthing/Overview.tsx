@@ -947,7 +947,7 @@ const TutorialListClass = injectStyle("tutorial-list", k => `
 `);
 
 function Screenshot(props: {src: string}): React.ReactNode {
-    return <Image alt="Descriptive screenshot showing how to set up Syncthing. Sorry." className={ScreenshotClass} src={props.src} />
+    return <Image alt="Descriptive screenshot showing how to set up Syncthing." className={ScreenshotClass} src={props.src} />
 }
 
 const ScreenshotClass = injectStyleSimple("screenshot", `
