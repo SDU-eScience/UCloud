@@ -10,7 +10,7 @@ export const ProviderLogo: React.FunctionComponent<{providerId: string; size: nu
     style["--border-radius"] = size > 20 ? "8px" : "5px";
     style["--wrapper-size"] = size + "px";
     return <div className={classConcat(LogoWrapper, className)} style={style}>
-        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} />}
+        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} alt={`Logo for ${myInfo.title}`} />}
     </div>
 };
 

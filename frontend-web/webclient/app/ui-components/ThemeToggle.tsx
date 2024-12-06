@@ -19,7 +19,7 @@ export function ThemeToggler(): React.ReactNode {
     const [active, setActive] = React.useState<boolean>(isLightTheme);
 
     return (
-        <button className={ThemeToggle} aria-checked={active ? "true" : "false"} onClick={toggleActive}>
+        <button className={ThemeToggle} aria-label="Toggle theme" onClick={toggleActive}>
             <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroSun" className={ToggleIcon} opacity={!active?0:1}/>
             <Icon size="24px" cursor="pointer" color="fixedWhite" name="heroMoon" className={ToggleIcon} opacity={active?0:1}/>
         </button>

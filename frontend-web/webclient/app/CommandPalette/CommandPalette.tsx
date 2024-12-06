@@ -233,7 +233,7 @@ function EntryWrapper({command, active, onClick}: {
         data-entry
     >
         <div style={{marginTop: "auto", marginBottom: "auto", marginLeft: "16px"}}>
-            <CommandIcon key={command.icon.type} icon={command.icon} active={active} />
+            <CommandIcon key={command.icon.type} label={command.title + " icon"} icon={command.icon} active={active} />
         </div>
 
         <Flex my="auto" mx="8px" width="100%">
@@ -266,13 +266,13 @@ const EntryHover = injectStyle("entry-hover", k => `
 `);
 
 const IMAGE_SIZE = 18;
-function CommandIcon({icon, active}: {icon: CommandIconProvider; active: boolean;}) {
+function CommandIcon({icon, active, label}: {icon: CommandIconProvider; active: boolean; label: string}) {
     switch (icon.type) {
         case "image": {
-            return <Image src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
+            return <Image alt={label} src={icon.imageUrl} height={`${IMAGE_SIZE}px`} width={`${IMAGE_SIZE}px`} />;
         }
         case "simple": {
-            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" :"iconColor2")} />
+            return <Icon name={icon.icon} size={IMAGE_SIZE} color={icon.color ?? (active ? "primaryContrast" : "iconColor")} color2={icon.color2 ?? (active ? "primaryContrastAlt" : "iconColor2")} />
         }
     }
 }
