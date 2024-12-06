@@ -234,19 +234,38 @@ func controllerJobs(mux *http.ServeMux) {
 							orc.OpenSessionShell(item.Job.Id, item.Rank, tok, cfg.Provider.Hosts.SelfPublic.ToWebSocketUrl()),
 						)
 
+					case orc.InteractiveSessionTypeVnc:
+						fallthrough
 					case orc.InteractiveSessionTypeWeb:
+						isVnc := item.SessionType == orc.InteractiveSessionTypeVnc
+						var flags RegisteredIngressFlags
+						if isVnc {
+							flags |= RegisteredIngressFlagsVnc
+						} else {
+							flags |= RegisteredIngressFlagsWeb
+						}
+
 						target, err := Jobs.OpenWebSession(item.Job, item.Rank)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
-							redirect, err := RegisterWebIngress(item.Job, item.Rank, target)
+							redirect, err := RegisterIngress(item.Job, item.Rank, target, flags)
 							if err != nil {
 								errors = append(errors, err)
 							} else {
-								responses = append(
-									responses,
-									orc.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
-								)
+								if isVnc {
+									password := item.Job.Status.ResolvedApplication.Invocation.Vnc.Password
+
+									responses = append(
+										responses,
+										orc.OpenSessionVnc(item.Job.Id, item.Rank, redirect, password, ""),
+									)
+								} else {
+									responses = append(
+										responses,
+										orc.OpenSessionWeb(item.Job.Id, item.Rank, redirect, ""),
+									)
+								}
 							}
 						}
 
@@ -703,6 +722,7 @@ type jobRegisteredIngress struct {
 	JobId  string
 	Rank   int
 	Target cfg.HostInfo
+	Flags  RegisteredIngressFlags
 }
 
 var jobsRegisterIngressCall = ipc.NewCall[jobRegisteredIngress, string]("ctrl.jobs.register_ingress")
@@ -738,7 +758,7 @@ func jobsIpcServer() {
 			}
 		}
 
-		result, err := RegisterWebIngress(job, r.Payload.Rank, r.Payload.Target)
+		result, err := RegisterIngress(job, r.Payload.Rank, r.Payload.Target, r.Payload.Flags)
 		if err != nil {
 			return ipc.Response[string]{
 				StatusCode: http.StatusInternalServerError,
@@ -753,20 +773,44 @@ func jobsIpcServer() {
 	})
 }
 
-func RegisterWebIngress(job *orc.Job, rank int, target cfg.HostInfo) (string, error) {
+type RegisteredIngressFlags int
+
+const (
+	RegisteredIngressFlagsWeb RegisteredIngressFlags = iota
+	RegisteredIngressFlagsVnc
+)
+
+func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, flags RegisteredIngressFlags) (string, error) {
+	isWeb := (flags & RegisteredIngressFlagsWeb) != 0
+	isVnc := (flags & RegisteredIngressFlagsVnc) != 0
+
+	if !isWeb && !isVnc {
+		return "", fmt.Errorf("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
+	}
+
 	if RunsUserCode() {
 		return jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
 			JobId:  job.Id,
 			Target: target,
+			Flags:  flags,
 		})
 	} else {
-		ingress := Jobs.ServerFindIngress(job)
+		var ingress ConfiguredWebIngress
+		if isWeb {
+			ingress = Jobs.ServerFindIngress(job)
+		} else if isVnc {
+			ingress = ConfiguredWebIngress{
+				IsPublic:     false,
+				TargetDomain: cfg.Provider.Hosts.SelfPublic.Address,
+			}
+		}
+
 		var authToken []string
 		if !ingress.IsPublic {
 			authToken = []string{util.RandomToken(12)}
 		}
 
-		{
+		if isWeb {
 			key := jobIdAndRank{
 				JobId: job.Id,
 				Rank:  rank,
@@ -784,6 +828,11 @@ func RegisterWebIngress(job *orc.Job, rank int, target cfg.HostInfo) (string, er
 			webSessionsMutex.Unlock()
 		}
 
+		routeType := gw.RouteTypeIngress
+		if isVnc {
+			routeType = gw.RouteTypeVnc
+		}
+
 		gw.SendMessage(gw.ConfigurationMessage{
 			ClusterUp: &gw.EnvoyCluster{
 				Name:    "job_" + job.Id,
@@ -796,15 +845,22 @@ func RegisterWebIngress(job *orc.Job, rank int, target cfg.HostInfo) (string, er
 				Cluster:      "job_" + job.Id,
 				CustomDomain: ingress.TargetDomain,
 				AuthTokens:   authToken,
-				Type:         gw.RouteTypeIngress,
+				Type:         routeType,
 			},
 		})
 
-		if ingress.IsPublic {
-			return "https://" + ingress.TargetDomain, nil
-		} else {
-			return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", ingress.TargetDomain,
+		if isWeb {
+			if ingress.IsPublic {
+				return "https://" + ingress.TargetDomain, nil
+			} else {
+				return fmt.Sprintf("https://%v/ucloud/%v/authorize-app?token=%v", ingress.TargetDomain,
+					cfg.Provider.Id, authToken[0]), nil
+			}
+		} else if isVnc {
+			return fmt.Sprintf("https://%v/ucloud/%v/vnc?token=%v", ingress.TargetDomain,
 				cfg.Provider.Id, authToken[0]), nil
+		} else {
+			return "", fmt.Errorf("unhandled case %v", flags)
 		}
 	}
 }

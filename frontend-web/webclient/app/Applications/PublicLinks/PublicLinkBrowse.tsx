@@ -296,8 +296,8 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                         snackbarStore.addSuccess("Public link created for " + domain, false);
 
                                         /* Note(Jonas): I can't find the creation function in the backend,
-                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
-                                           
+                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
+
                                            Seems to be ignored in the backend
                                         */
                                         if (response) {

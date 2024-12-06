@@ -161,7 +161,7 @@ func BeginJobUpdates() *JobUpdateBatch {
 	}
 }
 
-func (b *JobUpdateBatch) GetJobs() map[string]*orc.Job {
+func GetJobs() map[string]*orc.Job {
 	return activeJobs
 }
 

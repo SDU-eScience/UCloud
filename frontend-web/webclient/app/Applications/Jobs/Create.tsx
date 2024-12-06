@@ -180,8 +180,6 @@ export const Create: React.FunctionComponent = () => {
     const [reservationErrors, setReservationErrors] = useState<ReservationErrors>({});
 
     const [importDialogOpen, setImportDialogOpen] = useState(false);
-    // Note(Jonas): Should be safe to remove.
-    const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     const retrieveEmailNotificationSettings = useCallback(async () => {
         const emailSettings = await invokeCommand(
@@ -307,7 +305,6 @@ export const Create: React.FunctionComponent = () => {
 
     const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
-        jobBeingLoaded.current = null;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
@@ -330,7 +327,6 @@ export const Create: React.FunctionComponent = () => {
 
             if (needsToRenderParams) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
-                jobBeingLoaded.current = importedJob;
                 flushSync(() => {
                     setActiveOptParams(() => optionalParameters);
                 });
@@ -640,6 +636,7 @@ export const Create: React.FunctionComponent = () => {
                             />
                         </Card>
 
+                        <div data-last-used-file-path="" hidden />
                         <FolderResource
                             {...folders}
                             application={application}

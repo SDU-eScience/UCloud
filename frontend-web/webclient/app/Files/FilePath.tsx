@@ -1,5 +1,5 @@
 import * as React from "react";
-import {pathComponents} from "@/Utilities/FileUtilities";
+import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {joinToString} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
 import {api as fileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
@@ -58,7 +58,12 @@ export function usePrettyFilePath(rawPath: string): string {
     return path;
 }
 
+export function PrettyFileName({path}: {path: string}): React.ReactNode {
+    const pretty = usePrettyFilePath(path);
+    return fileName(pretty);
+}
+
 export const PrettyFilePath: React.FunctionComponent<{path: string}> = ({path}) => {
     const pretty = usePrettyFilePath(path);
-    return <>{pretty}</>;
+    return pretty;
 };

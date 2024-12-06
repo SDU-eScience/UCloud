@@ -20,6 +20,7 @@ function Link({active, ...props}: LinkProps): React.ReactNode {
         children={props.children}
         to={props.to}
         aria-disabled={props["aria-disabled"]}
+        aria-label={props["aria-label"]}
         target={props.target}
         title={props.title}
         {...extractEventHandlers(props)}
