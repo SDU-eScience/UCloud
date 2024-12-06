@@ -8,7 +8,6 @@ import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
@@ -16,6 +15,9 @@ import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {PrettyFileName} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import {Feature, hasFeature} from "@/Features";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -356,6 +358,7 @@ export const Editor: React.FunctionComponent<{
     customContent?: React.ReactNode;
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
+    operations?: (file: VirtualFile) => Operation<any>[];
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -621,7 +624,7 @@ export const Editor: React.FunctionComponent<{
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
             language: "jinja2",
-            readOnly: false,
+            readOnly: !hasFeature(Feature.INTEGRATED_EDITOR),
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
@@ -737,6 +740,7 @@ export const Editor: React.FunctionComponent<{
                     initialFilePath={props.initialFilePath}
                     node={state.sidebar.root}
                     onAction={onNodeActivated}
+                    operations={props.operations}
                 />
             </Tree>
         </div>
@@ -749,9 +753,11 @@ export const Editor: React.FunctionComponent<{
                 </Flex>
                 <Flex alignItems={"center"} gap={"16px"}>
                     {props.toolbarBeforeSettings}
-                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
-                    </TooltipV2>
+                    {!hasFeature(Feature.EDITOR_VIM) ? null :
+                        <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                            <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
+                        </TooltipV2>
+                    }
                     {props.toolbar}
                 </Flex>
             </div>
@@ -853,10 +859,11 @@ const SidebarNode: React.FunctionComponent<{
     onAction: (open: boolean, row: HTMLElement) => void;
     initialFilePath?: string;
     initialFolder?: string;
+    operations?: (file: VirtualFile) => Operation<any>[];
 }> = props => {
     let children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
-            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction} />
+            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} />
         ))}
     </>;
 
@@ -866,24 +873,51 @@ const SidebarNode: React.FunctionComponent<{
     const isInitiallyOpen = props.node.file.isDirectory &&
         props.initialFilePath?.startsWith(props.node.file.absolutePath);
 
+    const openOperations = useRef<(left: number, top: number) => void>(doNothing);
+    const onContextMenu = useCallback((ev: React.MouseEvent) => {
+        ev.preventDefault();
+        console.log(ev.clientX, ev.clientY);
+        openOperations.current(ev.clientX, ev.clientY);
+    }, []);
+
+    const ops = useMemo(() => {
+        const ops = props.operations;
+        if (!ops) return [];
+        return ops(props.node.file);
+    }, [props.operations, props.node]);
+
     return <TreeNode
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
         slim
         left={
-            <Flex gap={"8px"} alignItems={"center"}>
-                {props.node.file.isDirectory ? null :
-                    <FtIcon
-                        fileIcon={{
-                            type: "FILE",
-                            ext: extensionFromPath(props.node.file.absolutePath)
-                        }}
-                        size={"16px"}
-                    />
-                }
-                <PrettyFileName path={props.node.file.absolutePath} />
-            </Flex>
+            <>
+                <Flex gap={"8px"} alignItems={"center"} onContextMenu={onContextMenu}>
+                    {props.node.file.isDirectory ? null :
+                        <FtIcon
+                            fileIcon={{
+                                type: "FILE",
+                                ext: extensionFromPath(props.node.file.absolutePath)
+                            }}
+                            size={"16px"}
+                        />
+                    }
+                    <PrettyFileName path={props.node.file.absolutePath} />
+                </Flex>
+
+                <Operations
+                    entityNameSingular={""}
+                    operations={ops}
+                    forceEvaluationOnOpen={true}
+                    openFnRef={openOperations}
+                    selected={[]}
+                    extra={null}
+                    row={42}
+                    hidden
+                    location={"IN_ROW"}
+                />
+            </>
         }
         children={children}
     />;

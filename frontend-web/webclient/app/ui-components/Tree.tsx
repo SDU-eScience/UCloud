@@ -4,6 +4,7 @@ import {extractDataTags, injectStyle} from "@/Unstyled";
 import {CSSProperties, useCallback, useEffect, useRef} from "react";
 import {ListRow} from "@/ui-components/List";
 import Flex from "@/ui-components/Flex";
+import Box from "@/ui-components/Box";
 
 export enum TreeAction {
     TOGGLE,
@@ -311,7 +312,7 @@ export const TreeNode: React.FunctionComponent<{
                     onClick={toggleOpen}
                 />
             }
-            {props.left}
+            <Flex alignItems={"center"} flexGrow={1}>{props.left}</Flex>
             {props.right}
         </Flex>
 

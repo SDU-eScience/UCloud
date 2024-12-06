@@ -9,23 +9,10 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {
-    Box,
-    Button,
-    Error,
-    Flex,
-    Icon,
-    Link,
-    MainContainer,
-    Markdown,
-    Select,
-    Text,
-    TextArea,
-    Truncate
-} from "@/ui-components";
+import {Button, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import {fileName, getParentPath, readableUnixMode, sizeToString} from "@/Utilities/FileUtilities";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
@@ -46,21 +33,19 @@ import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
-import {dateToString} from "@/Utilities/DateUtilities";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiUpdate, callAPI, InvokeCommand, useCloudAPI} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "@/Syncthing/api";
-import {NavigateFunction, useNavigate, useParams} from "react-router";
+import {useParams} from "react-router";
 import {Feature, hasFeature} from "@/Features";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
@@ -1238,6 +1223,7 @@ export function FilePreview({initialFile}: {
     const onSave = useCallback(async () => {
         const editor = editorRef.current;
         if (!editor) return;
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return;
 
         await editor.notifyDirtyBuffer();
         await vfs.writeFile(editor.path);
@@ -1315,8 +1301,7 @@ export function FilePreview({initialFile}: {
         dispatch({type: "TerminalOpenTab", tab: {title: providerTitle, folder}});
     }, [drive, initialFile]);
 
-    const newFolder = useCallback(async () => {
-        const path = openFile[0];
+    const newFolder = useCallback(async (path: string) => {
         const name = (await addStandardInputDialog({
             title: "What should the folder be called?",
             confirmText: "Create folder",
@@ -1328,12 +1313,9 @@ export function FilePreview({initialFile}: {
         })));
 
         editorRef.current?.invalidateTree?.(getParentPath(path));
-
-        // TODO Invalidate something in the tree view
     }, [openFile[0]]);
 
-    const newFile = useCallback(async () => {
-        const path = openFile[0];
+    const newFile = useCallback(async (path: string) => {
         const name = (await addStandardInputDialog({
             title: "What should the file be called?",
             confirmText: "Create file",
@@ -1351,9 +1333,37 @@ export function FilePreview({initialFile}: {
             editorRef.current?.invalidateTree?.(getParentPath(path));
             editorRef.current?.openFile?.(newPath);
         }, 200);
-
-        // TODO Invalidate something in the tree view
     }, [openFile[0]]);
+
+    const operations = useCallback((file: VirtualFile): Operation<any>[] => {
+        if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
+        return [
+            {
+                primary: false,
+                icon: "heroFolderPlus",
+                text: "New folder",
+                confirm: false,
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFolder(file.absolutePath + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.F,
+            },
+            {
+                primary: false,
+                icon: "heroDocumentPlus",
+                text: "New file",
+                confirm: false,
+                enabled: () => true,
+                onClick: () => {
+                    const suffix = file.isDirectory ? "/placeholder" : "";
+                    newFile(file.absolutePath + suffix).then(doNothing);
+                },
+                shortcut: ShortcutKey.G,
+            }
+        ];
+    }, []);
 
     return <Editor
         apiRef={editorRef}
@@ -1369,34 +1379,20 @@ export function FilePreview({initialFile}: {
                         />
                     </TooltipV2> : null}
 
-                <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
-                    <Icon
-                        name={"floppyDisk"}
-                        size={"20px"}
-                        cursor={"pointer"}
-                        onClick={onSave}
-                    />
-                </TooltipV2>
+                {!hasFeature(Feature.INTEGRATED_EDITOR) ? null :
+                    <TooltipV2 tooltip={"Save (ctrl+s)"} contentWidth={100}>
+                        <Icon
+                            name={"floppyDisk"}
+                            size={"20px"}
+                            cursor={"pointer"}
+                            onClick={onSave}
+                        />
+                    </TooltipV2>
+                }
             </>
         }
         toolbar={
             <>
-                <TooltipV2 tooltip={"New file"} contentWidth={130}>
-                    <Icon
-                        name={"heroDocumentPlus"}
-                        size={"20px"}
-                        cursor={"pointer"}
-                        onClick={newFile}
-                    />
-                </TooltipV2>
-                <TooltipV2 tooltip={"New folder"} contentWidth={130}>
-                    <Icon
-                        name={"heroFolderPlus"}
-                        size={"20px"}
-                        cursor={"pointer"}
-                        onClick={newFolder}
-                    />
-                </TooltipV2>
                 {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
@@ -1416,6 +1412,7 @@ export function FilePreview({initialFile}: {
         showCustomContent={node != null}
         customContent={node}
         onOpenFile={onOpenFile}
+        operations={operations}
     />;
 }
 
