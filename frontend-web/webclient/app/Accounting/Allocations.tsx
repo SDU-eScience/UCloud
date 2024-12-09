@@ -47,7 +47,6 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import ProvidersApi from "@/UCloud/ProvidersApi";
 import WAYF from "@/Grants/wayf-idps.json";
-import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import * as Gifts from "./Gifts";
 import {removePrefixFrom} from "@/Utilities/TextUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -64,6 +63,7 @@ import {useProject} from "@/Project/cache";
 import {OldProjectRole} from "@/Project";
 import {VariableSizeList} from "react-window";
 import ReactVirtualizedAutoSizer from "react-virtualized-auto-sizer";
+import {MandatoryField} from "@/UtilityComponents";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 

@@ -7,7 +7,6 @@ import {
 } from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
 import {productCategoryEquals, ProductV2, ProductV2Compute} from "@/Accounting";
 import {joinToString} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
@@ -16,6 +15,7 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import * as Accounting from "@/Accounting";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
+import {MandatoryField} from "@/UtilityComponents";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";

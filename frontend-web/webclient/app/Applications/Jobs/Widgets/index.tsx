@@ -20,6 +20,7 @@ import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import {WorkflowParameter, WorkflowSetter, WorkflowValidator} from "@/Applications/Jobs/Widgets/Workflow";
+import {MandatoryField} from "@/UtilityComponents";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -355,5 +356,3 @@ export interface WidgetValidationAnswer {
 export function widgetId(param: {name: string}): string {
     return `app-param-${param.name}`;
 }
-
-export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;

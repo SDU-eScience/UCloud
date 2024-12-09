@@ -16,6 +16,7 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {injectStyle, injectStyleSimple, makeKeyframe} from "./Unstyled";
 import AppRoutes from "./Routes";
 import {SITE_DOCUMENTATION_URL} from "../site.config.json";
+import {TextSpan} from "@/ui-components/Text";
 
 enum KeyCode {
     ENTER = 13,
@@ -456,3 +457,5 @@ export function OverallocationLink(props: React.PropsWithChildren): React.ReactN
         {props.children}
     </ExternalLink>
 }
+
+export const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;

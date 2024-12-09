@@ -35,6 +35,24 @@ export const fullScreenModalStyle: ReactModal.Styles = {
     }
 }
 
+export const slimModalStyle: ReactModal.Styles = {
+    content: {
+        borderRadius: "6px",
+        width: "600px",
+        minHeight: "200px",
+        maxHeight: "80vh",
+        maxWidth: "calc(100vw - 10px)",
+        position: "fixed",
+        top: "10vh",
+        left: `calc(50vw - 300px)`,
+        outline: "none",
+        overflow: "auto",
+    },
+    overlay: {
+        backgroundColor: "var(--modalShadow)"
+    }
+}
+
 export const defaultModalStyle: ReactModal.Styles = {
     content: {
         borderRadius: "6px",

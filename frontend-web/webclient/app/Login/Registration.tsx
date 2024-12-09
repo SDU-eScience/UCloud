@@ -9,6 +9,7 @@ import {apiRetrieve, useCloudAPI} from "@/Authentication/DataHook";
 import {TextSpan} from "@/ui-components/Text";
 import {Feature, hasFeature} from "@/Features";
 import {injectStyle} from "@/Unstyled";
+import {MandatoryField} from "@/UtilityComponents";
 
 interface Registration {
     sessionId: string;
@@ -161,7 +162,5 @@ const InfoBox: React.FunctionComponent<PropsWithChildren<{isError: boolean}>> = 
         {children}
     </div>;
 };
-
-const MandatoryField: React.FunctionComponent = () => <TextSpan ml="4px" bold color="errorMain">*</TextSpan>;
 
 export default Registration;

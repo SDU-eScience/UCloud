@@ -2,7 +2,7 @@ import * as React from "react";
 import {ShakingBox} from "@/UtilityComponents";
 import {Box, Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
 import {useCloudCommand} from "@/Authentication/DataHook";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
 import {useCallback, useEffect, useState} from "react";
 import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
@@ -17,6 +17,7 @@ import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {classConcat} from "@/Unstyled";
+import {Toggle} from "@/ui-components/Toggle";
 
 interface ResourcePermissionEditorProps<T extends Resource> {
     reload: () => void;
@@ -95,13 +96,36 @@ export function ResourcePermissionEditor<T extends Resource>(
         return <Spinner />;
     }
 
+    return <PermissionsTable
+        acl={acl}
+        updateAcl={updateAcl}
+        warning={warning}
+        anyGroupHasPermission={anyGroupHasPermission}
+        showMissingPermissionHelp={props.showMissingPermissionHelp ?? true}
+        title={api.title.toLocaleLowerCase()}
+    />
+}
+
+
+interface PermissionsProps {
+    warning: string;
+    anyGroupHasPermission: boolean;
+    showMissingPermissionHelp: boolean;
+    replaceWriteWithUse?: boolean;
+    title: string;
+    acl: ResourceAclEntry[];
+    updateAcl: (group: string, permission: Permission | null) => Promise<void>;
+}
+export function PermissionsTable({warning, anyGroupHasPermission, showMissingPermissionHelp, title, updateAcl, acl, replaceWriteWithUse}: PermissionsProps) {
+    const projectId = useProjectId();
+    const project = useProject();
     const groups = project.fetch().status.groups ?? [];
 
     return <>
         {groups.length !== 0 ? null : (
             <Flex width={"100%"} alignItems={"center"} justifyContent={"center"}
                 flexDirection={"column"}>
-                <Box className={classConcat(ShakingBox,"shaking")} mb={"10px"}>
+                <Box className={classConcat(ShakingBox, "shaking")} mb={"10px"}>
                     No groups exist for this project.{" "}
                     <TextSpan bold>{warning}</TextSpan>
                 </Box>
@@ -110,12 +134,12 @@ export function ResourcePermissionEditor<T extends Resource>(
             </Flex>
         )}
         <>
-            {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
+            {anyGroupHasPermission || !(showMissingPermissionHelp ?? true) ? null :
                 <Box className={classConcat(ShakingBox, "shaking")} mb={16}>
                     <Text bold>{warning}</Text>
                     <Text>
                         You must assign permissions to one or more group, if your collaborators need to use this
-                        {" "}{api.title.toLowerCase()}.
+                        {" "}{title.toLowerCase()}.
                     </Text>
                 </Box>
             }
@@ -136,36 +160,51 @@ export function ResourcePermissionEditor<T extends Resource>(
                             {title}
                         </Truncate>
 
-                        <RadioTilesContainer data-component={"permission-container"}>
-                            <RadioTile
-                                label={"None"}
-                                onChange={() => updateAcl(g, null)}
-                                icon={"close"}
-                                name={summary.id}
-                                checked={permissions.length === 0}
-                                height={40}
-                                fontSize={"0.5em"}
-                            />
-                            <RadioTile
-                                label={"Read"}
-                                onChange={() => updateAcl(g, "READ")}
-                                icon={"search"}
-                                name={summary.id}
-                                checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
-                                height={40}
-                                fontSize={"0.5em"}
-                            />
-                            <RadioTile
-                                label={"Write"}
-                                onChange={() => updateAcl(g, "EDIT")}
-                                icon={"edit"}
-                                name={summary.id}
-                                checked={permissions.indexOf("EDIT") !== -1}
-                                height={40}
-                                fontSize={"0.5em"}
-                            />
+                        {replaceWriteWithUse === true ?
+                            <>
+                                <Toggle
+                                    checked={permissions.indexOf("EDIT") !== -1}
+                                    onChange={(prev) => {
+                                        const isChecked = !prev;
+                                        if (isChecked) {
+                                            updateAcl(g, "EDIT").then(doNothing);
+                                        } else {
+                                            updateAcl(g, null).then(doNothing);
+                                        }
+                                    }}
+                                />
+                            </> :
+                            <RadioTilesContainer data-component={"permission-container"}>
+                                <RadioTile
+                                    label={"None"}
+                                    onChange={() => updateAcl(g, null)}
+                                    icon={"close"}
+                                    name={summary.id}
+                                    checked={permissions.length === 0}
+                                    height={40}
+                                    fontSize={"0.5em"}
+                                />
+                                <RadioTile
+                                    label={"Read"}
+                                    onChange={() => updateAcl(g, "READ")}
+                                    icon={"search"}
+                                    name={summary.id}
+                                    checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
+                                    height={40}
+                                    fontSize={"0.5em"}
+                                />
+                                <RadioTile
+                                    label={"Write"}
+                                    onChange={() => updateAcl(g, "EDIT")}
+                                    icon={"edit"}
+                                    name={summary.id}
+                                    checked={permissions.indexOf("EDIT") !== -1}
+                                    height={40}
+                                    fontSize={"0.5em"}
+                                />
+                            </RadioTilesContainer>
+                        }
 
-                        </RadioTilesContainer>
                     </Flex>
                 );
             })}
