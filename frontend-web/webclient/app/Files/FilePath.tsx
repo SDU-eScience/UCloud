@@ -17,11 +17,16 @@ function getCachedPrettyFilePath(pathComponents: string[]): string | null {
     }
 }
 
+const inProgressCache: Record<string, Promise<FileCollection>> = {};
 async function prettyFilePathFromComponents(components: string[]): Promise<string> {
     try {
-        const resp = await callAPI<FileCollection>(fileCollectionsApi.retrieve({id: components[0]}));
-        collectionCache[components[0]] = resp.specification.title;
-        return "/" + joinToString([resp.specification.title, ...components.slice(1)], "/");
+        const [titleKey] = components;
+        const resp = inProgressCache[titleKey] ?? callAPI<FileCollection>(fileCollectionsApi.retrieve({id: titleKey}));
+        inProgressCache[titleKey] = resp;
+        const title = (await resp).specification.title;
+        collectionCache[titleKey] = title;
+        delete inProgressCache[titleKey];
+        return "/" + joinToString([title, ...components.slice(1)], "/");
     } catch {
         return "/" + joinToString(components, "/");
     }
