@@ -288,6 +288,7 @@ const UIGlobalStyle = `
     --gradientEnd: var(--blue-20);
     --linkColorHover: var(--primaryDark);
     --linkColor: var(--primaryMain);
+    --dialogToolbar: var(--gray-5);
   }
   html.dark {
     --modalShadow: rgba(0, 0, 0, 0.75);
@@ -336,6 +337,7 @@ const UIGlobalStyle = `
     --gradientEnd: var(--blue-80);
     --linkColor: var(--blue-50);
     --linkColorHover: var(--blue-70);
+    --dialogToolbar: var(--gray-90);
   }
 
 html.light {

@@ -30,6 +30,7 @@ import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -111,34 +112,14 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("fetchFilters", () => [dateRanges, {
-                    key: "status",
-                    type: "options",
-                    clearable: true,
-                    icon: "radioEmpty",
-                    options: [{
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Preparing",
-                        value: "PREPARING",
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Ready",
-                        value: "READY"
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Unavailable",
-                        value: "UNAVAILABLE"
-                    }],
-                    text: "Status"
-                }, {
+                browser.on("fetchFilters", () => [
+                    dateRanges,
+                    {
                         type: "input",
                         icon: "user",
                         key: "filterCreatedBy",
                         text: "Created by"
-                    }
+                    },
                 ]);
 
                 if (!getFilterStorageValue(browser.resourceName, "status")) {
@@ -242,7 +223,11 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                 function onCreateStart() {
                     dialogStore.addDialog(
                         <ProductSelectorWithPermissions
-                            products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={LicenseApi.title} onCreate={async (entry, product) => {
+                            products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                            placeholder="Type url..."
+                            dummyEntry={dummyEntry}
+                            title={LicenseApi.title}
+                            onCreate={async (entry, product) => {
                                 try {
                                     const license = {
                                         product: {
@@ -292,7 +277,12 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                                     browser.refresh();
                                     return;
                                 }
-                            }} />, () => {}
+                            }}
+                            onCancel={() => dialogStore.failure()}
+                        />,
+                        () => {},
+                        true,
+                        slimModalStyle,
                     );
                 }
             });

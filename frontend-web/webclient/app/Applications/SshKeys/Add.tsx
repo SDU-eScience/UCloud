@@ -4,7 +4,6 @@ import {usePage} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
-import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import {useCallback, useMemo, useState} from "react";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
@@ -15,6 +14,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {MandatoryField} from "@/UtilityComponents";
 
 interface GenericInputFieldProps {
     name: string;

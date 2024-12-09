@@ -51,11 +51,10 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
-import {classConcat, injectStyle, injectStyleSimple, makeClassName} from "@/Unstyled";
+import {classConcat, injectStyleSimple} from "@/Unstyled";
 import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {AsyncCache} from "@/Utilities/AsyncCache";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import {
     FilesCopyRequestItem,
@@ -182,24 +181,6 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
     }, []);
     return sensitivity;
 }
-
-const classA = makeClassName("A");
-const classB = makeClassName("B");
-const FilePropertiesLayout = injectStyle("file-properties-layout", k => `
-    ${k} > ${classA.dot} {
-        padding: 15px;
-        width: 100%;
-        height: max(100vh, 600px);
-    }
-
-    ${k} > ${classB.dot} {
-        font-size: 14px;
-        width: 340px;
-        min-width: 240px;
-        padding: 15px;
-        height: max(100vh, 600px);
-    }
-`);
 
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport> {
@@ -811,21 +792,6 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     }
 }
 
-function fileSize(file: UFile, support?: FileCollectionSupport): undefined | number {
-    if (!support) return undefined;
-    if (file.status.type === "FILE") {
-        if (support.stats.sizeInBytes) {
-            return file.status.sizeInBytes;
-        }
-    } else if (file.status.type === "DIRECTORY") {
-        if (support.stats.sizeIncludingChildrenInBytes) {
-            return file.status.sizeIncludingChildrenInBytes;
-        }
-    }
-
-    return undefined;
-}
-
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): boolean | string {
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
@@ -1064,46 +1030,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
 
 const api = new FilesApi();
 
-const monacoCache = new AsyncCache<any>();
-
-async function getMonaco(): Promise<any> {
-    return monacoCache.retrieve("", async () => {
-        const monaco = await (import("monaco-editor"));
-        self.MonacoEnvironment = {
-            getWorker: function (workerId, label) {
-                switch (label) {
-                    case 'json':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
-                    case 'css':
-                    case 'scss':
-                    case 'less':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
-                    case 'html':
-                    case 'handlebars':
-                    case 'razor':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
-                    case 'typescript':
-                    case 'javascript':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
-                    default:
-                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
-                }
-
-
-                function getWorkerModule(moduleUrl, label) {
-                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
-                        name: label,
-                        type: 'module'
-                    });
-                }
-            },
-        };
-        return monaco;
-    })
-}
-
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
-const EXPECTED_BINARY_FORMATS = ["mpeg", "m2p", "vob", "mpg"];
 
 function isDownloadAllowed(file: UFile) {
     if (file.status.type !== "FILE") return false;

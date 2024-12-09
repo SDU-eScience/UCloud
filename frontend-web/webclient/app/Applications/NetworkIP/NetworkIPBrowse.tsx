@@ -28,6 +28,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {FirewallTable, parseAndValidatePorts} from "./FirewallEditor";
 import {compute, FindByStringId} from "@/UCloud";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -72,8 +73,9 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     {name: "In use with", columnWidth: 250},
                 ]);
 
+                supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(NetworkIPApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
-                    supportByProvider.retrieve("", () => retrieveSupportV2(NetworkIPApi));
+                    supportByProvider.retrieve(p ?? "", () => retrieveSupportV2(NetworkIPApi));
                 })
 
                 const dummyEntry: NetworkIP = {
@@ -277,7 +279,10 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                         return;
                                     }
                                 }}
-                            />, () => {}
+                            />,
+                            () => {},
+                            false,
+                            slimModalStyle,
                         );
                     }
                     return operations.filter(it => it.enabled(entries, callbacks, entries));

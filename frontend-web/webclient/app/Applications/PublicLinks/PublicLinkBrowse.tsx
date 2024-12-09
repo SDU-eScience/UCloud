@@ -29,13 +29,21 @@ import Flex from "@/ui-components/Flex";
 import Button from "@/ui-components/Button";
 import Input from "@/ui-components/Input";
 import Text from "@/ui-components/Text";
-import {Box, Label} from "@/ui-components";
+import {Box, ExternalLink, Label} from "@/ui-components";
 import {useProjectId} from "@/Project/Api";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {FindByStringId} from "@/UCloud";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {LicenseSupport} from "@/UCloud/LicenseApi";
+import {injectStyle} from "@/Unstyled";
+import * as Heading from "@/ui-components/Heading";
+import {MandatoryField} from "@/UtilityComponents";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {useProject} from "@/Project/cache";
+import {isAdminOrPI} from "@/Project";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {useEffect} from "react";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -281,54 +289,65 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         create.enabled = () => true;
                         create.onClick = () => {
                             dialogStore.addDialog(
-                                <ProductSelectorWithPermissions isPublicLink products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []} placeholder="Type url..." dummyEntry={dummyEntry} title={PublicLinkApi.title} onCreate={async (entry, product) => {
-                                    try {
-                                        const domain = entry.id;
-                                        const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
-                                            domain,
-                                            product: {
-                                                id: product.name,
-                                                category: product.category.name,
-                                                provider: product.category.provider
-                                            }
-                                        })))).responses[0] as unknown as FindByStringId;
+                                <ProductSelectorWithPermissions
+                                    isPublicLink
+                                    products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
+                                    placeholder="Type url..."
+                                    dummyEntry={dummyEntry}
+                                    title={PublicLinkApi.title}
+                                    onCreate={async (entry, product) => {
+                                        try {
+                                            const domain = entry.id;
+                                            const response = (await callAPI(PublicLinkApi.create(bulkRequestOf({
+                                                domain,
+                                                product: {
+                                                    id: product.name,
+                                                    category: product.category.name,
+                                                    provider: product.category.provider
+                                                }
+                                            })))).responses[0] as unknown as FindByStringId;
 
-                                        snackbarStore.addSuccess("Public link created for " + domain, false);
+                                            snackbarStore.addSuccess("Public link created for " + domain, false);
 
-                                        /* Note(Jonas): I can't find the creation function in the backend,
-                                           but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
+                                            /* Note(Jonas): I can't find the creation function in the backend,
+                                               but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
 
-                                           Seems to be ignored in the backend
-                                        */
-                                        if (response) {
-                                            for (const permission of entry.permissions.others ?? []) {
-                                                const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
-                                                const newEntry: ResourceAclEntry = {
-                                                    entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
-                                                    permissions: fixedPermissions
+                                               Seems to be ignored in the backend
+                                            */
+                                            if (response) {
+                                                for (const permission of entry.permissions.others ?? []) {
+                                                    const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                                    const newEntry: ResourceAclEntry = {
+                                                        entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                        permissions: fixedPermissions
+                                                    };
+
+                                                    await callAPI(
+                                                        PublicLinkApi.updateAcl(bulkRequestOf(
+                                                            {
+                                                                id: response.id,
+                                                                added: [newEntry],
+                                                                deleted: [permission.entity]
+                                                            }
+                                                        ))
+                                                    );
                                                 };
 
-                                                await callAPI(
-                                                    PublicLinkApi.updateAcl(bulkRequestOf(
-                                                        {
-                                                            id: response.id,
-                                                            added: [newEntry],
-                                                            deleted: [permission.entity]
-                                                        }
-                                                    ))
-                                                );
-                                            };
-
-                                            browser.insertEntryIntoCurrentPage({...entry, id: domain});
-                                            dialogStore.success();
+                                                browser.insertEntryIntoCurrentPage({...entry, id: domain});
+                                                dialogStore.success();
+                                                browser.refresh();
+                                            }
+                                        } catch (e) {
+                                            snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
                                             browser.refresh();
+                                            return;
                                         }
-                                    } catch (e) {
-                                        snackbarStore.addFailure("Failed to create public link. " + extractErrorMessage(e), false);
-                                        browser.refresh();
-                                        return;
-                                    }
-                                }} />, () => {}
+                                    }}
+                                    onCancel={() => dialogStore.failure()}
+                                />,
+                                () => {},
+                                false,
+                                slimModalStyle,
                             );
                         }
                     }
@@ -376,15 +395,25 @@ interface CreationWithProductSelectorProps<T extends Resource> {
     placeholder: string;
     products: ProductV2[];
     isPublicLink?: boolean;
+    onCancel: () => void;
 }
 
+const Container = injectStyle("link-creation-container", k => `
+    ${k} {
+        display: flex;
+        gap: 24px;
+        flex-direction: column;
+    }
+`);
+
 // Has to work for licenses also.
-export function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntry, title, placeholder, isPublicLink, products}: CreationWithProductSelectorProps<T>) {
+export function ProductSelectorWithPermissions<T extends Resource>({onCreate, dummyEntry, title, onCancel, isPublicLink, products}: CreationWithProductSelectorProps<T>) {
     const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
     const [support, setSupport] = React.useState<PublicLinkSupport | LicenseSupport>();
     const [entryId, setEntryId] = React.useState("");
     const [acls, setAcls] = React.useState<ResourceAclEntry[]>([]);
-    const projectId = useProjectId();
+    const project = useProject().fetch();
+    const projectId = project.id;
 
     const setProductAndSupport = React.useCallback((p: ProductV2) => {
         setSelectedProduct(p);
@@ -401,49 +430,101 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
         }
     }, []);
 
+    useEffect(() => {
+        if (products.length === 1) {
+            setProductAndSupport(products[0]);
+        }
+    }, [products]);
+
+    const domainPrefix = !isPublicLink ? "" : (support?.["domainPrefix"] ?? "app-");
+    const domainSuffix = !isPublicLink ? "" : (support?.["domainSuffix"] ?? ".example.com");
+    let explanation: React.ReactNode;
+    if (isPublicLink) {
+        explanation = <Box mt={"8px"}>
+            Public links allow you to access some interactive applications and share them via a publicly accessible link.
+            You can read more about public links{" "}
+            <ExternalLink color={"primaryMain"} href={"https://docs.cloud.sdu.dk/guide/submitting.html#configure-custom-links"}>here</ExternalLink>.
+        </Box>;
+    } else {
+        explanation = <Box mt={"8px"}>
+            Licenses grant access to certain applications. Instances of a license must be first be created through
+            this form in order to be used in an application. You can read more about the license system{" "}
+            <ExternalLink color={"primaryMain"} href={"https://docs.cloud.sdu.dk/guide/resources-products.html#licenses"}>here</ExternalLink>.
+        </Box>;
+    }
+
+    let shortProviderId = "the selected provider";
+    if (product) {
+        shortProviderId = getShortProviderTitle(product.category.provider);
+    }
+
+    const actionName = isPublicLink ? "Create" : "Activate";
+
     return (<form onKeyDown={stopPropagation} onSubmit={e => {
         e.preventDefault();
         if (!product) return;
         let domain = entryId;
-        if (isPublicLink && support) {
-            const s = support as PublicLinkSupport;
-            domain = s.domainPrefix + entryId + s.domainSuffix;
+        if (isPublicLink) {
+            domain = domainPrefix + entryId + domainSuffix;
         }
         onCreate({...dummyEntry, id: domain, permissions: {others: acls}} as T, product);
-    }}>
-        <ProductSelector onSelect={setProductAndSupport} products={products} selected={product} />
-        {!product ? null : (<Box mt="12px">
-            {isPublicLink ? <TabbedCard>
-                <TabbedCardTab name="Public link URL" icon="heroLink">
-                    <Input placeholder={placeholder} onChange={e => setEntryId(e.target.value)} />
-                    {entryId ? <Text mt="12px"> Will be available at <b>{(support?.["domainPrefix"] ?? "") + entryId + (support?.["domainSuffix"] ?? "")}</b></Text> : null}
-                </TabbedCardTab>
-            </TabbedCard> : null}
-            {!Client.hasActiveProject ? null : (<Box mt="12px">
-                <TabbedCard>
-                    <TabbedCardTab name={"Permissions"} icon={"heroShare"}>
-                        <Box mt="12px" maxHeight="400px" overflowY="auto">
-                            <Text mb="12px">This is the permissions for the {title.toLocaleLowerCase()}. This can be changed later through 'Properties'.</Text>
-                            <PermissionsTable acl={acls} anyGroupHasPermission={false} showMissingPermissionHelp={false} title={title} updateAcl={async (group, permission) => {
-                                const acl = acls.find(it => it.entity["group"] === group);
-                                if (acl) {
-                                    if (acl.entity.type === "project_group") {
-                                        if (permission) { // READ, EDIT, ADMIN
-                                            acl.permissions = [permission]
-                                        } else { // None
-                                            acl.permissions = [];
-                                        }
-                                    }
-                                } else if (permission) {
-                                    acls.push({entity: {type: "project_group", group, projectId: projectId!}, permissions: [permission]})
+    }} className={Container}>
+        <Box>
+            <Heading.h3>{actionName} {title.toLowerCase()}</Heading.h3>
+            {explanation}
+        </Box>
+
+        {isPublicLink ? <Label>
+            Choose a link<MandatoryField/>
+            <Flex alignItems={"center"} gap={"8px"}>
+                <Box flexShrink={0}>{domainPrefix}</Box>
+                <Input placeholder={"my-link"} onChange={e => setEntryId(e.target.value)} autoFocus />
+                <Box flexShrink={0}>{domainSuffix}</Box>
+            </Flex>
+        </Label> : null}
+
+        <Box>
+            <Label>Choose a {title.toLowerCase()} type<MandatoryField /></Label>
+            <ProductSelector slim onSelect={setProductAndSupport} products={products} selected={product} />
+            <div style={{color: "var(--textSecondary)"}}>This {title.toLowerCase()} can be used with machines from <i>{shortProviderId}</i>.</div>
+        </Box>
+
+        {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
+            <Label>Choose access</Label>
+            <Box maxHeight="400px" overflowY="auto">
+                <Text mb="12px">
+                    By default, only you and the project administrators can use this {title.toLowerCase()} in new jobs.
+                    You can modify these permissions later on the <b>Properties</b> page.
+                </Text>
+                <PermissionsTable
+                    acl={acls}
+                    anyGroupHasPermission={false}
+                    showMissingPermissionHelp={false}
+                    replaceWriteWithUse
+                    warning="Warning"
+                    title={title}
+                    updateAcl={async (group, permission) => {
+                        const acl = acls.find(it => it.entity["group"] === group);
+                        if (acl) {
+                            if (acl.entity.type === "project_group") {
+                                if (permission) { // READ, EDIT, ADMIN
+                                    acl.permissions = [permission]
+                                } else { // None
+                                    acl.permissions = [];
                                 }
-                                setAcls([...acls]);
-                            }} warning="Warning" />
-                        </Box>
-                    </TabbedCardTab>
-                </TabbedCard>
-            </Box>)}
+                            }
+                        } else if (permission) {
+                            acls.push({entity: {type: "project_group", group, projectId: projectId!}, permissions: [permission]})
+                        }
+                        setAcls([...acls]);
+                    }}
+                />
+            </Box>
         </Box>)}
-        <Flex mt="12px" justifyContent="end"><Button disabled={product == null || (isPublicLink && !entryId)} type="submit">Create</Button></Flex>
+
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
+            <Button color={"successMain"} disabled={product == null || (isPublicLink && !entryId)} type="submit">{actionName}</Button>
+        </Flex>
     </form>);
 }
