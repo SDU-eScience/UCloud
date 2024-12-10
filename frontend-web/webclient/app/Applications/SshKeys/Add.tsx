@@ -167,25 +167,6 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                         }
                     </Button>
                 </form>
-
-                <Divider my={32} />
-                <p>
-                    Not all providers support SSH through this method. The following table summarizes which
-                    providers support SSH services:
-                </p>
-
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell width={40} />
-                            <TableHeaderCell textAlign={"left"}>Provider</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Support</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <tbody>
-                        {hardcodedSshSupport.map(it => <ProviderSupportRow support={it} key={it.providerId} />)}
-                    </tbody>
-                </Table>
             </Box>
         }
     />;

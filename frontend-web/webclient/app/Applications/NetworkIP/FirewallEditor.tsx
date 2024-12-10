@@ -1,7 +1,7 @@
 import * as React from "react";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {Box, Button, Input, Select, Text} from "@/ui-components";
-import {ShakingBox} from "@/UtilityComponents";
+import {Box, Button, Icon, Input, Select, Text} from "@/ui-components";
+import {MandatoryField, ShakingBox} from "@/UtilityComponents";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {useCallback, useRef, useState} from "react";
 import {useCloudCommand} from "@/Authentication/DataHook";
@@ -84,74 +84,76 @@ interface FirewallTableProps {
     didChange: boolean;
     onAddRow: (first: string, last: string, protocol: "TCP" | "UDP") => void;
     onRemoveRow: (idx: number) => void;
+    showCard?: boolean;
 }
 
-export function FirewallTable({isCreating, didChange, onAddRow, onRemoveRow, openPorts}: FirewallTableProps) {
+export function FirewallTable({isCreating, didChange, onAddRow, onRemoveRow, openPorts, ...props}: FirewallTableProps) {
     const portFirstRef = useRef<HTMLInputElement>(null);
     const portLastRef = useRef<HTMLInputElement>(null);
     const protocolRef = useRef<HTMLSelectElement>(null);
+    const showCard = props.showCard ?? true;
 
-    return <TabbedCard>
-        <TabbedCardTab name={"Firewall"} icon={"verified"}>
-            {!didChange ?
-                <>
-                    <Box height={80}>
-                        <b>Example:</b> to configure the firewall to accept SSH connections you would typically put in:
-                        <pre><code>Port (First) = 22, Port (Last) = 22, Protocol = TCP</code></pre>
-                    </Box>
-                </> :
-                <Box className={classConcat(ShakingBox, "shaking")} height={80}>
-                    <b>Note:</b> Your application must be <i>restarted</i> for the firewall to take effect.
-                </Box>
-            }
+    const body = <>
+        <form onSubmit={e => {
+            e.preventDefault();
+            const pf = portFirstRef.current;
+            const pl = portLastRef.current;
+            onAddRow(portFirstRef.current!.value, portLastRef.current!.value, protocolRef.current!.value as "TCP" | "UDP");
+            if (pf) pf.value = "";
+            if (pl) pl.value = "";
+        }}>
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHeaderCell textAlign={"left"}>Port (First)<MandatoryField/></TableHeaderCell>
+                        <TableHeaderCell textAlign={"left"}>Port (Last)</TableHeaderCell>
+                        <TableHeaderCell textAlign={"left"}>Protocol</TableHeaderCell>
+                        <TableHeaderCell width={"48px"} />
+                    </TableRow>
+                </TableHeader>
+                <tbody>
+                {openPorts.map((row, idx) => {
+                    return <TableRow key={idx}>
+                        <TableCell>{row.start}</TableCell>
+                        <TableCell>{row.end}</TableCell>
+                        <TableCell>{row.protocol}</TableCell>
+                        <TableCell>
+                            <Button
+                                width="100%"
+                                color="errorMain"
+                                type={"button"}
+                                onClick={() => onRemoveRow(idx)}
+                            >
+                                <Icon name={"heroTrash"} />
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                })}
+                <TableRow>
+                    <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portFirstRef} /></TableCell>
+                    <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portLastRef} /></TableCell>
+                    <TableCell pr={"16px"}>
+                        <Select selectRef={protocolRef}>
+                            <option>TCP</option>
+                            <option>UDP</option>
+                        </Select>
+                    </TableCell>
+                    <TableCell>
+                        <Button type={"submit"} fullWidth><Icon name={"heroPlus"} /></Button>
+                    </TableCell>
+                </TableRow>
+                </tbody>
+            </Table>
+        </form>
+    </>;
 
-            <form onSubmit={e => {
-                e.preventDefault();
-                onAddRow(portFirstRef.current!.value, portLastRef.current!.value, protocolRef.current!.value as "TCP" | "UDP");
-            }}>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell textAlign={"left"}>Port (First)</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Port (Last)</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Protocol</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <tbody>
-                        {openPorts.map((row, idx) => {
-                            return <TableRow key={idx}>
-                                <TableCell>{row.start}</TableCell>
-                                <TableCell>{row.end}</TableCell>
-                                <TableCell>{row.protocol}</TableCell>
-                                <TableCell>
-                                    {isCreating ?
-                                        <Button width="100%" color="errorMain" onClick={() => onRemoveRow(idx)}>
-                                            Remove
-                                        </Button> : <ConfirmationButton
-                                            type={"button"}
-                                            color={"errorMain"}
-                                            fullWidth
-                                            icon={"close"}
-                                            actionText={"Remove"}
-                                            onAction={() => onRemoveRow(idx)}
-                                        />}
-                                </TableCell>
-                            </TableRow>
-                        })}
-                        <TableRow>
-                            <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portFirstRef} /></TableCell>
-                            <TableCell pr={"16px"}><Input type="number" min={0} max={65535} inputRef={portLastRef} /></TableCell>
-                            <TableCell pr={"16px"}>
-                                <Select selectRef={protocolRef}>
-                                    <option>TCP</option>
-                                    <option>UDP</option>
-                                </Select>
-                            </TableCell>
-                            <TableCell><Button type={"submit"} fullWidth><Text fontSize={"18px"}>Add </Text></Button></TableCell>
-                        </TableRow>
-                    </tbody>
-                </Table>
-            </form>
-        </TabbedCardTab>
-    </TabbedCard>
+    if (showCard) {
+        return <TabbedCard>
+            <TabbedCardTab name={"Firewall"} icon={"verified"}>
+                {body}
+            </TabbedCardTab>
+        </TabbedCard>;
+    } else {
+        return body;
+    }
 }

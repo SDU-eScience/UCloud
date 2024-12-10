@@ -6,7 +6,7 @@ import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import NetworkIPApi, {NetworkIP, NetworkIPSupport} from "@/UCloud/NetworkIPApi";
 import {
-    CREATE_TAG,
+    CREATE_TAG, Permission, ResourceAclEntry,
     ResourceBrowseCallbacks,
     retrieveSupportV2,
     SupportByProviderV2,
@@ -23,12 +23,22 @@ import {addProjectListener} from "@/Project/ReduxState";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProductSelector} from "@/Products/Selector";
-import {Box, Button, Flex, Text} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Label, Text} from "@/ui-components";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {FirewallTable, parseAndValidatePorts} from "./FirewallEditor";
 import {compute, FindByStringId} from "@/UCloud";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {useEffect} from "react";
+import {injectStyle} from "@/Unstyled";
+import * as Heading from "@/ui-components/Heading";
+import {MandatoryField} from "@/UtilityComponents";
+import {getShortProviderTitle} from "@/Providers/ProviderTitle";
+import {isAdminOrPI} from "@/Project";
+import {PermissionsTable} from "@/Resource/PermissionEditor";
+import {useProject} from "@/Project/cache";
+import Routes from "@/Routes";
+import PublicLinkApi from "@/UCloud/PublicLinkApi";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -123,29 +133,9 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
 
                 browser.setEmptyIcon(productTypeToIcon("NETWORK_IP"));
 
-                browser.on("fetchFilters", () => [dateRanges, {
-                    key: "filterState",
-                    type: "options",
-                    clearable: true,
-                    icon: "radioEmpty",
-                    options: [{
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Preparing",
-                        value: "PREPARING",
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Ready",
-                        value: "READY"
-                    }, {
-                        color: "textPrimary",
-                        icon: "hashtag",
-                        text: "Unavailable",
-                        value: "UNAVAILABLE"
-                    }],
-                    text: "Status"
-                }, {
+                browser.on("fetchFilters", () => [
+                    dateRanges,
+                    {
                         type: "input",
                         icon: "user",
                         key: "filterCreatedBy",
@@ -228,9 +218,12 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                     if (create) {
                         create.enabled = () => true;
                         create.onClick = () => dialogStore.addDialog(
-                            <ProductSelectorWithFilewall
+                            <NetworkIpCreate
+                                onCancel={() => {
+                                    dialogStore.failure();
+                                }}
                                 products={supportByProvider.retrieveFromCacheOnly(Client.projectId ?? "")?.newProducts ?? []}
-                                onCreate={async (product, ports) => {
+                                onCreate={async (product, ports, permissions) => {
                                     const productReference = {
                                         id: product.name,
                                         category: product.category.name,
@@ -272,7 +265,26 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                             }]
                                         }));
 
+                                        for (const permission of permissions) {
+                                            const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
+                                            const newEntry: ResourceAclEntry = {
+                                                entity: {type: "project_group", projectId: permission.entity["projectId"], group: permission.entity["group"]},
+                                                permissions: fixedPermissions
+                                            };
+
+                                            await callAPI(
+                                                NetworkIPApi.updateAcl(bulkRequestOf(
+                                                    {
+                                                        id: response.id,
+                                                        added: [newEntry],
+                                                        deleted: [permission.entity]
+                                                    }
+                                                ))
+                                            );
+                                        }
+
                                         browser.renderRows();
+                                        dialogStore.success();
                                     } catch (e) {
                                         snackbarStore.addFailure("Failed to activate public IP. " + extractErrorMessage(e), false);
                                         browser.refresh();
@@ -281,7 +293,7 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
                                 }}
                             />,
                             () => {},
-                            false,
+                            true,
                             slimModalStyle,
                         );
                     }
@@ -308,11 +320,21 @@ export function NetworkIPBrowse({opts}: {opts?: ResourceBrowserOpts<NetworkIP>})
 }
 
 interface CreationWithFirewallProps {
-    onCreate(product: ProductV2, ports: compute.PortRangeAndProto[]): void;
+    onCreate(product: ProductV2, ports: compute.PortRangeAndProto[], permissions: ResourceAclEntry[]): void;
     products: ProductV2NetworkIP[];
+    onCancel: () => void;
 }
 
-export function ProductSelectorWithFilewall({onCreate, products}: CreationWithFirewallProps) {
+const Container = injectStyle("ip-creation-container", k => `
+    ${k} {
+        display: flex;
+        gap: 24px;
+        flex-direction: column;
+    }
+`);
+
+
+export function NetworkIpCreate({onCreate, onCancel, products}: CreationWithFirewallProps) {
     const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
     const [ports, setPorts] = React.useState<compute.PortRangeAndProto[]>([])
 
@@ -329,13 +351,90 @@ export function ProductSelectorWithFilewall({onCreate, products}: CreationWithFi
         setPorts(p => p.filter((_, i) => i !== idx));
     }, []);
 
-    return (<>
-        <ProductSelector onSelect={p => setSelectedProduct(p)} products={products} selected={product} />
-        {!product ? null : (<div>
-            <Box mt="12px" onSubmit={e => {e.stopPropagation(); e.preventDefault();}}>
-                <FirewallTable isCreating didChange={false} onAddRow={onAddRow} onRemoveRow={onRemoveRow} openPorts={ports} />
+    useEffect(() => {
+        if (products.length === 1) {
+            setSelectedProduct(products[0]);
+        }
+    }, [products]);
+
+    const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
+    const project = useProject().fetch();
+    const projectId = project.id;
+
+    let shortProviderId = "the selected provider";
+    if (product) {
+        shortProviderId = getShortProviderTitle(product.category.provider);
+    }
+
+    return (<div className={Container}>
+        <Box>
+            <Heading.h3>Create a public IP</Heading.h3>
+            <Box mt={"8px"}>
+                Public IP addresses provide direct access to specific jobs, useful for workloads not accessible via
+                HTTP or remote desktop.{" "}
+                <ExternalLink color={"primaryMain"} href={"/app" + Routes.resources.sshKeys()}>SSH access</ExternalLink>
+                {" "}does <i>not</i> require a public IP.
             </Box>
-            <Flex mt="12px" justifyContent="end"><Button disabled={product == null} onClick={() => onCreate(product, ports)} type="submit">Create</Button></Flex>
-        </div>)}
-    </>);
+        </Box>
+
+        <Box>
+            <Label>Choose a product<MandatoryField /></Label>
+            <ProductSelector slim onSelect={setSelectedProduct} products={products} selected={product} />
+            <div style={{color: "var(--textSecondary)"}}>This IP can be used with machines from <i>{shortProviderId}</i>.</div>
+        </Box>
+
+        <Box onSubmit={e => {e.stopPropagation(); e.preventDefault();}}>
+            <Label>Configure the firewall</Label>
+            <Box mt={"8px"} my={"16px"}>
+                This controls how incoming traffic can access the IP address.
+                Add at least one rule now; you can update it later on the <b>Properties</b> page.
+            </Box>
+
+            <FirewallTable showCard={false} isCreating didChange={false} onAddRow={onAddRow} onRemoveRow={onRemoveRow} openPorts={ports} />
+        </Box>
+
+        {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
+            <Label>Choose access</Label>
+            <Box maxHeight="400px" overflowY="auto">
+                <Text mb="12px">
+                    By default, only you and the project administrators can use this public IP in new jobs.
+                    You can modify these permissions later on the <b>Properties</b> page.
+                </Text>
+                <PermissionsTable
+                    acl={acl}
+                    anyGroupHasPermission={false}
+                    showMissingPermissionHelp={false}
+                    replaceWriteWithUse
+                    warning="Warning"
+                    title={"Public IP"}
+                    updateAcl={async (group, permission) => {
+                        const aclEntry = acl.find(it => it.entity["group"] === group);
+                        if (aclEntry) {
+                            if (aclEntry.entity.type === "project_group") {
+                                if (permission) { // READ, EDIT, ADMIN
+                                    aclEntry.permissions = [permission]
+                                } else { // None
+                                    aclEntry.permissions = [];
+                                }
+                            }
+                        } else if (permission) {
+                            acl.push({entity: {type: "project_group", group, projectId: projectId!}, permissions: [permission]})
+                        }
+                        setAcl([...acl]);
+                    }}
+                />
+            </Box>
+        </Box>)}
+
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
+            <Button
+                color={"successMain"}
+                disabled={product == null || ports.length === 0}
+                onClick={() => onCreate(product!, ports, acl)}
+            >
+                Create
+            </Button>
+        </Flex>
+    </div>);
 }

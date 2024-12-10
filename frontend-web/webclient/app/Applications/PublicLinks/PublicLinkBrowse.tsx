@@ -309,11 +309,6 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
 
                                             snackbarStore.addSuccess("Public link created for " + domain, false);
 
-                                            /* Note(Jonas): I can't find the creation function in the backend,
-                                               but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
-
-                                               Seems to be ignored in the backend
-                                            */
                                             if (response) {
                                                 for (const permission of entry.permissions.others ?? []) {
                                                     const fixedPermissions: Permission[] = permission.permissions.find(it => it === "EDIT") ? ["READ", "EDIT"] : ["READ"];
@@ -331,7 +326,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                                             }
                                                         ))
                                                     );
-                                                };
+                                                }
 
                                                 browser.insertEntryIntoCurrentPage({...entry, id: domain});
                                                 dialogStore.success();
