@@ -20,6 +20,7 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import ScrollableBox from "@/ui-components/ScrollableBox";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
+import {useProjectId} from "@/Project/Api";
 
 interface WorkflowProps extends WidgetProps {
     parameter: ApplicationParameterNS.Workflow;
@@ -48,19 +49,20 @@ const WorkflowSelectedRow: RichSelectChildComponent<SearchableWorkflow> = ({elem
         </Flex>;
     } else {
         return <Flex gap={"16px"} {...dataProps} alignItems={"center"} p={8} onClick={onSelect}>
-            <AppLogo size={"24px"} hash={hashF(element.status.path)}/>
+            <AppLogo size={"24px"} hash={hashF(element.status.path)} />
             <b>{element.status.path}</b>
             <div style={{color: "var(--textSecondary)"}}>
-                <SingleLineMarkdown width={"600px"} children={extractedDescription}/>
+                <SingleLineMarkdown width={"600px"} children={extractedDescription} />
             </div>
         </Flex>;
     }
 }
 
-type SearchableWorkflow = (Workflow & { type: "workflow", searchString: string; }) | { type: "create", searchString: string; };
+type SearchableWorkflow = (Workflow & {type: "workflow", searchString: string;}) | {type: "create", searchString: string;};
 
 export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props => {
     const error = props.errors[props.parameter.name];
+    const projectId = useProjectId();
 
     const [selectedWorkflow, setSelectedWorkflow] = useState<{
         id: string | null;
@@ -130,7 +132,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
             }
         }
 
-        result.push({ type: "create", searchString: "Create" });
+        result.push({type: "create", searchString: "Create"});
 
         return result;
     }, [existingWorkflows.data.items, props.parameter.defaultValue, activeInput]);
@@ -148,11 +150,12 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
     }, [activeInput, workflows]);
 
     useEffect(() => {
+        setActiveInput(null);
         fetchExistingWorkflows(WorkflowApi.browse({
             itemsPerPage: 250,
             filterApplicationName: props.application.metadata.name
         })).then(doNothing);
-    }, [props.application.metadata.name]);
+    }, [props.application.metadata.name, projectId]);
 
     const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
     const getActiveValue = (): WorkflowParameterInputFormat | null => {
@@ -225,22 +228,22 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
 
     const [canExpand, setCanExpand] = useState(false);
     useLayoutEffect(() => {
-            const box = descriptionRef.current;
-            if (!box) {
-                setCanExpand(true);
+        const box = descriptionRef.current;
+        if (!box) {
+            setCanExpand(true);
+        } else {
+            const child = box.querySelector("div") as HTMLDivElement;
+            const {scrollHeight, clientHeight} = child;
+            if (scrollHeight <= clientHeight) {
+                setCanExpand(false);
             } else {
-                const child = box.querySelector("div") as HTMLDivElement;
-                const {scrollHeight, clientHeight} = child;
-                if (scrollHeight <= clientHeight) {
-                    setCanExpand(false);
-                } else {
-                    setCanExpand(true);
-                }
+                setCanExpand(true);
             }
+        }
     }, [activeWorkflow]);
 
     return (<Flex flexDirection={"column"}>
-        <input type="hidden" id={widgetId(props.parameter)}/>
+        <input type="hidden" id={widgetId(props.parameter)} />
         {!error ? null : <>
             <p style={{color: "var(--errorMain)"}}>{error}</p>
         </>}
@@ -268,18 +271,18 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                 {activeWorkflow.id === "default" || activeWorkflow.id === "unsaved" ? null :
                     <TooltipV2 tooltip={"Hold to delete"} contentWidth={150}>
                         <ConfirmationButton onAction={async () => {
-                            await callAPI(WorkflowApi.remove(bulkRequestOf({ id: activeWorkflow.id })));
+                            await callAPI(WorkflowApi.remove(bulkRequestOf({id: activeWorkflow.id})));
                             fetchExistingWorkflows(WorkflowApi.browse({
                                 itemsPerPage: 250,
                                 filterApplicationName: props.application.metadata.name,
                             })).then(doNothing);
                             setActiveInput(null);
-                        }} icon={"heroTrash"}/>
+                        }} icon={"heroTrash"} />
                     </TooltipV2>
                 }
 
                 <Button onClick={onDoEdit} color={"secondaryMain"}>
-                    <Icon name={"heroPencil"} mr={"8px"}/>
+                    <Icon name={"heroPencil"} mr={"8px"} />
                     Edit
                 </Button>
             </>}
