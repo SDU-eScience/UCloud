@@ -89,7 +89,7 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 	// TODO(Dan): Ideally this shell is launched without job control, since it will be impacted by SIGSTOP from the
 	//   cpu limiter.
 
-	masterFd, pid, err := CreateAndForkPty(command, nil)
+	masterFd, _, err := CreateAndForkPty(command, nil)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

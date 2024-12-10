@@ -1,6 +1,6 @@
 application: v2
 
-name: vnc
+name: slurm-vnc
 version: 1
 
 software:
