@@ -65,7 +65,7 @@ function resolveNotification(event: Notification): {
         }
         case "JOB_COMPLETED":
             var jobsCompletedTitle: string;
-            
+
             if (event.meta.jobIds.length > 1) {
                 jobsCompletedTitle = `${event.meta.jobIds.length} jobs completed`;
             } else {
@@ -395,7 +395,7 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
     const location = useLocation();
     const navigate = useNavigate();
     const rerender = useForcedRender();
-    
+
     const isOpen = props.dialog === "Notifications";
 
     const globalRefresh = useRefresh();
@@ -408,6 +408,19 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
         ev.stopPropagation();
         props.setOpenDialog(d => d === "Notifications" ? "" : "Notifications");
     }, []);
+
+    const notificationsWindowRef = React.useRef<HTMLDivElement>(null);
+
+    const handleClickOutside = React.useCallback((event) => {
+        if (notificationsWindowRef.current && !notificationsWindowRef.current.contains(event.target) && isOpen) {
+            toggleNotifications(event);
+        }
+    }, [isOpen, notificationsWindowRef]);
+
+    React.useEffect(() => {
+        window.addEventListener("click", handleClickOutside);
+        return () => window.removeEventListener("click", handleClickOutside);
+    }, [isOpen]);
 
     React.useEffect(() => {
         const evHandler = () => {props.setOpenDialog("")};
@@ -492,7 +505,7 @@ export const Notifications: React.FunctionComponent<SidebarDialog> = props => {
         </Flex>
 
         {!isOpen ? null :
-            <div className={ContentWrapper} onClick={UF.stopPropagation}>
+            <div ref={notificationsWindowRef} className={ContentWrapper} onClick={UF.stopPropagation}>
                 <div className="header">
                     <h3>Notifications</h3>
                     <Icon name="checkDouble" className="read-all" cursor="pointer" color="iconColor" color2="iconColor2"

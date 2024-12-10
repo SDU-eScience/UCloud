@@ -761,7 +761,6 @@ const Uploader: React.FunctionComponent = () => {
 
         setUploads(allUploads);
         startUploads(allUploads, setLookForNewUploads);
-        // window.dispatchEvent(new CustomEvent<"BackgroundTask">("open-task-window", {detail: "BackgroundTask"}));
     }, [uploads]);
 
     useEffect(() => {
