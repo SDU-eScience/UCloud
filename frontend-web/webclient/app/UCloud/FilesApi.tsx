@@ -1424,7 +1424,7 @@ class PreviewVfs implements Vfs {
         }));
 
         if (result.next) {
-            return toVirtualFiles(result).concat(await this.fetchFiles(path, next));
+            return toVirtualFiles(result).concat(await this.fetchFiles(path, result.next));
         }
 
         return toVirtualFiles(result);
