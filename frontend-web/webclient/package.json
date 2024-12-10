@@ -18,11 +18,13 @@
     },
     "dependencies": {
         "@novnc/novnc": "1.4.0",
+        "@observablehq/plot": "0.6.16",
         "@reduxjs/toolkit": "2.3.0",
         "@rjsf/core": "4.2.3",
         "@svgr/cli": "8.1.0",
         "apexcharts": "3.54.1",
         "assert": "2.1.0",
+        "d3": "7.9.0",
         "date-fns": "4.1.0",
         "deepcopy": "2.1.0",
         "fast-deep-equal": "3.1.3",
@@ -52,6 +54,7 @@
         "yaml": "^2.6.0"
     },
     "devDependencies": {
+        "@types/d3": "7.4.3",
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.15",
         "@types/jsrsasign": "10.5.14",

@@ -467,7 +467,11 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
         if (totalPrice === 1 && probablyCurrencies.indexOf(unit.name) === -1 && unit.desiredFrequency === "ONCE") {
-            return "Quota based (" + unit.name + ")";
+            if (product.productType === "STORAGE") {
+                return "Quota based (" + unit.name + ")";
+            } else {
+                return "Quota based";
+            }
         }
         return withoutSuffix;
     }

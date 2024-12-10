@@ -39,6 +39,7 @@ export const ProductSelector: React.FunctionComponent<{
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
+    const isDetailed = type === "COMPUTE";
     let productName = "product";
     switch (type) {
         case "COMPUTE":
@@ -221,33 +222,48 @@ export const ProductSelector: React.FunctionComponent<{
         };
     }, [isOpen]);
 
-    const showHeadings = true;
+    const showHeadings = isDetailed;
 
     return <>
         <div className={classConcat(SelectorBoxClass, props.slim === true ? "slim" : undefined)} onClick={onToggle} ref={boxRef}>
             <div className="selected">
-                {selected ? selected.name : <>No {productName} selected</>}<br />
-                {selected ? <>
-                    <table>
-                        <thead>
-                            <tr>
-                                {headers.map(it =>
-                                    <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
-                                        {it}
-                                    </th>
-                                )}
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <ProductStats product={selected} />
-                                <td>{priceToString(selected, 1)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                    <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
-                </> : null}
+                {selected ?
+                    <>
+                        {props.slim !== true ?
+                            <>
+                                {selected?.name}<br />
+                                {selected ? <>
+                                    <table>
+                                        <thead>
+                                        <tr>
+                                            {headers.map(it =>
+                                                <th key={it} style={{width: `${(1 / (headers.length + 1)) * 100}%`}}>
+                                                    {it}
+                                                </th>
+                                            )}
+                                            <th>Price</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr>
+                                            <ProductStats product={selected} />
+                                            <td>{priceToString(selected, 1)}</td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+                                    <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={32} />
+                                </> : null}
+                            </> :
+                            <Flex alignItems={"center"} gap={"8px"}>
+                                <ProviderLogo className={"provider-logo"} providerId={selected?.category?.provider ?? "?"} size={24} />
+                                {selected.name}
+                                <Box>-</Box>
+                                <Box>{priceToString(selected, 1)}</Box>
+                            </Flex>
+                        }
+                    </> :
+                    <>No {productName} selected</>
+                }
             </div>
 
             <Icon name="chevronDownLight" />
@@ -580,13 +596,15 @@ const SelectorBoxClass = injectStyle("selector-box", k => `
         top: 16px;
         right: 16px;
     }
-
-    ${k}.slim table, ${k}.slim .provider-logo {
-        display: none;
+    
+    ${k}.slim .provider-logo {
+        position: unset;
+        top: unset;
+        right: unset;
     }
 
     ${k}.slim .selected {
-        padding: 5px;
+        padding: 5px 12px;
     }
 
     ${k}.slim svg {
