@@ -82,7 +82,7 @@ func ResizePty(masterFd *os.File, cols, rows int) {
 	C.resizePty(C.int(masterFd.Fd()), C.int(cols), C.int(rows))
 }
 
-var folderShellLimiter = util.NewCpuLimiter(100.0, 1024*1024*256)
+//var folderShellLimiter = util.NewCpuLimiter(100.0, 1024*1024*256)
 
 func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 	command := []string{"/bin/bash", "--login"}
@@ -95,9 +95,8 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 		return
 	}
 
-	masterFd.Write([]byte("set +m\n"))
-
-	folderShellLimiter.Watch(pid)
+	//masterFd.Write([]byte("set +m\n"))
+	//folderShellLimiter.Watch(pid)
 
 	ResizePty(masterFd, cols, rows)
 
@@ -188,7 +187,6 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 	for util.IsAlive && session.Alive {
 		select {
 		case event := <-session.InputEvents:
-			log.Info("Got event: %v", event)
 			switch event.Type {
 			case ctrl.ShellEventTypeInput:
 				_, err = masterFd.Write([]byte(event.Data))
