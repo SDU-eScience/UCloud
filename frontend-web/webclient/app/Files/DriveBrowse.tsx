@@ -135,7 +135,9 @@ const DriveBrowse: React.FunctionComponent<{ opts?: ResourceBrowserOpts<FileColl
                 // =========================================================================================================
 
                 function fetchSupport(projectId?: string) {
-                    supportByProvider.retrieve(projectId ?? "", () => retrieveSupportV2(FileCollectionsApi));
+                    supportByProvider.retrieve(projectId ?? "", () => retrieveSupportV2(FileCollectionsApi)).then(() => {
+                        browser.renderOperations();
+                    });
                 }
 
                 fetchSupport(Client.projectId);
@@ -605,7 +607,7 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
             />
         </Box>
 
-        {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
+        {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box>
             <Label>Choose access</Label>
             <Box maxHeight="400px" overflowY="auto">
                 <Text mb="12px">
@@ -636,6 +638,8 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
                 />
             </Box>
         </Box>)}
+
+        <Box />
 
         <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
