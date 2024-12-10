@@ -776,7 +776,7 @@ func jobsIpcServer() {
 type RegisteredIngressFlags int
 
 const (
-	RegisteredIngressFlagsWeb RegisteredIngressFlags = iota
+	RegisteredIngressFlagsWeb RegisteredIngressFlags = 1 << iota
 	RegisteredIngressFlagsVnc
 )
 
