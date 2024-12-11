@@ -13,6 +13,7 @@ export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEv
     lineHeight?: number | string;
     title?: string;
     attached?: boolean;
+    attachedLeft?: boolean;
     asSquare?: boolean;
     children?: React.ReactNode;
     disabled?: boolean;
@@ -102,6 +103,11 @@ export const ButtonClass = injectStyle("button", k => `
         border-bottom-left-radius: 0;
     }
 
+    ${k}[data-attached-left=true] {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
     ${k} svg {
         margin-right: 5px;
     }
@@ -157,6 +163,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
     return <button
         className={classConcat(ButtonClass, props.className)}
         data-attached={props.attached === true}
+        data-attached-left={props.attachedLeft === true}
         data-square={props.asSquare === true}
         data-fullwidth={props.fullWidth === true}
         data-size={sizeName}

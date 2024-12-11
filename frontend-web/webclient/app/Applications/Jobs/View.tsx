@@ -2,7 +2,7 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
@@ -55,6 +55,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {DropdownContentClass} from "@/ui-components/Dropdown";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -321,9 +322,14 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const location = useLocation();
     const appNameHint = getQueryParamOrElse(location.search, "app", "");
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
+    const [, invokeCommand] = useCloudCommand();
     const job = jobFetcher.data;
+    const [interfaceTargets, setInterfaceTargets] = useState<InterfaceTarget[]>([]);
 
-    const interfaceLinks = useRedirectToWebLinks(job);
+    useEffect(() => {
+        if (!job) return;
+        setInterfaceTargets(parseUpdatesForInterfaceTargets(job, invokeCommand));
+    }, [job?.updates]);    
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -511,7 +517,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <RunningText job={job} state={jobUpdateState} interfaceLinks={interfaceLinks} />
+                                <RunningText job={job} state={jobUpdateState} interfaceLinks={interfaceTargets} />
                             </div>
                         </Flex>
 
@@ -519,7 +525,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                             job={job}
                             state={jobUpdateState}
                             status={status}
-                            interfaceLinks={interfaceLinks}
+                            interfaceLinks={interfaceTargets}
                         />
                     </div>
                 </CSSTransition>
@@ -725,10 +731,7 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const RunningText: React.FunctionComponent<{job: Job; state: React.RefObject<JobUpdates>; interfaceLinks: string[]}> = ({job, state, interfaceLinks}) => {
-    const interfaceAccessItems: InterfaceTarget[] = useMemo(() => parseUpdatesForInterfaceTargets(job.updates), [job.updates.length]);
-    const [selectedInterface, setSelectedInterface] = useState(0);
-
+const RunningText: React.FunctionComponent<{job: Job; state: React.RefObject<JobUpdates>; interfaceLinks: InterfaceTarget[];}> = ({job, state, interfaceLinks}) => {
     return <>
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
@@ -740,31 +743,7 @@ const RunningText: React.FunctionComponent<{job: Job; state: React.RefObject<Job
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            {interfaceAccessItems.length > 0 ? (
-                <Flex>
-                    <ClickableDropdown
-                        width={200}
-                        trigger={
-                            <div className={InterfaceSelectorTrigger}> 
-                                {interfaceAccessItems[selectedInterface].target}
-                                <Icon name="chevronDownLight"/>
-                            </div>
-                        }
-                    >
-                        {interfaceAccessItems.map((element, k) =>
-                            <Flex key={k} justifyContent={"space-between"} alignItems={"center"} p={8} onClick={() => setSelectedInterface(k)}>
-                                {element.target}
-                                <div style={{color: "var(--textSecondary)"}}>
-                                    Node {element.rank}
-                                </div>
-                            </Flex>
-                        )}
-                    </ClickableDropdown>
-                    <Button attached><Icon name="heroArrowTopRightOnSquare" /></Button>
-                </Flex>
-            ) : (
-                <RunningButtonGroup job={job} rank={0} redirectToWeb={interfaceLinks[0]} />
-            )}
+            <RunningButtonGroup job={job} rank={0} interfaceLinks={interfaceLinks} />
         </Flex>
     </>;
 };
@@ -772,22 +751,20 @@ const RunningText: React.FunctionComponent<{job: Job; state: React.RefObject<Job
 const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => `
     ${k} {
         position: relative;
-        cursor: pointer;
-        max-width: 300px;
-        min-width: 200px;
-        border-radius: 5px;
-        border: 1px solid var(--borderColor, #f00);
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
         user-select: none;
         -webkit-user-select: none;
-        background: var(--backgroundDefault);
+        background: var(--primaryMain);
         box-shadow: inset 0 .0625em .125em rgba(10,10,10,.05);
         padding: 6px;
-        border-top-right-radius: 0px;
-        border-bottom-right-radius: 0px;
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
     }
 
     ${k}:hover {
-        border-color: var(--borderColorHover);
+        background: var(--primaryDark);
     }
 
     ${k}[data-omit-border="true"] {
@@ -795,9 +772,10 @@ const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => 
     }
 
     ${k} > svg {
+        color: var(--primaryContrast);
         position: absolute;
         bottom: 9px;
-        right: 15px;
+        right: 10px;
         height: 16px;
     }
 `);
@@ -894,13 +872,14 @@ interface InterfaceTarget {
     type: "WEB" | "VNC" | "SHELL";
     target: string,
     port: number,
+    link?: string,
 }
 
-function parseUpdatesForInterfaceTargets(updates: JobUpdate[]): InterfaceTarget[] {
+function parseUpdatesForInterfaceTargets(job: Job, invokeCommand: InvokeCommand): InterfaceTarget[] {
     var result: InterfaceTarget[] = [];
 
-    for (let i = updates.length - 1; i >= 0; i--) {
-        const status = updates[i].status;
+    for (let i = job.updates.length - 1; i >= 0; i--) {
+        const status = job.updates[i].status;
         if (!status) continue;
 
         const messages = status.split("\n");
@@ -910,10 +889,42 @@ function parseUpdatesForInterfaceTargets(updates: JobUpdate[]): InterfaceTarget[
                 parser.consumeToken("Target: ");
 
                 const target = JSON.parse(parser.remaining()) as InterfaceTarget;
+
+                const links: string[] = [];
+
+                const appType = target?.type
+                const backendType = getBackend(job);
+                const support = job.status.resolvedSupport ?
+                    (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+                const supportsInterface =
+                    (appType === "WEB" && isSupported(backendType, support, "web")) ||
+                    (appType === "VNC" && isSupported(backendType, support, "vnc"));
+
+                if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+
+                    const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
+                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: target.target}));
+
+                    (async () => {
+                        try {
+                            const result = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
+                            for (const res of result?.responses ?? []) {
+                                links[res.session.rank] = (res.session as WebSession).redirectClientTo
+                            }
+                        } catch (e) {
+                            console.warn(e);
+                        }
+                    })();
+                } else if (appType === "VNC" && supportsInterface && job.status.state === "RUNNING") {
+                    links[0] = `/applications/vnc/${job.id}/0?hide-frame`
+                }
+
+                target.link = links[0];
                 result.push(target)
             }
         }
     }
+
     return result.reverse();
 }
 
@@ -921,7 +932,7 @@ const RunningContent: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
     status: JobStatus;
-    interfaceLinks: string[];
+    interfaceLinks: InterfaceTarget[];
 }> = ({job, state, status, interfaceLinks}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
@@ -1283,7 +1294,7 @@ const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
     state: React.RefObject<JobUpdates>,
-    interfaceLinks: string[];
+    interfaceLinks: InterfaceTarget[];
 }> = ({job, rank, state, interfaceLinks}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
@@ -1316,7 +1327,7 @@ const RunningJobRank: React.FunctionComponent<{
 
             {job.specification.replicas === 1 ? null : (
                 <Flex flexDirection="column" mt="auto" ml="auto" mb="-16px" width="450px">
-                    <RunningButtonGroup job={job} rank={rank} redirectToWeb={interfaceLinks[rank]} />
+                    <RunningButtonGroup job={job} rank={rank} interfaceLinks={interfaceLinks} />
                 </Flex>
             )}
         </div>
@@ -1409,49 +1420,11 @@ function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;
 }
 
-function useRedirectToWebLinks(job?: Job): string[] {
-    const [links, setLinks] = useState<string[]>([]);
-    const [, call] = useCloudCommand();
-
-    React.useEffect(() => {
-        if (!job) return;
-        const appType = getAppType(job);
-        const backendType = getBackend(job);
-        const support = job.status.resolvedSupport ?
-            (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
-        const supportsInterface =
-            (appType === "WEB" && isSupported(backendType, support, "web")) ||
-            (appType === "VNC" && isSupported(backendType, support, "vnc"));
-
-        if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
-
-            const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-                .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
-
-            (async () => {
-                try {
-                    const result = await call<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                    setLinks(links => {
-                        for (const res of result?.responses ?? []) {
-                            links[res.session.rank] = (res.session as WebSession).redirectClientTo
-                        }
-                        return links;
-                    })
-                } catch (e) {
-                    console.warn(e);
-                }
-            })();
-        }
-    }, [job, job?.status.state]);
-
-    return links;
-}
-
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
     rank: number;
-    redirectToWeb?: string;
-}> = ({job, rank, redirectToWeb}) => {
+    interfaceLinks: InterfaceTarget[];
+}> = ({job, rank, interfaceLinks}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
 
     const backendType = getBackend(job);
@@ -1463,7 +1436,15 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    var allInterfaceLinks = interfaceLinks;
 
+    // TODO(Brian)
+    if (appType === "WEB" && supportsInterface) {
+        allInterfaceLinks = [{rank: 0, type: "WEB", target: "Open interface", port: 1234} as InterfaceTarget, ...interfaceLinks];
+    } else if (appType === "VNC" && supportsInterface) {
+        allInterfaceLinks = [{rank: 0, type: "VNC", target: "Open interface", port: 1234} as InterfaceTarget, ...interfaceLinks];
+    }
+    
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
@@ -1484,6 +1465,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
+        {/*
         {appType !== "WEB" || !supportsInterface ? null : (
             <Link to={redirectToWeb ?? ""} aria-disabled={!redirectToWeb} target={"_blank"}>
                 <Button width="220px" disabled={!redirectToWeb}>
@@ -1494,6 +1476,7 @@ const RunningButtonGroup: React.FunctionComponent<{
         )}
         {appType !== "VNC" || !supportsInterface ? null : (
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+
                 e.preventDefault();
 
                 const link = findDomAttributeFromAncestors(e.target, "href");
@@ -1510,6 +1493,76 @@ const RunningButtonGroup: React.FunctionComponent<{
                     <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
                 </Button>
             </Link>
+        )}
+        */}
+        {allInterfaceLinks.length < 1 ? <></> : (
+            <Flex>
+                {allInterfaceLinks[0].type !== "WEB" || !supportsInterface ? null : (
+                    <Link to={allInterfaceLinks[0].link ?? ""} aria-disabled={!allInterfaceLinks[0]} target={"_blank"}>
+                        <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"} disabled={!allInterfaceLinks[0]}>
+                            <Icon name="heroArrowTopRightOnSquare" />
+                            <div>{allInterfaceLinks[0].target}</div>
+                        </Button>
+                    </Link>
+                )}
+                {allInterfaceLinks[0].type !== "VNC" || !supportsInterface ? null : (
+                    <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
+                        e.preventDefault();
+
+                        const link = findDomAttributeFromAncestors(e.target, "href");
+                        if (!link) return;
+
+                        window.open(
+                            link,
+                            `vnc-${job.id}-${rank}`,
+                            "width=800,height=450,status=no"
+                        );
+                    }}>
+                        <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"}>
+                            <Icon name="heroArrowTopRightOnSquare" />
+                            <div>{allInterfaceLinks[0].target}</div>
+                        </Button>
+                    </Link>
+                )}
+                <ClickableDropdown
+                    trigger={
+                        <div className={InterfaceSelectorTrigger}> 
+                            <Icon name="chevronDownLight"/>
+                        </div>
+                    }
+                    right={"0px"}
+                    minWidth={"220px"}
+                    paddingControlledByContent
+                >
+                    {allInterfaceLinks.slice(1).map((link, k) => (
+                        supportsInterface ? 
+                            <Flex
+                                key={k}
+                                gap="5px"
+                                alignItems={"center"}
+                                p={8}
+                                onClick={e => {
+                                    console.log("link is " + link.link);
+                                    if (!link.link) return;
+
+                                    if (link.type !== "VNC") {
+                                        window.open(link.link, "_blank");
+                                    }
+
+                                    window.open(
+                                        link.link,
+                                        `vnc-${job.id}-${rank}`,
+                                        "width=800,height=450,status=no"
+                                    );
+                                }}
+                            >
+                                <Icon name="heroArrowTopRightOnSquare" />
+                                {link.target}
+                            </Flex>
+                         : <></>
+                    ))}
+                </ClickableDropdown>
+            </Flex>
         )}
     </div>
 };
