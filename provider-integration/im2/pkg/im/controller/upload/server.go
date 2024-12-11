@@ -279,18 +279,21 @@ outer:
 					upload.ChunksOrSkip <- nil
 
 				case *messageChunk:
-					err := chunkSemaphore.Acquire(sessionContext, chunkWeight(msg.Data))
-					if err != nil {
-						break outer
-					}
+					// NOTE(Dan): Ignore chunks which are empty, the serverFileUpload should already take care of these
+					if len(msg.Data) > 0 {
+						err := chunkSemaphore.Acquire(sessionContext, chunkWeight(msg.Data))
+						if err != nil {
+							break outer
+						}
 
-					upload, ok := uploads[msg.FileId]
-					if !ok {
-						log.Warn("Received an unknown chunk with ID %v", msg.FileId)
-						break outer
-					}
+						upload, ok := uploads[msg.FileId]
+						if !ok {
+							log.Warn("Received an unknown chunk with ID %v", msg.FileId, len(msg.Data))
+							break outer
+						}
 
-					upload.ChunksOrSkip <- msg.Data
+						upload.ChunksOrSkip <- msg.Data
+					}
 
 				case *messageClose:
 					wasClosed = true

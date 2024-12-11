@@ -58,6 +58,11 @@ func Launch() {
 
 	if pluginName != "" {
 		cfg.Mode = mode
+
+		if gateway.HandleCli(pluginName) {
+			return
+		}
+
 		switch cfg.Services.Type {
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
@@ -176,6 +181,8 @@ func Launch() {
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
+		gateway.InitIpc()
+		log.Info("GW is ready now")
 	}
 
 	log.Info("UCloud is ready!")

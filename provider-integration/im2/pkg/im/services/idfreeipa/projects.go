@@ -100,7 +100,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 }
 
 func clearSssdCache() {
-	output, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
+	output, _, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
 	if !ok {
 		log.Warn("Failed to clear sssd cache (via `sudo /sbin/sss_cache -E`). Is sudo misconfigured? Output: %v", output)
 	}

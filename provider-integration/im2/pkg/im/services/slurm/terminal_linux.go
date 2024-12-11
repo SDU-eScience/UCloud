@@ -42,6 +42,7 @@ void resizePty(int masterFd, int cols, int rows) {
 import "C"
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -89,7 +90,7 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 	// TODO(Dan): Ideally this shell is launched without job control, since it will be impacted by SIGSTOP from the
 	//   cpu limiter.
 
-	masterFd, _, err := CreateAndForkPty(command, nil)
+	masterFd, pid, err := CreateAndForkPty(command, nil)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -138,6 +139,9 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 			continue
 		}
 	}
+
+	masterFd.Close()
+	unix.Kill(int(pid), unix.SIGTERM)
 }
 
 func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
@@ -155,11 +159,16 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 
 	command := []string{
 		"srun", "--overlap", "--pty", "--jobid", fmt.Sprint(parsedId.SlurmId), "-w", nodes[session.Rank],
-		"/bin/bash", "--login",
 	}
-	// envArray := []string{"VAR1=value1", "VAR2=value2"}
 
-	masterFd, _, err := CreateAndForkPty(command, nil)
+	homedir, err := os.UserHomeDir()
+	if err == nil {
+		command = append(command, "--chdir", homedir)
+	}
+
+	command = append(command, "/bin/bash", "--login")
+
+	masterFd, pid, err := CreateAndForkPty(command, nil)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -204,6 +213,9 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 			continue
 		}
 	}
+
+	masterFd.Close()
+	unix.Kill(int(pid), unix.SIGTERM)
 }
 
 func handleShell(session *ctrl.ShellSession, cols, rows int) {

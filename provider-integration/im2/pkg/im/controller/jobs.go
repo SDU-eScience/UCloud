@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	anyascii "github.com/anyascii/go"
 	"net/http"
 	"slices"
 	"strings"
@@ -28,8 +29,8 @@ type JobsService struct {
 	RetrieveProducts         func() []orc.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orc.Job) ConfiguredWebIngress
-	OpenWebSession           func(job *orc.Job, rank int) (cfg.HostInfo, error)
+	ServerFindIngress        func(job *orc.Job, suffix util.Option[string]) ConfiguredWebIngress
+	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (cfg.HostInfo, error)
 	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
 }
 
@@ -212,6 +213,7 @@ func controllerJobs(mux *http.ServeMux) {
 			Job         *orc.Job                   `json:"job"`
 			Rank        int                        `json:"rank"`
 			SessionType orc.InteractiveSessionType `json:"sessionType"`
+			Target      util.Option[string]        `json:"target"`
 		}
 
 		mux.HandleFunc(jobContext+"interactiveSession", HttpUpdateHandler[fnd.BulkRequest[openInteractiveSessionRequest]](
@@ -245,11 +247,11 @@ func controllerJobs(mux *http.ServeMux) {
 							flags |= RegisteredIngressFlagsWeb
 						}
 
-						target, err := Jobs.OpenWebSession(item.Job, item.Rank)
+						target, err := Jobs.OpenWebSession(item.Job, item.Rank, item.Target)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
-							redirect, err := RegisterIngress(item.Job, item.Rank, target, flags)
+							redirect, err := RegisterIngress(item.Job, item.Rank, target, item.Target, flags)
 							if err != nil {
 								errors = append(errors, err)
 							} else {
@@ -435,6 +437,10 @@ func controllerJobs(mux *http.ServeMux) {
 							Payload:  json.RawMessage(`{"type":"ack"}`),
 						})
 					}
+				}
+
+				if session != nil {
+					session.Alive = false
 				}
 			},
 		)
@@ -719,10 +725,11 @@ var shellSessions = make(map[string]*ShellSession)
 var shellSessionsMutex = sync.Mutex{}
 
 type jobRegisteredIngress struct {
-	JobId  string
-	Rank   int
-	Target cfg.HostInfo
-	Flags  RegisteredIngressFlags
+	JobId           string
+	Rank            int
+	Target          cfg.HostInfo
+	RequestedSuffix util.Option[string]
+	Flags           RegisteredIngressFlags
 }
 
 var jobsRegisterIngressCall = ipc.NewCall[jobRegisteredIngress, string]("ctrl.jobs.register_ingress")
@@ -758,7 +765,7 @@ func jobsIpcServer() {
 			}
 		}
 
-		result, err := RegisterIngress(job, r.Payload.Rank, r.Payload.Target, r.Payload.Flags)
+		result, err := RegisterIngress(job, r.Payload.Rank, r.Payload.Target, r.Payload.RequestedSuffix, r.Payload.Flags)
 		if err != nil {
 			return ipc.Response[string]{
 				StatusCode: http.StatusInternalServerError,
@@ -780,7 +787,45 @@ const (
 	RegisteredIngressFlagsVnc
 )
 
-func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, flags RegisteredIngressFlags) (string, error) {
+// ToHostnameSafe transforms a string into a hostname-safe version
+func ToHostnameSafe(input string) string {
+	var builder strings.Builder
+	lastWasHyphen := false
+
+	// Convert to ASCII-equivalent where possible
+	input = anyascii.Transliterate(input)
+
+	// Normalize by lowercasing everything and trimming spaces.
+	input = strings.ToLower(input)
+	input = strings.TrimSpace(input)
+
+	for _, r := range input {
+		if r > unicode.MaxASCII {
+			continue
+		} else if unicode.IsSpace(r) {
+			if !lastWasHyphen {
+				builder.WriteRune('-') // Replace space with a single hyphen
+				lastWasHyphen = true
+			}
+		} else if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
+			builder.WriteRune(r) // Keep alphanumeric and dash
+			lastWasHyphen = false
+		}
+	}
+
+	result := builder.String()
+
+	// Trim trailing hyphen if present
+	if lastWasHyphen {
+		if len(result) > 0 && result[len(result)-1] == '-' {
+			result = result[:len(result)-1]
+		}
+	}
+
+	return result
+}
+
+func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffix util.Option[string], flags RegisteredIngressFlags) (string, error) {
 	isWeb := (flags & RegisteredIngressFlagsWeb) != 0
 	isVnc := (flags & RegisteredIngressFlagsVnc) != 0
 
@@ -790,14 +835,20 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, flags Register
 
 	if RunsUserCode() {
 		return jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
-			JobId:  job.Id,
-			Target: target,
-			Flags:  flags,
+			JobId:           job.Id,
+			Target:          target,
+			RequestedSuffix: requestedSuffix,
+			Flags:           flags,
 		})
 	} else {
+		suffix := ""
+		if requestedSuffix.Present {
+			suffix = "-" + ToHostnameSafe(requestedSuffix.Value)
+		}
+
 		var ingress ConfiguredWebIngress
 		if isWeb {
-			ingress = Jobs.ServerFindIngress(job)
+			ingress = Jobs.ServerFindIngress(job, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
 		} else if isVnc {
 			ingress = ConfiguredWebIngress{
 				IsPublic:     false,

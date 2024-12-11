@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	db "ucloud.dk/pkg/database"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
@@ -255,6 +256,14 @@ func HandleUsersCommandServer() {
 		nuid, _ := strconv.Atoi(uinfo.Uid)
 		err = ctrl.RegisterConnectionComplete(r.Payload.UCloudName, uint32(nuid), true)
 		if err != nil {
+			return ipc.Response[util.Empty]{
+				StatusCode:   http.StatusBadRequest,
+				ErrorMessage: fmt.Sprintf("%s", err),
+			}
+		}
+
+		if cfg.Services.Unmanaged {
+			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
 			return ipc.Response[util.Empty]{
 				StatusCode:   http.StatusBadRequest,
 				ErrorMessage: fmt.Sprintf("%s", err),
