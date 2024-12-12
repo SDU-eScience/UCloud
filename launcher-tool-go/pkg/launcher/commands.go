@@ -1,11 +1,13 @@
 package launcher
 
 import (
-	"encoding/xml"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -14,58 +16,104 @@ var postExecFile os.File
 type Commands struct {
 }
 
-func (c Commands) portForward() {
-	InitializeServiceList()
-	ports := Remapped(portAllocator).allocatedPorts
-	conn := RemoteExecutableCommandFactory(commandFactory).connection
+func (c Commands) PortForward() {
+	//TODO
+	if true {
+		fmt.Println("port forward not implemented")
+	} else {
+		InitializeServiceList()
+		ports := Remapped(portAllocator).allocatedPorts
+		conn := RemoteExecutableCommand{
+			connection:       SSHConnection{},
+			args:             nil,
+			workingDir:       nil,
+			fn:               nil,
+			allowFailure:     false,
+			deadlineInMillis: 0,
+			streamOutput:     false,
+		}.connection
 
-	forward := ""
+		forward := ""
 
-	for k, port := range ports {
-		forward = forward + " -L " + strconv.Itoa(k) + ":localhost:" + strconv.Itoa(port)
+		for k, port := range ports {
+			forward = forward + " -L " + strconv.Itoa(k) + ":localhost:" + strconv.Itoa(port)
+		}
+		file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+		HardCheck(err)
+		defer file.Close()
+		_, err = file.WriteString(`
+			echo;
+			echo;
+			echo;
+			echo "Please keep this window running. You will not be able to access any services without it."
+			echo "This window needs to be restarted if you add any new providers or switch environment!"
+			echo;
+			echo "This command requires your local sudo password to enable port forwarding of privileged ports (80 and 443)."
+			echo;
+			echo;
+			echo;
+			sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ` + forward + conn.username + `@` + conn.host + ` sleep inf  
+		`)
 	}
-
 }
-func (c Commands) openUserInterface(serviceName string) {
-	service := serviceByName(serviceName)
+
+func (c Commands) OpenUserInterface(serviceName string) {
+	service := ServiceByName(serviceName)
 	address := service.address
 	uiHelp := service.uiHelp
-	if !Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE) {
+	if true {
 		fmt.Println("Unable to open web-browser. Open this URL in your own browser:")
 		fmt.Println(address)
 	} else {
-		Desktop.getDesktop().browse(URI(address))
+		//TODO open in browser
 	}
 
 	if uiHelp != "" {
-		printExplantion(uiHelp)
+		PrintExplanation(uiHelp)
 	}
 
 }
-func (c Commands) openLogs(serviceName string) {
-	service := serviceByName(serviceName)
+func (c Commands) OpenLogs(serviceName string) {
+	service := ServiceByName(serviceName)
+	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	HardCheck(err)
+	defer file.Close()
 	if service.useServiceConvention {
-		postExecFile.appendTest //TODO
+		_, err = file.WriteString(
+			compose.Exec(
+				currentEnvironment,
+				serviceName,
+				[]string{"sh", "-c", "tail -F /tmp/service.log /var/log/ucloud/*.log"},
+				true,
+			).ToBashScript(),
+		)
+		HardCheck(err)
 	} else {
-		postExecFile.appendText //TODO
+		_, err = file.WriteString(compose.Logs(currentEnvironment, serviceName).ToBashScript())
+		HardCheck(err)
 	}
 }
 
-func (c Commands) openShell(serviceName string) {
-	postExecFile.appendTxt //TODO
+func (c Commands) OpenShell(serviceName string) {
+	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	HardCheck(err)
+	defer file.Close()
+	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true).ToBashScript())
+	HardCheck(err)
 }
 
-func (c Commands) createProvider(providerName string) {
+func (c Commands) CreateProvider(providerName string) {
 	resolvedProvider := ProviderFromName(providerName)
-	startProvdierService(providerName)
+	StartProviderService(providerName)
 
 	credentials := ProviderCredentials{}
 	termio.LoadingIndicator("Registering provider with UCloud/Core", func(output *os.File) error {
-		credentials = registerProvider(providerName, providerName, 8889)
+		credentials = RegisterProvider(providerName, providerName, 8889)
 		return nil
 	})
 
 	termio.LoadingIndicator("Configuring provider...", func(output *os.File) error {
+		ProviderFromName(providerName)
 		resolvedProvider.Install(credentials)
 		return nil
 	})
@@ -102,13 +150,13 @@ func (c Commands) createProvider(providerName string) {
 		})
 
 		termio.LoadingIndicator("Restarting provider...", func(output *os.File) error {
-			stopService(serviceByName(providerName)).executeToText()
-			startService(serviceByName(providerName)).executeToText()
+			StopService(ServiceByName(providerName)).ExecuteToText()
+			StartService(ServiceByName(providerName)).ExecuteToText()
 			return nil
 		})
 
 		termio.LoadingIndicator("Granting credits to provider project", func(output *os.File) error {
-			accessToken := fetchAssecToken()
+			accessToken := FetchAccessToken()
 			productPage := //TODO()
 			productItems := productPage["items"]
 
@@ -117,33 +165,45 @@ func (c Commands) createProvider(providerName string) {
 
 	}
 }
-func (c Commands) serviceStart(serviceName string) {
-	postExecFile.appentText(//TODO)
+func (c Commands) ServiceStart(serviceName string) {
+	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	HardCheck(err)
+	defer file.Close()
+	_, err = file.WriteString(StartService(ServiceByName(serviceName)).ToBashScript())
+	HardCheck(err)
 }
 
-func (c Commands) serviceStop(serviceName string)  {
-	postExecFile.appendText(stopService(serviceByName(serviceName)).ToBashScript())
+func (c Commands) ServiceStop(serviceName string)  {
+	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	HardCheck(err)
+	defer file.Close()
+	_, err = file.WriteString(StopService(ServiceByName(serviceName)).ToBashScript())
+	HardCheck(err)
 }
-func (c Commands) environmentStop() {
+func (c Commands) EnvironmentStop() {
 	termio.LoadingIndicator("Shutting down virtual cluster...", func(output *os.File) error {
-		compose.Down(currentEnvironment).streamOutput().executeToText()
+		downCom := compose.Down(currentEnvironment, false)
+		downCom.SetStreamOutput()
+		downCom.ExecuteToText()
 		return nil
 	})
 }
-func (c Commands) environmentStart() {
+func (c Commands) EnvironmentStart() {
 	StartCluster(compose, false)
 }
 
-func (c Commands) environmentRestart() {
-	c.environmentStop()
-	c.environmentStart()
+func (c Commands) EnvironmentRestart() {
+	c.EnvironmentStop()
+	c.EnvironmentStart()
 }
 
-func (c Commands) environmentDelete(shutdown bool) {
+func (c Commands) EnvironmentDelete(shutdown bool) {
 	if shutdown {
 		termio.LoadingIndicator("Shutting down virtual cluster...", func(output *os.File) error {
-			compose.Down(currentEnvironment, true).StreamOutput().ExecuteToText()
-			v, ok := compose.(Plugin)
+			downCom := compose.Down(currentEnvironment, true)
+			downCom.SetStreamOutput()
+			downCom.ExecuteToText()
+			_, ok := compose.(Plugin)
 			if ok {
 				for _, name := range allVolumeNames {
 					args := []string{
@@ -153,7 +213,7 @@ func (c Commands) environmentDelete(shutdown bool) {
 						name,
 						"-f",
 					}
-					ExecutableCommand{
+					com := LocalExecutableCommand{
 						args:       args,
 						workingDir: nil,
 						fn: func(text ProcessResultText) string {
@@ -162,7 +222,9 @@ func (c Commands) environmentDelete(shutdown bool) {
 						allowFailure:     false,
 						deadlineInMillis: 1000 * 60 * 5,
 						streamOutput:     false,
-					}.streamOutput().ExecuteToText()
+					}
+					com.setStreamOutput()
+					com.ExecuteToText()
 				}
 			}
 			return nil
@@ -170,7 +232,7 @@ func (c Commands) environmentDelete(shutdown bool) {
 
 		termio.LoadingIndicator("Deleting files associated with cirtual cluster...", func(output *os.File) error {
 			path := filepath.Dir(currentEnvironment.GetAbsolutePath())
-			ex := ExecutableCommand{
+			ex := LocalExecutableCommand{
 				args:       []string{FindDocker(), "run", "-v", path+":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/"+currentEnvironment.Name()},
 				workingDir: nil,
 				fn: func(text ProcessResultText) string {
@@ -196,26 +258,30 @@ func (c Commands) environmentDelete(shutdown bool) {
 		os.RemoveAll(pa)
 	}
 }
-func (c Commands) environmentStatus() {
-	postExecFile.AppendText() //TODO
+func (c Commands) EnvironmentStatus() {
+	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	HardCheck(err)
+	defer file.Close()
+	if _, err = file.WriteString(compose.Ps(currentEnvironment).ToBashScript()); err != nil {panic("Something wrong. Cannot write")}
 }
-func (c Commands) importApps() {
+func (c Commands) ImportApps() {
 	termio.LoadingIndicator("Importing applications", func(output *os.File) error {
 		checksum := "ea9ab32f52379756df5f5cbbcefb33928c49ef8e2c6b135a5048a459e40bc6b2"
-		v, ok = callService(
+		response := CallService(
 			"backend",
 			"POST",
 			"http://localhost:8080/api/hpc/apps/devImport",
-			fetchAccessToken(),
+			FetchAccessToken(),
 			`
 				{
 					"endpoint": "https://launcher-assets.cloud.sdu.dk/$checksum.zip",
-					"checksum": "$checksum"
+					"checksum": "`+checksum+`"
 				}
 			`,
+			[]string {},
 		)
 
-		if (!ok) {
+		if response == "" {
 			panic("Failed to import applications (see backend logs)." +
 				" You might need to do a git pull to get the latest version.")
 		}
@@ -223,38 +289,329 @@ func (c Commands) importApps() {
 	})
 }
 
-func (c Commands) createSnapshot(snapshotName string) {
+func (c Commands) CreateSnapshot(snapshotName string) {
 	InitializeServiceList()
 
 	termio.LoadingIndicator("Creating snapshot...", func(output *os.File) error {
 		for _, service := range AllServices {
 			if service.useServiceConvention {
-				compose.Exec(
+				executeCom := compose.Exec(
 					currentEnvironment,
 					service.containerName,
 					[]string {"/opt/ucloud/service.sh", "snapshot", snapshotName},
 					false,
-				).allowFailure().streamOutput().executeToText()
+				)
+				executeCom.SetAllowFailure()
+				executeCom.SetStreamOutput()
+				executeCom.ExecuteToText()
 			}
 		}
 		return nil
 	})
 }
 
-func (c Commands) restoreSnapshot(snapshotName string) {
+func (c Commands) RestoreSnapshot(snapshotName string) {
 	InitializeServiceList()
 
 	termio.LoadingIndicator("Restorting snapshot...", func(output *os.File) error {
 		for _, service := range AllServices {
 			if service.useServiceConvention {
-				compose.Exec(
+				executeCom := compose.Exec(
 					currentEnvironment,
 					service.containerName,
 					[]string {"/opt/ucloud/service.sh", "restore", snapshotName},
 					false,
-				).allowFailure().streamOutput().executeToText()
+				)
+
+				executeCom.SetAllowFailure()
+				executeCom.SetStreamOutput()
+				executeCom.ExecuteToText()
 			}
 		}
 		return nil
 	})
+}
+
+func StopService(service Service) ExecutableCommandInterface  {
+	if service.useServiceConvention {
+		return compose.Exec(
+			currentEnvironment,
+			service.containerName,
+			[]string{"/opt/ucloud/service.sh", "stop"},
+			false,
+		)
+	} else {
+		return compose.Stop(currentEnvironment, service.containerName)
+	}
+}
+
+func CallService(
+	container string,
+	method string,
+	url string,
+	bearer string,
+	body string,
+	opts []string,
+) string {
+	list := []string {
+		"curl",
+		"-ssS",
+		"-X$method",
+		url,
+		"-H",
+		"Authorization: Bearer " + bearer,
+	}
+	if body != "" {
+		list = append(list, "-H",)
+		list = append(list, "Content-Type: application/json")
+		list = append(list, "-d")
+		list = append(list, body)
+
+	} else {
+		list = append(list, "-d")
+		list = append(list, "")
+	}
+
+	list = append(list, opts...)
+	executeCom := compose.Exec(
+		currentEnvironment,
+		container,
+		list,
+		false,
+	)
+	executeCom.SetAllowFailure()
+	return executeCom.ExecuteToText().First
+}
+
+func StartProviderService(providerId string){
+	AddProvider(providerId)
+	GenerateComposeFile(true)
+	termio.LoadingIndicator("Starting provider services...", func(output *os.File) error {
+		compose.Up(currentEnvironment, true).ExecuteToText()
+		return nil
+	})
+}
+
+type AccessTokenWrapper struct {
+	accessToken string
+}
+
+type BulkResponse struct {
+	responses []any
+}
+
+type FindByStringId struct {
+	id string
+}
+
+func GetCredentialsFromJSON(json string) (publicKey string, refreshToken string) {
+	for _, line := range strings.Split(json, "\n") {
+		if strings.Contains(line, "publicKey") {
+			splitList :=  strings.Split(line, `"`)
+			if len(splitList) > 4 { panic("Cannot get credentials (public)")}
+			publicKey = splitList[len(splitList)-2]
+		}
+		if strings.Contains(line, "refreshToken") {
+			splitList :=  strings.Split(line, `"`)
+			if len(splitList) > 4 { panic("Cannot get credentials (refresh token)")}
+			refreshToken = splitList[len(splitList)-2]
+		}
+	}
+	return publicKey, refreshToken
+}
+
+func FetchAccessToken() string {
+	tokenJson := CallService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken", "", []string{})
+	if tokenJson == "" { panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.") }
+	var accessToken AccessTokenWrapper
+	json.Unmarshal([]byte(tokenJson), &accessToken)
+	return accessToken.accessToken
+}
+
+func RegisterProvider(providerId string, domain string, port int) ProviderCredentials {
+	accessToken := FetchAccessToken()
+	resp := CallService(
+		"backend",
+		"POST",
+		"http://localhost:8080/api/projects/v2",
+		accessToken,
+		//language=json
+		` 
+			{
+				"items": [
+					{
+						"parent": null,
+						"title": "Provider ` + providerId + `",
+						"canConsumeResources": false
+					}
+				]
+			}
+		`,
+		[]string{
+			"-H", "principal-investigator: user",
+		},
+	)
+
+	if resp == "" {
+		panic("Project creation failed. Check backend logs.")
+	}
+
+	bresp := BulkResponse{
+		responses: make([]any, 0),
+	}
+	json.Unmarshal([]byte(resp), &bresp)
+	var projectId = ""
+	if len(bresp.responses) == 0 {
+		panic("No projects found. Check backend logs.")
+	} else {
+		projectId = FindByStringId(bresp.responses[0]).id
+	}
+
+	 resp = CallService(
+		"backend",
+		"POST",
+		"http://localhost:8080/api/grants/v2/updateRequestSettings",
+		accessToken,
+		//language=json
+		`
+			{
+				"enabled": true,
+				"description": "An example grant allocator allocating for ` + providerId + `",
+				"allowRequestsFrom": [{ "type":"anyone" }],
+				"excludeRequestsFrom": [],
+				"templates": {
+					"type": "plain_text",
+					"personalProject": "Please describe why you are applying for resources",
+					"newProject": "Please describe why you are applying for resources",
+					"existingProject": "Please describe why you are applying for resources"
+				}
+			}
+		`,
+
+		[]string{
+			"-H", "Project: " + projectId,
+		},
+	)
+
+	 if resp == "" {
+		 panic("Failed to mark project as grant giver")
+	 }
+
+	 resp = CallService(
+		 "backend",
+		 "POST",
+		 "http://localhost:8080/api/providers",
+		 accessToken,
+		 //language=json
+		 `
+			{
+				"items": [
+					{
+						"id": "` + providerId + `",
+						"domain": "` + domain + `",
+						"https": false,
+						"port": ` + strconv.Itoa(port) + `
+					}
+				]
+			}
+		`,
+
+		[]string{
+			"-H", "Project: " + projectId,
+		},
+	)
+	 if resp == "" {
+		 panic("Provider creation failed. Check backend logs.")
+	 }
+
+	 resp = CallService(
+		 "backend",
+		 "GET",
+		 "http://localhost:8080/api/providers/browse?filterName=$providerId",
+		 accessToken,
+		 "",
+		 []string{
+			 "-H", "Project: " + projectId,
+		 },
+	 )
+	 if resp == "" {
+		 panic("Provider creation failed. Check backend logs")
+	 }
+
+
+	 publicKey, refreshToken := GetCredentialsFromJSON(resp)
+	 return ProviderCredentials{
+		 publicKey:    publicKey,
+		 refreshToken: refreshToken,
+		 projectId:    projectId,
+	 }
+}
+
+func StartCluster(compose DockerCompose, noRecreate bool) {
+	termio.LoadingIndicator("Starting virtual cluster...", func(output *os.File) error {
+		upCom := compose.Up(currentEnvironment, noRecreate)
+		upCom.SetStreamOutput()
+		upCom.ExecuteToText()
+		return nil
+	})
+
+	termio.LoadingIndicator("Starting UCloud...", func(output *os.File) error {
+		StartService(ServiceByName("backend")).ExecuteToText()
+		return nil
+	})
+
+	termio.LoadingIndicator("Waiting for UCLoud to be ready...", func(output *os.File) error {
+		cmd := compose.Exec(currentEnvironment, "backend", []string {"curl", "http://localhost:8080"}, false)
+		cmd.SetAllowFailure()
+
+		for i := range 100 {
+			if i > 20 {
+				cmd.SetStreamOutput()
+			}
+			if cmd.ExecuteToText().First != "" {
+				break
+			}
+			time.Sleep(1 * time.Second)
+		}
+		return nil
+	})
+
+	allAddons := ListAddons()
+	for _, provider := range ListConfiguredProviders() {
+		termio.LoadingIndicator("Starting provider: " + ProviderFromName(provider).Title(), func(output *os.File) error {
+			StartService(ServiceByName(provider)).ExecuteToText()
+			return nil
+		})
+
+		addons := allAddons[provider]
+		if len(addons) != 0 {
+			p := ProviderFromName(provider)
+			gs, ok := p.(GoSlurm)
+			if !ok { return }
+			for _, addon := range addons {
+				termio.LoadingIndicator("Starting addon: " + addon, func(output *os.File) error {
+					gs.StartAddon(addon)
+					return nil
+				})
+			}
+		}
+	}
+
+}
+
+func StartService(service Service) ExecutableCommandInterface {
+	if service.useServiceConvention {
+		com := compose.Exec(
+			currentEnvironment,
+			service.ContainerName(),
+			[]string{"/opt/ucloud/service.sh", "start"},
+			false,
+		)
+		com.SetStreamOutput()
+		return com
+	} else {
+		com := compose.Start(currentEnvironment, service.containerName)
+		com.SetStreamOutput()
+		return com
+	}
 }

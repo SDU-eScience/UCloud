@@ -1,7 +1,7 @@
 package launcher
 
 import (
-	"fmt"
+	"strings"
 )
 
 type LFile interface {
@@ -19,8 +19,8 @@ type LFile interface {
 type ExecutableCommandInterface interface {
 	ToBashScript() string
 	ExecuteToText() StringPair
-	setStreamOutput()
-	setAllowFailure()
+	SetStreamOutput()
+	SetAllowFailure()
 }
 
 type postProcessor func(text ProcessResultText) string
@@ -31,8 +31,19 @@ type ProcessResultText struct {
 	stderr     string
 }
 
-func escapeBash(value string) string {
-	//TODO()
-	fmt.Println("FUCK OU")
-	return value
+// NOTE(Dan): This is slightly different from how escapeBash works in the Kotlin version since this also automatically
+// wraps it in single quotes. This is how it was used in all cases anyway, so this makes it slightly simpler to use.
+
+func EscapeBash(s string) string {
+	builder := &strings.Builder{}
+	builder.WriteRune('\'')
+	for _, c := range []rune(s) {
+		if c == '\'' {
+			builder.WriteString("'\"'\"'")
+		} else {
+			builder.WriteRune(c)
+		}
+	}
+	builder.WriteRune('\'')
+	return builder.String()
 }

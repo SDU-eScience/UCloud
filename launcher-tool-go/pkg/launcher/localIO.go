@@ -204,7 +204,7 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 
 	if exitCode != 0 {
 		if l.allowFailure {
-			return StringPair{first: "", second: outputBuilder.String() + errBuilder.String()}
+			return StringPair{First: "", Second: outputBuilder.String() + errBuilder.String()}
 		}
 
 		fmt.Println("Command failed!")

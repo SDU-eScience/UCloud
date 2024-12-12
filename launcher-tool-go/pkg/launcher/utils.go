@@ -12,7 +12,7 @@ import (
 var commandType ExecutableCommandInterface
 
 type StringPair struct {
-	first, second string
+	First, Second string
 }
 
 func SoftCheck(e error) {

@@ -37,7 +37,7 @@ func PrintHelp() {
 	os.Exit(0)
 }
 
-func cliIntercept(args []string) {
+func CliIntercept(args []string) {
 	cmd := args[0]
 	if cmd == "" {
 		return

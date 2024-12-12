@@ -25,6 +25,30 @@ var portAllocator PortAllocator
 var composeName string
 var repoRoot LocalFile
 
+func GetEnvironmentIsRemote() bool {
+	return environmentIsRemote
+}
+
+func SetEnvironmentIsRemote(isRemote bool) {
+	environmentIsRemote = isRemote
+}
+
+func GetLocalEnvironment() *os.File {
+	return localEnvironment
+}
+
+func SetLocalEnvironment(environment *os.File) {
+	localEnvironment = environment
+}
+
+func GetCurrentEnvironment() LFile {
+	return currentEnvironment
+}
+
+func SetCurrentEnvironment(environment LFile) {
+	currentEnvironment = environment
+}
+
 func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	files, err := os.ReadDir(baseDirPath)
 	HardCheck(err)
@@ -162,7 +186,7 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 }
 
 type InitEnvironmentResult struct {
-	shouldStartEnvironment bool
+	ShouldStartEnvironment bool
 }
 
 func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string) InitEnvironmentResult {

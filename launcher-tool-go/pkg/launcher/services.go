@@ -15,11 +15,18 @@ type Service struct {
 	uiHelp               string
 }
 
+func (s Service) Title() string {
+	return s.title
+}
+func (s Service) ContainerName() string {
+	return s.containerName
+}
+
 func NewService() {}
 
-var AllServices = make(map[string]*Service)
+var AllServices = make(map[string]Service)
 
-func serviceByName(name string) *Service {
+func ServiceByName(name string) Service {
 	return AllServices[name]
 }
 
@@ -36,7 +43,7 @@ func NewServiceMenu(requireLogs bool, requireExec bool, requireAddress bool) ter
 	var filteredServices = make(map[string]*Service)
 	for _, service := range AllServices {
 		if (service.logsSupported || !requireLogs) && (!requireExec || service.execSupported) && (!requireAddress || service.address != "") {
-			filteredServices[service.title] = service
+			filteredServices[service.title] = &service
 		}
 	}
 

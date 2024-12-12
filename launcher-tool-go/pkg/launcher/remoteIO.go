@@ -99,20 +99,58 @@ func (r RemoteFile) GetAbsolutePath() string {
 }
 
 func (r RemoteFile) Exists() bool {
-
+	r.connection
 }
 
-func (r RemoteFile) Child(subPath string) LFile {}
+func (r RemoteFile) Child(subPath string) LFile {
+	return RemoteFile{r.connection, r.path + "/" + subPath}
+}
 
-func (r RemoteFile) WriteText(text string) {}
+func (r RemoteFile) WriteText(text string) {
+	if disableRemoteFileWriting { return }
+	sftp := r.connection.sftp
+	file, err := os.CreateTemp("", "*.temp")
+	HardCheck(err)
+	defer file.Close()
+	_, err = file.WriteString(text)
+	absPath, err := filepath.Abs(file.Name())
+	HardCheck(err)
+	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())
+}
 
-func (r RemoteFile) WriteBytes(bytes []byte) {}
+func (r RemoteFile) WriteBytes(bytes []byte) {
+	if disableRemoteFileWriting { return }
+	sftp := r.connection.sftp
+	file, err := os.CreateTemp("", "*.temp")
+	HardCheck(err)
+	defer file.Close()
+	_, err = file.Write(bytes)
+	absPath, err := filepath.Abs(file.Name())
+	HardCheck(err)
+	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())
+}
 
-func (r RemoteFile) AppendText(text string) {}
+func (r RemoteFile) AppendText(text string) {
+	if disableRemoteFileWriting { return }
+	r.connection.useSession{
+		it.exec(
+			`
+			 	cat >> '` + EscapeBash(r.GetAbsolutePath()) + `' << EOF
+				`+ text + ` 
+				EOF
+			`,
+		)
+	}
+}
 
-func (r RemoteFile) Delete() {}
+func (r RemoteFile) Delete() {
+	if disableRemoteFileWriting { return }
+	r.connection.useSession { it.exec("rm -rf "+ EscapeBash(r.GetAbsolutePath()))}
+}
 
-func (r RemoteFile) MkDirs() {}
+func (r RemoteFile) MkDirs() {
+	r.connection.stfp.mkdirs(r.GetAbsolutePath())
+}
 
 
 type RemoteExecutableCommand struct {
@@ -163,10 +201,10 @@ func (r RemoteExecutableCommand) ToBashScript() string {
 	sb.WriteString(" ")
 	sb.WriteString(`"`)
 	if r.workingDir != nil {
-		sb.WriteString("cd '" +  escapeBash(r.workingDir.GetAbsolutePath()) + "'; ")
+		sb.WriteString("cd " +  EscapeBash(r.workingDir.GetAbsolutePath()) + "; ")
 	}
 	for _, arg := range r.args {
-		sb.WriteString("'" + escapeBash(arg) + "'")
+		sb.WriteString(EscapeBash(arg))
 		sb.WriteString(" ")
 	}
 	sb.WriteString(`"`)
@@ -204,7 +242,7 @@ func (r RemoteExecutableCommand) ExecuteToText() StringPair {
 
 	sb := new(strings.Builder)
 	if r.workingDir != nil {
-		sb.WriteString("cd '" + escapeBash(r.workingDir.GetAbsolutePath())+ "';")
+		sb.WriteString("cd " + EscapeBash(r.workingDir.GetAbsolutePath())+ ";")
 	}
 	for _, arg := range r.args {
 		sb.WriteString("'" +  arg + "'")
@@ -244,7 +282,7 @@ func (r RemoteExecutableCommand) ExecuteToText() StringPair {
 			fmt.Println("Command failed!")
 			builder := strings.Builder{}
 			for _, arg := range r.args {
-				builder.WriteString("'" + escapeBash(arg) + "'")
+				builder.WriteString(EscapeBash(arg))
 			}
 			fmt.Println("Command ", builder.String())
 			fmt.Println("Directory: ", r.workingDir.GetAbsolutePath())

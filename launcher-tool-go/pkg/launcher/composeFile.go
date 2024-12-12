@@ -25,7 +25,7 @@ type PortAllocator interface {
 	Allocate(port int) int
 }
 
-type Direct struct {}
+type Direct struct{}
 
 func (d Direct) Allocate(port int) int {
 	return port
@@ -114,7 +114,7 @@ func (c ComposeBuilder) Service(
 	uiHelp string,
 ) {
 	c.services[name] = compose
-	AllServices[name] = &Service{
+	AllServices[name] = Service{
 		containerName:        name,
 		title:                title,
 		logsSupported:        logsSupported,
@@ -126,7 +126,7 @@ func (c ComposeBuilder) Service(
 }
 
 func (e Environment) CreateComposeFile(services []ComposeService) LFile {
-	disableRemoteFileWriting := !e.doWriteFile
+	disableRemoteFileWriting = !e.doWriteFile
 	loadingTitle := ""
 	if e.doWriteFile {
 		loadingTitle = "Creating compose environment..."
@@ -161,14 +161,14 @@ func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 				disableRemoteFileWriting = false
 				return err
 			}
-			lfile := LocalFile{file, abstractLFile{}}
+			lfile := LocalFile{GetDataDirectory(), file}
 			childFile := lfile.Child("docker-compose.yaml")
-			childFile.File.WriteString(cb.CreateComposeFile())
+			childFile.WriteText(cb.CreateComposeFile())
 			return err
 		},
 	)
 	disableRemoteFileWriting = false
-	return lfile.LFile
+	return lfile
 }
 
 type ComposeService interface {
@@ -180,6 +180,7 @@ type Provider interface {
 	Title() string
 	CanRegisterProducts() bool
 	Addons() map[string]string
+	Install(credentials ProviderCredentials)
 }
 
 var kubernetes Kubernetes
@@ -189,7 +190,7 @@ var goKubernetes GoKubernetes
 
 var AllProviders []Provider
 
-var AllProviderNames = []string {
+var AllProviderNames = []string{
 	"k8",
 	"slurm",
 	"go-slurm",
@@ -197,7 +198,9 @@ var AllProviderNames = []string {
 }
 
 func ProviderFromName(name string) Provider {
-	if !slices.Contains(AllProviderNames, name) { log.Fatal("Unknown Provider " + name)}
+	if !slices.Contains(AllProviderNames, name) {
+		log.Fatal("Unknown Provider " + name)
+	}
 	found := slices.IndexFunc(AllProviders, func(provider Provider) bool {
 		return provider.Name() == name
 	})
@@ -207,7 +210,7 @@ func ProviderFromName(name string) Provider {
 	return AllProviders[found]
 }
 
-type UCloudBackend struct {}
+type UCloudBackend struct{}
 
 func (uc UCloudBackend) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
@@ -337,7 +340,7 @@ func (uc UCloudBackend) Build(cb ComposeBuilder) {
 	)
 }
 
-type UCloudFrontend struct {}
+type UCloudFrontend struct{}
 
 func (uf UCloudFrontend) Build(cb ComposeBuilder) {
 	cb.Service(
@@ -378,22 +381,22 @@ type ProviderCredentials struct {
 }
 
 type Kubernetes struct {
-	name string
-	title string
+	name                string
+	title               string
 	canRegisterProducts bool
-	addons map[string]string
+	addons              map[string]string
 }
 
 func NewKubernetes() Kubernetes {
 	return Kubernetes{
-		name: "k8",
-		title: "Kubernetes",
+		name:                "k8",
+		title:               "Kubernetes",
 		canRegisterProducts: true,
-		addons: map[string]string{},
+		addons:              map[string]string{},
 	}
 }
 
-func (k Kubernetes) Name() string  {
+func (k Kubernetes) Name() string {
 	return k.name
 }
 
@@ -438,22 +441,22 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 	passwdFile := passwdDir.Child("passwd")
 	groupFile := passwdDir.Child("group")
 	shadowFile := passwdDir.Child("shadow")
-	passFileInfo, _ := os.Open(passwdFile.File.Name())
+	passFileInfo, _ := os.Open(passwdFile.Name())
 
 	if passFileInfo != nil {
-		passwdFile.File.WriteString(
+		passwdFile.WriteText(
 			`
 				ucloud:x:998:998::/home/ucloud:/bin/sh
 				ucloudalt:x:11042:11042::/home/ucloudalt:/bin/sh
 				`,
 		)
-		groupFile.File.WriteString(
+		groupFile.WriteText(
 			`
 				ucloud:x:998:
 				ucloudalt:x:11042:
 			`,
 		)
-		shadowFile.File.WriteString(
+		shadowFile.WriteText(
 			`
 				ucloud:!:19110::::::
 				ucloudalt:!:19110::::::
@@ -713,7 +716,7 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 		`,
 	)
 
-	compose.Exec(
+	var executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -724,9 +727,12 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"chown -R 11042:11042 /mnt/storage/*",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -739,9 +745,12 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			`,
 		},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec()
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -751,9 +760,12 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -765,9 +777,12 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			"ucloud-apps",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{
@@ -809,31 +824,40 @@ func (k Kubernetes) Install(credentials ProviderCredentials) {
 			EOF
 			`,
 		},
-	false,
-	).streamOutput().executeToText()
+		false,
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{"kubectl", "--kubeconfig", "/mnt/k3s/kubeconfig.yaml", "create", "-f", "/tmp/pvc.yml"},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"k8",
 		[]string{"rm", "/tmp/pvc.yml"},
 		false,
-	).streamOutput().executeToText()
+	)
+
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 
 	installMarker.WriteText("done")
 }
 
 type GoKubernetes struct {
-	name string
-	title string
+	name                string
+	title               string
 	canRegisterProducts bool
-	addons map[string]string
+	addons              map[string]string
 }
 
 func NewGoKubernetes() *GoKubernetes {
@@ -918,7 +942,7 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 		false,
 		"",
 		"",
-		)
+	)
 
 	cb.Service(
 		"gok8s",
@@ -941,11 +965,11 @@ func (k GoKubernetes) Build(cb ComposeBuilder) {
 			}
 			`,
 		},
-	true,
-	true,
-	true,
-	"",
-	"",
+		true,
+		true,
+		true,
+		"",
+		"",
 	)
 
 	postgresDataDir := cb.environment.repoRoot.Child("go-slurm-pg-data")
@@ -987,9 +1011,11 @@ func (k GoKubernetes) Install() {
 	imData := imDir.Child("data")
 
 	installMarker := imData.Child(".install-marker")
-	if installMarker.Exists() { return }
+	if installMarker.Exists() {
+		return
+	}
 
-	compose.Exec(
+	var executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
 		[]string{
@@ -1001,9 +1027,12 @@ func (k GoKubernetes) Install() {
 				`,
 		},
 		false,
-	).streamOutput().executeToText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
 		[]string{
@@ -1013,9 +1042,12 @@ func (k GoKubernetes) Install() {
 			"/mnt/k3s/kubeconfig.yaml",
 		},
 		false,
-	).streamOutput().executeText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
 		[]string{
@@ -1027,12 +1059,15 @@ func (k GoKubernetes) Install() {
 			"ucloud-apps",
 		},
 		false,
-	).streamOutput().executeText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
-		[]string {
+		[]string{
 			"sh",
 			"-c",
 			`
@@ -1071,13 +1106,16 @@ func (k GoKubernetes) Install() {
 				EOF
 			`,
 		},
-	false,
-	).streamOutput().executeText()
+		false,
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
-		[]string {
+		[]string{
 			"kubectl",
 			"--kubeconfig",
 			"/mnt/k3s/kubeconfig.yaml",
@@ -1086,23 +1124,29 @@ func (k GoKubernetes) Install() {
 			"/tmp/pvc.yml",
 		},
 		false,
-	).streamOutput().executeText()
+	)
 
-	compose.Exec(
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
+
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"gok8s",
-		[]string { "rm", "/tmp/pvc.yml" },
+		[]string{"rm", "/tmp/pvc.yml"},
 		false,
-	).streamOutput().executeText()
+	)
+
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 
 	installMarker.WriteText("done")
 }
 
 type Slurm struct {
-	name string
-	title string
+	name                string
+	title               string
 	canRegisterProducts bool
-	addons map[string]string
+	addons              map[string]string
 	// NOTE(Dan): Please keep this number relatively stable. This will break existing installations if it moves
 	// around too much.
 	numberOfSlurmNodes int
@@ -1134,7 +1178,7 @@ func (s Slurm) Addons() map[string]string {
 	return s.addons
 }
 
-func (s Slurm) Build(cb ComposeBuilder)  {
+func (s Slurm) Build(cb ComposeBuilder) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	slurmProvider := LocalFile{File: dataDirectory}.Child("slurm")
@@ -1148,7 +1192,7 @@ func (s Slurm) Build(cb ComposeBuilder)  {
 	passwdFile := passwdDir.Child("passwd")
 	groupFile := passwdDir.Child("group")
 	shadowFile := passwdDir.Child("shadow")
-	if (passwdFile.Exists()) {
+	if passwdFile.Exists() {
 		passwdFile.WriteText("")
 		groupFile.WriteText("")
 		shadowFile.WriteText("")
@@ -1221,7 +1265,9 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 	imData := imDir.Child("data")
 
 	installMarker := imData.Child(".install-marker")
-	if installMarker.Exists() { return }
+	if installMarker.Exists() {
+		return
+	}
 
 	imData.Child("core.yaml").WriteText(
 		//language=yaml
@@ -1248,7 +1294,7 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 	imData.Child("server.yaml").WriteText(
 		//language=yaml
 		`
-			refreshToken: `+ credentials.refreshToken + `
+			refreshToken: ` + credentials.refreshToken + `
 			envoy:
 				executable: /usr/bin/envoy
 				funceWrapper: false
@@ -1349,13 +1395,13 @@ func (s Slurm) Install(credentials ProviderCredentials) {
 }
 
 type GoSlurm struct {
-	name string
-	title string
+	name                string
+	title               string
 	canRegisterProducts bool
-	addons map[string]string
+	addons              map[string]string
 }
 
-func NewGoSlurm(canRegisterProducts bool) GoSlurm  {
+func NewGoSlurm(canRegisterProducts bool) GoSlurm {
 	return GoSlurm{
 		name:                "go-slurm",
 		title:               "Slurm (Go test)",
@@ -1447,7 +1493,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 					"` + imWork.GetAbsolutePath() + `:/work",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/im2:/opt/ucloud",
 					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/gonja:/opt/gonja",
-					"` + cb.environment.repoRoot.GetAbsolutePath()+ `/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
+					"` + cb.environment.repoRoot.GetAbsolutePath() + `/provider-integration/integration-module/example-extensions/simple:/etc/ucloud/extensions",
 					"` + etcSlurm + `:/etc/slurm-llnl",
 					"` + passwdDir.GetAbsolutePath() + `:/mnt/passwd"
 				],
@@ -1462,7 +1508,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 		"",
 	)
 
-	postgresDataDir := LocalFile{ File: dataDirectory }.Child("go-slurm-pg-data")
+	postgresDataDir := LocalFile{File: dataDirectory}.Child("go-slurm-pg-data")
 
 	cb.Service(
 		"go-slurm-postgres",
@@ -1496,7 +1542,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 	)
 }
 
-func (gs GoSlurm) Install(credentials ProviderCredentials)  {
+func (gs GoSlurm) Install(credentials ProviderCredentials) {
 	dataDirectory, err := os.Open(GetDataDirectory())
 	HardCheck(err)
 	slurmProvider := LocalFile{File: dataDirectory}.Child("go-slurm")
@@ -1504,7 +1550,9 @@ func (gs GoSlurm) Install(credentials ProviderCredentials)  {
 	imDataDir := imDir.Child("data")
 
 	installMarker := imDataDir.Child(".install-marker")
-	if installMarker.Exists() { return }
+	if installMarker.Exists() {
+		return
+	}
 
 	imDataDir.Child("server.yaml").WriteText(
 		//language=yaml
@@ -1522,14 +1570,14 @@ func (gs GoSlurm) Install(credentials ProviderCredentials)  {
 
 const FREE_IPA_ADDON = "free-ipa"
 
-
 func (gs GoSlurm) AddFreeIpaAddon() {
 	gs.addons[FREE_IPA_ADDON] = FREE_IPA_ADDON
 }
 
 func (gs GoSlurm) BuildAddon(cb ComposeBuilder, addon string) {
 	switch addon {
-		case FREE_IPA_ADDON: {
+	case FREE_IPA_ADDON:
+		{
 			freeIpa := "freeipaDataDir"
 			cb.volumes[freeIpa] = freeIpa
 
@@ -1550,7 +1598,7 @@ func (gs GoSlurm) BuildAddon(cb ComposeBuilder, addon string) {
 						"init": false,
 						"privileged": false,
 						"volumes": [
-							"`+ freeIpa + `:/data:Z",
+							"` + freeIpa + `:/data:Z",
 							"/sys/fs/cgroup:/sys/fs/cgroup"
 						],
 						"sysctls":{
@@ -1574,10 +1622,11 @@ func (gs GoSlurm) BuildAddon(cb ComposeBuilder, addon string) {
 	}
 }
 
-func (gs GoSlurm) InstallAddon(addon string)  {
+func (gs GoSlurm) InstallAddon(addon string) {
 	switch addon {
-		case FREE_IPA_ADDON: {
-			compose.Exec(
+	case FREE_IPA_ADDON:
+		{
+			var executeCom = compose.Exec(
 				currentEnvironment,
 				"go-slurm",
 				[]string{
@@ -1590,9 +1639,12 @@ func (gs GoSlurm) InstallAddon(addon string)  {
 					`,
 				},
 				false,
-			).streamOutput().executeToText()
+			)
 
-			compose.Exec(
+			executeCom.SetStreamOutput()
+			executeCom.ExecuteToText()
+
+			executeCom = compose.Exec(
 				currentEnvironment,
 				"free_ipa",
 				[]string{
@@ -1607,31 +1659,36 @@ func (gs GoSlurm) InstallAddon(addon string)  {
 					`,
 				},
 				false,
-			).streamOutput().executeToText()
+			)
+
+			executeCom.SetStreamOutput()
+			executeCom.ExecuteToText()
 		}
 	}
 }
 
-func EnrollClient( client string) {
+func EnrollClient(client string) {
 	fmt.Println("Enrolling " + client + " in FreeIPA...")
 
 	// NOTE(Dan): This will "fail" with a bunch of errors and warnings because of systemd.
 	// It will, however, actually do all it needs to do. As a result, we supress the output
 	// and always exit 0. sssd will fail if freeipa is not ready.
-	compose.Exec(
+	var executeCom = compose.Exec(
 		currentEnvironment,
 		client,
 		[]string{
 			"sh", "-c", `
 			ipa-client-install --domain ipa.ucloud --server ipa.ucloud --no-ntp \
 			--no-dns-sshfp --principal=admin --password=adminadmin --force-join --unattended || true;
-			`
+			`,
 		},
 		false,
-	).executeToText()
+	)
+
+	executeCom.ExecuteToText()
 
 	// NOTE(Dan): This one is a bit flakey. Try a few times, this usually works.
-	compose.Exec(
+	executeCom = compose.Exec(
 		currentEnvironment,
 		client,
 		[]string{
@@ -1639,15 +1696,19 @@ func EnrollClient( client string) {
 			"-c",
 			"sssd || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) " +
 				"|| (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || " +
-				"(sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd)"
+				"(sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd) || (sleep 1; sssd)",
 		},
 		true,
-	).streamOutput().executeToText()
+	)
+
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 }
 
 func (gs GoSlurm) StartAddon(addon string) {
 	switch addon {
-		case FREE_IPA_ADDON: {
+	case FREE_IPA_ADDON:
+		{
 			clientsToEnroll := []string{
 				"go-slurm",
 				"c1",
@@ -1665,7 +1726,7 @@ func (gs GoSlurm) StartAddon(addon string) {
 	}
 }
 
-type GateWay struct {}
+type GateWay struct{}
 
 //go:embed tls.crt
 var crt []byte
@@ -1837,8 +1898,8 @@ func (gw GateWay) Build(cb ComposeBuilder) {
 }
 
 type SlurmInfo struct {
-	imHome LFile
-	imWork LFile
+	imHome   LFile
+	imWork   LFile
 	etcSlurm string
 }
 
@@ -1960,7 +2021,7 @@ func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInf
 	)
 
 	v, ok := service.(Slurm)
-	if (ok) {
+	if ok {
 		for id := range v.numberOfSlurmNodes {
 			cb.Service(
 				"c"+strconv.Itoa(id),
@@ -1994,12 +2055,12 @@ func SlurmBuild(cb ComposeBuilder, service ComposeService, imDir LFile) SlurmInf
 			)
 		}
 	}
-	return SlurmInfo{ imHome: imHome, imWork: imWork, etcSlurm: etcSlurm}
+	return SlurmInfo{imHome: imHome, imWork: imWork, etcSlurm: etcSlurm}
 }
 
-func SlurmInstall(providerContainer string)  {
+func SlurmInstall(providerContainer string) {
 	for range 30 {
-		success := compose.Exec(
+		executeCom := compose.Exec(
 			currentEnvironment,
 			"slurmctld",
 			[]string{
@@ -2010,14 +2071,21 @@ func SlurmInstall(providerContainer string)  {
 				"name=linux",
 			},
 			false,
-		).allowFailure().streamOutput().executeToText() != ""
+		)
 
-		if success { break }
+		executeCom.SetAllowFailure()
+		executeCom.SetStreamOutput()
+		success := executeCom.ExecuteToText().First != ""
+
+		if success {
+			break
+		}
+
 		time.Sleep(2 * time.Second)
 	}
 
 	// These are mounted into the container, but permissions are wrong
-	compose.Exec(
+	var executeCom = compose.Exec(
 		currentEnvironment,
 		providerContainer,
 		[]string{
@@ -2026,10 +2094,13 @@ func SlurmInstall(providerContainer string)  {
 			"chmod 0755 -R /etc/ucloud/extensions",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
+
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 
 	// This is to avoid rebuilding the image when the Slurm configuration changes
-	compose.Exec(
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"slurmctld",
 		[]string{
@@ -2039,9 +2110,11 @@ func SlurmInstall(providerContainer string)  {
 			"/etc/slurm",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 
-	compose.Exec(
+	executeCom = compose.Exec(
 		currentEnvironment,
 		"slurmctld",
 		[]string{
@@ -2052,9 +2125,16 @@ func SlurmInstall(providerContainer string)  {
 			"standard",
 		},
 		false,
-	).streamOutput().executeToText()
+	)
+
+	executeCom.SetStreamOutput()
+	executeCom.ExecuteToText()
 
 	// Restart slurmctld in case configuration file has changed
-	compose.Stop(currentEnvironment, "slurmctld").streamOutput().executeToText()
-	compose.Start(currentEnvironment, "slurmctld").streamOutput().executeToText()
+	var stopCom = compose.Stop(currentEnvironment, "slurmctld")
+	stopCom.SetStreamOutput()
+	stopCom.ExecuteToText()
+	var startCom = compose.Start(currentEnvironment, "slurmctld")
+	startCom.SetStreamOutput()
+	startCom.ExecuteToText()
 }

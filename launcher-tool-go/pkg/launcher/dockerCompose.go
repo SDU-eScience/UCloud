@@ -6,14 +6,22 @@ import (
 
 var compose DockerCompose
 
+func SetCompose(dc DockerCompose) {
+	compose = dc
+}
+
+func GetCompose() DockerCompose {
+	return compose
+}
+
 type DockerCompose interface {
-	Up(directory LFile, noRecreate bool)
-	Down(directory LFile, deleteVolumes bool)
-	Ps(directory LFile)
-	Logs(directory LFile, container string)
-	Start(directory LFile, container string)
-	Stop(directory LFile, container string)
-	Exec(directory LFile, container string, command []string, tty bool)
+	Up(directory LFile, noRecreate bool) ExecutableCommandInterface
+	Down(directory LFile, deleteVolumes bool) ExecutableCommandInterface
+	Ps(directory LFile) ExecutableCommandInterface
+	Logs(directory LFile, container string) ExecutableCommandInterface
+	Start(directory LFile, container string) ExecutableCommandInterface
+	Stop(directory LFile, container string) ExecutableCommandInterface
+	Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface
 }
 
 type Classic struct {
@@ -34,7 +42,7 @@ func (c Classic) Base(directory LFile) []string {
 	return list
 }
 
-func (c Classic) Up(directory LFile, noRecreate bool) {
+func (c Classic) Up(directory LFile, noRecreate bool) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "up")
 	list = append(list, "-d")
@@ -42,24 +50,24 @@ func (c Classic) Up(directory LFile, noRecreate bool) {
 		list = append(list, "--no-recreate")
 	}
 
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
 		false,
 		1000 * 60 * 5,
 		false,
-
 	}
 }
 
-func (c Classic) Down(directory LFile, deleteVolumes bool) {
+func (c Classic) Down(directory LFile, deleteVolumes bool) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "down")
 	if deleteVolumes {
 		list = append(list, "-v")
 	}
-	ExecutableCommand{
+
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -69,10 +77,10 @@ func (c Classic) Down(directory LFile, deleteVolumes bool) {
 	}
 }
 
-func (c Classic) Ps(directory LFile) {
+func (c Classic) Ps(directory LFile) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "ps")
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -82,13 +90,13 @@ func (c Classic) Ps(directory LFile) {
 	}
 }
 
-func (c Classic) Logs(directory LFile, container string) {
+func (c Classic) Logs(directory LFile, container string) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "logs")
 	list = append(list, "--follow")
 	list = append(list, "--no-log-prefix")
 	list = append(list, container)
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -98,7 +106,7 @@ func (c Classic) Logs(directory LFile, container string) {
 	}
 }
 
-func (c Classic) Exec(directory LFile, container string, command []string, tty bool) {
+func (c Classic) Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "exec")
 	if !tty {
@@ -108,7 +116,8 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 	for _, s := range command {
 		list = append(list, s)
 	}
-	ExecutableCommand{
+
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -118,11 +127,11 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 	}
 }
 
-func (c Classic) Start(directory LFile, container string) {
+func (c Classic) Start(directory LFile, container string) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "start")
 	list = append(list, container)
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -132,11 +141,11 @@ func (c Classic) Start(directory LFile, container string) {
 	}
 }
 
-func (c Classic) Stop(directory LFile, container string) {
+func (c Classic) Stop(directory LFile, container string) ExecutableCommandInterface {
 	list := c.Base(directory)
 	list = append(list, "stop")
 	list = append(list, container)
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -147,16 +156,16 @@ func (c Classic) Stop(directory LFile, container string) {
 }
 
 func NewClassicCompose(exe string) *Classic {
-	return &Classic{exe: exe}}
+	return &Classic{exe: exe}
 }
 
-type Plugin struct{
+type Plugin struct {
 	exe string
 }
 
 func (p Plugin) Base(directory LFile) []string {
 	compName := composeName
-	list := []string {
+	list := []string{
 		p.exe,
 		"compose",
 		"--project-directory",
@@ -169,14 +178,14 @@ func (p Plugin) Base(directory LFile) []string {
 	return list
 }
 
-func (p Plugin) Up(directory LFile, noRecreate bool) {
+func (p Plugin) Up(directory LFile, noRecreate bool) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "up")
 	list = append(list, "-d")
 	if noRecreate {
 		list = append(list, "--no-recreate")
 	}
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -186,9 +195,9 @@ func (p Plugin) Up(directory LFile, noRecreate bool) {
 	}
 }
 
-func (p Plugin) Down(directory LFile, deleteVolumes bool) {
+func (p Plugin) Down(directory LFile, deleteVolumes bool) ExecutableCommandInterface {
 	list := p.Base(directory)
-	if (!deleteVolumes) {
+	if !deleteVolumes {
 		list = append(list, "down")
 	} else {
 		list = append(list, "rm")
@@ -196,7 +205,7 @@ func (p Plugin) Down(directory LFile, deleteVolumes bool) {
 		list = append(list, "--volumes")
 		list = append(list, "--force")
 	}
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -206,10 +215,10 @@ func (p Plugin) Down(directory LFile, deleteVolumes bool) {
 	}
 }
 
-func (p Plugin) Ps(directory LFile) {
+func (p Plugin) Ps(directory LFile) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "ps")
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -219,13 +228,13 @@ func (p Plugin) Ps(directory LFile) {
 	}
 }
 
-func (p Plugin) Logs(directory LFile, container string) {
+func (p Plugin) Logs(directory LFile, container string) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "logs")
 	list = append(list, "--follow")
 	list = append(list, "--no-log-prefix")
 	list = append(list, container)
-	ExecutableCommand{
+	return ExecutableCommandInterface{
 		list,
 		directory,
 		"",
@@ -235,7 +244,7 @@ func (p Plugin) Logs(directory LFile, container string) {
 	}
 }
 
-func (p Plugin) Exec(directory LFile, container string, command []string, tty bool) {
+func (p Plugin) Exec(directory LFile, container string, command []string, tty bool) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "exec")
 	if !tty {
@@ -245,7 +254,7 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 	for _, s := range command {
 		list = append(list, s)
 	}
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -255,11 +264,11 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 	}
 }
 
-func (p Plugin) Start(directory LFile, container string) {
+func (p Plugin) Start(directory LFile, container string) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "start")
 	list = append(list, container)
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
@@ -269,11 +278,11 @@ func (p Plugin) Start(directory LFile, container string) {
 	}
 }
 
-func (p Plugin) Stop(directory LFile, container string) {
+func (p Plugin) Stop(directory LFile, container string) ExecutableCommandInterface {
 	list := p.Base(directory)
 	list = append(list, "stop")
 	list = append(list, container)
-	ExecutableCommand{
+	return LocalExecutableCommand{
 		list,
 		directory,
 		"",
