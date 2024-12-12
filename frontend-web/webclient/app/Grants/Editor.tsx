@@ -829,6 +829,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             },
             principalInvestigator: projectPi,
             stateDuringEdit: newEditState,
+            durationWarning: getExpirationWarning({year: startYear, month: startMonth, duration: normalizedEnd - normalizedStart}),
         };
     }
 }
@@ -1321,7 +1322,7 @@ export function Editor(): React.ReactNode {
     const location = useLocation();
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
-    useProjectId();
+    useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
 
     useEffect(() => {
         (async () => {
@@ -1449,7 +1450,7 @@ export function Editor(): React.ReactNode {
         if (isNaN(month) || isNaN(year)) return;
 
         dispatchEvent({type: "DurationUpdated", year, month});
-        handleDurationWarning(year, month);
+        handleDurationWarning({year, month});
     }, [dispatchEvent]);
 
     const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1458,12 +1459,12 @@ export function Editor(): React.ReactNode {
         if (isNaN(duration)) return;
         dispatchEvent({type: "DurationUpdated", duration});
 
-        const [month, year] = getStartOfDuration();
-        handleDurationWarning(year, month);
+        const {month, year} = getStartOfDuration();
+        handleDurationWarning({year, month});
     }, [dispatchEvent]);
 
-    const handleDurationWarning = useCallback((year: number, month: number) => {
-        const warning = getExpirationWarning(year, month);
+    const handleDurationWarning = useCallback(({year, month, duration}: {year: number, month: number, duration?: number}) => {
+        const warning = getExpirationWarning({year, month, duration});
         if (warning) {
             dispatchEvent({type: "DurationWarning", durationWarning: warning});
         }
@@ -2757,9 +2758,9 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     return result;
 }
 
-function getStartOfDuration(): [month: number, year: number] {
+function getStartOfDuration(): {month: number, year: number} {
     const [month, year] = document.querySelector<HTMLSelectElement>("select[data-duration-start]")?.value.split("/") ?? [];
-    return [parseInt(month), parseInt(year)];
+    return {month: parseInt(month), year: parseInt(year)};
 }
 
 function getMonthDuration(): number {
@@ -2767,8 +2768,8 @@ function getMonthDuration(): number {
     return !isNaN(months) ? months : 12;
 }
 
-function getExpirationWarning(year: number, month: number): string | undefined {
-    const monthDuration = getMonthDuration();
+function getExpirationWarning({year, month, duration}: {year: number, month: number, duration?: number}): string | undefined {
+    const monthDuration = duration ?? getMonthDuration();
     const now = new Date();
 
     const endDate = new Date(year, month + monthDuration);
