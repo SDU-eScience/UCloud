@@ -1323,6 +1323,18 @@ const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     }
 `);
 
+const InterfaceDropdownLinkClass = injectStyle("interface-dropdown-link", k => `
+    ${k} {
+        color: var(--textPrimary);
+        background: var(--backgroundDefault);
+    }
+
+    ${k}:hover {
+        color: var(--textPrimary);
+        background: var(--rowHover);
+    }
+`);
+
 
 const RunningJobRank: React.FunctionComponent<{
     job: Job,
@@ -1514,8 +1526,8 @@ const RunningButtonGroup: React.FunctionComponent<{
                     {allInterfaceLinks.slice(1).map((link, k) => (
                         supportsInterface ? 
                             <Link
-                                // TODO(Brian)
                                 to={link.link ?? ""}
+                                className={InterfaceDropdownLinkClass}
                             >
                                 <Flex
                                     key={k}
