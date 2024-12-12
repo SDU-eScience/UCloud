@@ -155,6 +155,7 @@ export interface OpenInteractiveSessionRequest {
     rank: number;
     sessionType: "WEB" | "VNC" | "SHELL";
     target?: string | null;
+    port?: number;
 }
 
 export interface OpenTerminalInFolderRequest {

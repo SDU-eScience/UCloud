@@ -328,8 +328,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
     useEffect(() => {
         if (!job) return;
-        setInterfaceTargets(parseUpdatesForInterfaceTargets(job, invokeCommand));
-    }, [job?.updates]);    
+        setInterfaceTargets(findInterfaceTargets(job, invokeCommand));
+    }, [job?.updates, job?.status.state]);    
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -870,14 +870,51 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
 interface InterfaceTarget {
     rank: number,
     type: "WEB" | "VNC" | "SHELL";
-    target: string,
-    port: number,
+    target?: string,
+    port?: number,
     link?: string,
 }
 
-function parseUpdatesForInterfaceTargets(job: Job, invokeCommand: InvokeCommand): InterfaceTarget[] {
+function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): InterfaceTarget[] {
     var result: InterfaceTarget[] = [];
+    const appType = getAppType(job);
+    const backendType = getBackend(job);
+    const support = job.status.resolvedSupport ?
+        (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
 
+    // TODO(Brian)
+    const supportsInterface = true
+    //    (appType === "WEB" && isSupported(backendType, support, "web")) ||
+    //    (appType === "VNC" && isSupported(backendType, support, "vnc"));
+
+    if (appType === "VNC" && supportsInterface) {
+        result.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
+    }
+
+    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+        var target: InterfaceTarget = {rank: 0, type: "WEB"};
+
+        const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
+            .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
+
+        (async () => {
+            try {
+                const result = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
+                for (const res of result?.responses ?? []) {
+                    target.link = (res.session as WebSession).redirectClientTo
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        })();
+
+        requests.forEach((req) => {
+            target.rank = req.rank;
+            result.push(target);
+        })
+    }
+
+    // Parse targets from job updates
     for (let i = job.updates.length - 1; i >= 0; i--) {
         const status = job.updates[i].status;
         if (!status) continue;
@@ -890,42 +927,39 @@ function parseUpdatesForInterfaceTargets(job: Job, invokeCommand: InvokeCommand)
 
                 const target = JSON.parse(parser.remaining()) as InterfaceTarget;
 
-                const links: string[] = [];
+                // TODO (Brian)
+                const supportsInterface = true;
+                //    (target.type === "WEB" && isSupported(backendType, support, "web")) ||
+                //    (target.type === "VNC" && isSupported(backendType, support, "vnc"));
 
-                const appType = target?.type
-                const backendType = getBackend(job);
-                const support = job.status.resolvedSupport ?
-                    (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
-                const supportsInterface =
-                    (appType === "WEB" && isSupported(backendType, support, "web")) ||
-                    (appType === "VNC" && isSupported(backendType, support, "vnc"));
-
-                if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
-
+                if (target.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
                     const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: target.target}));
+                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: target.target, port: target.port}));
 
                     (async () => {
                         try {
                             const result = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
                             for (const res of result?.responses ?? []) {
-                                links[res.session.rank] = (res.session as WebSession).redirectClientTo
+                                target.link = (res.session as WebSession).redirectClientTo
                             }
                         } catch (e) {
                             console.warn(e);
                         }
                     })();
-                } else if (appType === "VNC" && supportsInterface && job.status.state === "RUNNING") {
-                    links[0] = `/applications/vnc/${job.id}/0?hide-frame`
+                } else if (target.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
+                    target.link = `/applications/vnc/${job.id}/0?hide-frame`
                 }
 
-                target.link = links[0];
-                result.push(target)
+                result.push(target);
             }
         }
     }
 
-    return result.reverse();
+    if (result[0].target === undefined) {
+        return [result[0], ...result.slice(1).reverse()];
+    } else {
+        return result.reverse();
+    }
 }
 
 const RunningContent: React.FunctionComponent<{
@@ -1432,19 +1466,13 @@ const RunningButtonGroup: React.FunctionComponent<{
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = isSupported(backendType, support, "terminal");
     const appType = getAppType(job);
-    const supportsInterface =
-        (appType === "WEB" && isSupported(backendType, support, "web")) ||
-        (appType === "VNC" && isSupported(backendType, support, "vnc"));
+    const supportsInterface = true;
+    // TODO(Brian)
+    //    (appType === "WEB" && isSupported(backendType, support, "web")) ||
+    //    (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
     var allInterfaceLinks = interfaceLinks;
 
-    // TODO(Brian)
-    if (appType === "WEB" && supportsInterface) {
-        allInterfaceLinks = [{rank: 0, type: "WEB", target: "Open interface", port: 1234} as InterfaceTarget, ...interfaceLinks];
-    } else if (appType === "VNC" && supportsInterface) {
-        allInterfaceLinks = [{rank: 0, type: "VNC", target: "Open interface", port: 1234} as InterfaceTarget, ...interfaceLinks];
-    }
-    
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
@@ -1465,65 +1493,14 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {/*
-        {appType !== "WEB" || !supportsInterface ? null : (
-            <Link to={redirectToWeb ?? ""} aria-disabled={!redirectToWeb} target={"_blank"}>
-                <Button width="220px" disabled={!redirectToWeb}>
-                    <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
-        )}
-        {appType !== "VNC" || !supportsInterface ? null : (
-            <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-
-                e.preventDefault();
-
-                const link = findDomAttributeFromAncestors(e.target, "href");
-                if (!link) return;
-
-                window.open(
-                    link,
-                    `vnc-${job.id}-${rank}`,
-                    "width=800,height=450,status=no"
-                );
-            }}>
-                <Button width="220px">
-                    <Icon name={"heroArrowTopRightOnSquare"} />
-                    <div>Open interface {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
-        )}
-        */}
         {allInterfaceLinks.length < 1 ? <></> : (
             <Flex>
-                {allInterfaceLinks[0].type !== "WEB" || !supportsInterface ? null : (
-                    <Link to={allInterfaceLinks[0].link ?? ""} aria-disabled={!allInterfaceLinks[0]} target={"_blank"}>
-                        <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"} disabled={!allInterfaceLinks[0]}>
-                            <Icon name="heroArrowTopRightOnSquare" />
-                            <div>{allInterfaceLinks[0].target}</div>
-                        </Button>
-                    </Link>
-                )}
-                {allInterfaceLinks[0].type !== "VNC" || !supportsInterface ? null : (
-                    <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
-                        e.preventDefault();
-
-                        const link = findDomAttributeFromAncestors(e.target, "href");
-                        if (!link) return;
-
-                        window.open(
-                            link,
-                            `vnc-${job.id}-${rank}`,
-                            "width=800,height=450,status=no"
-                        );
-                    }}>
-                        <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"}>
-                            <Icon name="heroArrowTopRightOnSquare" />
-                            <div>{allInterfaceLinks[0].target}</div>
-                        </Button>
-                    </Link>
-                )}
+                <Link to={allInterfaceLinks[0].link ?? ""} aria-disabled={!allInterfaceLinks[0]} target={"_blank"}>
+                    <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"} disabled={!allInterfaceLinks[0]}>
+                        <Icon name="heroArrowTopRightOnSquare" />
+                        <div>{allInterfaceLinks[0].target ?? "Open interface"}</div>
+                    </Button>
+                </Link>
                 <ClickableDropdown
                     trigger={
                         <div className={InterfaceSelectorTrigger}> 
@@ -1536,29 +1513,20 @@ const RunningButtonGroup: React.FunctionComponent<{
                 >
                     {allInterfaceLinks.slice(1).map((link, k) => (
                         supportsInterface ? 
-                            <Flex
-                                key={k}
-                                gap="5px"
-                                alignItems={"center"}
-                                p={8}
-                                onClick={e => {
-                                    console.log("link is " + link.link);
-                                    if (!link.link) return;
-
-                                    if (link.type !== "VNC") {
-                                        window.open(link.link, "_blank");
-                                    }
-
-                                    window.open(
-                                        link.link,
-                                        `vnc-${job.id}-${rank}`,
-                                        "width=800,height=450,status=no"
-                                    );
-                                }}
+                            <Link
+                                // TODO(Brian)
+                                to={link.link ?? ""}
                             >
-                                <Icon name="heroArrowTopRightOnSquare" />
-                                {link.target}
-                            </Flex>
+                                <Flex
+                                    key={k}
+                                    gap="5px"
+                                    alignItems={"center"}
+                                    p={8}
+                                >
+                                    <Icon name="heroArrowTopRightOnSquare" />
+                                    {link.target ?? "Open interface"}
+                                </Flex>
+                            </Link>
                          : <></>
                     ))}
                 </ClickableDropdown>
