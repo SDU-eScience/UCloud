@@ -7,7 +7,7 @@ import {IconName} from "@/ui-components/Icon";
 import {ProjectLogo} from "@/Grants/ProjectLogo";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {file, PageV2} from "@/UCloud";
+import {PageV2} from "@/UCloud";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as Grants from ".";
@@ -36,6 +36,8 @@ import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {usePage} from "@/Navigation/Redux";
 import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
+import Warning from "@/ui-components/Warning";
 
 // State model
 // =====================================================================================================================
@@ -45,6 +47,8 @@ interface EditorState {
 
     fullScreenLoading: boolean;
     fullScreenError?: string;
+
+    durationWarning?: string;
 
     allocationPeriod: {start: {month: number, year: number}, durationInMonths: number};
     principalInvestigator: string;
@@ -129,7 +133,7 @@ const defaultState: EditorState = {
             month: new Date().getMonth(),
             year: new Date().getFullYear(),
         },
-        durationInMonths: 12
+        durationInMonths: 1
     },
     possibleTransfers: [],
     application: [],
@@ -155,6 +159,7 @@ type EditorAction =
     }
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", month?: number, year?: number, duration?: number}
+    | {type: "DurationWarning", durationWarning: string}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
         type: "BalanceUpdated",
@@ -441,7 +446,15 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                     },
                     durationInMonths: action.duration ?? state.allocationPeriod.durationInMonths,
                 },
+                durationWarning: undefined
             };
+        }
+
+        case "DurationWarning": {
+            return {
+                ...state,
+                durationWarning: action.durationWarning
+            }
         }
 
         case "ApplicationUpdated": {
@@ -771,7 +784,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         let endDate = new Date(Date.now() + 1000);
-        if (doc.allocationPeriod?.end != null ) {
+        if (doc.allocationPeriod?.end != null) {
             endDate = new Date(new Date(doc.allocationPeriod.end ?? Date.now()).getTime() + 1000);
         }
         // Off by one second in some cases, let's just adjust slightly here.
@@ -1434,7 +1447,9 @@ export function Editor(): React.ReactNode {
         const valSplit = select.value.split("/");
         const [month, year] = valSplit.map(it => parseInt(it));
         if (isNaN(month) || isNaN(year)) return;
+
         dispatchEvent({type: "DurationUpdated", year, month});
+        handleDurationWarning(year, month);
     }, [dispatchEvent]);
 
     const onDurationUpdated = useCallback<React.FormEventHandler>(ev => {
@@ -1442,6 +1457,16 @@ export function Editor(): React.ReactNode {
         const duration = parseInt(select.value);
         if (isNaN(duration)) return;
         dispatchEvent({type: "DurationUpdated", duration});
+
+        const [month, year] = getStartOfDuration();
+        handleDurationWarning(year, month);
+    }, [dispatchEvent]);
+
+    const handleDurationWarning = useCallback((year: number, month: number) => {
+        const warning = getExpirationWarning(year, month);
+        if (warning) {
+            dispatchEvent({type: "DurationWarning", durationWarning: warning});
+        }
     }, [dispatchEvent]);
 
     const onUnlock = useCallback(() => {
@@ -1532,7 +1557,7 @@ export function Editor(): React.ReactNode {
 
         const [start, end] = stateToAllocationPeriod(state);
         const period: Grants.Period = {start, end};
-        
+
         const doc: Grants.Doc = {
             recipient: currentDoc.recipient,
             referenceIds: editState.referenceIds ? editState.referenceIds : null,
@@ -1885,6 +1910,7 @@ export function Editor(): React.ReactNode {
                                 <label>
                                     When should the allocation start?
                                     <Select
+                                        data-duration-start
                                         value={state.allocationPeriod.start.month + "/" + state.allocationPeriod.start.year}
                                         onChange={onStartUpdated}
                                         disabled={state.locked || isClosed}
@@ -1896,6 +1922,7 @@ export function Editor(): React.ReactNode {
                                 <label>
                                     For how many months should the allocation last?
                                     <Select
+                                        data-duration-months
                                         value={state.allocationPeriod.durationInMonths}
                                         onChange={onDurationUpdated}
                                         disabled={state.locked || isClosed}
@@ -1913,6 +1940,7 @@ export function Editor(): React.ReactNode {
                                         )}
                                     </Select>
                                 </label>
+                                <Warning warning={state.durationWarning} />
                             </FormField>
 
                             {state.stateDuringEdit && <>
@@ -2069,7 +2097,7 @@ export function Editor(): React.ReactNode {
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
-                                                                        disabled={state.locked || isClosed}/>
+                                                                        disabled={state.locked || isClosed} />
                                                                 </label>
 
                                                                 {errorMessage && <div
@@ -2091,7 +2119,7 @@ export function Editor(): React.ReactNode {
                                                                         onInput={onResourceInput}
                                                                         min={0}
                                                                         value={category.totalBalanceRequested[allocator.grantGiverId] ?? ""}
-                                                                        disabled={state.locked || isClosed}/>
+                                                                        disabled={state.locked || isClosed} />
                                                                 </label>
 
                                                                 {errorMessage && <div
@@ -2727,6 +2755,32 @@ function stateToMonthOptions(state: EditorState): {key: string, text: string}[] 
     result.sort((a, b) => a.time - b.time);
 
     return result;
+}
+
+function getStartOfDuration(): [month: number, year: number] {
+    const [month, year] = document.querySelector<HTMLSelectElement>("select[data-duration-start]")?.value.split("/") ?? [];
+    return [parseInt(month), parseInt(year)];
+}
+
+function getMonthDuration(): number {
+    const months = parseInt(document.querySelector<HTMLSelectElement>("select[data-duration-months]")?.value ?? "12");
+    return !isNaN(months) ? months : 12;
+}
+
+function getExpirationWarning(year: number, month: number): string | undefined {
+    const monthDuration = getMonthDuration();
+    const now = new Date();
+
+    const endDate = new Date(year, month + monthDuration);
+    const aWeekBefore = subDays(now, 7);
+    const isLessThanAWeekLeft = isWithinInterval(endDate, interval(aWeekBefore, now));
+    if (isLessThanAWeekLeft) {
+        return "This allocation will expire in less than a week.";
+    } else if (isBefore(endDate, now)) {
+        return "The expiration date is in the past.";
+    }
+
+    return undefined;
 }
 
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
