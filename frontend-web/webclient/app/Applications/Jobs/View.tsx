@@ -328,6 +328,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
     useEffect(() => {
         if (!job) return;
+
         setInterfaceTargets(findInterfaceTargets(job, invokeCommand));
     }, [job?.updates, job?.status.state]);    
 
@@ -887,32 +888,7 @@ function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Interface
     //    (appType === "WEB" && isSupported(backendType, support, "web")) ||
     //    (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
-    if (appType === "VNC" && supportsInterface) {
-        result.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
-    }
-
-    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
-        var target: InterfaceTarget = {rank: 0, type: "WEB"};
-
-        const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-            .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
-
-        (async () => {
-            try {
-                const result = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                for (const res of result?.responses ?? []) {
-                    target.link = (res.session as WebSession).redirectClientTo
-                }
-            } catch (e) {
-                console.warn(e);
-            }
-        })();
-
-        requests.forEach((req) => {
-            target.rank = req.rank;
-            result.push(target);
-        })
-    }
+    
 
     // Parse targets from job updates
     for (let i = job.updates.length - 1; i >= 0; i--) {
@@ -925,41 +901,71 @@ function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Interface
                 const parser = new SillyParser(message);
                 parser.consumeToken("Target: ");
 
-                const target = JSON.parse(parser.remaining()) as InterfaceTarget;
+                const parsedTarget = JSON.parse(parser.remaining()) as InterfaceTarget;
 
                 // TODO (Brian)
                 const supportsInterface = true;
                 //    (target.type === "WEB" && isSupported(backendType, support, "web")) ||
                 //    (target.type === "VNC" && isSupported(backendType, support, "vnc"));
 
-                if (target.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+                if (parsedTarget.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
                     const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: target.target, port: target.port}));
+                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: parsedTarget.target, port: parsedTarget.port}));
 
-                    (async () => {
                         try {
-                            const result = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                            for (const res of result?.responses ?? []) {
-                                target.link = (res.session as WebSession).redirectClientTo
-                            }
+                            invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests))).then(sessionResult => {
+                                for (const res of sessionResult?.responses ?? []) {
+                                    const webSession = (res.session as WebSession);
+                                    result.unshift({
+                                        target: parsedTarget.target,
+                                        rank: webSession.rank,
+                                        type: "WEB",
+                                        link: webSession.redirectClientTo,
+                                    });
+                                }
+                            });
+                            
                         } catch (e) {
                             console.warn(e);
                         }
-                    })();
-                } else if (target.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
-                    target.link = `/applications/vnc/${job.id}/0?hide-frame`
+                } else if (parsedTarget.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
+                    result.push({
+                        target: parsedTarget.target,
+                        rank: parsedTarget.rank,
+                        type: "WEB",
+                        link: `/applications/vnc/${job.id}/${parsedTarget.rank}?hide-frame`
+                    });
                 }
 
-                result.push(target);
             }
         }
     }
 
-    if (result[0].target === undefined) {
-        return [result[0], ...result.slice(1).reverse()];
-    } else {
-        return result.reverse();
+    if (appType === "VNC" && supportsInterface) {
+        result.unshift({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
+
+    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+        const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
+            .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
+
+        try {
+            invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests))).then(resp => {
+                for (const res of resp?.responses ?? []) {
+                    const webSession = (res.session as WebSession);
+                    result.unshift({
+                        rank: webSession.rank,
+                        type: "WEB",
+                        link: webSession.redirectClientTo
+                    });
+                }
+            });
+        } catch (e) {
+            console.warn(e);
+        }
+    }
+
+    return result;
 }
 
 const RunningContent: React.FunctionComponent<{
@@ -1483,8 +1489,6 @@ const RunningButtonGroup: React.FunctionComponent<{
     //    (appType === "WEB" && isSupported(backendType, support, "web")) ||
     //    (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
-    var allInterfaceLinks = interfaceLinks;
-
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
@@ -1505,12 +1509,12 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {allInterfaceLinks.length < 1 ? <></> : (
+        {interfaceLinks.length < 1 ? <></> : (
             <Flex>
-                <Link to={allInterfaceLinks[0].link ?? ""} aria-disabled={!allInterfaceLinks[0]} target={"_blank"}>
-                    <Button attachedLeft={allInterfaceLinks.length > 1} width={allInterfaceLinks.length > 1 ? "185px" : "220px"} disabled={!allInterfaceLinks[0]}>
+                <Link to={interfaceLinks[0].link ?? ""} aria-disabled={!interfaceLinks[0]} target={"_blank"}>
+                    <Button attachedLeft={interfaceLinks.length > 1} width={interfaceLinks.length > 1 ? "185px" : "220px"} disabled={!interfaceLinks[0]}>
                         <Icon name="heroArrowTopRightOnSquare" />
-                        <div>{allInterfaceLinks[0].target ?? "Open interface"}</div>
+                        <div>{interfaceLinks[0].target ?? "Open interface"}</div>
                     </Button>
                 </Link>
                 <ClickableDropdown
@@ -1523,7 +1527,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     minWidth={"220px"}
                     paddingControlledByContent
                 >
-                    {allInterfaceLinks.slice(1).map((link, k) => (
+                    {interfaceLinks.slice(1).map((link, k) => (
                         supportsInterface ? 
                             <Link
                                 to={link.link ?? ""}
