@@ -69,19 +69,23 @@ func DebugCommandsGiven() bool {
 func GenerateComposeFile(doWriteFile bool) {
 	providers := ListConfiguredProviders()
 
-	var composeList []ComposeService
+	var composeList = []ComposeService{
+		UCloudBackend{},
+		UCloudFrontend{},
+		GateWay{},
+	}
+
+	for _, provider := range providers {
+		composeList = append(composeList, ProviderFromName(provider))
+	}
+
 	Environment{
 		name:        filepath.Base(currentEnvironment.GetAbsolutePath()),
 		repoRoot:    currentEnvironment.Child("../../"),
 		doWriteFile: doWriteFile,
-	}.createComposeFile(
-		[]ComposeService{
-			UCloudBackend{},
-			UCloudFrontend{},
-			ProviderFromName("k8"),
-		},
+	}.CreateComposeFile(
+		composeList,
 	)
-	//TODO
 }
 
 func InitializeServiceList() {

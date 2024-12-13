@@ -15,26 +15,21 @@ import (
 
 type LocalFile struct {
 	path string
-	File *os.File
 }
 
 func NewLocalFile(path string) LocalFile {
-	newFile, err := os.Create(path)
-	HardCheck(err)
 	return LocalFile{
 		path: path,
-		File: newFile,
 	}
 }
 
 func (lf LocalFile) GetAbsolutePath() string {
-	abs, err := filepath.Abs(lf.File.Name())
-	HardCheck(err)
-	return abs
+	return lf.path
 }
 
 func (lf LocalFile) Exists() bool {
-	_, err := lf.File.Stat()
+	file, err := os.Open(lf.path)
+	defer file.Close()
 	if err != nil {
 		return false
 	} else {
@@ -53,21 +48,21 @@ func (lf LocalFile) Child(subPath string) LFile {
 }
 
 func (lf LocalFile) WriteBytes(bytes []byte) {
-	f, err := os.Create(lf.File.Name())
+	f, err := os.Create(lf.path)
 	HardCheck(err)
 	_, err = f.Write(bytes)
 	SoftCheck(err)
 }
 
 func (lf LocalFile) WriteText(str string) {
-	f, err := os.Create(lf.File.Name())
+	f, err := os.Create(lf.path)
 	HardCheck(err)
 	_, err = f.WriteString(str)
 	SoftCheck(err)
 }
 
 func (lf LocalFile) AppendText(str string) {
-	f, err := os.OpenFile(lf.File.Name(),
+	f, err := os.OpenFile(lf.path,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	SoftCheck(err)
 	defer f.Close()
@@ -77,12 +72,12 @@ func (lf LocalFile) AppendText(str string) {
 }
 
 func (lf LocalFile) Delete() {
-	err := os.RemoveAll(lf.File.Name())
+	err := os.RemoveAll(lf.path)
 	HardCheck(err)
 }
 
 func (lf LocalFile) MkDirs() {
-	err := os.MkdirAll(lf.File.Name(), 0644)
+	err := os.MkdirAll(lf.path, 0644)
 	HardCheck(err)
 }
 
@@ -99,7 +94,6 @@ type LocalExecutableCommand struct {
 	streamOutput     bool
 }
 
-// Old Factory
 func NewLocalExecutableCommand(
 	args []string,
 	workingDir LFile,
@@ -118,11 +112,11 @@ func NewLocalExecutableCommand(
 	}
 }
 
-func (l LocalExecutableCommand) setAllowFailure() {
+func (l LocalExecutableCommand) SetAllowFailure() {
 	l.allowFailure = true
 }
 
-func (l LocalExecutableCommand) setStreamOutput() {
+func (l LocalExecutableCommand) SetStreamOutput() {
 	l.streamOutput = true
 }
 
@@ -132,7 +126,7 @@ func (l LocalExecutableCommand) ToBashScript() string {
 		sb.WriteString("cd " + l.workingDir.GetAbsolutePath())
 	}
 	for _, arg := range l.args {
-		sb.WriteString(escapeBash(arg) + " ")
+		sb.WriteString(EscapeBash(arg) + " ")
 	}
 	return sb.String()
 }

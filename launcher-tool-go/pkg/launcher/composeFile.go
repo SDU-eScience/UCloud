@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -134,8 +135,8 @@ func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 		loadingTitle = "Initializing service list..."
 	}
 
-	var lfile = LocalFile{}
-	termio.LoadingIndicator(
+	var lfile LFile
+	err := termio.LoadingIndicator(
 		loadingTitle,
 		func(output *os.File) error {
 			var err error
@@ -156,17 +157,15 @@ func (e Environment) CreateComposeFile(services []ComposeService) LFile {
 				}
 			}
 
-			file, err := os.Open(GetDataDirectory())
-			if err != nil {
-				disableRemoteFileWriting = false
-				return err
-			}
-			lfile := LocalFile{GetDataDirectory(), file}
+			absPath, _ := filepath.Abs(GetDataDirectory())
+
+			lfile := NewFile(absPath)
 			childFile := lfile.Child("docker-compose.yaml")
 			childFile.WriteText(cb.CreateComposeFile())
 			return err
 		},
 	)
+	HardCheck(err)
 	disableRemoteFileWriting = false
 	return lfile
 }
@@ -181,6 +180,7 @@ type Provider interface {
 	CanRegisterProducts() bool
 	Addons() map[string]string
 	Install(credentials ProviderCredentials)
+	Build(cb ComposeBuilder)
 }
 
 var kubernetes Kubernetes
@@ -213,13 +213,12 @@ func ProviderFromName(name string) Provider {
 type UCloudBackend struct{}
 
 func (uc UCloudBackend) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	logs := LocalFile{File: dataDirectory}.Child("logs")
-	homeDir := LocalFile{File: dataDirectory}.Child("backend-home")
-	configDir := LocalFile{File: dataDirectory}.Child("backend-config")
-	gradleDir := LocalFile{File: dataDirectory}.Child("backend-gradle")
-	postgresDataDir := LocalFile{File: dataDirectory}.Child("pg-data")
+	dataDir := GetDataDirectory()
+	logs := NewFile(dataDir).Child("logs")
+	homeDir := NewFile(dataDir).Child("backend-home")
+	configDir := NewFile(dataDir).Child("backend-config")
+	gradleDir := NewFile(dataDir).Child("backend-gradle")
+	postgresDataDir := NewFile(dataDir).Child("pg-data")
 
 	cb.Service(
 		"backend",
@@ -315,7 +314,7 @@ func (uc UCloudBackend) Build(cb ComposeBuilder) {
 		`,
 	)
 
-	redisDataDir := LocalFile{File: dataDirectory}.Child("redis-data")
+	redisDataDir := NewFile(dataDir).Child("redis-data")
 	cb.Service(
 		"redis",
 		"UCloud/Core: Redis",
@@ -413,9 +412,8 @@ func (k Kubernetes) Addons() map[string]string {
 }
 
 func (k Kubernetes) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	k8Provider := LocalFile{File: dataDirectory}.Child("k8")
+	dataDir := GetDataDirectory()
+	k8Provider := NewFile(dataDir).Child("k8")
 	k3sDir := k8Provider.Child("k3s")
 	k3sOutput := k3sDir.Child("output")
 
@@ -435,7 +433,7 @@ func (k Kubernetes) Build(cb ComposeBuilder) {
 	imStorage.Child("home")
 	imStorage.Child("projects")
 	imStorage.Child("collections")
-	imLogs := LocalFile{File: dataDirectory}.Child("logs")
+	imLogs := NewFile(dataDir).Child("logs")
 
 	passwdDir := imDir.Child("passwd")
 	passwdFile := passwdDir.Child("passwd")
@@ -886,9 +884,8 @@ func (g GoKubernetes) Addons() map[string]string {
 }
 
 func (k GoKubernetes) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	k8Provider := LocalFile{File: dataDirectory}.Child("im2k8")
+	dataDir := GetDataDirectory()
+	k8Provider := NewFile(dataDir).Child("im2k8")
 	k3sDir := k8Provider.Child("k3s")
 	k3sOutput := k3sDir.Child("output")
 
@@ -1179,14 +1176,13 @@ func (s Slurm) Addons() map[string]string {
 }
 
 func (s Slurm) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	slurmProvider := LocalFile{File: dataDirectory}.Child("slurm")
+	dataDir := GetDataDirectory()
+	slurmProvider := NewFile(dataDir).Child("slurm")
 
 	imDir := slurmProvider.Child("im")
 	imGradle := imDir.Child("gradle")
 	imData := imDir.Child("data")
-	imLogs := LocalFile{File: dataDirectory}.Child("logs")
+	imLogs := NewFile(dataDir).Child("logs")
 
 	passwdDir := imDir.Child("passwd")
 	passwdFile := passwdDir.Child("passwd")
@@ -1427,14 +1423,13 @@ func (g GoSlurm) Addons() map[string]string {
 }
 
 func (gs GoSlurm) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	provider := LocalFile{File: dataDirectory}.Child("go-slurm")
+	dataDir := GetDataDirectory()
+	provider := NewFile(dataDir).Child("go-slurm")
 
 	imDir := provider.Child("im")
 	imGradle := imDir.Child("gradle")
 	imData := imDir.Child("data")
-	imLogs := LocalFile{File: dataDirectory}.Child("logs")
+	imLogs := NewFile(dataDir).Child("logs")
 
 	passwdDir := imDir.Child("passwd")
 	passwdFile := passwdDir.Child("passwd")
@@ -1508,7 +1503,7 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 		"",
 	)
 
-	postgresDataDir := LocalFile{File: dataDirectory}.Child("go-slurm-pg-data")
+	postgresDataDir := NewFile(dataDir).Child("go-slurm-pg-data")
 
 	cb.Service(
 		"go-slurm-postgres",
@@ -1543,9 +1538,8 @@ func (gs GoSlurm) Build(cb ComposeBuilder) {
 }
 
 func (gs GoSlurm) Install(credentials ProviderCredentials) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	slurmProvider := LocalFile{File: dataDirectory}.Child("go-slurm")
+	dataDir := GetDataDirectory()
+	slurmProvider := NewFile(dataDir).Child("go-slurm")
 	imDir := slurmProvider.Child("im")
 	imDataDir := imDir.Child("data")
 
@@ -1735,14 +1729,13 @@ var crt []byte
 var key []byte
 
 func (gw GateWay) Build(cb ComposeBuilder) {
-	dataDirectory, err := os.Open(GetDataDirectory())
-	HardCheck(err)
-	gatewayDir := LocalFile{File: dataDirectory}.Child("gateway")
+	dataDir := GetDataDirectory()
+	gatewayDir := NewFile(dataDir).Child("gateway")
 	gatewayData := gatewayDir.Child("data")
 	certificates := gatewayDir.Child("certs")
 
 	var decodeCrt = make([]byte, len(crt)+1000)
-	_, err = base64.StdEncoding.Decode(decodeCrt, crt)
+	_, err := base64.StdEncoding.Decode(decodeCrt, crt)
 	HardCheck(err)
 
 	crtString := string(decodeCrt)

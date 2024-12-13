@@ -53,7 +53,7 @@ func (c Classic) Up(directory LFile, noRecreate bool) ExecutableCommandInterface
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -70,7 +70,7 @@ func (c Classic) Down(directory LFile, deleteVolumes bool) ExecutableCommandInte
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -83,7 +83,7 @@ func (c Classic) Ps(directory LFile) ExecutableCommandInterface {
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		true,
 		1000 * 60 * 5,
 		false,
@@ -99,7 +99,7 @@ func (c Classic) Logs(directory LFile, container string) ExecutableCommandInterf
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -120,7 +120,7 @@ func (c Classic) Exec(directory LFile, container string, command []string, tty b
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -134,7 +134,7 @@ func (c Classic) Start(directory LFile, container string) ExecutableCommandInter
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -148,7 +148,7 @@ func (c Classic) Stop(directory LFile, container string) ExecutableCommandInterf
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -188,7 +188,7 @@ func (p Plugin) Up(directory LFile, noRecreate bool) ExecutableCommandInterface 
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -208,7 +208,7 @@ func (p Plugin) Down(directory LFile, deleteVolumes bool) ExecutableCommandInter
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -221,7 +221,7 @@ func (p Plugin) Ps(directory LFile) ExecutableCommandInterface {
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		true,
 		1000 * 60 * 5,
 		false,
@@ -234,10 +234,10 @@ func (p Plugin) Logs(directory LFile, container string) ExecutableCommandInterfa
 	list = append(list, "--follow")
 	list = append(list, "--no-log-prefix")
 	list = append(list, container)
-	return ExecutableCommandInterface{
+	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -257,7 +257,7 @@ func (p Plugin) Exec(directory LFile, container string, command []string, tty bo
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -271,7 +271,7 @@ func (p Plugin) Start(directory LFile, container string) ExecutableCommandInterf
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,
@@ -285,7 +285,7 @@ func (p Plugin) Stop(directory LFile, container string) ExecutableCommandInterfa
 	return LocalExecutableCommand{
 		list,
 		directory,
-		"",
+		PostProcessorFunc,
 		false,
 		1000 * 60 * 5,
 		false,

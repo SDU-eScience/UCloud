@@ -574,7 +574,7 @@ func CliHint(invocation string) {
 
 func EnvironmentMenu() termio.Menu {}
 func ServiceActionMenu() termio.Menu {}
-func CreateProviderMenu() termio.MultipleChoice {}
+func CreateProviderMenu() termio.Menu {}
 func ServiceMenu() termio.Menu {}
 
 func TopLevelMenu() termio.Menu {
@@ -582,6 +582,6 @@ func TopLevelMenu() termio.Menu {
 		Prompt: "Select an item from the menu",
 		Items:  nil,
 	}
-
+	menu
 	return menu
 }

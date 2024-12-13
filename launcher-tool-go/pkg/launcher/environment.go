@@ -18,7 +18,7 @@ var blacklistedEnvNames = []string{
 	"im-config",
 }
 
-var localEnvironment *os.File
+var localEnvironment LocalFile
 var currentEnvironment LFile
 var environmentIsRemote bool
 var portAllocator PortAllocator
@@ -33,11 +33,11 @@ func SetEnvironmentIsRemote(isRemote bool) {
 	environmentIsRemote = isRemote
 }
 
-func GetLocalEnvironment() *os.File {
+func GetLocalEnvironment() LocalFile {
 	return localEnvironment
 }
 
-func SetLocalEnvironment(environment *os.File) {
+func SetLocalEnvironment(environment LocalFile) {
 	localEnvironment = environment
 }
 
@@ -82,8 +82,10 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		HardCheck(err)
 		if selected.Message != "Create new environment" && selected.Value != "new" {
 			file, err := os.Open(selected.Value)
+			defer file.Close()
 			HardCheck(err)
-			env := LocalFile{File: file}
+
+			env := NewFile(selected.Value)
 			currentEnvironment = env
 			_, err = os.Stat(selected.Value)
 			environmentIsRemote = err != nil
@@ -107,18 +109,18 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	}
 
 	var newEnvironment string
-	for true {
+	for {
 		var env string
 		if initTest {
 			env = "test"
 		} else {
-			env = queryText(prompt, "Select a name for your environment", "default")
+			env = termio.TextPrompt("Select a name for your environment", "default")
 		}
 		if slices.Contains(blacklistedEnvNames, env) {
 			fmt.Println("Illegal name. Try a different one.")
 			continue
 		}
-		stat, err := os.Stat(repoRoot.GetAbsolutePath())
+		_, err := os.Stat(repoRoot.GetAbsolutePath())
 		if err == nil {
 			fmt.Println("This environment already exists. Please try a different name.")
 			continue
@@ -130,22 +132,25 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 	if initTest {
 		operator = local
 	} else {
-		operator = remote
+		prompt := localOrRemoteMenu.Prompt
+		if prompt == local.Value {
+			operator = local
+		} else {
+			operator = remote
+		}
 	}
 	switch operator {
 	case local:
 		{
-			printExplanation("The following is expected of your machine:")
-			println()
-			printExplanation("- The machine should run Linux or macOS")
-			printExplanation("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			printExplanation("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			println()
+			fmt.Println("The following is expected of your machine:")
+			fmt.Println()
+			fmt.Println("- The machine should run Linux or macOS")
+			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
+			fmt.Println()
 
 			path := repoRoot.GetAbsolutePath() + ".compose"
-			file, err := os.Open(path)
-			HardCheck(err)
-			env := LocalFile{path: path, File: file}
+			env := NewFile(path)
 			env.MkDirs()
 
 			currentEnvironment = env
@@ -156,20 +161,21 @@ func SelectOrCreateEnvironment(baseDirPath string, initTest bool) string {
 		}
 	case remote:
 		{
-			printExplanation("The following is expected of the remote machine:")
-			println()
-			printExplanation("- The machine should run Linux")
-			printExplanation("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
-			printExplanation("- Your user must be in the docker group and be able to issue docker commands without sudo")
-			println()
+			fmt.Println("The following is expected of the remote machine:")
+			fmt.Println()
+			fmt.Println("- The machine should run Linux")
+			fmt.Println("- Docker and Docker Compose (either through `docker compose` or `docker-compose`)")
+			fmt.Println("- Your user must be in the docker group and be able to issue docker commands without sudo")
+			fmt.Println()
 
-			hostname := queryText(prompt, "What is the hostname/IP of this machine? (e.g. machine42.example.com)")
-			username := queryText(prompt, "What is your username on this machine? (e.g. janedoe)")
+			hostname := termio.TextPrompt("What is the hostname/IP of this machine? (e.g. machine42.example.com)", "machine42.example.com")
+			username := termio.TextPrompt("What is your username on this machine? (e.g. janedoe)", "janedoe")
 
 			path := repoRoot.GetAbsolutePath() + ".compose"
 			file, err := os.Open(path)
+			defer file.Close()
 			HardCheck(err)
-			env := LocalFile{path: path, File: file}
+			env := NewFile(path)
 			env.MkDirs()
 
 			currentEnvironment = env
@@ -218,7 +224,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 	}
 
 	if env == nil {
-		println(`
+		fmt.Println(`
 			No active environment detected!
 
 			An environment is a complete installation of UCloud. It contains all the files and software required to
@@ -229,15 +235,15 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 			meaning and you can simply choose the default by pressing enter.
 			`,
 		)
-		println()
+		fmt.Println()
 		SelectOrCreateEnvironment(baseDir, shouldInitializeTestEnvironment)
 	} else {
 		//TODO Better printing BRIAN
-		println("Active environment: " + env.Name())
-		println()
+		fmt.Println("Active environment: " + env.Name())
+		fmt.Println()
 		path, err := filepath.Abs(env.Name())
 		HardCheck(err)
-		currentEnvironment = LocalFile{path: path, File: env}
+		currentEnvironment = NewFile(path)
 		environmentIsRemote = currentIsRemote
 	}
 
@@ -248,7 +254,7 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 	err = os.WriteFile(filepath.Join(baseDir, "current.txt"), currentName, 0644)
 	HardCheck(err)
 
-	return InitEnvironmentResult{shouldStartEnvironment: isNew}
+	return InitEnvironmentResult{ShouldStartEnvironment: isNew}
 }
 
 func InitIO(isNew bool) {
@@ -265,14 +271,20 @@ func InitIO(isNew bool) {
 
 		localEnvironment = currentEnvironment.(LocalFile)
 
-		//TODO commandFactory = RemoteExecutableCommandFactory(conn)
-		//        fileFactory = RemoteFileFactory(conn)
+		remoteRepoRoot := NewFile("ucloud")
+		if isNew {
+			SyncRepository()
+		}
+		remoteEnvironment := remoteRepoRoot.Child(".compose/" + currentEnvironment.Name())
+		portAllocator = Remapped{
+			portAllocator:  0,
+			allocatedPorts: nil,
+		}
+		composeName = currentEnvironment.Name() + "_" + "CONNECTION" //TODO
+		currentEnvironment = remoteEnvironment
 	} else {
-		//TODO commandFactory = RemoteExecutableCommandFactory(conn)
-		//        fileFactory = RemoteFileFactory(conn)
-
 		localEnvironment = currentEnvironment.(LocalFile)
-		//TODO portAllocator
+		portAllocator = Direct{}
 	}
 }
 

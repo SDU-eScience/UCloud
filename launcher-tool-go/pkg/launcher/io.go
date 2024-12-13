@@ -23,7 +23,55 @@ type ExecutableCommandInterface interface {
 	SetAllowFailure()
 }
 
+func NewFile(path string) LFile {
+	if environmentIsRemote {
+		conn := GetSSHConnection()
+		return RemoteFile{
+			connection: conn,
+			path:       path,
+		}
+	} else {
+		return LocalFile{
+			path: path,
+		}
+	}
+}
+
+func NewExecutableCommand(
+	args []string,
+	workingDir LFile,
+	fn postProcessor,
+	allowFailure bool,
+	deadlineInMillis int64,
+	streamOutput bool,
+) ExecutableCommandInterface {
+	if environmentIsRemote {
+		conn := GetSSHConnection()
+		return NewRemoteExecutableCommand(
+			conn,
+			args,
+			workingDir,
+			fn,
+			allowFailure,
+			deadlineInMillis,
+			streamOutput)
+	} else {
+		return NewLocalExecutableCommand(
+			args,
+			workingDir,
+			fn,
+			allowFailure,
+			deadlineInMillis,
+			streamOutput,
+		)
+	}
+}
+
 type postProcessor func(text ProcessResultText) string
+
+func PostProcessorFunc(text ProcessResultText) string {
+	return text.stdout
+}
 
 type ProcessResultText struct {
 	statusCode int

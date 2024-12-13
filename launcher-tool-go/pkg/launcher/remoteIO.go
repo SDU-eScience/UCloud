@@ -20,31 +20,44 @@ type SSHConnection struct {
 	remoteRoot string
 }
 
+var sshConnection SSHConnection
+
+func GetSSHConnection () SSHConnection {
+	return sshConnection
+}
+
+func SetSSHConnection (sshCon SSHConnection) {
+	sshConnection = sshCon
+}
+
 func newSSHConnection(username string, host string) SSHConnection {
-	config := &ssh.ClientConfig{
+	config := ssh.ClientConfig{
 		User:              username,
-		Auth:              ssh.AuthMethod(
-								ssh.),
+		Auth:              nil,
 		HostKeyCallback:   nil,
 		BannerCallback:    nil,
 		ClientVersion:     "",
 		HostKeyAlgorithms: nil,
 		Timeout:           0,
 	}
+	fmt.Println(config)
 	connector := ssh.Client{}
-	return SSHConnection{
+	remoteRoot := "REMOTE ROOT" //TODO
+	conn :=  SSHConnection{
 		username:   username,
 		host:       host,
-		ssh:        ssh,
+		ssh:        &connector,
 		remoteRoot: remoteRoot,
 	}
+	SetSSHConnection(conn)
+	return conn
 }
 
 func SyncRepository() {
 	command, ok := commandType.(RemoteExecutableCommand)
 	if ok {
 		conn := command.connection
-		termio.LoadingIndicator(
+		err := termio.LoadingIndicator(
 			"Synchronizing repository with remote",
 			func(output *os.File) error {
 				local := NewLocalExecutableCommand(
@@ -61,16 +74,17 @@ func SyncRepository() {
 						conn.username + "@" + conn.host + ":ucloud",
 					},
 					nil,
-					postProcessor(),
+					PostProcessorFunc,
 					false,
 					1000*60*5,
 					false,
 				)
-				local.setAllowFailure()
-				local.setStreamOutput()
+				local.SetAllowFailure()
+				local.SetStreamOutput()
 				local.ExecuteToText()
 				return nil
 			})
+		HardCheck(err)
 	} else {
 		return
 	}
@@ -99,11 +113,12 @@ func (r RemoteFile) GetAbsolutePath() string {
 }
 
 func (r RemoteFile) Exists() bool {
-	r.connection
+	//TODO
+	fmt.Println("Exist call not implemented")
 }
 
 func (r RemoteFile) Child(subPath string) LFile {
-	return RemoteFile{r.connection, r.path + "/" + subPath}
+	return NewFile(r.path+"/"+subPath)
 }
 
 func (r RemoteFile) WriteText(text string) {
@@ -184,11 +199,11 @@ func NewRemoteExecutableCommand(
 	}
 }
 
-func (r RemoteExecutableCommand) setStreamOutput()  {
+func (r RemoteExecutableCommand) SetStreamOutput()  {
 	r.streamOutput = true
 }
 
-func (r RemoteExecutableCommand) setAllowFailure() {
+func (r RemoteExecutableCommand) SetAllowFailure() {
 	r.allowFailure = true
 }
 
@@ -218,7 +233,7 @@ func stdoutThread(connection SSHConnection, sb *strings.Builder, boundary string
 			exitCode = line[len(boundary)+1:]
 			break
 		} else {
-			if command.streamOutput { printStatus(line)  }
+			if command.streamOutput { fmt.Println(line)  }
 			sb.WriteString(line)
 		}
 	}
@@ -230,7 +245,7 @@ func stderrThread(connection SSHConnection, sb *strings.Builder, boundary string
 		if line[:len(boundary)] == boundary {
 			break
 		} else {
-			if command.streamOutput { printStatus(line)  }
+			if command.streamOutput { fmt.Println(line)  }
 			sb.WriteString(line)
 		}
 	}
