@@ -186,10 +186,11 @@ var SlurmDriveLocatorEntityTypeOptions = []SlurmDriveLocatorEntityType{
 }
 
 type SlurmDriveLocator struct {
-	Entity  SlurmDriveLocatorEntityType
-	Pattern string
-	Script  string
-	Title   string
+	Entity    SlurmDriveLocatorEntityType
+	Pattern   string
+	Script    string
+	Title     string
+	FreeQuota util.Option[int64] // valid only for users
 }
 type SlurmFsManagementType string
 
@@ -395,6 +396,19 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 					success = false
 					reportError(filePath, locatorNode, "You must specify either a pattern or a script!")
 				}
+
+				freeQuota := optionalChildInt(filePath, locatorNode, "freeQuota", &success)
+				if freeQuota.Present && locator.Entity != SlurmDriveLocatorEntityTypeUser {
+					success = false
+					reportError(filePath, locatorNode, "freeQuota can only be specified for user mappings")
+				}
+
+				if !freeQuota.Present && locator.Entity == SlurmDriveLocatorEntityTypeUser {
+					success = false
+					reportError(filePath, locatorNode, "freeQuota must be specified for user mappings")
+				}
+
+				locator.FreeQuota = freeQuota
 
 				fs.DriveLocators[locatorName] = locator
 			}

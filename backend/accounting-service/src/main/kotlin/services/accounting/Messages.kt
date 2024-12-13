@@ -171,5 +171,13 @@ sealed class AccountingRequest<Resp> {
         val projectId: String,
         val provider: String,
     ) : AccountingRequest<Unit>()
+
+    data class RegisterProviderGift(
+        override val idCard: IdCard,
+        val ownerUsername: String,
+        val productCategory: ProductCategoryIdV2,
+        val quota: Long,
+        val expiresAt: Long?,
+    ) : AccountingRequest<Unit>()
 }
 

@@ -103,10 +103,10 @@ func (c *Client) Request(method, url string, params *Params, rd any) bool {
 		return false
 	}
 
-	// Reponse error
+	// Response error
 	if resp.StatusCode < 200 || resp.StatusCode > 204 {
 		respBody, _ := io.ReadAll(resp.Body)
-		log.Error("GPFS request failed: %v %v", resp.StatusCode, string(respBody))
+		log.Info("GPFS %v %v %v failed: %v %v\n%v", method, url, params, resp.StatusCode, string(respBody), string(p))
 		return false
 	}
 

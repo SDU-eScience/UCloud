@@ -283,6 +283,22 @@ class AccountingController(
             ok(AccountingV2.AdminCharge.Response(error))
         }
 
+        implementOrDispatch(AccountingV2.registerProviderGift) {
+            for (reqItem in request.items) {
+                accounting.sendRequestNoUnwrap(
+                    AccountingRequest.RegisterProviderGift(
+                        idCards.fetchIdCard(actorAndProject),
+                        reqItem.ownerUsername,
+                        reqItem.category,
+                        reqItem.quota,
+                        reqItem.expiresAt,
+                    )
+                )
+            }
+
+            ok(Unit)
+        }
+
         return@with
     }
 

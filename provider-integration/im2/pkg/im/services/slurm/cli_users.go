@@ -286,7 +286,7 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			err := ctrl.RemoveConnection(uid)
+			err := ctrl.RemoveConnection(uid, true)
 			if err != nil {
 				errors = append(errors, err.Error())
 			} else {

@@ -213,6 +213,8 @@ class AccountingSystem(
                                         is AccountingRequest.UpdateAllocation -> updateAllocation(msg)
                                         is AccountingRequest.RetrieveProviderAllocations ->
                                             retrieveProviderAllocations(msg)
+                                        is AccountingRequest.RegisterProviderGift ->
+                                            registerProviderGift(msg)
 
                                         is AccountingRequest.FindRelevantProviders -> findRelevantProviders(msg)
                                         is AccountingRequest.FindAllProviders -> findAllProviders(msg)
@@ -303,6 +305,70 @@ class AccountingSystem(
             } catch (ex: Throwable) {
                 log.info(ex.toReadableStacktrace().toString())
             }
+        }
+    }
+
+    private suspend fun registerProviderGift(msg: AccountingRequest.RegisterProviderGift): Response<out Any> {
+        if (msg.idCard !is IdCard.Provider) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        if (msg.productCategory.provider != msg.idCard.name) return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val providerProjectId = idCardService.lookupPid(
+            idCardService.retrieveProviderProjectPid(msg.idCard.name)
+                ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        ) ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val sourceWallet = authorizeAndLocateWallet(
+            IdCard.System,
+            providerProjectId,
+            msg.productCategory,
+            ActionType.WALLET_ADMIN,
+        ) ?: return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+
+        val targetWallet = authorizeAndLocateWallet(
+            IdCard.System,
+            msg.ownerUsername,
+            msg.productCategory,
+            ActionType.WALLET_ADMIN
+        ) ?: return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+
+        val targetOwner = findOwner(msg.ownerUsername)
+            ?: return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+
+        if (targetOwner.isProject()) {
+            return Response.error(HttpStatusCode.NotFound, "Unknown recipient")
+        }
+
+        val now = Time.now()
+        val expiresAt = msg.expiresAt ?: (now + (1000L * 60 * 60 * 24 * 365 * 50))
+
+        val existingAllocationsFromParent = targetWallet.allocationsByParent[sourceWallet.id]
+        if (existingAllocationsFromParent?.isActive() == true) {
+            val entry = existingAllocationsFromParent.allocationSet.entries.find { it.value }
+                ?: error("Should not happen")
+
+            val existingAllocationId = entry.key
+
+            return updateAllocation(
+                AccountingRequest.UpdateAllocation(
+                    IdCard.System,
+                    existingAllocationId,
+                    msg.quota,
+                    newEnd = expiresAt,
+                )
+            )
+        } else {
+            insertAllocation(
+                now,
+                targetWallet,
+                sourceWallet.id,
+                msg.quota,
+                now,
+                expiresAt,
+                null,
+                autoCommit = true,
+            )
+
+            return Response.ok(Unit)
         }
     }
 

@@ -168,3 +168,20 @@ func BrowseProviderAllocations(
 		request,
 	)
 }
+
+type RegisteredProviderGift struct {
+	OwnerUsername string              `json:"ownerUsername"`
+	Category      ProductCategoryIdV2 `json:"category"`
+	Quota         int64               `json:"quota"`
+	ExpiresAt     util.Option[int64]  `json:"expiresAt"`
+}
+
+func RegisterProviderGift(request fnd.BulkRequest[RegisteredProviderGift]) error {
+	_, err := c.ApiUpdate[util.Empty](
+		accountingNamespace+"registerProviderGift",
+		accountingContext,
+		"registerProviderGift",
+		request,
+	)
+	return err
+}
