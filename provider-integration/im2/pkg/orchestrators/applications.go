@@ -109,7 +109,7 @@ type WithAppFavorite struct {
 type ApplicationSummaryWithFavorite struct {
 	WithAppMetadata
 	WithAppFavorite
-	Tags []string `json:"tags"` // TODO DEPRECATED???
+	Tags []string `json:"tags"`
 }
 
 type ApplicationGroupMetadata struct {

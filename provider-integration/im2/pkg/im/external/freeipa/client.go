@@ -157,11 +157,12 @@ func (c *Client) Request(method, item string, params *Params, rw *ResponseWrappe
 		if c.doAuthenticate() {
 			return c.Request(method, item, params, rw, rd)
 		} else {
+			log.Error("Failed to authenticate with IPA (doAuthenticate() has returned false)")
 			return false
 		}
 	}
 
-	// Parse the reponse wrapper
+	// Parse the response wrapper
 	err = json.NewDecoder(resp.Body).Decode(rw)
 	if err != nil {
 		log.Error("json unmarshal failed: %v", err)
@@ -470,6 +471,7 @@ func (c *Client) GroupAddUser(group, user string) bool {
 	}
 
 	ok := c.Request("group_add_member", group, &p, nil, nil)
+	log.Info("GroupAddUser '%s' '%s' %v ok? %v", group, user, p, ok)
 	return ok
 }
 

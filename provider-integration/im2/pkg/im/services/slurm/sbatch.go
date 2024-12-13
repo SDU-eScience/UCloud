@@ -798,8 +798,6 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 			appendLine(builder, "")
 		}
 
-		// TODO constraints
-
 		// Run the actual program
 		// ---------------------------------------------------------
 		appendLine(builder, cli)

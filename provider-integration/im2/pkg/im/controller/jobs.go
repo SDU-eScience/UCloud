@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	ws "github.com/gorilla/websocket"
@@ -41,7 +42,7 @@ type ConfiguredWebIngress struct {
 
 type FollowJobSession struct {
 	Id       string
-	Alive    bool
+	Alive    *bool
 	Job      *orc.Job
 	EmitLogs func(rank int, stdout, stderr util.Option[string])
 }
@@ -341,6 +342,8 @@ func controllerJobs(mux *http.ServeMux) {
 					return
 				}
 
+				connMutex := sync.Mutex{}
+
 				var session *ShellSession = nil
 				for util.IsAlive {
 					if session != nil && !session.Alive {
@@ -387,11 +390,13 @@ func controllerJobs(mux *http.ServeMux) {
 								}
 								asJson, _ := json.Marshal(msg)
 
+								connMutex.Lock()
 								_ = conn.WriteJSON(WebSocketResponseMessage{
 									Type:     "message",
 									StreamId: requestMessage.StreamId,
 									Payload:  asJson,
 								})
+								connMutex.Unlock()
 							}
 
 							go func() {
@@ -399,11 +404,13 @@ func controllerJobs(mux *http.ServeMux) {
 								session.Alive = false
 							}()
 
+							connMutex.Lock()
 							_ = conn.WriteJSON(WebSocketResponseMessage{
 								Type:     "message",
 								StreamId: requestMessage.StreamId,
 								Payload:  json.RawMessage(`{"type":"initialize"}`),
 							})
+							connMutex.Unlock()
 							if !ok {
 								break
 							}
@@ -431,11 +438,13 @@ func controllerJobs(mux *http.ServeMux) {
 							}
 						}
 
+						connMutex.Lock()
 						_ = conn.WriteJSON(WebSocketResponseMessage{
 							Type:     "message",
 							StreamId: requestMessage.StreamId,
 							Payload:  json.RawMessage(`{"type":"ack"}`),
 						})
+						connMutex.Unlock()
 					}
 				}
 
@@ -458,6 +467,15 @@ func controllerJobs(mux *http.ServeMux) {
 
 				log.Info("We are now listening for logs (probably)")
 
+				connMutex := sync.Mutex{}
+				sendMessage := func(message any) error {
+					connMutex.Lock()
+					err := conn.WriteJSON(message)
+					connMutex.Unlock()
+					return err
+				}
+
+				alive := true
 				for util.IsAlive {
 					messageType, data, err := conn.ReadMessage()
 					if err != nil {
@@ -490,10 +508,10 @@ func controllerJobs(mux *http.ServeMux) {
 
 					switch followRequest.Type {
 					case jobsProviderFollowRequestTypeInit:
-						session := createFollowSession(requestMessage.StreamId, conn, followRequest.Job)
+						session := createFollowSession(requestMessage.StreamId, sendMessage, &alive, followRequest.Job)
 						go func() {
 							Jobs.Follow(session)
-							session.Alive = false
+							*session.Alive = false
 
 							dummy := jobsProviderFollowResponse{
 								StreamId: session.Id,
@@ -510,11 +528,18 @@ func controllerJobs(mux *http.ServeMux) {
 							})
 						}()
 
+						go func() {
+							for util.IsAlive && alive {
+								_ = sendMessage(map[string]string{"ping": "pong"})
+								time.Sleep(30 * time.Second)
+							}
+						}()
+
 					case jobsProviderFollowRequestTypeCancel:
 						followSessionsMutex.Lock()
 						session, ok := followSessions[followRequest.StreamId]
 						if ok {
-							session.Alive = false
+							*session.Alive = false
 						}
 						followSessionsMutex.Unlock()
 
@@ -533,6 +558,8 @@ func controllerJobs(mux *http.ServeMux) {
 						})
 					}
 				}
+
+				alive = false
 			},
 		)
 
@@ -654,12 +681,17 @@ type jobsProviderFollowResponse struct {
 	Stderr   util.Option[string] `json:"stderr"`
 }
 
-func createFollowSession(wsStreamId string, mainConnection *ws.Conn, job *orc.Job) *FollowJobSession {
+func createFollowSession(
+	wsStreamId string,
+	writeMessage func(message any) error,
+	alive *bool,
+	job *orc.Job,
+) *FollowJobSession {
 	cleanupFollowSessions()
 
 	session := &FollowJobSession{
 		Id:       util.RandomToken(16),
-		Alive:    true,
+		Alive:    alive,
 		Job:      job,
 		EmitLogs: nil,
 	}
@@ -674,18 +706,18 @@ func createFollowSession(wsStreamId string, mainConnection *ws.Conn, job *orc.Jo
 
 		payload, err := json.Marshal(resp)
 		if err != nil {
-			session.Alive = false
+			*session.Alive = false
 			return
 		}
 
-		err = mainConnection.WriteJSON(WebSocketResponseMessage{
+		err = writeMessage(WebSocketResponseMessage{
 			Type:     "message",
 			Payload:  payload,
 			StreamId: wsStreamId,
 		})
 
 		if err != nil {
-			session.Alive = false
+			*session.Alive = false
 		}
 	}
 
@@ -701,7 +733,7 @@ func cleanupFollowSessions() {
 	defer followSessionsMutex.Unlock()
 
 	for key, session := range followSessions {
-		if !session.Alive {
+		if !*session.Alive {
 			delete(followSessions, key)
 		}
 	}

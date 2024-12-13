@@ -53,6 +53,8 @@ func handleAuthentication(ucloudUsername string) (uint32, error) {
 	}
 
 	client.GroupAddUser(config.GroupName, uniqueUsername)
+
+	clearSssdCache()
 	return uint32(u.UserID), nil
 }
 
@@ -92,7 +94,9 @@ func makeUsernameUnique(suggestedUsername string) (string, bool) {
 			return "", false
 		}
 
-		if len(usernames) == 0 {
+		_, groupExists := client.GroupQuery(attempt)
+
+		if !groupExists && len(usernames) == 0 {
 			return attempt, true
 		} else {
 			log.Info("Username conflict %v -> %v -> %v", suggestedUsername, attempt, usernames)

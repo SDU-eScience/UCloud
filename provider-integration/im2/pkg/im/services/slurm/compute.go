@@ -692,7 +692,7 @@ func follow(session *ctrl.FollowJobSession) {
 	var logFiles []trackedLogFile
 
 	// open relevant files (might take multiple loops to achieve this)
-	for util.IsAlive && session.Alive {
+	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {
 			break
@@ -762,7 +762,7 @@ func follow(session *ctrl.FollowJobSession) {
 	readBuffer := make([]byte, 1024*4)
 
 	// Watch log files
-	for util.IsAlive && session.Alive {
+	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {
 			break

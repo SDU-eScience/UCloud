@@ -395,9 +395,21 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		defer util.SilentClose(file)
 
 		if err != nil {
+			if len(util.Components(request.Path)) == 1 {
+				go func() {
+					time.Sleep(1 * time.Second)
+					os.Exit(0)
+				}()
+
+				return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
+					StatusCode: http.StatusNotFound,
+					Why:        "Unable to open project directory. Try again in a few seconds...",
+				}
+			}
+
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Could not find directory",
+				Why:        "Could not find directory: " + internalPath,
 			}
 		}
 

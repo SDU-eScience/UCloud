@@ -615,9 +615,11 @@ func LaunchUserInstance(uid uint32) error {
 
 		go func() {
 			err = child.Wait()
-			log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
-			log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
-			log.Warn("The instance will be automatically in a few seconds.")
+			if err != nil {
+				log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
+				log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
+				log.Warn("The instance will be automatically in a few seconds.")
+			}
 
 			gateway.SendMessage(gateway.ConfigurationMessage{
 				RouteDown:   route,

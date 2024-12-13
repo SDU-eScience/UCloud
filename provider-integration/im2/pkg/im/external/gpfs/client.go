@@ -217,7 +217,7 @@ func (c *Client) FilesetQuery(filesystem, fileset string) (Fileset, bool) {
 	result.Path = fr.Filesets[0].Config.Path
 	result.Created, _ = time.Parse("2006-01-02 15:04:05,000", fr.Filesets[0].Config.Created)
 
-	result.UsageBytes = 1024 * qr.Quotas[0].BlockUsage // TODO does this not mean that the block size is hardcoded at 1KiB?
+	result.UsageBytes = 1024 * qr.Quotas[0].BlockUsage
 	result.QuotaBytes = 1024 * qr.Quotas[0].BlockQuota
 	result.UsageFiles = qr.Quotas[0].FilesUsage
 	result.QuotaFiles = qr.Quotas[0].FilesQuota

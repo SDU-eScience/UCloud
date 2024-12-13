@@ -74,6 +74,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		log.Info("Adding user %v to %v", localUsername.Username, localGroup.Name)
 		ok = client.GroupAddUser(localGroup.Name, localUsername.Username)
 		if !ok {
+			log.Error("Failed to add user %v to %v", localUsername.Username, localGroup.Name)
 			continue
 		}
 	}
@@ -96,6 +97,8 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 			continue
 		}
 	}
+
+	clearSssdCache()
 	return true
 }
 
