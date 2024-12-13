@@ -59,8 +59,10 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
-    usePage("Licenses", SidebarTabId.RESOURCES);
 
+    if (!opts?.isModal) {
+        usePage("Licenses", SidebarTabId.RESOURCES);
+    }
     React.useEffect(() => {
         return () => removeProjectListener(PROJECT_CHANGE_LISTENER_ID);
     }, []);
@@ -267,7 +269,7 @@ export function LicenseBrowse({opts}: {opts?: ResourceBrowserOpts<License>}): Re
                                                 ))
                                             );
                                         };
-                                        
+
                                         // TODO(Jonas): Insert into browser instead of full refresh
                                         dialogStore.success();
                                         browser.refresh();
