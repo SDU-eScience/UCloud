@@ -498,11 +498,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             return;
                         }
 
+                        for (const f of files) {
+                            browser.removeEntryFromCurrentPage(file => file.id === f.id);
+                        }
 
-                        copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
-                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch {
+                        browser.renderRows();
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
+                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false)
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to delete files");
                         browser.refresh();
                     }
                 };
