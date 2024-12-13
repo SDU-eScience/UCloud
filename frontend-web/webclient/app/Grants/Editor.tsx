@@ -133,7 +133,7 @@ const defaultState: EditorState = {
             month: new Date().getMonth(),
             year: new Date().getFullYear(),
         },
-        durationInMonths: 1
+        durationInMonths: 12
     },
     possibleTransfers: [],
     application: [],
