@@ -487,6 +487,16 @@ function protocolHandlerChunkedAndWebSocketV1(
                 strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
                     .replace("http://", "ws://").replace("https://", "wss://")
             );
+
+            uploadSocket.onerror = ev => {
+                if (navigator.onLine) {
+                    upload.error = "An error ocurred uploading the file.";
+                } else {
+                    upload.error = "File upload failed due to missing internet connection."
+                }
+                upload.state = UploadState.DONE;
+            };
+
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
 
