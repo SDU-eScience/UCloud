@@ -16,7 +16,9 @@ export enum Feature {
     APP_CATALOG_FILTER,
 
     NEW_TASKS,
-    COMMAND_PALETTE
+    COMMAND_PALETTE,
+    INTEGRATED_EDITOR,
+    EDITOR_VIM,
 }
 
 enum Environment {
@@ -66,7 +68,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithoutFlag: allLocalEnvironments,
+        showWithoutFlag: allDevEnvironments,
     },
 
     "copy-app": {
@@ -102,6 +104,18 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
+
+    "integrated-editor": {
+        feature: Feature.INTEGRATED_EDITOR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
+
+    "editor-vim": {
+        feature: Feature.EDITOR_VIM,
+        showWithoutFlag: allLocalEnvironments,
+        showWithFlag: allEnvironments,
+    }
 };
 
 function getCurrentEnvironment(): Environment {

@@ -1,18 +1,17 @@
 application: v2
 
-name: slurm-vnc
+name: slurm-web
 version: 1
 
 software:
   type: Native
   load: []
 
-vnc:
+web:
   enabled: true
-  password: vncpassword
 
 features:
-  multiNode: false
+  multiNode: true
 
 parameters:
   wf:
@@ -34,25 +33,7 @@ parameters:
       {# Start the job - change as required                                                                              #}
       {# =============================================================================================================== #}
       
-      {# Installation instructions for compute nodes #}
-      {#
-          yum install -y tigervnc-server xorg-x11-server-Xorg xorg-x11-xauth xorg-x11-utils xterm python3-numpy
-      
-          export NO_VNC_HOME=/opt/novnc
-          mkdir -p $NO_VNC_HOME/utils/websockify
-          wget -qO- https://github.com/novnc/noVNC/archive/v1.2.0.tar.gz | tar xz --strip 1 -C $NO_VNC_HOME
-          wget -qO- https://github.com/novnc/websockify/archive/v0.10.0.tar.gz | tar xz --strip 1 -C $NO_VNC_HOME/utils/websockify
-          chmod +x -v $NO_VNC_HOME/utils/*.sh
-          ln -s $NO_VNC_HOME/vnc_lite.html $NO_VNC_HOME/index.html
-      #}
-      
       echo $UCLOUD_PORT
-      mkdir -p ~/.vnc
-      echo "xterm" > ~/.vnc/xstartup
-      chmod +x ~/.vnc/xstartup
-      vncpasswd -f <<< vncpassword > vncpasswd
-      vncserver :1 -rfbauth vncpasswd
-      /opt/novnc/utils/launch.sh --listen $UCLOUD_PORT --vnc localhost:5901
       
       {# =============================================================================================================== #}
       {# End of job                                                                                                      #}
@@ -64,6 +45,6 @@ parameters:
       {# Postambles end #}
 
     readme: |
-      This is an example workflow using VNC.
+      This is an example workflow using interactive interfaces.
 
 invocation: ""

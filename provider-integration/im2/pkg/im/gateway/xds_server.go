@@ -85,6 +85,8 @@ func startConfigurationServer() {
 	}
 }
 
+var mostRecentSnapshot *cache.Snapshot = nil
+
 func setActiveSnapshot(snapshot *cache.Snapshot) {
 	for envoyCache == nil {
 		time.Sleep(50 * time.Millisecond)
@@ -101,6 +103,8 @@ func setActiveSnapshot(snapshot *cache.Snapshot) {
 		log.Fatal("UCloud/Gateway failed to update snapshot: %v", err)
 		panic("Invalid snapshot. Fatal error!")
 	}
+
+	mostRecentSnapshot = snapshot
 }
 
 func createEnvoyLogger() elog.Logger {

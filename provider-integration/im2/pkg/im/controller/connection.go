@@ -31,6 +31,7 @@ var Connections ConnectionService
 
 type ConnectionService struct {
 	Initiate         func(username string, signingKey util.Option[int]) (redirectToUrl string)
+	Unlink           func(username string, uid uint32) error
 	RetrieveManifest func() Manifest
 }
 
@@ -136,7 +137,7 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 	return err
 }
 
-func RemoveConnection(uid uint32) error {
+func RemoveConnection(uid uint32, notifyUCloud bool) error {
 	ucloud, ok := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user supplied: %v", uid)
@@ -155,19 +156,21 @@ func RemoveConnection(uid uint32) error {
 		)
 	})
 
-	type Req struct {
-		Username string `json:"username"`
-	}
-	_, err := client.ApiUpdate[util.Empty](
-		"providers.im.control.clearConnection",
-		"/api/providers/integration/control",
-		"clearConnection",
-		Req{Username: ucloud},
-	)
+	if notifyUCloud {
+		type Req struct {
+			Username string `json:"username"`
+		}
+		_, err := client.ApiUpdate[util.Empty](
+			"providers.im.control.clearConnection",
+			"/api/providers/integration/control",
+			"clearConnection",
+			Req{Username: ucloud},
+		)
 
-	if err != nil {
-		_ = RegisterConnectionComplete(ucloud, uid, false)
-		return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+		if err != nil {
+			_ = RegisterConnectionComplete(ucloud, uid, false)
+			return fmt.Errorf("failed to clear connection in UCloud: %v", err)
+		}
 	}
 
 	return nil
@@ -370,6 +373,32 @@ func controllerConnection(mux *http.ServeMux) {
 					redirectTo := Connections.Initiate(request.Username, util.OptNone[int]())
 					sendResponseOrError(w, connectResponse{redirectTo}, nil)
 				}
+			}),
+		)
+
+		type unlinkedRequest struct {
+			Username string `json:"username"`
+		}
+		mux.HandleFunc(
+			baseContext+"unlinked",
+			HttpUpdateHandler[unlinkedRequest](0, func(w http.ResponseWriter, r *http.Request, request unlinkedRequest) {
+				local, ok := MapUCloudToLocal(request.Username)
+				if !ok {
+					sendError(w, util.UserHttpError("Unknown user is being unlinked"))
+					return
+				}
+
+				unlinkFn := Connections.Unlink
+				if unlinkFn != nil {
+					err := unlinkFn(request.Username, local)
+					if err != nil {
+						sendError(w, err)
+						return
+					}
+				}
+
+				err := RemoveConnection(local, false)
+				sendResponseOrError(w, util.EmptyValue, err)
 			}),
 		)
 
@@ -615,9 +644,11 @@ func LaunchUserInstance(uid uint32) error {
 
 		go func() {
 			err = child.Wait()
-			log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
-			log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
-			log.Warn("The instance will be automatically in a few seconds.")
+			if err != nil {
+				log.Warn("IM/User for uid=%v terminated unexpectedly with error: %v", uid, err)
+				log.Warn("You might be able to find more information in the log file: %v", startupLogFile)
+				log.Warn("The instance will be automatically in a few seconds.")
+			}
 
 			gateway.SendMessage(gateway.ConfigurationMessage{
 				RouteDown:   route,

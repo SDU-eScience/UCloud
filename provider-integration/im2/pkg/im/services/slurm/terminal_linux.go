@@ -10,7 +10,7 @@ package slurm
 #include <string.h>
 #include <sys/ioctl.h>
 
-int createAndForkPty(char **cmd, char **envp, int *masterFd) {
+int createAndForkPty(char **cmd, char **envp, int *masterFd, char *workingDir) {
 	struct winsize winp;
 	memset(&winp, 0, sizeof(winp));
 	winp.ws_col = 80;
@@ -22,6 +22,10 @@ int createAndForkPty(char **cmd, char **envp, int *masterFd) {
 
 		for (char **env = envp; *env != 0; env++) {
 			putenv(*env);
+		}
+
+		if (workingDir != NULL) {
+			chdir(workingDir);
 		}
 
 		execvp(cmd[0], cmd);
@@ -42,6 +46,7 @@ void resizePty(int masterFd, int cols, int rows) {
 import "C"
 import (
 	"fmt"
+	"golang.org/x/sys/unix"
 	"os"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -50,7 +55,7 @@ import (
 	"unsafe"
 )
 
-func CreateAndForkPty(command []string, envArray []string) (*os.File, int32, error) {
+func CreateAndForkPty(command []string, envArray []string, workingDir util.Option[string]) (*os.File, int32, error) {
 	cmd := make([]*C.char, len(command)+1)
 	for i, s := range command {
 		cmd[i] = C.CString(s)
@@ -65,8 +70,14 @@ func CreateAndForkPty(command []string, envArray []string) (*os.File, int32, err
 	}
 	env[len(envArray)] = nil
 
+	var cWorkDir *C.char
+	if workingDir.Present {
+		cWorkDir = C.CString(workingDir.Value)
+		defer C.free(unsafe.Pointer(cWorkDir))
+	}
+
 	var masterFd C.int
-	pid := C.createAndForkPty(&cmd[0], &env[0], &masterFd)
+	pid := C.createAndForkPty(&cmd[0], &env[0], &masterFd, cWorkDir)
 	if pid == 0 {
 		return nil, 0, fmt.Errorf("fork failed")
 	}
@@ -82,22 +93,25 @@ func ResizePty(masterFd *os.File, cols, rows int) {
 	C.resizePty(C.int(masterFd.Fd()), C.int(cols), C.int(rows))
 }
 
-var folderShellLimiter = util.NewCpuLimiter(100.0, 1024*1024*256)
-
 func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
-	command := []string{"/bin/bash", "--login"}
-	// TODO(Dan): Ideally this shell is launched without job control, since it will be impacted by SIGSTOP from the
-	//   cpu limiter.
+	homedir, err := os.UserHomeDir()
+	workDir := util.OptNone[string]()
+	if err == nil {
+		workDir.Set(homedir)
+	}
 
-	masterFd, pid, err := CreateAndForkPty(command, nil)
+	internalPath, ok := UCloudToInternal(session.Folder)
+	if ok {
+		workDir.Set(internalPath)
+	}
+
+	command := []string{"/bin/bash", "--login"}
+
+	masterFd, pid, err := CreateAndForkPty(command, nil, workDir)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
 	}
-
-	masterFd.Write([]byte("set +m\n"))
-
-	folderShellLimiter.Watch(pid)
 
 	ResizePty(masterFd, cols, rows)
 
@@ -121,7 +135,6 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 	for util.IsAlive && session.Alive {
 		select {
 		case event := <-session.InputEvents:
-			log.Info("Got event: %v", event)
 			switch event.Type {
 			case ctrl.ShellEventTypeInput:
 				_, err = masterFd.Write([]byte(event.Data))
@@ -139,6 +152,9 @@ func handleFolderShell(session *ctrl.ShellSession, cols, rows int) {
 			continue
 		}
 	}
+
+	masterFd.Close()
+	unix.Kill(int(pid), unix.SIGTERM)
 }
 
 func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
@@ -152,15 +168,18 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 		return
 	}
 
-	log.Info("Starting shell to %v with size %v x %v", session.Job.Id, cols, rows)
-
 	command := []string{
 		"srun", "--overlap", "--pty", "--jobid", fmt.Sprint(parsedId.SlurmId), "-w", nodes[session.Rank],
-		"/bin/bash", "--login",
 	}
-	// envArray := []string{"VAR1=value1", "VAR2=value2"}
 
-	masterFd, _, err := CreateAndForkPty(command, nil)
+	homedir, err := os.UserHomeDir()
+	if err == nil {
+		command = append(command, "--chdir", homedir)
+	}
+
+	command = append(command, "/bin/bash", "--login")
+
+	masterFd, pid, err := CreateAndForkPty(command, nil, util.OptNone[string]())
 	if err != nil {
 		fmt.Println("Error:", err)
 		return
@@ -188,7 +207,6 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 	for util.IsAlive && session.Alive {
 		select {
 		case event := <-session.InputEvents:
-			log.Info("Got event: %v", event)
 			switch event.Type {
 			case ctrl.ShellEventTypeInput:
 				_, err = masterFd.Write([]byte(event.Data))
@@ -206,6 +224,9 @@ func handleJobShell(session *ctrl.ShellSession, cols, rows int) {
 			continue
 		}
 	}
+
+	masterFd.Close()
+	unix.Kill(int(pid), unix.SIGTERM)
 }
 
 func handleShell(session *ctrl.ShellSession, cols, rows int) {

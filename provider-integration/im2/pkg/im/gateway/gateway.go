@@ -6,6 +6,10 @@ import (
 	"encoding/base64"
 	"encoding/gob"
 	"fmt"
+	"github.com/envoyproxy/go-control-plane/pkg/cache/types"
+	"github.com/envoyproxy/go-control-plane/pkg/resource/v3"
+	"gopkg.in/yaml.v3"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -14,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 	"unicode"
@@ -26,6 +31,8 @@ var badGatewayHtml []byte
 
 const ServerClusterName = "_UCloud"
 const ServerClusterPort = 42000
+
+var ipcGwDumpConfiguration = ipc.NewCall[util.Empty, string]("imgw.dump")
 
 type ConfigurationMessage struct {
 	ClusterUp              *EnvoyCluster
@@ -214,6 +221,39 @@ func Initialize(config Config, channel chan []byte) {
 			}
 		}()
 	}
+}
+
+func InitIpc() {
+	ipcGwDumpConfiguration.Handler(func(r *ipc.Request[util.Empty]) ipc.Response[string] {
+		if r.Uid != 0 {
+			return ipc.Response[string]{
+				StatusCode: http.StatusForbidden,
+			}
+		}
+
+		snapshot := mostRecentSnapshot
+		if snapshot == nil {
+			return ipc.Response[string]{
+				StatusCode:   http.StatusOK,
+				ErrorMessage: "message: no snapshot",
+			}
+		}
+
+		routes := snapshot.GetResources(resource.RouteType)
+		clusters := snapshot.GetResources(resource.ClusterType)
+		data, err := yaml.Marshal(map[string]map[string]types.Resource{"routes": routes, "clusters": clusters})
+		if err != nil {
+			return ipc.Response[string]{
+				StatusCode:   http.StatusInternalServerError,
+				ErrorMessage: "error: " + err.Error(),
+			}
+		}
+
+		return ipc.Response[string]{
+			StatusCode: http.StatusOK,
+			Payload:    string(data),
+		}
+	})
 }
 
 var paused = atomic.Bool{}

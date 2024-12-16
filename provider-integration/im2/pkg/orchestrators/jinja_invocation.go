@@ -139,7 +139,7 @@ func PrepareJinjaTemplate(source string, templateSession any, templates Template
 		Filters:           filters,
 		Tests:             builtins.Tests,
 		ControlStructures: controlStructures.Safe,
-		Methods:           builtins.Methods, // TODO Consider these
+		Methods:           builtins.Methods,
 	}
 
 	gonjaCfg := gonjacfg.New()

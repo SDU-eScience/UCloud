@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	db "ucloud.dk/pkg/database"
+	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
@@ -261,6 +262,14 @@ func HandleUsersCommandServer() {
 			}
 		}
 
+		if cfg.Services.Unmanaged {
+			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
+			return ipc.Response[util.Empty]{
+				StatusCode:   http.StatusBadRequest,
+				ErrorMessage: fmt.Sprintf("%s", err),
+			}
+		}
+
 		return ipc.Response[util.Empty]{
 			StatusCode: http.StatusOK,
 		}
@@ -277,7 +286,7 @@ func HandleUsersCommandServer() {
 
 		var errors []string
 		for _, uid := range r.Payload.Uids {
-			err := ctrl.RemoveConnection(uid)
+			err := ctrl.RemoveConnection(uid, true)
 			if err != nil {
 				errors = append(errors, err.Error())
 			} else {

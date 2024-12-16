@@ -1,18 +1,17 @@
 import * as React from "react";
-import {default as ReactModal} from "react-modal";
 import {Flex, Input} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
-import {useCallback, useLayoutEffect, useState} from "react";
+import {useCallback, useLayoutEffect} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {NetworkIP} from "@/UCloud/NetworkIPApi";
 import {checkProviderMismatch} from "../Create";
 import {NetworkIPBrowse} from "@/Applications/NetworkIP/NetworkIPBrowse";
-import {CardClass} from "@/ui-components/Card";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: ApplicationParameterNS.NetworkIP;
@@ -20,13 +19,27 @@ interface NetworkIPProps extends WidgetProps {
 
 export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props => {
     const error = props.errors[props.parameter.name] != null;
-    const [open, setOpen] = useState(false);
     const doOpen = useCallback(() => {
-        setOpen(true);
-    }, [setOpen]);
-    const doClose = useCallback(() => {
-        setOpen(false)
-    }, [setOpen]);
+        dialogStore.addDialog(<NetworkIPBrowse
+            opts={{
+                additionalFilters: filters,
+                isModal: true,
+                selection: {
+                    text: "Use",
+                    onClick: (ip) => {
+                        onUse(ip);
+                        dialogStore.success();
+                    },
+                    show(res) {
+                        const errorMessage = checkProviderMismatch(res, "Public IPs");
+                        if (errorMessage) return errorMessage;
+                        return res.status.boundTo.length === 0;
+                    },
+                }
+            }}
+        />, noopCall, true, largeModalStyle);
+    }, []);
+
 
     const onUse = useCallback((network: NetworkIP) => {
         NetworkIPSetter(props.parameter, {type: "network", id: network.id});
@@ -35,8 +48,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-        setOpen(false);
-    }, [props.parameter, setOpen, props.errors]);
+    }, [props.parameter, props.errors]);
 
     const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
     const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
@@ -78,32 +90,6 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             onClick={doOpen}
         />
         <input type="hidden" id={widgetId(props.parameter)} />
-        <ReactModal
-            isOpen={open}
-            ariaHideApp={false}
-            style={largeModalStyle}
-            shouldCloseOnEsc
-            shouldCloseOnOverlayClick
-            onRequestClose={doClose}
-            className={CardClass}
-        >
-            <NetworkIPBrowse
-                opts={{
-                    additionalFilters: filters,
-                    isModal: true,
-                    selection: {
-                        text: "Use",
-                        onClick: onUse,
-                        show(res) {
-                            const errorMessage = checkProviderMismatch(res, "Public IPs");
-                            if (errorMessage) return errorMessage;
-                            return res.status.boundTo.length === 0;
-                        },
-                    }
-                }}
-
-            />
-        </ReactModal>
     </Flex>);
 }
 

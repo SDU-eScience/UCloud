@@ -119,6 +119,23 @@ func requireChild(path string, node *yaml.Node, child string, success *bool) *ya
 	return result
 }
 
+func optionalChildInt(path string, node *yaml.Node, child string, success *bool) util.Option[int64] {
+	n, err := getChildOrNil(path, node, child)
+	if n == nil {
+		return util.OptNone[int64]()
+	}
+
+	var result int64
+	err = n.Decode(&result)
+	if err != nil {
+		reportError(path, n, "Expected a string here")
+		*success = false
+		return util.OptNone[int64]()
+	}
+
+	return util.OptValue(result)
+}
+
 func optionalChildText(path string, node *yaml.Node, child string, success *bool) string {
 	n, err := getChildOrNil(path, node, child)
 	if n == nil {

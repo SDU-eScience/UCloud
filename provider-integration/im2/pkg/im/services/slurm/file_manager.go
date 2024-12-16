@@ -2,6 +2,8 @@ package slurm
 
 import (
 	"time"
+	"ucloud.dk/pkg/apm"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/log"
@@ -28,6 +30,41 @@ func InitFileManagers() {
 			fileManagers[name] = InitUnmanagedDrives(name)
 		}
 	}
+
+	ctrl.OnConnectionComplete(func(username string, uid uint32) {
+		if cfg.Services.Unmanaged {
+			return
+		}
+
+		log.Info("Registering home drive of user %v (UID: %v)", username, uid)
+		drives := EvaluateAllLocators(apm.WalletOwnerUser(username))
+		quotaByCategory := map[string]int64{}
+		for _, drive := range drives {
+			fs := ServiceConfig.FileSystems[drive.CategoryName]
+			locator := fs.DriveLocators[drive.LocatorName]
+			free := locator.FreeQuota
+			if free.Present {
+				prev, _ := quotaByCategory[drive.CategoryName]
+				quotaByCategory[drive.CategoryName] = prev + free.Value
+			}
+		}
+
+		var gifts []apm.RegisteredProviderGift
+		for category, quota := range quotaByCategory {
+			gifts = append(gifts, apm.RegisteredProviderGift{
+				OwnerUsername: username,
+				Category:      apm.ProductCategoryIdV2{Name: category, Provider: cfg.Provider.Id},
+				Quota:         quota,
+			})
+		}
+
+		if len(gifts) > 0 {
+			err := apm.RegisterProviderGift(fnd.BulkRequest[apm.RegisteredProviderGift]{Items: gifts})
+			if err != nil {
+				log.Info("Failed to register home-drive gift for user: %v (UID: %v): %v", username, uid, err)
+			}
+		}
+	})
 
 	go func() {
 		next := time.Now()

@@ -6,13 +6,13 @@ import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, Wid
 import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {noopCall, useCloudCommand} from "@/Authentication/DataHook";
 import PublicLinkApi, {PublicLink} from "@/UCloud/PublicLinkApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {checkProviderMismatch} from "../Create";
 import {PublicLinkBrowse} from "@/Applications/PublicLinks/PublicLinkBrowse";
-import {CardClass} from "@/ui-components/Card";
-import { ApplicationParameterNS } from "@/Applications/AppStoreApi";
+import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 interface IngressProps extends WidgetProps {
     parameter: ApplicationParameterNS.Ingress;
@@ -20,13 +20,27 @@ interface IngressProps extends WidgetProps {
 
 export const IngressParameter: React.FunctionComponent<IngressProps> = props => {
     const error = props.errors[props.parameter.name] != null;
-    const [open, setOpen] = useState(false);
+
     const doOpen = useCallback(() => {
-        setOpen(true);
-    }, [setOpen]);
-    const doClose = useCallback(() => {
-        setOpen(false)
-    }, [setOpen]);
+        dialogStore.addDialog(<PublicLinkBrowse
+            opts={{
+                selection: {
+                    text: "Use",
+                    onClick: (network) => {
+                        onUse(network);
+                        dialogStore.success();
+                    },
+                    show(res) {
+                        const errorMessage = checkProviderMismatch(res, "Public links");
+                        if (errorMessage) return errorMessage;
+                        return res.status.boundTo.length === 0;
+                    }
+                },
+                isModal: true,
+                additionalFilters: filters
+            }}
+        />, noopCall, true, largeModalStyle);
+    }, []);
 
     const onUse = useCallback((network: PublicLink) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
@@ -35,8 +49,7 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-        setOpen(false);
-    }, [props.parameter, setOpen, props.errors]);
+    }, [props.parameter, props.errors]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -89,31 +102,6 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             onClick={doOpen}
         />
         <input type="hidden" id={widgetId(props.parameter)} />
-        <ReactModal
-            isOpen={open}
-            ariaHideApp={false}
-            style={largeModalStyle}
-            shouldCloseOnEsc
-            shouldCloseOnOverlayClick
-            onRequestClose={doClose}
-            className={CardClass}
-        >
-            <PublicLinkBrowse
-                opts={{
-                    selection: {
-                        text: "Use",
-                        onClick: onUse,
-                        show(res) {
-                            const errorMessage = checkProviderMismatch(res, "Public links");
-                            if (errorMessage) return errorMessage;
-                            return res.status.boundTo.length === 0;
-                        }
-                    },
-                    isModal: true,
-                    additionalFilters: filters
-                }}
-            />
-        </ReactModal>
     </Flex>);
 }
 

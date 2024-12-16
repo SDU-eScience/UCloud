@@ -251,8 +251,7 @@ function DashboardResources({wallets}: {
                                                         <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                             <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
                                                         </TooltipV2>
-                                                    </OverallocationLink>
-                                                }
+                                                    </OverallocationLink>}
                                                 {w.usageAndQuota.display.usageAndQuota}
                                             </Flex>
                                         </TableCell>

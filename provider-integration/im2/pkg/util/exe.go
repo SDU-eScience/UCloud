@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"os/exec"
 	"strings"
-	"ucloud.dk/pkg/log"
 )
 
-func RunCommand(arg []string) (string, bool) {
+func RunCommand(arg []string) (string, string, bool) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
@@ -16,10 +15,9 @@ func RunCommand(arg []string) (string, bool) {
 	cmd.Stderr = &stderr
 
 	err := cmd.Run()
-	if err != nil {
-		s := strings.TrimSpace(stderr.String())
-		log.Info("Command failed: %s -> %s", strings.Join(arg, " "), s)
-	}
 
-	return strings.TrimSpace(stdout.String()), err == nil
+	stdoutResult := strings.TrimSpace(stdout.String())
+	stderrResult := strings.TrimSpace(stderr.String())
+
+	return stdoutResult, stderrResult, err == nil
 }

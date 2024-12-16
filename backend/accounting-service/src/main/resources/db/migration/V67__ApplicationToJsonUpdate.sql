@@ -8,7 +8,7 @@ with times as (
         "grant".requested_resources rr on r.application_id = rr.application_id and r.revision_number = rr.revision_number
 )
 update "grant".revisions
-set grant_start = start_date, grant_end = end_date
+set grant_start = start_date, grant_end = coalesce(end_date, now() + '12 months'::interval)
 from times
 where application_id = id and revisions.revision_number = times.revision_number;
 

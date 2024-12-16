@@ -127,7 +127,7 @@ const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, 
 const RESOURCE_NAME = "File";
 function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts}): React.ReactNode {
     const navigate = useNavigate();
-    const location = useLocation();    
+    const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
@@ -498,11 +498,15 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             return;
                         }
 
+                        for (const f of files) {
+                            browser.removeEntryFromCurrentPage(file => file.id === f.id);
+                        }
 
-                        copyOrMove(files, trash.id, true, {suffix: timestampUnixMs().toString()});
-                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false);
-                    } catch {
+                        browser.renderRows();
                         await callAPI(FilesApi.trash(bulkRequestOf(...files.map(it => ({id: it.id})))));
+                        snackbarStore.addSuccess(`${files.length} file(s) moved to trash.`, false)
+                    } catch (e) {
+                        displayErrorMessageOrDefault(e, "Failed to delete files");
                         browser.refresh();
                     }
                 };
@@ -661,7 +665,7 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const folder = folderCache.retrieveFromCacheOnly(path);
 
                     const isSearch = path === SEARCH;
-                    
+
                     const collectionId = isSearch ? pathComponents(lastActiveFilePath)[0] : components[0];
                     const collection = collectionCache.retrieveFromCacheOnly(collectionId);
                     if (!collection) return null;
@@ -1303,8 +1307,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                             ...defaultRetrieveFlags,
                             ...translateFilters(browser.browseFilters),
                             ...opts?.additionalFilters
-                        }
-                        ));
+                        })
+                    );
 
                     if (path !== browser.currentPath) return;
 

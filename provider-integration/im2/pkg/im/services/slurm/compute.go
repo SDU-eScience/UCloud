@@ -13,13 +13,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/im/ipc"
 
 	"ucloud.dk/pkg/apm"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	slurmcli "ucloud.dk/pkg/im/external/slurm"
+	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -560,6 +560,13 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		// NOTE(Dan): Error is ignored since there is no obvious way to recover here. Ignoring the error is probably
 		// the best we can do.
 		_, _ = ipcRegisterJobUpdate.Invoke(updates)
+
+		var jobUpdates []orc.JobUpdate
+		for i := 0; i < len(updates); i++ {
+			jobUpdates = append(jobUpdates, updates[i].Update)
+		}
+		job.Updates = jobUpdates
+		ctrl.TrackNewJob(*job)
 	}
 
 	return util.OptValue(providerId), nil
@@ -685,7 +692,7 @@ func follow(session *ctrl.FollowJobSession) {
 	var logFiles []trackedLogFile
 
 	// open relevant files (might take multiple loops to achieve this)
-	for util.IsAlive && session.Alive {
+	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {
 			break
@@ -755,7 +762,7 @@ func follow(session *ctrl.FollowJobSession) {
 	readBuffer := make([]byte, 1024*4)
 
 	// Watch log files
-	for util.IsAlive && session.Alive {
+	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.RetrieveJob(session.Job.Id)
 		if !ok {
 			break
@@ -789,14 +796,14 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func serverFindIngress(job *orc.Job) ctrl.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + ServiceConfig.Compute.Web.Suffix,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }
 
-func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (cfg.HostInfo, error) {
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
 		return cfg.HostInfo{}, errors.New("could not parse provider id")
@@ -805,6 +812,32 @@ func openWebSession(job *orc.Job, rank int) (cfg.HostInfo, error) {
 	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
 	if len(nodes) <= rank {
 		return cfg.HostInfo{}, errors.New("could not find slurm node")
+	}
+
+	if target.Present {
+		updates := job.Updates
+		length := len(updates)
+		for i := 0; i < length; i++ {
+			update := &job.Updates[i]
+			if strings.HasPrefix("Target: ", update.Status.Value) {
+				asJson := strings.TrimPrefix("Target: ", update.Status.Value)
+				var dynTarget DynamicTarget
+				err := json.Unmarshal([]byte(asJson), &dynTarget)
+				if err != nil {
+					continue
+				}
+
+				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
+					return cfg.HostInfo{
+						Address: nodes[rank],
+						Port:    dynTarget.Port,
+						Scheme:  "http",
+					}, nil
+				}
+			}
+		}
+
+		return cfg.HostInfo{}, fmt.Errorf("unknown target supplied: %v", target.Value)
 	}
 
 	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))

@@ -5,25 +5,29 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Input, Label, Select} from "@/ui-components";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {doNothing, extensionFromPath} from "@/UtilityFunctions";
-import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {PrettyFileName} from "@/Files/FilePath";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import {Feature, hasFeature} from "@/Features";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
 
-    readFile(path: string): Promise<string>;
+    readFile(path: string): Promise<string | Uint8Array>;
 
-    writeFile(path: string, content: string): Promise<void>;
+    writeFile(path: string): Promise<void>;
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
-    notifyDirtyFile(path: string, content: string)
+    setDirtyFileContent(path: string, content: string): void;
 }
 
 export interface VirtualFile {
@@ -36,7 +40,7 @@ export interface EditorState {
     vfs: Vfs;
     title: string;
     sidebar: EditorSidebar;
-    cachedFiles: Record<string, string>;
+    cachedFiles: Record<string, string | Uint8Array>;
     viewState: Record<string, monaco.editor.ICodeEditorViewState>;
     currentPath: string;
 }
@@ -87,18 +91,18 @@ export type EditorAction =
     | EditorActionSaveState
     ;
 
-function defaultEditor(vfs: Vfs, title: string, initialPath: string): EditorState {
+function defaultEditor(vfs: Vfs, title: string, initialFolder: string, initialFile?: string): EditorState {
     return {
         sidebar: {
             root: {
                 file: {
-                    absolutePath: "/",
+                    absolutePath: initialFolder,
                     isDirectory: true,
                 },
                 children: [],
             }
         },
-        currentPath: initialPath,
+        currentPath: initialFile ?? initialFolder,
         viewState: {},
         cachedFiles: {},
         title,
@@ -107,16 +111,19 @@ function defaultEditor(vfs: Vfs, title: string, initialPath: string): EditorStat
 }
 
 function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | null {
-    const components = pathComponents(path);
+    const components = pathComponents(path.replace(root.file.absolutePath, ""));
     if (components.length === 0) return root;
 
     let currentNode = root;
-    let currentPath = "/";
+    let currentPath = root.file.absolutePath + "/";
     for (let i = 0; i < components.length; i++) {
-        currentPath += components[i];
-        const node = currentNode.children.find(it => it.file.absolutePath === currentPath);
+        currentPath += components[i]; // TODO(Jonas): Missing adding "/" where applicable
+        const node = currentNode.children.find(it => [currentPath, path].includes(it.file.absolutePath));
         if (!node) return null;
         currentNode = node;
+        if (currentNode.file.absolutePath === path) break;
+        // Note(Jonas): If we haven't found the wanted file or directory, the current path must be a directory, and we add the slash
+        currentPath += "/";
     }
     return currentNode;
 }
@@ -156,7 +163,9 @@ function findOrAppendNodeForMutation(root: EditorSidebarNode, path: string): [Ed
         return selfCopy;
     }
 
-    const newRoot = traverseAndCopy(root, 0);
+    /* Note(Jonas): pathComponents length is to see how much needs to be skipped, as it is considered the current root. */
+    /* A depth/i-value of 0 means it starts at the root (/, ). */
+    const newRoot = traverseAndCopy(root, pathComponents(root.file.absolutePath).length);
     return [newRoot, leafNode!];
 }
 
@@ -183,18 +192,21 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
                 sidebar: {
                     root: newRoot,
                 }
-            }
+            };
         }
 
         case "EditorActionUpdateTitle": {
-            break;
+            return {
+                ...state,
+                title: action.title,
+            };
         }
 
         case "EditorActionOpenFile": {
             return {
                 ...state,
                 currentPath: action.path
-            }
+            };
         }
 
         case "EditorActionSaveState": {
@@ -212,8 +224,6 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
             };
         }
     }
-
-    return state;
 }
 
 const monacoCache = new AsyncCache<any>();
@@ -285,7 +295,9 @@ const editorClass = injectStyle("editor", k => `
     
     ${k} > .editor-files {
         width: 250px;
-        height: 100%;
+        /* TODO(Jonas): scroll on overflow-x */
+        overflow-y: auto;
+        
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
     }
@@ -318,7 +330,7 @@ const editorClass = injectStyle("editor", k => `
         height: 100%;
     }
     
-    ${k} .panels > .code {
+    ${k} .panels > div > .code {
         flex-grow: 1;
         height: 100%;
     }
@@ -329,19 +341,27 @@ type EditorEngine =
     | "vim";
 
 export interface EditorApi {
+    path: string;
     notifyDirtyBuffer: () => Promise<void>;
+    openFile: (path: string) => void;
+    invalidateTree: (path: string) => void;
 }
 
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
-    initialPath: string;
+    initialFilePath?: string;
+    initialFolderPath: string;
     toolbarBeforeSettings?: React.ReactNode;
     toolbar?: React.ReactNode;
     apiRef?: React.MutableRefObject<EditorApi | null>;
+    customContent?: React.ReactNode;
+    showCustomContent?: boolean;
+    onOpenFile?: (path: string, content: string | Uint8Array) => void;
+    operations?: (file: VirtualFile) => Operation<any>[];
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
-    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialPath));
+    const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
     const currentTheme = useSelector((red: ReduxObject) => red.sidebar.theme);
     const monacoInstance = useMonaco(engine === "monaco");
@@ -357,6 +377,19 @@ export const Editor: React.FunctionComponent<{
     const vimRef = useRef<VimWasm | null>(null);
     const tree = useRef<TreeApi | null>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
+    const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
+
+    useEffect(() => {
+        showingCustomContent.current = props.showCustomContent === true;
+    }, [props.showCustomContent]);
+
+    useEffect(() => {
+        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+    }, [props.title]);
+
+    useEffect(() => {
+        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+    }, [props.title]);
 
     useEffect(() => {
         engineRef.current = engine;
@@ -379,6 +412,12 @@ export const Editor: React.FunctionComponent<{
     useEffect(() => {
         monacoRef.current = monacoInstance;
     }, [monacoInstance]);
+
+    useEffect(() => {
+        const ref = props.apiRef;
+        if (!ref || !ref.current) return;
+        ref.current.path = state.currentPath;
+    }, [props.apiRef, state.currentPath]);
 
     const didUnmount = useDidUnmount();
 
@@ -421,7 +460,7 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const openFile = useCallback((path: string, saveState: boolean): Promise<boolean> => {
+    const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
         const cachedContent = state.cachedFiles[path];
         const dataPromise = cachedContent !== undefined ?
             Promise.resolve(cachedContent) :
@@ -429,7 +468,9 @@ export const Editor: React.FunctionComponent<{
 
         const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
 
-        return dataPromise.then(async content => {
+        try {
+            const content = await dataPromise;
+            props.onOpenFile?.(path, content);
             const editor = editorRef.current;
             const engine = engineRef.current;
             const isSettingsOpen = settingsOpenRef.current;
@@ -437,40 +478,50 @@ export const Editor: React.FunctionComponent<{
             if (isSettingsOpen) return true;
             if (didUnmount.current) return true;
 
-            if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
-                let editorState: monaco.editor.ICodeEditorViewState | null = null;
-                const model = editor?.getModel();
-                if (editor && model) {
-                    editorState = editor.saveViewState();
-                }
+            if (!showingCustomContent.current) {
+                if (state.currentPath !== "/" && state.currentPath !== "" && saveState) {
+                    let editorState: monaco.editor.ICodeEditorViewState | null = null;
+                    const model = editor?.getModel();
+                    if (editor && model) {
+                        editorState = editor.saveViewState();
+                    }
 
-                const oldContent = await readBuffer();
-                props.vfs.notifyDirtyFile(state.currentPath, oldContent);
-                dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                    const oldContent = await readBuffer();
+                    props.vfs.setDirtyFileContent(state.currentPath, oldContent);
+                    dispatch({type: "EditorActionSaveState", editorState, oldContent, newPath: path});
+                } else {
+                    dispatch({type: "EditorActionOpenFile", path});
+                }
             } else {
                 dispatch({type: "EditorActionOpenFile", path});
             }
 
             if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return false;
-            reloadBuffer(fileName(path), content);
-            const restoredState = state.viewState[path];
-            if (editor && restoredState) {
-                editor.restoreViewState(restoredState);
+            if (typeof content === "string") {
+                reloadBuffer(fileName(path), content);
+                const restoredState = state.viewState[path];
+                if (editor && restoredState) {
+                    editor.restoreViewState(restoredState);
+                }
+
+                if (engine === "monaco" && editor == null) return false;
+                if (engine === "vim" && vimRef.current == null) return false;
+
+                vimRef.current?.focus?.();
+                tree.current?.deactivate?.();
+                editor?.focus?.();
+                const monaco = monacoRef.current;
+                if (syntax && monaco && editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                }
             }
 
-            if (engine === "monaco" && editor == null)  return false;
-            if (engine === "vim" && vimRef.current == null) return false;
-
-            vimRef.current?.focus?.();
-            tree.current?.deactivate?.();
-            editor?.focus?.();
-            const monaco = monacoRef.current;
-            if (syntax && monaco && editor) {
-                monaco.editor.setModelLanguage(editor.getModel(), syntax);
-            }
             return true;
-        });
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer]);
+        } catch (error) {
+            snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
+            return true; // What does true or false mean in this context?
+        }
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -503,18 +554,37 @@ export const Editor: React.FunctionComponent<{
         if (state.currentPath === "" || state.currentPath === "/") return;
 
         if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return;
-        if (engine === "monaco" && editor == null)  return;
+        if (engine === "monaco" && editor == null) return;
         if (engine === "vim" && vimRef.current == null) return;
 
         const res = await readBuffer();
         if (didUnmount.current) return;
-        props.vfs.notifyDirtyFile(state.currentPath, res);
+
+        props.vfs.setDirtyFileContent(state.currentPath, res);
+        props.onOpenFile?.(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
-    }, []);
+    }, [props.onOpenFile]);
+
+    const invalidateTree = useCallback((folder: string) => {
+        let didCancel = false;
+        props.vfs.listFiles(folder).then(files => {
+            if (didCancel) return;
+            dispatch({type: "EditorActionFilesLoaded", path: folder, files});
+        });
+
+        return () => {
+            didCancel = true;
+        };
+    }, [props.vfs]);
 
     const api: EditorApi = useMemo(() => {
         return {
+            path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
+            openFile: path => {
+                openFile(path, true);
+            },
+            invalidateTree,
         }
     }, []);
 
@@ -523,16 +593,7 @@ export const Editor: React.FunctionComponent<{
     }, [api, props.apiRef]);
 
     useEffect(() => {
-        let didCancel = false;
-        props.vfs.listFiles("/").then(files => {
-            if (didCancel) return;
-
-            dispatch({type: "EditorActionFilesLoaded", path: "/", files});
-        });
-
-        return () => {
-            didCancel = true;
-        };
+        invalidateTree(props.initialFolderPath);
     }, []);
 
     useLayoutEffect(() => {
@@ -558,64 +619,12 @@ export const Editor: React.FunctionComponent<{
         m.languages.register({id: 'jinja2'});
 
         // Define the syntax highlighting rules for Jinja2
-        m.languages.setMonarchTokensProvider('jinja2', {
-            tokenizer: {
-                root: [
-                    // Jinja2 variable tags: {{ variable }}
-                    [/\{\{/, 'keyword.control', '@variable'],
-
-                    // Jinja2 statement tags: {% statement %}
-                    [/\{%/, 'keyword.control', '@statement'],
-
-                    [/\{-/, 'keyword.control', '@template'],
-
-                    // Jinja2 comment tags: {# comment #}
-                    [/\{#/, 'comment.jinja2', '@comment'],
-
-                    // Strings inside the templates
-                    [/["']/, 'string'],
-
-                    [/#.*$/, 'comment'],
-                ],
-
-                variable: [
-                    // Closing of Jinja2 variable tags
-                    [/}}/, 'keyword.control', '@pop'],
-
-                    // Inside variables
-                    [/./, 'variable'],
-                ],
-
-                statement: [
-                    // Closing of Jinja2 statement tags
-                    [/%}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ],
-
-                comment: [
-                    // Closing of Jinja2 comment tags
-                    [/#}/, 'comment', '@pop'],
-
-                    // Inside comments
-                    [/./, 'comment'],
-                ],
-
-                template: [
-                    // Closing of Jinja2 statement tags
-                    [/-}/, 'keyword.control', '@pop'],
-
-                    // Inside statements
-                    [/./, 'keyword'],
-                ]
-            }
-        });
+        m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
             language: "jinja2",
-            readOnly: false,
+            readOnly: !hasFeature(Feature.INTEGRATED_EDITOR),
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
@@ -663,12 +672,23 @@ export const Editor: React.FunctionComponent<{
             editor.layout();
         };
 
+        const interval = window.setInterval(listener, 200);
+
         window.addEventListener("resize", listener);
 
         return () => {
             window.removeEventListener("resize", listener);
+            window.clearInterval(interval);
         };
     }, [editor]);
+
+    useLayoutEffect(() => {
+        if (!props.showCustomContent && editor) {
+            editor.layout();
+            editor.render(true);
+            editor.focus();
+        }
+    }, [props.showCustomContent]);
 
     const onKeyDown: React.KeyboardEventHandler = useCallback(ev => {
         if (ev.code === "Escape") {
@@ -696,7 +716,7 @@ export const Editor: React.FunctionComponent<{
 
     const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
         const path = row.getAttribute("data-path");
-        if (open && path) onOpen(path, row);
+        if (path) onOpen(path, row);
     }, [onOpen]);
 
     const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
@@ -715,21 +735,29 @@ export const Editor: React.FunctionComponent<{
         <div className={"editor-files"}>
             <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode node={state.sidebar.root} onAction={onNodeActivated}/>
+                <SidebarNode
+                    initialFolder={props.initialFolderPath}
+                    initialFilePath={props.initialFilePath}
+                    node={state.sidebar.root}
+                    onAction={onNodeActivated}
+                    operations={props.operations}
+                />
             </Tree>
         </div>
 
         <div className={"main-content"}>
             <div className={"title-bar-code"}>
                 <Flex alignItems={"center"} gap={"8px"} flexGrow={1}>
-                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"}/>
+                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"} />
                     {fileName(state.currentPath)}
                 </Flex>
                 <Flex alignItems={"center"} gap={"16px"}>
                     {props.toolbarBeforeSettings}
-                    <TooltipV2 tooltip={"Settings"} contentWidth={100}>
-                        <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings}/>
-                    </TooltipV2>
+                    {!hasFeature(Feature.EDITOR_VIM) ? null :
+                        <TooltipV2 tooltip={"Settings"} contentWidth={100}>
+                            <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
+                        </TooltipV2>
+                    }
                     {props.toolbar}
                 </Flex>
             </div>
@@ -751,7 +779,7 @@ export const Editor: React.FunctionComponent<{
                                 <Heading.h4>Monaco Engine</Heading.h4>
                                 <p>
                                     The <ExternalLink
-                                    href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
+                                        href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
                                     engine provides an easy-to-use and familiar editor. It is best known from
                                     <ExternalLink href={"https://github.com/microsoft/vscode"}>VS Code</ExternalLink>.
                                     This engine is recommended for most users and is expected to work without any
@@ -797,13 +825,28 @@ export const Editor: React.FunctionComponent<{
 
                     </Flex> :
                     <>
-                        {engine !== "monaco" ? null :
-                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()}/>
-                        }
+                        <div style={{
+                            display: props.showCustomContent ? "none" : "block",
+                            width: "100%",
+                            height: "100%"
+                        }}>
+                            {engine !== "monaco" ? null :
+                                <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
+                            }
 
-                        {engine !== "vim" ? null :
-                            <VimEditor vim={vimRef} onInit={doNothing}/>
-                        }
+                            {engine !== "vim" ? null :
+                                <VimEditor vim={vimRef} onInit={doNothing} />
+                            }
+                        </div>
+
+                        <div style={{
+                            display: props.showCustomContent ? "block" : "none",
+                            width: "100%",
+                            height: "100%",
+                            maxHeight: "calc(100vh - 64px)",
+                            padding: "16px",
+                            overflow: "auto",
+                        }}>{props.customContent}</div>
                     </>
                 }
             </div>
@@ -812,38 +855,124 @@ export const Editor: React.FunctionComponent<{
 };
 
 const SidebarNode: React.FunctionComponent<{
-    node: EditorSidebarNode,
-    onAction: (open: boolean, row: HTMLElement) => void
+    node: EditorSidebarNode;
+    onAction: (open: boolean, row: HTMLElement) => void;
+    initialFilePath?: string;
+    initialFolder?: string;
+    operations?: (file: VirtualFile) => Operation<any>[];
 }> = props => {
     let children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
-            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction}/>
+            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} />
         ))}
     </>;
 
     const absolutePath = props.node.file.absolutePath;
-    if (absolutePath === "" || absolutePath === "/") return children;
+    if (absolutePath === "" || absolutePath === "/" || absolutePath === props.initialFolder) return children;
+
+    const isInitiallyOpen = props.node.file.isDirectory &&
+        props.initialFilePath?.startsWith(props.node.file.absolutePath);
+
+    const openOperations = useRef<(left: number, top: number) => void>(doNothing);
+    const onContextMenu = useCallback((ev: React.MouseEvent) => {
+        ev.preventDefault();
+        console.log(ev.clientX, ev.clientY);
+        openOperations.current(ev.clientX, ev.clientY);
+    }, []);
+
+    const ops = useMemo(() => {
+        const ops = props.operations;
+        if (!ops) return [];
+        return ops(props.node.file);
+    }, [props.operations, props.node]);
 
     return <TreeNode
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
+        data-open={isInitiallyOpen}
+        slim
         left={
-            <Flex gap={"8px"} alignItems={"center"}>
-                {props.node.file.isDirectory ? null :
-                    <Box ml={"8px"}>
+            <>
+                <Flex gap={"8px"} alignItems={"center"} onContextMenu={onContextMenu}>
+                    {props.node.file.isDirectory ? null :
                         <FtIcon
                             fileIcon={{
                                 type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath
-                                )
+                                ext: extensionFromPath(props.node.file.absolutePath)
                             }}
                             size={"16px"}
                         />
-                    </Box>
-                }
-                {fileName(props.node.file.absolutePath)}
-            </Flex>
+                    }
+                    <PrettyFileName path={props.node.file.absolutePath} />
+                </Flex>
+
+                <Operations
+                    entityNameSingular={""}
+                    operations={ops}
+                    forceEvaluationOnOpen={true}
+                    openFnRef={openOperations}
+                    selected={[]}
+                    extra={null}
+                    row={42}
+                    hidden
+                    location={"IN_ROW"}
+                />
+            </>
         }
         children={children}
     />;
 }
+
+const jinja2monarchTokens = {
+    tokenizer: {
+        root: [
+            // Jinja2 variable tags: {{ variable }}
+            [/\{\{/, 'keyword.control', '@variable'],
+
+            // Jinja2 statement tags: {% statement %}
+            [/\{%/, 'keyword.control', '@statement'],
+
+            [/\{-/, 'keyword.control', '@template'],
+
+            // Jinja2 comment tags: {# comment #}
+            [/\{#/, 'comment.jinja2', '@comment'],
+
+            // Strings inside the templates
+            [/["']/, 'string'],
+
+            [/#.*$/, 'comment'],
+        ],
+
+        variable: [
+            // Closing of Jinja2 variable tags
+            [/}}/, 'keyword.control', '@pop'],
+
+            // Inside variables
+            [/./, 'variable'],
+        ],
+
+        statement: [
+            // Closing of Jinja2 statement tags
+            [/%}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ],
+
+        comment: [
+            // Closing of Jinja2 comment tags
+            [/#}/, 'comment', '@pop'],
+
+            // Inside comments
+            [/./, 'comment'],
+        ],
+
+        template: [
+            // Closing of Jinja2 statement tags
+            [/-}/, 'keyword.control', '@pop'],
+
+            // Inside statements
+            [/./, 'keyword'],
+        ]
+    }
+};

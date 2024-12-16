@@ -19,12 +19,44 @@ func InitGpfsManager(name string, config *cfg.SlurmFsManagementGpfs) FileManagem
 		log.Error("Failed to authenticate with GPFS at %v@%v!", config.Username, config.Server.ToURL())
 	}
 
-	return &GpfsManager{
+	// NOTE(Dan): This is some annoying extra code branch to ensure that IM/User doesn't start before we have created
+	// a fileset in GPFS. If it would, then we risk automatic creation of the folder outside GPFS. This also makes the
+	// "Connect" annoyingly slow since we _have_ to wait for the fileset creation to finish.
+	g := &GpfsManager{
 		name:        name,
 		config:      config,
 		client:      client,
 		unitInBytes: UnitToBytes(fs.Payment.Unit),
 	}
+
+	ctrl.OnConnectionComplete(func(username string, uid uint32) {
+		if cfg.Services.Unmanaged {
+			return
+		}
+
+		drives := EvaluateAllLocators(apm.WalletOwnerUser(username))
+		for _, drive := range drives {
+			mapping, filesetName, ok := g.resolveLocatedDrive(drive, drive.CategoryName)
+			if !ok {
+				continue
+			}
+
+			if !g.client.FilesetExists(mapping.FileSystem, filesetName) {
+				g.client.FilesetCreate(&gpfs2.Fileset{
+					Name:        filesetName,
+					Filesystem:  mapping.FileSystem,
+					Description: "UCloud managed drive",
+					Path:        drive.FilePath,
+					Permissions: drive.RecommendedPermissions,
+					Owner:       fmt.Sprintf("%v:%v", drive.RecommendedOwnerName, drive.RecommendedGroupName),
+					Parent:      mapping.ParentFileSet,
+					Created:     time.Now(),
+				})
+			}
+		}
+	})
+
+	return g
 }
 
 type GpfsManager struct {

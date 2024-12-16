@@ -74,6 +74,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		log.Info("Adding user %v to %v", localUsername.Username, localGroup.Name)
 		ok = client.GroupAddUser(localGroup.Name, localUsername.Username)
 		if !ok {
+			log.Error("Failed to add user %v to %v", localUsername.Username, localGroup.Name)
 			continue
 		}
 	}
@@ -96,11 +97,13 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 			continue
 		}
 	}
+
+	clearSssdCache()
 	return true
 }
 
 func clearSssdCache() {
-	output, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
+	output, _, ok := util.RunCommand([]string{"sudo", "/sbin/sss_cache", "-E"})
 	if !ok {
 		log.Warn("Failed to clear sssd cache (via `sudo /sbin/sss_cache -E`). Is sudo misconfigured? Output: %v", output)
 	}

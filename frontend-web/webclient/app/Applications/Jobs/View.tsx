@@ -987,20 +987,6 @@ const RunningContent: React.FunctionComponent<{
         setExpiresAt(status.expiresAt);
     }, [status.expiresAt]);
 
-    const calculateTimeLeft = useCallback((expiresAt: number | undefined) => {
-        if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
-
-        const now = new Date().getTime();
-        const difference = expiresAt - now;
-
-        if (difference < 0) return {hours: 0, minutes: 0, seconds: 0};
-
-        return {
-            hours: Math.floor(difference / 1000 / 60 / 60),
-            minutes: Math.floor((difference / 1000 / 60) % 60),
-            seconds: Math.floor((difference / 1000) % 60)
-        }
-    }, []);
 
     const suspendJob = React.useCallback(() => {
         try {
@@ -1021,9 +1007,6 @@ const RunningContent: React.FunctionComponent<{
             displayErrorMessageOrDefault(e, "Failed to resume virtual machine.");
         }
     }, []);
-
-    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
-
 
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
@@ -1046,12 +1029,6 @@ const RunningContent: React.FunctionComponent<{
             return null;
         }
     }, [job.updates.length]);
-
-    useEffect(() => {
-        setTimeout(() => {
-            setTimeLeft(calculateTimeLeft(expiresAt));
-        }, 1000);
-    });
 
     const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
     const peers = job.specification.resources.filter(it => it.type === "peer") as AppParameterValueNS.Peer[];
@@ -1093,9 +1070,7 @@ const RunningContent: React.FunctionComponent<{
                                         <b>Job expiry: </b> {dateToString(expiresAt ?? timestampUnixMs())}
                                     </Box>
                                     <Box>
-                                        <b>Time remaining: </b>{timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours}
-                                        :{timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes}
-                                        :{timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds}
+                                        <b>Time remaining: </b><TimeLeft expiresAt={expiresAt ?? -1} />
                                     </Box>
                                 </>
                             }
@@ -1252,6 +1227,36 @@ const StandardPanelBody: React.FunctionComponent<{
 }> = ({divRef, children}) => {
     return <div style={{height: "165px", overflowY: "auto"}} ref={divRef}>{children}</div>;
 };
+
+function TimeLeft({expiresAt}: {expiresAt: number}) {
+    const calculateTimeLeft = useCallback((expiresAt: number | undefined) => {
+        if (!expiresAt) return {hours: 0, minutes: 0, seconds: 0};
+
+        const now = new Date().getTime();
+        const difference = expiresAt - now;
+
+        if (difference < 0) return {hours: 0, minutes: 0, seconds: 0};
+
+        return {
+            hours: Math.floor(difference / 1000 / 60 / 60),
+            minutes: Math.floor((difference / 1000 / 60) % 60),
+            seconds: Math.floor((difference / 1000) % 60)
+        }
+    }, []);
+
+    const [timeLeft, setTimeLeft] = useState(calculateTimeLeft(expiresAt));
+
+    useEffect(() => {
+        setTimeout(() => {
+            setTimeLeft(calculateTimeLeft(expiresAt));
+        }, 1000);
+    });
+
+
+    return (timeLeft.hours < 10 ? "0" + timeLeft.hours : timeLeft.hours) +
+        ":" + (timeLeft.minutes < 10 ? "0" + timeLeft.minutes : timeLeft.minutes) +
+        ":" + (timeLeft.seconds < 10 ? "0" + timeLeft.seconds : timeLeft.seconds)
+}
 
 const RunningJobRankWrapper = injectStyle("running-job-rank-wrapper", k => `
     ${k} {

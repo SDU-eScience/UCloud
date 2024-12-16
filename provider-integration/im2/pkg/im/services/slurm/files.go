@@ -395,9 +395,21 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		defer util.SilentClose(file)
 
 		if err != nil {
+			if len(util.Components(request.Path)) == 1 {
+				go func() {
+					time.Sleep(1 * time.Second)
+					os.Exit(0)
+				}()
+
+				return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
+					StatusCode: http.StatusNotFound,
+					Why:        "Unable to open project directory. Try again in a few seconds...",
+				}
+			}
+
 			return fnd.EmptyPage[orc.ProviderFile](), &util.HttpError{
 				StatusCode: http.StatusNotFound,
-				Why:        "Could not find directory",
+				Why:        "Could not find directory: " + internalPath,
 			}
 		}
 
@@ -481,13 +493,13 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 		if !entry.hasInfo && !entry.skip {
 			stat, err := os.Stat(entry.absPath)
 			if err == nil {
-				if shouldFilterByPermissions && !probablyHasPermissionToRead(stat) {
-					continue
-				}
-
 				entry.hasInfo = true
 				entry.info = stat
 			}
+		}
+
+		if entry.hasInfo && shouldFilterByPermissions && !probablyHasPermissionToRead(entry.info) {
+			continue
 		}
 
 		if !entry.hasInfo {
@@ -512,8 +524,6 @@ func browse(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], erro
 }
 
 func retrieve(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
-	bah, _ := json.Marshal(request)
-	log.Info("retrieve drive='%v' path='%v' %v", request.Drive.Id, request.Path, string(bah))
 	var result orc.ProviderFile
 	internalPath := UCloudToInternalWithDrive(request.Drive, request.Path)
 	stat, err := os.Stat(internalPath)

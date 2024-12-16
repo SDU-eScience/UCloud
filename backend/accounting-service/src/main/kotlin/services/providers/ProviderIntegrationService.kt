@@ -248,7 +248,7 @@ class ProviderIntegrationService(
                         { IntegrationProvider(it.provider.id).unlinked },
                         IntegrationProviderUnlinkedRequest(username),
                         actorAndProject.signedIntentFromUser,
-                        isUserRequest = true
+                        isUserRequest = false,
                     )
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode.value in 500..599) {

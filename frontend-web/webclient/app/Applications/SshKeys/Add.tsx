@@ -4,7 +4,6 @@ import {usePage} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
 import {Box, Button, Divider, Flex, Icon, Input, Label, Markdown, Text, TextArea} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
-import {MandatoryField} from "@/Applications/Jobs/Widgets";
 import {useCallback, useMemo, useState} from "react";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
@@ -15,6 +14,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {MandatoryField} from "@/UtilityComponents";
 
 interface GenericInputFieldProps {
     name: string;
@@ -167,25 +167,6 @@ You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/in
                         }
                     </Button>
                 </form>
-
-                <Divider my={32} />
-                <p>
-                    Not all providers support SSH through this method. The following table summarizes which
-                    providers support SSH services:
-                </p>
-
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHeaderCell width={40} />
-                            <TableHeaderCell textAlign={"left"}>Provider</TableHeaderCell>
-                            <TableHeaderCell textAlign={"left"}>Support</TableHeaderCell>
-                        </TableRow>
-                    </TableHeader>
-                    <tbody>
-                        {hardcodedSshSupport.map(it => <ProviderSupportRow support={it} key={it.providerId} />)}
-                    </tbody>
-                </Table>
             </Box>
         }
     />;
