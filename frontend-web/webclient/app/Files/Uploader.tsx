@@ -495,7 +495,7 @@ function protocolHandlerChunkedAndWebSocketV1(
                     upload.error = "File upload failed due to missing internet connection."
                 }
                 upload.state = UploadState.DONE;
-            }
+            };
 
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
