@@ -224,6 +224,14 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                         const [boundTo] = link.status.boundTo;
                         row.stat3.innerText = boundTo;
                     }
+
+
+                    if (opts?.selection) {
+                        const button = browser.defaultButtonRenderer(opts.selection, link);
+                        if (button) {
+                            row.stat3.replaceChildren(button);
+                        }
+                    }
                 });
 
                 browser.on("generateBreadcrumbs", () => browser.defaultBreadcrumbs());
@@ -327,6 +335,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                                 }
 
                                                 browser.insertEntryIntoCurrentPage({...entry, id: domain});
+                                                browser.rerender();
                                                 dialogStore.success();
                                                 browser.refresh();
                                             }
@@ -339,7 +348,7 @@ export function PublicLinkBrowse({opts}: {opts?: ResourceBrowserOpts<PublicLink>
                                     onCancel={() => dialogStore.failure()}
                                 />,
                                 () => {},
-                                false,
+                                true,
                                 slimModalStyle,
                             );
                         }
@@ -468,7 +477,7 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
         </Box>
 
         {isPublicLink ? <Label>
-            Choose a link<MandatoryField/>
+            Choose a link<MandatoryField />
             <Flex alignItems={"center"} gap={"8px"}>
                 <Box flexShrink={0}>{domainPrefix}</Box>
                 <Input placeholder={"my-link"} onChange={e => setEntryId(e.target.value)} autoFocus />
