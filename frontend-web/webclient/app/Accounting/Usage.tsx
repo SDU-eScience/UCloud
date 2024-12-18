@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Text, MainContainer, Box} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -14,7 +14,7 @@ import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
-import {useProjectId} from "@/Project/Api";
+import api, {useProjectId} from "@/Project/Api";
 import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -25,6 +25,9 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProject} from "@/Project/cache";
 import * as Heading from "@/ui-components/Heading";
+import {Project} from "@/Project";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 // State
 // =====================================================================================================================
@@ -551,7 +554,7 @@ const Visualization: React.FunctionComponent = () => {
                                 quota={state.activeDashboard.currentAllocation.quota}
                                 expiresAt={state.activeDashboard.currentAllocation.expiresAt}
                             />
-                            <BreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
+                            <UsageBreakdownPanel period={state.selectedPeriod} chart={state.activeDashboard.breakdownByProject} />
                             <UsageOverTimePanel chart={state.activeDashboard.usageOverTime} />
                             {hasChart3And4 ? <>
                                 <UsageByUsers loading={isAnyLoading} data={state.activeDashboard.jobUsageByUsers} />
@@ -826,18 +829,13 @@ const BreakdownStyle = injectStyle("breakdown", k => `
     }
 `);
 
-const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
+const UsageBreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownChart}> = props => {
     const unit = props.chart.unit;
 
     const dataPoints = useMemo(
         () => {
             const unsorted = props.chart.dataPoints.map(it => ({key: it.title, value: it.usage}));
-            return unsorted.sort((a, b) => {
-                // Note(Jonas): Wouldn't `return a.value - b.value` work the same? 
-                if (a.value < b.value) return 1;
-                if (a.value > b.value) return -1;
-                return 0;
-            });
+            return unsorted.sort((a, b) => a.value - b.value);
         },
         [props.chart]
     );
@@ -855,8 +853,7 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
 
     const datapointSum = useMemo(() => {
         return dataPoints.reduce((a, b) => a + b.value, 0);
-    }, [dataPoints])
-
+    }, [dataPoints]);
 
     return <div className={classConcat(CardClass, PanelClass, BreakdownStyle)}>
         <div className="panel-title">
@@ -873,24 +870,25 @@ const BreakdownPanel: React.FunctionComponent<{period: Period, chart: BreakdownC
 
         {/* Note(Jonas): this is here, otherwise <tbody> y-overflow will not be respected  */}
         <div style={{overflowY: "scroll"}}>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Project</th>
-                        <th>Usage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {dataPoints.map((point, idx) => {
-                        const usage = point.value;
-
-                        return <tr key={idx}>
-                            <td>{point.key}</td>
-                            <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+            {dataPoints.length === 0 ? "No usage data found" :
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Usage</th>
                         </tr>
-                    })}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {dataPoints.map((point, idx) => {
+                            const usage = point.value;
+
+                            return <tr key={idx}>
+                                <td>{point.key}</td>
+                                <td>{Accounting.addThousandSeparators(Math.round(usage))} {unit}</td>
+                            </tr>
+                        })}
+                    </tbody>
+                </table>}
         </div>
     </div>;
 };
@@ -1277,88 +1275,6 @@ const UsageByUsers: React.FunctionComponent<{loading: boolean, data?: JobUsageBy
 // Utility components
 // =====================================================================================================================
 
-const fieldOfResearch = {
-    "sections": [
-        {
-            "title": "Natural Sciences",
-            "children": [
-                "Mathematics",
-                "Computer and information sciences",
-                "Physical sciences",
-                "Chemical sciences",
-                "Earth and related environmental sciences",
-                "Biological sciences",
-                "Other natural sciences"
-            ]
-        },
-
-        {
-            "title": "Engineering and Technology",
-            "children": [
-                "Civil engineering",
-                "Electrical engineering, electronic engineering, information engineering",
-                "Mechanical engineering",
-                "Chemical engineering",
-                "Materials engineering",
-                "Medical engineering",
-                "Environmental engineering",
-                "Environmental biotechnology",
-                "Industrial Biotechnology",
-                "Nano-technology",
-                "Other engineering and technologies"
-            ]
-        },
-
-        {
-            "title": "Medical and Health Sciences",
-            "children": [
-                "Basic medicine",
-                "Clinical medicine",
-                "Health sciences",
-                "Health biotechnology",
-                "Other medical sciences"
-            ]
-        },
-
-        {
-            "title": "Agricultural Sciences",
-            "children": [
-                "Agriculture, forestry, and fisheries",
-                "Animal and dairy science",
-                "Veterinary science",
-                "Agricultural biotechnology",
-                "Other agricultural sciences"
-            ]
-        },
-
-        {
-            "title": "Social Sciences",
-            "children": [
-                "Psychology",
-                "Economics and business",
-                "Educational sciences",
-                "Sociology",
-                "Law",
-                "Political Science",
-                "Social and economic geography",
-                "Media and communications",
-                "Other social sciences"
-            ]
-        },
-
-        {
-            "title": "Humanities",
-            "children": [
-                "History and archaeology",
-                "Languages and literature",
-                "Philosophy, ethics and religion",
-                "Art (arts, history of arts, performing arts, music)",
-                "Other humanities"
-            ]
-        }
-    ]
-};
-
 const PieChart: React.FunctionComponent<{
     dataPoints: {key: string, value: number}[],
     valueFormatter: (value: number) => string,
@@ -1382,18 +1298,15 @@ const PieChart: React.FunctionComponent<{
 
         return result;
     }, [props.dataPoints]);
-    const series = useMemo(() => {
-        return filteredList.map(it => it.value);
-    }, [filteredList]);
 
-    const labels = useMemo(() => {
-        return filteredList.map(it => it.key);
-    }, [filteredList]);
+    // FIXME(Jonas): The list is at most 5 entries so it's not a big deal, but it can be done in one iteration instead of two.
+    const series = useMemo(() => filteredList.map(it => it.value), [filteredList]);
+    const labels = useMemo(() => filteredList.map(it => it.key), [filteredList]);
 
     const chartProps = useMemo(() => {
         return {
             type: "pie",
-            series: series,
+            series,
             options: {
                 chart: {
                     animations: {
