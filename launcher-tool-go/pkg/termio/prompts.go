@@ -15,7 +15,7 @@ import (
 type MenuItem struct {
 	Value     string
 	Message   string
-	separator bool
+	Separator bool
 }
 
 type Menu struct {
@@ -38,7 +38,7 @@ func (menu *Menu) nextNonSeparatorItemKey(key int) int {
 			key = 0
 		}
 
-		if !menu.Items[key].separator {
+		if !menu.Items[key].Separator {
 			return key
 		}
 	}
@@ -51,7 +51,7 @@ func (menu *Menu) previousNonSeparatorItemKey(key int) int {
 			key = len(menu.Items) - 1
 		}
 
-		if !menu.Items[key].separator {
+		if !menu.Items[key].Separator {
 			return key
 		}
 	}
@@ -76,7 +76,7 @@ func (item *MenuItem) displaySeparator() {
 func (menu *Menu) lineHeight() int {
 	height := 0
 	for key, item := range menu.Items {
-		if item.separator && key != 0 {
+		if item.Separator && key != 0 {
 			height++
 		}
 		height++
@@ -86,7 +86,7 @@ func (menu *Menu) lineHeight() int {
 
 func (menu *Menu) firstNonSeparatorItemKey() int {
 	for key, item := range menu.Items {
-		if !item.separator {
+		if !item.Separator {
 			return key
 		}
 	}
@@ -97,7 +97,7 @@ func (menu *Menu) displaySelectSingle(selected int) {
 	for itemKey, item := range menu.Items {
 		clearLine()
 
-		if item.separator {
+		if item.Separator {
 			if itemKey > 0 {
 				clearLine()
 				fmt.Printf("\n")
@@ -120,7 +120,7 @@ func (menu *Menu) displaySelectMultiple(hoveredItem int, selected []*MenuItem) {
 	for itemKey, item := range menu.Items {
 		clearLine()
 
-		if item.separator {
+		if item.Separator {
 			if itemKey > 0 {
 				fmt.Printf("\n")
 			}

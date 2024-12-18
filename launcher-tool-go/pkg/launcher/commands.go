@@ -11,7 +11,7 @@ import (
 	"ucloud.dk/launcher/pkg/termio"
 )
 
-var postExecFile os.File
+var PostExecFile *os.File
 
 type Commands struct {
 }
@@ -81,7 +81,7 @@ func (c Commands) OpenUserInterface(serviceName string) {
 }
 func (c Commands) OpenLogs(serviceName string) {
 	service := ServiceByName(serviceName)
-	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
 	if service.useServiceConvention {
@@ -101,7 +101,7 @@ func (c Commands) OpenLogs(serviceName string) {
 }
 
 func (c Commands) OpenShell(serviceName string) {
-	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(compose.Exec(currentEnvironment, serviceName, []string{"/bin/sh", "-c", "bash || sh"}, true).ToBashScript())
@@ -226,7 +226,7 @@ func (c Commands) CreateProvider(providerName string) {
 	}
 }
 func (c Commands) ServiceStart(serviceName string) {
-	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(StartService(ServiceByName(serviceName)).ToBashScript())
@@ -234,7 +234,7 @@ func (c Commands) ServiceStart(serviceName string) {
 }
 
 func (c Commands) ServiceStop(serviceName string) {
-	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
 	_, err = file.WriteString(StopService(ServiceByName(serviceName)).ToBashScript())
@@ -318,7 +318,7 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 	}
 }
 func (c Commands) EnvironmentStatus() {
-	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
+	file, err := os.OpenFile(PostExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
 	if _, err = file.WriteString(compose.Ps(currentEnvironment).ToBashScript()); err != nil {

@@ -2,12 +2,10 @@ package launcher
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"ucloud.dk/launcher/pkg/termio"
 )
 
@@ -22,11 +20,11 @@ type SSHConnection struct {
 
 var sshConnection SSHConnection
 
-func GetSSHConnection () SSHConnection {
+func GetSSHConnection() SSHConnection {
 	return sshConnection
 }
 
-func SetSSHConnection (sshCon SSHConnection) {
+func SetSSHConnection(sshCon SSHConnection) {
 	sshConnection = sshCon
 }
 
@@ -43,7 +41,7 @@ func newSSHConnection(username string, host string) SSHConnection {
 	fmt.Println(config)
 	connector := ssh.Client{}
 	remoteRoot := "REMOTE ROOT" //TODO
-	conn :=  SSHConnection{
+	conn := SSHConnection{
 		username:   username,
 		host:       host,
 		ssh:        &connector,
@@ -105,7 +103,7 @@ func (r RemoteFile) Name() string {
 }
 
 func (r RemoteFile) GetAbsolutePath() string {
-	if (r.path[0] != '/') {
+	if r.path[0] != '/' {
 		return r.connection.remoteRoot + "/" + r.path[1:]
 	} else {
 		return r.path
@@ -115,14 +113,17 @@ func (r RemoteFile) GetAbsolutePath() string {
 func (r RemoteFile) Exists() bool {
 	//TODO
 	fmt.Println("Exist call not implemented")
+	panic("implement me before use")
 }
 
 func (r RemoteFile) Child(subPath string) LFile {
-	return NewFile(r.path+"/"+subPath)
+	return NewFile(r.path + "/" + subPath)
 }
 
 func (r RemoteFile) WriteText(text string) {
-	if disableRemoteFileWriting { return }
+	//TODO
+	fmt.Println("Write Text call not implemented")
+	/*if disableRemoteFileWriting { return }
 	sftp := r.connection.sftp
 	file, err := os.CreateTemp("", "*.temp")
 	HardCheck(err)
@@ -130,11 +131,13 @@ func (r RemoteFile) WriteText(text string) {
 	_, err = file.WriteString(text)
 	absPath, err := filepath.Abs(file.Name())
 	HardCheck(err)
-	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())
+	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())*/
 }
 
 func (r RemoteFile) WriteBytes(bytes []byte) {
-	if disableRemoteFileWriting { return }
+	//TODO
+	fmt.Println("Write Bytes call not implemented")
+	/*if disableRemoteFileWriting { return }
 	sftp := r.connection.sftp
 	file, err := os.CreateTemp("", "*.temp")
 	HardCheck(err)
@@ -142,34 +145,39 @@ func (r RemoteFile) WriteBytes(bytes []byte) {
 	_, err = file.Write(bytes)
 	absPath, err := filepath.Abs(file.Name())
 	HardCheck(err)
-	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())
+	sftp.fileTransfer.upload(absPath, r.GetAbsolutePath())*/
 }
 
 func (r RemoteFile) AppendText(text string) {
-	if disableRemoteFileWriting { return }
+	//TODO
+	fmt.Println("Append Text call not implemented")
+	/*if disableRemoteFileWriting { return }
 	r.connection.useSession{
 		it.exec(
 			`
 			 	cat >> '` + EscapeBash(r.GetAbsolutePath()) + `' << EOF
-				`+ text + ` 
+				`+ text + `
 				EOF
 			`,
 		)
-	}
+	}*/
 }
 
 func (r RemoteFile) Delete() {
-	if disableRemoteFileWriting { return }
-	r.connection.useSession { it.exec("rm -rf "+ EscapeBash(r.GetAbsolutePath()))}
+	fmt.Println("Delete call not implemented")
+	/*if disableRemoteFileWriting { return }
+	r.connection.useSession { it.exec("rm -rf "+ EscapeBash(r.GetAbsolutePath()))}*/
 }
 
 func (r RemoteFile) MkDirs() {
-	r.connection.stfp.mkdirs(r.GetAbsolutePath())
+	fmt.Println("MkDirs call not implemented")
+	/*
+		r.connection.stfp.mkdirs(r.GetAbsolutePath())
+	*/
 }
 
-
 type RemoteExecutableCommand struct {
-	connection 		 SSHConnection
+	connection       SSHConnection
 	args             []string
 	workingDir       LFile
 	fn               postProcessor
@@ -189,7 +197,7 @@ func NewRemoteExecutableCommand(
 	streamOutput bool,
 ) *RemoteExecutableCommand {
 	return &RemoteExecutableCommand{
-		connection: 	  connection,
+		connection:       connection,
 		args:             args,
 		workingDir:       workingDir,
 		fn:               fn,
@@ -199,7 +207,7 @@ func NewRemoteExecutableCommand(
 	}
 }
 
-func (r RemoteExecutableCommand) SetStreamOutput()  {
+func (r RemoteExecutableCommand) SetStreamOutput() {
 	r.streamOutput = true
 }
 
@@ -216,7 +224,7 @@ func (r RemoteExecutableCommand) ToBashScript() string {
 	sb.WriteString(" ")
 	sb.WriteString(`"`)
 	if r.workingDir != nil {
-		sb.WriteString("cd " +  EscapeBash(r.workingDir.GetAbsolutePath()) + "; ")
+		sb.WriteString("cd " + EscapeBash(r.workingDir.GetAbsolutePath()) + "; ")
 	}
 	for _, arg := range r.args {
 		sb.WriteString(EscapeBash(arg))
@@ -227,85 +235,98 @@ func (r RemoteExecutableCommand) ToBashScript() string {
 }
 
 func stdoutThread(connection SSHConnection, sb *strings.Builder, boundary string, exitCode *int, command RemoteExecutableCommand) {
-	for {
-		line := connection.shellOutput.readLine()
-		if line[:len(boundary)] == boundary {
-			exitCode = line[len(boundary)+1:]
-			break
-		} else {
-			if command.streamOutput { fmt.Println(line)  }
-			sb.WriteString(line)
+	fmt.Println("StdoutThread not implemented")
+	/*
+		for {
+			line := connection.shellOutput.readLine()
+			if line[:len(boundary)] == boundary {
+				exitCode = line[len(boundary)+1:]
+				break
+			} else {
+				if command.streamOutput { fmt.Println(line)  }
+				sb.WriteString(line)
+			}
 		}
-	}
+
+	*/
 }
 
 func stderrThread(connection SSHConnection, sb *strings.Builder, boundary string, command RemoteExecutableCommand) {
-	for {
-		line := connection.shellOutput.readLine()
-		if line[:len(boundary)] == boundary {
-			break
-		} else {
-			if command.streamOutput { fmt.Println(line)  }
-			sb.WriteString(line)
+	fmt.Println("StderrThread not implemented")
+	/*
+		for {
+			line := connection.shellOutput.readLine()
+			if line[:len(boundary)] == boundary {
+				break
+			} else {
+				if command.streamOutput { fmt.Println(line)  }
+				sb.WriteString(line)
+			}
 		}
-	}
+
+	*/
 }
 
 func (r RemoteExecutableCommand) ExecuteToText() StringPair {
-	boundary, err := uuid.NewUUID()
-	HardCheck(err)
+	fmt.Println("ExecuteToText call not implemented")
+	panic("implement me before use")
+	/*
+		boundary, err := uuid.NewUUID()
+		HardCheck(err)
 
-	sb := new(strings.Builder)
-	if r.workingDir != nil {
-		sb.WriteString("cd " + EscapeBash(r.workingDir.GetAbsolutePath())+ ";")
-	}
-	for _, arg := range r.args {
-		sb.WriteString("'" +  arg + "'")
-		sb.WriteString(" ")
-	}
-	sb.WriteString(" < /dev/null")
-	sb.WriteString("st=${'$'}?")
-	sb.WriteString("echo")
-	sb.WriteString("echo "+ boundary.String() + "-$st")
-	sb.WriteString("echo 1>&2 " + boundary.String())
-
-	r.connection.shell.outputStream.write(
-		[]byte(sb.String()),
-	)
-
-	r.connection.shell.outputStream.flush()
-
-	outputBuilder := &strings.Builder{}
-	errBuilder := &strings.Builder{}
-	exitCode := 0
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go stdoutThread(r.connection, outputBuilder, boundary.String(), &exitCode, r)
-	wg.Add(1)
-	go stderrThread(r.connection, errBuilder, boundary.String(), r)
-	wg.Wait()
-
-	output := outputBuilder.String()
-	errors := errBuilder.String()
-
-	if exitCode != 0 {
-		if r.allowFailure {
-			return StringPair{"", output + errors}
-		} else {
-			fmt.Println("Command failed!")
-			builder := strings.Builder{}
-			for _, arg := range r.args {
-				builder.WriteString(EscapeBash(arg))
-			}
-			fmt.Println("Command ", builder.String())
-			fmt.Println("Directory: ", r.workingDir.GetAbsolutePath())
-			fmt.Println("Exit Code: ", exitCode)
-			fmt.Println("Stdout: ", output)
-			fmt.Println("Stderr: ", errors)
-			os.Exit(exitCode)
+		sb := new(strings.Builder)
+		if r.workingDir != nil {
+			sb.WriteString("cd " + EscapeBash(r.workingDir.GetAbsolutePath())+ ";")
 		}
-	}
-	return StringPair{output, ""}
+		for _, arg := range r.args {
+			sb.WriteString("'" +  arg + "'")
+			sb.WriteString(" ")
+		}
+		sb.WriteString(" < /dev/null")
+		sb.WriteString("st=${'$'}?")
+		sb.WriteString("echo")
+		sb.WriteString("echo "+ boundary.String() + "-$st")
+		sb.WriteString("echo 1>&2 " + boundary.String())
+
+		r.connection.shell.outputStream.write(
+			[]byte(sb.String()),
+		)
+
+		r.connection.shell.outputStream.flush()
+
+		outputBuilder := &strings.Builder{}
+		errBuilder := &strings.Builder{}
+		exitCode := 0
+
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+		go stdoutThread(r.connection, outputBuilder, boundary.String(), &exitCode, r)
+		wg.Add(1)
+		go stderrThread(r.connection, errBuilder, boundary.String(), r)
+		wg.Wait()
+
+		output := outputBuilder.String()
+		errors := errBuilder.String()
+
+		if exitCode != 0 {
+			if r.allowFailure {
+				return StringPair{"", output + errors}
+			} else {
+				fmt.Println("Command failed!")
+				builder := strings.Builder{}
+				for _, arg := range r.args {
+					builder.WriteString(EscapeBash(arg))
+				}
+				fmt.Println("Command ", builder.String())
+				fmt.Println("Directory: ", r.workingDir.GetAbsolutePath())
+				fmt.Println("Exit Code: ", exitCode)
+				fmt.Println("Stdout: ", output)
+				fmt.Println("Stderr: ", errors)
+				os.Exit(exitCode)
+			}
+		}
+		return StringPair{output, ""}
+
+	*/
 }

@@ -16,7 +16,6 @@ import (
 
 var repoRoot string
 var isHeadLess bool = false
-var postExecFile *os.File
 
 func regexpCheck(s string) bool {
 	exists, _ := regexp.MatchString("^[t][0-9]+$", s)
@@ -31,7 +30,7 @@ func main() {
 	}
 
 	postExecPath := os.Args[0]
-	postExecFile, _ = os.Open(postExecPath)
+	launcher.PostExecFile, _ = os.Open(postExecPath)
 
 	if len(args) > 1 && args[1] == "--help" {
 		launcher.PrintHelp()
@@ -193,8 +192,11 @@ func main() {
 			for {
 				configured := launcher.ListConfiguredProviders()
 				providerMenu := CreateProviderMenu()
+				multiple, err := providerMenu.SelectMultiple()
+				launcher.HardCheck(err)
 				filteredItems := []termio.MenuItem{}
-				for _, item := range configured {
+				for _, selectedItem := range multiple {
+					item := selectedItem.Value
 					if slices.Contains(configured, item) {
 						filteredItems = append(filteredItems, termio.MenuItem{Value: item, Message: item})
 					}
@@ -581,16 +583,177 @@ func CliHint(invocation string) {
 	fmt.Println("You can also do this with: '" + "./launcher " + invocation + "'")
 }
 
-func EnvironmentMenu() termio.Menu    {}
-func ServiceActionMenu() termio.Menu  {}
-func CreateProviderMenu() termio.Menu {}
-func ServiceMenu() termio.Menu        {}
+func EnvironmentMenu() termio.Menu {
+	return termio.Menu{
+		Prompt: "Select an action",
+		Items: []termio.MenuItem{
+			{
+				Value:   "status",
+				Message: "Display current environment status",
+			},
+			{
+				Value:   "stop",
+				Message: "Stop current environment",
+			},
+			{
+				Value:   "restart",
+				Message: "Restart current environment",
+			},
+			{
+				Value:   "delete",
+				Message: "Delete current environment",
+			},
+			{
+				Value:   "switch",
+				Message: "Switch current environment or create a new one",
+			},
+		},
+	}
+}
+
+func ServiceActionMenu() termio.Menu {
+	return termio.Menu{
+		Prompt: "Select an action",
+		Items: []termio.MenuItem{
+			{
+				Value:   "start",
+				Message: "Start service",
+			},
+			{
+				Value:   "stop",
+				Message: "Stop service",
+			},
+			{
+				Value:   "restart",
+				Message: "Restart service",
+			},
+		},
+	}
+}
+func CreateProviderMenu() termio.Menu {
+	items := []termio.MenuItem{}
+
+	configuredProviders := launcher.ListConfiguredProviders()
+	allProviders := launcher.AllProviders
+
+	for _, provider := range allProviders {
+		contains := slices.Contains(configuredProviders, provider.Name())
+		if contains {
+			items = append(items, termio.MenuItem{
+				Value:     provider.Name(),
+				Message:   provider.Title() + " Already configured ",
+				Separator: true,
+			})
+		} else {
+			items = append(items, termio.MenuItem{
+				Value:   provider.Name(),
+				Message: provider.Title(),
+			})
+		}
+	}
+	return termio.Menu{
+		Prompt: "Select the providers you wish to configure",
+		Items:  items,
+	}
+}
+func ServiceMenu() termio.Menu {
+	return termio.Menu{
+		Prompt: "Select an action",
+		Items: []termio.MenuItem{
+			{
+				Value:   "start",
+				Message: "Start service",
+			},
+			{
+				Value:   "stop",
+				Message: "Stop service",
+			},
+			{
+				Value:   "restart",
+				Message: "Restart service",
+			},
+		},
+	}
+}
 
 func TopLevelMenu() termio.Menu {
-	menu := termio.Menu{
-		Prompt: "Select an item from the menu",
-		Items:  nil,
+	items := []termio.MenuItem{}
+
+	if launcher.GetEnvironmentIsRemote() {
+		items = append(items, termio.MenuItem{
+			Value:     "Remote development",
+			Message:   "Remote development",
+			Separator: true,
+		})
+
+		items = append(items, termio.MenuItem{
+			Value:   "port-forward",
+			Message: "Enable port-forwarding (REQUIRED)",
+		})
 	}
-	menu
-	return menu
+
+	var message = ""
+	items = append(items, termio.MenuItem{
+		Value:     "Management",
+		Message:   "Management",
+		Separator: true,
+	})
+	if len(launcher.ListConfiguredProviders()) == 0 {
+		message = "Create providers"
+	} else {
+		message = "Create providers (Recommended)"
+	}
+
+	items = append(items, termio.MenuItem{
+		Value:   "providers",
+		Message: message,
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "services",
+		Message: "Manage services...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "environment",
+		Message: "Manage environment...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:     "Development",
+		Message:   "Development",
+		Separator: true,
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "ui",
+		Message: "Open user-interface...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "shell",
+		Message: "Open shell to...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "logs",
+		Message: "Open logs...",
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:     "Support",
+		Message:   "Support",
+		Separator: true,
+	})
+
+	items = append(items, termio.MenuItem{
+		Value:   "test",
+		Message: "Run a test suite...",
+	})
+
+	return termio.Menu{
+		Prompt: "Select an item from the menu",
+		Items:  items,
+	}
+
 }
