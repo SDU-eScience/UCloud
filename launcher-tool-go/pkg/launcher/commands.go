@@ -58,7 +58,7 @@ func (c Commands) PortForward() {
 			echo;
 			echo;
 			echo;
-			sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ` + forward + conn.username + `@` + conn.host + ` sleep inf  
+			sudo -E ssh -F ~/.ssh/config -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ` + forward + conn.username + `@` + conn.host + ` sleep inf
 		`)*/
 	}
 }
@@ -168,10 +168,58 @@ func (c Commands) CreateProvider(providerName string) {
 
 		err = termio.LoadingIndicator("Granting credits to provider project", func(output *os.File) error {
 			accessToken := FetchAccessToken()
-			productPage := //TODO()
-			productItems := productPage["items"]
+			response := CallService(
+				"backend",
+				"GET",
+				"http://localhost:8080/api/products/browse?filterProvider="+providerName+"&itemsPerPage=250",
+				accessToken,
+				"",
+				[]string{},
+			)
+			if response == "" {
+				panic("Failed to retrieve products from UCloud")
+			}
+			bulk := ProductBulkResponse{responses: []ProductV2{}}
+			err := json.Unmarshal([]byte(response), &bulk)
+			SoftCheck(err)
+			productCategories := make(map[string]ProductCategory)
+			for _, resp := range bulk.responses {
+				productCategories[resp.category.name] = resp.category
+			}
 
-			//TODO
+			currentYear, _, _ := time.Now().Date()
+			start := time.Date(currentYear, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+
+			end := time.Date(currentYear+1, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+
+			for _, category := range productCategories {
+				response := CallService(
+					"backend",
+					"POST",
+					"http://localhost:8080/api/accounting/v2/rootAllocate",
+					accessToken,
+					//language=json
+					`
+					{
+						"items": [
+							{
+								"category": { "name": "`+category.name+`", "provider": "`+providerName+`" },
+								"quota": 50000000000,
+								"start": `+strconv.FormatInt(start, 10)+`,
+								"end": `+strconv.FormatInt(end, 10)+`
+							}
+						]
+					}
+				`,
+					[]string{
+						"-H", "Project: " + credentials.projectId,
+					},
+				)
+				if response == "" {
+					panic("Failed to create root deposit for " + category.name + ", " + category.provider)
+				}
+			}
+			return nil
 		})
 		HardCheck(err)
 
@@ -185,7 +233,7 @@ func (c Commands) ServiceStart(serviceName string) {
 	HardCheck(err)
 }
 
-func (c Commands) ServiceStop(serviceName string)  {
+func (c Commands) ServiceStop(serviceName string) {
 	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
@@ -231,7 +279,7 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 						nil,
 						PostProcessorFunc,
 						false,
-						1000 * 60 * 5,
+						1000*60*5,
 						false,
 					)
 					com.SetStreamOutput()
@@ -242,15 +290,14 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 		})
 		HardCheck(err)
 
-
 		err = termio.LoadingIndicator("Deleting files associated with cirtual cluster...", func(output *os.File) error {
 			path := filepath.Dir(currentEnvironment.GetAbsolutePath())
 			ex := NewExecutableCommand(
-				[]string{FindDocker(), "run", "-v", path+":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/"+currentEnvironment.Name()},
+				[]string{FindDocker(), "run", "-v", path + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/" + currentEnvironment.Name()},
 				nil,
 				PostProcessorFunc,
 				false,
-				1000 * 60 * 5,
+				1000*60*5,
 				false,
 			)
 
@@ -265,7 +312,7 @@ func (c Commands) EnvironmentDelete(shutdown bool) {
 		pa, err := filepath.Abs(localEnvironment.Name())
 		HardCheck(err)
 		parent := filepath.Dir(pa)
-		err = os.Remove(parent+"current.txt")
+		err = os.Remove(parent + "current.txt")
 		HardCheck(err)
 		os.RemoveAll(pa)
 	}
@@ -274,7 +321,9 @@ func (c Commands) EnvironmentStatus() {
 	file, err := os.OpenFile(postExecFile.Name(), os.O_APPEND, 644)
 	HardCheck(err)
 	defer file.Close()
-	if _, err = file.WriteString(compose.Ps(currentEnvironment).ToBashScript()); err != nil {panic("Something wrong. Cannot write")}
+	if _, err = file.WriteString(compose.Ps(currentEnvironment).ToBashScript()); err != nil {
+		panic("Something wrong. Cannot write")
+	}
 }
 func (c Commands) ImportApps() {
 	err := termio.LoadingIndicator("Importing applications", func(output *os.File) error {
@@ -311,7 +360,7 @@ func (c Commands) CreateSnapshot(snapshotName string) {
 				executeCom := compose.Exec(
 					currentEnvironment,
 					service.containerName,
-					[]string {"/opt/ucloud/service.sh", "snapshot", snapshotName},
+					[]string{"/opt/ucloud/service.sh", "snapshot", snapshotName},
 					false,
 				)
 				executeCom.SetAllowFailure()
@@ -333,7 +382,7 @@ func (c Commands) RestoreSnapshot(snapshotName string) {
 				executeCom := compose.Exec(
 					currentEnvironment,
 					service.containerName,
-					[]string {"/opt/ucloud/service.sh", "restore", snapshotName},
+					[]string{"/opt/ucloud/service.sh", "restore", snapshotName},
 					false,
 				)
 
@@ -347,7 +396,7 @@ func (c Commands) RestoreSnapshot(snapshotName string) {
 	HardCheck(err)
 }
 
-func StopService(service Service) ExecutableCommandInterface  {
+func StopService(service Service) ExecutableCommandInterface {
 	if service.useServiceConvention {
 		return compose.Exec(
 			currentEnvironment,
@@ -368,7 +417,7 @@ func CallService(
 	body string,
 	opts []string,
 ) string {
-	list := []string {
+	list := []string{
 		"curl",
 		"-ssS",
 		"-X$method",
@@ -377,7 +426,7 @@ func CallService(
 		"Authorization: Bearer " + bearer,
 	}
 	if body != "" {
-		list = append(list, "-H",)
+		list = append(list, "-H")
 		list = append(list, "Content-Type: application/json")
 		list = append(list, "-d")
 		list = append(list, body)
@@ -398,7 +447,7 @@ func CallService(
 	return executeCom.ExecuteToText().First
 }
 
-func StartProviderService(providerId string){
+func StartProviderService(providerId string) {
 	AddProvider(providerId)
 	GenerateComposeFile(true)
 	err := termio.LoadingIndicator("Starting provider services...", func(output *os.File) error {
@@ -412,24 +461,20 @@ type AccessTokenWrapper struct {
 	accessToken string
 }
 
-type BulkResponse struct {
-	responses []any
-}
-
-type FindByStringId struct {
-	id string
-}
-
 func GetCredentialsFromJSON(json string) (publicKey string, refreshToken string) {
 	for _, line := range strings.Split(json, "\n") {
 		if strings.Contains(line, "publicKey") {
-			splitList :=  strings.Split(line, `"`)
-			if len(splitList) > 4 { panic("Cannot get credentials (public)")}
+			splitList := strings.Split(line, `"`)
+			if len(splitList) > 4 {
+				panic("Cannot get credentials (public)")
+			}
 			publicKey = splitList[len(splitList)-2]
 		}
 		if strings.Contains(line, "refreshToken") {
-			splitList :=  strings.Split(line, `"`)
-			if len(splitList) > 4 { panic("Cannot get credentials (refresh token)")}
+			splitList := strings.Split(line, `"`)
+			if len(splitList) > 4 {
+				panic("Cannot get credentials (refresh token)")
+			}
 			refreshToken = splitList[len(splitList)-2]
 		}
 	}
@@ -438,7 +483,9 @@ func GetCredentialsFromJSON(json string) (publicKey string, refreshToken string)
 
 func FetchAccessToken() string {
 	tokenJson := CallService("backend", "POST", "http://localhost:8080/auth/refresh", "theverysecretadmintoken", "", []string{})
-	if tokenJson == "" { panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.") }
+	if tokenJson == "" {
+		panic("Failed to contact UCloud/Core backend. Check to see if the backend service is running.")
+	}
 	var accessToken AccessTokenWrapper
 	json.Unmarshal([]byte(tokenJson), &accessToken)
 	return accessToken.accessToken
@@ -457,7 +504,7 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 				"items": [
 					{
 						"parent": null,
-						"title": "Provider ` + providerId + `",
+						"title": "Provider `+providerId+`",
 						"canConsumeResources": false
 					}
 				]
@@ -472,18 +519,18 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 		panic("Project creation failed. Check backend logs.")
 	}
 
-	bresp := BulkResponse{
-		responses: make([]any, 0),
+	bresp := FindByStringIDBulkResponse{
+		responses: []FindByStringId{},
 	}
 	json.Unmarshal([]byte(resp), &bresp)
 	var projectId = ""
 	if len(bresp.responses) == 0 {
 		panic("No projects found. Check backend logs.")
 	} else {
-		projectId = FindByStringId(bresp.responses[0]).id
+		projectId = bresp.responses[0].id
 	}
 
-	 resp = CallService(
+	resp = CallService(
 		"backend",
 		"POST",
 		"http://localhost:8080/api/grants/v2/updateRequestSettings",
@@ -492,7 +539,7 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 		`
 			{
 				"enabled": true,
-				"description": "An example grant allocator allocating for ` + providerId + `",
+				"description": "An example grant allocator allocating for `+providerId+`",
 				"allowRequestsFrom": [{ "type":"anyone" }],
 				"excludeRequestsFrom": [],
 				"templates": {
@@ -509,24 +556,24 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 		},
 	)
 
-	 if resp == "" {
-		 panic("Failed to mark project as grant giver")
-	 }
+	if resp == "" {
+		panic("Failed to mark project as grant giver")
+	}
 
-	 resp = CallService(
-		 "backend",
-		 "POST",
-		 "http://localhost:8080/api/providers",
-		 accessToken,
-		 //language=json
-		 `
+	resp = CallService(
+		"backend",
+		"POST",
+		"http://localhost:8080/api/providers",
+		accessToken,
+		//language=json
+		`
 			{
 				"items": [
 					{
-						"id": "` + providerId + `",
-						"domain": "` + domain + `",
+						"id": "`+providerId+`",
+						"domain": "`+domain+`",
 						"https": false,
-						"port": ` + strconv.Itoa(port) + `
+						"port": `+strconv.Itoa(port)+`
 					}
 				]
 			}
@@ -536,31 +583,30 @@ func RegisterProvider(providerId string, domain string, port int) ProviderCreden
 			"-H", "Project: " + projectId,
 		},
 	)
-	 if resp == "" {
-		 panic("Provider creation failed. Check backend logs.")
-	 }
+	if resp == "" {
+		panic("Provider creation failed. Check backend logs.")
+	}
 
-	 resp = CallService(
-		 "backend",
-		 "GET",
-		 "http://localhost:8080/api/providers/browse?filterName=$providerId",
-		 accessToken,
-		 "",
-		 []string{
-			 "-H", "Project: " + projectId,
-		 },
-	 )
-	 if resp == "" {
-		 panic("Provider creation failed. Check backend logs")
-	 }
+	resp = CallService(
+		"backend",
+		"GET",
+		"http://localhost:8080/api/providers/browse?filterName=$providerId",
+		accessToken,
+		"",
+		[]string{
+			"-H", "Project: " + projectId,
+		},
+	)
+	if resp == "" {
+		panic("Provider creation failed. Check backend logs")
+	}
 
-
-	 publicKey, refreshToken := GetCredentialsFromJSON(resp)
-	 return ProviderCredentials{
-		 publicKey:    publicKey,
-		 refreshToken: refreshToken,
-		 projectId:    projectId,
-	 }
+	publicKey, refreshToken := GetCredentialsFromJSON(resp)
+	return ProviderCredentials{
+		publicKey:    publicKey,
+		refreshToken: refreshToken,
+		projectId:    projectId,
+	}
 }
 
 func StartCluster(compose DockerCompose, noRecreate bool) {
@@ -579,7 +625,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 	HardCheck(err)
 
 	err = termio.LoadingIndicator("Waiting for UCLoud to be ready...", func(output *os.File) error {
-		cmd := compose.Exec(currentEnvironment, "backend", []string {"curl", "http://localhost:8080"}, false)
+		cmd := compose.Exec(currentEnvironment, "backend", []string{"curl", "http://localhost:8080"}, false)
 		cmd.SetAllowFailure()
 
 		for i := range 100 {
@@ -597,7 +643,7 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 
 	allAddons := ListAddons()
 	for _, provider := range ListConfiguredProviders() {
-		err = termio.LoadingIndicator("Starting provider: " + ProviderFromName(provider).Title(), func(output *os.File) error {
+		err = termio.LoadingIndicator("Starting provider: "+ProviderFromName(provider).Title(), func(output *os.File) error {
 			StartService(ServiceByName(provider)).ExecuteToText()
 			return nil
 		})
@@ -607,9 +653,11 @@ func StartCluster(compose DockerCompose, noRecreate bool) {
 		if len(addons) != 0 {
 			p := ProviderFromName(provider)
 			gs, ok := p.(GoSlurm)
-			if !ok { return }
+			if !ok {
+				return
+			}
 			for _, addon := range addons {
-				err = termio.LoadingIndicator("Starting addon: " + addon, func(output *os.File) error {
+				err = termio.LoadingIndicator("Starting addon: "+addon, func(output *os.File) error {
 					gs.StartAddon(addon)
 					return nil
 				})
