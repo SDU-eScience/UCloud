@@ -780,13 +780,14 @@ const CategoryDescriptorPanel: React.FunctionComponent<{
     expiresAt: number;
 }> = props => {
     const now = timestampUnixMs();
+    const isCompute = props.category.productType === "COMPUTE";
     const description = Accounting.guesstimateProductCategoryDescription(props.category.name, props.category.provider);
-    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, props.category.productType === "COMPUTE" ? HasAlotOfInfoClass.class : undefined)}>
+    return <div className={classConcat(CardClass, CategoryDescriptorPanelStyle, isCompute ? HasAlotOfInfoClass.class : undefined)}>
         <div className={"figure-and-title"}>
             <figure>
                 <Icon name={Accounting.productTypeToIcon(props.category.productType)} size={128} />
                 <div style={{position: "relative"}}>
-                    <ProviderLogo providerId={props.category.provider} size={64} />
+                    <ProviderLogo providerId={props.category.provider} size={isCompute ? 32 : 64} />
                 </div>
             </figure>
             <h1><code>{props.category.name}</code></h1>
