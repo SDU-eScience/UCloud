@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Accounting from ".";
 import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
-import {Flex, Icon, Input, Radio, Text, MainContainer, Box} from "@/ui-components";
+import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -14,7 +14,7 @@ import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as Jobs from "@/Applications/Jobs";
-import api, {useProjectId} from "@/Project/Api";
+import {useProjectId} from "@/Project/Api";
 import {formatDistance} from "date-fns";
 import {GradientWithPolygons} from "@/ui-components/GradientBackground";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -25,9 +25,6 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProject} from "@/Project/cache";
 import * as Heading from "@/ui-components/Heading";
-import {Project} from "@/Project";
-import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {Client} from "@/Authentication/HttpClientInstance";
 
 // State
 // =====================================================================================================================
