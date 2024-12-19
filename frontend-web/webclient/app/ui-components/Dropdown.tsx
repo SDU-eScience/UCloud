@@ -101,6 +101,22 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     ${k}[data-hover-color="true"] > *:hover:not(.${ButtonClass}) {
         background: var(--rowHover);
     }
+
+    ${k} a {
+        color: var(--textPrimary);
+    }
+
+    ${k} a:hover {
+        color: var(--textPrimary);
+    }
+
+    ${k} a div {
+        background: var(--backgroundDefault);
+    }
+
+    ${k} a div:hover {
+        background: var(--rowHover);
+    }
 `);
 
 export function DropdownContent({
