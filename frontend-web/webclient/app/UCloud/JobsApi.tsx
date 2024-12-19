@@ -27,6 +27,8 @@ import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+import {Feature, hasFeature} from "@/Features";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -303,6 +305,22 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             text: "Run application again",
             shortcut: ShortcutKey.P
         }];
+
+        if (hasFeature(Feature.JOB_RENAME)) {
+            ourOps.push({
+                enabled(selected) {
+                    // TODO(Jonas): Should this work for every state of a job?
+                    // What about apps like syncthing?
+                    return selected.length === 1; 
+                },
+                icon: "edit",
+                onClick([job], extra) {
+                    extra.startRenaming?.(job, "job name");
+                },
+                text: "Rename",
+                shortcut: ShortcutKey.R,
+            })
+        }
 
         return ourOps.concat(baseOperations);
     }
