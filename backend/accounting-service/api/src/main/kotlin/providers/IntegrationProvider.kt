@@ -41,6 +41,22 @@ data class ReverseConnectionClaimedRequest(
     val username: String,
 )
 
+enum class ProviderStatusLevel {
+    NORMAL,
+    DEGRADED,
+    MAINTENANCE,
+    DOWN,
+    UNKNOWN
+}
+
+@Serializable
+data class ProviderCondition(
+    val status: ProviderStatusLevel = ProviderStatusLevel.UNKNOWN,
+    val link: String? = null,
+)
+
+typealias IntegrationProviderRetrieveConditionRequest = Unit
+
 @UCloudApiDoc("Provider interface for the integration module")
 open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$namespace.im") {
     private val baseContext = "/ucloud/$namespace/integration"
@@ -55,6 +71,10 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
 
     val connect = call("connect", IntegrationProviderConnectRequest.serializer(), IntegrationProviderConnectResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "connect", roles = Roles.PRIVILEGED)
+    }
+
+    val retrieveStatus = call("retrieveStatus", IntegrationProviderRetrieveConditionRequest.serializer(), ProviderCondition.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "status", roles = Roles.PUBLIC)
     }
 
     @Deprecated("Use the simpler register endpoint instead")

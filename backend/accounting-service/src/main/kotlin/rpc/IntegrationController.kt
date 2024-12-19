@@ -25,6 +25,10 @@ class IntegrationController(
             ok(Unit)
         }
 
+        implement(Integration.condition) {
+            ok(integrationService.retrieveCondition(actorAndProject, request.provider))
+        }
+
         implement(IntegrationControl.clearConnection) {
             integrationService.clearConnection(actorAndProject, request.username, request.provider)
             ok(Unit)

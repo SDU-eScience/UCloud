@@ -23,6 +23,7 @@ import dk.sdu.cloud.service.db.async.withSession
 import java.security.cert.CertPathValidatorException
 import java.util.*
 
+
 class ProviderIntegrationService(
     private val db: DBContext,
     private val providers: ProviderService,
@@ -56,6 +57,19 @@ class ProviderIntegrationService(
             Communication(integrationProvider, httpClient, spec, manifest)
         }
     )
+    private val providerConditionCache = SimpleCache<String, ProviderStatus>(
+        maxAge = 1000 * 60 * 5L,
+    ) { providerId ->
+        val (integrationProvider, httpClient, providerSpec)  = communicationCache.get(providerId) ?:
+            throw RPCException("Connection is not supported by this provider", HttpStatusCode.BadRequest)
+
+        val result = integrationProvider.retrieveStatus.call(
+            Unit,
+            httpClient
+        ).orNull()
+
+        (result ?: ProviderStatus()) as ProviderStatus
+    }
 
     private data class Communication(
         val api: IntegrationProvider,
@@ -191,6 +205,13 @@ class ProviderIntegrationService(
 
             PageV2(itemsPerPage, items, next)
         }
+    }
+
+    suspend fun retrieveCondition(
+        actorAndProject: ActorAndProject,
+        providerId: String
+    ): ProviderStatus {
+        return providerConditionCache.get(providerId) ?: ProviderStatus()
     }
 
     suspend fun clearConnection(
