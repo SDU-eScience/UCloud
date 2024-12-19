@@ -236,23 +236,23 @@ function DashboardResources({wallets}: {
                     <Box maxHeight={"600px"} overflowY={"auto"}>
                         <Table>
                             <tbody>
-                                {displayWallets.map((w, i) => (
+                                {displayWallets.map(({usageAndQuota, category}, i) => (
                                     <TableRow height="55px" key={i}>
                                         <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                             <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={w.category.provider} size={30} />
-                                                <code>{w.category.name}</code>
+                                                <ProviderLogo providerId={category.provider} size={30} />
+                                                <code>{category.name}</code>
                                             </Flex>
                                         </TableCell>
                                         <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             <Flex justifyContent="end">
-                                                {!w.usageAndQuota.display.displayOverallocationWarning ? null :
+                                                {!usageAndQuota.display.displayOverallocationWarning ? null :
                                                     <OverallocationLink>
                                                         <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
                                                             <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
                                                         </TooltipV2>
                                                     </OverallocationLink>}
-                                                {w.usageAndQuota.display.usageAndQuota}
+                                                {usageAndQuota.display.usageAndQuota} ({Math.round(usageAndQuota.display.percentageUsed)}% used)
                                             </Flex>
                                         </TableCell>
                                     </TableRow>
