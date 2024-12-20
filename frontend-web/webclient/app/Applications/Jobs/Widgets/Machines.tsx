@@ -29,12 +29,7 @@ export function findRelevantMachinesForApplication(
                         case "SINGULARITY":
                             return false;
                         case "VIRTUAL_MACHINE":
-                            return it.support.virtualMachine.enabled &&
-                                (
-                                    tool.description.supportedProviders === null ||
-                                    (tool.description.supportedProviders ?? [])
-                                        .some(p => p === it.product.category.provider)
-                                )
+                            return it.support.virtualMachine.enabled;
                         case "NATIVE":
                             return it.support.native.enabled &&
                                 (

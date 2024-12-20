@@ -1,4 +1,4 @@
-package k8s
+package filesystem
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"strings"
 	"ucloud.dk/pkg/apm"
 	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
@@ -120,7 +121,7 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 
 func DriveToLocalPath(drive *orc.Drive) string {
 	descriptor, _ := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
-	mnt := ServiceConfig.FileSystem.MountPoint
+	mnt := shared.ServiceConfig.FileSystem.MountPoint
 
 	switch descriptor.Type {
 	case DriveDescriptorTypeHome:

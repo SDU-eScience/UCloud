@@ -1,6 +1,6 @@
 //go:build !windows && !plan9
 
-package k8s
+package filesystem
 
 import (
 	"golang.org/x/sys/unix"

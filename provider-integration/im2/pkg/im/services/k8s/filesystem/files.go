@@ -1,4 +1,4 @@
-package k8s
+package filesystem
 
 import (
 	"context"
@@ -20,6 +20,7 @@ import (
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/controller/upload"
+	"ucloud.dk/pkg/im/services/k8s/shared"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -505,7 +506,7 @@ func retrieveProducts() []orc.FSSupport {
 
 func loadStorageProducts() {
 	pc := apm.ProductCategory{
-		Name:        ServiceConfig.FileSystem.Name,
+		Name:        shared.ServiceConfig.FileSystem.Name,
 		Provider:    cfg.Provider.Id,
 		ProductType: apm.ProductTypeStorage,
 		AccountingUnit: apm.AccountingUnit{
@@ -590,7 +591,7 @@ func loadStorageProducts() {
 	projectHomeSupport := shareSupport
 	projectHomeSupport.Product.Id = projectHomeProduct.Name
 
-	StorageProducts = []apm.ProductV2{defaultProduct, shareProduct, projectHomeProduct}
+	shared.StorageProducts = []apm.ProductV2{defaultProduct, shareProduct, projectHomeProduct}
 	storageSupport = []orc.FSSupport{defaultSupport, shareSupport, projectHomeSupport}
 }
 
@@ -774,7 +775,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	}
 
 	parentDir, ok1 := openFile(filepath.Dir(trashLocation), unix.O_RDONLY, 0)
-	stagingArea, ok2 := openFile(ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
+	stagingArea, ok2 := openFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
 	defer util.SilentClose(stagingArea)
 	if !ok1 || !ok2 {

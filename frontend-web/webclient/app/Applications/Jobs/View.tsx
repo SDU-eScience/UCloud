@@ -452,6 +452,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         s.subscriptions.forEach(it => it());
     }, [job]);
 
+    const isVirtualMachine = status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
@@ -471,7 +473,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             </div>
             {!job || !status ? null : (
                 <CSSTransition
-                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
+                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine && dataAnimationAllowed}
                     timeout={{
                         enter: 1000,
                         exit: 0,
@@ -500,7 +502,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
             {!job || !status ? null : (
                 <CSSTransition
-                    in={status?.state === "RUNNING" && dataAnimationAllowed}
+                    in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
@@ -887,6 +889,10 @@ const RunningContent: React.FunctionComponent<{
     const supportsSuspend = isSupported(backendType, support, "suspension");
     const supportsPeers = isSupported(backendType, support, "peers");
 
+    useEffect(() => {
+        setSuspended(job.status.state === "SUSPENDED");
+    }, [job.status.state]);
+
     const sshAccess: ParsedSshAccess | null = useMemo(() => {
         const res = parseUpdatesForAccess(job.updates);
         if (res) return res;
@@ -958,11 +964,18 @@ const RunningContent: React.FunctionComponent<{
                                 </>}
                                 {!supportsSuspend ? null :
                                     suspended ?
-                                        <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                            onAction={unsuspendJob} /> :
-                                        <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                            onAction={suspendJob} />
-
+                                        <Button color={"successMain"} fullWidth onClick={unsuspendJob}>
+                                            <Icon name={"heroPower"} mr={"8px"} />
+                                            Power on
+                                        </Button> :
+                                        <ConfirmationButton
+                                            actionText="Power off"
+                                            fullWidth
+                                            mt="8px"
+                                            mb="4px"
+                                            icon={"heroPower"}
+                                            onAction={suspendJob}
+                                        />
                                 }
                             </Box>
                         </Flex>
@@ -1374,10 +1387,12 @@ const RunningButtonGroup: React.FunctionComponent<{
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = isSupported(backendType, support, "terminal");
     const appType = getAppType(job);
-    const supportsInterface =
-        (appType === "WEB" && isSupported(backendType, support, "web")) ||
-        (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
+    const isVirtualMachine =
+        job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+
+    const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+    const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
@@ -1399,7 +1414,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {appType !== "WEB" || !supportsInterface ? null : (
+        {!canShowWeb ? null : (
             <Link to={redirectToWeb ?? ""} aria-disabled={!redirectToWeb} target={"_blank"}>
                 <Button width="220px" disabled={!redirectToWeb}>
                     <Icon name={"heroArrowTopRightOnSquare"} />
@@ -1407,7 +1422,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Button>
             </Link>
         )}
-        {appType !== "VNC" || !supportsInterface ? null : (
+        {!canShowVnc ? null : (
             <Link to={`/applications/vnc/${job.id}/${rank}?hide-frame`} target={"_blank"} onClick={e => {
                 e.preventDefault();
 

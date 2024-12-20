@@ -17,3 +17,11 @@ func BoolPointer(value bool) *bool {
 		return FalsePointer
 	}
 }
+
+func StringPointer(value string) *string {
+	return &value
+}
+
+func UintPointer(value uint) *uint {
+	return &value
+}

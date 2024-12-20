@@ -7,22 +7,22 @@ import (
 )
 
 func TestBasicScheduling(t *testing.T) {
-	scheduler := NewScheduler("example", 1)
+	scheduler := newScheduler(1)
 
 	for i := 0; i < 10; i++ {
-		scheduler.RegisterNode(fmt.Sprintf("node-%v", i), 1000, 1000, 0, false)
+		scheduler.RegisterNode(fmt.Sprintf("node-%v", i), "example", 1000, 1000, 0, false)
 	}
 
-	fullNode := SchedulerDimensions{
-		Cpu:    1000,
-		Memory: 1000,
+	fullNode := schedulerDimensions{
+		CpuMillis:     1000,
+		MemoryInBytes: 1000,
 	}
 
 	for i := 0; i < 100; i++ {
-		scheduler.RegisterJobInQueue(i, fullNode, 0, 1, 0)
+		scheduler.RegisterJobInQueue(fmt.Sprint(i), "example", fullNode, 0, 1, 0)
 	}
 
-	jobsSeen := map[int]bool{}
+	jobsSeen := map[string]bool{}
 	for i := 0; i < 10; i++ {
 		newJobs := scheduler.Schedule()
 		nodesSeen := map[string]bool{}
