@@ -13,6 +13,8 @@ export enum Feature {
 
     COPY_APP_MOCKUP,
 
+    JOB_RENAME,
+
     APP_CATALOG_FILTER,
 
     NEW_TASKS,
@@ -115,6 +117,12 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.EDITOR_VIM,
         showWithoutFlag: allLocalEnvironments,
         showWithFlag: allEnvironments,
+    },
+
+    "job-rename": {
+        feature: Feature.JOB_RENAME,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: allLocalEnvironments
     }
 };
 
