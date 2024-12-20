@@ -150,16 +150,24 @@ func (l LocalExecutableCommand) ExecuteToText() StringPair {
 		fmt.Println("Command: " + strings.Join(l.args, " "))
 	}
 
+	fmt.Println("Command: " + strings.Join(l.args, " "))
+
 	deadline := time.Now().UnixMilli() + l.deadlineInMillis
 
 	//TODO(PROCESS BUILDER)
-	var procAttr *os.ProcAttr
+	var procAttr = os.ProcAttr{
+		Dir:   "",
+		Env:   nil,
+		Files: nil,
+		Sys:   nil,
+	}
+
 	if l.workingDir != nil {
 		procAttr.Dir = l.workingDir.GetAbsolutePath()
 	}
 	procAttr.Files = []*os.File{os.Stdin, os.Stdout, os.Stderr}
 
-	proc, err := os.StartProcess("name", l.args, procAttr)
+	proc, err := os.StartProcess(l.args[0], l.args[1:], &procAttr)
 	HardCheck(err)
 
 	err = os.Stdout.Close()

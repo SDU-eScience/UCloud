@@ -297,7 +297,7 @@ func NewPluginCompose(exe string) *Plugin {
 }
 
 func FindDocker() string {
-	return ExecuteCommand([]string{"/usr/bin/which", "docker"}, false)
+	return strings.TrimSuffix(ExecuteCommand([]string{"/usr/bin/which", "docker"}, false), "\n")
 }
 
 func FindCompose() DockerCompose {

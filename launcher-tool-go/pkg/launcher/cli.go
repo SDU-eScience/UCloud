@@ -54,8 +54,8 @@ func CliIntercept(args []string) {
 			if svcName == "" {
 				PrintHelp()
 			}
-			service := serviceByName(svcName)
-			if service == nil {
+			service := ServiceByName(svcName)
+			if service.containerName == "" || service.title == "" {
 				fmt.Println("Unknown service:", svcName, "! Try on of the following:")
 				for _, ser := range AllServices {
 					fmt.Println("  - ", ser.containerName, ": ", ser.title)
@@ -82,29 +82,29 @@ func CliIntercept(args []string) {
 					switch svcCommand {
 					case "start":
 						{
-							commands.serviceStart(svcName)
+							commands.ServiceStart(svcName)
 						}
 					case "stop":
 						{
-							commands.serviceStop(svcName)
+							commands.ServiceStop(svcName)
 						}
 					case "restart":
 						{
-							commands.serviceStop(svcName)
-							commands.serviceStart(svcName)
+							commands.ServiceStop(svcName)
+							commands.ServiceStart(svcName)
 						}
 					}
 					if slices.Contains(args, "--follow") {
-						commands.openLogs(svcName)
+						commands.OpenLogs(svcName)
 					}
 				}
 			case "sh", "shell", "exec":
 				{
-					commands.openShell(svcName)
+					commands.OpenShell(svcName)
 				}
 			case "logs":
 				{
-					commands.openLogs(svcName)
+					commands.OpenLogs(svcName)
 				}
 
 			default:
@@ -186,29 +186,29 @@ func CliIntercept(args []string) {
 			switch envCommand {
 			case "status":
 				{
-					commands.environmentStatus()
+					commands.EnvironmentStatus()
 				}
 			case "stop":
 				{
-					commands.environmentStop()
+					commands.EnvironmentStop()
 				}
 			case "delete":
 				{
-					commands.environmentDelete(true)
+					commands.EnvironmentDelete(true)
 				}
 			case "restart":
 				{
-					commands.environmentRestart()
+					commands.EnvironmentRestart()
 				}
 			}
 		}
 	case "port-forward":
 		{
-			commands.portForward()
+			commands.PortForward()
 		}
 	case "import-apps":
 		{
-			commands.importApps()
+			commands.ImportApps()
 		}
 	case "add-provider":
 		{
@@ -219,7 +219,7 @@ func CliIntercept(args []string) {
 			if provider == "" {
 				PrintHelp()
 			}
-			commands.createProvider(provider)
+			commands.CreateProvider(provider)
 		}
 	case "snapshot":
 		{
@@ -230,7 +230,7 @@ func CliIntercept(args []string) {
 			if snapshotName == "" {
 				PrintHelp()
 			}
-			commands.createSnapshot(snapshotName)
+			commands.CreateSnapshot(snapshotName)
 		}
 	case "restore":
 		{
@@ -241,7 +241,7 @@ func CliIntercept(args []string) {
 			if snapshotName == "" {
 				PrintHelp()
 			}
-			commands.restoreSnapshot(snapshotName)
+			commands.RestoreSnapshot(snapshotName)
 		}
 	}
 }

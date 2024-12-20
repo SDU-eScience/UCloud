@@ -207,8 +207,8 @@ func InitCurrentEnvironment(shouldInitializeTestEnvironment bool, baseDir string
 	var currentIsRemote bool
 	if currentEnvironmentName != "" {
 		remoteName := filepath.Join(baseDir, currentEnvironmentName, "remote")
-		_, statError := os.Stat(remoteName)
-		currentIsRemote = statError != nil
+		stat, _ := os.Stat(remoteName)
+		currentIsRemote = stat != nil
 	} else {
 		currentIsRemote = false
 	}

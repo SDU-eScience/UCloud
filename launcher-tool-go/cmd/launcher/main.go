@@ -67,7 +67,8 @@ func main() {
 	isHeadLess = shouldInitializeTestEnvironment || (slices.Contains(args, "env") && slices.Contains(args, "delete")) ||
 		(slices.Contains(args, "snapshot") && (slices.IndexFunc(args, regexpCheck) != -1))
 
-	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, repoRoot).ShouldStartEnvironment
+	composeDir := filepath.Join(repoRoot, ".compose")
+	shouldStart := launcher.InitCurrentEnvironment(shouldInitializeTestEnvironment, composeDir).ShouldStartEnvironment
 
 	compose := launcher.FindCompose()
 	launcher.SetCompose(compose)

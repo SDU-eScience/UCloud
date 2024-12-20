@@ -22,8 +22,6 @@ func (s Service) ContainerName() string {
 	return s.containerName
 }
 
-func NewService() {}
-
 var AllServices = make(map[string]Service)
 
 func ServiceByName(name string) Service {
