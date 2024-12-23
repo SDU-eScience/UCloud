@@ -57,18 +57,18 @@ class ProviderIntegrationService(
             Communication(integrationProvider, httpClient, spec, manifest)
         }
     )
-    private val providerConditionCache = SimpleCache<String, ProviderStatus>(
+    private val providerConditionCache = SimpleCache<String, ProviderCondition>(
         maxAge = 1000 * 60 * 5L,
     ) { providerId ->
         val (integrationProvider, httpClient, providerSpec)  = communicationCache.get(providerId) ?:
             throw RPCException("Connection is not supported by this provider", HttpStatusCode.BadRequest)
 
-        val result = integrationProvider.retrieveStatus.call(
+        val result = integrationProvider.retrieveCondition.call(
             Unit,
             httpClient
         ).orNull()
 
-        (result ?: ProviderStatus()) as ProviderStatus
+        (result ?: ProviderStatus()) as ProviderCondition
     }
 
     private data class Communication(
@@ -208,10 +208,9 @@ class ProviderIntegrationService(
     }
 
     suspend fun retrieveCondition(
-        actorAndProject: ActorAndProject,
         providerId: String
-    ): ProviderStatus {
-        return providerConditionCache.get(providerId) ?: ProviderStatus()
+    ): ProviderCondition {
+        return providerConditionCache.get(providerId) ?: ProviderCondition()
     }
 
     suspend fun clearConnection(

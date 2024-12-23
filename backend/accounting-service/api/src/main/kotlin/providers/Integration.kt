@@ -57,7 +57,7 @@ object Integration : CallDescriptionContainer("providers.im") {
     }
 
     val condition = call("condition", IntegrationRetrieveConditionRequest.serializer(), ProviderCondition.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, "condition")
+        httpRetrieve(baseContext, "condition", roles = Roles.PUBLIC)
     }
 
     val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {

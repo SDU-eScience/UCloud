@@ -41,7 +41,7 @@ data class ReverseConnectionClaimedRequest(
     val username: String,
 )
 
-enum class ProviderStatusLevel {
+enum class ProviderConditionLevel {
     NORMAL,
     DEGRADED,
     MAINTENANCE,
@@ -51,8 +51,8 @@ enum class ProviderStatusLevel {
 
 @Serializable
 data class ProviderCondition(
-    val status: ProviderStatusLevel = ProviderStatusLevel.UNKNOWN,
-    val link: String? = null,
+    val level: ProviderConditionLevel = ProviderConditionLevel.UNKNOWN,
+    val page: String? = null,
 )
 
 typealias IntegrationProviderRetrieveConditionRequest = Unit
@@ -73,8 +73,8 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
         httpUpdate(baseContext, "connect", roles = Roles.PRIVILEGED)
     }
 
-    val retrieveStatus = call("retrieveStatus", IntegrationProviderRetrieveConditionRequest.serializer(), ProviderCondition.serializer(), CommonErrorMessage.serializer()) {
-        httpRetrieve(baseContext, "status", roles = Roles.PUBLIC)
+    val retrieveCondition = call("retrieveCondition", IntegrationProviderRetrieveConditionRequest.serializer(), ProviderCondition.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "condition", roles = Roles.PUBLIC)
     }
 
     @Deprecated("Use the simpler register endpoint instead")
