@@ -2,14 +2,15 @@ package controller
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
@@ -30,9 +31,10 @@ type Manifest struct {
 var Connections ConnectionService
 
 type ConnectionService struct {
-	Initiate         func(username string, signingKey util.Option[int]) (redirectToUrl string)
-	Unlink           func(username string, uid uint32) error
-	RetrieveManifest func() Manifest
+	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string)
+	Unlink            func(username string, uid uint32) error
+	RetrieveManifest  func() Manifest
+	RetrieveCondition func() Condition
 }
 
 type IdentityManagementService struct {
@@ -399,6 +401,15 @@ func controllerConnection(mux *http.ServeMux) {
 
 				err := RemoveConnection(local, false)
 				sendResponseOrError(w, util.EmptyValue, err)
+			}),
+		)
+
+		type retrieveConditionRequest struct{}
+		mux.HandleFunc(
+			baseContext+"retrieveCondition",
+			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
+				log.Info("Sending response %v", Connections.RetrieveCondition())
+				sendResponseOrError(w, Connections.RetrieveCondition(), nil)
 			}),
 		)
 
