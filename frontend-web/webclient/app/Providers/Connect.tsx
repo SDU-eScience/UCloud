@@ -3,7 +3,7 @@ import TitledCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
 import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -24,10 +24,16 @@ const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
     }
 `)
 
+interface ProviderCondition{
+    link?: string;
+    status: "NORMAL" | "DEGRADED" | "MAINTENANCE" | "DOWN";
+}
+
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
     const state = useUState(connectionState);
+    const [conditions, setConditions] = React.useState<Map<string, ProviderCondition>>(new Map<string, ProviderCondition>());
 
     const [, invokeCommand] = useCloudCommand();
     const reload = useCallback(() => {
@@ -38,6 +44,24 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
 
     const providers = state.providers;
     const shouldConnect = providers.some(it => state.canConnectToProvider(it.providerTitle));
+
+    useEffect(() => {
+        console.log(providers);
+        providers.forEach(provider => 
+            invokeCommand(
+                apiRetrieve(
+                    {provider: provider.provider},
+                    "/api/providers/integration",
+                    "condition"
+                )
+            ).then(res => {
+                console.log(res);
+
+                setConditions((prev) => new Map(prev.set(provider.provider, res)));
+            })
+        );
+
+    }, [providers.length]);
 
     const body = <>
         {!shouldConnect ? null :
