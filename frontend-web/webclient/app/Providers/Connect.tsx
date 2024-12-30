@@ -29,6 +29,21 @@ interface ProviderCondition{
     status: "NORMAL" | "DEGRADED" | "MAINTENANCE" | "DOWN";
 }
 
+const ProviderStatus: React.FunctionComponent<{condition: ProviderCondition}> = props => {
+    if (!props.condition) return <Icon name="heroQuestionMarkCircle" />;
+    
+    switch (props.condition.status) {
+        case "NORMAL":
+            return <Icon name="heroCake" />
+        case "DEGRADED":
+            return <Icon name="heroFire" />
+        case "DOWN":
+            return <Icon name="heroBellAlert" />
+        case "MAINTENANCE":
+            return <Icon name="heroWrench" />
+    }
+};
+
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
@@ -46,7 +61,6 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     const shouldConnect = providers.some(it => state.canConnectToProvider(it.providerTitle));
 
     useEffect(() => {
-        console.log(providers);
         providers.forEach(provider => 
             invokeCommand(
                 apiRetrieve(
@@ -55,8 +69,6 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                     "condition"
                 )
             ).then(res => {
-                console.log(res);
-
                 setConditions((prev) => new Map(prev.set(provider.provider, res)));
             })
         );
@@ -88,7 +100,12 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                         className={FixedHeightProvider}
                         highlightOnHover={false}
                         icon={<ProviderLogo providerId={it.providerTitle} size={30} />}
-                        left={<Text fontSize={"16px"} ml={3}><ProviderTitle providerId={it.providerTitle} /></Text>}
+                        left={
+                            <Text fontSize={"16px"} ml={3}>
+                                <ProviderTitle providerId={it.providerTitle} />
+                                <ProviderStatus condition={conditions[it.provider]} />
+                            </Text>
+                        }
                         right={!canConnect ?
                             <>
                                 <Icon name={"check"} color={"successMain"} />
