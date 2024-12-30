@@ -53,9 +53,7 @@ import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
-import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {DropdownContentClass} from "@/ui-components/Dropdown";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -330,7 +328,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         if (!job) return;
 
         findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
-    }, [job, job?.updates, job?.status.state]);    
+    }, [job, job?.updates, job?.status.state]);
 
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
@@ -906,20 +904,20 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                     const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
                         .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: parsedTarget.target, port: parsedTarget.port}));
 
-                        try {
-                            const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                            for (const res of sessionResult?.responses ?? []) {
-                                const webSession = (res.session as WebSession);
-                                result.unshift({
-                                    target: parsedTarget.target,
-                                    rank: webSession.rank,
-                                    type: "WEB",
-                                    link: webSession.redirectClientTo,
-                                });
-                            }
-                        } catch (e) {
-                            console.warn(e);
+                    try {
+                        const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
+                        for (const res of sessionResult?.responses ?? []) {
+                            const webSession = (res.session as WebSession);
+                            result.unshift({
+                                target: parsedTarget.target,
+                                rank: webSession.rank,
+                                type: "WEB",
+                                link: webSession.redirectClientTo,
+                            });
                         }
+                    } catch (e) {
+                        console.warn(e);
+                    }
                 } else if (parsedTarget.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
                     result.unshift({
                         target: parsedTarget.target,
@@ -928,7 +926,6 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                         link: `/applications/vnc/${job.id}/${parsedTarget.rank}?hide-frame`
                     });
                 }
-
             }
         }
     }
@@ -1510,8 +1507,8 @@ const RunningButtonGroup: React.FunctionComponent<{
                 </Link>
                 <ClickableDropdown
                     trigger={
-                        <div className={InterfaceSelectorTrigger}> 
-                            <Icon name="chevronDownLight"/>
+                        <div className={InterfaceSelectorTrigger}>
+                            <Icon name="chevronDownLight" />
                         </div>
                     }
                     right={"0px"}
@@ -1519,7 +1516,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     paddingControlledByContent
                 >
                     {interfaceLinks.slice(1).map((link, k) => (
-                        supportsInterface ? 
+                        supportsInterface ?
                             <Link
                                 to={link.link ?? ""}
                                 key={link.link ?? (link.rank + (link.port?.toString() ?? ""))}
@@ -1534,7 +1531,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                                     <Truncate>{link.target ?? "Open interface"}</Truncate>
                                 </Flex>
                             </Link>
-                         : <></>
+                            : <></>
                     ))}
                 </ClickableDropdown>
             </Flex>
