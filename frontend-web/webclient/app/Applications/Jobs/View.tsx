@@ -518,18 +518,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={header.class}>
                             <div className={fakeLogo.class} />
                             <div className={headerText.class}>
-                                <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
-                                    <Flex flexDirection={"column"}>
-                                        <Heading.h2>
-                                            {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
-                                            {" "}
-                                            <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
-                                        </Heading.h2>
-                                        <Box flexGrow={1} />
-                                        <div><CancelButton job={job} state={"RUNNING"} /></div>
-                                    </Flex>
-                                    <RunningButtonGroup job={job} rank={0} interfaceLinks={interfaceTargets} />
-                                </Flex>
+                                <RunningText job={job} interfaceLinks={interfaceTargets} />
                             </div>
                         </Flex>
 
@@ -743,6 +732,25 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
+const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: InterfaceTarget[]}> = ({job, interfaceLinks}) => {
+    return <>
+        <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
+            <Flex flexDirection={"column"}>
+                <Heading.h2>
+                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now running
+                    {" "}
+                    <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
+                </Heading.h2>
+                <Box flexGrow={1} />
+                <div><CancelButton job={job} state={"RUNNING"} /></div>
+            </Flex>
+            <RunningButtonGroup job={job} rank={0} interfaceLinks={interfaceLinks} />
+        </Flex>
+    </>;
+};
+
+
+
 const InterfaceSelectorTrigger = injectStyle("interface-selector-trigger", k => `
     ${k} {
         position: relative;
@@ -864,13 +872,16 @@ function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
 
 interface InterfaceTarget {
     rank: number,
-    type: "WEB" | "VNC" | "SHELL";
+    type: "WEB" | "VNC";
     target?: string,
     port?: number,
     link?: string,
 }
 
 async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Promise<InterfaceTarget[]> {
+    // TODO This function can be improved by not awaiting immediately after calling the backend,
+    // so both promises can be awaited on at the same time.
+
     const result: InterfaceTarget[] = [];
     const appType = getAppType(job);
     const backendType = getBackend(job);
@@ -885,10 +896,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         const messages = status.split("\n");
         for (const message of messages) {
             if (message.startsWith("Target: ")) {
-                const parser = new SillyParser(message);
-                parser.consumeToken("Target: ");
-
-                const parsedTarget = JSON.parse(parser.remaining()) as InterfaceTarget;
+                const parsedTarget = JSON.parse(message.substring("Target: ".length)) as InterfaceTarget;
 
                 const supportsInterface =
                     (parsedTarget.type === "WEB" && isSupported(backendType, support, "web")) ||
@@ -951,6 +959,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
             console.warn(e);
         }
     }
+
 
     return result;
 }
@@ -1492,7 +1501,11 @@ const RunningButtonGroup: React.FunctionComponent<{
                 <Link to={interfaceLinks[0].link ?? ""} aria-disabled={!interfaceLinks[0]} target={"_blank"}>
                     <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[0]}>
                         <Icon name="heroArrowTopRightOnSquare" />
-                        <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px"}}>{interfaceLinks[0].target ?? ("Open interface" + (hasMultipleNodes ? ` (node ${rank + 1})` : null))}</div>
+                        <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px"}}>
+                            <Truncate>
+                                {interfaceLinks[0].target ?? ("Open interface" + (hasMultipleNodes ? ` (node ${rank + 1})` : null))}
+                            </Truncate>
+                        </div>
                     </Button>
                 </Link>
                 <ClickableDropdown
@@ -1518,7 +1531,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                                     p={8}
                                 >
                                     <Icon name="heroArrowTopRightOnSquare" />
-                                    {link.target ?? "Open interface"}
+                                    <Truncate>{link.target ?? "Open interface"}</Truncate>
                                 </Flex>
                             </Link>
                          : <></>
