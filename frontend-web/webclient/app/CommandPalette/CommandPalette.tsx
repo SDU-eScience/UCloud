@@ -132,7 +132,7 @@ export const CommandPalette: React.FunctionComponent = () => {
         } else if (ev.code === "Enter") {
             setCurrentIndex(idx => {
                 if (idx === -1) return -1;
-                const cmd = commands[idx];
+                const cmd = findActiveCommand(idx, groupBy(commands, it => it.scope));
                 if (cmd) {
                     onActivate();
                     cmd.action();
@@ -163,9 +163,11 @@ export const CommandPalette: React.FunctionComponent = () => {
         return () => document.removeEventListener("mousedown", closeOnOutsideClick);
     }, []);
 
-    if (!visible) return null;
+    const activeCommand: Command | undefined = React.useMemo(() => {
+        return findActiveCommand(currentIndex, groupedCommands)
+    }, [currentIndex, groupedCommands]);
 
-    const activeCommand = commands[currentIndex];
+    if (!visible) return null;
 
     return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
         <input
@@ -187,6 +189,23 @@ export const CommandPalette: React.FunctionComponent = () => {
         </Box>
     </div>;
 };
+
+function findActiveCommand(currentIndex: number, groupedCommands: Record<string, Command[]>): Command | undefined {
+    if (currentIndex === -1) return undefined;
+    let idx = currentIndex;
+
+    for (const scope of Object.values(CommandScope)) {
+        if (!groupedCommands[scope]?.length) continue;
+
+        if (idx >= groupedCommands[scope].length) {
+            idx -= groupedCommands[scope].length;
+        } else {
+            return groupedCommands[scope]?.[idx];
+        }
+    };
+
+    return undefined;
+}
 
 function scrollEntryIntoView(index: number, scroll: ScrollLogicalPosition) {
     const entry = document.querySelector("[data-command-palette]")?.querySelectorAll("[data-entry]").item(index);;
