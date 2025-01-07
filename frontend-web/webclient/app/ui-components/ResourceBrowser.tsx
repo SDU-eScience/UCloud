@@ -28,7 +28,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal} from "react-dom";
-import {ContextSwitcher, FilterInputClass, projectCache} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher, FilterInputClass, projectCache} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import ProviderInfo from "@/Assets/provider_info.json";
@@ -624,7 +624,7 @@ export class ResourceBrowser<T> {
 
         if (this.features.contextSwitcher) {
             const div = document.createElement("div");
-            div.className = "context-switcher";
+            div.className = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
         }
@@ -3477,9 +3477,9 @@ export function addContextSwitcherInPortal<T>(
 ) {
     const browser = browserRef.current;
     if (browser != null) {
-        const contextSwitcher = browser.header.querySelector<HTMLDivElement>(".context-switcher");
-        if (contextSwitcher) {
-            setPortal(createPortal(<ContextSwitcher managed={managed} />, contextSwitcher));
+        const projectSwitcher = browser.header.querySelector<HTMLDivElement>(".project-switcher");
+        if (projectSwitcher) {
+            setPortal(createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher));
         }
     }
 }

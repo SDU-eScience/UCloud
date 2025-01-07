@@ -1,11 +1,11 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {useCallback, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Relative, Text} from "@/ui-components/index";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {Flex, Icon, Input, Relative} from "@/ui-components/index";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<{
