@@ -1572,7 +1572,7 @@ let openNodes: Record<string, boolean> = {};
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-function ProgressBar({uq}: {
+export function ProgressBar({uq}: {
     uq: UsageAndQuota,
 }) {
     return <NewAndImprovedProgress
