@@ -4,7 +4,7 @@ import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {ThemeColor} from "@/ui-components/theme";
 import {timestampUnixMs} from "@/UtilityFunctions";
-import {projectCache} from "@/Project/ContextSwitcher";
+import {projectCache} from "@/Project/ProjectSwitcher";
 
 export const UCLOUD_PROVIDER = "ucloud";
 export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =

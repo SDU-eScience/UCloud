@@ -22,7 +22,7 @@ import {
     checkCanConsumeResources,
     EmptyReasonTag
 } from "@/ui-components/ResourceBrowser";
-import {projectTitleFromCache} from "@/Project/ContextSwitcher";
+import {projectTitleFromCache} from "@/Project/ProjectSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
 import {emptyPageV2} from "@/Utilities/PageUtilities";

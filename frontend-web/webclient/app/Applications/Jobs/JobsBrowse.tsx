@@ -38,7 +38,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {createPortal} from "react-dom";
 import {AvatarType} from "@/AvataaarLib";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import {Feature, hasFeature} from "@/Features";

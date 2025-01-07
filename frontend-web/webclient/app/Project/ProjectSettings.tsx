@@ -35,7 +35,7 @@ import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {projectTitleFromCache} from "./ContextSwitcher";
+import {projectTitleFromCache} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
 import {OldProjectRole, isAdminOrPI} from ".";
