@@ -1,7 +1,6 @@
-import {bulkRequestOf} from "@/UtilityFunctions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {dispatchSetProjectAction, emitProjects, getStoredProject} from "@/Project/ReduxState";
 import {Flex, Truncate, Text, Icon, Input, Relative, Box, Error} from "@/ui-components";
@@ -248,6 +247,7 @@ export function ProjectSwitcher({managed}: {
                             defaultValue={filter}
                             onClick={stopPropagationAndPreventDefault}
                             enterKeyHint="enter"
+                            onKeyDown={e => e.stopPropagation()}
                             onKeyDownCapture={e => {
                                 if (["Escape"].includes(e.code) && e.target["value"]) {
                                     setTitleFilter("");
