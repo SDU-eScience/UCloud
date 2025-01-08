@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
 	"sync"
 	"time"
 
@@ -34,6 +35,7 @@ type JobUpdateBatch struct {
 	trackedDirtyStates    map[string]orc.JobState
 	trackedNodeAllocation map[string][]string
 	failed                bool
+	relevancyFilter       func(job *orc.Job) bool
 }
 
 func InitJobDatabase() {
@@ -165,6 +167,10 @@ func GetJobs() map[string]*orc.Job {
 	return activeJobs
 }
 
+func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
+	b.relevancyFilter = filter
+}
+
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
 	b.entries = append(b.entries, update)
 	if len(b.entries) >= 100 {
@@ -198,7 +204,14 @@ func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status uti
 }
 
 func (b *JobUpdateBatch) TrackAssignedNodes(jobId string, nodes []string) {
-	b.trackedNodeAllocation[jobId] = nodes
+	newNodes, _ := b.trackedNodeAllocation[jobId]
+	for _, node := range nodes {
+		if !slices.Contains(newNodes, node) {
+			newNodes = append(newNodes, node)
+		}
+	}
+
+	b.trackedNodeAllocation[jobId] = newNodes
 }
 
 func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
@@ -214,7 +227,7 @@ func (b *JobUpdateBatch) jobUpdateMessage(state orc.JobState) string {
 	case orc.JobStateExpired:
 		return "Your job has expired."
 	case orc.JobStateSuspended:
-		return "Your job has been temporarily suspended and can be turned on again later."
+		return "Your machine is currently powered off."
 	default:
 		return "Unknown job state. This should not happen: " + string(state)
 	}
@@ -362,7 +375,18 @@ func (b *JobUpdateBatch) End() {
 
 	var jobsWithUnknownState []string
 	now := time.Now()
+	filter := b.relevancyFilter
+	if filter == nil {
+		filter = func(job *orc.Job) bool {
+			return true
+		}
+	}
+
 	for activeJobId, job := range activeJobs {
+		if !filter(job) {
+			continue
+		}
+
 		if job.Status.State == orc.JobStateInQueue && now.Sub(job.CreatedAt.Time()) < 5*time.Minute {
 			// Do not immediately terminated jobs that we do not get an update for, it might not be on the list yet.
 			// If they do not turn up within 5 minutes, consider it failed.

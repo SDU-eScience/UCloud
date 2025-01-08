@@ -176,6 +176,24 @@ data class InternalWallet(
         return totalUsage
     }
 
+    fun totalActiveUsage(): Long {
+        var totalUsage = localUsage
+        if (!category.isCapacityBased()) {
+            totalUsage -= localRetiredUsage
+        }
+
+        for ((_, childUse) in childrenUsage) {
+            totalUsage += childUse
+        }
+
+        if (!category.isCapacityBased()) {
+            for ((_, childUse) in childrenRetiredUsage) {
+                totalUsage += childUse
+            }
+        }
+        return totalUsage
+    }
+
     fun totalActiveQuota(): Long {
         var result = 0L
         for ((_, group) in allocationsByParent) {
@@ -186,7 +204,7 @@ data class InternalWallet(
 
     fun isOverspending(): Boolean {
         if (excessUsage > 0) return true
-        if (totalUsage() > totalActiveQuota()) return true
+        if (totalActiveUsage() > totalActiveQuota()) return true
         return false
     }
 

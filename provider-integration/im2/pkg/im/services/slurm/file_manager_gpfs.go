@@ -79,6 +79,12 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 			filesQuota = 1
 		}
 
+		byteQuota := int(update.CombinedQuota * g.unitInBytes)
+		if byteQuota == 0 {
+			// NOTE(Dan): A quota of 0 means unlimited, set it to 1 byte instead
+			byteQuota = 1
+		}
+
 		if !g.client.FilesetExists(mapping.FileSystem, filesetName) {
 			g.client.FilesetCreate(&gpfs2.Fileset{
 				Name:        filesetName,
@@ -95,7 +101,7 @@ func (g *GpfsManager) HandleQuotaUpdate(drives []LocatedDrive, update *ctrl.Noti
 		g.client.FilesetQuota(&gpfs2.Fileset{
 			Name:       filesetName,
 			Filesystem: mapping.FileSystem,
-			QuotaBytes: int(update.CombinedQuota * g.unitInBytes),
+			QuotaBytes: byteQuota,
 			QuotaFiles: filesQuota,
 		})
 

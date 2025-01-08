@@ -1,6 +1,6 @@
 //go:build darwin
 
-package k8s
+package filesystem
 
 import (
 	"os"

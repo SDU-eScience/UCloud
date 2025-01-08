@@ -6,97 +6,99 @@ import (
 	"ucloud.dk/pkg/log"
 )
 
-type Scheduler struct {
-	CategoryName              string
+type scheduler struct {
 	PriorityPointsPerSchedule float64
-	queue                     []SchedulerQueueEntry
-	replicas                  []SchedulerReplicaEntry
-	nodes                     map[string]*SchedulerNode
+	queue                     []schedulerQueueEntry
+	replicas                  []schedulerReplicaEntry
+	nodes                     map[string]*schedulerNode
 	time                      int
 }
 
-func NewScheduler(categoryName string, priorityPointsPerSchedule float64) *Scheduler {
-	return &Scheduler{
-		CategoryName:              categoryName,
+func newScheduler(priorityPointsPerSchedule float64) *scheduler {
+	return &scheduler{
 		PriorityPointsPerSchedule: priorityPointsPerSchedule,
-		nodes:                     make(map[string]*SchedulerNode),
+		nodes:                     make(map[string]*schedulerNode),
 	}
 }
 
-type SchedulerNode struct {
-	Name string
-	SchedulerDimensions
-	Initial       SchedulerDimensions
+type schedulerNode struct {
+	Name     string
+	Category string
+	schedulerDimensions
+	Initial       schedulerDimensions
 	LastSeen      int
 	Unschedulable bool
 }
 
-type SchedulerDimensions struct {
-	Cpu    int
-	Memory int
-	Gpu    int
+type schedulerDimensions struct {
+	CpuMillis     int
+	MemoryInBytes int
+	Gpu           int
 }
 
-func (dims *SchedulerDimensions) Add(other SchedulerDimensions) {
-	dims.Cpu += other.Cpu
-	dims.Memory += other.Memory
+func (dims *schedulerDimensions) Add(other schedulerDimensions) {
+	dims.CpuMillis += other.CpuMillis
+	dims.MemoryInBytes += other.MemoryInBytes
 	dims.Gpu += other.Gpu
 }
 
-func (dims *SchedulerDimensions) Subtract(other SchedulerDimensions) {
-	dims.Cpu -= other.Cpu
-	dims.Memory -= other.Memory
+func (dims *schedulerDimensions) Subtract(other schedulerDimensions) {
+	dims.CpuMillis -= other.CpuMillis
+	dims.MemoryInBytes -= other.MemoryInBytes
 	dims.Gpu -= other.Gpu
 }
 
-func (dims *SchedulerDimensions) Satisfies(request SchedulerDimensions) bool {
-	return dims.Cpu >= request.Cpu && dims.Gpu >= request.Gpu && dims.Memory >= request.Memory
+func (dims *schedulerDimensions) Satisfies(request schedulerDimensions) bool {
+	return dims.CpuMillis >= request.CpuMillis && dims.Gpu >= request.Gpu && dims.MemoryInBytes >= request.MemoryInBytes
 }
 
-type SchedulerQueueEntry struct {
-	JobId int
-	SchedulerDimensions
+type schedulerQueueEntry struct {
+	JobId    string
+	Category string
+	schedulerDimensions
 	Replicas int
 	LastSeen int
 	Priority float64
 	Data     any
 }
 
-type SchedulerReplicaEntry struct {
-	JobId int
+type schedulerReplicaEntry struct {
+	JobId string
 	Rank  int
-	SchedulerDimensions
+	schedulerDimensions
 	Node     string
 	LastSeen int
 	Data     any
 }
 
-func (s *Scheduler) RegisterNode(name string, cpuMillis int, memoryInBytes int, gpus int, unschedulable bool) {
+func (s *scheduler) RegisterNode(name string, category string, cpuMillis int, memoryInBytes int, gpus int, unschedulable bool) {
 	existing, ok := s.nodes[name]
 	if ok {
 		existing.LastSeen = s.time
 		existing.Unschedulable = unschedulable
+		existing.Category = category
 		return
 	}
 
-	s.nodes[name] = &SchedulerNode{
-		Name: name,
-		SchedulerDimensions: SchedulerDimensions{
-			Cpu:    cpuMillis,
-			Memory: memoryInBytes,
-			Gpu:    gpus,
+	s.nodes[name] = &schedulerNode{
+		Name:     name,
+		Category: category,
+		schedulerDimensions: schedulerDimensions{
+			CpuMillis:     cpuMillis,
+			MemoryInBytes: memoryInBytes,
+			Gpu:           gpus,
 		},
-		Initial: SchedulerDimensions{
-			Cpu:    cpuMillis,
-			Memory: memoryInBytes,
-			Gpu:    gpus,
+		Initial: schedulerDimensions{
+			CpuMillis:     cpuMillis,
+			MemoryInBytes: memoryInBytes,
+			Gpu:           gpus,
 		},
 		LastSeen:      s.time,
 		Unschedulable: unschedulable,
 	}
 }
 
-func (s *Scheduler) PruneNodes() []string {
+func (s *scheduler) PruneNodes() []string {
 	var result []string
 
 	now := s.time
@@ -111,10 +113,10 @@ func (s *Scheduler) PruneNodes() []string {
 	return result
 }
 
-func (s *Scheduler) RegisterRunningReplica(
-	jobId int,
+func (s *scheduler) RegisterRunningReplica(
+	jobId string,
 	rank int,
-	dimensions SchedulerDimensions,
+	dimensions schedulerDimensions,
 	node string,
 	data any,
 ) {
@@ -134,18 +136,18 @@ func (s *Scheduler) RegisterRunningReplica(
 		return
 	}
 
-	s.replicas = append(s.replicas, SchedulerReplicaEntry{
+	s.replicas = append(s.replicas, schedulerReplicaEntry{
 		JobId:               jobId,
 		Rank:                rank,
-		SchedulerDimensions: dimensions,
+		schedulerDimensions: dimensions,
 		Node:                node,
 		LastSeen:            s.time,
 		Data:                data,
 	})
 }
 
-func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
-	var result []SchedulerReplicaEntry
+func (s *scheduler) PruneReplicas() []schedulerReplicaEntry {
+	var result []schedulerReplicaEntry
 
 	now := s.time
 
@@ -158,8 +160,8 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 		// NOTE(Dan): The node can be nil if the replica lost its node
 		node := s.nodes[replica.Node]
 		if node != nil {
-			dims := &node.SchedulerDimensions
-			dims.Add(replica.SchedulerDimensions)
+			dims := &node.schedulerDimensions
+			dims.Add(replica.schedulerDimensions)
 		}
 
 		result = append(result, *replica)
@@ -175,16 +177,18 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 	return result
 }
 
-func (s *Scheduler) RegisterJobInQueue(
-	jobId int,
-	dimensions SchedulerDimensions,
+func (s *scheduler) RegisterJobInQueue(
+	jobId string,
+	category string,
+	dimensions schedulerDimensions,
 	priority float64,
 	replicas int,
 	data any,
 ) {
-	s.queue = append(s.queue, SchedulerQueueEntry{
+	s.queue = append(s.queue, schedulerQueueEntry{
 		JobId:               jobId,
-		SchedulerDimensions: dimensions,
+		Category:            category,
+		schedulerDimensions: dimensions,
 		Replicas:            replicas,
 		LastSeen:            s.time,
 		Data:                data,
@@ -192,7 +196,7 @@ func (s *Scheduler) RegisterJobInQueue(
 	})
 }
 
-func (s *Scheduler) RemoveJobFromQueue(jobId int) bool {
+func (s *scheduler) RemoveJobFromQueue(jobId string) bool {
 	length := len(s.queue)
 	for i := 0; i < length; i++ {
 		if s.queue[i].JobId == jobId {
@@ -207,8 +211,8 @@ func (s *Scheduler) RemoveJobFromQueue(jobId int) bool {
 	return false
 }
 
-func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
-	var result []SchedulerReplicaEntry
+func (s *scheduler) Schedule() []schedulerReplicaEntry {
+	var result []schedulerReplicaEntry
 
 	pointsPerSchedule := s.PriorityPointsPerSchedule
 	now := s.time
@@ -222,7 +226,7 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 		s.queue[i].Priority += pointsPerSchedule
 	}
 
-	slices.SortFunc(s.queue, func(a, b SchedulerQueueEntry) int {
+	slices.SortFunc(s.queue, func(a, b schedulerQueueEntry) int {
 		if a.Priority > b.Priority {
 			return -1
 		} else if b.Priority > a.Priority {
@@ -238,7 +242,7 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 		}
 	})
 
-	var allNodes []*SchedulerNode
+	var allNodes []*schedulerNode
 	for _, node := range s.nodes {
 		allNodes = append(allNodes, node)
 	}
@@ -249,10 +253,10 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 
 		if allocatedNodes != nil {
 			for rank := 0; rank < len(allocatedNodes); rank++ {
-				replicaEntry := SchedulerReplicaEntry{
+				replicaEntry := schedulerReplicaEntry{
 					JobId:               entry.JobId,
 					Rank:                rank,
-					SchedulerDimensions: entry.SchedulerDimensions,
+					schedulerDimensions: entry.schedulerDimensions,
 					Node:                allocatedNodes[rank],
 					LastSeen:            now,
 					Data:                entry.Data,
@@ -271,11 +275,11 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 	return result
 }
 
-func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*SchedulerNode) []string {
+func (s *scheduler) trySchedule(entry *schedulerQueueEntry, allNodes []*schedulerNode) []string {
 	var allocatedNodes []string
 
-	slices.SortFunc(allNodes, func(a, b *SchedulerNode) int {
-		cmp := numericCompares(a.Gpu, b.Gpu, a.Cpu, b.Cpu, a.Memory, b.Memory)
+	slices.SortFunc(allNodes, func(a, b *schedulerNode) int {
+		cmp := numericCompares(a.Gpu, b.Gpu, a.CpuMillis, b.CpuMillis, a.MemoryInBytes, b.MemoryInBytes)
 		if cmp != 0 {
 			return cmp
 		}
@@ -283,21 +287,35 @@ func (s *Scheduler) trySchedule(entry *SchedulerQueueEntry, allNodes []*Schedule
 		return strings.Compare(a.Name, b.Name)
 	})
 
+	// NOTE(Dan): The outer loop is needed since it is possible to allocate multiple replicas to the same node.
 outer:
 	for len(allocatedNodes) < entry.Replicas {
 		for _, node := range allNodes {
-			if !node.Unschedulable && node.Satisfies(entry.SchedulerDimensions) {
-				node.Subtract(entry.SchedulerDimensions)
-				allocatedNodes = append(allocatedNodes, node.Name)
-				continue outer
+			if node.Category != entry.Category {
+				continue
 			}
+
+			if node.Unschedulable {
+				continue
+			}
+
+			if !node.Satisfies(entry.schedulerDimensions) {
+				continue
+			}
+
+			node.Subtract(entry.schedulerDimensions)
+			allocatedNodes = append(allocatedNodes, node.Name)
+			continue outer
 		}
+
+		// NOTE(Dan): If we reach this point, we have tried all nodes and will not be able to succeed.
+		// Break and fail soon after in the normal branch.
 		break
 	}
 
 	if len(allocatedNodes) < entry.Replicas {
 		for _, n := range allocatedNodes {
-			s.nodes[n].Add(entry.SchedulerDimensions)
+			s.nodes[n].Add(entry.schedulerDimensions)
 		}
 
 		return nil

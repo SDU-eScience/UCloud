@@ -297,13 +297,6 @@ class JobResourceService(
         providers.runChecksForCreate(actorAndProject, Jobs, request, "start job") { support, job ->
             val (_, tool, block) = findSupportBlock(job, support)
             block.checkEnabled()
-
-            val supportedProviders = tool.description.supportedProviders
-            if (supportedProviders != null) {
-                if (job.product.provider !in supportedProviders) {
-                    error("The application is not supported by this provider. Try selecting a different application.")
-                }
-            }
         }
 
         for (job in request.items) {
@@ -1215,7 +1208,10 @@ class JobResourceService(
                         }
 
                         InteractiveSessionType.VNC -> {
-                            require(app.invocation!!.vnc != null)
+                            if (tool.description.backend != ToolBackend.VIRTUAL_MACHINE) {
+                                require(app.invocation!!.vnc != null)
+                            }
+
                             block.checkFeature(block.vnc)
                         }
 

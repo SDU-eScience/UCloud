@@ -1,4 +1,4 @@
-package k8s
+package containers
 
 import (
 	core "k8s.io/api/core/v1"
