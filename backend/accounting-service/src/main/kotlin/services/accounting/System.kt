@@ -419,7 +419,7 @@ class AccountingSystem(
                 walletsById[msg.walletId] ?:
                     return Response.error(HttpStatusCode.NotFound, "unknown wallet: ${msg.walletId}"),
                 msg.charge,
-                isDelta = true,
+                isDelta = msg.isDelta,
                 scope = null,
                 debug = true,
             )
@@ -1443,8 +1443,10 @@ class AccountingSystem(
 
         if (toRetire == 0L) return
 
+        //TODO WHY ARE WE DOING THIS? REBALNCE?
         if (wallet.isCapacityBased()) {
             if (parentWallet != null) {
+                //Should this be treeUsage? TODO()
                 parentWallet.localUsage += toRetire
                 chargeWallet(parentWallet, -toRetire, isDelta = true)
             }

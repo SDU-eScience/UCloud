@@ -136,9 +136,9 @@ fun checkWalletHierarchyParentRetiredUsage(walletId: Int) {
             if (pId == 0) continue
             val p = walletsById.getValue(pId)
             val childRetiredUsage = p.childrenRetiredUsage[id] ?: 0L
-            val treeUsage = ag.retiredTreeUsage
-            if (treeUsage != childRetiredUsage) {
-                error("Wrong usage in W${pId} for child W${id}: found $childRetiredUsage instead of $treeUsage")
+            val retiredTreeUsage = ag.retiredTreeUsage
+            if (retiredTreeUsage != childRetiredUsage) {
+                error("Wrong usage in W${pId} for child W${id}: found $childRetiredUsage instead of $retiredTreeUsage")
             }
         }
     }

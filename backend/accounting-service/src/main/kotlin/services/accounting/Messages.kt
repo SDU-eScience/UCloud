@@ -160,6 +160,7 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val walletId: Int,
         val charge: Long,
+        val isDelta: Boolean
     ) : AccountingRequest<Unit>()
 
     data class DebugUsable(
