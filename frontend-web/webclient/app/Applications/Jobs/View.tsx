@@ -943,27 +943,6 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         console.warn(e);
     }
 
-    
-    /*if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
-        const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-            .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
-
-        try {
-            const resp = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-            for (const res of resp?.responses ?? []) {
-                const webSession = (res.session as WebSession);
-                result.push({
-                    rank: webSession.rank,
-                    type: "WEB",
-                    link: webSession.redirectClientTo
-                });
-            }
-        } catch (e) {
-            console.warn(e);
-        }
-    }
-*/
-
     return result;
 }
 
