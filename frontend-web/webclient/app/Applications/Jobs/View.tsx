@@ -877,17 +877,16 @@ interface InterfaceTarget {
 }
 
 async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Promise<InterfaceTarget[]> {
-    // TODO This function can be improved by not awaiting immediately after calling the backend,
-    // so both promises can be awaited on at the same time.
-
     const result: InterfaceTarget[] = [];
     const appType = getAppType(job);
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
 
+    let targetRequests: OpenInteractiveSessionRequest[] = [];
+
     // Parse targets from job updates
-    for (let i = job.updates.length - 1; i >= 0; i--) {
+    for (let i = 0; i < job.updates.length; i++) {
         const status = job.updates[i].status;
         if (!status) continue;
 
@@ -899,27 +898,11 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                 const supportsInterface =
                     (parsedTarget.type === "WEB" && isSupported(backendType, support, "web")) ||
                     (parsedTarget.type === "VNC" && isSupported(backendType, support, "vnc"));
-
+                
                 if (parsedTarget.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
-                    const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
-                        .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i, target: parsedTarget.target, port: parsedTarget.port}));
-
-                    try {
-                        const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
-                        for (const res of sessionResult?.responses ?? []) {
-                            const webSession = (res.session as WebSession);
-                            result.unshift({
-                                target: parsedTarget.target,
-                                rank: webSession.rank,
-                                type: "WEB",
-                                link: webSession.redirectClientTo,
-                            });
-                        }
-                    } catch (e) {
-                        console.warn(e);
-                    }
+                    targetRequests.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
                 } else if (parsedTarget.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
-                    result.unshift({
+                    result.push({
                         target: parsedTarget.target,
                         rank: parsedTarget.rank,
                         type: "WEB",
@@ -934,11 +917,34 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
-    if (appType === "VNC" && supportsInterface) {
-        result.unshift({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
+    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+        targetRequests = targetRequests.concat(Array(job.specification.replicas)
+            .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
     }
 
-    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+    if (appType === "VNC" && supportsInterface) {
+        result.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
+    }
+
+    if (targetRequests.length < 1) return result;
+
+    try {
+        const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...targetRequests)));
+        for (const res of sessionResult?.responses ?? []) {
+            const webSession = (res.session as WebSession);
+            result.push({
+                target: webSession.target,
+                rank: webSession.rank,
+                type: "WEB",
+                link: webSession.redirectClientTo,
+            });
+        }
+    } catch (e) {
+        console.warn(e);
+    }
+
+    
+    /*if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
         const requests: OpenInteractiveSessionRequest[] = Array(job.specification.replicas)
             .fill(0).map((_, i) => ({sessionType: "WEB", id: job.id, rank: i}));
 
@@ -946,7 +952,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
             const resp = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...requests)));
             for (const res of resp?.responses ?? []) {
                 const webSession = (res.session as WebSession);
-                result.unshift({
+                result.push({
                     rank: webSession.rank,
                     type: "WEB",
                     link: webSession.redirectClientTo
@@ -956,7 +962,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
             console.warn(e);
         }
     }
-
+*/
 
     return result;
 }

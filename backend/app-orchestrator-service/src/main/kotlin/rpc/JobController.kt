@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.orchestrator.services.JobResourceService
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
@@ -74,7 +75,44 @@ class JobController(
         }
 
         implement(Jobs.openInteractiveSession) {
-            ok(jobs.openInteractiveSession(actorAndProject, request))
+            val sessions = request.items.map {
+                val session = when (it.sessionType) {
+                    InteractiveSessionType.WEB ->
+                        OpenSession.Web(
+                            "jobIdString",
+                            it.rank,
+                            "redirectToString" + it.target,
+                            target = it.target,
+                        )
+
+                    InteractiveSessionType.VNC ->
+                        OpenSession.Vnc(
+                            "jobIdString",
+                            it.rank,
+                            "redirectToString" + it.target,
+                            target = it.target,
+                        )
+
+                    InteractiveSessionType.SHELL ->
+                        OpenSession.Shell(
+                            "jobIdString",
+                            it.rank,
+                            "redirectToString" + it.target,
+                            target = it.target,
+                        )
+                }
+
+                OpenSessionWithProvider(
+                    "domainString",
+                    "providerIdString",
+                    session
+                )
+            }
+
+            ok(
+                BulkResponse(sessions)
+            )
+            //ok(jobs.openInteractiveSession(actorAndProject, request))
         }
 
         implement(Jobs.openTerminalInFolder) {
