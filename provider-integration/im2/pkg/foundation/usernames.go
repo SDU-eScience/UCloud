@@ -60,7 +60,11 @@ func ParseUCloudUsername(username string) ParsedUsername {
 		names = append(names, "Unknown")
 		suggestedUsername = names[0]
 	} else {
-		suggestedUsername = names[0][:1] + names[len(names)-1]
+		if len(names[1]) <= 1 {
+			suggestedUsername = names[0]
+		} else {
+			suggestedUsername = names[0][:1] + names[len(names)-1]
+		}
 	}
 
 	suggestedUsername = strings.ToLower(suggestedUsername)
