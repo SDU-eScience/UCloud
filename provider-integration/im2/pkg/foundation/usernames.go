@@ -17,9 +17,18 @@ var cleaningRegex = regexp.MustCompile("\\W+")
 
 func ParseUCloudUsername(username string) ParsedUsername {
 	cleaned := anyascii.Transliterate(username)
+	cleaned = strings.ReplaceAll(cleaned, ".", "")
 	usernameSplit := strings.Split(cleaned, "#")
 
 	namePart := []rune(usernameSplit[0])
+
+	if len(namePart) == 0 {
+		return ParsedUsername{
+			FirstName:         "Unknown",
+			LastName:          "Unknown",
+			SuggestedUsername: "unknown",
+		}
+	}
 
 	{
 		allUpper := true
@@ -60,7 +69,7 @@ func ParseUCloudUsername(username string) ParsedUsername {
 		names = append(names, "Unknown")
 		suggestedUsername = names[0]
 	} else {
-		if len(names[1]) <= 1 {
+		if len(names[len(names)-1]) <= 1 {
 			suggestedUsername = names[0]
 		} else {
 			suggestedUsername = names[0][:1] + names[len(names)-1]
