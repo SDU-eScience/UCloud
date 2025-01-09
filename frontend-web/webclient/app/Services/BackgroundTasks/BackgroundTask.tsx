@@ -419,7 +419,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
     if (!websocket || !hasFeature(Feature.NEW_TASKS)) return null;
 
     const noEntries = (inProgressCount + fileUploads.finished.length + fileUploads.finished.length + finishedTaskList.length) === 0;
-    
+
     const isOpen = dialog === "BackgroundTask";
 
     return (
@@ -443,7 +443,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                     {fileUploads.uploading.map((u, i) => <UploaderRow key={u.name + u.targetPath + i} upload={u} callbacks={uploadCallbacks} />)}
                     {inProgressTaskList.map(t => <TaskItem key={t.taskId} task={t} ws={websocket} />)}
                     {anyFinished ? <Flex>
-                        <h4 style={{marginBottom: "4px"}}>Finished tasks</h4>
+                        <h4 style={{marginBottom: "8px"}}>Finished tasks</h4>
                         <Box ml="auto">
                             <TooltipV2 contentWidth={190} tooltip={"Remove finished tasks"}>
                                 <Icon name="close" onClick={() => {

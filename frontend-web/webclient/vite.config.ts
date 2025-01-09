@@ -39,7 +39,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             "Cross-Origin-Opener-Policy": "same-origin",
             "Cross-Origin-Embedder-Policy": "require-corp",
         }
-    }
+    };
 
     return defineConfig({
         clearScreen: false,
