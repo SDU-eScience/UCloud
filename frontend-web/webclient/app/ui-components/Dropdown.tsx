@@ -65,7 +65,6 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         margin-right: -17px;
         padding-left: 17px;
         padding-right: 17px;
-        white-space: nowrap;
     }
 
     ${k}[data-no-y-padding="false"] > div {
