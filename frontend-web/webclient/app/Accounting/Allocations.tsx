@@ -20,7 +20,7 @@ import {
     TextArea,
     Truncate,
 } from "@/ui-components";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import * as Accounting from "@/Accounting";
 import {NO_EXPIRATION_FALLBACK, ProductType, UsageAndQuota, WalletV2} from "@/Accounting";
 import {deepCopy, newFuzzyMatchFuse} from "@/Utilities/CollectionUtilities";
@@ -990,7 +990,7 @@ const Allocations: React.FunctionComponent = () => {
             <header>
                 <h3 className="title">Resource allocations</h3>
                 <Box flexGrow={1} />
-                <ContextSwitcher />
+                <ProjectSwitcher />
             </header>
 
             {state.remoteData.managedProviders.length > 0 && <>
@@ -1572,7 +1572,7 @@ let openNodes: Record<string, boolean> = {};
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
-function ProgressBar({uq}: {
+export function ProgressBar({uq}: {
     uq: UsageAndQuota,
 }) {
     return <NewAndImprovedProgress

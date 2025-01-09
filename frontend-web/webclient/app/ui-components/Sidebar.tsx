@@ -65,7 +65,7 @@ import {ApplicationSummaryWithFavorite} from "@/Applications/AppStoreApi";
 import {isAdminOrPI} from "@/Project";
 import {FileType} from "@/Files";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
-import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ContextSwitcher";
+import {onProjectUpdated, projectCache, projectTitle} from "@/Project/ProjectSwitcher";
 import {HookStore, useGlobal} from "@/Utilities/ReduxHooks";
 import {useDiscovery} from "@/Applications/Hooks";
 import {Command, CommandPalette, CommandScope, staticProvider, useCommandProviderList, useProvideCommands} from "@/CommandPalette";

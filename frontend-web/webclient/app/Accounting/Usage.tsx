@@ -4,7 +4,7 @@ import Chart, {Props as ChartProps} from "react-apexcharts";
 import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {Flex, Icon, Input, Radio, Text, MainContainer} from "@/ui-components";
 import {CardClass} from "@/ui-components/Card";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
@@ -514,7 +514,7 @@ const Visualization: React.FunctionComponent = () => {
                     <PeriodSelector value={state.selectedPeriod} onChange={setPeriod} />
                 </div>
                 <div style={{flexGrow: "1"}} />
-                <ContextSwitcher />
+                <ProjectSwitcher />
             </header>
 
             <div style={{padding: "13px 16px 16px 16px", zIndex: -1}}>
