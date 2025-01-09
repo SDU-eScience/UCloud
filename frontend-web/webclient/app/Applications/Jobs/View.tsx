@@ -761,7 +761,7 @@ const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: InterfaceT
                 <Box flexGrow={1} />
                 <div><CancelButton job={job} state={"RUNNING"} /></div>
             </Flex>
-            <RunningButtonGroup job={job} rank={0} interfaceLinks={interfaceLinks} />
+            <RunningButtonGroup job={job} interfaceLinks={interfaceLinks} />
         </Flex>
     </>;
 };
@@ -893,6 +893,11 @@ interface InterfaceTarget {
     target?: string,
     port?: number,
     link?: string,
+}
+
+interface TerminalTarget {
+    jobId: string,
+    rank: number,
 }
 
 async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Promise<InterfaceTarget[]> {
@@ -1473,7 +1478,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
             <Truncate>{element.target ?? "Open interface"}</Truncate>
 
             <div style={{color: "var(--textSecondary)"}}>
-                Rank {element.rank}
+                Node {element.rank + 1}
             </div>
         </Flex>
     </Link>;
@@ -1485,14 +1490,54 @@ const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarg
     </div>;
 }
 
-type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string;});
+const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element, dataProps, onSelect}) => {
+    if (!element) return <></>;
+
+    return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} onClick={e => {
+        e.preventDefault();
+
+        const link = findDomAttributeFromAncestors(e.target, "href");
+        if (!link) return;
+
+        window.open(
+            link,
+            undefined,
+            "width=800,height=600,status=no"
+        );
+    }}>
+        <Flex
+            gap="5px"
+            alignItems={"center"}
+            p={8}
+        >
+            <Icon name="heroArrowTopRightOnSquare" />
+            <Truncate>Open terminal</Truncate>
+
+            <div style={{color: "var(--textSecondary)"}}>
+                Node {element.rank+1}
+            </div>
+        </Flex>
+    </Link>;
+}
+
+const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element, dataProps, onSelect}) => {
+    return <div className={InterfaceSelectorTrigger}>
+        <Icon name="chevronDownLight" />
+    </div>;
+}
+
+type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string;})
+type SearchableTerminalTarget = (TerminalTarget & {searchString: string;})
 
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
-    rank: number;
     interfaceLinks: InterfaceTarget[];
-}> = ({job, rank, interfaceLinks}) => {
+}> = ({job, interfaceLinks}) => {
     const hasMultipleNodes = job.specification.replicas > 1;
+    const terminalLinks: TerminalTarget[] = Array.from(Array(job.specification.replicas).keys()).map(rank => ({
+        jobId: job.id,
+        rank: rank,
+    }));
 
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
@@ -1504,29 +1549,50 @@ const RunningButtonGroup: React.FunctionComponent<{
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
     const searchableInterfaceLinks: SearchableInterfaceTarget[] = interfaceLinks.map(it => ({
-        searchString: it.target + " " + it.rank, ...it
+        searchString: it.target + " " + (it.rank+1), ...it
     }));
+
+    const searchableTerminalLinks: SearchableTerminalTarget[] = terminalLinks.map(it => ({
+        searchString: (it.rank+1).toString(), ...it
+    }));
+
 
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
-            <Link to={`/applications/shell/${job.id}/${rank}?hide-frame`} onClick={e => {
-                e.preventDefault();
+            <Flex>
+                <Link to={`/applications/shell/${job.id}/0?hide-frame`} onClick={e => {
+                    e.preventDefault();
 
-                const link = findDomAttributeFromAncestors(e.target, "href");
-                if (!link) return;
+                    const link = findDomAttributeFromAncestors(e.target, "href");
+                    if (!link) return;
 
-                window.open(
-                    link,
-                    undefined,
-                    "width=800,height=600,status=no"
-                );
-            }}>
-                <Button width="220px" type={"button"}>
-                    <Icon name={"heroCommandLine"} />
-                    <div>Open terminal {hasMultipleNodes ? `(node ${rank + 1})` : null}</div>
-                </Button>
-            </Link>
+                    window.open(
+                        link,
+                        undefined,
+                        "width=800,height=600,status=no"
+                    );
+                }}>
+                    <Button attachedLeft={hasMultipleNodes}>
+                        <Icon name="heroCommandLine" />
+                        <div style={{minWidth: hasMultipleNodes ? "130px" : "164px"}}>
+                            <Truncate>
+                                Open terminal{hasMultipleNodes ? ` (node 1)` : null}
+                            </Truncate>
+                        </div>
+                    </Button>
+                </Link>
+                {!hasMultipleNodes ? null :
+                    <RichSelect
+                        items={searchableTerminalLinks}
+                        keys={["searchString"]}
+                        RenderRow={TerminalLinkRow}
+                        FullRenderSelected={TerminalLinkSelectedRow}
+                        onSelect={() => {}}
+                    />
+                }
+            </Flex>
         )}
+
         {interfaceLinks.length < 1 ? <></> : (
             <Flex>
                 <Link to={interfaceLinks[0].link ?? ""} aria-disabled={!interfaceLinks[0]} target={"_blank"}>
@@ -1534,7 +1600,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                         <Icon name="heroArrowTopRightOnSquare" />
                         <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px"}}>
                             <Truncate>
-                                {interfaceLinks[0].target ?? ("Open interface" + (hasMultipleNodes ? ` (node ${rank + 1})` : null))}
+                                {interfaceLinks[0].target ?? ("Open interface" + (hasMultipleNodes ? ` (node 1)` : null))}
                             </Truncate>
                         </div>
                     </Button>
