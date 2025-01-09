@@ -75,44 +75,7 @@ class JobController(
         }
 
         implement(Jobs.openInteractiveSession) {
-            val sessions = request.items.map {
-                val session = when (it.sessionType) {
-                    InteractiveSessionType.WEB ->
-                        OpenSession.Web(
-                            "jobIdString",
-                            it.rank,
-                            "redirectToString" + it.target,
-                            target = it.target,
-                        )
-
-                    InteractiveSessionType.VNC ->
-                        OpenSession.Vnc(
-                            "jobIdString",
-                            it.rank,
-                            "redirectToString" + it.target,
-                            target = it.target,
-                        )
-
-                    InteractiveSessionType.SHELL ->
-                        OpenSession.Shell(
-                            "jobIdString",
-                            it.rank,
-                            "redirectToString" + it.target,
-                            target = it.target,
-                        )
-                }
-
-                OpenSessionWithProvider(
-                    "domainString",
-                    "providerIdString",
-                    session
-                )
-            }
-
-            ok(
-                BulkResponse(sessions)
-            )
-            //ok(jobs.openInteractiveSession(actorAndProject, request))
+            ok(jobs.openInteractiveSession(actorAndProject, request))
         }
 
         implement(Jobs.openTerminalInFolder) {
