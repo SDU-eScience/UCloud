@@ -111,7 +111,7 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
     }
 
     ${k} a div {
-        background: var(--backgroundDefault);
+        background: none;
     }
 
     ${k} a div:hover {

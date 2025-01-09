@@ -53,7 +53,7 @@ import {appendToXterm, useXTerm} from "./XTermLib";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -294,6 +294,25 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
                 conn.close();
             },
         });
+
+        setTimeout(() => {
+            callback({updates: [
+                {timestamp: timestampUnixMs(), status: `Hello world`}
+            ], log: []})
+        }, 2000);
+
+
+        setTimeout(() => {
+            callback({updates: [
+                {timestamp: timestampUnixMs(), status: `Target: {"rank":0,"type":"WEB","target":"My server late","port":5959}`}
+            ], log: []})
+        }, 20000);
+
+        setTimeout(() => {
+            callback({updates: [
+                {timestamp: timestampUnixMs(), status: `Target arrived`}
+            ], log: []})
+        }, 21000);
 
         return () => {
             conn.close();
@@ -1157,7 +1176,7 @@ const RunningContent: React.FunctionComponent<{
         </div>
 
         {!supportsLogs ? null :
-            <TabbedCard style={{height: "max(50vh, 420px)"}}>
+            <TabbedCard>
                 <Box divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
                         <RunningJobRank key={i} job={job} rank={i} state={state} interfaceLinks={interfaceLinks} />
@@ -1346,12 +1365,6 @@ const RunningJobRank: React.FunctionComponent<{
     return <TabbedCardTab icon={"heroServer"} name={`Node ${rank + 1}`}>
         <div className={RunningJobRankWrapper} data-has-replicas={hasMultipleNodes}>
             <div ref={termRef} className="term" />
-
-            {job.specification.replicas === 1 ? null : (
-                <Flex flexDirection="column" mt="auto" ml="auto" mb="-16px" alignItems="end">
-                    <RunningButtonGroup job={job} rank={rank} interfaceLinks={interfaceLinks} />
-                </Flex>
-            )}
         </div>
     </TabbedCardTab>
 };
@@ -1442,6 +1455,38 @@ function getAppType(job: Job): string {
     return job.status.resolvedApplication!.invocation.applicationType;
 }
 
+
+const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
+    if (!element) return <></>;
+
+    return <Link
+        to={element.link ?? ""}
+        key={element.link ?? (element.rank + (element.port?.toString() ?? ""))}
+        {...dataProps}
+    >
+        <Flex
+            gap="5px"
+            alignItems={"center"}
+            p={8}
+        >
+            <Icon name="heroArrowTopRightOnSquare" />
+            <Truncate>{element.target ?? "Open interface"}</Truncate>
+
+            <div style={{color: "var(--textSecondary)"}}>
+                Rank {element.rank}
+            </div>
+        </Flex>
+    </Link>;
+}
+
+const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
+    return <div className={InterfaceSelectorTrigger}>
+        <Icon name="chevronDownLight" />
+    </div>;
+}
+
+type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string;});
+
 const RunningButtonGroup: React.FunctionComponent<{
     job: Job;
     rank: number;
@@ -1457,6 +1502,10 @@ const RunningButtonGroup: React.FunctionComponent<{
     const supportsInterface =
         (appType === "WEB" && isSupported(backendType, support, "web")) ||
         (appType === "VNC" && isSupported(backendType, support, "vnc"));
+
+    const searchableInterfaceLinks: SearchableInterfaceTarget[] = interfaceLinks.map(it => ({
+        searchString: it.target + " " + it.rank, ...it
+    }));
 
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
@@ -1490,35 +1539,13 @@ const RunningButtonGroup: React.FunctionComponent<{
                         </div>
                     </Button>
                 </Link>
-                <ClickableDropdown
-                    trigger={
-                        <div className={InterfaceSelectorTrigger}>
-                            <Icon name="chevronDownLight" />
-                        </div>
-                    }
-                    right={"0px"}
-                    minWidth={"245px"}
-                    paddingControlledByContent
-                >
-                    {interfaceLinks.slice(1).map((link, k) => (
-                        supportsInterface ?
-                            <Link
-                                to={link.link ?? ""}
-                                key={link.link ?? (link.rank + (link.port?.toString() ?? ""))}
-                            >
-                                <Flex
-                                    key={k}
-                                    gap="5px"
-                                    alignItems={"center"}
-                                    p={8}
-                                >
-                                    <Icon name="heroArrowTopRightOnSquare" />
-                                    <Truncate>{link.target ?? "Open interface"}</Truncate>
-                                </Flex>
-                            </Link>
-                            : <></>
-                    ))}
-                </ClickableDropdown>
+                <RichSelect
+                    items={searchableInterfaceLinks}
+                    keys={["searchString"]}
+                    RenderRow={InterfaceLinkRow}
+                    FullRenderSelected={InterfaceLinkSelectedRow}
+                    onSelect={() => {}}
+                />
             </Flex>
         )}
     </div>

@@ -19,8 +19,9 @@ export function RichSelect<T, K extends keyof T>(props: {
     keys: K[];
 
     RenderRow: RichSelectChildComponent<T>;
-    RenderSelected: RichSelectChildComponent<T>;
-
+    RenderSelected?: RichSelectChildComponent<T>;
+    FullRenderSelected?: RichSelectChildComponent<T>;
+    
     selected?: T;
     onSelect: (element: T) => void;
 
@@ -48,11 +49,15 @@ export function RichSelect<T, K extends keyof T>(props: {
     }, []);
 
     return <ClickableDropdown
-        trigger={
-            <div className={TriggerClass} ref={triggerRef}>
-                <props.RenderSelected element={props.selected} onSelect={doNothing}/>
-                <Icon name="chevronDownLight"/>
-            </div>
+        trigger={props.FullRenderSelected ? 
+                <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
+            :
+                props.RenderSelected ? 
+                    <div className={TriggerClass} ref={triggerRef}>
+                        <props.RenderSelected element={props.selected} onSelect={doNothing}/>
+                        <Icon name="chevronDownLight"/>
+                    </div>
+                : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
         rightAligned
