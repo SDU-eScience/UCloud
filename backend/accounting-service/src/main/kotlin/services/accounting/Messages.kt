@@ -73,6 +73,10 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard
     ) : AccountingRequest<Unit>()
 
+    data class ScanActivation(
+        override val idCard: IdCard
+    ) : AccountingRequest<Unit>()
+
     data class MaxUsable(
         override val idCard: IdCard,
         val category: ProductCategoryIdV2,
