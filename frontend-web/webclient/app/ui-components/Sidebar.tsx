@@ -7,6 +7,7 @@ import {
     copyToClipboard,
     displayErrorMessageOrDefault, doNothing,
     isLightThemeStored,
+    isLikelyMac,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -72,6 +73,7 @@ import {Command, CommandPalette, CommandScope, staticProvider, useProvideCommand
 import {NavigateFunction, useNavigate} from "react-router";
 import {dispatchSetProjectAction} from "@/Project/ReduxState";
 import {Dispatch} from "redux";
+import {Feature, hasFeature} from "@/Features";
 
 const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} {
@@ -357,6 +359,7 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             <Divider />
             <Username close={close.current} />
             <ProjectID close={close.current} />
+            <CommandPaletteEntry />
             <Divider />
             <Flex className={HoverClass} onClick={() => Client.logout()} data-component={"logout-button"}>
                 <Icon name="heroArrowRightOnRectangle" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" />
@@ -364,6 +367,18 @@ function UserMenu({avatar, dialog, setOpenDialog}: {
             </Flex>
         </Box>
     </ClickableDropdown>;
+}
+
+const CTRL_KEY = isLikelyMac ? "⌘" : "ctrl";
+
+function CommandPaletteEntry(): React.ReactNode {
+    if (!hasFeature(Feature.COMMAND_PALETTE)) return null;
+    return <Flex className={HoverClass} onClick={e => {
+        window.dispatchEvent(new KeyboardEvent("keydown", {code: "KeyP", ctrlKey: true, metaKey: true}));
+    }}>
+        <Icon name="heroCommandLine" color2="textPrimary" mr="0.5em" my="0.2em" size="1.3em" /> Command palette
+        <TextSpan ml="0.5em" color="textSecondary">({CTRL_KEY} + P)</TextSpan>
+    </Flex>
 }
 
 const HoverClass = injectStyle("hover-class", k => `
@@ -685,20 +700,28 @@ function SecondarySidebar({
 
     const projects = projectCache.retrieveFromCacheOnly("");
     const navigate = useNavigate();
-    const activeProject = useProjectId();
     const dispatch = useDispatch();
 
     const projectCommands: Command[] = React.useMemo(() => {
-        return projects?.items.map(p => ({
-            title: p.specification.title,
-            description: "",
-            icon: {type: "simple", icon: "heroUserGroup"},
-            scope: CommandScope.Project,
-            action() {
-                onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
-            },
-            actionText: "Switch to",
-        }) as Command).concat(activeProject ? [myWorkspaceProjectCommand(navigate, dispatch)] : []) ?? [];
+        const projectActivations: Command[] = []
+        for (const p of (projects?.items ?? [])) {
+            projectActivations.push({
+                title: p.specification.title,
+                description: "",
+                icon: {type: "simple", icon: "heroUserGroup"},
+                scope: CommandScope.Project,
+                action() {
+                    onProjectUpdated(navigate, () => dispatchSetProjectAction(dispatch, p.id), () => void 0, p.id);
+                },
+                actionText: "Switch to",
+            });
+        }
+
+        if (activeProjectId) {
+            projectActivations.push(myWorkspaceProjectCommand(navigate, dispatch));
+        }
+
+        return projectActivations;
     }, [projects?.items, activeProjectId]);
 
     useProvideCommands(staticProvider(projectCommands));

@@ -172,7 +172,7 @@ export const CommandPalette: React.FunctionComponent = () => {
     return <div ref={divRef} has-items={commands.length > 0 ? "" : undefined} className={wrapper}>
         <input
             autoFocus
-            placeholder={"Search for anything on UCloud..."}
+            placeholder={"Search for actions on UCloud..."}
             onKeyDown={onInput}
             onChange={onChange}
             value={query}

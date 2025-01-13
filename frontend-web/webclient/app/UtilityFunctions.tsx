@@ -647,3 +647,8 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
         return result;
     }
 }
+
+/* Checks useragent to see if the user is likely using MacOS */
+export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
+    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
+    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
