@@ -1382,6 +1382,7 @@ const Video = injectStyleSimple("preview-video", `
 const PreviewObject = injectStyleSimple("preview-pdf", `
     max-width: ${MAX_HEIGHT}
     width: 100%;
+    height: ${HEIGHT};
     max-height: ${HEIGHT}
 `)
 
