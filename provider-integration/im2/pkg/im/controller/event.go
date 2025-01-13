@@ -252,6 +252,12 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 					flags := readBuf.GetU32()
 					lastUpdate := readBuf.GetU64()
 
+					category, ok := products[categoryRef]
+					if !ok || category.Name == "" {
+						log.Error("Received an APM event with invalid product reference. Refusing to handle this event!")
+						return
+					}
+
 					isLocked := (flags & 0x1) != 0
 					isProject := (flags & 0x2) != 0
 
@@ -259,15 +265,25 @@ func handleSession(session *ws.Conn, userReplayChannel chan string, replayFrom i
 						CombinedQuota: combinedQuota,
 						LastUpdate:    fnd.TimeFromUnixMilli(lastUpdate),
 						Locked:        isLocked,
-						Category:      products[categoryRef],
+						Category:      category,
 					}
 
 					if isProject {
 						notification.Owner.Type = apm.WalletOwnerTypeProject
 						notification.Owner.ProjectId = projects[workspaceRef].Id
-						notification.Project.Set(projects[workspaceRef])
+						projectInfo, ok := projects[workspaceRef]
+						if !ok || projectInfo.Id == "" {
+							log.Error("Received an APM event with invalid project reference. Refusing to handle this event!")
+							return
+						}
+						notification.Project.Set(projectInfo)
 					} else {
 						notification.Owner.Type = apm.WalletOwnerTypeUser
+						userInfo, ok := users[workspaceRef]
+						if !ok || userInfo == "" {
+							log.Error("Received an APM event with an invalid user reference. Refusing to handle this event!")
+							return
+						}
 						notification.Owner.Username = users[workspaceRef]
 					}
 

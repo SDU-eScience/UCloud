@@ -283,6 +283,17 @@ class AccountingController(
             ok(AccountingV2.AdminCharge.Response(error))
         }
 
+        implementOrDispatch(AccountingV2.adminReset) {
+            accounting.sendRequest(
+                AccountingRequest.ResetWalletHierarchy(
+                    IdCard.System,
+                    request.category,
+                )
+            )
+
+            ok(Unit)
+        }
+
         implementOrDispatch(AccountingV2.registerProviderGift) {
             for (reqItem in request.items) {
                 accounting.sendRequestNoUnwrap(

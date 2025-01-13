@@ -227,6 +227,7 @@ class AccountingSystem(
                                         }
 
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
+                                        is AccountingRequest.ResetWalletHierarchy -> resetWalletHierarchy(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
@@ -405,6 +406,19 @@ class AccountingSystem(
                     grantedIn = null,
                     autoCommit = true,
                 )
+            }
+        }
+
+        return Response.ok(Unit)
+    }
+
+    private suspend fun resetWalletHierarchy(msg: AccountingRequest.ResetWalletHierarchy): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+                chargeWallet(wallet, 0L, isDelta = false)
             }
         }
 

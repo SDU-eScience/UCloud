@@ -166,6 +166,11 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
     ) : AccountingRequest<Unit>()
 
+    data class ResetWalletHierarchy(
+        override val idCard: IdCard,
+        val category: ProductCategoryIdV2,
+    ) : AccountingRequest<Unit>()
+
     data class FillUpPersonalProviderProject(
         override val idCard: IdCard,
         val projectId: String,
