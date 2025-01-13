@@ -567,6 +567,8 @@ data class WalletV2(
     val totalAllocated: Long,
 
     val lastSignificantUpdateAt: Long,
+
+    val localRetiredUsage: Long,
 )
 
 @Serializable

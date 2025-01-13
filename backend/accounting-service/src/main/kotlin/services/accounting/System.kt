@@ -1236,6 +1236,7 @@ class AccountingSystem(
                 wallet.totalActiveQuota(),
                 wallet.totalAllocated,
                 wallet.lastSignificantUpdateAt,
+                wallet.localRetiredUsage,
             )
         }
 
