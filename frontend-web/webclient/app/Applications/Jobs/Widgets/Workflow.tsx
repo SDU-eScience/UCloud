@@ -1,7 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {default as ReactModal} from "react-modal";
-import {Box, Button, Flex, Icon, List, Markdown} from "@/ui-components";
+import {Box, Button, Flex, Icon, Markdown} from "@/ui-components";
 import {fullScreenModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
@@ -12,7 +12,7 @@ import * as WorkflowApi from "@/Applications/Workflows";
 import {Workflow, WorkflowSpecification} from "@/Applications/Workflows";
 import {AppLogo, hashF} from "@/Applications/AppToolLogo";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {bulkRequestOf, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {bulkRequestOf, deepEquals, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {SingleLineMarkdown} from "@/ui-components/Markdown";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -39,13 +39,13 @@ const WorkflowSelectedRow: RichSelectChildComponent<SearchableWorkflow> = ({elem
     }, [element]);
 
     if (!element) {
-        return <Flex height={40} alignItems={"center"} pl={12}>No workflow selected</Flex>
+        return <Flex height={40} alignItems={"center"} pl={12}>No script selected</Flex>
     }
 
     if (element.type === "create") {
         return <Flex gap={"16px"} {...dataProps} alignItems={"center"} p={8} onClick={onSelect}>
             <Icon name={"heroPlus"} size={24} color={"successMain"} />
-            <b>Create a new workflow</b>
+            <b>Create a new script</b>
         </Flex>;
     } else {
         return <Flex gap={"16px"} {...dataProps} alignItems={"center"} p={8} onClick={onSelect}>
@@ -107,28 +107,37 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
 
         if (activeInput) {
             if (!result.some(it => it.type === "workflow" && it.id === activeInput.id)) {
-                result = [
-                    {
-                        id: "unsaved",
-                        createdAt: timestampUnixMs(),
-                        owner: {
-                            createdBy: "_ucloud",
-                            project: null
+                const existing = result.find(it =>
+                    it.type === "workflow" &&
+                    deepEquals(it.specification, activeInput.specification)
+                );
+
+                if (existing && existing.type === "workflow") {
+                    setActiveInput({ id: existing.id, path: existing.status.path, specification: existing.specification });
+                } else {
+                    result = [
+                        {
+                            id: "unsaved",
+                            createdAt: timestampUnixMs(),
+                            owner: {
+                                createdBy: "_ucloud",
+                                project: null
+                            },
+                            specification: activeInput.specification,
+                            status: {
+                                path: "Unsaved script based on " + (activeInput.path ?? "default"),
+                            },
+                            type: "workflow",
+                            searchString: (activeInput.path ?? "Unsaved script"),
+                            permissions: {
+                                openToWorkspace: true,
+                                myself: ["READ", "WRITE", "ADMIN"],
+                                others: [],
+                            }
                         },
-                        specification: activeInput.specification,
-                        status: {
-                            path: "Unsaved workflow based on " + (activeInput.path ?? "default"),
-                        },
-                        type: "workflow",
-                        searchString: (activeInput.path ?? "Unsaved workflow"),
-                        permissions: {
-                            openToWorkspace: true,
-                            myself: ["READ", "WRITE", "ADMIN"],
-                            others: [],
-                        }
-                    },
-                    ...result
-                ];
+                        ...result
+                    ];
+                }
             }
         }
 
@@ -215,6 +224,15 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
         const id = activeWorkflow.id === "default" ? null : activeWorkflow.id;
         onEdit(id, activeWorkflow.status.path, activeWorkflow.specification);
     }, [onEdit, activeWorkflow]);
+
+    useEffect(() => {
+        const wf = workflows.find(it => it.type === "workflow" && it.id === "default");
+        if (wf) {
+            if (wf.type === "workflow") {
+                onUse(wf.id, wf.status.path, wf.specification);
+            }
+        }
+    }, []);
 
     const descriptionRef = useRef<HTMLDivElement>(null);
     const [expanded, setExpanded] = useState(false);
@@ -352,7 +370,7 @@ export const WorkflowValidator: WidgetValidator = (param) => {
     if (param.type === "workflow") {
         const elem = findElement(param);
         if (elem === null) return {valid: true};
-        if (elem.value === "") return {valid: false, message: "You must select a workflow"};
+        if (elem.value === "") return {valid: false, message: "You must select a script"};
         try {
             const parsed = JSON.parse(elem.value) as WorkflowParameterInputFormat;
             return {

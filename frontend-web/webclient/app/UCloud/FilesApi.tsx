@@ -1340,6 +1340,7 @@ export function FilePreview({initialFile}: {
         customContent={node}
         onOpenFile={onOpenFile}
         operations={operations}
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
     />;
 }
 
