@@ -313,17 +313,13 @@ const editorClass = injectStyle("editor", k => `
     ${k} .title-bar {
         display: flex;
         align-items: center;
-        height: 48px;
+        height: 34px;
         width: 100%;
         flex-shrink: 0;
         border-bottom: var(--borderThickness) solid var(--borderColor);
-        padding: 0 8px;
     }
     
-    ${k} .title-bar-code {
-        padding: 0 20px; /* this aligns the file icon with the line gutter */
-    }
-    
+
     ${k} .panels {
         display: flex;
         width: 100%;
@@ -764,7 +760,7 @@ export const Editor: React.FunctionComponent<{
 
         <div className={"main-content"}>
             <div className={"title-bar-code"}>
-                <div className={"title-bar"}>
+                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: `calc(100% - 48px)`}}className="">
                     {tabs.map((t, index) =>
                         <EditorTab
                             isDirty={false /* TODO */}
@@ -905,8 +901,8 @@ function EditorTab({
     const [hovered, setHovered] = useState(false);
 
     return (
-        <Flex className={EditorTabClass} my="auto" data-active={isActive} width="250px" mr="8px" onClick={onActivate}>
-            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"24px"} />
+        <Flex className={EditorTabClass} mt="auto" data-active={isActive} width="250px" onClick={onActivate}>
+            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />
             <Truncate ml="8px" width="50%"><PrettyFilePath path={title as string} /></Truncate>
             <Icon
                 onMouseEnter={() => setHovered(true)}
@@ -921,8 +917,10 @@ function EditorTab({
 const EditorTabClass = injectStyle("editor-tab-class", k => `
     ${k} {
         height: 32px;
+        font-size: 12px;
         padding-left: 12px;
         padding-right: 12px;
+        cursor: pointer;
     }
 
     ${k} > * {
@@ -930,7 +928,7 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
         margin-bottom: auto;
     }
 
-    ${k}[data-active="true"] {
+    ${k}[data-active="true"], ${k}:hover  {
         background-color: var(--infoContrast);
     }
 `);
@@ -975,7 +973,7 @@ const SidebarNode: React.FunctionComponent<{
         slim
         left={
             <>
-                <Flex gap={"8px"} alignItems={"center"}>
+                <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
                     {props.node.file.isDirectory ? null :
                         <FtIcon
                             fileIcon={{
