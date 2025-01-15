@@ -245,6 +245,7 @@ export const TreeNode: React.FunctionComponent<{
     right?: React.ReactNode;
     children?: React.ReactNode;
     className?: string;
+    onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
     indent?: number;
     onActivate?: (open: boolean, element: HTMLElement) => void;
     slim?: boolean;
@@ -290,6 +291,7 @@ export const TreeNode: React.FunctionComponent<{
         style={style}
         ref={ref}
         onClick={activate}
+        onContextMenu={props.onContextMenu}
         onDoubleClick={toggleOpen}
         {...extractDataTags(props)}
     >

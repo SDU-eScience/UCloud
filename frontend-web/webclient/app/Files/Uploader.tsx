@@ -29,7 +29,7 @@ import {
     uploadTrackProgress,
     useUploads
 } from "@/Files/Upload";
-import {api as FilesApi, WriteToFileEventKey, WriteToFileEventProps} from "@/UCloud/FilesApi";
+import {api as FilesApi, EventKeys, WriteToFileEventProps} from "@/UCloud/FilesApi";
 import {callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {BulkResponse} from "@/UCloud";
@@ -778,7 +778,7 @@ const Uploader: React.FunctionComponent = () => {
         const oldOnDragOver = document.ondragover;
         const oldOnDragEnter = document.ondragenter;
         const oldOnDragLeave = document.ondragleave;
-        window.addEventListener(WriteToFileEventKey, stopGapMethodForUploadingFilesFromTheEditor);
+        window.addEventListener(EventKeys.WriteToFile, stopGapMethodForUploadingFilesFromTheEditor);
 
         if (uploaderVisible) {
             document.ondrop = onSelectedFile;

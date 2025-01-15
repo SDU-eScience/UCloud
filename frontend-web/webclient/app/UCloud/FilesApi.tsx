@@ -9,7 +9,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Button, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
@@ -206,7 +206,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{ id?: string }>();
+        const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -229,7 +229,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         if (!id) return <h1>Missing file id.</h1>;
         if (!file) return <></>;
 
-        return <FilePreview initialFile={file}/>
+        return <FilePreview initialFile={file} />
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -312,7 +312,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -417,7 +417,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 filterProvider: selected[0].specification.product.provider
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -471,7 +471,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -527,7 +527,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             },
                             initialPath: pathRef.current,
                             additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -994,10 +994,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1025,7 +1025,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-                                             onUpdated={onUpdated}/>, () => undefined, true);
+        onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1082,7 +1082,7 @@ export function FilePreview({initialFile}: {
         setPreviewRequested(false);
     }, [openFile[0]]);
 
-    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
+    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
         if (typeof contentBuffer === "string") {
             if (previewRequested) {
@@ -1094,7 +1094,7 @@ export function FilePreview({initialFile}: {
         const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
         let typeFromFileType =
             foundFileType.length > 0 ?
-            typeFromMime(foundFileType[0].mime ?? "") : null;
+                typeFromMime(foundFileType[0].mime ?? "") : null;
 
         if (!typeFromFileType) {
             typeFromFileType = extensionType(extensionFromPath(file));
@@ -1194,16 +1194,16 @@ export function FilePreview({initialFile}: {
             node = null;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data}/>
+            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data} />
             break;
         case "audio":
-            node = <audio className={Audio} controls src={mediaFileMetadata.data}/>;
+            node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
             break;
         case "video":
-            node = <video className={Video} src={mediaFileMetadata.data} controls/>;
+            node = <video className={Video} src={mediaFileMetadata.data} controls />;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
             break;
         case "markdown":
             node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
@@ -1249,7 +1249,7 @@ export function FilePreview({initialFile}: {
         })).result;
 
         const newPath = getParentPath(path) + name;
-        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
             detail: {
                 path: newPath,
                 content: "",
@@ -1340,6 +1340,17 @@ export function FilePreview({initialFile}: {
         customContent={node}
         onOpenFile={onOpenFile}
         operations={operations}
+        help={
+            <Flex mx="auto" mt="150px">
+                <Box>
+                    <Text mb="12px">Create new file and start working</Text>
+                    <Flex mx="auto">
+                        <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
+                        <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                    </Flex>
+                </Box>
+            </Flex>
+        }
     />;
 }
 
@@ -1466,7 +1477,7 @@ class PreviewVfs implements Vfs {
         if (content === undefined) return;
 
         try {
-            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
                 detail: {
                     path,
                     content
@@ -1486,7 +1497,7 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
     }));
 }
 
-export const WriteToFileEventKey = "write-to-file-event";
+export const EventKeys = {WriteToFile: "write-to-file-event"};
 
 export interface WriteToFileEventProps {
     path: string;

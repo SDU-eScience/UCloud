@@ -5,7 +5,7 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate, Text} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -13,7 +13,7 @@ import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {PrettyFileName} from "@/Files/FilePath";
+import {PrettyFileName, PrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -359,6 +359,7 @@ export const Editor: React.FunctionComponent<{
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
     operations?: (file: VirtualFile) => Operation<any>[];
+    help?: React.ReactNode;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -368,6 +369,15 @@ export const Editor: React.FunctionComponent<{
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [tabs, setTabs] = useState<string[]>([state.currentPath]);
+
+    React.useEffect(() => {
+        if (state.currentPath)
+            setTabs(tabs => {
+                if (tabs.includes(state.currentPath)) return tabs;
+                return [...tabs, state.currentPath];
+            });
+    }, [state.currentPath]);
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -384,11 +394,11 @@ export const Editor: React.FunctionComponent<{
     }, [props.showCustomContent]);
 
     useEffect(() => {
-        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+        dispatch({type: "EditorActionUpdateTitle", title: props.title});
     }, [props.title]);
 
     useEffect(() => {
-        dispatch({ type: "EditorActionUpdateTitle", title: props.title });
+        dispatch({type: "EditorActionUpdateTitle", title: props.title});
     }, [props.title]);
 
     useEffect(() => {
@@ -470,6 +480,11 @@ export const Editor: React.FunctionComponent<{
 
         try {
             const content = await dataPromise;
+            
+            if (!cachedContent) { // Note(Jonas): Cache content, if fetched from backend
+                state.cachedFiles[path] = content;
+            }
+
             props.onOpenFile?.(path, content);
             const editor = editorRef.current;
             const engine = engineRef.current;
@@ -731,9 +746,11 @@ export const Editor: React.FunctionComponent<{
         setIsSettingsOpen(p => !p);
     }, []);
 
+    // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
+    const showEditorHelp = state.currentPath === "";
+
     return <div className={editorClass} onKeyDown={onKeyDown}>
         <div className={"editor-files"}>
-            <div className={"title-bar"}><b>{state.title}</b></div>
             <Tree apiRef={tree} onAction={onTreeAction}>
                 <SidebarNode
                     initialFolder={props.initialFolderPath}
@@ -747,10 +764,29 @@ export const Editor: React.FunctionComponent<{
 
         <div className={"main-content"}>
             <div className={"title-bar-code"}>
-                <Flex alignItems={"center"} gap={"8px"} flexGrow={1}>
-                    <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(state.currentPath)}} size={"24px"} />
-                    {fileName(state.currentPath)}
-                </Flex>
+                <div className={"title-bar"}>
+                    {tabs.map((t, index) =>
+                        <EditorTab
+                            isDirty={false /* TODO */}
+                            isActive={t === state.currentPath}
+                            onActivate={() => {
+                                if (state.currentPath === t) return;
+                                openFile(t, false);
+                            }}
+                            close={() => {
+                                /* if (fileIsDirty) promptSaveFileWarning() else */
+                                setTabs(tabs => {
+                                    const result = tabs.filter(tabTitle => tabTitle !== t)
+                                    if (state.currentPath === t) {
+                                        dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
+                                    }
+                                    return result;
+                                });
+                            }}
+                            children={t}
+                        />
+                    )}
+                </div>
                 <Flex alignItems={"center"} gap={"16px"}>
                     {props.toolbarBeforeSettings}
                     {!hasFeature(Feature.EDITOR_VIM) ? null :
@@ -823,36 +859,59 @@ export const Editor: React.FunctionComponent<{
                             </Box>
                         </Flex>
 
-                    </Flex> :
-                    <>
-                        <div style={{
-                            display: props.showCustomContent ? "none" : "block",
-                            width: "100%",
-                            height: "100%"
-                        }}>
-                            {engine !== "monaco" ? null :
-                                <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                            }
+                    </Flex> : showEditorHelp && props.help ? props.help :
+                        <>
+                            <div style={{
+                                display: props.showCustomContent ? "none" : "block",
+                                width: "100%",
+                                height: "100%"
+                            }}>
+                                {engine !== "monaco" ? null :
+                                    <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
+                                }
 
-                            {engine !== "vim" ? null :
-                                <VimEditor vim={vimRef} onInit={doNothing} />
-                            }
-                        </div>
+                                {engine !== "vim" ? null :
+                                    <VimEditor vim={vimRef} onInit={doNothing} />
+                                }
+                            </div>
 
-                        <div style={{
-                            display: props.showCustomContent ? "block" : "none",
-                            width: "100%",
-                            height: "100%",
-                            maxHeight: "calc(100vh - 64px)",
-                            padding: "16px",
-                            overflow: "auto",
-                        }}>{props.customContent}</div>
-                    </>
+                            <div style={{
+                                display: props.showCustomContent ? "block" : "none",
+                                width: "100%",
+                                height: "100%",
+                                maxHeight: "calc(100vh - 64px)",
+                                padding: "16px",
+                                overflow: "auto",
+                            }}>{props.customContent}</div>
+                        </>
                 }
             </div>
         </div>
     </div>;
 };
+
+function EditorTab({
+    isDirty,
+    isActive,
+    close,
+    onActivate,
+    children: title
+}: React.PropsWithChildren<{
+    isActive: boolean;
+    isDirty: boolean;
+    onActivate(): void;
+    close(): void
+}>): React.ReactNode {
+    const [hovered, setHovered] = useState(false);
+
+    return (
+        <Flex style={isActive ? {background: "var(--textSecondary)"} : undefined} width="250px" mr="8px" onClick={onActivate}>
+            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"24px"} />
+            <Truncate ml="8px" width="50%"><PrettyFilePath path={title as string} /></Truncate>
+            <Icon onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} cursor="pointer" name={isDirty && !hovered ? "heroPlayCircle" : "close"} my="auto" size={12} onClick={close} />
+        </Flex>
+    );
+}
 
 const SidebarNode: React.FunctionComponent<{
     node: EditorSidebarNode;
@@ -875,8 +934,8 @@ const SidebarNode: React.FunctionComponent<{
 
     const openOperations = useRef<(left: number, top: number) => void>(doNothing);
     const onContextMenu = useCallback((ev: React.MouseEvent) => {
+        // TODO(Jonas): only one at max should be open at any given point
         ev.preventDefault();
-        console.log(ev.clientX, ev.clientY);
         openOperations.current(ev.clientX, ev.clientY);
     }, []);
 
@@ -890,10 +949,11 @@ const SidebarNode: React.FunctionComponent<{
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
+        onContextMenu={onContextMenu}
         slim
         left={
             <>
-                <Flex gap={"8px"} alignItems={"center"} onContextMenu={onContextMenu}>
+                <Flex gap={"8px"} alignItems={"center"}>
                     {props.node.file.isDirectory ? null :
                         <FtIcon
                             fileIcon={{
