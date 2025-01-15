@@ -852,6 +852,20 @@ export const chrono = (props: any) => (
     />
   </svg>
 );
+export const circle = (props: any) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fillRule="evenodd"
+    strokeLinejoin="round"
+    strokeMiterlimit={1.414}
+    clipRule="evenodd"
+    viewBox="0 0 24 24"
+    fill="currentcolor"
+    {...props}
+  >
+    <circle cx={12} cy={12} r={10} fill="currentColor" />
+  </svg>
+);
 export const close = (props: any) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

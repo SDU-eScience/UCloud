@@ -5,7 +5,7 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {Box, Button, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate, Text} from "@/ui-components";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -15,7 +15,7 @@ import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {PrettyFileName, PrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {Feature, hasFeature} from "@/Features";
 
@@ -480,7 +480,7 @@ export const Editor: React.FunctionComponent<{
 
         try {
             const content = await dataPromise;
-            
+
             if (!cachedContent) { // Note(Jonas): Cache content, if fetched from backend
                 state.cachedFiles[path] = content;
             }
@@ -905,13 +905,35 @@ function EditorTab({
     const [hovered, setHovered] = useState(false);
 
     return (
-        <Flex style={isActive ? {background: "var(--textSecondary)"} : undefined} width="250px" mr="8px" onClick={onActivate}>
+        <Flex className={EditorTabClass} my="auto" data-active={isActive} width="250px" mr="8px" onClick={onActivate}>
             <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"24px"} />
             <Truncate ml="8px" width="50%"><PrettyFilePath path={title as string} /></Truncate>
-            <Icon onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} cursor="pointer" name={isDirty && !hovered ? "heroPlayCircle" : "close"} my="auto" size={12} onClick={close} />
+            <Icon
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
+                size={12}
+                onClick={close} />
         </Flex>
     );
 }
+
+const EditorTabClass = injectStyle("editor-tab-class", k => `
+    ${k} {
+        height: 32px;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    ${k} > * {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+
+    ${k}[data-active="true"] {
+        background-color: var(--infoContrast);
+    }
+`);
 
 const SidebarNode: React.FunctionComponent<{
     node: EditorSidebarNode;
