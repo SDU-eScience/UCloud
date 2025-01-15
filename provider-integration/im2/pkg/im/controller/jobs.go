@@ -424,13 +424,31 @@ func controllerJobs(mux *http.ServeMux) {
 				connMutex := sync.Mutex{}
 
 				var session *ShellSession = nil
+
+				go func() {
+					timeout := 30
+					for util.IsAlive {
+						if session != nil && !session.Alive {
+							_ = conn.Close()
+							break
+						}
+
+						if timeout <= 0 && session == nil {
+							_ = conn.Close()
+							break
+						}
+
+						time.Sleep(1 * time.Second)
+						timeout--
+					}
+				}()
+
 				for util.IsAlive {
 					if session != nil && !session.Alive {
 						break
 					}
 
 					messageType, data, err := conn.ReadMessage()
-
 					if err != nil {
 						break
 					}

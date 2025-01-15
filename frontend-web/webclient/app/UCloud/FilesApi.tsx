@@ -1320,7 +1320,7 @@ export function FilePreview({initialFile}: {
         }
         toolbar={
             <>
-                {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
