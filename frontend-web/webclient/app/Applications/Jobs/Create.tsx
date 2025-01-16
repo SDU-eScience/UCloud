@@ -153,7 +153,6 @@ export const Create: React.FunctionComponent = () => {
         numberOfNodes: 1,
         product: null
     });
-
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
@@ -304,10 +303,14 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [provider, application]);
 
-    const doLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
+
+        flushSync(() => {
+            setActiveOptParams(() => []);
+        });
 
         {
             // Find optional parameters and make sure the widgets are initialized
@@ -374,7 +377,6 @@ export const Create: React.FunctionComponent = () => {
         setErrors({});
         setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
-
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -550,10 +552,10 @@ export const Create: React.FunctionComponent = () => {
                                 right={
                                     <div>
                                         <Flex>
-                                            <ImportParameters application={application} onImport={doLoadParameters}
-                                                importDialogOpen={importDialogOpen}
-                                                setImportDialogOpen={setImportDialogOpen}
-                                                onImportDialogClose={() => setImportDialogOpen(false)} />
+                                            <ImportParameters application={application} onImport={onLoadParameters}
+                                                              importDialogOpen={importDialogOpen}
+                                                              setImportDialogOpen={setImportDialogOpen}
+                                                              onImportDialogClose={() => setImportDialogOpen(false)} />
 
                                             {anyError ?
                                                 <Tooltip trigger={
@@ -582,42 +584,42 @@ export const Create: React.FunctionComponent = () => {
                                         <div className={EstimatesContainerClass}>
                                             <table>
                                                 <tbody>
+                                                <tr>
+                                                    <th>Estimated cost</th>
+                                                    <td>
+                                                        {!estimatedCost.product ?
+                                                            "-" :
+                                                            priceToString(
+                                                                estimatedCost.product,
+                                                                estimatedCost.numberOfNodes,
+                                                                estimatedCost.durationInMinutes,
+                                                                {showSuffix: false}
+                                                            )
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Current balance</th>
+                                                    <td>
+                                                        {displayWallet === null ?
+                                                            "-" :
+                                                            displayWallet.usageAndQuota.display.currentBalance
+                                                        }
+                                                    </td>
+                                                </tr>
+                                                {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
                                                     <tr>
-                                                        <th>Estimated cost</th>
+                                                        <th>Usable balance</th>
                                                         <td>
-                                                            {!estimatedCost.product ?
-                                                                "-" :
-                                                                priceToString(
-                                                                    estimatedCost.product,
-                                                                    estimatedCost.numberOfNodes,
-                                                                    estimatedCost.durationInMinutes,
-                                                                    {showSuffix: false}
-                                                                )
-                                                            }
+                                                            <OverallocationLink>
+                                                                <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
+                                                                    <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                    {displayWallet.usageAndQuota.display.maxUsableBalance}
+                                                                </TooltipV2>
+                                                            </OverallocationLink>
                                                         </td>
                                                     </tr>
-                                                    <tr>
-                                                        <th>Current balance</th>
-                                                        <td>
-                                                            {displayWallet === null ?
-                                                                "-" :
-                                                                displayWallet.usageAndQuota.display.currentBalance
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                    {displayWallet === null || !displayWallet.usageAndQuota.display.displayOverallocationWarning ? null :
-                                                        <tr>
-                                                            <th>Usable balance</th>
-                                                            <td>
-                                                                <OverallocationLink>
-                                                                    <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                                        {displayWallet.usageAndQuota.display.maxUsableBalance}
-                                                                    </TooltipV2>
-                                                                </OverallocationLink>
-                                                            </td>
-                                                        </tr>
-                                                    }
+                                                }
                                                 </tbody>
                                             </table>
                                         </div>
@@ -647,8 +649,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryWorkflow.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -661,8 +663,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryParameters.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                            injectWorkflowParameters={setWorkflowInjectParameters}
-                                            setErrors={setErrors} active application={application} />
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>
@@ -694,13 +696,13 @@ export const Create: React.FunctionComponent = () => {
                             <Card>
                                 <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        setErrors={setErrors}
-                                        active={false}
-                                        application={application}
-                                        onActivate={() => {
-                                            setActiveOptParams([...activeOptParams, param.name]);
-                                        }}
-                                        injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors}
+                                            active={false}
+                                            application={application}
+                                            onActivate={() => {
+                                                setActiveOptParams([...activeOptParams, param.name]);
+                                            }}
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
                                     />
                                 )} />
                             </Card>
@@ -708,7 +710,7 @@ export const Create: React.FunctionComponent = () => {
 
                         {/* SSH */}
                         <SshWidget application={application} onSshStatusChanged={setSshEnabled}
-                            onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
+                                   onSshKeysValid={setSshValid} initialEnabledStatus={initialSshEnabled} />
 
                         {/* Resources */}
 
