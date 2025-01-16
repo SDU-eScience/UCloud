@@ -6,7 +6,7 @@ import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/Data
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
-import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {SafeLogo} from "@/Applications/AppToolLogo";
 import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Select, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
@@ -906,7 +906,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                 const supportsInterface =
                     (parsedTarget.type === "WEB" && isSupported(backendType, support, "web")) ||
                     (parsedTarget.type === "VNC" && isSupported(backendType, support, "vnc"));
-                
+
                 if (parsedTarget.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
                     targetRequests.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
                 } else if (parsedTarget.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
@@ -1461,7 +1461,7 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
             <Icon name="heroArrowTopRightOnSquare" />
             <Truncate>{element.target ?? "Open interface"}</Truncate>
 
-            {!element.showNode ? null : 
+            {!element.showNode ? null :
                 <div style={{color: "var(--textSecondary)"}}>
                     Node {element.rank + 1}
                 </div>
@@ -1497,7 +1497,7 @@ const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({el
             p={8}
         >
             <Icon name="heroCommandLine" />
-            <Truncate>Node {element.rank+1}</Truncate>
+            <Truncate>Node {element.rank + 1}</Truncate>
         </Flex>
     </Link>;
 }
@@ -1543,7 +1543,7 @@ const RunningButtonGroup: React.FunctionComponent<{
             const isDouble = interfaceLinks.filter(existing => it.target === existing.target).length > 1;
 
             return {
-                searchString: it.target + " " + (it.rank+1),
+                searchString: it.target + " " + (it.rank + 1),
                 showNode: isDouble,
                 ...it
             };
@@ -1552,7 +1552,7 @@ const RunningButtonGroup: React.FunctionComponent<{
     const searchableTerminalLinks: SearchableTerminalTarget[] = terminalLinks
         .filter(it => it.rank > 0)
         .map(it => ({
-            searchString: (it.rank+1).toString(), ...it
+            searchString: (it.rank + 1).toString(), ...it
         }));
 
     return <div className={topButtons.class}>
@@ -1585,7 +1585,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                         keys={["searchString"]}
                         RenderRow={TerminalLinkRow}
                         FullRenderSelected={TerminalLinkSelectedRow}
-                        onSelect={() => {}}
+                        onSelect={doNothing}
                     />
                 }
             </Flex>
@@ -1608,7 +1608,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                     keys={["searchString"]}
                     RenderRow={InterfaceLinkRow}
                     FullRenderSelected={InterfaceLinkSelectedRow}
-                    onSelect={() => {}}
+                    onSelect={doNothing}
                 />
             </Flex>
         )}
