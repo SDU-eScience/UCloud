@@ -1,10 +1,11 @@
 import * as React from "react";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {injectStyle} from "@/Unstyled";
+import {classConcat, injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {PrettyFileName} from "./FilePath";
-import {Flex, FtIcon} from "@/ui-components";
+import {Flex, FtIcon, Truncate} from "@/ui-components";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -25,9 +26,13 @@ interface FileTreeProps {
     initialFolder: string;
     initialFilePath?: string;
     operations?: (file: VirtualFile) => Operation<any>[];
+    width?: string;
 }
+
 export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
-    return <div className={FileTreeClass}>
+    const width = props.width ?? "250px";
+
+    return <div style={{"--tree-width": width} as React.CSSProperties} className={FileTreeClass}>
         <Tree apiRef={tree} onAction={onTreeAction}>
             <FileNode
                 initialFolder={props.initialFolder}
@@ -112,8 +117,10 @@ const FileNode: React.FunctionComponent<{
 
 const FileTreeClass = injectStyle("file-tree", k => `
     ${k} {
-        width: 250px;
+        width: var(--tree-width);
+        max-width: var(--tree-width);
         overflow-y: auto;
+        /* resize: horizontal; disabled for now */
         
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
