@@ -13,11 +13,12 @@ import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {PrettyFileName, PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Operation, Operations} from "@/ui-components/Operation";
+import {Operation} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {Feature, hasFeature} from "@/Features";
+import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -28,12 +29,6 @@ export interface Vfs {
 
     // Notifies the VFS that a file is dirty, but do not synchronize it yet.
     setDirtyFileContent(path: string, content: string): void;
-}
-
-export interface VirtualFile {
-    absolutePath: string;
-    isDirectory: boolean;
-    requestedSyntax?: string;
 }
 
 export interface EditorState {
@@ -47,11 +42,6 @@ export interface EditorState {
 
 export interface EditorSidebar {
     root: EditorSidebarNode;
-}
-
-export interface EditorSidebarNode {
-    file: VirtualFile;
-    children: EditorSidebarNode[];
 }
 
 export interface EditorActionCreate {
@@ -293,15 +283,6 @@ const editorClass = injectStyle("editor", k => `
         --borderThickness: 2px;
     }
     
-    ${k} > .editor-files {
-        width: 250px;
-        /* TODO(Jonas): scroll on overflow-x */
-        overflow-y: auto;
-        
-        flex-shrink: 0;
-        border-right: var(--borderThickness) solid var(--borderColor);
-    }
-    
     ${k} > .main-content {
         display: flex;
         flex-direction: column;
@@ -374,6 +355,19 @@ export const Editor: React.FunctionComponent<{
                 return [...tabs, state.currentPath];
             });
     }, [state.currentPath]);
+
+    React.useEffect(() => {
+        function dirtyFileWarning() {
+            state.cachedFiles
+            /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
+        }
+
+        window.addEventListener("beforeunload", dirtyFileWarning);
+
+        return () => {
+            window.removeEventListener("beforeunload", dirtyFileWarning);
+        }
+    }, []);
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -746,21 +740,19 @@ export const Editor: React.FunctionComponent<{
     const showEditorHelp = state.currentPath === "";
 
     return <div className={editorClass} onKeyDown={onKeyDown}>
-        <div className={"editor-files"}>
-            <Tree apiRef={tree} onAction={onTreeAction}>
-                <SidebarNode
-                    initialFolder={props.initialFolderPath}
-                    initialFilePath={props.initialFilePath}
-                    node={state.sidebar.root}
-                    onAction={onNodeActivated}
-                    operations={props.operations}
-                />
-            </Tree>
-        </div>
+        <FileTree
+            tree={tree}
+            onTreeAction={onTreeAction}
+            onNodeActivated={onNodeActivated}
+            state={state}
+            initialFolder={props.initialFolderPath}
+            initialFilePath={props.initialFilePath}
+            operations={props.operations}
+        />
 
         <div className={"main-content"}>
             <div className={"title-bar-code"}>
-                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: `calc(100% - 48px)`}}className="">
+                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: `calc(100% - 48px)`}}>
                     {tabs.map((t, index) =>
                         <EditorTab
                             isDirty={false /* TODO */}
@@ -932,76 +924,6 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
         background-color: var(--infoContrast);
     }
 `);
-
-const SidebarNode: React.FunctionComponent<{
-    node: EditorSidebarNode;
-    onAction: (open: boolean, row: HTMLElement) => void;
-    initialFilePath?: string;
-    initialFolder?: string;
-    operations?: (file: VirtualFile) => Operation<any>[];
-}> = props => {
-    let children = !props.node.file.isDirectory ? undefined : <>
-        {props.node.children.map(child => (
-            <SidebarNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} />
-        ))}
-    </>;
-
-    const absolutePath = props.node.file.absolutePath;
-    if (absolutePath === "" || absolutePath === "/" || absolutePath === props.initialFolder) return children;
-
-    const isInitiallyOpen = props.node.file.isDirectory &&
-        props.initialFilePath?.startsWith(props.node.file.absolutePath);
-
-    const openOperations = useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = useCallback((ev: React.MouseEvent) => {
-        // TODO(Jonas): only one at max should be open at any given point
-        ev.preventDefault();
-        openOperations.current(ev.clientX, ev.clientY);
-    }, []);
-
-    const ops = useMemo(() => {
-        const ops = props.operations;
-        if (!ops) return [];
-        return ops(props.node.file);
-    }, [props.operations, props.node]);
-
-    return <TreeNode
-        data-path={props.node.file.absolutePath}
-        onActivate={props.onAction}
-        data-open={isInitiallyOpen}
-        onContextMenu={onContextMenu}
-        slim
-        left={
-            <>
-                <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
-                    {props.node.file.isDirectory ? null :
-                        <FtIcon
-                            fileIcon={{
-                                type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath)
-                            }}
-                            size={"16px"}
-                        />
-                    }
-                    <PrettyFileName path={props.node.file.absolutePath} />
-                </Flex>
-
-                <Operations
-                    entityNameSingular={""}
-                    operations={ops}
-                    forceEvaluationOnOpen={true}
-                    openFnRef={openOperations}
-                    selected={[]}
-                    extra={null}
-                    row={42}
-                    hidden
-                    location={"IN_ROW"}
-                />
-            </>
-        }
-        children={children}
-    />;
-}
 
 const jinja2monarchTokens = {
     tokenizer: {
