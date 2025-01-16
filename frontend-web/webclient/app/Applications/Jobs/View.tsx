@@ -910,7 +910,7 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                 const parsedTarget = JSON.parse(message.substring("Target: ".length)) as InterfaceTarget;
                 const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
                 const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
-                
+
                 if (canShowWeb && job.status.state === "RUNNING") {
                     targetRequests.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
                 } else if (canShowVnc && job.status.state === "RUNNING") {
