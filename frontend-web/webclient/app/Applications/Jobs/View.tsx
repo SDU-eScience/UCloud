@@ -295,25 +295,6 @@ function useJobUpdates(job: Job | undefined, callback: (entry: JobsFollowRespons
             },
         });
 
-        setTimeout(() => {
-            callback({updates: [
-                {timestamp: timestampUnixMs(), status: `Hello world`}
-            ], log: []})
-        }, 2000);
-
-
-        setTimeout(() => {
-            callback({updates: [
-                {timestamp: timestampUnixMs(), status: `Target: {"rank":0,"type":"WEB","target":"My server late","port":5959}`}
-            ], log: []})
-        }, 20000);
-
-        setTimeout(() => {
-            callback({updates: [
-                {timestamp: timestampUnixMs(), status: `Target arrived`}
-            ], log: []})
-        }, 21000);
-
         return () => {
             conn.close();
         };
@@ -342,13 +323,6 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [, invokeCommand] = useCloudCommand();
     const job = jobFetcher.data;
     const [interfaceTargets, setInterfaceTargets] = useState<InterfaceTarget[]>([]);
-
-    useEffect(() => {
-        if (!job) return;
-
-        findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
-    }, [job, job?.updates, job?.status.state]);
-
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
 
     if (!props.embedded) {
@@ -367,6 +341,11 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
     const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
+
+    useEffect(() => {
+        if (!job) return;
+        findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
+    }, [job, job?.updates, job?.status.state]);
 
     useEffect(() => {
         if (useFakeState) {
@@ -469,6 +448,10 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     jobCache.updateCache(pageV2Of(j));
                 }
             }
+
+            if (job) {
+                findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
+            }
         }
 
         if (e.newStatus) {
@@ -543,12 +526,10 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                             job={job}
                             state={jobUpdateState}
                             status={status}
-                            interfaceLinks={interfaceTargets}
                         />
                     </div>
                 </CSSTransition>
             )}
-
 
             {!job || !status ? null : (
                 <CSSTransition
@@ -749,7 +730,10 @@ function isSupported(jobBackend: string | undefined, support: ComputeSupport | u
     }
 }
 
-const RunningText: React.FunctionComponent<{job: Job; interfaceLinks: InterfaceTarget[]}> = ({job, interfaceLinks}) => {
+const RunningText: React.FunctionComponent<{
+    job: Job;
+    interfaceLinks: InterfaceTarget[];
+}> = ({job, interfaceLinks}) => {
     return <>
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
@@ -976,8 +960,7 @@ const RunningContent: React.FunctionComponent<{
     job: Job;
     state: React.RefObject<JobUpdates>;
     status: JobStatus;
-    interfaceLinks: InterfaceTarget[];
-}> = ({job, state, status, interfaceLinks}) => {
+}> = ({job, state, status}) => {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
@@ -1186,7 +1169,7 @@ const RunningContent: React.FunctionComponent<{
             <TabbedCard>
                 <Box divRef={scrollRef}>
                     {Array(job.specification.replicas).fill(0).map((_, i) =>
-                        <RunningJobRank key={i} job={job} rank={i} state={state} interfaceLinks={interfaceLinks} />
+                        <RunningJobRank key={i} job={job} rank={i} state={state} />
                     )}
                 </Box>
             </TabbedCard>
@@ -1342,8 +1325,7 @@ const RunningJobRank: React.FunctionComponent<{
     job: Job,
     rank: number,
     state: React.RefObject<JobUpdates>,
-    interfaceLinks: InterfaceTarget[];
-}> = ({job, rank, state, interfaceLinks}) => {
+}> = ({job, rank, state}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
     useEffect(() => {
