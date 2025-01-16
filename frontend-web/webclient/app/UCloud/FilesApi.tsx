@@ -73,10 +73,11 @@ import {
 } from "./UFile";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
+import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
+import {VirtualFile} from "@/Files/FileTree";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");

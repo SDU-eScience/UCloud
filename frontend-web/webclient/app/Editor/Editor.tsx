@@ -744,7 +744,7 @@ export const Editor: React.FunctionComponent<{
             tree={tree}
             onTreeAction={onTreeAction}
             onNodeActivated={onNodeActivated}
-            state={state}
+            root={state.sidebar.root}
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
             operations={props.operations}

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Tree, TreeNode} from "@/ui-components/Tree";
+import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
@@ -17,13 +17,22 @@ export interface VirtualFile {
     requestedSyntax?: string;
 }
 
-export function FileTree({tree, onTreeAction, onNodeActivated, state, ...props}) {
+interface FileTreeProps {
+    tree: React.MutableRefObject<TreeApi | null>
+    onTreeAction: ((row: HTMLElement, action: TreeAction) => void);
+    onNodeActivated(open: boolean, row: HTMLElement): void;
+    root: EditorSidebarNode;
+    initialFolder: string;
+    initialFilePath?: string;
+    operations?: (file: VirtualFile) => Operation<any>[];
+}
+export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
     return <div className={FileTreeClass}>
         <Tree apiRef={tree} onAction={onTreeAction}>
             <FileNode
-                initialFolder={props.initialFolderPath}
+                initialFolder={props.initialFolder}
                 initialFilePath={props.initialFilePath}
-                node={state.sidebar.root}
+                node={root}
                 onAction={onNodeActivated}
                 operations={props.operations}
             />
