@@ -154,7 +154,6 @@ export const Create: React.FunctionComponent = () => {
         product: null
     });
 
-    const [reloadHack, setReloadHack] = useState<{ importFrom: Partial<JobSpecification>, count: number } | null>(null);
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
@@ -325,7 +324,9 @@ export const Create: React.FunctionComponent = () => {
 
             if (needsToRenderParams) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
-                setActiveOptParams(() => optionalParameters);
+                flushSync(() => {
+                    setActiveOptParams(() => optionalParameters);
+                });
             }
         }
 
@@ -374,19 +375,6 @@ export const Create: React.FunctionComponent = () => {
         setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
 
-    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
-        setReloadHack({ importFrom: importedJob, count: 3 });
-    }, []);
-
-    useEffect(() => {
-        if (reloadHack) {
-            doLoadParameters(reloadHack.importFrom);
-            const newCount = reloadHack.count - 1;
-            if (newCount > 0) {
-                setReloadHack({ importFrom: reloadHack.importFrom, count: newCount });
-            }
-        }
-    }, [onLoadParameters, reloadHack]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -562,7 +550,7 @@ export const Create: React.FunctionComponent = () => {
                                 right={
                                     <div>
                                         <Flex>
-                                            <ImportParameters application={application} onImport={onLoadParameters}
+                                            <ImportParameters application={application} onImport={doLoadParameters}
                                                 importDialogOpen={importDialogOpen}
                                                 setImportDialogOpen={setImportDialogOpen}
                                                 onImportDialogClose={() => setImportDialogOpen(false)} />
@@ -623,7 +611,7 @@ export const Create: React.FunctionComponent = () => {
                                                             <td>
                                                                 <OverallocationLink>
                                                                     <TooltipV2 tooltip={UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"}/>
+                                                                        <Icon name={"heroExclamationTriangle"} color={"warningMain"} />
                                                                         {displayWallet.usageAndQuota.display.maxUsableBalance}
                                                                     </TooltipV2>
                                                                 </OverallocationLink>
@@ -659,8 +647,8 @@ export const Create: React.FunctionComponent = () => {
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryWorkflow.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                                injectWorkflowParameters={setWorkflowInjectParameters}
-                                                setErrors={setErrors} active application={application} />
+                                            injectWorkflowParameters={setWorkflowInjectParameters}
+                                            setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>
