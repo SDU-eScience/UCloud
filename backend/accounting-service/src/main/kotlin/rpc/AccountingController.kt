@@ -277,10 +277,22 @@ class AccountingController(
                     IdCard.System,
                     request.walletId,
                     request.amount,
+                    request.isDeltaCharge
                 )
             )
 
             ok(AccountingV2.AdminCharge.Response(error))
+        }
+
+        implementOrDispatch(AccountingV2.adminReset) {
+            accounting.sendRequest(
+                AccountingRequest.ResetWalletHierarchy(
+                    IdCard.System,
+                    request.category,
+                )
+            )
+
+            ok(Unit)
         }
 
         implementOrDispatch(AccountingV2.registerProviderGift) {

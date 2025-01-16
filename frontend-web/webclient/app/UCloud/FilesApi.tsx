@@ -1320,7 +1320,7 @@ export function FilePreview({initialFile}: {
         }
         toolbar={
             <>
-                {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
@@ -1340,6 +1340,7 @@ export function FilePreview({initialFile}: {
         customContent={node}
         onOpenFile={onOpenFile}
         operations={operations}
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
     />;
 }
 
@@ -1382,6 +1383,7 @@ const Video = injectStyleSimple("preview-video", `
 const PreviewObject = injectStyleSimple("preview-pdf", `
     max-width: ${MAX_HEIGHT}
     width: 100%;
+    height: ${HEIGHT};
     max-height: ${HEIGHT}
 `)
 

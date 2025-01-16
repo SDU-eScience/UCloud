@@ -1,19 +1,17 @@
 import * as React from "react";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useState} from "react";
 import {injectStyle} from "@/Unstyled";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Flex, Input, Relative} from "@/ui-components";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import {joinToString, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import Icon from "@/ui-components/Icon";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {
-    CatalogDiscovery,
     CatalogDiscoveryMode,
-    defaultCatalogDiscovery,
     emptyLandingPage
 } from "@/Applications/AppStoreApi";
-import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {fuzzyMatch} from "@/Utilities/CollectionUtilities";
 import {useDiscovery} from "@/Applications/Hooks";

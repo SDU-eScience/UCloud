@@ -487,6 +487,16 @@ function protocolHandlerChunkedAndWebSocketV1(
                 strategy!.endpoint.replace("integration-module:8889", "localhost:9000")
                     .replace("http://", "ws://").replace("https://", "wss://")
             );
+
+            uploadSocket.onerror = ev => {
+                if (navigator.onLine) {
+                    upload.error = "An error ocurred uploading the file.";
+                } else {
+                    upload.error = "File upload failed due to missing internet connection."
+                }
+                upload.state = UploadState.DONE;
+            };
+
             const progressStart = upload.progressInBytes;
             reader.offset = progressStart;
 
@@ -920,7 +930,7 @@ const Uploader: React.FunctionComponent = () => {
                                     <Icon cursor="pointer" title="Resume upload" name="play"
                                         color="primaryMain" mr="12px" />
                                 </label>}
-                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" color="errorMain" onClick={() => {
+                                removeOrCancel={<Icon cursor="pointer" title="Remove" name="close" my="auto" height="24px" color="errorMain" onClick={() => {
                                     setPausedFilesInFolder(files => files.filter(file => file !== it));
                                     removeUploadFromStorage(it);
                                 }} />}
@@ -999,10 +1009,11 @@ const UploadMoreClass = injectStyle("upload-more", k => `
 export const TaskRowClass = injectStyle("uploader-row", k => `
     ${k} {
         border-radius: 10px;
-        height: 64px;
+        height: 62px;
         width: 100%;
-        margin-top: 12px;
-        margin-bottom: 12px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        margin-bottom: 4px;
     }
     
     ${k} > div > .text {
@@ -1017,7 +1028,7 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 
     ${k}[data-has-error="true"] {
-        height: 90px;
+        height: auto;
     }
 
     ${k} > div.error-box {
@@ -1090,7 +1101,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
         />;
 }
 
-export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: {
+interface TaskRowProps {
     icon: React.ReactNode;
     title: string | React.ReactNode;
     body?: string | React.ReactNode;
@@ -1105,7 +1116,9 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
         progress: number;
         limit: number;
     };
-}): React.ReactNode {
+}
+
+export function TaskRow({title, body, progress, icon, progressInfo, removeOrCancel, pause, error, isPaused}: TaskRowProps): React.ReactNode {
     const hasError = error != null;
     const [hovering, setHovering] = useState(false);
 
@@ -1124,7 +1137,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
     }, []);
 
     return (<div className={TaskRowClass} data-has-error={hasError}>
-        <Flex height={hasError ? "calc(100% - 28px)" : "100%"}>
+        <Flex my="auto" height="100%">
             <Box ml="8px" my="auto">{icon}</Box>
             <div className="text">
                 <Truncate>{title}</Truncate>
@@ -1144,7 +1157,7 @@ export function TaskRow({title, body, progress, icon, progressInfo, removeOrCanc
                         size={32}
                     />)}
             </Box>
-            <Box mt="19px" mr="8px">{removeOrCancel}</Box>
+            <Box my="auto" mr="8px">{removeOrCancel}</Box>
         </Flex>
         <div className="error-box">
             {hasError ? <div className={ErrorSpan}>{error}</div> : null}

@@ -225,13 +225,14 @@ func (m *SlurmFsManagement) Scripted() *SlurmFsManagementScripted {
 }
 
 type SlurmFsManagementGpfs struct {
-	Valid      bool // Only true in server mode
-	Username   string
-	Password   string
-	Server     HostInfo
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Mapping    map[string]GpfsMapping // Maps a locator name to a mapping
+	Valid                  bool // Only true in server mode
+	Username               string
+	Password               string
+	Server                 HostInfo
+	VerifyTls              bool
+	CaCertFile             util.Option[string]
+	Mapping                map[string]GpfsMapping // Maps a locator name to a mapping
+	UseStatFsForAccounting bool
 }
 
 type GpfsMapping struct {
@@ -336,6 +337,8 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 
 						mappingNode := requireChild(sPath, gpfsNode, "mapping", &success)
 						decode(sPath, mappingNode, &ess.Mapping, &success)
+
+						ess.UseStatFsForAccounting, _ = optionalChildBool(sPath, gpfsNode, "useStatFsForAccounting")
 
 						ess.Valid = true
 

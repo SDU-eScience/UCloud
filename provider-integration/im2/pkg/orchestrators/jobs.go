@@ -462,12 +462,12 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		}
 
 	case ApplicationParameterTypeEnumeration:
-		if value.Type != AppParameterValueTypeEnumeration {
+		if value.Type != AppParameterValueTypeText {
 			return false
 		}
 
 	case ApplicationParameterTypeTextArea:
-		if value.Type != AppParameterValueTypeTextArea {
+		if value.Type != AppParameterValueTypeText {
 			return false
 		}
 	}

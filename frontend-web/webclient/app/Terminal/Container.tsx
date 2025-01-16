@@ -179,10 +179,14 @@ const IndividualTerminal: React.FunctionComponent<{ tab: TerminalTab, hidden: bo
         bulkResponseOf()
     );
 
-    useEffect(() => {
+    const doReconnect = useCallback(() => {
         openSession(JobsApi.openTerminalInFolder(
             bulkRequestOf({folder: props.tab.folder}))
         );
+    }, [props.tab.folder]);
+
+    useEffect(() => {
+        doReconnect();
     }, [props.tab.folder]);
 
     useEffect(() => {
@@ -214,6 +218,6 @@ const IndividualTerminal: React.FunctionComponent<{ tab: TerminalTab, hidden: bo
 
     const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     return <div style={{display: props.hidden ? "none" : "block"}}>
-        <ShellWithSession sessionWithProvider={sessionWithProvider} xtermRef={terminal} autofit={false} />;
+        <ShellWithSession sessionWithProvider={sessionWithProvider} xtermRef={terminal} autofit={false} reconnect={doReconnect} />;
     </div>;
 }

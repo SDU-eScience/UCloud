@@ -23,6 +23,7 @@ import {CardClass} from "@/ui-components/Card";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/UFile";
 import {Application} from "@/Applications/AppStoreApi";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
 
 export function ImportParameters({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}: React.PropsWithChildren<{
     application: Application;
@@ -76,7 +77,7 @@ export function ImportParameters({application, onImport, importDialogOpen, onImp
                 onImportDialogClose();
             }
         }
-    }, [])
+    }, []);
 
     const importParameters = useCallback((file: File) => {
         const fileReader = new FileReader();
@@ -355,22 +356,31 @@ async function cleanupImportResult(
         return result;
     }
 
-    const parameters = output.parameters ?? {};
+    let parameterTypes = [...application.invocation.parameters];
+    const values = output.parameters ?? {};
     const resources = output.resources ?? [];
 
     const badParam: (paramName: string) => void = (paramName) => {
         result.messages.push({type: "warning", message: "Corrupt parameter: " + paramName});
-        delete parameters[paramName];
+        delete values[paramName];
     }
 
-    for (const paramName of Object.keys(parameters)) {
-        const param = parameters[paramName];
+    for (const paramName of Object.keys(values)) {
+        const param = values[paramName];
+        if (param.type === "workflow") {
+            const inputs = param.specification.inputs;
+            parameterTypes = [...parameterTypes, ...inputs];
+        }
+    }
+
+    for (const paramName of Object.keys(values)) {
+        const param = values[paramName];
         if (typeof param !== "object") {
             badParam(paramName);
             continue;
         }
 
-        const type = application.invocation.parameters.find(it => it.name === paramName)?.type;
+        const type = parameterTypes.find(it => it.name === paramName)?.type;
         if (type == null) {
             badParam(paramName);
             continue;
@@ -408,7 +418,7 @@ async function cleanupImportResult(
         }
 
         if (type === "input_file" || type === "input_directory") {
-            if (!param["path"]) delete parameters[paramName];
+            if (!param["path"]) delete values[paramName];
         }
     }
 

@@ -173,12 +173,13 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 		multiplier = 60 * 24
 	}
 	quotaInMinutes := update.CombinedQuota * multiplier
+	retiredInMinutes := update.LocalRetiredUsage * multiplier
 
 	if account.QuotaTRES == nil {
 		account.QuotaTRES = make(map[string]int)
 	}
-	account.QuotaTRES["billing"] = int(quotaInMinutes)
-	account.RawShares = int(quotaInMinutes / 60 / 24)
+	account.QuotaTRES["billing"] = int(quotaInMinutes) + int(retiredInMinutes)
+	account.RawShares = int((quotaInMinutes + retiredInMinutes) / 60 / 24)
 
 	SlurmClient.AccountModify(account)
 }
@@ -186,10 +187,28 @@ func (a *automaticAccountManagementService) OnWalletUpdated(update *ctrl.Notific
 func (a *automaticAccountManagementService) FetchUsageInMinutes() map[SlurmAccountOwner]int64 {
 	result := map[SlurmAccountOwner]int64{}
 	billing := SlurmClient.AccountBillingList()
+
+	allocations := map[string][]ctrl.TrackedAllocation{}
+
 	for account, usage := range billing {
+		actualUsage := usage
 		owners := AccountMapper.ServerLookupOwnerOfAccount(account)
 		for _, owner := range owners {
-			result[owner] = usage
+			_, ok := allocations[owner.AssociatedWithCategory]
+			if !ok {
+				allocations[owner.AssociatedWithCategory] = ctrl.FindAllAllocations(owner.AssociatedWithCategory)
+			}
+
+			allocList := allocations[owner.AssociatedWithCategory]
+			for _, a := range allocList {
+				if a.Owner == owner.Owner {
+					if actualUsage >= int64(a.LocalRetiredUsage) {
+						actualUsage -= int64(a.LocalRetiredUsage)
+					}
+				}
+			}
+
+			result[owner] = actualUsage
 		}
 	}
 	return result

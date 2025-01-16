@@ -1,0 +1,67 @@
+application: v2
+
+name: jupyterlab-native
+version: 4.2
+
+software:
+  type: Native
+  load:
+    - name: jupyterlab
+      version: 4.2
+
+web:
+  enabled: true
+
+features:
+  multiNode: false
+  folders: false
+  jobLinking: false
+
+parameters:
+  input_dir:
+    type: Directory
+    optional: false
+    description: "The directory used to hold JupyterLab's internal state"
+    title: "State directory"
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      You can customize how JupyterLab is started by editing this parameter.
+
+    init: ""
+
+    job: |
+      {# Preambles start - Avoid touching these unless required. #}
+        {- systemLoad -}
+        {- applicationLoad -}
+      {# Preambles end #}
+          
+      {# =============================================================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# =============================================================================================================== #}
+      
+      tok=`uuidgen`
+      echo "c.ServerApp.token='$tok'" > nb.py
+      echo "Use the following token to access JupyterLab:"
+      echo "$tok"
+      echo
+      
+      jupyter lab \
+        --ip=0.0.0.0 \
+        --port=$UCLOUD_PORT \
+        --no-browser \
+        --notebook-dir={{ input_dir }} \
+        --config=nb.py
+      
+      {# =============================================================================================================== #}
+      {# End of job                                                                                                      #}
+      {# =============================================================================================================== #}
+
+      {# Postambles start - Avoid touching these unless required. #}
+        {- applicationUnload -}
+        {- systemUnload -}
+      {# Postambles end #}      
+
+invocation: ""

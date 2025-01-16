@@ -487,15 +487,19 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
 
                     try {
                         const collectionId = pathComponents(browser.currentPath)[0];
-                        const trash = await trashCache.retrieve(collectionId, async () => {
-                            const potentialFolder = await callAPI(FilesApi.retrieve({id: `/${collectionId}/Trash`}));
-                            if (potentialFolder.status.icon === "DIRECTORY_TRASH") return potentialFolder;
-                            throw "Could not find trash folder";
-                        });
+                        try {
+                            const trash = await trashCache.retrieve(collectionId, async () => {
+                                const potentialFolder = await callAPI(FilesApi.retrieve({id: `/${collectionId}/Trash`}));
+                                if (potentialFolder.status.icon === "DIRECTORY_TRASH") return potentialFolder;
+                                throw "Could not find trash folder";
+                            });
 
-                        if (files.some(it => it.id.startsWith(trash.id))) {
-                            // Note(Jonas): If we are in the trash folder, then maybe don't move to the same folder on delete.
-                            return;
+                            if (files.some(it => it.id.startsWith(trash.id))) {
+                                // Note(Jonas): If we are in the trash folder, then maybe don't move to the same folder on delete.
+                                return;
+                            }
+                        } catch (ignored) {
+                            // The trash folder probably doesn't exist yet.
                         }
 
                         for (const f of files) {

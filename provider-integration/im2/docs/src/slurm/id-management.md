@@ -781,10 +781,6 @@ _No response_
 </table>
 </div>
 
-### OpenID Connect
-
-TODO Design tbd
-
 ## Migrating from an Unmanaged to Managed Provider
 
 TODO This section has not yet been written. It will need to cover the following topics:

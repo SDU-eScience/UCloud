@@ -153,6 +153,8 @@ export const Create: React.FunctionComponent = () => {
         numberOfNodes: 1,
         product: null
     });
+
+    const [reloadHack, setReloadHack] = useState<{ importFrom: Partial<JobSpecification>, count: number } | null>(null);
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
@@ -303,14 +305,10 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [provider, application]);
 
-    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+    const doLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
-
-        flushSync(() => {
-            setActiveOptParams(() => []);
-        });
 
         {
             // Find optional parameters and make sure the widgets are initialized
@@ -327,9 +325,7 @@ export const Create: React.FunctionComponent = () => {
 
             if (needsToRenderParams) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
-                flushSync(() => {
-                    setActiveOptParams(() => optionalParameters);
-                });
+                setActiveOptParams(() => optionalParameters);
             }
         }
 
@@ -377,6 +373,20 @@ export const Create: React.FunctionComponent = () => {
         setErrors({});
         setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
+
+    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+        setReloadHack({ importFrom: importedJob, count: 3 });
+    }, []);
+
+    useEffect(() => {
+        if (reloadHack) {
+            doLoadParameters(reloadHack.importFrom);
+            const newCount = reloadHack.count - 1;
+            if (newCount > 0) {
+                setReloadHack({ importFrom: reloadHack.importFrom, count: newCount });
+            }
+        }
+    }, [onLoadParameters, reloadHack]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;
@@ -645,7 +655,7 @@ export const Create: React.FunctionComponent = () => {
                         {/*Workflow*/}
                         {mandatoryWorkflow.length === 0 ? null : (
                             <Card>
-                                <Heading.h4>Workflow</Heading.h4>
+                                <Heading.h4>Script</Heading.h4>
                                 <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
                                     {mandatoryWorkflow.map(param => (
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}

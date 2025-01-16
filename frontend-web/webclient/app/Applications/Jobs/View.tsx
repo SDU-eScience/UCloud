@@ -461,6 +461,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         s.subscriptions.forEach(it => it());
     }, [job]);
 
+    const isVirtualMachine = status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+
     useJobUpdates(job, jobUpdateListener);
 
     if (jobFetcher.error !== undefined) {
@@ -480,7 +482,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
             </div>
             {!job || !status ? null : (
                 <CSSTransition
-                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
+                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && !isVirtualMachine && dataAnimationAllowed}
                     timeout={{
                         enter: 1000,
                         exit: 0,
@@ -509,7 +511,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
 
             {!job || !status ? null : (
                 <CSSTransition
-                    in={status?.state === "RUNNING" && dataAnimationAllowed}
+                    in={(status?.state === "RUNNING" || (isVirtualMachine && !isJobStateTerminal(status.state))) && dataAnimationAllowed}
                     timeout={{enter: 1000, exit: 0}}
                     classNames={data.class}
                     unmountOnExit
@@ -890,6 +892,10 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
+    const isVirtualMachine =
+        job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+    const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+    const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
     let targetRequests: OpenInteractiveSessionRequest[] = [];
 
@@ -902,14 +908,12 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         for (const message of messages) {
             if (message.startsWith("Target: ")) {
                 const parsedTarget = JSON.parse(message.substring("Target: ".length)) as InterfaceTarget;
-
-                const supportsInterface =
-                    (parsedTarget.type === "WEB" && isSupported(backendType, support, "web")) ||
-                    (parsedTarget.type === "VNC" && isSupported(backendType, support, "vnc"));
-
-                if (parsedTarget.type === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+                const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+                const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
+                
+                if (canShowWeb && job.status.state === "RUNNING") {
                     targetRequests.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
-                } else if (parsedTarget.type === "VNC" && supportsInterface && job.status.state === "RUNNING") {
+                } else if (canShowVnc && job.status.state === "RUNNING") {
                     result.push({
                         target: parsedTarget.target,
                         rank: parsedTarget.rank,
@@ -921,16 +925,12 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         }
     }
 
-    const supportsInterface =
-        (appType === "WEB" && isSupported(backendType, support, "web")) ||
-        (appType === "VNC" && isSupported(backendType, support, "vnc"));
-
-    if (appType === "WEB" && supportsInterface && job.status.state === "RUNNING") {
+    if (canShowWeb && job.status.state === "RUNNING") {
         targetRequests = targetRequests.concat(Array(job.specification.replicas)
             .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
     }
 
-    if (appType === "VNC" && supportsInterface) {
+    if (canShowVnc && job.status.state === "RUNNING") {
         result.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
 
@@ -1015,6 +1015,10 @@ const RunningContent: React.FunctionComponent<{
     const supportsSuspend = isSupported(backendType, support, "suspension");
     const supportsPeers = isSupported(backendType, support, "peers");
 
+    useEffect(() => {
+        setSuspended(job.status.state === "SUSPENDED");
+    }, [job.status.state]);
+
     const sshAccess: ParsedSshAccess | null = useMemo(() => {
         const res = parseUpdatesForAccess(job.updates);
         if (res) return res;
@@ -1086,11 +1090,18 @@ const RunningContent: React.FunctionComponent<{
                                 </>}
                                 {!supportsSuspend ? null :
                                     suspended ?
-                                        <ConfirmationButton actionText="Unsuspend" fullWidth mt="8px" mb="4px"
-                                            onAction={unsuspendJob} /> :
-                                        <ConfirmationButton actionText="Suspend" fullWidth mt="8px" mb="4px"
-                                            onAction={suspendJob} />
-
+                                        <Button color={"successMain"} fullWidth onClick={unsuspendJob}>
+                                            <Icon name={"heroPower"} mr={"8px"} />
+                                            Power on
+                                        </Button> :
+                                        <ConfirmationButton
+                                            actionText="Power off"
+                                            fullWidth
+                                            mt="8px"
+                                            mb="4px"
+                                            icon={"heroPower"}
+                                            onAction={suspendJob}
+                                        />
                                 }
                             </Box>
                         </Flex>
@@ -1554,6 +1565,12 @@ const RunningButtonGroup: React.FunctionComponent<{
         .map(it => ({
             searchString: (it.rank + 1).toString(), ...it
         }));
+
+    const isVirtualMachine =
+        job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
+
+    const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
+    const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (

@@ -488,14 +488,6 @@ will trigger the "Resource allocation updated" process.
 </table>
 </div>
 
-### WEKA
-
-TODO Not yet implemented.
-
-### CephFS
-
-TODO Not yet implemented.
-
 ### Scripted (any filesystem)
 
 This integration is another [script](#TODO) integration. Script integrations allow you to fully customize all aspects of

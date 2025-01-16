@@ -22,7 +22,7 @@ interface ConnectionDetails {
 }
 
 export const Vnc: React.FunctionComponent = () => {
-    const params = useParams<{jobId: string, rank: string}>();
+    const params = useParams<{ jobId: string, rank: string }>();
     const jobId = params.jobId!;
     const rank = params.rank!
     const [isConnected, setConnected] = React.useState(false);
@@ -55,15 +55,16 @@ export const Vnc: React.FunctionComponent = () => {
 
     const connect = useCallback(() => {
         if (connectionDetails === null) return;
-        VncLog.initLogging("warn");
+        VncLog.initLogging("debug");
 
         try {
             const rfb = new RFB(
                 document.getElementsByClassName("contents")[0],
-                connectionDetails.url, {
-                credentials: {password: connectionDetails.password},
-                wsProtocols: ["binary"]
-            }
+                connectionDetails.url,
+                {
+                    credentials: {password: connectionDetails.password},
+                    wsProtocols: ["binary"]
+                }
             );
 
             rfb.scaleViewport = true;
@@ -85,7 +86,9 @@ export const Vnc: React.FunctionComponent = () => {
             }
         };
 
-        setTimeout(() => { resize(); }, 500);
+        setTimeout(() => {
+            resize();
+        }, 500);
         window.addEventListener("resize", resize);
         return () => {
             window.removeEventListener("resize", resize);
@@ -104,7 +107,7 @@ export const Vnc: React.FunctionComponent = () => {
             </div>
         )}
 
-        <div className={"contents"} />
+        <div className={"contents"}/>
     </TermAndShellWrapper>;
 };
 
