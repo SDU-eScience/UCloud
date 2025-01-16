@@ -255,6 +255,7 @@ export const WorkflowParameter: React.FunctionComponent<WorkflowProps> = props =
                     keys={["searchString"]}
                     RenderRow={WorkflowSelectedRow}
                     RenderSelected={WorkflowSelectedRow}
+                    fullWidth
                     onSelect={wf => {
                         if (wf.type === "create") {
                             onEdit(null, "Default", props.parameter.defaultValue as WorkflowSpecification);

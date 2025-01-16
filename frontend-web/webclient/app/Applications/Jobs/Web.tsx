@@ -1,7 +1,6 @@
 interface SessionType {
     jobId: string;
     rank: number;
-    target?: string;
 }
 
 interface ShellSession extends SessionType {

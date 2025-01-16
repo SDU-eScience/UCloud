@@ -193,7 +193,7 @@ const Container = injectStyle("job-container", k => `
 
   ${k} ${data.dot}${dataEnterDone.dot} {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 
   ${k} ${data.dot}${dataEnterActive.dot} {
@@ -954,14 +954,16 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
 
     try {
         const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...targetRequests)));
+        let i = 0;
         for (const res of sessionResult?.responses ?? []) {
             const webSession = (res.session as WebSession);
             result.push({
-                target: webSession.target,
+                target: targetRequests[i].target ?? undefined,
                 rank: webSession.rank,
                 type: "WEB",
                 link: webSession.redirectClientTo,
             });
+            i++;
         }
     } catch (e) {
         console.warn(e);
@@ -1477,9 +1479,11 @@ const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({
             <Icon name="heroArrowTopRightOnSquare" />
             <Truncate>{element.target ?? "Open interface"}</Truncate>
 
-            <div style={{color: "var(--textSecondary)"}}>
-                Node {element.rank + 1}
-            </div>
+            {!element.showNode ? null : 
+                <div style={{color: "var(--textSecondary)"}}>
+                    Node {element.rank + 1}
+                </div>
+            }
         </Flex>
     </Link>;
 }
@@ -1510,12 +1514,8 @@ const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({el
             alignItems={"center"}
             p={8}
         >
-            <Icon name="heroArrowTopRightOnSquare" />
-            <Truncate>Open terminal</Truncate>
-
-            <div style={{color: "var(--textSecondary)"}}>
-                Node {element.rank+1}
-            </div>
+            <Icon name="heroCommandLine" />
+            <Truncate>Node {element.rank+1}</Truncate>
         </Flex>
     </Link>;
 }
@@ -1526,7 +1526,7 @@ const TerminalLinkSelectedRow: RichSelectChildComponent<SearchableTerminalTarget
     </div>;
 }
 
-type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string;})
+type SearchableInterfaceTarget = (InterfaceTarget & {searchString: string; showNode: boolean;})
 type SearchableTerminalTarget = (TerminalTarget & {searchString: string;})
 
 const RunningButtonGroup: React.FunctionComponent<{
@@ -1544,18 +1544,34 @@ const RunningButtonGroup: React.FunctionComponent<{
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = isSupported(backendType, support, "terminal");
     const appType = getAppType(job);
-    const supportsInterface =
-        (appType === "WEB" && isSupported(backendType, support, "web")) ||
-        (appType === "VNC" && isSupported(backendType, support, "vnc"));
 
-    const searchableInterfaceLinks: SearchableInterfaceTarget[] = interfaceLinks.map(it => ({
-        searchString: it.target + " " + (it.rank+1), ...it
-    }));
+    let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
-    const searchableTerminalLinks: SearchableTerminalTarget[] = terminalLinks.map(it => ({
-        searchString: (it.rank+1).toString(), ...it
-    }));
+    if (defaultInterfaceId < 0) {
+        defaultInterfaceId = interfaceLinks.findIndex(it => !it.target);
 
+        if (defaultInterfaceId < 0) {
+            defaultInterfaceId = 0
+        }
+    }
+
+    const searchableInterfaceLinks: SearchableInterfaceTarget[] = interfaceLinks
+        .filter(it => it !== interfaceLinks[defaultInterfaceId])
+        .map(it => {
+            const isDouble = interfaceLinks.filter(existing => it.target === existing.target).length > 1;
+
+            return {
+                searchString: it.target + " " + (it.rank+1),
+                showNode: isDouble,
+                ...it
+            };
+        });
+
+    const searchableTerminalLinks: SearchableTerminalTarget[] = terminalLinks
+        .filter(it => it.rank > 0)
+        .map(it => ({
+            searchString: (it.rank+1).toString(), ...it
+        }));
 
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
@@ -1574,9 +1590,9 @@ const RunningButtonGroup: React.FunctionComponent<{
                 }}>
                     <Button attachedLeft={hasMultipleNodes}>
                         <Icon name="heroCommandLine" />
-                        <div style={{minWidth: hasMultipleNodes ? "130px" : "164px"}}>
+                        <div style={{minWidth: hasMultipleNodes ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
-                                Open terminal{hasMultipleNodes ? ` (node 1)` : null}
+                                Open terminal{hasMultipleNodes ? ` (Node 1)` : null}
                             </Truncate>
                         </div>
                     </Button>
@@ -1595,12 +1611,12 @@ const RunningButtonGroup: React.FunctionComponent<{
 
         {interfaceLinks.length < 1 ? <></> : (
             <Flex>
-                <Link to={interfaceLinks[0].link ?? ""} aria-disabled={!interfaceLinks[0]} target={"_blank"}>
+                <Link to={interfaceLinks[defaultInterfaceId]?.link ?? ""} aria-disabled={!interfaceLinks[defaultInterfaceId]} target={"_blank"}>
                     <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[0]}>
                         <Icon name="heroArrowTopRightOnSquare" />
-                        <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px"}}>
+                        <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
-                                {interfaceLinks[0].target ?? ("Open interface" + (hasMultipleNodes ? ` (node 1)` : null))}
+                                {interfaceLinks[defaultInterfaceId]?.target ?? ("Open interface" + (hasMultipleNodes ? ` (Node 1)` : ""))}
                             </Truncate>
                         </div>
                     </Button>

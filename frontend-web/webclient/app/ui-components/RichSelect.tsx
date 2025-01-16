@@ -21,7 +21,8 @@ export function RichSelect<T, K extends keyof T>(props: {
     RenderRow: RichSelectChildComponent<T>;
     RenderSelected?: RichSelectChildComponent<T>;
     FullRenderSelected?: RichSelectChildComponent<T>;
-    
+    fullWidth?: boolean;    
+
     selected?: T;
     onSelect: (element: T) => void;
 
@@ -66,7 +67,8 @@ export function RichSelect<T, K extends keyof T>(props: {
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}
         colorOnHover={false}
-        fullWidth
+        fullWidth={props.fullWidth ?? false}
+        width={props.fullWidth ? undefined : dropdownSize}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
