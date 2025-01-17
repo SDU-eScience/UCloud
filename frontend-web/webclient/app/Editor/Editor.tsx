@@ -19,6 +19,7 @@ import {Operation} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
+import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -745,14 +746,15 @@ export const Editor: React.FunctionComponent<{
             onTreeAction={onTreeAction}
             onNodeActivated={onNodeActivated}
             root={state.sidebar.root}
+            width="250px"
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
             operations={props.operations}
         />
 
         <div className={"main-content"}>
-            <div className={"title-bar-code"}>
-                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: `calc(100% - 48px)`}}>
+            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
+                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
                     {tabs.map((t, index) =>
                         <EditorTab
                             isDirty={false /* TODO */}
@@ -775,7 +777,7 @@ export const Editor: React.FunctionComponent<{
                         />
                     )}
                 </div>
-                <Flex alignItems={"center"} gap={"16px"}>
+                <Flex alignItems={"center"} ml="16px" gap="16px">
                     {props.toolbarBeforeSettings}
                     {!hasFeature(Feature.EDITOR_VIM) ? null :
                         <TooltipV2 tooltip={"Settings"} contentWidth={100}>
@@ -893,7 +895,7 @@ function EditorTab({
     const [hovered, setHovered] = useState(false);
 
     return (
-        <Flex className={EditorTabClass} mt="auto" data-active={isActive} width="250px" onClick={onActivate}>
+        <Flex className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
             <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />
             <Truncate ml="8px" width="50%"><PrettyFilePath path={title as string} /></Truncate>
             <Icon

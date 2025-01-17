@@ -1,11 +1,10 @@
 import * as React from "react";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
-import {classConcat, injectStyle} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {PrettyFileName} from "./FilePath";
 import {Flex, FtIcon, Truncate} from "@/ui-components";
-import {TruncateClass} from "@/ui-components/Truncate";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -27,12 +26,19 @@ interface FileTreeProps {
     initialFilePath?: string;
     operations?: (file: VirtualFile) => Operation<any>[];
     width?: string;
+    canResize?: boolean;
 }
 
 export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
     const width = props.width ?? "250px";
+    const resizeSetting = props.canResize ? "horizontal" : "none";
 
-    return <div style={{"--tree-width": width} as React.CSSProperties} className={FileTreeClass}>
+    const style = {
+        "--tree-width": width,
+        "--resize-setting": resizeSetting,
+    } as React.CSSProperties;
+
+    return <div style={style} className={FileTreeClass}>
         <Tree apiRef={tree} onAction={onTreeAction}>
             <FileNode
                 initialFolder={props.initialFolder}
@@ -120,7 +126,7 @@ const FileTreeClass = injectStyle("file-tree", k => `
         width: var(--tree-width);
         max-width: var(--tree-width);
         overflow-y: auto;
-        /* resize: horizontal; disabled for now */
+        resize: var(--resize-setting);
         
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
