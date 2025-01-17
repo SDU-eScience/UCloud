@@ -4,7 +4,8 @@ import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {PrettyFileName} from "./FilePath";
-import {Flex, FtIcon, Truncate} from "@/ui-components";
+import {Flex, FtIcon} from "@/ui-components";
+import {fileName} from "@/Utilities/FileUtilities";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -39,6 +40,10 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
     } as React.CSSProperties;
 
     return <div style={style} className={FileTreeClass}>
+        <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"} flexGrow={1}>
+            <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
+            {fileName(props.initialFolder)}
+        </Flex>
         <Tree apiRef={tree} onAction={onTreeAction}>
             <FileNode
                 initialFolder={props.initialFolder}
@@ -130,5 +135,9 @@ const FileTreeClass = injectStyle("file-tree", k => `
         
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
+    }
+
+    ${k} > .tree-header {
+        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
 `);

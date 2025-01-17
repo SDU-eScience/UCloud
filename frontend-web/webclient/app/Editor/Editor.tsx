@@ -289,6 +289,7 @@ const editorClass = injectStyle("editor", k => `
         flex-direction: column;
         width: 100%;
         height: 100%;
+        min-width: 600px;
     }
     
     ${k} .title-bar-code,
