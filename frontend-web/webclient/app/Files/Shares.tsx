@@ -185,7 +185,7 @@ const ShareModal: React.FunctionComponent<{
             }}>
                 <Flex>
                     <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
-                    <Button type={"submit"} color={"successMain"} attached>Share</Button>
+                    <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
                 </Flex>
             </form>
         </Box>

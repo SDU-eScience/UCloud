@@ -136,7 +136,7 @@ export const ApplicationGroups: React.FunctionComponent = () => {
                                 mb="20px"
                                 rightLabel
                             />
-                            <Button type="submit" attached>Create</Button>
+                            <Button type="submit" attachedRight>Create</Button>
                         </Flex>
                     </form>
 
