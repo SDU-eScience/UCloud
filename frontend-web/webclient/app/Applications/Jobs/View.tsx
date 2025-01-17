@@ -15,7 +15,7 @@ import {device, deviceBreakpoint} from "@/ui-components/Hide";
 import {CSSTransition} from "react-transition-group";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {dateToString, dateToTimeOfDayString} from "@/Utilities/DateUtilities";
-import {MarginProps, minWidth, right} from "styled-system";
+import {MarginProps} from "styled-system";
 import {useProject} from "@/Project/cache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {pageV2Of} from "@/UtilityFunctions";
@@ -1457,7 +1457,7 @@ function getAppType(job: Job): string {
 
 
 const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
-    if (!element) return <></>;
+    if (!element) return null; 
 
     return <Link
         to={element.link ?? ""}
@@ -1488,7 +1488,7 @@ const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarg
 }
 
 const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element, dataProps, onSelect}) => {
-    if (!element) return <></>;
+    if (!element) return null; 
 
     return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} onClick={e => {
         e.preventDefault();
@@ -1608,10 +1608,10 @@ const RunningButtonGroup: React.FunctionComponent<{
             </Flex>
         )}
 
-        {interfaceLinks.length < 1 ? <></> : (
+        {interfaceLinks.length < 1 ? null : (
             <Flex>
                 <Link to={interfaceLinks[defaultInterfaceId]?.link ?? ""} aria-disabled={!interfaceLinks[defaultInterfaceId]} target={"_blank"}>
-                    <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[0]}>
+                    <Button attachedLeft={interfaceLinks.length > 1} disabled={!interfaceLinks[defaultInterfaceId]}>
                         <Icon name="heroArrowTopRightOnSquare" />
                         <div style={{minWidth: interfaceLinks.length > 1 ? "130px" : "164px", maxWidth: "164px"}}>
                             <Truncate>
