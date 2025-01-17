@@ -1341,6 +1341,12 @@ export function FilePreview({initialFile}: {
         customContent={node}
         onOpenFile={onOpenFile}
         operations={operations}
+        fileHeaderOperations={
+            <>
+                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
+                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+            </>
+        }
         help={
             <Flex mx="auto" mt="150px">
                 <Box>

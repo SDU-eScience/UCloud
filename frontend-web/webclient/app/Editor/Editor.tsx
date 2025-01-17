@@ -339,6 +339,7 @@ export const Editor: React.FunctionComponent<{
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
     operations?: (file: VirtualFile) => Operation<any>[];
     help?: React.ReactNode;
+    fileHeaderOperations?: React.ReactNode;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -750,6 +751,7 @@ export const Editor: React.FunctionComponent<{
             width="250px"
             initialFolder={props.initialFolderPath}
             initialFilePath={props.initialFilePath}
+            fileHeaderOperations={props.fileHeaderOperations}
             operations={props.operations}
         />
 

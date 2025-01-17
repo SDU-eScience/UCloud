@@ -4,7 +4,7 @@ import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {PrettyFileName} from "./FilePath";
-import {Flex, FtIcon} from "@/ui-components";
+import {Flex, FtIcon, Icon, Truncate} from "@/ui-components";
 import {fileName} from "@/Utilities/FileUtilities";
 
 export interface EditorSidebarNode {
@@ -28,6 +28,7 @@ interface FileTreeProps {
     operations?: (file: VirtualFile) => Operation<any>[];
     width?: string;
     canResize?: boolean;
+    fileHeaderOperations?: React.ReactNode;
 }
 
 export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
@@ -40,9 +41,11 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
     } as React.CSSProperties;
 
     return <div style={style} className={FileTreeClass}>
-        <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"} flexGrow={1}>
+        <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
             <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
-            {fileName(props.initialFolder)}
+            <Truncate width="200px"><PrettyFileName path={props.initialFolder} /></Truncate>
+            <Flex flexGrow={1} />
+            {props.fileHeaderOperations}
         </Flex>
         <Tree apiRef={tree} onAction={onTreeAction}>
             <FileNode
