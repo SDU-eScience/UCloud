@@ -1257,6 +1257,8 @@ export function FilePreview({initialFile}: {
             }
         }));
 
+        // TODO(Jonas): Add check that file exists or even can be created (has active allocation)
+
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
             editorRef.current?.openFile?.(newPath);

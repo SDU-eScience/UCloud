@@ -326,6 +326,14 @@ export interface EditorApi {
     invalidateTree: (path: string) => void;
 }
 
+const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
+function dirtyFileWarning(e: BeforeUnloadEvent) {
+    // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
+    //e.preventDefault();
+    //return e.returnValue = "truthy value";
+    /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
+}
+
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -348,25 +356,11 @@ export const Editor: React.FunctionComponent<{
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [tabs, setTabs] = useState<string[]>([state.currentPath]);
+    const isSettingsOpen = state.currentPath === SETTINGS_PATH;
 
     React.useEffect(() => {
-        if (state.currentPath)
-            setTabs(tabs => {
-                if (tabs.includes(state.currentPath)) return tabs;
-                return [...tabs, state.currentPath];
-            });
-    }, [state.currentPath]);
-
-    React.useEffect(() => {
-        function dirtyFileWarning() {
-            state.cachedFiles
-            /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
-        }
-
         window.addEventListener("beforeunload", dirtyFileWarning);
-
         return () => {
             window.removeEventListener("beforeunload", dirtyFileWarning);
         }
@@ -376,7 +370,6 @@ export const Editor: React.FunctionComponent<{
     // opposite of reactive. There isn't much we can do about this.
     const engineRef = useRef<EditorEngine>("vim");
     const stateRef = useRef<EditorState>();
-    const settingsOpenRef = useRef(false);
     const vimRef = useRef<VimWasm | null>(null);
     const tree = useRef<TreeApi | null>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
@@ -403,10 +396,6 @@ export const Editor: React.FunctionComponent<{
     useEffect(() => {
         editorRef.current = editor;
     }, [editor]);
-
-    useEffect(() => {
-        settingsOpenRef.current = isSettingsOpen;
-    }, [isSettingsOpen]);
 
     useEffect(() => {
         stateRef.current = state;
@@ -472,6 +461,13 @@ export const Editor: React.FunctionComponent<{
         const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
 
         try {
+            setTabs(tabs => {
+                if (tabs.includes(path)) {
+                    return tabs;
+                } else return [...tabs, path];
+            });
+
+
             const content = await dataPromise;
 
             if (!cachedContent) { // Note(Jonas): Cache content, if fetched from backend
@@ -481,9 +477,7 @@ export const Editor: React.FunctionComponent<{
             props.onOpenFile?.(path, content);
             const editor = editorRef.current;
             const engine = engineRef.current;
-            const isSettingsOpen = settingsOpenRef.current;
 
-            if (isSettingsOpen) return true;
             if (didUnmount.current) return true;
 
             if (!showingCustomContent.current) {
@@ -554,11 +548,9 @@ export const Editor: React.FunctionComponent<{
     const saveBufferIfNeeded = useCallback(async () => {
         const editor = editorRef.current;
         const engine = engineRef.current;
-        const isSettingsOpen = settingsOpenRef.current;
         const state = stateRef.current!;
         const vim = vimRef.current;
 
-        if (isSettingsOpen) return;
         if (state.currentPath === "" || state.currentPath === "/") return;
 
         if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return;
@@ -736,7 +728,22 @@ export const Editor: React.FunctionComponent<{
 
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(doNothing);
-        setIsSettingsOpen(p => !p);
+        setTabs(tabs => {
+            if (tabs.includes(SETTINGS_PATH)) {
+                return tabs;
+            } else return [...tabs, SETTINGS_PATH];
+        })
+        dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
+    }, []);
+
+    const updateTabs = useCallback((path: string, index?: number) => {
+        setTabs(tabs => {
+            const result = tabs.filter(tabTitle => tabTitle !== path)
+            if (state.currentPath === path && index != null) {
+                dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
+            }
+            return result;
+        });
     }, []);
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
@@ -768,13 +775,7 @@ export const Editor: React.FunctionComponent<{
                             }}
                             close={() => {
                                 /* if (fileIsDirty) promptSaveFileWarning() else */
-                                setTabs(tabs => {
-                                    const result = tabs.filter(tabTitle => tabTitle !== t)
-                                    if (state.currentPath === t) {
-                                        dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
-                                    }
-                                    return result;
-                                });
+                                updateTabs(t, index);
                             }}
                             children={t}
                         />
@@ -897,10 +898,12 @@ function EditorTab({
 }>): React.ReactNode {
     const [hovered, setHovered] = useState(false);
 
+    const isSettings = title === SETTINGS_PATH;
+
     return (
         <Flex className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
-            <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />
-            <Truncate ml="8px" width="50%"><PrettyFilePath path={title as string} /></Truncate>
+            {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
+            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : <PrettyFilePath path={title as string} />}</Truncate>
             <Icon
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
