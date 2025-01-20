@@ -738,15 +738,15 @@ export const Editor: React.FunctionComponent<{
         });
     }, []);
 
-    const updateTabs = useCallback((path: string, index?: number) => {
+    const updateTabs = useCallback((path: string, index: number) => {
         setTabs(tabs => {
-            const result = tabs.filter(tabTitle => tabTitle !== path)
-            if (state.currentPath === path && index != null) {
+            const result = tabs.filter(tabTitle => tabTitle !== path);
+            if (state.currentPath === path) {
                 dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
             }
             return result;
         });
-    }, []);
+    }, [state.currentPath]);
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = state.currentPath === "";
