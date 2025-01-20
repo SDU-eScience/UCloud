@@ -454,9 +454,11 @@ export const Editor: React.FunctionComponent<{
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
         const cachedContent = state.cachedFiles[path];
-        const dataPromise = cachedContent !== undefined ?
-            Promise.resolve(cachedContent) :
-            props.vfs.readFile(path);
+        const dataPromise = path === SETTINGS_PATH ?
+            "" :
+            cachedContent !== undefined ?
+                Promise.resolve(cachedContent) :
+                props.vfs.readFile(path);
 
         const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
 
@@ -466,7 +468,6 @@ export const Editor: React.FunctionComponent<{
                     return tabs;
                 } else return [...tabs, path];
             });
-
 
             const content = await dataPromise;
 
@@ -727,13 +728,14 @@ export const Editor: React.FunctionComponent<{
     }, [onOpen]);
 
     const toggleSettings = useCallback(() => {
-        saveBufferIfNeeded().then(doNothing);
-        setTabs(tabs => {
-            if (tabs.includes(SETTINGS_PATH)) {
-                return tabs;
-            } else return [...tabs, SETTINGS_PATH];
-        })
-        dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
+        saveBufferIfNeeded().then(() => {
+            setTabs(tabs => {
+                if (tabs.includes(SETTINGS_PATH)) {
+                    return tabs;
+                } else return [...tabs, SETTINGS_PATH];
+            })
+            dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
+        });
     }, []);
 
     const updateTabs = useCallback((path: string, index?: number) => {
