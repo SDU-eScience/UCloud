@@ -1230,7 +1230,8 @@ class JobResourceService(
                         JobsProviderOpenInteractiveSessionRequestItem(
                             job,
                             req.rank,
-                            req.sessionType
+                            req.sessionType,
+                            req.target,
                         )
                     }
                     .toList()
