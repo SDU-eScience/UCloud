@@ -2,7 +2,7 @@
     "providers": [
         {
             "id": "aau",
-            "title": "DeiC Interactive HPC (AAU)",
+            "title": "DeiC Interactive HPC (AAU/VM)",
             "shortTitle": "AAU/VM",
             "logo": "aau_openstack.png",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -78,7 +78,7 @@
         },
         {
             "id": "ucloud",
-            "title": "DeiC Interactive HPC (SDU)",
+            "title": "DeiC Interactive HPC (SDU/K8s)",
             "logo": "sdu.png",
             "shortTitle": "SDU/K8s",
             "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
@@ -97,7 +97,7 @@
         },
         {
             "id": "hippo",
-            "title": "DeiC Large Memory HPC (SDU)",
+            "title": "DeiC Large Memory HPC (SDU/Hippo)",
             "logo": "hippo.png",
             "shortTitle": "Hippo",
             "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
