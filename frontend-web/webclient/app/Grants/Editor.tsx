@@ -22,7 +22,7 @@ import {useLocation, useNavigate} from "react-router";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {addMonthsToDate, dateToString} from "@/Utilities/DateUtilities";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -373,7 +373,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             const start = new Date(Math.max(timestampUnixMs(), action.start));
             const end = new Date(action.end + 1000);
 
-            const minimumDurationInMonths = 1
+            const minimumDurationInMonths = 1;
 
             const newState: EditorState = {
                 ...state,
@@ -415,12 +415,12 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                             text: "",
                         },
                         allocationPeriod: {
-                            start: start.getMilliseconds(),
-                            end: Math.max(
+                            start: start.getTime(),
+                            end: addMonthsToDate(start, Math.max(
                                 minimumDurationInMonths,
                                 ((end.getUTCFullYear() - start.getUTCFullYear()) * 12) +
                                 (end.getUTCMonth() - start.getUTCMonth())
-                            )
+                            )).getTime()
                         }
                     }
                 }
