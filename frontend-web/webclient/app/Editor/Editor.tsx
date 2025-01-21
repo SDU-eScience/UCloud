@@ -774,7 +774,7 @@ export const Editor: React.FunctionComponent<{
                             isActive={t === state.currentPath}
                             onActivate={() => {
                                 if (state.currentPath === t) return;
-                                openFile(t, false);
+                                openFile(t, true);
                             }}
                             close={() => {
                                 /* if (fileIsDirty) promptSaveFileWarning() else */
