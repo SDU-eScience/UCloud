@@ -23,8 +23,6 @@ const WorkflowEditor: React.FunctionComponent<{
     applicationName: string;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
 }> = props => {
-    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
-
     const editorApi = useRef<EditorApi>(null);
     const [currentPath, setCurrentPath] = useState<string | null>(props.initialExistingPath ?? null);
     const [isSaving, setIsSaving] = useState(false);
