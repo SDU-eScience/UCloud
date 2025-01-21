@@ -24,15 +24,13 @@ const WorkflowEditor: React.FunctionComponent<{
     applicationName: string;
     onUse?: (id: string | null, path: string | null, spec: WorkflowSpecification) => void;
 }> = props => {
-    if (!hasFeature(Feature.COPY_APP_MOCKUP)) return null;
-
     const editorApi = useRef<EditorApi>(null);
     const [currentPath, setCurrentPath] = useState<string | null>(props.initialExistingPath ?? null);
     const [isSaving, setIsSaving] = useState(false);
     const [isOverwriting, setIsOverwriting] = useState<string | null>(null);
     const didUnmount = useDidUnmount();
     const [error, setError] = useState<string | null>(null);
-    const [savedId, setSavedId] = useState<string | null>(props.initialId ?? null);
+    const [savedId, setSavedId] = useState<string | null>(null);
 
     const vfs = useMemo(() => {
         return new WorkflowVfs(props.workflow);
@@ -150,7 +148,7 @@ const WorkflowEditor: React.FunctionComponent<{
                 if (statusCode === 409) {
                     setIsOverwriting(name);
                 } else {
-                    displayErrorMessageOrDefault(e, "Could not save workflow");
+                    displayErrorMessageOrDefault(e, "Could not save script");
                 }
             }
         })();
@@ -172,7 +170,7 @@ const WorkflowEditor: React.FunctionComponent<{
 
             setSavedId(res.responses[0].id);
         } catch (e) {
-            displayErrorMessageOrDefault(e, "Could not save workflow");
+            displayErrorMessageOrDefault(e, "Could not save script");
         }
     }, [isOverwriting]);
 
@@ -182,6 +180,7 @@ const WorkflowEditor: React.FunctionComponent<{
         initialFolderPath={"/"}
         initialFilePath={"/" + FILE_NAME_JOB}
         apiRef={editorApi}
+        readOnly={false}
         toolbarBeforeSettings={<>
             {!error ? null :
                 <TooltipV2>
@@ -235,11 +234,11 @@ const WorkflowEditor: React.FunctionComponent<{
                                 if (!savingRef.current) setIsSaving(false);
                             }}>
                                 <Label>
-                                    What should we call this workflow?
+                                    What should we call this script?
                                     <Input
                                         name={"name"}
                                         onKeyDown={saveKeyDown}
-                                        placeholder={"My workflow"}
+                                        placeholder={"My script"}
                                         defaultValue={currentPath ?? ""}
                                         autoFocus
                                     />
@@ -268,7 +267,7 @@ const WorkflowEditor: React.FunctionComponent<{
                             boxShadow: "var(--defaultShadow)",
                             zIndex: 1000000000,
                         }}>
-                            This workflow already exists, do you want to overwrite it?
+                            This script already exists, do you want to overwrite it?
                             <Flex gap={"8px"} mt={"8px"}>
                                 <Box flexGrow={1} />
                                 <Button color={"errorMain"} type={"button"}

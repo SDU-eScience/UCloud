@@ -49,3 +49,18 @@ func apmEventsV1() migrationScript {
 		},
 	}
 }
+
+func apmEventsV2() migrationScript {
+	return migrationScript{
+		Id: "apmEventsV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table tracked_allocations add column local_retired_usage int8 not null default 0
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}

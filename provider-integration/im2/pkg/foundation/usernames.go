@@ -18,6 +18,9 @@ var cleaningRegex = regexp.MustCompile("\\W+")
 func ParseUCloudUsername(username string) ParsedUsername {
 	cleaned := anyascii.Transliterate(username)
 	cleaned = strings.ReplaceAll(cleaned, ".", "")
+	if len(cleaned) > 0 && unicode.IsDigit(rune(cleaned[0])) {
+		cleaned = "u" + cleaned
+	}
 	usernameSplit := strings.Split(cleaned, "#")
 
 	namePart := []rune(usernameSplit[0])

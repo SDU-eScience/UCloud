@@ -1,6 +1,9 @@
 package foundation
 
-import "testing"
+import (
+	"testing"
+	"unicode"
+)
 
 func TestAsciiNormalization(t *testing.T) {
 	parsed := ParseUCloudUsername("Dan…æT")
@@ -66,6 +69,17 @@ func TestEmptyName(t *testing.T) {
 	parsed := ParseUCloudUsername("")
 	if len(parsed.SuggestedUsername) == 0 {
 		t.Errorf("Expected a non-empty suggested username")
+	}
+}
+
+func TestStartingWithDigit(t *testing.T) {
+	parsed := ParseUCloudUsername("1dan")
+	if len(parsed.SuggestedUsername) == 0 {
+		t.Errorf("Expected a non-empty suggested username")
+	} else {
+		if unicode.IsDigit(rune(parsed.SuggestedUsername[0])) {
+			t.Error("did not expect first character to be a digit in suggested username")
+		}
 	}
 }
 

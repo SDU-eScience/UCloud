@@ -1323,7 +1323,7 @@ export function FilePreview({initialFile}: {
         }
         toolbar={
             <>
-                {!supportsTerminal && hasFeature(Feature.INLINE_TERMINAL) ? null :
+                {!supportsTerminal || !hasFeature(Feature.INLINE_TERMINAL) || !hasFeature(Feature.INTEGRATED_EDITOR) ? null :
                     <TooltipV2 tooltip={"Open terminal"} contentWidth={130}>
                         <Icon
                             name={"terminalSolid"}
@@ -1360,6 +1360,7 @@ export function FilePreview({initialFile}: {
                 </Box>
             </Flex>
         }
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
     />;
 }
 

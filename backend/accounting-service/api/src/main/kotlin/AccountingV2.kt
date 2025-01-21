@@ -467,6 +467,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
         data class Request(
             val walletId: Int,
             val amount: Long,
+            val isDeltaCharge: Boolean = true
         )
 
         @Serializable
@@ -566,6 +567,8 @@ data class WalletV2(
     val totalAllocated: Long,
 
     val lastSignificantUpdateAt: Long,
+
+    val localRetiredUsage: Long,
 )
 
 @Serializable

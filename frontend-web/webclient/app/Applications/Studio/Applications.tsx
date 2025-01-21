@@ -17,10 +17,9 @@ import {useLoading, usePage} from "@/Navigation/Redux";
 import {useParams} from "react-router";
 import {injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
+import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {
     ApplicationGroup,
-    ApplicationSummaryWithFavorite,
     DetailedEntityWithPermission
 } from "@/Applications/AppStoreApi";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -212,7 +211,7 @@ export const App: React.FunctionComponent = () => {
                         <Flex>
                             <Input rightLabel inputRef={flavorField} defaultValue={flavorName}/>
                             <Button
-                                attached
+                                attachedRight
                                 onClick={async () => {
                                     if (commandLoading) return;
 
@@ -345,7 +344,7 @@ export const App: React.FunctionComponent = () => {
                                             options={permissionLevels}
                                         />
                                     </InputLabel>
-                                    <Button attached width="300px" disabled={commandLoading} type={"submit"}>Add
+                                    <Button attachedRight width="300px" disabled={commandLoading} type={"submit"}>Add
                                         permission</Button>
                                 </Flex>
                             </form>
