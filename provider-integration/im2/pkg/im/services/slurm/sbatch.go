@@ -569,10 +569,25 @@ func prepareDefaultEnvironment(
 	}
 
 	jinjaContextParameters["sbatch"] = func(param string, value any) *exec.Value {
+		if param == "gpus-per-task" {
+			if f, ok := value.(float64); ok && f <= 0 {
+				return exec.AsSafeValue("")
+			}
+		}
+
 		if !slices.Contains(directivesWhichCannotBeChanged, param) {
 			directives[param] = fmt.Sprint(value)
 		}
+
 		return exec.AsSafeValue("")
+	}
+
+	jinjaContextParameters["ternary"] = func(condition bool, ifTrue *exec.Value, ifFalse *exec.Value) *exec.Value {
+		if condition {
+			return ifTrue
+		} else {
+			return ifFalse
+		}
 	}
 
 	jinjaContextParameters["dynamicInterface"] = func(rank int, interactiveType string, target string, port int) *exec.Value {
@@ -619,9 +634,11 @@ func prepareDefaultEnvironment(
 }
 
 type SBatchResult struct {
-	Content        string
-	Error          error
-	DynamicTargets []DynamicTarget
+	Content             string
+	JinjaTemplateFile   string
+	JinjaParametersFile string
+	Error               error
+	DynamicTargets      []DynamicTarget
 }
 
 type DynamicTarget struct {
@@ -634,6 +651,8 @@ type DynamicTarget struct {
 func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatchResult {
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
+	jinjaTemplateFile := ""
+	jinjaParametersFile := ""
 
 	_, ok := ServiceConfig.Compute.Machines[job.Specification.Product.Category]
 	if !ok {
@@ -730,11 +749,22 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		}
 
 		jinjaContext = exec.NewContext(jinjaContextParameters)
-		output, ok := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
-		if !ok {
+
+		{
+			safeMap := sanitizeMapForSerialization(jinjaContextParameters)
+			buf := &bytes.Buffer{}
+			yamlEncoder := yaml.NewEncoder(buf)
+			_ = yamlEncoder.Encode(safeMap)
+
+			jinjaTemplateFile = tpl
+			jinjaParametersFile = string(buf.Bytes())
+		}
+
+		output, err := orc.ExecuteJinjaTemplate(tpl, 0, nil, jinjaContext, orc.JinjaFlagsNoPreProcess)
+		if err != nil {
 			log.Warn("Jinja generation failure for %s %s",
 				job.Specification.Application.Name, job.Specification.Application.Version)
-			cli = "# Failure during generation of invocation"
+			cli = "# Failure during generation of invocation: " + err.Error()
 		} else {
 			cli = output
 		}
@@ -804,8 +834,10 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 	}
 
 	return SBatchResult{
-		Content:        builder.String(),
-		DynamicTargets: *targets,
+		Content:             builder.String(),
+		DynamicTargets:      *targets,
+		JinjaTemplateFile:   jinjaTemplateFile,
+		JinjaParametersFile: jinjaParametersFile,
 	}
 }
 

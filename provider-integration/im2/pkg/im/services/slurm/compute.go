@@ -487,6 +487,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		return util.OptNone[string](), err
 	}
 
+	if sbatchResult.JinjaTemplateFile != "" {
+		templateFile := filepath.Join(jobFolder, "job_template.j2")
+		paramsFile := filepath.Join(jobFolder, "job_template_params.yml")
+
+		_ = os.WriteFile(templateFile, []byte(sbatchResult.JinjaTemplateFile), 0770)
+		_ = os.WriteFile(paramsFile, []byte(sbatchResult.JinjaParametersFile), 0770)
+	}
+
 	sbatchFilePath := filepath.Join(jobFolder, "job.sbatch")
 	err = os.WriteFile(sbatchFilePath, []byte(sbatchFileContent), 0770)
 	if err != nil {
@@ -819,8 +827,8 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 		length := len(updates)
 		for i := 0; i < length; i++ {
 			update := &job.Updates[i]
-			if strings.HasPrefix("Target: ", update.Status.Value) {
-				asJson := strings.TrimPrefix("Target: ", update.Status.Value)
+			if strings.HasPrefix(update.Status.Value, "Target: ") {
+				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
 				var dynTarget DynamicTarget
 				err := json.Unmarshal([]byte(asJson), &dynTarget)
 				if err != nil {

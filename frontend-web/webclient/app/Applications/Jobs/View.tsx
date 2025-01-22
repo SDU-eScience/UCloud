@@ -2,13 +2,13 @@ import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useParams} from "react-router";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
-import {displayErrorMessageOrDefault, doNothing, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Select, Truncate} from "@/ui-components";
+import {Box, Button, Card, ExternalLink, Flex, Icon, Link, Truncate} from "@/ui-components";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {device, deviceBreakpoint} from "@/ui-components/Hide";
@@ -50,10 +50,10 @@ import CodeSnippet from "@/ui-components/CodeSnippet";
 import {useScrollToBottom} from "@/ui-components/ScrollToBottom";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import {appendToXterm, useXTerm} from "./XTermLib";
-import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {WebSession} from "./Web";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -320,10 +320,10 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const location = useLocation();
     const appNameHint = getQueryParamOrElse(location.search, "app", "");
     const [jobFetcher, fetchJob] = useCloudAPI<Job | undefined>({noop: true}, undefined);
-    const [, invokeCommand] = useCloudCommand();
     const job = jobFetcher.data;
     const [interfaceTargets, setInterfaceTargets] = useState<InterfaceTarget[]>([]);
     const useFakeState = useMemo(() => localStorage.getItem("useFakeState") !== null, []);
+    const [jobUpdates, setJobUpdates] = useState(job?.updates ?? []);
 
     if (!props.embedded) {
         usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
@@ -341,11 +341,21 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
     const jobUpdateState = useRef<JobUpdates>({updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []});
+    const didUnmount = useDidUnmount();
+
+    const targetRequests = useMemo(() => {
+        if (!job) return {requestsToMake: [], fixedTargets: []};
+        return findTargetRequests(job);
+    }, [jobUpdates.length]);
 
     useEffect(() => {
-        if (!job) return;
-        findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
-    }, [job, job?.updates, job?.status.state]);
+        (async () => {
+            const targets = await resolveInterfaceTargets(targetRequests);
+            if (!didUnmount.current) {
+                setInterfaceTargets(targets);
+            }
+        })();
+    }, [targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
 
     useEffect(() => {
         if (useFakeState) {
@@ -448,15 +458,13 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     jobCache.updateCache(pageV2Of(j));
                 }
             }
-
-            if (job) {
-                findInterfaceTargets(job, invokeCommand).then(setInterfaceTargets);
-            }
         }
 
         if (e.newStatus) {
             s.statusQueue.push(e.newStatus);
         }
+
+        setJobUpdates([...(job?.updates ?? [])]);
 
         s.subscriptions.forEach(it => it());
     }, [job]);
@@ -886,8 +894,15 @@ interface TerminalTarget {
     rank: number,
 }
 
-async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Promise<InterfaceTarget[]> {
-    const result: InterfaceTarget[] = [];
+interface TargetRequests {
+    requestsToMake: OpenInteractiveSessionRequest[];
+    fixedTargets: InterfaceTarget[];
+}
+
+function findTargetRequests(job: Job): TargetRequests {
+    let requestsToMake: OpenInteractiveSessionRequest[] = [];
+    const fixedTargets: InterfaceTarget[] = [];
+
     const appType = getAppType(job);
     const backendType = getBackend(job);
     const support = job.status.resolvedSupport ?
@@ -896,8 +911,6 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
         job.status?.resolvedApplication?.invocation.tool?.tool?.description.backend === "VIRTUAL_MACHINE";
     const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
     const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
-
-    let targetRequests: OpenInteractiveSessionRequest[] = [];
 
     // Parse targets from job updates
     for (let i = 0; i < job.updates.length; i++) {
@@ -912,9 +925,9 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
                 const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
 
                 if (canShowWeb && job.status.state === "RUNNING") {
-                    targetRequests.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
+                    requestsToMake.push({sessionType: "WEB", id: job.id, rank: parsedTarget.rank, target: parsedTarget.target, port: parsedTarget.port});
                 } else if (canShowVnc && job.status.state === "RUNNING") {
-                    result.push({
+                    fixedTargets.push({
                         target: parsedTarget.target,
                         rank: parsedTarget.rank,
                         type: "WEB",
@@ -926,31 +939,39 @@ async function findInterfaceTargets(job: Job, invokeCommand: InvokeCommand): Pro
     }
 
     if (canShowWeb && job.status.state === "RUNNING") {
-        targetRequests = targetRequests.concat(Array(job.specification.replicas)
+        requestsToMake = requestsToMake.concat(Array(job.specification.replicas)
             .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
     }
 
     if (canShowVnc && job.status.state === "RUNNING") {
-        result.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
+        fixedTargets.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
 
-    if (targetRequests.length < 1) return result;
+    return {requestsToMake, fixedTargets};
+}
 
-    try {
-        const sessionResult = await invokeCommand<BulkResponse<InteractiveSession>>(JobsApi.openInteractiveSession(bulkRequestOf(...targetRequests)));
-        let i = 0;
-        for (const res of sessionResult?.responses ?? []) {
-            const webSession = (res.session as WebSession);
-            result.push({
-                target: targetRequests[i].target ?? undefined,
-                rank: webSession.rank,
-                type: "WEB",
-                link: webSession.redirectClientTo,
-            });
-            i++;
+async function resolveInterfaceTargets(request: TargetRequests): Promise<InterfaceTarget[]> {
+    const result: InterfaceTarget[] = [...request.fixedTargets];
+
+    if (request.requestsToMake.length > 0) {
+        try {
+            const sessionResult = await callAPI<BulkResponse<InteractiveSession>>(
+                JobsApi.openInteractiveSession(bulkRequestOf(...request.requestsToMake))
+            );
+            let i = 0;
+            for (const res of sessionResult?.responses ?? []) {
+                const webSession = (res.session as WebSession);
+                result.push({
+                    target: request.requestsToMake[i].target ?? undefined,
+                    rank: webSession.rank,
+                    type: "WEB",
+                    link: webSession.redirectClientTo,
+                });
+                i++;
+            }
+        } catch (e) {
+            console.warn(e);
         }
-    } catch (e) {
-        console.warn(e);
     }
 
     return result;
@@ -1457,28 +1478,30 @@ function getAppType(job: Job): string {
 
 
 const InterfaceLinkRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
-    if (!element) return null; 
+    if (!element) return null;
 
-    return <Link
-        to={element.link ?? ""}
-        key={element.link ?? (element.rank + (element.port?.toString() ?? ""))}
-        {...dataProps}
-    >
-        <Flex
-            gap="5px"
-            alignItems={"center"}
-            p={8}
+    return <Box {...dataProps}>
+        <Link
+            to={element.link ?? ""}
+            key={element.link ?? (element.rank + (element.port?.toString() ?? ""))}
+            target={"_blank"}
         >
-            <Icon name="heroArrowTopRightOnSquare" />
-            <Truncate>{element.target ?? "Open interface"}</Truncate>
+            <Flex
+                gap="5px"
+                alignItems={"center"}
+                p={8}
+            >
+                <Icon name="heroArrowTopRightOnSquare" />
+                <Truncate>{element.target ?? "Open interface"}</Truncate>
 
-            {!element.showNode ? null :
-                <div style={{color: "var(--textSecondary)"}}>
-                    Node {element.rank + 1}
-                </div>
-            }
-        </Flex>
-    </Link>;
+                {!element.showNode ? null :
+                    <div style={{color: "var(--textSecondary)"}}>
+                        Node {element.rank + 1}
+                    </div>
+                }
+            </Flex>
+        </Link>
+    </Box>;
 }
 
 const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarget> = ({element, dataProps, onSelect}) => {
@@ -1488,20 +1511,9 @@ const InterfaceLinkSelectedRow: RichSelectChildComponent<SearchableInterfaceTarg
 }
 
 const TerminalLinkRow: RichSelectChildComponent<SearchableTerminalTarget> = ({element, dataProps, onSelect}) => {
-    if (!element) return null; 
+    if (!element) return null;
 
-    return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} onClick={e => {
-        e.preventDefault();
-
-        const link = findDomAttributeFromAncestors(e.target, "href");
-        if (!link) return;
-
-        window.open(
-            link,
-            undefined,
-            "width=800,height=600,status=no"
-        );
-    }}>
+    return <Link to={`/applications/shell/${element.jobId}/${element.rank}?hide-frame`} target={"_blank"}>
         <Flex
             gap="5px"
             alignItems={"center"}
@@ -1572,21 +1584,18 @@ const RunningButtonGroup: React.FunctionComponent<{
     const canShowVnc = (appType === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
     const canShowWeb = (appType === "WEB") && isSupported(backendType, support, "web");
 
+    const onInterfaceSelect = useCallback((target: SearchableInterfaceTarget) => {
+        window.open(target.link, "_blank");
+    }, []);
+
+    const onTerminalSelect = useCallback((target: SearchableTerminalTarget) => {
+        window.open(`/applications/shell/${target.jobId}/${target.rank}?hide-frame`, "_blank");
+    }, []);
+
     return <div className={topButtons.class}>
         {!supportTerminal ? null : (
             <Flex>
-                <Link to={`/applications/shell/${job.id}/0?hide-frame`} onClick={e => {
-                    e.preventDefault();
-
-                    const link = findDomAttributeFromAncestors(e.target, "href");
-                    if (!link) return;
-
-                    window.open(
-                        link,
-                        undefined,
-                        "width=800,height=600,status=no"
-                    );
-                }}>
+                <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>
                     <Button attachedLeft={hasMultipleNodes}>
                         <Icon name="heroCommandLine" />
                         <div style={{minWidth: hasMultipleNodes ? "130px" : "164px", maxWidth: "164px"}}>
@@ -1602,7 +1611,7 @@ const RunningButtonGroup: React.FunctionComponent<{
                         keys={["searchString"]}
                         RenderRow={TerminalLinkRow}
                         FullRenderSelected={TerminalLinkSelectedRow}
-                        onSelect={doNothing}
+                        onSelect={onTerminalSelect}
                     />
                 }
             </Flex>
@@ -1620,13 +1629,15 @@ const RunningButtonGroup: React.FunctionComponent<{
                         </div>
                     </Button>
                 </Link>
-                <RichSelect
-                    items={searchableInterfaceLinks}
-                    keys={["searchString"]}
-                    RenderRow={InterfaceLinkRow}
-                    FullRenderSelected={InterfaceLinkSelectedRow}
-                    onSelect={doNothing}
-                />
+                {interfaceLinks.length <= 1 ? null :
+                    <RichSelect
+                        items={searchableInterfaceLinks}
+                        keys={["searchString"]}
+                        RenderRow={InterfaceLinkRow}
+                        FullRenderSelected={InterfaceLinkSelectedRow}
+                        onSelect={onInterfaceSelect}
+                    />
+                }
             </Flex>
         )}
     </div>

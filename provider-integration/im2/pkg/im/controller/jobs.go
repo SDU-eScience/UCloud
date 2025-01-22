@@ -1066,16 +1066,17 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 				routeType = gw.RouteTypeVnc
 			}
 
+			clusterName := "job_" + job.Id + requestedSuffix.Value
 			gw.SendMessage(gw.ConfigurationMessage{
 				ClusterUp: &gw.EnvoyCluster{
-					Name:    "job_" + job.Id,
+					Name:    clusterName,
 					Address: target.Address,
 					Port:    target.Port,
 					UseDNS:  !unicode.IsDigit([]rune(target.Address)[0]),
 				},
 
 				RouteUp: &gw.EnvoyRoute{
-					Cluster:      "job_" + job.Id,
+					Cluster:      clusterName,
 					CustomDomain: ingress.TargetDomain,
 					AuthTokens:   authToken,
 					Type:         routeType,
