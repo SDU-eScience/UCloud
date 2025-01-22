@@ -1,9 +1,9 @@
 import * as React from "react";
 import TitledCard from "@/ui-components/HighlightedCard";
-import {Text, Button, Icon, List, Link} from "@/ui-components";
+import {Text, Button, Icon, List, Link, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {apiRetrieve, apiUpdate, useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -17,6 +17,9 @@ import {connectionState} from "./ConnectionState";
 import {useUState} from "@/Utilities/UState";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {injectStyle} from "@/Unstyled";
+import {IconName} from "@/ui-components/Icon";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {ThemeColor} from "@/ui-components/theme";
 
 const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
     ${k} {
@@ -24,32 +27,52 @@ const FixedHeightProvider = injectStyle("FixedHeightProvider", k => `
     }
 `)
 
-interface ProviderCondition{
-    link?: string;
-    status: "NORMAL" | "DEGRADED" | "MAINTENANCE" | "DOWN";
+interface ProviderCondition {
+    page?: string;
+    level: "NORMAL" | "DEGRADED" | "MAINTENANCE" | "DOWN" | "UNKNOWN";
 }
 
-const ProviderStatus: React.FunctionComponent<{condition: ProviderCondition}> = props => {
-    if (!props.condition) return <Icon name="heroQuestionMarkCircle" />;
-    
-    switch (props.condition.status) {
+const ProviderConditionIcon: React.FunctionComponent<{condition: ProviderCondition}> = props => {
+    if (!hasFeature(Feature.PROVIDER_CONDITION)) return null;
+
+    let icon: IconName = "heroQuestionMarkCircle";
+    let color: ThemeColor = "infoMain";
+    let tooltip: string = "infoMain";
+
+    switch (props.condition.level) {
         case "NORMAL":
-            return <Icon name="heroCake" />
+            icon = "heroCheckCircle";
+            color = "successMain";
+            tooltip = "Operational"
+            break;
         case "DEGRADED":
-            return <Icon name="heroFire" />
+            icon = "heroExclamationTriangle";
+            color = "warningMain";
+            tooltip = "Degraded";
+            break;
         case "DOWN":
-            return <Icon name="heroBellAlert" />
+            icon = "heroFire";
+            color = "errorMain";
+            tooltip = "Unavailable"
+            break;
         case "MAINTENANCE":
-            return <Icon name="heroWrench" />
+            icon = "heroWrench";
+            color = "textSecondary";
+            tooltip = "Down for maintenance"
+            break;
     }
+
+    return <Link to={props.condition.page ?? ""} target={"_blank"}>
+        <TooltipV2 tooltip={tooltip} contentWidth={120}>
+            <Icon name={icon} color={color} size={20} />
+        </TooltipV2>
+    </Link>;
 };
 
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
     const state = useUState(connectionState);
-    const [conditions, setConditions] = React.useState<Map<string, ProviderCondition>>(new Map<string, ProviderCondition>());
-
     const [, invokeCommand] = useCloudCommand();
     const reload = useCallback(() => {
         state.fetchFresh();
@@ -59,21 +82,6 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
 
     const providers = state.providers;
     const shouldConnect = providers.some(it => state.canConnectToProvider(it.providerTitle));
-
-    useEffect(() => {
-        providers.forEach(provider => 
-            invokeCommand(
-                apiRetrieve(
-                    {provider: provider.provider},
-                    "/api/providers/integration",
-                    "condition"
-                )
-            ).then(res => {
-                setConditions((prev) => new Map(prev.set(provider.provider, res)));
-            })
-        );
-
-    }, [providers.length]);
 
     const body = <>
         {!shouldConnect ? null :
@@ -85,6 +93,15 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
         <List>
             {providers.map(it => {
                 const canConnect = state.canConnectToProvider(it.providerTitle);
+
+                const [condition,] = useCloudAPI<ProviderCondition>(
+                    apiRetrieve(
+                        {provider: it.provider},
+                        "/api/providers/integration",
+                        "condition"
+                    ),
+                    {level: "UNKNOWN"}
+                );
 
                 const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
                 const onContextMenu: EventHandler<MouseEvent<never>> = e => {
@@ -101,17 +118,28 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                         highlightOnHover={false}
                         icon={<ProviderLogo providerId={it.providerTitle} size={30} />}
                         left={
-                            <Text fontSize={"16px"} ml={3}>
-                                <ProviderTitle providerId={it.providerTitle} />
-                                <ProviderStatus condition={conditions[it.provider]} />
-                            </Text>
+                            <Flex fontSize={"16px"} ml={3} alignItems={"center"} gap="5px">
+                                <div><ProviderTitle providerId={it.providerTitle} /></div>
+                                <ProviderConditionIcon condition={condition.data} />
+                            </Flex>
                         }
                         right={!canConnect ?
                             <>
-                                <Icon name={"check"} color={"successMain"} />
+                                <TooltipV2 tooltip={"Connected"} contentWidth={100}>
+                                    <Icon name={"heroCheck"} color={"successMain"} size="24" />
+                                </TooltipV2>
                                 <Operations
                                     location={"IN_ROW"}
                                     operations={[
+                                        {
+                                            text: "Provider status",
+                                            icon: "favIcon",
+                                            enabled: () => {return true;},
+                                            onClick: () => {
+                                                window.open(condition.data.page ?? 'https://status.cloud.sdu.dk', '_blank')?.focus();
+                                            },
+                                            shortcut: ShortcutKey.S,
+                                        },
                                         {
                                             confirm: true,
                                             color: "errorMain",

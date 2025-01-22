@@ -19,6 +19,8 @@ export enum Feature {
     COMMAND_PALETTE,
     INTEGRATED_EDITOR,
     EDITOR_VIM,
+
+    PROVIDER_CONDITION,
 }
 
 enum Environment {
@@ -115,7 +117,13 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.EDITOR_VIM,
         showWithoutFlag: allLocalEnvironments,
         showWithFlag: allEnvironments,
-    }
+    },
+
+    "provider-condition": {
+        feature: Feature.PROVIDER_CONDITION,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
 };
 
 function getCurrentEnvironment(): Environment {
