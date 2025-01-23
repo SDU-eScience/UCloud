@@ -89,13 +89,6 @@ sealed class ToolYaml(val tool: String) {
                 }
             }
 
-            if (supportedProviders == null && backend in setOf(ToolBackend.VIRTUAL_MACHINE, ToolBackend.NATIVE)) {
-                throw ToolVerificationException.BadValue(
-                    "supportedProviders",
-                    "supportedProviders must be supplied when using backend = VIRTUAL_MACHINE"
-                )
-            }
-
             if (requiredModules.isNotEmpty() && backend != ToolBackend.NATIVE) {
                 throw ToolVerificationException.BadValue(
                     "requiredModules",

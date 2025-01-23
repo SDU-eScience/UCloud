@@ -11,7 +11,7 @@ export enum Feature {
     // current policies.
     ADDITIONAL_USER_INFO,
 
-    COPY_APP_MOCKUP,
+    JOB_RENAME,
 
     APP_CATALOG_FILTER,
 
@@ -70,13 +70,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inline-terminal": {
         feature: Feature.INLINE_TERMINAL,
-        showWithoutFlag: allDevEnvironments,
-    },
-
-    "copy-app": {
-        feature: Feature.COPY_APP_MOCKUP,
-        showWithFlag: allDevEnvironments,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "component-stored-cut-copy": {
@@ -86,7 +80,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "app-catalog-filter": {
         feature: Feature.APP_CATALOG_FILTER,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments
     },
 
@@ -97,8 +91,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "new-tasks": {
         feature: Feature.NEW_TASKS,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        showWithoutFlag: allEnvironments,
     },
 
     "command-palette": {
@@ -124,6 +117,11 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
+    "job-rename": {
+        feature: Feature.JOB_RENAME,
+        showWithFlag: allDevEnvironments,
+        showWithoutFlag: allLocalEnvironments
+    }
 };
 
 function getCurrentEnvironment(): Environment {

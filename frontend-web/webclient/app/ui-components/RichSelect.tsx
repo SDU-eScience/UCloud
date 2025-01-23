@@ -1,11 +1,11 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {useCallback, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {injectStyle} from "@/Unstyled";
-import {Flex, Icon, Input, Relative, Text} from "@/ui-components/index";
-import {FilterInputClass} from "@/Project/ContextSwitcher";
+import {Flex, Icon, Input, Relative} from "@/ui-components/index";
+import {FilterInputClass} from "@/Project/ProjectSwitcher";
 import Box from "@/ui-components/Box";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<{
@@ -19,7 +19,9 @@ export function RichSelect<T, K extends keyof T>(props: {
     keys: K[];
 
     RenderRow: RichSelectChildComponent<T>;
-    RenderSelected: RichSelectChildComponent<T>;
+    RenderSelected?: RichSelectChildComponent<T>;
+    FullRenderSelected?: RichSelectChildComponent<T>;
+    fullWidth?: boolean;    
 
     selected?: T;
     onSelect: (element: T) => void;
@@ -48,11 +50,15 @@ export function RichSelect<T, K extends keyof T>(props: {
     }, []);
 
     return <ClickableDropdown
-        trigger={
-            <div className={TriggerClass} ref={triggerRef}>
-                <props.RenderSelected element={props.selected} onSelect={doNothing}/>
-                <Icon name="chevronDownLight"/>
-            </div>
+        trigger={props.FullRenderSelected ? 
+                <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
+            :
+                props.RenderSelected ? 
+                    <div className={TriggerClass} ref={triggerRef}>
+                        <props.RenderSelected element={props.selected} onSelect={doNothing}/>
+                        <Icon name="chevronDownLight"/>
+                    </div>
+                : <></>
         }
         onOpeningTriggerClick={onTriggerClick}
         rightAligned
@@ -61,7 +67,8 @@ export function RichSelect<T, K extends keyof T>(props: {
         arrowkeyNavigationKey={"data-active"}
         hoverColor={"rowHover"}
         colorOnHover={false}
-        fullWidth
+        fullWidth={props.fullWidth ?? false}
+        width={props.fullWidth ? undefined : dropdownSize}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);

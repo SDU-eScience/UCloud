@@ -1,0 +1,68 @@
+application: v2
+
+name: rstudio-native
+version: 2024.10
+
+software:
+  type: Native
+  load:
+    - name: rstudio
+      version: 2024.10
+
+web:
+  enabled: true
+
+features:
+  multiNode: false
+  folders: false
+  jobLinking: false
+
+parameters:
+  input_dir:
+    type: Directory
+    optional: false
+    description: "The directory used to hold RStudio's internal state"
+    title: "State directory"
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      You can customize how RStudio is started by editing this parameter.
+
+    init: ""
+
+    job: |
+      {# Preambles start - Avoid touching these unless required. #}
+        {- systemLoad -}
+        {- applicationLoad -}
+      {# Preambles end #}
+        
+      {# =============================================================================================================== #}
+      {# Start the job - change as required                                                                              #}
+      {# =============================================================================================================== #}
+                
+      MYTMP=`mktemp -d`
+      echo -e "provider=sqlite\\ndirectory=${MYTMP}/sqlite" > "${MYTMP}/db.conf"
+      mkdir -p ${HOME}/.rstudio
+      echo "www-port=${UCLOUD_PORT}" > ${MYTMP}/rserver.conf
+      chmod 0600 ${MYTMP}/rserver.conf
+      echo
+      
+      rserver --server-user=$USER --www-address=0.0.0.0 \
+              --server-data-dir=${HOME}/.rstudio \
+              --server-pid-file=${HOME}/.rstudio/rstudio.pid \
+              --database-config-file=${MYTMP}/db.conf \
+              --server-working-dir={{ input_dir }} \
+              --config=${MYTMP}/rserver.conf;
+
+      {# =============================================================================================================== #}
+      {# End of job                                                                                                      #}
+      {# =============================================================================================================== #}
+
+      {# Postambles start - Avoid touching these unless required. #}
+        {- applicationUnload -}
+        {- systemUnload -}
+      {# Postambles end #}
+
+invocation: ""

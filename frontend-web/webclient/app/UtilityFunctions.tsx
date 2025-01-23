@@ -647,3 +647,16 @@ export function chunkedString(text: string, chunkSize: number, leftToRight: bool
         return result;
     }
 }
+
+export function deepEquals(a: any, b: any): boolean {
+    if (a === b) return true;
+
+    if (a && b && typeof a === "object" && typeof b === "object") {
+        const aEntries = Object.entries(a);
+        const bEntries = Object.entries(b);
+        if (aEntries.length !== bEntries.length) return false;
+        return Object.entries(a).every(([k, v]) => deepEquals(v, b[k]))
+    }
+
+    return false;
+}

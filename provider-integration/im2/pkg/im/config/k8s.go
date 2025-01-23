@@ -26,11 +26,13 @@ type K8sMachineCategory struct {
 }
 
 type K8sMachineCategoryGroup struct {
-	NameSuffix  MachineResourceType
-	Configs     []K8sMachineConfiguration
-	CpuModel    string
-	GpuModel    string
-	MemoryModel string
+	NameSuffix           MachineResourceType
+	Configs              []K8sMachineConfiguration
+	CpuModel             string
+	GpuModel             string
+	MemoryModel          string
+	AllowVirtualMachines bool
+	AllowsContainers     bool
 }
 
 type K8sMachineConfiguration struct {
@@ -130,6 +132,12 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	result.CpuModel = optionalChildText(filePath, node, "cpuModel", success)
 	result.GpuModel = optionalChildText(filePath, node, "gpuModel", success)
 	result.MemoryModel = optionalChildText(filePath, node, "memoryModel", success)
+
+	allowVms, ok := optionalChildBool(filePath, node, "allowVirtualMachines")
+	result.AllowVirtualMachines = allowVms && ok
+
+	allowContainers, ok := optionalChildBool(filePath, node, "allowContainers")
+	result.AllowsContainers = allowContainers || !ok
 
 	var cpu []int
 	var gpu []int

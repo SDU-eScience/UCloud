@@ -297,13 +297,6 @@ class JobResourceService(
         providers.runChecksForCreate(actorAndProject, Jobs, request, "start job") { support, job ->
             val (_, tool, block) = findSupportBlock(job, support)
             block.checkEnabled()
-
-            val supportedProviders = tool.description.supportedProviders
-            if (supportedProviders != null) {
-                if (job.product.provider !in supportedProviders) {
-                    error("The application is not supported by this provider. Try selecting a different application.")
-                }
-            }
         }
 
         for (job in request.items) {
@@ -1209,13 +1202,11 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            require(app.invocation!!.vnc != null)
                             block.checkFeature(block.vnc)
                         }
 
@@ -1234,7 +1225,8 @@ class JobResourceService(
                         JobsProviderOpenInteractiveSessionRequestItem(
                             job,
                             req.rank,
-                            req.sessionType
+                            req.sessionType,
+                            req.target,
                         )
                     }
                     .toList()

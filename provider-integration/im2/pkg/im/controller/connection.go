@@ -103,6 +103,10 @@ func RegisterConnectionComplete(username string, uid uint32, notifyUCloud bool) 
 		}
 	}
 
+	if uid == UnknownUser {
+		return nil
+	}
+
 	err := db.NewTx[error](func(tx *db.Transaction) error {
 		db.Exec(
 			tx,
@@ -204,7 +208,7 @@ func MapUCloudToLocal(username string) (uint32, bool) {
 			},
 		)
 		if !ok {
-			return 11400, false
+			return UnknownUser, false
 		}
 
 		return val.Uid, true
@@ -314,7 +318,7 @@ func MapUCloudProjectToLocal(projectId string) (uint32, bool) {
 			},
 		)
 		if !ok {
-			return 11400, false
+			return UnknownUser, false
 		}
 
 		return val.Gid, true
@@ -712,3 +716,5 @@ var (
 		Help: "The total number of UCloud/IM (User) instances launched",
 	})
 )
+
+const UnknownUser = 11400

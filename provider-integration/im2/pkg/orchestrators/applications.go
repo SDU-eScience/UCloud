@@ -448,14 +448,12 @@ type AppParameterValueType string
 const (
 	AppParameterValueTypeFile          AppParameterValueType = "file"
 	AppParameterValueTypeBoolean       AppParameterValueType = "boolean"
-	AppParameterValueTypeTextArea      AppParameterValueType = "textarea"
 	AppParameterValueTypeText          AppParameterValueType = "text"
 	AppParameterValueTypeInteger       AppParameterValueType = "integer"
 	AppParameterValueTypeFloatingPoint AppParameterValueType = "floating_point"
 	AppParameterValueTypePeer          AppParameterValueType = "peer"
 	AppParameterValueTypeLicense       AppParameterValueType = "license_server"
 	AppParameterValueTypeBlockStorage  AppParameterValueType = "block_storage"
-	AppParameterValueTypeEnumeration   AppParameterValueType = "enumeration"
 	AppParameterValueTypeNetwork       AppParameterValueType = "network"
 	AppParameterValueTypeIngress       AppParameterValueType = "ingress"
 	AppParameterValueTypeWorkflow      AppParameterValueType = "workflow"
@@ -472,13 +470,6 @@ func AppParameterValueFile(path string, readOnly bool) AppParameterValue {
 func AppParameterValueBoolean(value bool) AppParameterValue {
 	return AppParameterValue{
 		Type:  AppParameterValueTypeBoolean,
-		Value: value,
-	}
-}
-
-func AppParameterValueTextArea(value string) AppParameterValue {
-	return AppParameterValue{
-		Type:  AppParameterValueTypeTextArea,
 		Value: value,
 	}
 }

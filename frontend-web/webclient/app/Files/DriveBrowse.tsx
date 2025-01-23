@@ -40,14 +40,12 @@ import {Feature, hasFeature} from "@/Features";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelector} from "@/Products/Selector";
 import {Box, Button, Flex, Input, Label} from "@/ui-components";
-import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {injectStyle} from "@/Unstyled";
 import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
-import NetworkIPApi from "@/UCloud/NetworkIPApi";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({

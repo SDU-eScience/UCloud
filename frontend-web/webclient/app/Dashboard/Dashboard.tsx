@@ -31,12 +31,12 @@ import * as Accounting from "@/Accounting";
 import {IconName} from "@/ui-components/Icon";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {NewsPost} from "@/NewsPost";
-import {NoResultsCardBody, OverallocationLink} from "@/UtilityComponents";
+import {NoResultsCardBody} from "@/UtilityComponents";
 import {emptyPage, emptyPageV2} from "@/Utilities/PageUtilities";
 import {isAdminOrPI} from "@/Project";
-import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AllocationDisplayWallet} from "@/Accounting";
+import {ProgressBar} from "@/Accounting/Allocations";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
@@ -201,30 +201,34 @@ function ApplyLinkButton(): React.ReactNode {
     </Link>;
 }
 
+const ROW_HEIGHT_IN_PX = 55;
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
 }): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
-    const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
+    const displayWallets = React.useMemo(() => {
+        const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
+        const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
-    const displayWallets: AllocationDisplayWallet[] = [];
-    for (const category of Accounting.productTypesByPriority) {
-        const entry = tree[category];
-        if (!entry) continue;
-        for (const wallet of entry.wallets) {
-            displayWallets.push(wallet);
+        const displayWallets: AllocationDisplayWallet[] = [];
+        for (const category of Accounting.productTypesByPriority) {
+            const entry = tree[category];
+            if (!entry) continue;
+            for (const wallet of entry.wallets) {
+                displayWallets.push(wallet);
+            }
         }
-    }
+        return displayWallets;
+    }, [wallets]);
 
     return (
         <DashboardCard
             linkTo={AppRoutes.project.allocations()}
             title="Resource allocations"
             icon={"heroBanknotes"}>
-            {mapped.length === 0 ? (
+            {displayWallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -233,26 +237,20 @@ function DashboardResources({wallets}: {
                 </NoResultsCardBody>
             ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
-                    <Box maxHeight={"600px"} overflowY={"auto"}>
+                    <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
                         <Table>
                             <tbody>
-                                {displayWallets.map((w, i) => (
-                                    <TableRow height="55px" key={i}>
+                                {displayWallets.map(({usageAndQuota, category}, i) => (
+                                    <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
                                         <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
                                             <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={w.category.provider} size={30} />
-                                                <code>{w.category.name}</code>
+                                                <ProviderLogo providerId={category.provider} size={30} />
+                                                <code>{category.name}</code>
                                             </Flex>
                                         </TableCell>
                                         <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
                                             <Flex justifyContent="end">
-                                                {!w.usageAndQuota.display.displayOverallocationWarning ? null :
-                                                    <OverallocationLink>
-                                                        <TooltipV2 tooltip={Accounting.UNABLE_TO_USE_FULL_ALLOC_MESSAGE}>
-                                                            <Icon mr="4px" name={"heroExclamationTriangle"} color={"warningMain"} />
-                                                        </TooltipV2>
-                                                    </OverallocationLink>}
-                                                {w.usageAndQuota.display.usageAndQuota}
+                                                <ProgressBar uq={usageAndQuota} />
                                             </Flex>
                                         </TableCell>
                                     </TableRow>

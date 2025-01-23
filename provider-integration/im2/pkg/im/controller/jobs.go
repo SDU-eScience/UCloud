@@ -3,13 +3,14 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	anyascii "github.com/anyascii/go"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
 	"time"
 	"unicode"
+
+	anyascii "github.com/anyascii/go"
 
 	ws "github.com/gorilla/websocket"
 	fnd "ucloud.dk/pkg/foundation"
@@ -26,13 +27,21 @@ var Jobs JobsService
 type JobsService struct {
 	Submit                   func(request JobSubmitRequest) (util.Option[string], error)
 	Terminate                func(request JobTerminateRequest) error
+	Suspend                  func(request JobSuspendRequest) error
+	Unsuspend                func(request JobUnsuspendRequest) error
 	Extend                   func(request JobExtendRequest) error
 	RetrieveProducts         func() []orc.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
 	ServerFindIngress        func(job *orc.Job, suffix util.Option[string]) ConfiguredWebIngress
-	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (cfg.HostInfo, error)
+	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (ConfiguredWebSession, error)
 	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
+	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
+}
+
+type ConfiguredWebSession struct {
+	Host  cfg.HostInfo
+	Flags RegisteredIngressFlags
 }
 
 type ConfiguredWebIngress struct {
@@ -84,6 +93,14 @@ const (
 )
 
 type JobTerminateRequest struct {
+	Job *orc.Job
+}
+
+type JobSuspendRequest struct {
+	Job *orc.Job
+}
+
+type JobUnsuspendRequest struct {
 	Job *orc.Job
 }
 
@@ -176,6 +193,65 @@ func controllerJobs(mux *http.ServeMux) {
 			}),
 		)
 
+		type terminateRequest = struct {
+			Job *orc.Job `json:"job"`
+		}
+		mux.HandleFunc(jobContext+"suspend", HttpUpdateHandler[fnd.BulkRequest[terminateRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[terminateRequest]) {
+				var errors []error
+
+				for _, item := range request.Items {
+					err := Jobs.Suspend(JobSuspendRequest{
+						Job: item.Job,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Empty]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, util.Empty{})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
+		mux.HandleFunc(jobContext+"unsuspend", HttpUpdateHandler[fnd.BulkRequest[terminateRequest]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[terminateRequest]) {
+				var errors []error
+
+				for _, item := range request.Items {
+					err := Jobs.Unsuspend(JobUnsuspendRequest{
+						Job: item.Job,
+					})
+
+					if err != nil {
+						errors = append(errors, err)
+					}
+				}
+
+				if len(errors) > 0 {
+					sendError(w, errors[0])
+				} else {
+					var response fnd.BulkResponse[util.Empty]
+					for i := 0; i < len(request.Items); i++ {
+						response.Responses = append(response.Responses, util.Empty{})
+					}
+
+					sendResponseOrError(w, response, nil)
+				}
+			}),
+		)
+
 		type extendRequest struct {
 			Job           *orc.Job           `json:"jobId"`
 			RequestedTime orc.SimpleDuration `json:"requestedTime"`
@@ -242,17 +318,21 @@ func controllerJobs(mux *http.ServeMux) {
 					case orc.InteractiveSessionTypeWeb:
 						isVnc := item.SessionType == orc.InteractiveSessionTypeVnc
 						var flags RegisteredIngressFlags
-						if isVnc {
-							flags |= RegisteredIngressFlagsVnc
-						} else {
-							flags |= RegisteredIngressFlagsWeb
-						}
 
 						target, err := Jobs.OpenWebSession(item.Job, item.Rank, item.Target)
 						if err != nil {
 							errors = append(errors, err)
 						} else {
-							redirect, err := RegisterIngress(item.Job, item.Rank, target, item.Target, flags)
+							flags = target.Flags
+							if flags == 0 {
+								if isVnc {
+									flags |= RegisteredIngressFlagsVnc
+								} else {
+									flags |= RegisteredIngressFlagsWeb
+								}
+							}
+
+							redirect, err := RegisterIngress(item.Job, item.Rank, target.Host, item.Target, flags)
 							if err != nil {
 								errors = append(errors, err)
 							} else {
@@ -345,13 +425,31 @@ func controllerJobs(mux *http.ServeMux) {
 				connMutex := sync.Mutex{}
 
 				var session *ShellSession = nil
+
+				go func() {
+					timeout := 30
+					for util.IsAlive {
+						if session != nil && !session.Alive {
+							_ = conn.Close()
+							break
+						}
+
+						if timeout <= 0 && session == nil {
+							_ = conn.Close()
+							break
+						}
+
+						time.Sleep(1 * time.Second)
+						timeout--
+					}
+				}()
+
 				for util.IsAlive {
 					if session != nil && !session.Alive {
 						break
 					}
 
 					messageType, data, err := conn.ReadMessage()
-
 					if err != nil {
 						break
 					}
@@ -587,6 +685,7 @@ func controllerJobs(mux *http.ServeMux) {
 				sendResponseOrError(w, dynamicParametersResponse{Parameters: resp}, nil)
 			}),
 		)
+
 	}
 	if RunsServerCode() {
 		mux.HandleFunc(
@@ -634,6 +733,57 @@ func controllerJobs(mux *http.ServeMux) {
 					nil,
 				)
 			}),
+		)
+
+		mux.HandleFunc(
+			fmt.Sprintf("/ucloud/%v/vnc", cfg.Provider.Id),
+			func(writer http.ResponseWriter, request *http.Request) {
+				var idAndRank jobIdAndRank
+				token := request.URL.Query().Get("token")
+				webSessionsMutex.Lock()
+				for key, session := range webSessions {
+					if slices.Contains(session.AuthToken, token) {
+						idAndRank = key
+						break
+					}
+				}
+				webSessionsMutex.Unlock()
+
+				if idAndRank.JobId == "" {
+					sendError(writer, &util.HttpError{
+						StatusCode: http.StatusForbidden,
+						Why:        "Forbidden",
+					})
+					return
+				}
+
+				job, ok := RetrieveJob(idAndRank.JobId)
+				if !ok {
+					sendError(writer, &util.HttpError{
+						StatusCode: http.StatusInternalServerError,
+						Why:        "Unknown job",
+					})
+					return
+				}
+
+				handler := Jobs.HandleBuiltInVnc
+				if handler == nil {
+					sendError(writer, &util.HttpError{
+						StatusCode: http.StatusInternalServerError,
+						Why:        "not supported",
+					})
+					return
+				}
+
+				conn, err := wsUpgrader.Upgrade(writer, request, nil)
+				defer util.SilentCloseIfOk(conn, err)
+				if err != nil {
+					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					return
+				}
+
+				handler(job, idAndRank.Rank, conn)
+			},
 		)
 	}
 }
@@ -817,6 +967,7 @@ type RegisteredIngressFlags int
 const (
 	RegisteredIngressFlagsWeb RegisteredIngressFlags = 1 << iota
 	RegisteredIngressFlagsVnc
+	RegisteredIngressFlagsNoGatewayConfig
 )
 
 // ToHostnameSafe transforms a string into a hostname-safe version
@@ -865,7 +1016,7 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 		return "", fmt.Errorf("must specify either RegisteredIngressFlagsWeb or RegisteredIngressFlagsVnc")
 	}
 
-	if RunsUserCode() {
+	if !RunsServerCode() {
 		return jobsRegisterIngressCall.Invoke(jobRegisteredIngress{
 			JobId:           job.Id,
 			Target:          target,
@@ -893,44 +1044,45 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 			authToken = []string{util.RandomToken(12)}
 		}
 
-		if isWeb {
-			key := jobIdAndRank{
-				JobId: job.Id,
-				Rank:  rank,
-			}
-			webSessionsMutex.Lock()
-			session, ok := webSessions[key]
-			if ok {
-				authToken = session.AuthToken
-			}
-			webSessions[key] = webSession{
-				AuthToken: authToken,
-				Target:    target,
-				Ingress:   ingress.TargetDomain,
-			}
-			webSessionsMutex.Unlock()
+		key := jobIdAndRank{
+			JobId: job.Id,
+			Rank:  rank,
 		}
-
-		routeType := gw.RouteTypeIngress
-		if isVnc {
-			routeType = gw.RouteTypeVnc
+		webSessionsMutex.Lock()
+		session, ok := webSessions[key]
+		if ok {
+			authToken = session.AuthToken
 		}
+		webSessions[key] = webSession{
+			AuthToken: authToken,
+			Target:    target,
+			Ingress:   ingress.TargetDomain,
+		}
+		webSessionsMutex.Unlock()
 
-		gw.SendMessage(gw.ConfigurationMessage{
-			ClusterUp: &gw.EnvoyCluster{
-				Name:    "job_" + job.Id,
-				Address: target.Address,
-				Port:    target.Port,
-				UseDNS:  !unicode.IsDigit([]rune(target.Address)[0]),
-			},
+		if flags&RegisteredIngressFlagsNoGatewayConfig == 0 {
+			routeType := gw.RouteTypeIngress
+			if isVnc {
+				routeType = gw.RouteTypeVnc
+			}
 
-			RouteUp: &gw.EnvoyRoute{
-				Cluster:      "job_" + job.Id,
-				CustomDomain: ingress.TargetDomain,
-				AuthTokens:   authToken,
-				Type:         routeType,
-			},
-		})
+			clusterName := "job_" + job.Id + requestedSuffix.Value
+			gw.SendMessage(gw.ConfigurationMessage{
+				ClusterUp: &gw.EnvoyCluster{
+					Name:    clusterName,
+					Address: target.Address,
+					Port:    target.Port,
+					UseDNS:  !unicode.IsDigit([]rune(target.Address)[0]),
+				},
+
+				RouteUp: &gw.EnvoyRoute{
+					Cluster:      clusterName,
+					CustomDomain: ingress.TargetDomain,
+					AuthTokens:   authToken,
+					Type:         routeType,
+				},
+			})
+		}
 
 		if isWeb {
 			if ingress.IsPublic {

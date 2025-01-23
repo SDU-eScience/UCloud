@@ -33,10 +33,6 @@ parameters:
 software:
   type: Native
 
-  load:
-  - name: example-module
-    version: 1.32
-
 environment:
   COUNT: "{{ count }}"
 

@@ -487,6 +487,14 @@ func submitJob(request ctrl.JobSubmitRequest) (util.Option[string], error) {
 		return util.OptNone[string](), err
 	}
 
+	if sbatchResult.JinjaTemplateFile != "" {
+		templateFile := filepath.Join(jobFolder, "job_template.j2")
+		paramsFile := filepath.Join(jobFolder, "job_template_params.yml")
+
+		_ = os.WriteFile(templateFile, []byte(sbatchResult.JinjaTemplateFile), 0770)
+		_ = os.WriteFile(paramsFile, []byte(sbatchResult.JinjaParametersFile), 0770)
+	}
+
 	sbatchFilePath := filepath.Join(jobFolder, "job.sbatch")
 	err = os.WriteFile(sbatchFilePath, []byte(sbatchFileContent), 0770)
 	if err != nil {
@@ -803,15 +811,15 @@ func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.Configured
 	}
 }
 
-func openWebSession(job *orc.Job, rank int, target util.Option[string]) (cfg.HostInfo, error) {
+func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
 	parsedId, ok := parseJobProviderId(job.ProviderGeneratedId)
 	if !ok {
-		return cfg.HostInfo{}, errors.New("could not parse provider id")
+		return ctrl.ConfiguredWebSession{}, errors.New("could not parse provider id")
 	}
 
 	nodes := SlurmClient.JobGetNodeList(parsedId.SlurmId)
 	if len(nodes) <= rank {
-		return cfg.HostInfo{}, errors.New("could not find slurm node")
+		return ctrl.ConfiguredWebSession{}, errors.New("could not find slurm node")
 	}
 
 	if target.Present {
@@ -819,8 +827,8 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (cfg.Hos
 		length := len(updates)
 		for i := 0; i < length; i++ {
 			update := &job.Updates[i]
-			if strings.HasPrefix("Target: ", update.Status.Value) {
-				asJson := strings.TrimPrefix("Target: ", update.Status.Value)
+			if strings.HasPrefix(update.Status.Value, "Target: ") {
+				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
 				var dynTarget DynamicTarget
 				err := json.Unmarshal([]byte(asJson), &dynTarget)
 				if err != nil {
@@ -828,38 +836,42 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (cfg.Hos
 				}
 
 				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
-					return cfg.HostInfo{
-						Address: nodes[rank],
-						Port:    dynTarget.Port,
-						Scheme:  "http",
+					return ctrl.ConfiguredWebSession{
+						Host: cfg.HostInfo{
+							Address: nodes[rank],
+							Port:    dynTarget.Port,
+							Scheme:  "http",
+						},
 					}, nil
 				}
 			}
 		}
 
-		return cfg.HostInfo{}, fmt.Errorf("unknown target supplied: %v", target.Value)
+		return ctrl.ConfiguredWebSession{}, fmt.Errorf("unknown target supplied: %v", target.Value)
 	}
 
 	jobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
 	if !ok {
-		return cfg.HostInfo{}, fmt.Errorf("could not resolve internal folder needed for logs: %v", jobFolder)
+		return ctrl.ConfiguredWebSession{}, fmt.Errorf("could not resolve internal folder needed for logs: %v", jobFolder)
 	}
 
 	outputFolder := filepath.Join(jobFolder, job.Id)
 	portFilePath := filepath.Join(outputFolder, AllocatedPortFile)
 	portFileData, err := os.ReadFile(portFilePath)
 	if err != nil {
-		return cfg.HostInfo{}, fmt.Errorf("could not read port file: %v", err)
+		return ctrl.ConfiguredWebSession{}, fmt.Errorf("could not read port file: %v", err)
 	}
 	allocatedPort, err := strconv.Atoi(strings.TrimSpace(string(portFileData)))
 	if err != nil {
-		return cfg.HostInfo{}, fmt.Errorf("corrupt port file: %v", err)
+		return ctrl.ConfiguredWebSession{}, fmt.Errorf("corrupt port file: %v", err)
 	}
 
-	return cfg.HostInfo{
-		Address: nodes[rank],
-		Port:    allocatedPort,
-		Scheme:  "http",
+	return ctrl.ConfiguredWebSession{
+		Host: cfg.HostInfo{
+			Address: nodes[rank],
+			Port:    allocatedPort,
+			Scheme:  "http",
+		},
 	}, nil
 }
 

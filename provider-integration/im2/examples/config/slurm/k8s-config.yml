@@ -35,6 +35,22 @@ provider:
 
 services:
   type: Kubernetes
+  compute:
+    machines:
+      u1-standard:
+        nameSuffix: Cpu
+
+        cpu: [ 1, 2, 4 ]
+        memory: [ 1, 2, 4 ]
+
+        cpuModel: Model
+        memoryModel: Model
+
+        payment:
+          type: Resource
+          unit: Cpu
+          interval: Minutely
+
   fileSystem:
     name: storage
     mountPoint: /mnt/storage

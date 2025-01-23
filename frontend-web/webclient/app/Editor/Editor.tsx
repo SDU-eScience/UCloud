@@ -359,6 +359,7 @@ export const Editor: React.FunctionComponent<{
     showCustomContent?: boolean;
     onOpenFile?: (path: string, content: string | Uint8Array) => void;
     operations?: (file: VirtualFile) => Operation<any>[];
+    readOnly: boolean;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -624,7 +625,7 @@ export const Editor: React.FunctionComponent<{
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
             language: "jinja2",
-            readOnly: !hasFeature(Feature.INTEGRATED_EDITOR),
+            readOnly: props.readOnly,
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",

@@ -300,7 +300,7 @@ func BuildParameter(
 			flags |= JinjaFlagsNoEscape
 		}
 
-		output, ok := ExecuteJinjaTemplate(
+		output, err := ExecuteJinjaTemplate(
 			param.InvocationParameterJinja.Template,
 			0,
 			func(session any, fn string, args []string) string {
@@ -309,7 +309,7 @@ func BuildParameter(
 			jinjaCtx,
 			flags,
 		)
-		if !ok {
+		if err != nil {
 			return nil
 		} else {
 			return []string{output}
@@ -462,16 +462,54 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		}
 
 	case ApplicationParameterTypeEnumeration:
-		if value.Type != AppParameterValueTypeEnumeration {
+		if value.Type != AppParameterValueTypeText {
 			return false
 		}
 
 	case ApplicationParameterTypeTextArea:
-		if value.Type != AppParameterValueTypeTextArea {
+		if value.Type != AppParameterValueTypeText {
 			return false
 		}
 	}
 	return true
+}
+
+func readDefaultValue(input json.RawMessage) (AppParameterValue, bool) {
+	if string(input) == "null" {
+		return AppParameterValue{}, false
+	}
+
+	var value AppParameterValue
+	err := json.Unmarshal(input, &value)
+	if err == nil {
+		return value, true
+	}
+
+	var asInt int64
+	err = json.Unmarshal(input, &asInt)
+	if err == nil {
+		return AppParameterValueInteger(asInt), true
+	}
+
+	var asFloat float64
+	err = json.Unmarshal(input, &asFloat)
+	if err == nil {
+		return AppParameterValueFloatingPoint(asFloat), true
+	}
+
+	var asText string
+	err = json.Unmarshal(input, &asText)
+	if err == nil {
+		return AppParameterValueText(asText), true
+	}
+
+	var asBool bool
+	err = json.Unmarshal(input, &asBool)
+	if err == nil {
+		return AppParameterValueBoolean(asBool), true
+	}
+
+	return AppParameterValue{}, false
 }
 
 func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDescription) map[string]ParamAndValue {
@@ -492,9 +530,8 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 			continue
 		}
 
-		var value AppParameterValue
-		err := json.Unmarshal(param.DefaultValue, &value)
-		if err != nil {
+		value, ok := readDefaultValue(param.DefaultValue)
+		if !ok {
 			continue
 		}
 

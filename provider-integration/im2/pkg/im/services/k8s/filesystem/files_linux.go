@@ -1,6 +1,6 @@
 //go:build linux
 
-package k8s
+package filesystem
 
 import (
 	"os"

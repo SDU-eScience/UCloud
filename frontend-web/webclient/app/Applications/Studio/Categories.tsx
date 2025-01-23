@@ -1,20 +1,20 @@
 import * as React from "react";
-import {Box, Button, Flex, Icon, MainContainer, Select} from "@/ui-components";
+import {Button, Flex, Icon, MainContainer} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {usePage} from "@/Navigation/Redux";
-import {callAPI, callAPIWithErrorHandler, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
+import {fetchAll} from "@/Utilities/PageUtilities";
 import {useCallback, useEffect, useState} from "react";
 import {ApplicationCategory} from "@/Applications/AppStoreApi";
 import {ListRow} from "@/ui-components/List";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {doNothing, inDevEnvironment} from "@/UtilityFunctions";
+import {doNothing} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useProjectId} from "@/Project/Api";
-import {ContextSwitcher} from "@/Project/ContextSwitcher";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const Categories: React.FunctionComponent = () => {
     const projectId = useProjectId();
@@ -72,7 +72,7 @@ const Categories: React.FunctionComponent = () => {
         main={<>
             <Flex justifyContent="space-between" mb="20px">
                 <Heading.h2>Category Management</Heading.h2>
-                <ContextSwitcher />
+                <ProjectSwitcher />
             </Flex>
 
             <Button onClick={createCategory}>Create category</Button>

@@ -1,4 +1,4 @@
-package k8s
+package containers
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -39,7 +40,7 @@ func prepareMountsOnJobCreate(
 	resolvedMounts := map[string][]util.Tuple2[string, bool]{}
 
 	ucloudToSubpath := func(ucloudPath string) (string, bool) {
-		path, ok := UCloudToInternal(ucloudPath)
+		path, ok := filesystem.UCloudToInternal(ucloudPath)
 		if !ok {
 			return "", false
 		}
@@ -73,7 +74,7 @@ func prepareMountsOnJobCreate(
 		}
 
 		if compsLen == 1 {
-			drive, ok := ResolveDrive(comps[0])
+			drive, ok := filesystem.ResolveDrive(comps[0])
 			if !ok {
 				continue
 			}

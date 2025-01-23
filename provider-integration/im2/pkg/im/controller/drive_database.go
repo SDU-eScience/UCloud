@@ -31,6 +31,30 @@ func InitDriveDatabase() {
 		return
 	}
 
+	db.NewTx0(func(tx *db.Transaction) {
+		rows := db.Select[struct {
+			DriveId  string
+			Resource string
+		}](
+			tx,
+			`
+				select drive_id, resource
+				from tracked_drives
+		    `,
+			db.Params{},
+		)
+
+		activeDrivesMutex.Lock()
+		for _, row := range rows {
+			drive := new(orc.Drive)
+			err := json.Unmarshal([]byte(row.Resource), drive)
+			if err == nil {
+				activeDrives[row.DriveId] = drive
+			}
+		}
+		activeDrivesMutex.Unlock()
+	})
+
 	trackDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
 		// NOTE(Dan): Since we are not returning any information about the drive, we simply track it regardless if this
 		// was a drive that belongs to the user or not.
@@ -163,6 +187,17 @@ func drivesAreMeaningfullyDifferent(a, b *orc.Drive) bool {
 	}
 
 	return false
+}
+
+func EnumerateKnownDrives() []orc.Drive {
+	var result []orc.Drive
+
+	activeDrivesMutex.Lock()
+	for _, d := range activeDrives {
+		result = append(result, *d)
+	}
+	activeDrivesMutex.Unlock()
+	return result
 }
 
 func RetrieveDrive(id string) (*orc.Drive, bool) {
