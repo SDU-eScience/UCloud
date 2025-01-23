@@ -208,24 +208,27 @@ function DashboardResources({wallets}: {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
-    const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
-    const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
+    const displayWallets = React.useMemo(() => {
+        const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
+        const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
-    const displayWallets: AllocationDisplayWallet[] = [];
-    for (const category of Accounting.productTypesByPriority) {
-        const entry = tree[category];
-        if (!entry) continue;
-        for (const wallet of entry.wallets) {
-            displayWallets.push(wallet);
+        const displayWallets: AllocationDisplayWallet[] = [];
+        for (const category of Accounting.productTypesByPriority) {
+            const entry = tree[category];
+            if (!entry) continue;
+            for (const wallet of entry.wallets) {
+                displayWallets.push(wallet);
+            }
         }
-    }
+        return displayWallets;
+    }, [wallets]);
 
     return (
         <DashboardCard
             linkTo={AppRoutes.project.allocations()}
             title="Resource allocations"
             icon={"heroBanknotes"}>
-            {mapped.length === 0 ? (
+            {displayWallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     {!canApply ? null : <Text>
                         Apply for resources to use storage and compute on UCloud.

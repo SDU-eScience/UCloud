@@ -28,7 +28,7 @@ export interface ScreenDrawer {
     draw(msg: DrawEventMessage): void;
     onVimInit(): void;
     onVimExit(): void;
-    getDomSize(): { width: number; height: number };
+    getDomSize(): {width: number; height: number};
     setPerf(enabled: boolean): void;
     focus(): void;
 }
@@ -42,7 +42,7 @@ export interface KeyModifiers {
 
 export const VIM_VERSION = '8.2.0055';
 
-const AsyncFunction = Object.getPrototypeOf(async function() {
+const AsyncFunction = Object.getPrototypeOf(async function () {
     /* do nothing */
 }).constructor;
 
@@ -241,8 +241,7 @@ export class VimWorker {
 
         if (finished[0] !== doneStatus) {
             throw new Error(
-                `FATAL: Received ${done} event but queue says previous event was ${statusName(finished[0])} with args ${
-                    finished[1]
+                `FATAL: Received ${done} event but queue says previous event was ${statusName(finished[0])} with args ${finished[1]
                 }`,
             );
         }
@@ -367,14 +366,14 @@ export class ResizeHandler {
     }
 
     onVimInit() {
-        window.addEventListener('resize', this.onResize, { passive: true });
+        window.addEventListener('resize', this.onResize, {passive: true});
     }
 
     onVimExit() {
         window.removeEventListener('resize', this.onResize);
     }
 
-   private doResize() {
+    private doResize() {
         const rect = this.canvas.getBoundingClientRect();
         debug('Resize Vim:', rect);
         this.elemWidth = rect.width;
@@ -426,7 +425,7 @@ export class InputHandler {
     }
 
     onVimInit() {
-        this.elem.addEventListener('keydown', this.onKeydown, { capture: true });
+        this.elem.addEventListener('keydown', this.onKeydown, {capture: true});
         this.elem.addEventListener('blur', this.onBlur);
         this.elem.addEventListener('focus', this.onFocus);
     }
@@ -522,7 +521,7 @@ export class ScreenCanvas implements DrawEventHandler, ScreenDrawer {
         this.worker = worker;
         this.canvas = canvas;
 
-        const ctx = this.canvas.getContext('2d', { alpha: false });
+        const ctx = this.canvas.getContext('2d', {alpha: false});
         if (ctx === null) {
             throw new Error('Cannot get 2D context for <canvas>');
         }
@@ -757,8 +756,8 @@ export interface StartOptions {
     clipboard?: boolean;
     persistentDirs?: string[];
     dirs?: string[];
-    files?: { [fpath: string]: string };
-    fetchFiles?: { [fpath: string]: string };
+    files?: {[fpath: string]: string};
+    fetchFiles?: {[fpath: string]: string};
     cmdArgs?: string[];
 }
 export interface OptionsRenderToDOM {
@@ -785,7 +784,7 @@ export class VimWasm {
     private readonly screen: ScreenDrawer;
     private perf: boolean;
     private debug: boolean;
-    private perfMessages: { [name: string]: number[] };
+    private perfMessages: {[name: string]: number[]};
     private running: boolean;
     private end: boolean;
     initialized: boolean = false;
@@ -816,7 +815,7 @@ export class VimWasm {
             throw new Error('Cannot start Vim twice');
         }
 
-        const o = opts ?? { clipboard: navigator.clipboard !== undefined };
+        const o = opts ?? {clipboard: navigator.clipboard !== undefined};
 
         if (o.debug) {
             debug = console.log.bind(console, 'main:'); // eslint-disable-line no-console
@@ -833,7 +832,7 @@ export class VimWasm {
 
         this.perfMark('init');
 
-        const { width, height } = this.screen.getDomSize();
+        const {width, height} = this.screen.getDomSize();
         const msg: StartMessageFromMain = {
             kind: 'start',
             buffer: this.worker.sharedBuffer,
@@ -868,7 +867,7 @@ export class VimWasm {
     // This a bit complex interactions are necessary because postMessage() from main thread does
     // not work. Worker sleeps in Vim's main loop using Atomics.wait(). So JavaScript context in worker
     // never ends until exit() is called. It means that onmessage callback is never fired.
-    async dropFile(name: string, contents: ArrayBuffer) {
+    async dropFile(name: string, contents: ArrayBuffer | Uint8Array<ArrayBufferLike>) {
         if (!this.running) {
             throw new Error('Cannot open file since Vim is not running');
         }
@@ -902,7 +901,7 @@ export class VimWasm {
     }
 
     sendKeydown(key: string, keyCode: number, modifiers?: KeyModifiers) {
-        const { ctrl = false, shift = false, alt = false, meta = false } = modifiers ?? {};
+        const {ctrl = false, shift = false, alt = false, meta = false} = modifiers ?? {};
         if (key.length > 1) {
             if (
                 key === 'Unidentified' ||
@@ -1112,8 +1111,8 @@ export class VimWasm {
                 }
             }
 
-            const averages: { [name: string]: number } = {};
-            const amounts: { [name: string]: number } = {};
+            const averages: {[name: string]: number} = {};
+            const amounts: {[name: string]: number} = {};
             const timings: PerformanceEntry[] = [];
             for (const [name, ms] of measurements) {
                 if (ms.length === 1 && ms[0].entryType !== 'measure') {
@@ -1143,7 +1142,7 @@ export class VimWasm {
         }
 
         {
-            const averages: { [name: string]: number } = {};
+            const averages: {[name: string]: number} = {};
             for (const name of Object.keys(this.perfMessages)) {
                 const durations = this.perfMessages[name];
                 const total = durations.reduce((a, d) => a + d, 0);
