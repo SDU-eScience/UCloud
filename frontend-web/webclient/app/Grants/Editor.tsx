@@ -38,6 +38,7 @@ import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import Warning from "@/ui-components/Warning";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
 
 // State model
 // =====================================================================================================================
@@ -2390,7 +2391,7 @@ const FormField: React.FunctionComponent<{
                     className={`description ${props.showDescriptionInEditMode === false ? "optional" : ""}`}
                     style={props.icon && {marginLeft: "38px"}}
                 >
-                    {props.description}
+                    {typeof props.description === "string" ? <SimpleMarkdown>{props.description}</SimpleMarkdown> : props.description}
                 </div>
             }
         </div>
