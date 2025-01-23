@@ -32,8 +32,8 @@ func Init() {
 
 		RetrieveCondition: func() ctrl.Condition {
 			return ctrl.Condition{
-				Page:  "https://example.com",
-				Level: ctrl.ConditionLevelDegraded,
+				Page:  "https://status.cloud.sdu.dk",
+				Level: ctrl.ConditionLevelNormal,
 			}
 		},
 	}

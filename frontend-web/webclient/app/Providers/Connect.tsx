@@ -3,7 +3,7 @@ import TitledCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {apiRetrieve, apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {doNothing} from "@/UtilityFunctions";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -34,6 +34,7 @@ interface ProviderCondition {
 
 const ProviderConditionIcon: React.FunctionComponent<{condition: ProviderCondition}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONDITION)) return null;
+    if (props.condition.level === "UNKNOWN") return null;
 
     let icon: IconName = "heroQuestionMarkCircle";
     let color: ThemeColor = "infoMain";
@@ -72,6 +73,7 @@ const ProviderConditionIcon: React.FunctionComponent<{condition: ProviderConditi
 export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     if (!hasFeature(Feature.PROVIDER_CONNECTION)) return null;
 
+    const [providerConditions, setProviderConditions] = React.useState(new Map<string, ProviderCondition>());
     const state = useUState(connectionState);
     const [, invokeCommand] = useCloudCommand();
     const reload = useCallback(() => {
@@ -83,6 +85,20 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
     const providers = state.providers;
     const shouldConnect = providers.some(it => state.canConnectToProvider(it.providerTitle));
 
+    useEffect(() => {
+        providers.forEach(provider => {
+            callAPI(
+                apiRetrieve(
+                    {provider: provider.provider},
+                    "/api/providers/integration",
+                    "condition"
+                )
+            ).then(condition => {
+                setProviderConditions((prev) => new Map(prev.set(provider.providerTitle, condition)));
+            });
+        });
+    }, [providers.length])
+
     const body = <>
         {!shouldConnect ? null :
             <Text color={"textSecondary"} mb={8}>
@@ -92,16 +108,8 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
         }
         <List>
             {providers.map(it => {
+                const providerCondition = providerConditions.get(it.providerTitle);
                 const canConnect = state.canConnectToProvider(it.providerTitle);
-
-                const [condition,] = useCloudAPI<ProviderCondition>(
-                    apiRetrieve(
-                        {provider: it.provider},
-                        "/api/providers/integration",
-                        "condition"
-                    ),
-                    {level: "UNKNOWN"}
-                );
 
                 const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
                 const onContextMenu: EventHandler<MouseEvent<never>> = e => {
@@ -120,7 +128,9 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                         left={
                             <Flex fontSize={"16px"} ml={3} alignItems={"center"} gap="5px">
                                 <div><ProviderTitle providerId={it.providerTitle} /></div>
-                                <ProviderConditionIcon condition={condition.data} />
+                                {!providerCondition ? null :
+                                    <ProviderConditionIcon condition={providerCondition} />
+                                }
                             </Flex>
                         }
                         right={!canConnect ?
@@ -136,7 +146,7 @@ export const Connect: React.FunctionComponent<{embedded?: boolean}> = props => {
                                             icon: "favIcon",
                                             enabled: () => {return true;},
                                             onClick: () => {
-                                                window.open(condition.data.page ?? 'https://status.cloud.sdu.dk', '_blank')?.focus();
+                                                window.open(providerConditions[it.provider]?.page ?? "https://status.cloud.sdu.dk", "_blank")?.focus();
                                             },
                                             shortcut: ShortcutKey.S,
                                         },
