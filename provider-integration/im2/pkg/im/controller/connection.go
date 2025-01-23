@@ -412,7 +412,6 @@ func controllerConnection(mux *http.ServeMux) {
 		mux.HandleFunc(
 			baseContext+"retrieveCondition",
 			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
-				log.Info("Sending response %v", Connections.RetrieveCondition())
 				sendResponseOrError(w, Connections.RetrieveCondition(), nil)
 			}),
 		)
