@@ -7,7 +7,7 @@ import {injectStyle} from "@/Unstyled";
 import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
@@ -15,11 +15,11 @@ import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {PrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {Operation} from "@/ui-components/Operation";
+import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
-import {CSSVarCurrentSidebarWidth} from "@/ui-components/List";
+import {noopCall} from "@/Authentication/DataHook";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -358,6 +358,8 @@ export const Editor: React.FunctionComponent<{
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
     const [tabs, setTabs] = useState<string[]>([state.currentPath]);
+    const [closedTabs, setClosedTabs] = useState<string[]>([]);
+    const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
     const isSettingsOpen = state.currentPath === SETTINGS_PATH;
 
     React.useEffect(() => {
@@ -739,7 +741,12 @@ export const Editor: React.FunctionComponent<{
         });
     }, []);
 
-    const updateTabs = useCallback((path: string, index: number) => {
+    const openTab = React.useCallback((path: string) => {
+        if (state.currentPath === path) return;
+        openFile(path, true);
+    }, [state.currentPath]);
+
+    const closeTab = useCallback((path: string, index: number) => {
         setTabs(tabs => {
             const result = tabs.filter(tabTitle => tabTitle !== path);
             if (state.currentPath === path) {
@@ -747,7 +754,16 @@ export const Editor: React.FunctionComponent<{
             }
             return result;
         });
+        if (!closedTabs.includes(path)) setClosedTabs(tabs => [...tabs, path]);
     }, [state.currentPath]);
+
+    const openOperations = useRef<(x: number, y: number) => void>(noopCall)
+
+    const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
+        const ops = tabOperations(title, tabs, setTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
+        setOperations(ops);
+        openOperations.current(position.x, position.y);
+    }, [tabs, closedTabs, state.currentPath]);
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = state.currentPath === "";
@@ -772,17 +788,29 @@ export const Editor: React.FunctionComponent<{
                         <EditorTab
                             isDirty={false /* TODO */}
                             isActive={t === state.currentPath}
-                            onActivate={() => {
-                                if (state.currentPath === t) return;
-                                openFile(t, true);
+                            onActivate={() => openTab(t)}
+                            onContextMenu={e => {
+                                e.preventDefault();
+                                openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
                                 /* if (fileIsDirty) promptSaveFileWarning() else */
-                                updateTabs(t, index);
+                                closeTab(t, index);
                             }}
                             children={t}
                         />
                     )}
+                    <Operations
+                        entityNameSingular={""}
+                        operations={operations}
+                        forceEvaluationOnOpen={true}
+                        openFnRef={openOperations}
+                        selected={[]}
+                        extra={null}
+                        row={42}
+                        hidden
+                        location={"IN_ROW"}
+                    />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
                     {props.toolbarBeforeSettings}
@@ -887,15 +915,113 @@ export const Editor: React.FunctionComponent<{
     </div>;
 };
 
+function tabOperations(
+    tabPath: string,
+    openTabs: string[],
+    setOpenTabs: React.Dispatch<React.SetStateAction<string[]>>,
+    closedTabs: string[],
+    setClosedTabs: React.Dispatch<React.SetStateAction<string[]>>,
+    openTab: (path: string) => void,
+    currentPath: string,
+): Operation<any>[] {
+    return [{
+        text: "Close tab",
+        onClick: () => {
+            setOpenTabs(tabs => tabs.filter(it => it !== tabPath));
+            setClosedTabs(tabs => [...tabs, tabPath]);
+            if (currentPath === tabPath) {
+                const index = openTabs.findIndex(it => it === tabPath);
+                if (index === -1) {
+                    console.warn("No index found. This is weird. This shouldn't happen");
+                    return;
+                }
+                openTab(openTabs.at(index - 1)!);
+            }
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.W,
+    }, {
+        text: "Close others",
+        onClick: () => {
+            setClosedTabs(tabs => [
+                ...tabs,
+                ...openTabs.filter(it => it !== it)
+            ]);
+            openTab(tabPath);
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.E,
+    }, {
+        text: "Close to the right",
+        onClick: () => {
+            const index = openTabs.findIndex(it => it === tabPath);
+            const activeIndex = openTabs.findIndex(it => it === currentPath);
+            if (activeIndex > index) {
+                openTab(tabPath);
+            }
+            if (index === -1) {
+                console.warn("No index found. This is weird. This shouldn't happen");
+                return;
+            }
+            setClosedTabs(t => [...t, ...openTabs.slice(index + 1)])
+            setOpenTabs(t => t.slice(0, index + 1));
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.R,
+    }, /* {
+        text: "Close saved",
+        onClick: () => console.log("TODO"),
+        enabled: () => true,
+        shortcut: ShortcutKey.T,
+    }, */ {
+        text: "Close all",
+        onClick: () => {
+            setClosedTabs(closed => [...closed, ...openTabs]);
+            setOpenTabs([]);
+        },
+        enabled: () => true,
+        shortcut: ShortcutKey.U,
+    }, {
+        text: "Copy path to clipboard",
+        onClick: () => copyToClipboard({value: tabPath, message: ""}),
+        enabled: () => true,
+        shortcut: ShortcutKey.U,
+    }, {
+        text: "Re-open closed tab",
+        onClick: () => {
+            setClosedTabs(closedTabs => {
+                const tab = closedTabs.pop();
+                if (tab) setOpenTabs(openTabs => [...openTabs, tab]);
+                return closedTabs;
+            });
+        },
+        enabled: () => closedTabs.length > 0,
+        shortcut: ShortcutKey.U,
+    }];
+}
+
+// Close
+// Close others
+// Close to the right
+// Close saved
+// Close all
+// Copy path
+// Copy relative path
+// Go to file
+// Re-open last closed tab
+
+
 function EditorTab({
     isDirty,
     isActive,
     close,
     onActivate,
+    onContextMenu,
     children: title
 }: React.PropsWithChildren<{
     isActive: boolean;
     isDirty: boolean;
+    onContextMenu?: (e: React.MouseEvent<any>) => void;
     onActivate(): void;
     close(): void
 }>): React.ReactNode {
@@ -904,7 +1030,7 @@ function EditorTab({
     const isSettings = title === SETTINGS_PATH;
 
     return (
-        <Flex className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
+        <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
             <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : <PrettyFilePath path={title as string} />}</Truncate>
             <Icon

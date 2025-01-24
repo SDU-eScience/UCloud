@@ -5,6 +5,7 @@ import {CSSProperties, useCallback, useEffect, useRef} from "react";
 import {ListRow} from "@/ui-components/List";
 import Flex from "@/ui-components/Flex";
 import Box from "@/ui-components/Box";
+import {Cursor} from "./Types";
 
 export enum TreeAction {
     TOGGLE,
@@ -249,10 +250,12 @@ export const TreeNode: React.FunctionComponent<{
     indent?: number;
     onActivate?: (open: boolean, element: HTMLElement) => void;
     slim?: boolean;
+    cursor?: Cursor;
 }> = props => {
     const ref = useRef<HTMLDivElement>(null);
     const style: CSSProperties = {};
     style["--indent"] = (props.indent ?? (props.slim ? 16 : 32)) + "px";
+    if (props.cursor) style.cursor = props.cursor;
 
     const activate = useCallback((ev?: React.SyntheticEvent) => {
         ev?.stopPropagation();

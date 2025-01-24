@@ -35,10 +35,28 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
     const width = props.width ?? "250px";
     const resizeSetting = props.canResize ? "horizontal" : "none";
 
+    const [operations, setOperations] = React.useState<Operation<any, undefined>[]>([]);
+
     const style = {
         "--tree-width": width,
         "--resize-setting": resizeSetting,
     } as React.CSSProperties;
+
+    const getOperations = React.useCallback((file: VirtualFile) => {
+        const {operations} = props;
+        if (!operations) return;
+        setOperations(operations(file));
+    }, [props.operations]);
+
+    const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
+    const onContextMenu = React.useCallback((ev: React.MouseEvent, file: VirtualFile) => {
+        // TODO(Jonas): only one at max should be open at any given point
+        console.log("hey");
+        ev.preventDefault();
+        getOperations(file);
+        openOperations.current(ev.clientX, ev.clientY);
+    }, [getOperations]);
+
 
     return <div style={style} className={FileTreeClass}>
         <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
@@ -53,9 +71,20 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 initialFilePath={props.initialFilePath}
                 node={root}
                 onAction={onNodeActivated}
-                operations={props.operations}
+                onContextMenu={onContextMenu}
             />
         </Tree>
+        <Operations
+            entityNameSingular={""}
+            operations={operations}
+            forceEvaluationOnOpen={true}
+            openFnRef={openOperations}
+            selected={[]}
+            extra={null}
+            row={42}
+            hidden
+            location={"IN_ROW"}
+        />
     </div>
 }
 
@@ -65,10 +94,11 @@ const FileNode: React.FunctionComponent<{
     initialFilePath?: string;
     initialFolder?: string;
     operations?: (file: VirtualFile) => Operation<any>[];
+    onContextMenu?: (e: React.MouseEvent<HTMLDivElement>, file: VirtualFile) => void;
 }> = props => {
     const children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
-            <FileNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} />
+            <FileNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} onContextMenu={props.onContextMenu} />
         ))}
     </>;
 
@@ -78,24 +108,14 @@ const FileNode: React.FunctionComponent<{
     const isInitiallyOpen = props.node.file.isDirectory &&
         props.initialFilePath?.startsWith(props.node.file.absolutePath);
 
-    const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = React.useCallback((ev: React.MouseEvent) => {
-        // TODO(Jonas): only one at max should be open at any given point
-        ev.preventDefault();
-        openOperations.current(ev.clientX, ev.clientY);
-    }, []);
-
-    const ops = React.useMemo(() => {
-        const ops = props.operations;
-        if (!ops) return [];
-        return ops(props.node.file);
-    }, [props.operations, props.node]);
-
     return <TreeNode
+        cursor="pointer"
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
-        onContextMenu={onContextMenu}
+        onContextMenu={e => {
+            props.onContextMenu?.(e, props.node.file)
+        }}
         slim
         left={
             <>
@@ -111,18 +131,6 @@ const FileNode: React.FunctionComponent<{
                     }
                     <PrettyFileName path={props.node.file.absolutePath} />
                 </Flex>
-
-                <Operations
-                    entityNameSingular={""}
-                    operations={ops}
-                    forceEvaluationOnOpen={true}
-                    openFnRef={openOperations}
-                    selected={[]}
-                    extra={null}
-                    row={42}
-                    hidden
-                    location={"IN_ROW"}
-                />
             </>
         }
         children={children}
