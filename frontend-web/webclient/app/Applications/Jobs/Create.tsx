@@ -153,6 +153,7 @@ export const Create: React.FunctionComponent = () => {
         numberOfNodes: 1,
         product: null
     });
+    const [reloadHack, setReloadHack] = useState<{ importFrom: Partial<JobSpecification>, count: number } | null>(null);
     const [insufficientFunds, setInsufficientFunds] = useState<InsufficientFunds | null>(null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [initialSshEnabled, setInitialSshEnabled] = useState<boolean | undefined>(undefined);
@@ -193,8 +194,8 @@ export const Create: React.FunctionComponent = () => {
     }, []);
 
     useEffect(() => {
-        const jobStarted = emailNotifications.settings.jobStarted
-        const jobStopped = emailNotifications.settings.jobStopped
+        const jobStarted = emailNotifications.settings.jobStarted;
+        const jobStopped = emailNotifications.settings.jobStopped;
 
         if (jobStarted && jobStopped) {
             setJobEmailNotifications("start_or_ends");
@@ -303,14 +304,14 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [provider, application]);
 
-    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+    const doLoadParameters = useCallback((importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
         const resources = importedJob.resources ?? [];
 
-        flushSync(() => {
+        if (initialImport) {
             setActiveOptParams(() => []);
-        });
+        }
 
         {
             // Find optional parameters and make sure the widgets are initialized
@@ -325,11 +326,9 @@ export const Create: React.FunctionComponent = () => {
                 }
             }
 
-            if (needsToRenderParams) {
+            if (needsToRenderParams && initialImport) {
                 // Not all widgets have been initialized. Trigger an initialization and start over after render.
-                flushSync(() => {
-                    setActiveOptParams(() => optionalParameters);
-                });
+                setActiveOptParams(() => optionalParameters);
             }
         }
 
@@ -340,7 +339,9 @@ export const Create: React.FunctionComponent = () => {
         for (const param of parameters) {
             const value = values[param.name];
             if (value) {
-                setWidgetValues([{param, value}]);
+                try {
+                    setWidgetValues([{param, value}]);
+                } catch (e) {}
             }
         }
 
@@ -377,6 +378,21 @@ export const Create: React.FunctionComponent = () => {
         setErrors({});
         setReservationErrors({});
     }, [application, activeOptParams, folders, peers, networks, ingress, parameters]);
+
+    const reloadCount = 3;
+    const onLoadParameters = useCallback((importedJob: Partial<JobSpecification>) => {
+        setReloadHack({ importFrom: importedJob, count: reloadCount });
+    }, []);
+
+    useEffect(() => {
+        if (reloadHack) {
+            doLoadParameters(reloadHack.importFrom, reloadHack.count === reloadCount);
+            const newCount = reloadHack.count - 1;
+            if (newCount > 0) {
+                setReloadHack({ importFrom: reloadHack.importFrom, count: newCount });
+            }
+        }
+    }, [onLoadParameters, reloadHack]);
 
     const submitJob = useCallback(async (allowDuplicateJob: boolean) => {
         if (!application) return;

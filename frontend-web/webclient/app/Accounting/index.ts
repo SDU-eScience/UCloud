@@ -49,7 +49,7 @@ export function updateAllocation(request: BulkRequest<UpdateAllocationRequestIte
     return apiUpdate(request, "/api/accounting", "allocation");
 }
 
-export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.name === b.name;
@@ -364,8 +364,8 @@ export function guesstimateProductCategoryDescription(
     return hardcodedProductCategoryDescriptions[provider]?.[normalizedCategory] ?? "";
 }
 
-type BalanceAndCategory = { balance: number; category: ProductCategoryV2; }
-type CombinedBalance = { productType: ProductType, normalizedBalance: number, unit: string };
+type BalanceAndCategory = {balance: number; category: ProductCategoryV2;}
+type CombinedBalance = {productType: ProductType, normalizedBalance: number, unit: string};
 
 export function combineBalances(
     balances: BalanceAndCategory[]
@@ -530,7 +530,7 @@ export class UsageAndQuota {
                 displayOverallocationWarning: false,
                 usageAndQuotaPercent: "-",
                 maxUsableBalance: "-",
-                currentBalance: "-",
+                currentBalance: "-"
             };
             return;
         }
@@ -542,11 +542,12 @@ export class UsageAndQuota {
             usage = uqRaw.usage - uqRaw.retiredAmount;
         }
 
-        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + uqRaw.usage) / uqRaw.quota) * 100;
+        const maxUsablePercentage = uqRaw.quota === 0 ? 100 : ((uqRaw.maxUsable + usage) / uqRaw.quota) * 100;
         const percentageUsed = uqRaw.quota === 0 ? 0 : (usage / uqRaw.quota) * 100;
-        const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, uqRaw.usage);
+        const displayOverallocationWarning = showWarning(uqRaw.quota, uqRaw.maxUsable, usage);
         const maxUsableBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.maxUsable, {precision: 2});
-        const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - uqRaw.usage, {precision: 2});
+        const currentBalance = balanceToStringFromUnit(uqRaw.type, uqRaw.unit, uqRaw.quota - usage, {precision: 2});
+
 
         let usageAndQuota = "";
         {
@@ -578,15 +579,29 @@ export class UsageAndQuota {
             displayOverallocationWarning,
             usageAndQuotaPercent,
             maxUsableBalance,
-            currentBalance,
+            currentBalance
         };
     }
 }
 
-export function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+function showWarning(quota: number, maxUsable: number, usage: number): boolean {
+    // Have we used everything? In that case, we don't want to show an overallocation warning.
     if (maxUsable + usage >= quota) return false;
-    if (maxUsable + usage === 0) return false;
-    return usage / (maxUsable + usage) >= 0.95; // Note(Jonas): Also handles usage === 0
+
+    // If we don't have a quota, then don't show a warning.
+    if (quota === 0) return false;
+
+    // Here we try to remove our usages from the quota to determine what our effective quota is.
+    const expectedEffectiveQuota = quota;
+    const actualEffectiveQuota = maxUsable + usage;
+
+    if (actualEffectiveQuota === expectedEffectiveQuota) return false;
+
+    const showBecauseOfMismatch = (actualEffectiveQuota / expectedEffectiveQuota) < 0.95;
+    if (showBecauseOfMismatch) return true;
+
+    // If we are almost out of resources and we don't have matching effective quotas then warn once we close to the limit
+    return (usage / actualEffectiveQuota) >= 0.9;
 }
 
 export interface AllocationNote {
@@ -1045,7 +1060,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1056,7 +1071,7 @@ export function balanceToStringFromUnit(
     productType: ProductType,
     unit: string,
     normalizedBalance: number,
-    opts?: { precision?: number, removeUnitIfPossible?: boolean }
+    opts?: {precision?: number, removeUnitIfPossible?: boolean}
 ): string {
     let canRemoveUnit = opts?.removeUnitIfPossible ?? false;
     let balanceToDisplay = normalizedBalance;
@@ -1240,6 +1255,6 @@ export function utcDate(ts: number): string {
     return `${d.getUTCDate().toString().padStart(2, '0')}/${(d.getUTCMonth() + 1).toString().padStart(2, '0')}/${d.getUTCFullYear()}`;
 }
 
-export function periodsOverlap(a: { start: number, end: number }, b: { start: number, end: number }): boolean {
+export function periodsOverlap(a: {start: number, end: number}, b: {start: number, end: number}): boolean {
     return a.start <= b.end && b.start <= a.end;
 }

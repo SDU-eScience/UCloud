@@ -1202,16 +1202,11 @@ class JobResourceService(
                     if (reqItem.id != job.id) continue
                     when (reqItem.sessionType) {
                         InteractiveSessionType.WEB -> {
-                            require(app.invocation!!.web != null)
                             require(block is ComputeSupport.WithWeb)
                             block.checkFeature(block.web)
                         }
 
                         InteractiveSessionType.VNC -> {
-                            if (tool.description.backend != ToolBackend.VIRTUAL_MACHINE) {
-                                require(app.invocation!!.vnc != null)
-                            }
-
                             block.checkFeature(block.vnc)
                         }
 

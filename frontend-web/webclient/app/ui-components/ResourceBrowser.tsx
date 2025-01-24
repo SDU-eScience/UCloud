@@ -2032,7 +2032,10 @@ export class ResourceBrowser<T> {
 
     closeRenameField(why: "submit" | "cancel", render: boolean = true) {
         if (this.renameFieldIndex !== -1) {
-            if (why === "submit") this.renameOnSubmit();
+            if (why === "submit") {
+                this.renameValue = this.renameValue.trim();
+                this.renameOnSubmit();
+            }
             else this.renameOnCancel();
         }
 
