@@ -73,14 +73,14 @@ abstract class ResourceService<
 
     protected open val resourceType: String by lazy {
         runBlocking {
-            db.withSession { session ->
+            db.withSession(reason = "resourcestore resource type") { session ->
                 table.verify({ session }).substringAfterLast('.').removePluralSuffix()
             }
         }
     }
     protected open val sqlJsonConverter: SqlObject.Function by lazy {
         runBlocking {
-            db.withSession { session ->
+            db.withSession(reason = "resourceservice sql json convert") { session ->
                 SqlObject.Function(table.verify({ session }).removePluralSuffix() + "_to_json")
             }
         }
@@ -194,7 +194,7 @@ abstract class ResourceService<
         )
 
         @Suppress("SqlResolve")
-        val rows = (ctx ?: db).withSession { session ->
+        val rows = (ctx ?: db).withSession(reason = "resourceservice retrievebulk") { session ->
             when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     session.sendPreparedStatement(
@@ -316,7 +316,7 @@ abstract class ResourceService<
 
     private suspend fun verifyCreationInProject(actorAndProject: ActorAndProject, ctx: DBContext? = null, isCoreResource: Boolean = false) {
         if (actorAndProject.project == null) return
-        (ctx ?: db).withSession { session ->
+        (ctx ?: db).withSession(reason = "verify creation in project") { session ->
             val row = session
                 .sendPreparedStatement(
                     {
@@ -401,7 +401,7 @@ abstract class ResourceService<
                     actorAndProject: ActorAndProject,
                     request: BulkRequest<Spec>
                 ): List<RequestWithRefOrResource<Spec, Res>> {
-                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice create 1") { session ->
                         verifyCreationInProject(
                             actorAndProject,
                             session,
@@ -420,7 +420,7 @@ abstract class ResourceService<
                     provider: String,
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
-                    return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
+                    return (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice create 2", remapExceptions = true) { session ->
                         if (!isCoreResource) {
                             val project = resolvedActorAndProject.project
                             payment.creditCheck(
@@ -514,7 +514,7 @@ abstract class ResourceService<
                         throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadGateway)
                     }
 
-                    (ctx as? AsyncDBConnection ?: db).withSession { session ->
+                    (ctx as? AsyncDBConnection ?: db).withSession(reason = "resourceservice cerate 3") { session ->
                         session
                             .sendPreparedStatement(
                                 {
@@ -851,7 +851,7 @@ abstract class ResourceService<
     ) {
         val resolvedActorAndProject =
             if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
-        db.withSession { session ->
+        db.withSession(reason = "resourceservice addupdate") { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
             val resources = retrieveBulk(
                 resolvedActorAndProject,
@@ -917,7 +917,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession(remapExceptions = true) { session ->
+        return BulkResponse(db.withSession(reason = "resourceservice register", remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {
@@ -1721,7 +1721,7 @@ abstract class ResourceService<
             query = query
         )
 
-        val rows = (ctx ?: db).withSession { session ->
+        val rows = (ctx ?: db).withSession(reason = "resourceservice paginatedquery") { session ->
             when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     if (sortBy == "created_by") {

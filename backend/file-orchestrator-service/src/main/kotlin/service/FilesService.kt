@@ -550,7 +550,7 @@ class FilesService(
     }
 
     private suspend fun loadResourceOwner(actorAndProject: ActorAndProject, ctx: DBContext = db): ResourceOwner {
-        return ctx.withSession { session ->
+        return ctx.withSession(reason = "files loadresourceowner") { session ->
             val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
 
             val isMemberOfProject = if (actorAndProject.project == null) {

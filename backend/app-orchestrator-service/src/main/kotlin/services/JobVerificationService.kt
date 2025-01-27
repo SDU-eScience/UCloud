@@ -149,7 +149,7 @@ class JobVerificationService(
             if (components.size == 1 && components.first().toLongOrNull() == null) {
                 // In this case, we might be looking at a share
                 val matchingShares = db
-                    .withSession { session ->
+                    .withSession(reason = "JobVerificationService.translatePotentialShares") { session ->
                         session.sendPreparedStatement(
                             {
                                 setParameter("user", actorAndProject.actor.safeUsername())

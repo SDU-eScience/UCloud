@@ -816,7 +816,7 @@ class Catalog(
             throw RPCException("Failed to fetch information about service providers", HttpStatusCode.BadGateway)
         },
         retrieve = { _ ->
-            db.withSession { session ->
+            db.withSession(reason = "catalog supportCache") { session ->
                 val rows = session.sendPreparedStatement(
                     {},
                     """
