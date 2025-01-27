@@ -295,6 +295,19 @@ class AccountingController(
             ok(Unit)
         }
 
+        implementOrDispatch(AccountingV2.adminProviderDump) {
+            ok(
+                AccountingV2.AdminProviderDump.Response(
+                    accounting.sendRequest(
+                        AccountingRequest.ProviderDump(
+                            IdCard.System,
+                            request.category,
+                        )
+                    )
+                )
+            )
+        }
+
         implementOrDispatch(AccountingV2.registerProviderGift) {
             for (reqItem in request.items) {
                 accounting.sendRequestNoUnwrap(

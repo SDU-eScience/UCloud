@@ -29,14 +29,14 @@ enum Environment {
     PROD
 }
 
-const allEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV, Environment.PROD];
-
-const allDevEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
-
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
+
+const allDevEnvironments: Environment[] =
+    [...allLocalEnvironments, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
+
+const allEnvironments: Environment[] =
+    [...allDevEnvironments, Environment.PROD];
 
 function publicFeature(feature: Feature): FeatureConfig {
     return {

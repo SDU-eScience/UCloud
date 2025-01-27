@@ -229,6 +229,7 @@ class AccountingSystem(
 
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
                                         is AccountingRequest.ResetWalletHierarchy -> resetWalletHierarchy(msg)
+                                        is AccountingRequest.ProviderDump -> providerDump(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
@@ -424,6 +425,68 @@ class AccountingSystem(
         }
 
         return Response.ok(Unit)
+    }
+
+    private fun providerDump(msg: AccountingRequest.ProviderDump): Response<String> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val builder = StringBuilder()
+            for ((_, wallet) in walletsById) {
+                if (wallet.category.toId() != msg.category) continue
+
+                val owner = ownersById.getValue(wallet.ownedBy)
+
+                // username
+                if (owner.isProject()) {
+                    builder.append("''")
+                } else {
+                    builder.append("'${owner.reference}'")
+                }
+
+                builder.append(",")
+
+                // project
+                if (owner.isProject()) {
+                    builder.append("'${owner.reference}'")
+                } else {
+                    builder.append("''")
+                }
+
+                builder.append(",")
+
+                // category
+                builder.append("'${wallet.category.name}'")
+
+                builder.append(",")
+
+                // combined quota
+                builder.append(wallet.totalActiveQuota())
+
+                builder.append(",")
+
+                // locked
+                if (wallet.wasLocked) {
+                    builder.append("true")
+                } else {
+                    builder.append("false")
+                }
+
+                builder.append(",")
+
+                // last update
+                builder.append(wallet.lastSignificantUpdateAt)
+
+                builder.append(",")
+
+                // local_retired_usage
+                builder.append(wallet.localRetiredUsage)
+
+                builder.append("\n")
+            }
+
+            return Response.ok(builder.toString())
+        }
     }
 
     private suspend fun debugCharge(msg: AccountingRequest.DebugCharge): Response<Unit> {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 	"ucloud.dk/pkg/apm"
@@ -574,6 +575,13 @@ func LaunchUserInstance(uid uint32) error {
 	ucloudUsername, ok := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user")
+	}
+
+	allowList := cfg.Provider.Maintenance.UserAllowList
+	if len(allowList) > 0 {
+		if !slices.Contains(allowList, ucloudUsername) {
+			return util.ServerHttpError("System is currently undergoing maintenance")
+		}
 	}
 
 	// Try in a few different ways to get the most reliable exe which we will pass to `sudo`
