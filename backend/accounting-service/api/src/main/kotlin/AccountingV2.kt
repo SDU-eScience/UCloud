@@ -324,6 +324,7 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
     val adminDebug = AdminDebug.call
     val adminCharge = AdminCharge.call
     val adminReset = AdminReset.call
+    val adminProviderDump = AdminProviderDump.call
 
     private fun StringBuilder.documentationInternalUtilities() {}
 
@@ -501,6 +502,30 @@ object AccountingV2 : CallDescriptionContainer("accounting.v2") {
             CommonErrorMessage.serializer(),
             handler = {
                 httpUpdate(baseContext, "adminReset", roles = Roles.ADMIN)
+            }
+        )
+    }
+
+    object AdminProviderDump {
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Request(
+            val category: ProductCategoryIdV2,
+        )
+
+        @Serializable
+        @UCloudApiInternal(InternalLevel.BETA)
+        data class Response(
+            val dump: String,
+        )
+
+        val call = call(
+            "adminProviderDump",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "adminProviderDump", roles = Roles.ADMIN)
             }
         )
     }

@@ -21,6 +21,9 @@ import io.prometheus.client.Gauge
 import io.prometheus.client.Summary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.util.HashSet
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.system.exitProcess
 
@@ -52,8 +55,10 @@ suspend fun <R> DBContext.withSession(
     remapExceptions: Boolean = false,
     transactionMode: TransactionMode? = null,
     restartTransactionsOnSerializationFailure: Boolean = true,
+    reason: String = "unknown",
     block: suspend (session: AsyncDBConnection) -> R
 ): R {
+    var realReason = reason
     var caller: StackWalker.StackFrame? = null
     if (DEBUG_ERRORS) {
         caller = StackWalker.getInstance().walk { sequence ->
@@ -65,6 +70,10 @@ suspend fun <R> DBContext.withSession(
                 .findFirst()
                 .orElse(null)
         }
+
+        if (caller != null) {
+            realReason = "${caller.fileName}:${caller.lineNumber} ${caller.methodName}"
+        }
     }
 
     var attempts = 0
@@ -72,7 +81,7 @@ suspend fun <R> DBContext.withSession(
         try {
             return when (this) {
                 is AsyncDBSessionFactory -> {
-                    withTransaction<R, AsyncDBConnection>(transactionMode = transactionMode) { session ->
+                    withTransaction<R, AsyncDBConnection>(reason = realReason, transactionMode = transactionMode) { session ->
                         block(session)
                     }
                 }
@@ -121,8 +130,11 @@ suspend fun <R> DBContext.withSession(
 typealias DBTransaction = AsyncDBConnection
 data class AsyncDBConnection(
     internal val conn: SuspendingConnectionImpl, // Internal jasync-sql connection
-    internal val debug: DebugSystemFeature
+    internal val debug: DebugSystemFeature,
 ) : DBContext(), SuspendingConnection by conn {
+    val mutex: Mutex = Mutex()
+    var reason: String = ""
+
     fun registerNotifyListener(handler: (channel: String, payload: String) -> Unit) {
         (conn.connection as PostgreSQLConnection).registerNotifyListener { resp ->
             handler(resp.channel, resp.payload)
@@ -169,6 +181,9 @@ class AsyncDBSessionFactory(
 
     override suspend fun closeSession(session: AsyncDBConnection) {
         inflightTransactions.dec()
+        knownReasonsMutex.withLock {
+            knownReasons.add(session.reason)
+        }
         pool.giveBack((session.conn).connection as PostgreSQLConnection)
     }
 
@@ -184,13 +199,20 @@ class AsyncDBSessionFactory(
         // No-op
     }
 
-    override suspend fun openSession(): AsyncDBConnection {
+    val knownReasons = HashSet<String>()
+    val knownReasonsMutex = Mutex()
+
+    override suspend fun openSession(reason: String): AsyncDBConnection {
         return withHardTimeout(15_000, { "Opening database session" }, hardDeadline = 10000) {
             val result = AsyncDBConnection(
                 pool.take().await().asSuspending as SuspendingConnectionImpl,
                 debug,
             )
             inflightTransactions.inc()
+            result.reason = reason
+            knownReasonsMutex.withLock {
+                knownReasons.add(reason)
+            }
 
             //Health check
             val rand = (0..999).random()
@@ -218,7 +240,9 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun rollback(session: AsyncDBConnection) {
-        session.sendQuery("rollback")
+        try {
+            session.sendQuery("rollback")
+        } catch (ex: Throwable) {}
 
         debug.system.databaseTransaction(
             MessageImportance.THIS_IS_NORMAL,

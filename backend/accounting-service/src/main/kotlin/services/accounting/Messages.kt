@@ -189,5 +189,10 @@ sealed class AccountingRequest<Resp> {
         val quota: Long,
         val expiresAt: Long?,
     ) : AccountingRequest<Unit>()
+
+    data class ProviderDump(
+        override val idCard: IdCard,
+        val category: ProductCategoryIdV2,
+    ) : AccountingRequest<String>()
 }
 

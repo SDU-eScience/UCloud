@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
 	"gopkg.in/yaml.v3"
+	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
 )
@@ -702,6 +702,10 @@ type ProviderConfiguration struct {
 			RetentionPeriodInDays int  `yaml:"retentionPeriodInDays"`
 		}
 	}
+
+	Maintenance struct {
+		UserAllowList []string
+	}
 }
 
 func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfiguration) {
@@ -778,6 +782,19 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 					return false, cfg
 				}
 			}
+		}
+	}
+
+	{
+		// Maintenance section
+		maintenance, _ := getChildOrNil(filePath, provider, "maintenance")
+		if maintenance != nil {
+			allowListNode := requireChild(filePath, maintenance, "userAllowList", &success)
+
+			var userAllowList []string
+			decode(filePath, allowListNode, &userAllowList, &success)
+
+			cfg.Maintenance.UserAllowList = userAllowList
 		}
 	}
 
@@ -998,12 +1015,13 @@ type IdentityManagementScripted struct {
 }
 
 type IdentityManagementFreeIPA struct {
-	Url        string
-	VerifyTls  bool
-	CaCertFile util.Option[string]
-	Username   string
-	Password   string
-	GroupName  string
+	Url             string
+	VerifyTls       bool
+	CaCertFile      util.Option[string]
+	Username        string
+	Password        string
+	GroupName       string
+	ProjectStrategy fnd.ProjectTitleStrategy
 }
 
 func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
@@ -1093,6 +1111,25 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 		result.GroupName = groupName
 	} else {
 		result.GroupName = "ucloud_users"
+	}
+
+	titleStrategy := optionalChildText(filePath, node, "projectStrategy", &success)
+	if titleStrategy != "" {
+		switch titleStrategy {
+		case "Default":
+			result.ProjectStrategy = fnd.ProjectTitleDefault
+
+		case "Date":
+			result.ProjectStrategy = fnd.ProjectTitleDate
+
+		case "UUID":
+			result.ProjectStrategy = fnd.ProjectTitleUuid
+
+		default:
+			success = false
+			badNode, _ := getChildOrNil(filePath, node, "projectStrategy")
+			reportError(filePath, badNode, titleStrategy, "Unknown title strategy, use one of: 'Default', 'Date', 'UUID'")
+		}
 	}
 
 	return success, result

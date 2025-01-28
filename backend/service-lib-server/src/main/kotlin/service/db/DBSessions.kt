@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.TransactionMode
 
 interface DBSessionFactory<Session> {
-    suspend fun openSession(): Session
+    suspend fun openSession(reason: String = "unknown"): Session
     suspend fun closeSession(session: Session)
 
     suspend fun openTransaction(session: Session, transactionMode: TransactionMode? = null)
@@ -20,8 +20,8 @@ interface DBSessionFactory<Session> {
     suspend fun flush(session: Session) {}
 }
 
-suspend inline fun <R, Session> DBSessionFactory<Session>.usingSession(closure: (Session) -> R): R {
-    val session = openSession()
+suspend inline fun <R, Session> DBSessionFactory<Session>.usingSession(reason: String = "unknown", closure: (Session) -> R): R {
+    val session = openSession(reason)
     return try {
         closure(session)
     } finally {
@@ -58,9 +58,10 @@ suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
     autoCommit: Boolean = true,
     autoFlush: Boolean = false,
     transactionMode: TransactionMode? = null,
+    reason: String = "unknown",
     closure: suspend (Session) -> R
 ): R {
-    return usingSession { session ->
+    return usingSession(reason) { session ->
         withTransaction(session, autoCommit, autoFlush, transactionMode) {
             closure(it)
         }
