@@ -350,8 +350,10 @@ html.dark .content figure img.light {
     padding: 16px;
     border-left: 5px solid var(--info-box-border, black);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     margin: 16px 0;
+    gap: 20px;
+    align-items: center;
 }
 
 .info-box i {
