@@ -1206,9 +1206,17 @@ class AccountingSystem(
                 }
             }
 
+
             var error: String? = null
-            if (overSpendingWallets.isNotEmpty()) {
-                error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+
+            // NOTE(Dan): We only consider this an error if our wallet is locked now. This property should naturally
+            //   be set by reevaluateWalletsAfterUpdate. We do not use overSpendingWallets for this since it might
+            //   cause problems when a wallet has multiple parents.
+            if (wallet.wasLocked) {
+                error = "${wallet.id} is overspending"
+                if (overSpendingWallets.isNotEmpty()) {
+                    error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+                }
             }
 
             debug {
