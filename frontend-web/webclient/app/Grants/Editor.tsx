@@ -280,9 +280,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         sectionForProvider = newResources[category.provider]!;
                     }
 
+
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                        if ([...existing.allocators.values()].find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
                             //DO NOTHING
                         } else {
                             existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
