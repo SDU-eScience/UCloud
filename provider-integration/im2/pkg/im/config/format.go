@@ -8,13 +8,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"gopkg.in/yaml.v3"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
@@ -365,8 +365,15 @@ func decode(filePath string, node *yaml.Node, result any, success *bool) {
 	}
 }
 
-func readAndParse(filePath string) *yaml.Node {
+func readAndParse(configDir string, name string) (string, *yaml.Node) {
+	filePath := filepath.Join(configDir, name+".yml")
 	fileBytes, err := os.ReadFile(filePath)
+
+	if err != nil {
+		filePath = filepath.Join(configDir, name+".yaml")
+		fileBytes, err = os.ReadFile(filePath)
+	}
+
 	if err != nil {
 		reportError(
 			filePath,
@@ -377,7 +384,7 @@ func readAndParse(filePath string) *yaml.Node {
 			os.Getgid(),
 			err.Error(),
 		)
-		return nil
+		return filePath, nil
 	}
 
 	var document yaml.Node
@@ -391,10 +398,10 @@ func readAndParse(filePath string) *yaml.Node {
 				"Underlying error message: %v.",
 			err.Error(),
 		)
-		return nil
+		return filePath, nil
 	}
 
-	return &document
+	return filePath, &document
 }
 
 func requireSecrets(reason string) (string, *yaml.Node) {
@@ -414,6 +421,11 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	if Mode == ServerModeServer {
 		filePath := filepath.Join(configDir, "secrets.yml")
 		fileBytes, err := os.ReadFile(filePath)
+
+		if err != nil {
+			filePath = filepath.Join(configDir, "secrets.yaml")
+			fileBytes, err = os.ReadFile(filePath)
+		}
 
 		if err == nil {
 			var document yaml.Node
@@ -436,8 +448,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	}
 
 	if Mode == ServerModeServer {
-		filePath := filepath.Join(configDir, "server.yml")
-		document := readAndParse(filePath)
+		filePath, document := readAndParse(configDir, "server")
 		if document == nil {
 			return false
 		}
@@ -449,8 +460,7 @@ func Parse(serverMode ServerMode, configDir string) bool {
 		Server = &server
 	}
 
-	filePath := filepath.Join(configDir, "config.yml")
-	document := readAndParse(filePath)
+	filePath, document := readAndParse(configDir, "config")
 	if document == nil {
 		return false
 	}
