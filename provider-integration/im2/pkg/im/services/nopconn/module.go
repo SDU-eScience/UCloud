@@ -29,5 +29,12 @@ func Init() {
 				RequiresMessageSigning: false,
 			}
 		},
+
+		RetrieveCondition: func() ctrl.Condition {
+			return ctrl.Condition{
+				Page:  "https://status.cloud.sdu.dk",
+				Level: ctrl.ConditionLevelNormal,
+			}
+		},
 	}
 }
