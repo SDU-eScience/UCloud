@@ -20,7 +20,7 @@ class FakeResourceStoreQueries(val products: FakeProductCache) : ResourceStoreDa
     val initialResources = NonBlockingHashMapLong<ResourceDocument<Unit>>()
     val saveRequests = NonBlockingHashMapLong<Unit>()
 
-    override suspend fun startTransaction(): Any = Unit
+    override suspend fun startTransaction(reason: String): Any = Unit
     override suspend fun abortTransaction(transaction: Any) {
         // OK
     }

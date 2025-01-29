@@ -77,7 +77,7 @@ class StatisticsService {
             wallet.allocationGroups.forEach { allocationGroupIds.add(it.group.id) }
         }
 
-        val descendants = db.withSession { session ->
+        val descendants = db.withSession(reason = "statistics retrieve 1") { session ->
             session.sendPreparedStatement(
                 {setParameter("allocgroups", allocationGroupIds)},
                 """
@@ -104,7 +104,7 @@ class StatisticsService {
         coroutineScope {
             launch {
                 // Usage by user
-                db.withSession { session ->
+                db.withSession(reason = "statistics retrieve 2") { session ->
 
                     val rows = session.sendPreparedStatement(
                         {
@@ -241,7 +241,7 @@ class StatisticsService {
 
             // Most used applications
             launch {
-                db.withSession { session ->
+                db.withSession(reason = "statistics retrieve 3") { session ->
                     val rows = session.sendPreparedStatement(
                         {
                             setParameter("start", start)
@@ -342,7 +342,7 @@ class StatisticsService {
 
             // Job submission stats
             launch {
-                db.withSession { session ->
+                db.withSession(reason = "statistics retrieve 4") { session ->
                     val rows = session.sendPreparedStatement(
                         {
                             setParameter("start", start)

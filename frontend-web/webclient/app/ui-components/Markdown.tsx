@@ -28,6 +28,16 @@ function Markdown(props: Options): React.ReactNode {
     />
 }
 
+export function SimpleMarkdown({children}: React.PropsWithChildren): React.ReactNode {
+    return <ReactMarkdown
+        components={{
+            a: LinkBlock
+        }}
+        allowedElements={["br", "a", "p", "strong", "b", "i", "em"]}
+        children={children as string}
+    />
+}
+
 const SingleLineClass = injectStyle("single-line", k => `
     ${k} {
         display: block;
@@ -43,7 +53,7 @@ const SingleLineClass = injectStyle("single-line", k => `
     }
 `);
 
-export const SingleLineMarkdown: React.FunctionComponent<{ children: string; width: string; }> = ({children, width}) => {
+export const SingleLineMarkdown: React.FunctionComponent<{children: string; width: string;}> = ({children, width}) => {
     return <div className={SingleLineClass} style={{width}}>
         <ReactMarkdown
             allowedElements={["br", "a", "p", "strong", "b", "i", "em"]}

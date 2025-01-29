@@ -19,6 +19,8 @@ export enum Feature {
     COMMAND_PALETTE,
     INTEGRATED_EDITOR,
     EDITOR_VIM,
+
+    PROVIDER_CONDITION,
 }
 
 enum Environment {
@@ -29,14 +31,14 @@ enum Environment {
     PROD
 }
 
-const allEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.PUBLIC_DEV, Environment.PROD];
-
-const allDevEnvironments: Environment[] =
-    [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
-
 const allLocalEnvironments: Environment[] =
     [Environment.LOCAL_DEV, Environment.LOCAL_DEV_STACK];
+
+const allDevEnvironments: Environment[] =
+    [...allLocalEnvironments, Environment.SANDBOX_DEV, Environment.PUBLIC_DEV];
+
+const allEnvironments: Environment[] =
+    [...allDevEnvironments, Environment.PROD];
 
 function publicFeature(feature: Feature): FeatureConfig {
     return {
@@ -110,6 +112,11 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
+    "provider-condition": {
+        feature: Feature.PROVIDER_CONDITION,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
+    },
     "job-rename": {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,

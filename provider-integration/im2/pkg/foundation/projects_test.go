@@ -6,7 +6,7 @@ import (
 )
 
 func TestProjectStartingWithDigit(t *testing.T) {
-	parsed := GenerateProjectName("1-this-should-work")
+	parsed, _ := GenerateProjectName("aaaaaaa-bbbbbbb-ccccccc-dddddddddd-eeeeeeee", "1-this-should-work", ProjectTitleDefault)
 	if len(parsed) == 0 {
 		t.Errorf("Expected a non-empty suggested project name")
 	} else {

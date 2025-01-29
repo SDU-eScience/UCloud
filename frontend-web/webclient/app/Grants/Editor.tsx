@@ -38,6 +38,7 @@ import {formatDistance} from "date-fns/formatDistance";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import Warning from "@/ui-components/Warning";
+import {SimpleMarkdown} from "@/ui-components/Markdown";
 
 // State model
 // =====================================================================================================================
@@ -279,9 +280,10 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                         sectionForProvider = newResources[category.provider]!;
                     }
 
+
                     const existing = sectionForProvider.find(it => it.category.name === category.name);
                     if (existing) {
-                        if (existing.allocators.values().find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
+                        if ([...existing.allocators.values()].find(grantGiver => grantGiver.grantGiverId == allocator.id && grantGiver.grantGiverTitle === allocator.title)) {
                             //DO NOTHING
                         } else {
                             existing.allocators.add({grantGiverId: allocator.id, grantGiverTitle: allocator.title});
@@ -740,7 +742,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                let alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 if (alreadyThere) {
                     category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
                 } else {
@@ -2390,7 +2392,7 @@ const FormField: React.FunctionComponent<{
                     className={`description ${props.showDescriptionInEditMode === false ? "optional" : ""}`}
                     style={props.icon && {marginLeft: "38px"}}
                 >
-                    {props.description}
+                    {typeof props.description === "string" ? <SimpleMarkdown>{props.description}</SimpleMarkdown> : props.description}
                 </div>
             }
         </div>

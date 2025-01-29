@@ -2,14 +2,16 @@ package controller
 
 import (
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"ucloud.dk/pkg/apm"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
@@ -30,9 +32,10 @@ type Manifest struct {
 var Connections ConnectionService
 
 type ConnectionService struct {
-	Initiate         func(username string, signingKey util.Option[int]) (redirectToUrl string)
-	Unlink           func(username string, uid uint32) error
-	RetrieveManifest func() Manifest
+	Initiate          func(username string, signingKey util.Option[int]) (redirectToUrl string)
+	Unlink            func(username string, uid uint32) error
+	RetrieveManifest  func() Manifest
+	RetrieveCondition func() Condition
 }
 
 type IdentityManagementService struct {
@@ -406,6 +409,14 @@ func controllerConnection(mux *http.ServeMux) {
 			}),
 		)
 
+		type retrieveConditionRequest struct{}
+		mux.HandleFunc(
+			baseContext+"retrieveCondition",
+			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
+				sendResponseOrError(w, Connections.RetrieveCondition(), nil)
+			}),
+		)
+
 		// NOTE(Dan): Renamed from redirect in the Kotlin version to keyUpload since this is more accurate.
 		type keyUploadRequest struct {
 			PublicKey string `json:"publicKey"`
@@ -574,6 +585,13 @@ func LaunchUserInstance(uid uint32) error {
 	ucloudUsername, ok := MapLocalToUCloud(uid)
 	if !ok {
 		return fmt.Errorf("unknown user")
+	}
+
+	allowList := cfg.Provider.Maintenance.UserAllowList
+	if len(allowList) > 0 {
+		if !slices.Contains(allowList, ucloudUsername) {
+			return util.ServerHttpError("System is currently undergoing maintenance")
+		}
 	}
 
 	// Try in a few different ways to get the most reliable exe which we will pass to `sudo`

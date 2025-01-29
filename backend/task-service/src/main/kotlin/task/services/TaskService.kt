@@ -175,6 +175,7 @@ class TaskService(
                             and state != 'SUCCESS'
                             and state != 'CANCELLED'
                             and state != 'FAILURE'
+                            and modified_at >= now() - '24 hours'::interval
                         order by created_at desc
                         limit 100
                     """

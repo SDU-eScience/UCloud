@@ -810,7 +810,7 @@ class JobResourceService(
         val now = Time.now()
         val nextSave = nextSupportInfoSave.get()
         if (now > nextSave && nextSupportInfoSave.compareAndSet(nextSave, now + 60_000)) {
-            db.withSession { session ->
+            db.withSession(reason = "JobResourceService.saveSupportInfoIfNeeded") { session ->
                 session.sendPreparedStatement(
                     {
                         val productNames = ArrayList<String>().also { setParameter("product_names", it) }
@@ -1425,6 +1425,7 @@ class JobResourceService(
     }
 
     suspend fun initializeProviders(actorAndProject: ActorAndProject) {
+        /*
         providers.forEachRelevantProvider(actorAndProject, filterProductType = ProductType.COMPUTE) { provider ->
             try {
                 providers.call(
@@ -1442,6 +1443,7 @@ class JobResourceService(
                 log.info("Failed to initialize jobs at provider: $provider. ${ex.toReadableStacktrace()}")
             }
         }
+         */
     }
 
     // Provider utilities
@@ -1670,7 +1672,7 @@ class JobResourceService(
     // This state is loaded at startup and then periodically maintained as we receive state updates from the provider.
     private val allActiveJobs = NonBlockingHashMapLong<Unit>()
     private suspend fun initializeActiveJobsIndex() {
-        db.withSession { session ->
+        db.withSession(reason = "JobResourceService.initializeActiveJobsIndex") { session ->
             val rows = session.sendPreparedStatement(
                 {},
                 """
