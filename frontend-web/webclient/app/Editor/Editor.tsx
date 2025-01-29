@@ -4,7 +4,7 @@ import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
-import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
+import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
@@ -17,6 +17,7 @@ import {PrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
+import EditorOption = editor.EditorOption;
 import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
@@ -267,6 +268,7 @@ export function useMonaco(active: boolean): any {
             if (didCancel) return;
             setMonacoInstance(monaco);
         });
+
 
         return () => {
             didCancel = true;
@@ -621,6 +623,7 @@ export const Editor: React.FunctionComponent<{
 
         // Register a new Jinja2 language
         m.languages.register({id: 'jinja2'});
+        m.option
 
         // Define the syntax highlighting rules for Jinja2
         m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
@@ -634,6 +637,8 @@ export const Editor: React.FunctionComponent<{
             fontFamily: "Jetbrains Mono",
             fontSize: 14,
             theme: currentTheme === "light" ? "light" : "ucloud-dark",
+            wordWrap: "off",
+            ...getEditorOptions(),
         });
 
         setEditor(editor);
@@ -757,12 +762,12 @@ export const Editor: React.FunctionComponent<{
         if (!closedTabs.includes(path)) setClosedTabs(tabs => [...tabs, path]);
     }, [state.currentPath]);
 
-    const openOperations = useRef<(x: number, y: number) => void>(noopCall)
+    const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
         const ops = tabOperations(title, tabs, setTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
         setOperations(ops);
-        openOperations.current(position.x, position.y);
+        openTabOperationWindow.current(position.x, position.y);
     }, [tabs, closedTabs, state.currentPath]);
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
@@ -804,7 +809,7 @@ export const Editor: React.FunctionComponent<{
                         entityNameSingular={""}
                         operations={operations}
                         forceEvaluationOnOpen={true}
-                        openFnRef={openOperations}
+                        openFnRef={openTabOperationWindow}
                         selected={[]}
                         extra={null}
                         row={42}
@@ -825,6 +830,7 @@ export const Editor: React.FunctionComponent<{
             <div className={"panels"}>
                 {isSettingsOpen ?
                     <Flex gap={"32px"} flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                        <MonacoEditorSettings editor={editor} />
                         <Label>
                             Editor engine
                             <Select value={engine} width={"100%"} onChange={ev => {
@@ -1115,3 +1121,65 @@ const jinja2monarchTokens = {
         ]
     }
 };
+
+type EditorOptionPair<T extends EditorOption> = [number, editor.FindComputedEditorOptionValueById<T>[]];
+
+const AvailableSettings: [
+    EditorOptionPair<EditorOption.fontSize>,
+    EditorOptionPair<EditorOption.fontWeight>,
+    EditorOptionPair<EditorOption.wordWrap>,
+    // EditorOptionPair<EditorOption.accessibilityPageSize>,
+    // EditorOptionPair<EditorOption.accessibilitySupport>
+] = [
+        [EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
+        [EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
+        [EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
+        // [EditorOption.accessibilityPageSize, [1]],
+        // [EditorOption.accessibilitySupport, [1]]
+    ];
+
+type foo = editor.FindComputedEditorOptionValueById<EditorOption.fontSize>;
+
+function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) {
+    const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
+        if (!editor) return;
+
+        editor.updateOptions({
+            [EditorOption[setting]]: value
+        });
+
+        var storedSettings = getEditorOptions();
+
+        storedSettings = {
+            ...storedSettings,
+            [EditorOption[setting]]: value,
+        };
+
+        EditorOption.screenReaderAnnounceInlineSuggestion
+
+        localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(storedSettings));
+    }, [editor])
+
+    if (!editor) return null;
+
+    return <>
+        {AvailableSettings.map(([setting, options]) => <div key={setting}>
+            {EditorOption[setting]}
+            <Select defaultValue={editor.getOption(setting)} onChange={e => setOption(setting, e.target.value)}>
+                {options.map((opt: string | number) =>
+                    <option key={opt} value={opt}>{opt}</option>
+                )}
+            </Select>
+        </div>)}
+    </>;
+}
+
+const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
+function getEditorOptions(): {
+    fontSize?: number;
+    fontWeight?: string;
+    wordWrap?: string;
+    /* TODO(Jonas): add the other two */
+} {
+    return JSON.parse(localStorage.getItem(PreviewEditorSettingsLocalStorageKey) ?? "{}");
+}
