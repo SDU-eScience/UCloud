@@ -742,7 +742,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
                 const {balanceFactor} = Accounting.explainUnit(category.category);
                 if (request.category !== category.category.name) continue;
 
-                let alreadyThere = category.allocators.values().find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
+                let alreadyThere = [...category.allocators.values()].find(allocator => allocator.grantGiverId === request.grantGiver && allocator.grantGiverTitle === request.grantGiverTitle)
                 if (alreadyThere) {
                     category.totalBalanceRequested[request.grantGiver] = request.balanceRequested * balanceFactor;
                 } else {
