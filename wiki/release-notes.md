@@ -7,7 +7,7 @@ use.
 ## 29-01-25
 
 ```
-UCloud/Frontend @ 2025.2.12
+UCloud/Frontend @ 2025.2.13
 ```
 
 ## 28-01-25
