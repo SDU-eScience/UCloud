@@ -97,8 +97,8 @@ The process is as follows:
 3. **The resources created from the successful application are registered in UCloud/Core.**
 
 4. **UCloud/Core notifies the service provider.** Whenever a workspace is updated with respect to their resource
-   allocations, a notification is sent to the service provider. The message is intercepted and handled by UCloud/IM (
-   Server). A user mapping is not yet established.
+   allocations, a notification is sent to the service provider. The message is intercepted and 
+   handled by UCloud/IM (Server). A user mapping is not yet established.
 
 5. **The user connects with the provider.** Once a user has received at least one resource allocation at a provider,
    they are allowed to connect to it. The user connects to the provider by clicking the appropriate button in the UCloud
