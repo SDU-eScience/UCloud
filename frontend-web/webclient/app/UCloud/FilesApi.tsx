@@ -32,7 +32,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -52,7 +52,6 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
-import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
@@ -71,7 +70,6 @@ import {
     UFileSpecification,
     UFileStatus
 } from "./UFile";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -221,9 +219,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 ...this.defaultRetrieveFlags
             }))
         }, [id]);
-
-        const prettyPath = usePrettyFilePath(id ?? "");
-        usePage(prettyPath, SidebarTabId.FILES);
 
         const file = fileData.data;
 

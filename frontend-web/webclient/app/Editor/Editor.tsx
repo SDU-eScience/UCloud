@@ -798,6 +798,7 @@ export const Editor: React.FunctionComponent<{
                 <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
                     {tabs.map((t, index) =>
                         <EditorTab
+                            key={t}
                             isDirty={false /* TODO */}
                             isActive={t === state.currentPath}
                             onActivate={() => openTab(t)}

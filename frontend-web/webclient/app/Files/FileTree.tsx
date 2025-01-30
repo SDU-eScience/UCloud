@@ -3,8 +3,8 @@ import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
-import {PrettyFileName} from "./FilePath";
-import {Flex, FtIcon, Icon, Truncate} from "@/ui-components";
+import {PrettyFileName, usePrettyFilePath} from "./FilePath";
+import {Box, Flex, FtIcon, Icon, Truncate} from "@/ui-components";
 import {fileName} from "@/Utilities/FileUtilities";
 
 export interface EditorSidebarNode {
@@ -57,34 +57,42 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
         openOperations.current(ev.clientX, ev.clientY);
     }, [getOperations]);
 
+    const prettyInitialFolderPath = usePrettyFilePath(props.initialFolder);
 
     return <div style={style} className={FileTreeClass}>
         <Flex alignItems={"center"} pl="6px" className="title-bar" gap={"8px"}>
             <FtIcon fileIcon={{type: "DIRECTORY", ext: extensionFromPath(props.initialFolder)}} size={"18px"} />
-            <Truncate width="200px"><PrettyFileName path={props.initialFolder} /></Truncate>
+            <Box width="150px"><Truncate width="150px" title={prettyInitialFolderPath} maxWidth="150px">{fileName(prettyInitialFolderPath)}</Truncate></Box>
             <Flex flexGrow={1} />
-            {props.fileHeaderOperations}
+            {props.fileHeaderOperations ? (
+                <>
+                    {props.fileHeaderOperations}
+                    <Box mr="8px" />
+                </>
+            ) : null}
         </Flex>
-        <Tree apiRef={tree} onAction={onTreeAction}>
-            <FileNode
-                initialFolder={props.initialFolder}
-                initialFilePath={props.initialFilePath}
-                node={root}
-                onAction={onNodeActivated}
-                onContextMenu={onContextMenu}
+        <Box overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
+            <Tree apiRef={tree} onAction={onTreeAction}>
+                <FileNode
+                    initialFolder={props.initialFolder}
+                    initialFilePath={props.initialFilePath}
+                    node={root}
+                    onAction={onNodeActivated}
+                    onContextMenu={onContextMenu}
+                />
+            </Tree>
+            <Operations
+                entityNameSingular={""}
+                operations={operations}
+                forceEvaluationOnOpen={true}
+                openFnRef={openOperations}
+                selected={[]}
+                extra={null}
+                row={42}
+                hidden
+                location={"IN_ROW"}
             />
-        </Tree>
-        <Operations
-            entityNameSingular={""}
-            operations={operations}
-            forceEvaluationOnOpen={true}
-            openFnRef={openOperations}
-            selected={[]}
-            extra={null}
-            row={42}
-            hidden
-            location={"IN_ROW"}
-        />
+        </Box>
     </div>
 }
 
@@ -108,6 +116,8 @@ const FileNode: React.FunctionComponent<{
     const isInitiallyOpen = props.node.file.isDirectory &&
         props.initialFilePath?.startsWith(props.node.file.absolutePath);
 
+    const prettyPath = usePrettyFilePath(props.node.file.absolutePath);
+
     return <TreeNode
         cursor="pointer"
         data-path={props.node.file.absolutePath}
@@ -129,7 +139,8 @@ const FileNode: React.FunctionComponent<{
                             size={"16px"}
                         />
                     }
-                    <PrettyFileName path={props.node.file.absolutePath} />
+                    {/* Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent to see  */}
+                    <Truncate title={prettyPath} maxWidth="calc(200px - var(--indent))">{fileName(prettyPath)}</Truncate>
                 </Flex>
             </>
         }
@@ -141,9 +152,7 @@ const FileTreeClass = injectStyle("file-tree", k => `
     ${k} {
         width: var(--tree-width);
         max-width: var(--tree-width);
-        overflow-y: auto;
         resize: var(--resize-setting);
-        
         flex-shrink: 0;
         border-right: var(--borderThickness) solid var(--borderColor);
     }
