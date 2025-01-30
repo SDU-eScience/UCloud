@@ -475,11 +475,6 @@ export const Editor: React.FunctionComponent<{
         const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
 
         try {
-            setTabs(tabs => {
-                if (tabs.includes(path)) {
-                    return tabs;
-                } else return [...tabs, path];
-            });
 
             const content = await dataPromise;
 
@@ -530,6 +525,12 @@ export const Editor: React.FunctionComponent<{
                     monaco.editor.setModelLanguage(editor.getModel(), syntax);
                 }
             }
+
+            setTabs(tabs => {
+                if (tabs.includes(path)) {
+                    return tabs;
+                } else return [...tabs, path];
+            });
 
             return true;
         } catch (error) {
@@ -1046,7 +1047,7 @@ function EditorTab({
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
-            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : <PrettyFilePath path={title as string} />}</Truncate>
+            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : fileName(title as string)}</Truncate>
             <Icon
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
