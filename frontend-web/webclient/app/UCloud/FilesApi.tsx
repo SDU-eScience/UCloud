@@ -1033,10 +1033,9 @@ const api = new FilesApi();
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-function isDownloadAllowed(file: UFile) {
-    if (file.status.type !== "FILE") return false;
+function isFileFileSizeExceeded(file: UFile) {
     const size = file.status.sizeInBytes;
-    return size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
+    return size != null && size > MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
 }
 
 export function FilePreview({initialFile}: {
@@ -1464,9 +1463,13 @@ class PreviewVfs implements Vfs {
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
 
-        if (!isDownloadAllowed(file) && file.status.sizeInBytes !== 0) {
-            throw window.Error("File cannot be viewed in editor");
+        if (isFileFileSizeExceeded(file)) {
+            throw window.Error("File is to large to preview.");
         }
+
+        if (file.status.type !== "FILE") {
+            throw window.Error("Only files can be previewed");
+        };
 
         if (file.status.sizeInBytes === 0) {
             return "";
