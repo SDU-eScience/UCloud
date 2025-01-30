@@ -260,9 +260,10 @@ freeipa:
   url: https://ipa.ucloud   # Replace this with the hostname of your FreeIPA instance
   username: ucloudipauser   # Update this to match the name of your service account
   password: adminadmin      # Update the password to match your service account
-  verifyTls: true
-  namingPolicy: # This controls how to name users and projects
-    type: Default
+  verifyTls: true           # (optional) TODO
+  groupName:                # (optional) TODO
+  caCertFile:               # (optional) TODO
+  projectStrategy:          # (optional) Should be "Default", "Date" or "UUID"
 ```
 
 <figcaption>
@@ -275,13 +276,11 @@ The configuration required for FreeIPA. Remember to change the values such that 
 
 #### Naming Policies
 
-TODO The `namingPolicy` configuration property has not yet been implemented. What is described here is simply the only
-behavior currently implemented.
-
-The `namingPolicy` configuration property allows you to control how to name new users and projects. Keep in mind that
-the naming policy is only used when users and projects are created. This means that if you make changes to the naming
-policy then already existing projects and users will not be changed in any way. UCloud/IM allows you to change the
-policy since it stores the ID from creation and not the computed name.
+The `projectStrategy` configuration property allows you to control how to name new users and 
+projects. Keep in mind that the naming policy is only used when users and projects are created. This 
+means that if you make changes to the naming policy then already existing projects and users will 
+not be changed in any way. UCloud/IM allows you to change the policy since it stores the ID from 
+creation and not the computed name.
 
 <div class="table-wrapper">
 <table>
@@ -301,8 +300,8 @@ policy since it stores the ID from creation and not the computed name.
 </td>
 <td>
 
-The default naming policy will attempt to create alphanumeric names which closely resemble the name of the user and
-project, while remaining POSIX compliant.
+The default naming policy will attempt to create alphanumeric names which closely resemble the name 
+of the user and project, while remaining POSIX compliant.
 
 __Users:__ Usernames use the following format:
 
@@ -327,7 +326,7 @@ JensHågensen#5128 -> jhagensen01
 Usernames are cut off to ensure they do not become too long. Take for example this exaggerated example:
 
 ```text
-ThisisaverylongusernameLongerthanwewouldexpectmostpeopletohave#1234 -> tlongerthanwewouldexpectmost01
+ThisisaVerylongusernamelongerthanexpected#1234 -> tverylongusernamelongerthane01
 ```
 
 For users where their last name is not apparent, their first name is used instead.
@@ -349,6 +348,50 @@ replace them with underscores. Below is a number of examples:
 testProject -> testproject01
 My SandBox PrOject -> my_sandbox_project01
 this is my long project nåme what will it be -> this_is_my_long_project_name01
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`Date`
+
+</td>
+<td>
+
+Projects will be named using the current year and month, in the format:
+
+```text
+p${year}-${month}-${twoDigitNumber}
+```
+
+For example:
+
+```text
+Test Project 1 -> p-2025-2-01
+```
+
+</td>
+</tr>
+<tr>
+<td>
+
+`UUID`
+
+</td>
+<td>
+
+Projects will be named using the first part of the UCloud UUID for the project, in the format:
+
+```text
+p${uuid}-${twoDigitNumber}
+```
+
+For example:
+
+```text
+Test Project 1 -> pae0cba6e-01
 ```
 
 </td>
