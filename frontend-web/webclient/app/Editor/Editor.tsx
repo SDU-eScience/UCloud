@@ -13,7 +13,7 @@ import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {PrettyFilePath} from "@/Files/FilePath";
+import {PrettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -21,6 +21,8 @@ import EditorOption = editor.EditorOption;
 import {Feature, hasFeature} from "@/Features";
 import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -109,7 +111,7 @@ function findNode(root: EditorSidebarNode, path: string): EditorSidebarNode | nu
     let currentNode = root;
     let currentPath = root.file.absolutePath + "/";
     for (let i = 0; i < components.length; i++) {
-        currentPath += components[i]; // TODO(Jonas): Missing adding "/" where applicable
+        currentPath += components[i];
         const node = currentNode.children.find(it => [currentPath, path].includes(it.file.absolutePath));
         if (!node) return null;
         currentNode = node;
@@ -360,6 +362,11 @@ export const Editor: React.FunctionComponent<{
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
     const [tabs, setTabs] = useState<string[]>([state.currentPath]);
+
+
+    const prettyPath = usePrettyFilePath(state.currentPath ?? "");
+    usePage(fileName(prettyPath), SidebarTabId.FILES);
+
     const [closedTabs, setClosedTabs] = useState<string[]>([]);
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
     const isSettingsOpen = state.currentPath === SETTINGS_PATH;
@@ -1122,43 +1129,28 @@ const jinja2monarchTokens = {
     }
 };
 
-type EditorOptionPair<T extends EditorOption> = [number, editor.FindComputedEditorOptionValueById<T>[]];
-
+type EditorOptionPair<T extends EditorOption> = [T, editor.FindComputedEditorOptionValueById<T>[]];
 const AvailableSettings: [
     EditorOptionPair<EditorOption.fontSize>,
     EditorOptionPair<EditorOption.fontWeight>,
     EditorOptionPair<EditorOption.wordWrap>,
-    // EditorOptionPair<EditorOption.accessibilityPageSize>,
-    // EditorOptionPair<EditorOption.accessibilitySupport>
 ] = [
         [EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
         [EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
         [EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
-        // [EditorOption.accessibilityPageSize, [1]],
-        // [EditorOption.accessibilitySupport, [1]]
     ];
-
-type foo = editor.FindComputedEditorOptionValueById<EditorOption.fontSize>;
 
 function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) {
     const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
         if (!editor) return;
 
-        editor.updateOptions({
+        const settingsChange = {
             [EditorOption[setting]]: value
-        });
+        }
 
-        var storedSettings = getEditorOptions();
-
-        storedSettings = {
-            ...storedSettings,
-            [EditorOption[setting]]: value,
-        };
-
-        EditorOption.screenReaderAnnounceInlineSuggestion
-
-        localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(storedSettings));
-    }, [editor])
+        editor.updateOptions(settingsChange);
+        updateEditorSettings(settingsChange);
+    }, [editor]);
 
     if (!editor) return null;
 
@@ -1174,12 +1166,23 @@ function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) 
     </>;
 }
 
-const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
-function getEditorOptions(): {
+interface StoredSettings {
     fontSize?: number;
     fontWeight?: string;
     wordWrap?: string;
-    /* TODO(Jonas): add the other two */
-} {
+}
+
+const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
+function getEditorOptions(): StoredSettings {
     return JSON.parse(localStorage.getItem(PreviewEditorSettingsLocalStorageKey) ?? "{}");
+}
+
+function updateEditorSettings(settings: StoredSettings): void {
+    const opts = getEditorOptions();
+    storeEditorSettings({...opts, ...settings});
+
+}
+
+function storeEditorSettings(settings: StoredSettings): void {
+    localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(settings));
 }
