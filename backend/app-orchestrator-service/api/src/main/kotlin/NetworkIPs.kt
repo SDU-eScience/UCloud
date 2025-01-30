@@ -346,6 +346,34 @@ firewall is controlled by the virtual machine.
     val updateFirewall = call("updateFirewall", BulkRequest.serializer(FirewallAndId.serializer()), NetworkIPsUpdateFirewallResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "firewall")
     }
+
+    val cleanup = Cleanup.call
+
+    object Cleanup {
+        @Serializable
+        data class Request(
+            val provider: String,
+            val since: String? = null,
+            val confirmationCode: String? = null,
+        )
+
+        @Serializable
+        data class Response(
+            val unused: List<FindByStringId>,
+            val confirmationCode: String? = null,
+            val since: Long? = null, // returns the parsed timestamp
+        )
+
+        val call = call(
+            "cleanup",
+            Request.serializer(),
+            Response.serializer(),
+            CommonErrorMessage.serializer(),
+            handler = {
+                httpUpdate(baseContext, "cleanup", roles = Roles.ADMIN)
+            }
+        )
+    }
 }
 
 @TSNamespace("compute.networkips.control")
