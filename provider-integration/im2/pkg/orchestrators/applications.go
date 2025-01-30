@@ -259,20 +259,29 @@ type ModulesSection struct {
 // Application Parameters
 
 type ApplicationParameter struct {
-	Type         ApplicationParameterType `json:"type"`
-	Name         string                   `json:"name"`
-	Optional     bool                     `json:"optional"`
-	DefaultValue json.RawMessage          `json:"defaultValue,omitempty"`
-	Title        string                   `json:"title"`
-	Description  string                   `json:"description"`
-	MinValue     any                      `json:"min"`
-	MaxValue     any                      `json:"max"`
-	Step         any                      `json:"step"`
-	UnitName     string                   `json:"unitName"`
-	TrueValue    string                   `json:"trueValue"`
-	FalseValue   string                   `json:"falseValue"`
-	Options      []EnumOption             `json:"options"`
-	Tagged       []string                 `json:"tagged"`
+	Type             ApplicationParameterType `json:"type"`
+	Name             string                   `json:"name"`
+	Optional         bool                     `json:"optional"`
+	DefaultValue     json.RawMessage          `json:"defaultValue,omitempty"`
+	Title            string                   `json:"title"`
+	Description      string                   `json:"description"`
+	MinValue         any                      `json:"min"`
+	MaxValue         any                      `json:"max"`
+	Step             any                      `json:"step"`
+	UnitName         string                   `json:"unitName"`
+	TrueValue        string                   `json:"trueValue"`
+	FalseValue       string                   `json:"falseValue"`
+	Options          []EnumOption             `json:"options"`
+	Tagged           []string                 `json:"tagged"`
+	SupportedModules []Module                 `json:"supportedModules"`
+}
+
+type Module struct {
+	Name             string              `json:"name"`
+	Description      string              `json:"description"`
+	ShortDescription string              `json:"shortDescription"`
+	DependsOn        [][]string          `json:"dependsOn"`
+	DocumentationUrl util.Option[string] `json:"documentationUrl"`
 }
 
 type ApplicationParameterType string
@@ -291,6 +300,8 @@ const (
 	ApplicationParameterTypeIngress        ApplicationParameterType = "ingress"
 	ApplicationParameterTypeNetworkIp      ApplicationParameterType = "network_ip"
 	ApplicationParameterTypeWorkflow       ApplicationParameterType = "workflow"
+	ApplicationParameterTypeReadme         ApplicationParameterType = "readme"
+	ApplicationParameterTypeModuleList     ApplicationParameterType = "modules"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -430,6 +441,28 @@ func ApplicationParameterNetworkIp(name string, optional bool, title string, des
 	}
 }
 
+func ApplicationParameterModuleList(name string, title string, description string, modules []Module) ApplicationParameter {
+	return ApplicationParameter{
+		Type:             ApplicationParameterTypeModuleList,
+		Name:             name,
+		Optional:         false,
+		DefaultValue:     json.RawMessage("[]"),
+		Title:            title,
+		Description:      description,
+		SupportedModules: modules,
+	}
+}
+
+func ApplicationParameterReadme(readme string) ApplicationParameter {
+	return ApplicationParameter{
+		Type:        ApplicationParameterTypeReadme,
+		Name:        "__readme__",
+		Optional:    true,
+		Title:       "README",
+		Description: readme,
+	}
+}
+
 // AppParameterValue
 
 type AppParameterValue struct {
@@ -441,6 +474,7 @@ type AppParameterValue struct {
 	JobId         string
 	Id            string
 	Specification WorkflowSpecification
+	Modules       []string
 }
 
 type AppParameterValueType string
@@ -457,7 +491,15 @@ const (
 	AppParameterValueTypeNetwork       AppParameterValueType = "network"
 	AppParameterValueTypeIngress       AppParameterValueType = "ingress"
 	AppParameterValueTypeWorkflow      AppParameterValueType = "workflow"
+	AppParameterValueTypeModuleList    AppParameterValueType = "modules"
 )
+
+func AppParameterValueModuleList(modules []string) AppParameterValue {
+	return AppParameterValue{
+		Type:    AppParameterValueTypeModuleList,
+		Modules: modules,
+	}
+}
 
 func AppParameterValueFile(path string, readOnly bool) AppParameterValue {
 	return AppParameterValue{

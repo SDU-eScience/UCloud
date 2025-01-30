@@ -470,6 +470,11 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		if value.Type != AppParameterValueTypeText {
 			return false
 		}
+
+	case ApplicationParameterTypeModuleList:
+		if value.Type != AppParameterValueTypeModuleList {
+			return false
+		}
 	}
 	return true
 }
