@@ -1,4 +1,4 @@
-%define version %(cat ../../backend/version.txt)
+%define version %(cat ../../../../backend/version.txt)
 
 Name: ucloud-im
 Version: %{version}
