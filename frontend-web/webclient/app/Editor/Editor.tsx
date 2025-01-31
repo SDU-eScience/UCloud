@@ -764,7 +764,10 @@ export const Editor: React.FunctionComponent<{
         setOpenTabs(tabs => {
             const result = tabs.filter(tabTitle => tabTitle !== path);
             if (state.currentPath === path) {
-                dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
+                const preceedingPath = result.at(index - 1);
+                if (preceedingPath) {
+                    openFile(preceedingPath, true);
+                }
             }
             return result;
         });
@@ -1015,16 +1018,6 @@ function tabOperations(
         shortcut: ShortcutKey.U,
     }];
 }
-
-// Close
-// Close others
-// Close to the right
-// Close saved
-// Close all
-// Copy path
-// Copy relative path
-// Go to file
-// Re-open last closed tab
 
 
 function EditorTab({
