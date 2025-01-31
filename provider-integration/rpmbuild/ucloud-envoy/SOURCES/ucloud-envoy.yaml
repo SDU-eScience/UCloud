@@ -1,0 +1,52 @@
+dynamic_resources:
+  cds_config:
+    resource_api_version: V3
+    initial_fetch_timeout: 0.005s
+    api_config_source:
+      api_type: GRPC
+      transport_api_version: V3
+      grpc_services:
+      - envoy_grpc:
+          cluster_name: xds_cluster
+      set_node_on_first_message_only: true
+  lds_config:
+    resource_api_version: V3
+    initial_fetch_timeout: 0.005s
+    api_config_source:
+      api_type: GRPC
+      transport_api_version: V3
+      grpc_services:
+      - envoy_grpc:
+          cluster_name: xds_cluster
+      set_node_on_first_message_only: true
+node:
+  id: ucloudim_stack
+  cluster: ucloudim_cluster
+static_resources:
+  clusters:
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              pipe:
+                path: /var/run/ucloud/envoy/xds.sock
+                mode: 448
+    http2_protocol_options: {}
+    name: xds_cluster
+layered_runtime:
+  layers:
+    - name: runtime-0
+      rtds_layer:
+        rtds_config:
+          resource_api_version: V3
+          initial_fetch_timeout: 0.005s
+          api_config_source:
+            transport_api_version: V3
+            api_type: GRPC
+            grpc_services:
+              envoy_grpc:
+                cluster_name: xds_cluster
+        name: runtime-0
