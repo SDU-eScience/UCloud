@@ -361,7 +361,7 @@ export const Editor: React.FunctionComponent<{
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
-    const [tabs, setTabs] = useState<string[]>([state.currentPath]);
+    const [tabs, setOpenTabs] = useState<string[]>([state.currentPath]);
 
 
     const prettyPath = usePrettyFilePath(state.currentPath ?? "");
@@ -525,12 +525,6 @@ export const Editor: React.FunctionComponent<{
                     monaco.editor.setModelLanguage(editor.getModel(), syntax);
                 }
             }
-
-            setTabs(tabs => {
-                if (tabs.includes(path)) {
-                    return tabs;
-                } else return [...tabs, path];
-            });
 
             return true;
         } catch (error) {
@@ -727,13 +721,15 @@ export const Editor: React.FunctionComponent<{
             // do directly in TreeNode if we know it has no children.
             element.removeAttribute("data-open");
 
-            openFile(path, true);
+            openTab(path);
         }
     }, [editor, state, props.vfs, dispatch, reloadBuffer, readBuffer]);
 
     const onNodeActivated = useCallback((open: boolean, row: HTMLElement) => {
         const path = row.getAttribute("data-path");
-        if (path) onOpen(path, row);
+        if (path) {
+            onOpen(path, row);
+        }
     }, [onOpen]);
 
     const onTreeAction = useCallback((row: HTMLElement, action: TreeAction) => {
@@ -745,7 +741,7 @@ export const Editor: React.FunctionComponent<{
 
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(() => {
-            setTabs(tabs => {
+            setOpenTabs(tabs => {
                 if (tabs.includes(SETTINGS_PATH)) {
                     return tabs;
                 } else return [...tabs, SETTINGS_PATH];
@@ -754,13 +750,18 @@ export const Editor: React.FunctionComponent<{
         });
     }, []);
 
-    const openTab = React.useCallback((path: string) => {
+    const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
-        openFile(path, true);
+        await openFile(path, true);
+        setOpenTabs(tabs => {
+            if (tabs.includes(path)) {
+                return tabs;
+            } else return [...tabs, path];
+        });
     }, [state.currentPath]);
 
     const closeTab = useCallback((path: string, index: number) => {
-        setTabs(tabs => {
+        setOpenTabs(tabs => {
             const result = tabs.filter(tabTitle => tabTitle !== path);
             if (state.currentPath === path) {
                 dispatch({type: "EditorActionOpenFile", path: result.at(index - 1) ?? ""})
@@ -768,12 +769,12 @@ export const Editor: React.FunctionComponent<{
             return result;
         });
         if (!closedTabs.includes(path)) setClosedTabs(tabs => [...tabs, path]);
-    }, [state.currentPath]);
+    }, [state.currentPath, closedTabs]);
 
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, tabs, setTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
+        const ops = tabOperations(title, tabs, setOpenTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
     }, [tabs, closedTabs, state.currentPath]);
@@ -1044,6 +1045,13 @@ function EditorTab({
 
     const isSettings = title === SETTINGS_PATH;
 
+    const onClose = React.useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        close();
+    }, [close]);
+
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
@@ -1053,7 +1061,7 @@ function EditorTab({
                 onMouseLeave={() => setHovered(false)}
                 cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
                 size={12}
-                onClick={close} />
+                onClick={onClose} />
         </Flex>
     );
 }
