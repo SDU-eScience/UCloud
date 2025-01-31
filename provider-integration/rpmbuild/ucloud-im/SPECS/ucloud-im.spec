@@ -29,7 +29,7 @@ UCloud/IM is the middleware needed to integrated with the UCloud platform
 %prep
 
 %build
-cd ../../../provider-integration/im2
+cd ../../../../provider-integration/im2
 ./build.sh
 
 %install
