@@ -7,7 +7,7 @@ Summary: UCloud Integration Module
 License: EUPL-1.2
 URL: https://github.com/SDU-eScience/UCloud
 
-BuildRequires: golang git
+BuildRequires: git
 Requires(pre): shadow-utils
 Requires(post): systemd
 Requires(preun): systemd
