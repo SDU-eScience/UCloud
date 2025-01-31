@@ -1,0 +1,15 @@
+[Unit]
+Description=Embedded PostgreSQL
+Documentation=https://github.com/zonkyio/embedded-postgres-binaries
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+EnvironmentFile=-/etc/default/ucloud-psql
+ExecStart=/opt/ucloud/psql/bin/postgres $UCLOUD_PSQL_OPTS
+User=ucloud
+Group=ucloud
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

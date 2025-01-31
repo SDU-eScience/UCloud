@@ -1,0 +1,2 @@
+ucloud ALL=(%ucloud_users) NOPASSWD:SETENV: /opt/ucloud/ucloud
+ucloud ALL=(root)          NOPASSWD: /sbin/sss_cache

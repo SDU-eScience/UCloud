@@ -1,0 +1,52 @@
+name: "UCloud release"
+on:
+  push:
+    tags:
+    - "test*"
+
+jobs:
+  build-im2-rhel8:
+    runs-on: ubuntu-latest
+    container: almalinux:8
+    steps:
+    - name: "Checkout code"
+      uses: actions/checkout@v4
+
+    - name: Get tag version (without 'v')
+      run: echo "TAG_NAME=${GITHUB_REF#refs/tags/test}" >> $GITHUB_ENV
+
+    - name: Display tag name
+      run: |
+        echo "Tag pushed: ${{ env.TAG_NAME }}"
+        echo "${{ env.TAG_NAME }}" > backend/version.txt
+
+    - name: "Install dependencies (DNF)"
+      run: "dnf install -y git make wget rpm-build rpmdevtools gcc"
+
+    - name: "Install Go 1.23.5"
+      run: |
+        cd /tmp;
+        wget 'https://go.dev/dl/go1.23.5.linux-amd64.tar.gz';
+        tar xvf go*;
+        ln -s `realpath go/bin/go` /usr/bin/go;
+        ln -s `realpath go/bin/gofmt` /usr/bin/gofmt;
+        cd $GITHUB_WORKSPACE;
+
+    - name: "Build ucloud-psql"
+      run: |
+        cd ./provider-integration/rpmbuild
+        make ucloud-psql
+        cd $GITHUB_WORKSPACE
+
+    - name: "Build ucloud-envoy"
+      run: |
+        cd ./provider-integration/rpmbuild
+        make ucloud-envoy
+        cd $GITHUB_WORKSPACE
+
+    - name: "Build ucloud-envoy"
+      run: |
+        cd ./provider-integration/rpmbuild
+        make ucloud-envoy
+        cd $GITHUB_WORKSPACE
+
