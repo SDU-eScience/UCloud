@@ -44,9 +44,9 @@ jobs:
         make ucloud-envoy
         cd $GITHUB_WORKSPACE
 
-    - name: "Build ucloud-envoy"
+    - name: "Build ucloud-im"
       run: |
         cd ./provider-integration/rpmbuild
-        make ucloud-envoy
+        make ucloud-im
         cd $GITHUB_WORKSPACE
 
