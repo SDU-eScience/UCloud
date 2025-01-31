@@ -29,8 +29,7 @@ UCloud/IM is the middleware needed to integrated with the UCloud platform
 %prep
 
 %build
-git clone --depth 1 https://github.com/SDU-eScience/UCloud
-cd UCloud/provider-integration/im2
+cd ../../../provider-integration/im2
 ./build.sh
 
 %install

@@ -50,3 +50,21 @@ jobs:
         make ucloud-im
         cd $GITHUB_WORKSPACE
 
+    - name: "ucloud-psql artifact"
+      uses: actions/upload-artifact@v4
+      with:
+        name: ucloud-psql
+        path: ./provider-integration/rpmbuild/ucloud-psql/RPMS/x86_64/*
+
+    - name: "ucloud-envoy artifact"
+      uses: actions/upload-artifact@v4
+      with:
+        name: ucloud-envoy
+        path: ./provider-integration/rpmbuild/ucloud-envoy/RPMS/x86_64/*
+
+    - name: "ucloud-im artifact"
+      uses: actions/upload-artifact@v4
+      with:
+        name: ucloud-im
+        path: ./provider-integration/rpmbuild/ucloud-im/RPMS/x86_64/*
+
