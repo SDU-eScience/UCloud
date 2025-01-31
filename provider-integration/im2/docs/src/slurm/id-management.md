@@ -680,6 +680,24 @@ registered before, then the script __must:__
 
 #### Script: `onProjectUpdated`
 
+The `onProjectUpdated` script is invoked every time something related to a project occurs. At the 
+time of writing, the following events trigger the `onProjectUpdated` script:
+
+ - Project creation.
+ - Archival or unarchival of a project.
+ - Members were added or removed from a project.
+ - The roles of one or more members changed.
+ - A project group was created, renamed or deleted.
+ - Members were added or removed from a group within the project.
+
+TODO As far as I can see notifications are not sent when a project is renamed. Is this intentional?
+
+It is the responsibility of the script to take appropriate action, and to save this state, depending 
+on how your system is configured. An example of this would be to map this information to Unix 
+groups, or make appropriate calls to your identity management system.
+
+Below is an representation of request and response types, and examples, respectively.
+
 <div class="table-wrapper script-example">
 <table>
 
@@ -690,7 +708,7 @@ registered before, then the script __must:__
 ```json
 {
     /* string */
-    "ucloudProjectId": "",
+    "UCloudProjectId": "",
   
     /* string */
     "projectTitle": "",
