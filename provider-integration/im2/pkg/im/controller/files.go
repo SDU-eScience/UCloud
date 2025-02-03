@@ -58,6 +58,10 @@ type FileService struct {
 	TransferSourceBegin         func(request FilesTransferRequestStart, session TransferSession) error
 	Search                      func(ctx context.Context, query, folder string, flags FileFlags, outputChannel chan orc.ProviderFile)
 	Uploader                    upload.ServerFileSystem
+
+	CreateDrive func(drive orc.Drive) error
+	DeleteDrive func(drive orc.Drive) error
+	RenameDrive func(drive orc.Drive) error
 }
 
 type FilesBrowseFlags struct {
@@ -612,8 +616,6 @@ func controllerFiles(mux *http.ServeMux) {
 			),
 		)
 
-		mux.HandleFunc(fileContext+"streamingSearch", func(w http.ResponseWriter, r *http.Request) {})
-
 		mux.HandleFunc(
 			uploadContext,
 			func(w http.ResponseWriter, r *http.Request) {
@@ -882,7 +884,130 @@ func controllerFiles(mux *http.ServeMux) {
 				cancel()
 			},
 		)
+
+		// Drives
+		driveCreateHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Drive]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Drive]) {
+				resp := fnd.BulkResponse[util.Option[fnd.FindByStringId]]{}
+				for _, item := range request.Items {
+					TrackDrive(&item)
+
+					fn := Files.CreateDrive
+					if fn == nil {
+						sendResponseOrError(w, nil, util.ServerHttpError("Drive creation is not supported"))
+						return
+					} else {
+						err := fn(item)
+						if err != nil {
+							sendResponseOrError(w, nil, err)
+							return
+						}
+					}
+
+					resp.Responses = append(
+						resp.Responses,
+						util.Option[fnd.FindByStringId]{},
+					)
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		)
+
+		driveDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Drive]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Drive]) {
+				resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+				for _, item := range request.Items {
+					fn := Files.DeleteDrive
+					if fn == nil {
+						sendResponseOrError(w, nil, util.ServerHttpError("Drive deletion is not supported"))
+						return
+					} else {
+						err := fn(item)
+						if err != nil {
+							resp.Responses = append(
+								resp.Responses,
+								util.Option[util.Empty]{
+									Present: false,
+								},
+							)
+						} else {
+							resp.Responses = append(
+								resp.Responses,
+								util.Option[util.Empty]{
+									Present: true,
+								},
+							)
+
+							RemoveTrackedDrive(item.Id)
+						}
+					}
+				}
+
+				sendResponseOrError(w, resp, nil)
+			},
+		)
+
+		driveEndpoint, _ := strings.CutSuffix(driveContext, "/")
+		mux.HandleFunc(driveEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				driveDeleteHandler(w, r)
+			} else if r.Method == http.MethodPost {
+				driveCreateHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.ServerHttpError("Unknown endpoint"))
+			}
+		})
+
+		type driveRenameRequestItem struct {
+			Id       string `json:"id"`
+			NewTitle string `json:"newTitle"`
+		}
+
+		mux.HandleFunc(driveContext+"rename",
+			HttpUpdateHandler[fnd.BulkRequest[driveRenameRequestItem]](
+				0,
+				func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[driveRenameRequestItem]) {
+					resp := fnd.BulkResponse[util.Option[util.Empty]]{}
+					for _, item := range request.Items {
+						retrievedDrive, ok := RetrieveDrive(item.Id)
+						if !ok {
+							sendResponseOrError(w, nil, util.ServerHttpError("Unknown drive"))
+							return
+						}
+						driveCopy := *retrievedDrive
+						oldTitle := driveCopy.Specification.Title
+						driveCopy.Specification.Title = item.NewTitle
+						TrackDrive(&driveCopy)
+
+						fn := Files.RenameDrive
+						if fn != nil {
+							err := fn(driveCopy)
+							if err != nil {
+								sendResponseOrError(w, nil, err)
+								return
+							} else {
+								driveCopy.Specification.Title = oldTitle
+								TrackDrive(&driveCopy)
+							}
+						}
+
+						resp.Responses = append(
+							resp.Responses,
+							util.Option[util.Empty]{
+								Present: true,
+							},
+						)
+					}
+
+					sendResponseOrError(w, resp, nil)
+				},
+			),
+		)
 	}
+
 	if RunsServerCode() {
 		type retrieveProductsRequest struct{}
 		mux.HandleFunc(

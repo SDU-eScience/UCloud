@@ -56,6 +56,9 @@ func InitFiles() ctrl.FileService {
 		TransferSourceBegin:         transferSourceBegin,
 		Search:                      search,
 		Uploader:                    &uploaderFileSystem{},
+		CreateDrive:                 createDrive,
+		DeleteDrive:                 deleteDrive,
+		RenameDrive:                 renameDrive,
 	}
 }
 
@@ -774,7 +777,17 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
-	parentDir, ok1 := openFile(filepath.Dir(trashLocation), unix.O_RDONLY, 0)
+	err := doDeleteFile(trashLocation)
+	if err != nil {
+		return err
+	}
+
+	_ = doCreateFolder(trashLocation)
+	return nil
+}
+
+func doDeleteFile(internalPath string) error {
+	parentDir, ok1 := openFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := openFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
 	defer util.SilentClose(stagingArea)
@@ -784,7 +797,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 
 	err := unix.Renameat(
 		int(parentDir.Fd()),
-		filepath.Base(trashLocation),
+		filepath.Base(internalPath),
 		int(stagingArea.Fd()),
 		util.RandomToken(16),
 	)
@@ -792,8 +805,6 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	if err != nil {
 		return util.UserHttpError("Unable to empty the trash at the moment")
 	}
-
-	_ = doCreateFolder(trashLocation)
 
 	return nil
 }
@@ -1005,4 +1016,18 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 
 	normalFileWalk(ctx, files, file, stat)
 	close(files)
+}
+
+func createDrive(drive orc.Drive) error {
+	localPath := DriveToLocalPath(&drive)
+	return doCreateFolder(localPath)
+}
+
+func deleteDrive(drive orc.Drive) error {
+	return doDeleteFile(DriveToLocalPath(&drive))
+}
+
+func renameDrive(_ orc.Drive) error {
+	// Nothing to do
+	return nil
 }
