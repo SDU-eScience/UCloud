@@ -23,6 +23,7 @@ import {EditorSidebarNode, FileTree, VirtualFile} from "@/Files/FileTree";
 import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {useBeforeUnload} from "react-router-dom";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -331,12 +332,6 @@ export interface EditorApi {
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
-function dirtyFileWarning(e: BeforeUnloadEvent) {
-    // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
-    //e.preventDefault();
-    //return e.returnValue = "truthy value";
-    /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
-}
 
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
@@ -363,20 +358,12 @@ export const Editor: React.FunctionComponent<{
     const monacoRef = useRef<any>(null);
     const [tabs, setOpenTabs] = useState<string[]>([state.currentPath]);
 
-
     const prettyPath = usePrettyFilePath(state.currentPath ?? "");
     usePage(fileName(prettyPath), SidebarTabId.FILES);
 
     const [closedTabs, setClosedTabs] = useState<string[]>([]);
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
     const isSettingsOpen = state.currentPath === SETTINGS_PATH;
-
-    React.useEffect(() => {
-        window.addEventListener("beforeunload", dirtyFileWarning);
-        return () => {
-            window.removeEventListener("beforeunload", dirtyFileWarning);
-        }
-    }, []);
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -782,6 +769,20 @@ export const Editor: React.FunctionComponent<{
         openTabOperationWindow.current(position.x, position.y);
     }, [tabs, closedTabs, state.currentPath]);
 
+    useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
+        // TODO(Jonas): Only handles closing window, not UCloud navigation 
+        const anyDirty = false;
+        if (anyDirty) {
+            // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
+            e.preventDefault();
+            e.returnValue = "truthy value";
+            return e;
+        }
+        return e;
+        /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
+    });
+
+
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = state.currentPath === "";
 
@@ -934,6 +935,7 @@ export const Editor: React.FunctionComponent<{
     </div>;
 };
 
+/* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
     tabPath: string,
     openTabs: string[],

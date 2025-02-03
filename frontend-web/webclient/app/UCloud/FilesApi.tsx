@@ -352,22 +352,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "download",
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
-                    // TODO(Dan): We should probably add a feature flag for file types
-
-                    if (selected.length > 1) {
-                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
-                    }
-
-                    const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                        this.createDownload(bulkRequestOf(
-                            ...selected.map(it => ({id: it.id})),
-                        ))
-                    );
-
-                    const responses = result?.responses ?? [];
-                    for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
-                    }
+                    this.download(selected.map(it => it.id));
                 },
                 shortcut: ShortcutKey.D
             },
@@ -380,44 +365,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Copy to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.copy({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files copied", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            additionalFilters: {
-                                filterProvider: selected[0].specification.product.provider
-                            },
-                            initialPath: pathRef.current,
-                        }} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.copyModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.C
             },
@@ -491,43 +439,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Move to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.move({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files moved", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            initialPath: pathRef.current,
-                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }} />,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.M
             },
@@ -770,6 +682,108 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+
+    // -- Shared file operations -- 
+    // TODO(Dan): We should probably add a feature flag for file types
+    public async download(ids: string[]) {
+        if (ids.length > 1) {
+            snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+        }
+
+        const result = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+            this.createDownload(bulkRequestOf(
+                ...ids.map(id => ({id})),
+            ))
+        );
+
+        const responses = result?.responses ?? [];
+        for (const {endpoint} of responses) {
+            downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
+        }
+    }
+
+    public copyModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Copy to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        try {
+                            const result = await callAPI(
+                                this.copy({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files copied", false);
+                            return true;
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                            return false;
+                        }
+                    }
+                },
+                additionalFilters: {
+                    filterProvider: provider
+                },
+                initialPath: pathRef.current,
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
+
+    public moveModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Move to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                        try {
+                            const result = await callAPI(
+                                this.move({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files moved", false);
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                        }
+                    }
+                },
+                initialPath: pathRef.current,
+                additionalFilters: {filterProvider: provider}
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
 }
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
@@ -1261,12 +1275,13 @@ export function FilePreview({initialFile}: {
 
     const operations = useCallback((file: VirtualFile): Operation<any>[] => {
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
+        const reload = () => {
+            editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
+        }
         return [
             {
-                primary: false,
                 icon: "heroFolderPlus",
                 text: "New folder",
-                confirm: false,
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
@@ -1275,17 +1290,71 @@ export function FilePreview({initialFile}: {
                 shortcut: ShortcutKey.F,
             },
             {
-                primary: false,
                 icon: "heroDocumentPlus",
                 text: "New file",
-                confirm: false,
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
                     newFile(file.absolutePath + suffix).then(doNothing);
                 },
                 shortcut: ShortcutKey.G,
-            }
+            },
+            /* {
+                // TODO(Jonas): This is not as easy as the others to implement.
+                icon: "edit",
+                text: "Rename",
+                enabled: () => true,
+                onClick: () => {
+                    prompt("Yeah, todo, sorry.")
+                },
+                shortcut: ShortcutKey.E
+            }, */
+            {
+                icon: "trash",
+                text: "Move to trash",
+                enabled: () => true,
+                onClick: async () => {
+                    await callAPI(
+                        api.trash({
+                            type: "bulk",
+                            items: [{id: file.absolutePath}],
+                        })
+                    );
+                    reload();
+                    snackbarStore.addSuccess("File(s) moved to trash", false);
+                },
+                shortcut: ShortcutKey.R
+            },
+            {
+                icon: "copy",
+                text: "Copy file",
+                enabled: () => true,
+                onClick: () => {
+                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.C
+            },
+            {
+                icon: "move",
+                text: "Move file",
+                enabled: () => true,
+                onClick: () => {
+                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.M
+                // MOVE
+            },
+            {
+                icon: "download",
+                text: "Download file",
+                enabled: () => true,
+                onClick: async () => {
+                    // TODO(Dan): We should probably add a feature flag for file types
+                    api.download([file.absolutePath]);
+                },
+                shortcut: ShortcutKey.D
+                // DOWNLOAD
+            },
         ];
     }, []);
 
