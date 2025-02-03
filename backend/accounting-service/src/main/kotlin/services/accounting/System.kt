@@ -230,6 +230,7 @@ class AccountingSystem(
                                         is AccountingRequest.RetrieveScopedUsage -> retrieveScopedUsage(msg)
                                         is AccountingRequest.ResetWalletHierarchy -> resetWalletHierarchy(msg)
                                         is AccountingRequest.ProviderDump -> providerDump(msg)
+                                        is AccountingRequest.ResendNotification -> resendNotification(msg)
                                         is AccountingRequest.DebugCharge -> debugCharge(msg)
                                         is AccountingRequest.DebugWallet -> debugWallet(msg)
                                         is AccountingRequest.DebugState -> {
@@ -425,6 +426,16 @@ class AccountingSystem(
         }
 
         return Response.ok(Unit)
+    }
+
+    private fun resendNotification(msg: AccountingRequest.ResendNotification): Response<Unit> {
+        if (msg.idCard != IdCard.System) {
+            return Response.error(HttpStatusCode.Forbidden, "Forbidden")
+        } else {
+            val wallet = walletsById[msg.walletId] ?: return Response.error(HttpStatusCode.NotFound, "unknown wallet")
+            markSignificantUpdate(wallet, Time.now())
+            return Response.ok(Unit)
+        }
     }
 
     private fun providerDump(msg: AccountingRequest.ProviderDump): Response<String> {
@@ -1206,9 +1217,17 @@ class AccountingSystem(
                 }
             }
 
+
             var error: String? = null
-            if (overSpendingWallets.isNotEmpty()) {
-                error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+
+            // NOTE(Dan): We only consider this an error if our wallet is locked now. This property should naturally
+            //   be set by reevaluateWalletsAfterUpdate. We do not use overSpendingWallets for this since it might
+            //   cause problems when a wallet has multiple parents.
+            if (wallet.wasLocked) {
+                error = "${wallet.id} is overspending"
+                if (overSpendingWallets.isNotEmpty()) {
+                    error = "${overSpendingWallets.take(10).joinToString(", ")} is overspending"
+                }
             }
 
             debug {

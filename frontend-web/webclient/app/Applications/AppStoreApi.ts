@@ -253,6 +253,33 @@ export namespace ApplicationParameterNS {
         optional: boolean;
         type: ("workflow");
     }
+
+    export interface Readme {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("readme");
+    }
+
+    export interface ModuleList {
+        name: string;
+        title: string;
+        description: string;
+        defaultValue?: any;
+        optional: boolean;
+        type: ("modules");
+        supportedModules: Module[];
+    }
+
+    export interface Module {
+        name: string;
+        description: string;
+        shortDescription: string;
+        dependsOn: string[][];
+        documentationUrl?: string | null;
+    }
 }
 
 export type ApplicationParameter =
@@ -269,6 +296,8 @@ export type ApplicationParameter =
     | ApplicationParameterNS.LicenseServer
     | ApplicationParameterNS.NetworkIP
     | ApplicationParameterNS.Workflow
+    | ApplicationParameterNS.Readme
+    | ApplicationParameterNS.ModuleList
 
 export interface VncDescription {
     password?: string;

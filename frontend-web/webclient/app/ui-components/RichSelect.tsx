@@ -46,6 +46,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         const trigger = triggerRef.current;
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
+        setQuery("");
         setDropdownSize(width + "px");
     }, []);
 
@@ -69,6 +70,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
+        height={Math.min(370, 40 * (filteredElements.length + 1))}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -81,7 +83,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             closeFn.current();
         }}
     >
-        <div style={{maxHeight: "385px", width: dropdownSize}}>
+        <div style={{height: "320px", width: dropdownSize}}>
             <Flex>
                 <Input
                     autoFocus
@@ -127,7 +129,6 @@ export function RichSelect<T, K extends keyof T>(props: {
                         <props.RenderRow
                             element={props.noResultsItem}
                             onSelect={() => {
-                                console.log(props.noResultsItem);
                                 props.onSelect(props.noResultsItem as T)
                             }}
                             dataProps={{

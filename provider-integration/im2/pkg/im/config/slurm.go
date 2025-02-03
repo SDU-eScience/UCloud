@@ -28,6 +28,7 @@ type SlurmCompute struct {
 	SystemLoadCommand      util.Option[string]
 	SystemUnloadCommand    util.Option[string]
 	Srun                   util.Option[SrunConfiguration]
+	ModulesFile            util.Option[string]
 }
 
 type SrunConfiguration struct {
@@ -40,6 +41,7 @@ type SlurmApplicationConfiguration struct {
 	Load     string
 	Unload   string
 	Srun     util.Option[SrunConfiguration]
+	Readme   util.Option[string]
 }
 
 type SlurmWebConfiguration struct {
@@ -530,6 +532,11 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 			cfg.Compute.SystemUnloadCommand.Set(globalUnload)
 		}
 
+		moduleFile := optionalChildText(filePath, slurmNode, "modulesFile", &success)
+		if moduleFile != "" {
+			cfg.Compute.ModulesFile.Set(moduleFile)
+		}
+
 		apps, ok := parseSlurmApplications(filePath)
 		if !ok {
 			return false, cfg
@@ -767,6 +774,11 @@ func parseSlurmApplication(filePath string, name string, node *yaml.Node, succes
 
 	result.Load = optionalChildText(filePath, node, "load", success)
 	result.Unload = optionalChildText(filePath, node, "unload", success)
+	result.Readme.Set(optionalChildText(filePath, node, "readme", success))
+	if result.Readme.Value == "" {
+		result.Readme.Present = false
+	}
+
 	srunChild, _ := getChildOrNil(filePath, node, "srun")
 	if srunChild != nil {
 		result.Srun.Set(parseSrunConfiguration(filePath, srunChild, success))

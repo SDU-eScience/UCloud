@@ -1,0 +1,1 @@
+UCLOUD_ENVOY_OPTS="--config-path /etc/ucloud/envoy/config.yaml"

@@ -35,6 +35,8 @@ type sbatchTemplateSession struct {
 	Error                error
 	PreviouslyLoaded     map[orc.NativeApplication]appCfgAndVersion
 	SrunOverride         util.Option[cfg.SrunConfiguration]
+	ParametersAndValues  map[string]orc.ParamAndValue
+	Parameters           map[string]orc.AppParameterValue
 }
 
 func (s *sbatchTemplateSession) compareVersions(a, b string, missingComponentIsEquality bool) int {
@@ -325,7 +327,17 @@ func sbatchTemplate(session any, fn string, args []string) string {
 		return templateSession.UnloadApplication(args[0], args[1])
 
 	case "systemLoad":
-		return ServiceConfig.Compute.SystemLoadCommand.GetOrDefault("")
+		sysLoad := ServiceConfig.Compute.SystemLoadCommand.GetOrDefault("")
+		builder := sysLoad + "\n"
+
+		modulesToLoad, ok := templateSession.Parameters[SlurmModulesParameter]
+		if ok {
+			for _, m := range modulesToLoad.Modules {
+				builder += fmt.Sprintf("module load %s\n", orc.EscapeBash(m))
+			}
+		}
+
+		return builder
 
 	case "systemUnload":
 		return ServiceConfig.Compute.SystemUnloadCommand.GetOrDefault("")
@@ -704,12 +716,14 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 		}
 
 		sbatchTplSession := &sbatchTemplateSession{
-			Applications:     ServiceConfig.Compute.Applications,
-			VersionPolicy:    "loose",
-			VersionTarget:    util.Option[string]{},
-			Error:            nil,
-			PreviouslyLoaded: make(map[orc.NativeApplication]appCfgAndVersion),
-			SrunOverride:     ServiceConfig.Compute.Srun,
+			Applications:        ServiceConfig.Compute.Applications,
+			VersionPolicy:       "loose",
+			VersionTarget:       util.Option[string]{},
+			Error:               nil,
+			PreviouslyLoaded:    make(map[orc.NativeApplication]appCfgAndVersion),
+			SrunOverride:        ServiceConfig.Compute.Srun,
+			ParametersAndValues: parametersAndValues,
+			Parameters:          job.Specification.Parameters,
 		}
 
 		load := tool.Description.LoadInstructions.Get()

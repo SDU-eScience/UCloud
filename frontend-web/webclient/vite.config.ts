@@ -63,6 +63,7 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             }
         },
         server: {
+            allowedHosts: ["ucloud.localhost.direct", "localhost:9000"],
             port: port ?? 9000,
             host: "0.0.0.0",
             cors: {
