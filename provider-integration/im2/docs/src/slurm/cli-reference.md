@@ -10,12 +10,41 @@ where the `ucloud` binary is in your `PATH`. Commands are invoked in the followi
 $ ucloud <command> <subcommand> [options]
 ```
 
-where `<command>` can be any of the options described in the following sections. For example can 
-users who have connected to your provider be listed with:
+where `<command>` and `<subcommand>` can be any of the options described in the following sections. 
+For example you can list the UCloud projects on your system and their corresponding local ID with
 
 ```terminal
-$ ucloud users ls
+$ ucloud projects ls
 ```
+
+Additional parameters or options can be given to some subcommands. For example, if you want the list 
+only to contain projects with the name *test* in the name, you can use the `--ucloud-name` option:
+
+```terminal
+$ ucloud projects ls --ucloud-name test
+```
+
+Since `--ucloud-name` is a query parameter that supports regex, it acts as a fuzzy search that 
+returns all projects that contains the word `test` in its name.
+
+<div class="info-box info">
+<i class="fa fa-info-circle"></i>
+<div>
+
+Due to how `[options]` are parsed, any of the following ways to pass options are currently 
+permitted:
+
+ - `-option=value`
+ - `-option value`
+ - `--option=value`
+ - `--option value`
+</div>
+</div>
+
+
+
+
+
 
 ## Commands
 
@@ -37,21 +66,88 @@ Description
 <tr>
 <td>
 
-`get`, `retrieve`, `stat`, `view`
+`ls`, `list`
 
 </td>
 <td>
+List allocations on the system.
+
+#### Optional parameters
+
+`--ucloud-project-id <string>`
+
+Query by UCloud project ID. Supports regex.
+
+
+`--local-user <string>`
+
+Query by local user name. Supports regex.
+
+
+`--local-group <string>`
+
+Query by the local group name. Supports regex.
+
+
+`--local-uid <string>`
+
+Query by local user ID. Supports regex.
+
+
+`--local-gid <string>`
+
+Query by local ID (GID). Supports regex.
+
+
+`--category <string>`
+
+Query by product category (Product). Supports regex.
+	
 </td>
 </tr>
 <tr>
 <td>
 
-`ls`, `list`
+`get`, `retrieve`, `stat`, `view`
 
 </td>
 <td>
+View details about allocations on the system.
+
+#### Optional parameters
+
+`--ucloud-project-id <string>`
+
+Query by UCloud project ID. Supports regex.
+
+
+`--local-user <string>`
+
+Query by local user name. Supports regex.
+
+
+`--local-group <string>`
+
+Query by the local group name. Supports regex.
+
+
+`--local-uid <string>`
+
+Query by local user ID. Supports regex.
+
+
+`--local-gid <string>`
+
+Query by local ID (GID). Supports regex.
+
+
+`--category <string>`
+
+Query by product category (Product). Supports regex.
+	
 </td>
 </tr>
+
 </tbody>
 </table>
 </div>
@@ -77,16 +173,6 @@ Description
 </tr>
 </thead>
 <tbody>
-
-<tr>
-<td>
-
-`get`, `retrieve`, `stat`, `view`
-
-</td>
-<td>
-</td>
-</tr>
 <tr>
 <td>
 
@@ -94,8 +180,85 @@ Description
 
 </td>
 <td>
+List all drives.
+
+`--ucloud-id <string>`
+
+Query by the UCloud ID of the drive. Supports regex.
+
+`--ucloud-project-id <string>`
+
+Query by the UCloud project ID of the owner of the drive. Supports regex.
+
+`--local-user <string>`
+
+Query by the local user name that owns the drive. Supports regex.
+
+`--local-group <string>`
+
+Query by the local group (GID) that owns the drive. Supports regex.
+
+`--local-uid <string>`
+
+Query by the local UID of the user that owns the drive. Supports regex.
+
+`--local-gid <string>`
+
+Query by the local GID of the user that own the drive. Supports regex.
+
+`--ucloud-path <string>`
+
+Query by the path to the drive on UCloud. Does not support regex.
+
+`--local-path <string>`
+
+Query by the local path on your system. Does not support regex.
 </td>
 </tr>
+<tr>
+<td>
+
+`get`, `retrieve`, `stat`, `view`
+
+</td>
+<td>
+Get detailed information about drives.
+
+`--ucloud-id <string>`
+
+Query by the UCloud ID of the drive. Supports regex.
+
+`--ucloud-project-id <string>`
+
+Query by the UCloud project ID of the owner of the drive. Supports regex.
+
+`--local-user <string>`
+
+Query by the local user name that owns the drive. Supports regex.
+
+`--local-group <string>`
+
+Query by the local group (GID) that owns the drive. Supports regex.
+
+`--local-uid <string>`
+
+Query by the local UID of the user that owns the drive. Supports regex.
+
+`--local-gid <string>`
+
+Query by the local GID of the user that own the drive. Supports regex.
+
+`--ucloud-path <string>`
+
+Query by the path to the drive on UCloud. Does not support regex.
+
+`--local-path <string>`
+
+Query by the local path on your system. Does not support regex.
+
+</td>
+</tr>
+
 </tbody>
 </table>
 </div>
@@ -103,28 +266,6 @@ Description
 
 
 ### `jobs`
-
-<div class="table-wrapper">
-<table>
-<thead>
-<tr>
-<td>
-Subcommand
-</td>
-<td>
-Description
-</td>
-</tr>
-</thead>
-<tbody>
-
-</tbody>
-</table>
-</div>
-
-
-
-### `projects`
 
 <div class="table-wrapper">
 <table>
@@ -152,14 +293,12 @@ Description
 <tr>
 <td>
 
-`delete`, `del`, `rm`, `remove`
+`get`, `retrieve`, `stat`, `view`
 
 </td>
 <td>
-
 </td>
 </tr>
-
 <tr>
 <td>
 
@@ -167,6 +306,59 @@ Description
 
 </td>
 <td>
+</td>
+</tr>
+
+</tbody>
+</table>
+</div>
+
+
+
+### `projects`
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`ls`, `list`
+
+</td>
+<td>
+List UCloud projects with a mapping to your system.
+
+#### Optional parameters
+
+`--ucloud-name <string>`
+
+Query by UCloud name. Supports regex.
+
+
+`--ucloud-id <string>`
+
+
+Query by UCloud ID. Supports regex.
+
+
+`--local-name <string>`
+
+Query by local name. Supports regex.
+
+`--local-id <string>`
+
+Query by local ID. Supports regex.
 
 </td>
 </tr>
@@ -177,6 +369,20 @@ Description
 
 </td>
 <td>
+
+Replaces the local ID (GID) of the project with the current local ID `old-id`, with the new local ID 
+`new-id`. This changes the mapping of the UCloud project to a new local project. It is also possible 
+to replace the mapping of one project mapping with another through this command.
+
+#### Parameters
+
+`--old-id <number>`
+
+The old GID of the project to replace.
+
+`--new-id <number>`
+
+The new GID of the project to replace.
 
 </td>
 </tr>
@@ -205,7 +411,55 @@ Description
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
 
+`ls`, `list`
+
+</td>
+<td>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`get`, `retrieve`, `stat`, `view`
+
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+
+`delete`, `del`, `rm`, `remove`
+
+</td>
+<td>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`clear`
+
+</td>
+<td>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`help`
+
+</td>
+<td>
+
+</td>
+</tr>
 </tbody>
 </table>
 </div>
