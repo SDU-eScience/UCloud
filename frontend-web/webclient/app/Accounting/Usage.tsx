@@ -1592,12 +1592,7 @@ const RenderProductSelector: RichSelectChildComponent<State["summaries"][0]> = (
             width={32}
             height={32}
         />
-        <Box height={32}>
-            <ProviderLogo providerId={element.category.provider} size={32} />
-            <div style={{position: "relative", top: "-16px", left: "20px"}}>
-                <Icon name={Accounting.productTypeToIcon(element.category.productType)} size={16} />
-            </div>
-        </Box>
+        <ProviderLogo providerId={element.category.provider} size={32} />
         <div><b>{element.category.name}</b></div>
         <Box flexGrow={1} />
         <div>{usageToString(s.category, s.usage, s.quota, false)}</div>
