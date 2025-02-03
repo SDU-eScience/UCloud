@@ -660,3 +660,9 @@ export function deepEquals(a: any, b: any): boolean {
 
     return false;
 }
+
+export function getOrNull<T>(array: T[], index: number): T | null {
+    if (index < 0) return null;
+    if (index >= array.length) return null;
+    return array[index];
+}

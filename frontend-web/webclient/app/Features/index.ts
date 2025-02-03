@@ -21,6 +21,8 @@ export enum Feature {
     EDITOR_VIM,
 
     PROVIDER_CONDITION,
+
+    ALTERNATIVE_USAGE_SELECTOR
 }
 
 enum Environment {
@@ -121,6 +123,11 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.JOB_RENAME,
         showWithFlag: allDevEnvironments,
         showWithoutFlag: allLocalEnvironments
+    },
+    "alternative-usage-selector": {
+        feature: Feature.ALTERNATIVE_USAGE_SELECTOR,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
     }
 };
 
@@ -146,8 +153,10 @@ export function hasFeature(feature: Feature): boolean {
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];
+        const flagValue = localStorage.getItem(key);
+        if (flagValue === "false") return false;
         if (withoutFlag.indexOf(env) !== -1) return true;
-        if (withFlag.indexOf(env) !== -1 && localStorage.getItem(key) !== null) return true;
+        if (withFlag.indexOf(env) !== -1 && flagValue != null) return true;
     }
     return false;
 }

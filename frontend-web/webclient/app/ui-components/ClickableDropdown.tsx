@@ -233,8 +233,6 @@ function ClickableDropdown<T>({
             heightAsNumber = Math.max(props.height, heightAsNumber);
         }
 
-        console.log({screenWidth, screenHeight, x, y, widthAsNumber, heightAsNumber});
-
         if (x + widthAsNumber >= screenWidth) {
             left = x - widthAsNumber;
         }

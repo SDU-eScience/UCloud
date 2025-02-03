@@ -212,12 +212,26 @@ function DashboardResources({wallets}: {
         const mapped = wallets.data.items.filter(it => !it.paysFor.freeToUse && it.quota > 0);
         const tree = Accounting.buildAllocationDisplayTree(mapped).yourAllocations;
 
+        const providers: string[] = [];
+        for (const node of Object.values(tree)) {
+            for (const wallet of node.wallets) {
+                if (providers.indexOf(wallet.category.provider) === -1) {
+                    providers.push(wallet.category.provider);
+                }
+            }
+        }
+
+        providers.sort();
+
         const displayWallets: AllocationDisplayWallet[] = [];
-        for (const category of Accounting.productTypesByPriority) {
-            const entry = tree[category];
-            if (!entry) continue;
-            for (const wallet of entry.wallets) {
-                displayWallets.push(wallet);
+        for (const provider of providers) {
+            for (const category of Accounting.productTypesByPriority) {
+                const entry = tree[category];
+                if (!entry) continue;
+                for (const wallet of entry.wallets) {
+                    if (wallet.category.provider !== provider) continue;
+                    displayWallets.push(wallet);
+                }
             }
         }
         return displayWallets;
