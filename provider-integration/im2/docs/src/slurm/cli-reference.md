@@ -21,11 +21,108 @@ $ ucloud users ls
 
 ### `allocations`
 
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+
+`get`, `retrieve`, `stat`, `view`
+
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+
+`ls`, `list`
+
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
 ### `connect`
+
+TODO
+
 
 ### `drives`
 
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+
+`get`, `retrieve`, `stat`, `view`
+
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+
+`ls`, `list`
+
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+
+
 ### `jobs`
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+
+</tbody>
+</table>
+</div>
+
+
 
 ### `projects`
 
@@ -36,7 +133,6 @@ $ ucloud users ls
 <td>
 Subcommand
 </td>
-
 <td>
 Description
 </td>
@@ -96,9 +192,69 @@ $ ucloud projects ls
 
 ### `scripts`
 
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+
+</tbody>
+</table>
+</div>
+
+
+
 ### `slurm-accounts`
 
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+
+</tbody>
+</table>
+</div>
+
+
+
 ### `tasks`
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<td>
+Subcommand
+</td>
+<td>
+Description
+</td>
+</tr>
+</thead>
+<tbody>
+
+</tbody>
+</table>
+</div>
+
+
 
 ### `users`
 
