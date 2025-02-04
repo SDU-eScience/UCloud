@@ -356,10 +356,16 @@ export const Editor: React.FunctionComponent<{
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
-    const [tabs, setOpenTabs] = useState<string[]>([state.currentPath]);
+    const [openTabs, setOpenTabs] = useState<string[]>([state.currentPath]);
 
     const prettyPath = usePrettyFilePath(state.currentPath ?? "");
-    usePage(fileName(prettyPath), SidebarTabId.FILES);
+    if (state.currentPath === SETTINGS_PATH) {
+        usePage("Settings", SidebarTabId.FILES);
+    } else if (state.currentPath === "") {
+        usePage("Preview", SidebarTabId.FILES);
+    } else {
+        usePage(fileName(prettyPath), SidebarTabId.FILES);
+    }
 
     const [closedTabs, setClosedTabs] = useState<string[]>([]);
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
@@ -764,10 +770,10 @@ export const Editor: React.FunctionComponent<{
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, tabs, setOpenTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
+        const ops = tabOperations(title, openTabs, setOpenTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
-    }, [tabs, closedTabs, state.currentPath]);
+    }, [openTabs, closedTabs, state.currentPath]);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         // TODO(Jonas): Only handles closing window, not UCloud navigation 
@@ -784,7 +790,7 @@ export const Editor: React.FunctionComponent<{
 
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
-    const showEditorHelp = state.currentPath === "";
+    const showEditorHelp = openTabs.length === 0;
 
     return <div className={editorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -802,7 +808,7 @@ export const Editor: React.FunctionComponent<{
         <div className={"main-content"}>
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
                 <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
-                    {tabs.map((t, index) =>
+                    {openTabs.map((t, index) =>
                         <EditorTab
                             key={t}
                             isDirty={false /* TODO */}
@@ -904,31 +910,36 @@ export const Editor: React.FunctionComponent<{
                             </Box>
                         </Flex>
 
-                    </Flex> : showEditorHelp && props.help ? props.help :
-                        <>
-                            <div style={{
-                                display: props.showCustomContent ? "none" : "block",
-                                width: "100%",
-                                height: "100%"
-                            }}>
-                                {engine !== "monaco" ? null :
-                                    <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                                }
+                    </Flex> :
+                    <>
+                        {/* 
+                            Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
+                            I would assume that the `isSettingsOpen`-flag would cause the same issue, but it doesn't for some reason.
+                        */}
+                        {showEditorHelp && props.help ? props.help : null}
+                        <div style={{
+                            display: props.showCustomContent || (showEditorHelp && props.help) ? "none" : "block",
+                            width: "100%",
+                            height: "100%",
+                        }}>
+                            {engine !== "monaco" ? null :
+                                <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
+                            }
 
-                                {engine !== "vim" ? null :
-                                    <VimEditor vim={vimRef} onInit={doNothing} />
-                                }
-                            </div>
+                            {engine !== "vim" ? null :
+                                <VimEditor vim={vimRef} onInit={doNothing} />
+                            }
+                        </div>
 
-                            <div style={{
-                                display: props.showCustomContent ? "block" : "none",
-                                width: "100%",
-                                height: "100%",
-                                maxHeight: "calc(100vh - 64px)",
-                                padding: "16px",
-                                overflow: "auto",
-                            }}>{props.customContent}</div>
-                        </>
+                        <div style={{
+                            display: props.showCustomContent ? "block" : "none",
+                            width: "100%",
+                            height: "100%",
+                            maxHeight: "calc(100vh - 64px)",
+                            padding: "16px",
+                            overflow: "auto",
+                        }}>{props.customContent}</div>
+                    </>
                 }
             </div>
         </div>
@@ -1013,6 +1024,7 @@ function tabOperations(
             setClosedTabs(closedTabs => {
                 const tab = closedTabs.pop();
                 if (tab) setOpenTabs(openTabs => [...openTabs, tab]);
+                // TODO(Jonas): Actually set the re-opened tab as active
                 return closedTabs;
             });
         },

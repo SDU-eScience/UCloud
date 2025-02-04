@@ -1349,7 +1349,6 @@ export function FilePreview({initialFile}: {
                 text: "Download file",
                 enabled: () => true,
                 onClick: async () => {
-                    // TODO(Dan): We should probably add a feature flag for file types
                     api.download([file.absolutePath]);
                 },
                 shortcut: ShortcutKey.D
