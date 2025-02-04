@@ -76,6 +76,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
+import {edit} from "@/ui-components/icons";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1053,6 +1054,7 @@ export function FilePreview({initialFile}: {
     const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
+    const [renamingFile, setRenamingFile] = useState<string>();
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
@@ -1274,6 +1276,40 @@ export function FilePreview({initialFile}: {
         }, 200);
     }, [openFile[0]]);
 
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+        let success = false;
+        if (cancel) {
+            setRenamingFile(undefined);
+            return false;
+        }
+
+        try {
+            await callAPI(api.move({
+                type: "bulk",
+                items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
+            }));
+            editorRef.current?.invalidateTree?.(getParentPath(initialFile.id));
+            setRenamingFile(undefined);
+
+            // TODO:
+            // [x] Rename file - if not equal to previous name
+            // [ ] Move content from vfs.cachedContent (or what it's called) and move it to its new path
+            // [x] Update tab
+
+            vfs.moveFileContent(oldAbsolutePath, newAbsolutePath);
+
+            if (editorRef.current?.path === oldAbsolutePath) {
+                editorRef.current.openFile(newAbsolutePath)
+            }
+
+            success = true;
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to rename file");
+        }
+
+        return success;
+    }, []);
+
     const operations = useCallback((file: VirtualFile): Operation<any>[] => {
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
         const reload = () => {
@@ -1300,16 +1336,15 @@ export function FilePreview({initialFile}: {
                 },
                 shortcut: ShortcutKey.G,
             },
-            /* {
-                // TODO(Jonas): This is not as easy as the others to implement.
+            {
                 icon: "edit",
                 text: "Rename",
                 enabled: () => true,
                 onClick: () => {
-                    prompt("Yeah, todo, sorry.")
+                    setRenamingFile(file.absolutePath);
                 },
                 shortcut: ShortcutKey.E
-            }, */
+            },
             {
                 icon: "trash",
                 text: "Move to trash",
@@ -1405,6 +1440,8 @@ export function FilePreview({initialFile}: {
         showCustomContent={node != null}
         customContent={node}
         onOpenFile={onOpenFile}
+        onRename={onRename}
+        renamingFile={renamingFile}
         operations={operations}
         fileHeaderOperations={
             <>
@@ -1517,6 +1554,20 @@ class PreviewVfs implements Vfs {
 
     setDirtyFileContent(path: string, content: string): void {
         this.dirtyFileContent[path] = content;
+    }
+
+    public moveFileContent(oldPath: string, newPath: string) {
+        if (this.dirtyFileContent[oldPath]) {
+            const content = this.dirtyFileContent[oldPath];
+            delete this.dirtyFileContent[oldPath];
+            this.dirtyFileContent[newPath] = content;
+        }
+
+        if (this.fetchedFiles[oldPath]) {
+            const content = this.fetchedFiles[oldPath];
+            delete this.fetchedFiles[oldPath];
+            this.fetchedFiles[newPath] = content;
+        }
     }
 
     async readFile(path: string): Promise<string | Uint8Array> {

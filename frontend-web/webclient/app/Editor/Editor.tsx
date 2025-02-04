@@ -347,6 +347,8 @@ export const Editor: React.FunctionComponent<{
     operations?: (file: VirtualFile) => Operation<any>[];
     help?: React.ReactNode;
     fileHeaderOperations?: React.ReactNode;
+    renamingFile?: string;
+    onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     readOnly: boolean;
 }> = props => {
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
@@ -794,6 +796,29 @@ export const Editor: React.FunctionComponent<{
         /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
     });
 
+    const onRename = React.useCallback(async (args: {newAbsolutePath: string; oldAbsolutePath: string; cancel: boolean;}) => {
+        if (!props.onRename) return;
+
+        const fileUpdated = await props.onRename(args);
+        if (fileUpdated) {
+            setTabs(tabs => {
+                const openTabs = tabs.open;
+                const closedTabs = tabs.closed;
+
+                const openIdx = openTabs.findIndex(it => it === args.oldAbsolutePath);
+                if (openIdx !== -1) openTabs[openIdx] = args.newAbsolutePath;
+
+                const closedIdx = closedTabs.findIndex(it => it === args.oldAbsolutePath);
+                if (closedIdx !== -1) closedTabs[closedIdx] = args.newAbsolutePath;
+
+                return {
+                    open: openTabs,
+                    closed: closedTabs,
+                }
+            });
+        }
+    }, []);
+
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
@@ -808,6 +833,8 @@ export const Editor: React.FunctionComponent<{
             initialFilePath={props.initialFilePath}
             fileHeaderOperations={props.fileHeaderOperations}
             operations={props.operations}
+            renamingFile={props.renamingFile}
+            onRename={onRename}
         />
 
         <div className={"main-content"}>

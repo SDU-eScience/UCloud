@@ -4,8 +4,8 @@ import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {PrettyFileName, usePrettyFilePath} from "./FilePath";
-import {Box, Flex, FtIcon, Icon, Truncate} from "@/ui-components";
-import {fileName} from "@/Utilities/FileUtilities";
+import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
+import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -29,6 +29,8 @@ interface FileTreeProps {
     width?: string;
     canResize?: boolean;
     fileHeaderOperations?: React.ReactNode;
+    renamingFile?: string;
+    onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => void;
 }
 
 export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: FileTreeProps) {
@@ -50,8 +52,6 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
 
     const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
     const onContextMenu = React.useCallback((ev: React.MouseEvent, file: VirtualFile) => {
-        // TODO(Jonas): only one at max should be open at any given point
-        console.log("hey");
         ev.preventDefault();
         getOperations(file);
         openOperations.current(ev.clientX, ev.clientY);
@@ -77,6 +77,8 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                     initialFolder={props.initialFolder}
                     initialFilePath={props.initialFilePath}
                     node={root}
+                    renamingFile={props.renamingFile}
+                    onRename={props.onRename}
                     onAction={onNodeActivated}
                     onContextMenu={onContextMenu}
                 />
@@ -103,12 +105,24 @@ const FileNode: React.FunctionComponent<{
     initialFolder?: string;
     operations?: (file: VirtualFile) => Operation<any>[];
     onContextMenu?: (e: React.MouseEvent<HTMLDivElement>, file: VirtualFile) => void;
+    renamingFile?: string;
+    onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => void;
 }> = props => {
     const children = !props.node.file.isDirectory ? undefined : <>
         {props.node.children.map(child => (
-            <FileNode key={child.file.absolutePath} node={child} onAction={props.onAction} operations={props.operations} onContextMenu={props.onContextMenu} />
+            <FileNode key={child.file.absolutePath} onRename={props.onRename} renamingFile={props.renamingFile} node={child} onAction={props.onAction} operations={props.operations} onContextMenu={props.onContextMenu} />
         ))}
     </>;
+
+    const renameFile = React.useCallback((newName: string, cancel: boolean) => {
+        const parentPath = getParentPath(props.node.file.absolutePath);
+        const newFullPath = parentPath + newName;
+        props.onRename?.({
+            newAbsolutePath: newFullPath,
+            oldAbsolutePath: props.node.file.absolutePath,
+            cancel
+        });
+    }, []);
 
     const absolutePath = props.node.file.absolutePath;
     if (absolutePath === "" || absolutePath === "/" || absolutePath === props.initialFolder) return children;
@@ -117,6 +131,8 @@ const FileNode: React.FunctionComponent<{
         props.initialFilePath?.startsWith(props.node.file.absolutePath);
 
     const prettyPath = usePrettyFilePath(props.node.file.absolutePath);
+
+    const isRenaming = props.renamingFile === props.node.file.absolutePath;
 
     return <TreeNode
         cursor="pointer"
@@ -128,36 +144,47 @@ const FileNode: React.FunctionComponent<{
         }}
         slim
         left={
-            <>
-                <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
-                    {props.node.file.isDirectory ? null :
-                        <FtIcon
-                            fileIcon={{
-                                type: "FILE",
-                                ext: extensionFromPath(props.node.file.absolutePath)
-                            }}
-                            size={"16px"}
-                        />
-                    }
-                    {/* Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent */}
-                    <Truncate title={prettyPath} maxWidth="calc(200px - var(--indent))">{fileName(prettyPath)}</Truncate>
-                </Flex>
-            </>
+            <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
+                {props.node.file.isDirectory ? null :
+                    <FtIcon
+                        fileIcon={{
+                            type: "FILE",
+                            ext: extensionFromPath(props.node.file.absolutePath)
+                        }}
+                        size={"16px"}
+                    />
+                }
+
+                {isRenaming ?
+                    <Input autoFocus onBlur={e => {
+                        e.preventDefault();
+                        renameFile(e.target["value"], false)
+                    }} onKeyDown={e => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") {
+                            renameFile(e.target["value"], false);
+                        } else if (e.key === "Escape") {
+                            renameFile("", true);
+                        }
+                    }} defaultValue={fileName(props.node.file.absolutePath)} width={1} /> :
+                    // Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent
+                    <Truncate title={prettyPath} maxWidth="calc(200px - var(--indent))">{fileName(prettyPath)}</Truncate>}
+            </Flex >
         }
         children={children}
     />;
 }
 
 const FileTreeClass = injectStyle("file-tree", k => `
-    ${k} {
-        width: var(--tree-width);
-        max-width: var(--tree-width);
-        resize: var(--resize-setting);
-        flex-shrink: 0;
-        border-right: var(--borderThickness) solid var(--borderColor);
+                ${k} {
+                    width: var(--tree-width);
+                max-width: var(--tree-width);
+                resize: var(--resize-setting);
+                flex-shrink: 0;
+                border-right: var(--borderThickness) solid var(--borderColor);
     }
 
-    ${k} > .tree-header {
-        border-bottom: var(--borderThickness) solid var(--borderColor);
+                ${k} > .tree-header {
+                    border - bottom: var(--borderThickness) solid var(--borderColor);
     }
-`);
+                `);
