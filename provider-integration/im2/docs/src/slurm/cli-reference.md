@@ -507,7 +507,54 @@ Description
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
 
+`add`
+
+</td>
+<td>
+
+</td>
+</tr>
+<tr>
+<td>
+
+`ls`, `list`
+
+</td>
+<td>
+`--ucloud-name <string>`
+
+Query by UCloud name. Supports regex.
+
+
+`--account-name <string>`
+
+Query by Slurm account name. Supports regex.
+
+
+`--local-name <string>`
+
+Query by local user/group name. Supports regex.
+
+`--category`
+
+Query by machine type/category name. Supports regex.
+
+
+</td>
+</tr>
+<tr>
+<td>
+
+`delete`, `del`, `rm`, `remove`
+
+</td>
+<td>
+
+</td>
+</tr>
 </tbody>
 </table>
 </div>
