@@ -258,7 +258,9 @@ export const TreeNode: React.FunctionComponent<{
     if (props.cursor) style.cursor = props.cursor;
 
     const activate = useCallback((ev?: React.SyntheticEvent) => {
-        ev?.stopPropagation();
+        // Note(Jonas): Disabled for now. This causes operations-pop-up to not be closed on outside click.
+        // Re-enable if needed.
+        // ev?.stopPropagation();
         const div = ref.current;
         if (!div) return;
 

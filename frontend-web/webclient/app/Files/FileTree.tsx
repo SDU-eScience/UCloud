@@ -139,7 +139,7 @@ const FileNode: React.FunctionComponent<{
                             size={"16px"}
                         />
                     }
-                    {/* Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent to see  */}
+                    {/* Note(Jonas): A bit fragile, but this component relies on the tree-node CSS variable called --indent */}
                     <Truncate title={prettyPath} maxWidth="calc(200px - var(--indent))">{fileName(prettyPath)}</Truncate>
                 </Flex>
             </>
