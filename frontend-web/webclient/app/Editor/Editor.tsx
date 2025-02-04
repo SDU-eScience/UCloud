@@ -13,7 +13,7 @@ import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {PrettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {usePrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -748,11 +748,14 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        setTabs(tabs => {
-            if (tabs.open.includes(path)) {
-                return tabs;
-            } else return {open: [...tabs.open, path], closed: tabs.closed};
-        });
+        const fileWasFetched = state.cachedFiles[path] != null;
+        if (fileWasFetched) {
+            setTabs(tabs => {
+                if (tabs.open.includes(path)) {
+                    return tabs;
+                } else return {open: [...tabs.open, path], closed: tabs.closed};
+            });
+        }
     }, [state.currentPath]);
 
     const closeTab = useCallback((path: string, index: number) => {
@@ -790,7 +793,6 @@ export const Editor: React.FunctionComponent<{
         return e;
         /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
     });
-
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
