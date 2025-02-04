@@ -356,7 +356,10 @@ export const Editor: React.FunctionComponent<{
     const monacoInstance = useMonaco(engine === "monaco");
     const [editor, setEditor] = useState<IStandaloneCodeEditor | null>(null);
     const monacoRef = useRef<any>(null);
-    const [openTabs, setOpenTabs] = useState<string[]>([state.currentPath]);
+    const [tabs, setTabs] = useState<{open: string[], closed: string[]}>({
+        open: [state.currentPath],
+        closed: [],
+    });
 
     const prettyPath = usePrettyFilePath(state.currentPath ?? "");
     if (state.currentPath === SETTINGS_PATH) {
@@ -367,7 +370,6 @@ export const Editor: React.FunctionComponent<{
         usePage(fileName(prettyPath), SidebarTabId.FILES);
     }
 
-    const [closedTabs, setClosedTabs] = useState<string[]>([]);
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
     const isSettingsOpen = state.currentPath === SETTINGS_PATH;
 
@@ -734,10 +736,10 @@ export const Editor: React.FunctionComponent<{
 
     const toggleSettings = useCallback(() => {
         saveBufferIfNeeded().then(() => {
-            setOpenTabs(tabs => {
-                if (tabs.includes(SETTINGS_PATH)) {
+            setTabs(tabs => {
+                if (tabs.open.includes(SETTINGS_PATH)) {
                     return tabs;
-                } else return [...tabs, SETTINGS_PATH];
+                } else return {open: [...tabs.open, SETTINGS_PATH], closed: tabs.closed};
             })
             dispatch({type: "EditorActionOpenFile", path: SETTINGS_PATH})
         });
@@ -746,34 +748,35 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        setOpenTabs(tabs => {
-            if (tabs.includes(path)) {
+        setTabs(tabs => {
+            if (tabs.open.includes(path)) {
                 return tabs;
-            } else return [...tabs, path];
+            } else return {open: [...tabs.open, path], closed: tabs.closed};
         });
     }, [state.currentPath]);
 
     const closeTab = useCallback((path: string, index: number) => {
-        setOpenTabs(tabs => {
-            const result = tabs.filter(tabTitle => tabTitle !== path);
+        setTabs(tabs => {
+            const result = tabs.open.filter(tabTitle => tabTitle !== path);
             if (state.currentPath === path) {
                 const preceedingPath = result.at(index - 1);
                 if (preceedingPath) {
                     openFile(preceedingPath, true);
                 }
             }
-            return result;
+            const closed = tabs.closed;
+            if (!closed.includes(path)) closed.push(path);
+            return {open: result, closed};
         });
-        if (!closedTabs.includes(path)) setClosedTabs(tabs => [...tabs, path]);
-    }, [state.currentPath, closedTabs]);
+    }, [state.currentPath]);
 
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, openTabs, setOpenTabs, closedTabs, setClosedTabs, openTab, state.currentPath);
+        const ops = tabOperations(title, setTabs, openTab, tabs.closed.length > 0, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
-    }, [openTabs, closedTabs, state.currentPath]);
+    }, [tabs, state.currentPath]);
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         // TODO(Jonas): Only handles closing window, not UCloud navigation 
@@ -790,7 +793,7 @@ export const Editor: React.FunctionComponent<{
 
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
-    const showEditorHelp = openTabs.length === 0;
+    const showEditorHelp = tabs.open.length === 0;
 
     return <div className={editorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -808,7 +811,7 @@ export const Editor: React.FunctionComponent<{
         <div className={"main-content"}>
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
                 <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
-                    {openTabs.map((t, index) =>
+                    {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
                             isDirty={false /* TODO */}
@@ -949,36 +952,42 @@ export const Editor: React.FunctionComponent<{
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
     tabPath: string,
-    openTabs: string[],
-    setOpenTabs: React.Dispatch<React.SetStateAction<string[]>>,
-    closedTabs: string[],
-    setClosedTabs: React.Dispatch<React.SetStateAction<string[]>>,
+    setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
+    anyTabsClosed: boolean,
     currentPath: string,
 ): Operation<any>[] {
     return [{
         text: "Close tab",
         onClick: () => {
-            setOpenTabs(tabs => tabs.filter(it => it !== tabPath));
-            setClosedTabs(tabs => [...tabs, tabPath]);
-            if (currentPath === tabPath) {
-                const index = openTabs.findIndex(it => it === tabPath);
-                if (index === -1) {
-                    console.warn("No index found. This is weird. This shouldn't happen");
-                    return;
+            setTabs(tabs => {
+                if (currentPath === tabPath) {
+                    const index = tabs.open.findIndex(it => it === tabPath);
+                    if (index === -1) {
+                        console.warn("No index found. This is weird. This shouldn't happen");
+                        return tabs;
+                    }
+                    openTab(tabs.open.at(index - 1)!);
+                };
+                return {
+                    open: tabs.open.filter(it => it !== tabPath),
+                    closed: [...tabs.closed, tabPath]
                 }
-                openTab(openTabs.at(index - 1)!);
-            }
+            });
+
         },
         enabled: () => true,
         shortcut: ShortcutKey.W,
     }, {
         text: "Close others",
         onClick: () => {
-            setClosedTabs(tabs => [
-                ...tabs,
-                ...openTabs.filter(it => it !== it)
-            ]);
+            setTabs(tabs => {
+                const remainder = tabs.open.filter(it => it !== tabPath);
+                return {
+                    open: [tabPath],
+                    closed: [...tabs.closed, ...remainder]
+                }
+            });
             openTab(tabPath);
         },
         enabled: () => true,
@@ -986,17 +995,24 @@ function tabOperations(
     }, {
         text: "Close to the right",
         onClick: () => {
-            const index = openTabs.findIndex(it => it === tabPath);
-            const activeIndex = openTabs.findIndex(it => it === currentPath);
-            if (activeIndex > index) {
-                openTab(tabPath);
-            }
-            if (index === -1) {
-                console.warn("No index found. This is weird. This shouldn't happen");
-                return;
-            }
-            setClosedTabs(t => [...t, ...openTabs.slice(index + 1)])
-            setOpenTabs(t => t.slice(0, index + 1));
+
+            setTabs(tabs => {
+                const index = tabs.open.findIndex(it => it === tabPath);
+                const activeIndex = tabs.open.findIndex(it => it === currentPath);
+
+                if (activeIndex > index) {
+                    openTab(tabPath);
+                }
+
+                if (index === -1) {
+                    console.warn("No index found. This is weird. This shouldn't happen");
+                    return tabs;
+                }
+                return {
+                    open: tabs.open.slice(0, index + 1),
+                    closed: [...tabs.closed, ...tabs.open.slice(index + 1)],
+                };
+            })
         },
         enabled: () => true,
         shortcut: ShortcutKey.R,
@@ -1008,8 +1024,12 @@ function tabOperations(
     }, */ {
         text: "Close all",
         onClick: () => {
-            setClosedTabs(closed => [...closed, ...openTabs]);
-            setOpenTabs([]);
+            setTabs(tabs => {
+                return {
+                    open: [],
+                    closed: [...tabs.closed, ...tabs.open]
+                }
+            });
         },
         enabled: () => true,
         shortcut: ShortcutKey.U,
@@ -1021,14 +1041,19 @@ function tabOperations(
     }, {
         text: "Re-open closed tab",
         onClick: () => {
-            setClosedTabs(closedTabs => {
-                const tab = closedTabs.pop();
-                if (tab) setOpenTabs(openTabs => [...openTabs, tab]);
-                // TODO(Jonas): Actually set the re-opened tab as active
-                return closedTabs;
+            setTabs(tabs => {
+                const tab = tabs.closed.pop();
+                if (tab) {
+                    openTab(tab);
+                    return {
+                        open: [...tabs.open, tab],
+                        closed: tabs.closed
+                    };
+                }
+                return tabs;
             });
         },
-        enabled: () => closedTabs.length > 0,
+        enabled: () => anyTabsClosed,
         shortcut: ShortcutKey.U,
     }];
 }
