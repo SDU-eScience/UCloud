@@ -1203,7 +1203,8 @@ export function FilePreview({initialFile}: {
             node = null;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data} />
+            // Note(Jonas): extensions like .HEIC will fallback to just showing the alt.
+            node = <img className={Image} alt={fileName(openFile[0])} src={mediaFileMetadata.data} />
             break;
         case "audio":
             node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
