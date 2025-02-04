@@ -50,7 +50,10 @@ func copyFiles(request ctrl.CopyFileRequest) error {
 			}
 		}
 
-		newInternalDest := InternalToUCloudWithDrive(&request.NewDrive, destPath)
+		newInternalDest, ok := InternalToUCloudWithDrive(&request.NewDrive, destPath)
+		if !ok {
+			return util.UserHttpError("Unable to copy files. Unknown drive")
+		}
 		task.UCloudDestination.Set(newInternalDest)
 	}
 

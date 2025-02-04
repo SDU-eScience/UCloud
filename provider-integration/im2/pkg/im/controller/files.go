@@ -62,6 +62,8 @@ type FileService struct {
 	CreateDrive func(drive orc.Drive) error
 	DeleteDrive func(drive orc.Drive) error
 	RenameDrive func(drive orc.Drive) error
+
+	CreateShare func(share orc.Share) (driveId string, err error)
 }
 
 type FilesBrowseFlags struct {
@@ -244,6 +246,7 @@ func controllerFiles(mux *http.ServeMux) {
 	fileContext := fmt.Sprintf("/ucloud/%v/files/", cfg.Provider.Id)
 	uploadContext := fmt.Sprintf("/ucloud/%v/upload", cfg.Provider.Id)
 	driveContext := fmt.Sprintf("/ucloud/%v/files/collections/", cfg.Provider.Id)
+	shareContext := fmt.Sprintf("/ucloud/%v/shares/", cfg.Provider.Id)
 
 	type filesProviderBrowseRequest struct {
 		ResolvedCollection orc.Drive
@@ -1006,6 +1009,68 @@ func controllerFiles(mux *http.ServeMux) {
 				},
 			),
 		)
+
+		shareEndpoint, _ := strings.CutSuffix(shareContext, "/")
+		shareCreateHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Share]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Share]) {
+				fn := Files.CreateShare
+				if fn == nil {
+					sendResponseOrError(w, nil, util.ServerHttpError("shares not supported"))
+					return
+				}
+
+				var resp []util.Option[fnd.FindByStringId]
+				var updates []orc.ResourceUpdateAndId[orc.ShareUpdate]
+
+				for _, share := range request.Items {
+					driveId, err := fn(share)
+					if err != nil {
+						sendResponseOrError(w, r, err)
+						return
+					} else {
+						updates = append(updates, orc.ResourceUpdateAndId[orc.ShareUpdate]{
+							Id: share.Id,
+							Update: orc.ShareUpdate{
+								NewState:         orc.ShareStatePending,
+								ShareAvailableAt: util.OptValue(fmt.Sprintf("/%s", driveId)),
+								Timestamp:        fnd.Timestamp(time.Now()),
+							},
+						})
+						resp = append(resp, util.Option[fnd.FindByStringId]{})
+					}
+				}
+
+				err := orc.UpdateShares(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.ShareUpdate]]{
+					Items: updates,
+				})
+
+				if err != nil {
+					log.Warn("Failed to update shares: %v", err)
+					sendResponseOrError(w, r, util.ServerHttpError("Failed to update shares"))
+					return
+				}
+
+				sendResponseOrError(w, fnd.BulkResponse[util.Option[fnd.FindByStringId]]{Responses: resp}, nil)
+			},
+		)
+
+		shareDeleteHandler := HttpUpdateHandler[fnd.BulkRequest[orc.Share]](
+			0,
+			func(w http.ResponseWriter, r *http.Request, request fnd.BulkRequest[orc.Share]) {
+				// Do nothing
+			},
+		)
+
+		mux.HandleFunc(shareEndpoint, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				shareCreateHandler(w, r)
+			} else if r.Method == http.MethodDelete {
+				shareDeleteHandler(w, r)
+			} else {
+				sendResponseOrError(w, nil, util.ServerHttpError("unknown endpoint"))
+			}
+		})
 	}
 
 	if RunsServerCode() {
@@ -1021,6 +1086,23 @@ func controllerFiles(mux *http.ServeMux) {
 					},
 					nil,
 				)
+			}),
+		)
+
+		mux.HandleFunc(
+			shareContext+"retrieveProducts",
+			HttpRetrieveHandler(0, func(w http.ResponseWriter, r *http.Request, request util.Empty) {
+				support := Files.RetrieveProducts()
+				var result []orc.ShareSupport
+				for _, item := range support {
+					if item.Files.SharesSupported {
+						result = append(result, orc.ShareSupport{
+							Product: item.Product,
+							Type:    orc.ShareTypeManaged,
+						})
+					}
+				}
+				sendResponseOrError(w, fnd.BulkResponse[orc.ShareSupport]{Responses: result}, nil)
 			}),
 		)
 
