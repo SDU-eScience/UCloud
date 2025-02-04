@@ -27,24 +27,6 @@ $ ucloud projects ls --ucloud-name test
 Since `--ucloud-name` is a query parameter that supports regex, it acts as a fuzzy search that 
 returns all projects that contains the word `test` in its name.
 
-<div class="info-box info">
-<i class="fa fa-info-circle"></i>
-<div>
-
-Due to how `[options]` are parsed, any of the following ways to pass options are currently 
-permitted:
-
- - `-option=value`
- - `-option value`
- - `--option=value`
- - `--option value`
-</div>
-</div>
-
-
-
-
-
 
 ## Commands
 
@@ -206,11 +188,11 @@ Query by the local UID of the user that owns the drive. Supports regex.
 
 Query by the local GID of the user that own the drive. Supports regex.
 
-`--ucloud-path <string>`
+`--ucloud-path <path>`
 
 Query by the path to the drive on UCloud. Does not support regex.
 
-`--local-path <string>`
+`--local-path <path>`
 
 Query by the local path on your system. Does not support regex.
 </td>
@@ -248,11 +230,11 @@ Query by the local UID of the user that owns the drive. Supports regex.
 
 Query by the local GID of the user that own the drive. Supports regex.
 
-`--ucloud-path <string>`
+`--ucloud-path <path>`
 
 Query by the path to the drive on UCloud. Does not support regex.
 
-`--local-path <string>`
+`--local-path <path>`
 
 Query by the local path on your system. Does not support regex.
 
@@ -308,7 +290,6 @@ Description
 <td>
 </td>
 </tr>
-
 </tbody>
 </table>
 </div>
@@ -398,6 +379,9 @@ $ ucloud projects ls
 
 ### `scripts`
 
+**TODO:** The interface for scripts differ slightly from the other subcommands. We should probably 
+change something.
+
 <div class="table-wrapper">
 <table>
 <thead>
@@ -418,7 +402,30 @@ Description
 
 </td>
 <td>
+List log of previously run tasks
 
+#### Optional parameters
+
+`--query=<string>`
+
+Search log entries where `<string>` exists in stdout, stderr, request or script path.
+
+`--failures`
+
+Show only failed scripts.
+
+`--script=<path>`
+
+Show only entries from the script located at the path `<path>`.
+	
+`--before-relative=<string>`
+
+Show entries older than `<string>`, e.g. `--before-relative="1 hour"` shows entries older than 
+1 hour.
+
+`--after-relative=<time>`
+
+Show entries newer than `<time>`, e.g. `--after-relative="1 hour"` shows entries from the past hour.
 </td>
 </tr>
 <tr>
@@ -428,6 +435,16 @@ Description
 
 </td>
 <td>
+Get detailed information about script with a specific ID.
+
+#### Example
+
+To get detailed information about the script log with ID 1234.
+
+```terminal
+$ ucloud scripts get 1234
+```
+
 </td>
 </tr>
 <tr>
@@ -437,6 +454,15 @@ Description
 
 </td>
 <td>
+Delete script log entry with a specific ID.
+
+#### Example
+
+To delete the script log with ID 1234.
+
+```terminal
+$ ucloud scripts rm 1234
+```
 
 </td>
 </tr>
@@ -447,7 +473,7 @@ Description
 
 </td>
 <td>
-
+Deletes all script log entries.
 </td>
 </tr>
 <tr>
@@ -457,7 +483,7 @@ Description
 
 </td>
 <td>
-
+Prints information about parameters for the `script` command.
 </td>
 </tr>
 </tbody>
@@ -503,7 +529,18 @@ Description
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
 
+`kill-all`
+
+</td>
+<td>
+Kills all long running tasks on the system, such as a file copy, empty trash or file transfer.
+
+**TODO:** Needs documentation.
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -539,16 +576,19 @@ add <ucloud-name> <local-name>
 Creates a new mapping between UCloud user with user name `user-name` and the local user 
 `local-name`.
 
-**Example**
+#### Parameters
+
+`--ucloud-name <string>`
+
+`--local-name <string>`
+
+#### Example
 
 ```terminal
 $ ucloud users add AliceAndersen#1234 aandersen01
 ```
 
-
-
 </td>
-
 </tr>
 
 <tr>
