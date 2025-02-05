@@ -1,0 +1,1 @@
+UCLOUD_PSQL_OPTS="-D /etc/ucloud/psql/data -p 5432"

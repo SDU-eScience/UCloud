@@ -56,6 +56,10 @@ func InitFiles() ctrl.FileService {
 		TransferSourceBegin:         transferSourceBegin,
 		Search:                      search,
 		Uploader:                    &uploaderFileSystem{},
+		CreateDrive:                 createDrive,
+		DeleteDrive:                 deleteDrive,
+		RenameDrive:                 renameDrive,
+		CreateShare:                 createShare,
 	}
 }
 
@@ -382,8 +386,13 @@ func retrieveFile(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
 }
 
 func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.ProviderFile {
+	ucloudPath, ok := InternalToUCloudWithDrive(drive, internalPath)
+	if !ok {
+		ucloudPath = util.FileName(internalPath)
+	}
+
 	result := orc.ProviderFile{
-		Id: InternalToUCloudWithDrive(drive, internalPath),
+		Id: ucloudPath,
 		Status: orc.UFileStatus{
 			Type:                         orc.FileTypeFile,
 			Icon:                         orc.FileIconHintNone,
@@ -557,7 +566,7 @@ func loadStorageProducts() {
 		defaultSupport.Files.IsReadOnly = false
 		defaultSupport.Files.SearchSupported = false
 		defaultSupport.Files.StreamingSearchSupported = true
-		defaultSupport.Files.SharesSupported = false
+		defaultSupport.Files.SharesSupported = true
 		defaultSupport.Files.OpenInTerminal = false
 	}
 
@@ -753,10 +762,14 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 		return fmt.Errorf("Could not create trash folder")
 	}
 
-	newPath := InternalToUCloudWithDrive(
+	newPath, ok := InternalToUCloudWithDrive(
 		&request.Drive,
 		fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)),
 	)
+
+	if !ok {
+		return util.ServerHttpError("unknown drive")
+	}
 
 	return doMove(ctrl.MoveFileRequest{
 		OldDrive: request.Drive,
@@ -774,7 +787,17 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		return util.UserHttpError("Unable to resolve trash folder")
 	}
 
-	parentDir, ok1 := openFile(filepath.Dir(trashLocation), unix.O_RDONLY, 0)
+	err := doDeleteFile(trashLocation)
+	if err != nil {
+		return err
+	}
+
+	_ = doCreateFolder(trashLocation)
+	return nil
+}
+
+func doDeleteFile(internalPath string) error {
+	parentDir, ok1 := openFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := openFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
 	defer util.SilentClose(stagingArea)
@@ -784,7 +807,7 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 
 	err := unix.Renameat(
 		int(parentDir.Fd()),
-		filepath.Base(trashLocation),
+		filepath.Base(internalPath),
 		int(stagingArea.Fd()),
 		util.RandomToken(16),
 	)
@@ -792,8 +815,6 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 	if err != nil {
 		return util.UserHttpError("Unable to empty the trash at the moment")
 	}
-
-	_ = doCreateFolder(trashLocation)
 
 	return nil
 }
@@ -1005,4 +1026,66 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 
 	normalFileWalk(ctx, files, file, stat)
 	close(files)
+}
+
+func createDrive(drive orc.Drive) error {
+	localPath, ok := DriveToLocalPath(&drive)
+	if !ok {
+		return util.ServerHttpError("unknown drive")
+	}
+	return doCreateFolder(localPath)
+}
+
+func deleteDrive(drive orc.Drive) error {
+	path, ok := DriveToLocalPath(&drive)
+	if !ok {
+		return util.ServerHttpError("unknown drive")
+	}
+	return doDeleteFile(path)
+}
+
+func renameDrive(_ orc.Drive) error {
+	// Nothing to do
+	return nil
+}
+
+func createShare(share orc.Share) (driveId string, err error) {
+	sourcePath := share.Specification.SourceFilePath
+	sourceInternalPath, ok := UCloudToInternal(sourcePath)
+	if !ok {
+		return "", util.UserHttpError("File does not exist")
+	}
+
+	file, ok := openFile(sourceInternalPath, unix.O_RDONLY, 0)
+	if !ok {
+		return "", util.UserHttpError("File does not exist")
+	}
+	stat, err := file.Stat()
+	if stat == nil || err != nil {
+		return "", util.UserHttpError("File does not exist")
+	}
+	util.SilentClose(file)
+
+	if !stat.IsDir() {
+		return "", util.UserHttpError("File is not a directory")
+	}
+
+	title := util.FileName(sourceInternalPath)
+	driveId, err = orc.RegisterDrive(orc.ProviderRegisteredResource[orc.DriveSpecification]{
+		Spec: orc.DriveSpecification{
+			Title: title,
+			Product: apm.ProductReference{
+				Id:       "share",
+				Category: shared.ServiceConfig.FileSystem.Name,
+				Provider: cfg.Provider.Id,
+			},
+		},
+		ProviderGeneratedId: util.OptValue(fmt.Sprintf("s-%s", share.Id)),
+		CreatedBy:           util.OptValue("_ucloud"),
+		Project:             util.OptNone[string](),
+		ProjectAllRead:      false,
+		ProjectAllWrite:     false,
+	})
+
+	return
 }

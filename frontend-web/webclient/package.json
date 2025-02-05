@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "2025.2.13",
+    "version": "2025.2.18",
     "description": "UCloud",
     "type": "module",
     "author": "IMADA - eScience Center, SDU",
@@ -51,7 +51,8 @@
         "ua-parser-js": "1.0.40",
         "xterm": "5.3.0",
         "xterm-addon-fit": "0.8.0",
-        "yaml": "2.7.0"
+        "yaml": "2.7.0",
+        "remark-gfm": "^4.0.0"
     },
     "devDependencies": {
         "@types/d3": "7.4.3",

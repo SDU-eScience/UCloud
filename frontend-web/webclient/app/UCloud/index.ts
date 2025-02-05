@@ -1562,7 +1562,21 @@ export interface ComputeSupport {
  *   used as a resource.
  *
  */
-export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress | AppParameterValueNS.Workflow
+export type AppParameterValue =
+    | AppParameterValueNS.File
+    | AppParameterValueNS.Bool
+    | AppParameterValueNS.Text
+    | AppParameterValueNS.TextArea
+    | AppParameterValueNS.Integer
+    | AppParameterValueNS.FloatingPoint
+    | AppParameterValueNS.Peer
+    | AppParameterValueNS.License
+    | AppParameterValueNS.BlockStorage
+    | AppParameterValueNS.Network
+    | AppParameterValueNS.Ingress
+    | AppParameterValueNS.Workflow
+    | AppParameterValueNS.ModuleList
+    ;
 export interface SimpleDuration {
     hours: number /* int32 */,
     minutes: number /* int32 */,
@@ -2684,6 +2698,11 @@ export interface Ingress {
 export interface Workflow {
     type: ("workflow"),
     specification: WorkflowSpecification,
+}
+
+export interface ModuleList {
+    type: ("modules"),
+    modules: string[];
 }
 }
 export namespace NetworkIPSpecificationNS {

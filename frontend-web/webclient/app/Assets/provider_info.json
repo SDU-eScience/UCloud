@@ -181,9 +181,24 @@
         },
         {
             "id": "go-slurm",
-            "title": "Slurm (Go IM2)",
+            "title": "IM2/Slurm",
             "logo": "gopher.png",
-            "shortTitle": "Slurm/IM2",
+            "shortTitle": "IM2/Slurm",
+            "shortDescription": "Development version of IM2.",
+            "description": "Development version of IM2.",
+            "url": "https://github.com/sdu-escience/ucloud",
+            "texts": [
+                {
+                    "description": "Nothing to show here. This is just a development version if IM2.",
+                    "image": "/Images/ucloud-1.png"
+                }
+            ]
+        },
+        {
+            "id": "gok8s",
+            "title": "IM2/K8s",
+            "logo": "im2k8s.png",
+            "shortTitle": "IM2/K8s",
             "shortDescription": "Development version of IM2.",
             "description": "Development version of IM2.",
             "url": "https://github.com/sdu-escience/ucloud",

@@ -97,6 +97,20 @@ func InitDriveDatabase() {
 			Payload:    *result,
 		}
 	})
+
+	removeTrackedDriveIpc.Handler(func(r *ipc.Request[fnd.FindByStringId]) ipc.Response[util.Empty] {
+		drive, err := orc.RetrieveDrive(r.Payload.Id)
+		if err != nil || !BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(drive.Resource), r.Uid) {
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusForbidden,
+			}
+		} else {
+			removeTrackedDrive(drive.Id)
+			return ipc.Response[util.Empty]{
+				StatusCode: http.StatusOK,
+			}
+		}
+	})
 }
 
 // The activeDrives property stores all drives which have been seen this session in-memory. This structure is valid for
@@ -108,6 +122,7 @@ var activeDrivesMutex = sync.Mutex{}
 
 var (
 	trackDriveIpc                = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.track")
+	removeTrackedDriveIpc        = ipc.NewCall[fnd.FindByStringId, util.Empty]("ctrl.drives.removeTrackedDrive")
 	retrieveDriveIpc             = ipc.NewCall[fnd.FindByStringId, orc.Drive]("ctrl.drives.retrieve")
 	retrieveDriveByProviderIdIpc = ipc.NewCall[util.Tuple2[[]string, []string], orc.Drive]("ctrl.drives.retrieveByProviderId")
 )
@@ -222,6 +237,34 @@ func RetrieveDrive(id string) (*orc.Drive, bool) {
 	}
 
 	return existing, true
+}
+
+func RemoveTrackedDrive(id string) bool {
+	activeDrivesMutex.Lock()
+	delete(activeDrives, id)
+	activeDrivesMutex.Unlock()
+
+	if RunsServerCode() {
+		removeTrackedDrive(id)
+		return true
+	} else {
+		_, err := removeTrackedDriveIpc.Invoke(fnd.FindByStringId{Id: id})
+		return err == nil
+	}
+}
+
+func removeTrackedDrive(id string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from tracked_drives where drive_id = :drive_id
+			`,
+			db.Params{
+				"drive_id": id,
+			},
+		)
+	})
 }
 
 func RetrieveDriveByProviderId(prefixes []string, suffixes []string) (*orc.Drive, bool) {

@@ -29,7 +29,7 @@ var Machines []apm.ProductV2
 var machineSupport []orc.JobSupport
 var SlurmClient *slurmcli.Client
 
-var jobNameUnsafeRegex *regexp.Regexp = regexp.MustCompile(`[^\w ():_-]`)
+var jobNameUnsafeRegex = regexp.MustCompile(`[^\w ():_-]`)
 var unknownApplication = orc.NameAndVersion{Name: "unknown", Version: "unknown"}
 
 var ipcRegisterJobUpdate = ipc.NewCall[[]orc.ResourceUpdateAndId[orc.JobUpdate], util.Empty]("slurm.register_job_update")
@@ -41,6 +41,8 @@ func InitCompute() ctrl.JobsService {
 	if SlurmClient == nil && len(Machines) > 0 {
 		panic("Failed to initialize SlurmClient!")
 	}
+
+	ReloadModulesFromLmod()
 
 	if cfg.Mode == cfg.ServerModeServer {
 		ipcRegisterJobUpdate.Handler(func(r *ipc.Request[[]orc.ResourceUpdateAndId[orc.JobUpdate]]) ipc.Response[util.Empty] {
@@ -99,46 +101,99 @@ func InitCompute() ctrl.JobsService {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	if owner.Project == "" {
-		return nil
+	var result []orc.ApplicationParameter
+
+	if owner.Project != "" {
+		project, ok := ctrl.GetLastKnownProject(owner.Project)
+		if ok && project.Status.PersonalProviderProjectFor.Present {
+			accounts := []string{"unknown"}
+			myUser, err := user.Current()
+			if err == nil {
+				accounts = SlurmClient.UserListAccounts(myUser.Username)
+			}
+
+			var opts []orc.EnumOption
+			for _, account := range accounts {
+				opts = append(opts, orc.EnumOption{
+					Name:  account,
+					Value: account,
+				})
+			}
+
+			// NOTE(Dan): Send the parameter even if we have no options to make it clear to the user why this is
+			// failing/going to fail.
+
+			result = append(result, orc.ApplicationParameterEnumeration(
+				SlurmAccountParameter,
+				false,
+				"Slurm account",
+				"The slurm account to use for this job.",
+				opts,
+			))
+		}
 	}
 
-	project, ok := ctrl.GetLastKnownProject(owner.Project)
-	if !ok {
-		return nil
+	appsToLoad := app.Invocation.Tool.Tool.Description.LoadInstructions.Value.Applications
+	allowMoreModules := len(appsToLoad) == 0
+
+	if len(appsToLoad) > 0 {
+		session := sbatchTemplateSession{
+			Applications:         ServiceConfig.Compute.Applications,
+			RequiredApplications: appsToLoad,
+			VersionPolicy:        "loose",
+		}
+
+		var failedToLoad []string
+
+		for _, toLoad := range appsToLoad {
+			appCfg, _, ok := session.FindApplication(toLoad.Name, toLoad.Version)
+			if appCfg.Readme.Present {
+				result = append(result, orc.ApplicationParameterReadme(appCfg.Readme.Value))
+			}
+
+			if !ok {
+				failedToLoad = append(failedToLoad, "`"+toLoad.Name+"/"+toLoad.Version+"`")
+				session.Error = nil
+			}
+		}
+
+		if len(failedToLoad) > 0 {
+			allowMoreModules = true
+
+			if len(AvailableModules) > 0 {
+				result = append(result, orc.ApplicationParameterReadme(
+					fmt.Sprintf(
+						"This application has not been configured for this system yet. "+
+							"You can try to select the appropriate modules from the \"Modules\" section below. "+
+							"\n\nCould not load: %s.", strings.Join(failedToLoad, ", "),
+					)),
+				)
+			} else {
+				result = append(result, orc.ApplicationParameterReadme(
+					fmt.Sprintf(
+						"This application has not been configured for this system yet. "+
+							"\n\nCould not load: %s.", strings.Join(failedToLoad, ", "),
+					),
+				))
+			}
+		}
 	}
 
-	if !project.Status.PersonalProviderProjectFor.Present {
-		return nil
+	if allowMoreModules && len(AvailableModules) > 0 {
+		result = append(result, orc.ApplicationParameterModuleList(
+			SlurmModulesParameter,
+			"Modules",                 // TODO better description
+			"List of modules to load", // TODO better description
+			AvailableModules,
+		))
 	}
 
-	accounts := []string{"unknown"}
-	myUser, err := user.Current()
-	if err == nil {
-		accounts = SlurmClient.UserListAccounts(myUser.Username)
-	}
-
-	var opts []orc.EnumOption
-	for _, account := range accounts {
-		opts = append(opts, orc.EnumOption{
-			Name:  account,
-			Value: account,
-		})
-	}
-
-	return []orc.ApplicationParameter{
-		orc.ApplicationParameterEnumeration(
-			SlurmAccountParameter,
-			false,
-			"Slurm account",
-			"The slurm account to use for this job.",
-			opts,
-		),
-	}
+	return result
 }
 
 const InjectedPrefix = "_injected_"
 const SlurmAccountParameter = InjectedPrefix + "slurmAccount"
+const SlurmModulesParameter = InjectedPrefix + "modules"
 
 var nextComputeAccountingTime = time.Now()
 

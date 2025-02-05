@@ -291,6 +291,7 @@ export const Create: React.FunctionComponent = () => {
         return [...injected, ...fromApp, ...workflowInjectedParameters];
     }, [application, injectedParameters, workflowInjectedParameters, estimatedCost]);
 
+
     React.useEffect(() => {
         if (application && provider) {
             const params = parameters.filter(it =>
@@ -482,16 +483,21 @@ export const Create: React.FunctionComponent = () => {
     let mandatoryWorkflow = parameters.filter(it => !it.optional && it.type === "workflow");
     if (mandatoryWorkflow.length > 1) mandatoryWorkflow = [mandatoryWorkflow[0]];
 
+    let modulesParam = parameters.filter(it => it.type === "modules");
+    if (modulesParam.length > 0) modulesParam = [modulesParam[0]];
+
+    let readmeParams = parameters.filter(it => it.type === "readme");
+
     const mandatoryParameters = parameters.filter(it =>
-        !it.optional && it.type !== "workflow"
+        !it.optional && it.type !== "workflow" && it.type !== "modules" && it.type !== "readme"
     );
 
     const activeParameters = parameters.filter(it =>
-        it.optional && activeOptParams.indexOf(it.name) !== -1
+        it.optional && activeOptParams.indexOf(it.name) !== -1 && it.type !== "readme"
     )
 
     const inactiveParameters = parameters.filter(it =>
-        !(!it.optional || activeOptParams.indexOf(it.name) !== -1)
+        !(!it.optional || activeOptParams.indexOf(it.name) !== -1) && it.type !== "readme"
     );
 
     const isMissingConnection = hasFeature(Feature.PROVIDER_CONNECTION) && estimatedCost.product != null &&
@@ -668,6 +674,39 @@ export const Create: React.FunctionComponent = () => {
                                         <Widget key={param.name} parameter={param} errors={errors} provider={provider}
                                             injectWorkflowParameters={setWorkflowInjectParameters}
                                             setErrors={setErrors} active application={application} />
+                                    ))}
+                                </Grid>
+                            </Card>
+                        )}
+
+                        {/*Readme*/}
+                        {readmeParams.length === 0 ? null : (
+                            <Card backgroundColor={"var(--warningMain)"} color={"warningContrast"}>
+                                <Heading.h4>
+                                    {estimatedCost.product == null ?
+                                        "Information" :
+                                        `Information from ${getProviderTitle(estimatedCost.product.category.provider)}`
+                                    }
+                                </Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                    {readmeParams.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors} active application={application} />
+                                    ))}
+                                </Grid>
+                            </Card>
+                        )}
+
+                        {/*Modules*/}
+                        {modulesParam.length === 0 ? null : (
+                            <Card>
+                                <Heading.h4>Modules</Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gap={"16px"} mt={"16px"}>
+                                    {modulesParam.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                                injectWorkflowParameters={setWorkflowInjectParameters}
+                                                setErrors={setErrors} active application={application} />
                                     ))}
                                 </Grid>
                             </Card>

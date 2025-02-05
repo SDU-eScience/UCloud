@@ -194,5 +194,10 @@ sealed class AccountingRequest<Resp> {
         override val idCard: IdCard,
         val category: ProductCategoryIdV2,
     ) : AccountingRequest<String>()
+
+    data class ResendNotification(
+        override val idCard: IdCard,
+        val walletId: Int,
+    ) : AccountingRequest<Unit>()
 }
 

@@ -308,6 +308,17 @@ class AccountingController(
             )
         }
 
+        implementOrDispatch(AccountingV2.adminResendNotification) {
+            accounting.sendRequest(
+                AccountingRequest.ResendNotification(
+                    IdCard.System,
+                    request.walletId,
+                )
+            )
+
+            ok(Unit)
+        }
+
         implementOrDispatch(AccountingV2.registerProviderGift) {
             for (reqItem in request.items) {
                 accounting.sendRequestNoUnwrap(
