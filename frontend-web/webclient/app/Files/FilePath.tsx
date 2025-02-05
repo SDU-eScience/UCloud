@@ -48,12 +48,11 @@ export function usePrettyFilePath(rawPath: string): string {
         if (cached !== null) {
             setPath(cached);
         } else {
+            prettyFilePathFromComponents(components).then(res => {
+                if (!didCancel) setPath(res);
+            });
             setPath("");
         }
-
-        prettyFilePathFromComponents(components).then(res => {
-            if (!didCancel) setPath(res);
-        });
 
         return () => {
             didCancel = true;
