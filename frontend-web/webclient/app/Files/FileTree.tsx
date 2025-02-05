@@ -3,7 +3,7 @@ import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
-import {PrettyFileName, usePrettyFilePath} from "./FilePath";
+import {usePrettyFilePath} from "./FilePath";
 import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
 
