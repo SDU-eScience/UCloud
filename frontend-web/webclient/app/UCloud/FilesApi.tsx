@@ -1310,11 +1310,32 @@ export function FilePreview({initialFile}: {
         return success;
     }, []);
 
-    const operations = useCallback((file: VirtualFile): Operation<any>[] => {
+    const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
         const reload = () => {
             editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
         }
+
+        if (!file) {
+            return [{
+                icon: "heroFolderPlus",
+                text: "New folder",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.F,
+            }, {
+                icon: "heroDocumentPlus",
+                text: "New file",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.G,
+            }];
+        }
+
         return [
             {
                 icon: "heroFolderPlus",

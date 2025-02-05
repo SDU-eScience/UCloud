@@ -25,7 +25,7 @@ interface FileTreeProps {
     root: EditorSidebarNode;
     initialFolder: string;
     initialFilePath?: string;
-    operations?: (file: VirtualFile) => Operation<any>[];
+    operations?: (file?: VirtualFile) => Operation<any>[];
     width?: string;
     canResize?: boolean;
     fileHeaderOperations?: React.ReactNode;
@@ -44,14 +44,14 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
         "--resize-setting": resizeSetting,
     } as React.CSSProperties;
 
-    const getOperations = React.useCallback((file: VirtualFile) => {
+    const getOperations = React.useCallback((file?: VirtualFile) => {
         const {operations} = props;
         if (!operations) return;
         setOperations(operations(file));
     }, [props.operations]);
 
     const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = React.useCallback((ev: React.MouseEvent, file: VirtualFile) => {
+    const onContextMenu = React.useCallback((ev: React.MouseEvent, file?: VirtualFile) => {
         ev.preventDefault();
         getOperations(file);
         openOperations.current(ev.clientX, ev.clientY);
@@ -71,7 +71,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 </>
             ) : null}
         </Flex>
-        <Box overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
+        <Box onContextMenu={e => onContextMenu(e, undefined)} overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
             <Tree apiRef={tree} onAction={onTreeAction}>
                 <FileNode
                     initialFolder={props.initialFolder}
@@ -140,6 +140,7 @@ const FileNode: React.FunctionComponent<{
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
         onContextMenu={e => {
+            e.stopPropagation();
             props.onContextMenu?.(e, props.node.file)
         }}
         slim

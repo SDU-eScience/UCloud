@@ -777,7 +777,7 @@ export const Editor: React.FunctionComponent<{
 
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
-    const openTabOperations = React.useCallback((title: string, position: {x: number; y: number;}) => {
+    const openTabOperations = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
         const ops = tabOperations(title, setTabs, openTab, tabs.closed.length > 0, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
@@ -839,7 +839,11 @@ export const Editor: React.FunctionComponent<{
 
         <div className={"main-content"}>
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
-                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
+                <div onContextMenu={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openTabOperations(undefined, {x: e.clientX, y: e.clientY});
+                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
@@ -848,6 +852,7 @@ export const Editor: React.FunctionComponent<{
                             onActivate={() => openTab(t)}
                             onContextMenu={e => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
@@ -975,17 +980,50 @@ export const Editor: React.FunctionComponent<{
                 }
             </div>
         </div>
-    </div>;
+    </div >;
 };
 
 /* TODO(Jonas): Improve parameters this is... not good */
 function tabOperations(
-    tabPath: string,
+    tabPath: string | undefined,
     setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
     anyTabsClosed: boolean,
     currentPath: string,
 ): Operation<any>[] {
+    if (!tabPath) {
+        return [{
+            text: "Re-open closed tab",
+            onClick: () => {
+                setTabs(tabs => {
+                    const tab = tabs.closed.pop();
+                    if (tab) {
+                        openTab(tab);
+                        return {
+                            open: [...tabs.open, tab],
+                            closed: tabs.closed
+                        };
+                    }
+                    return tabs;
+                });
+            },
+            enabled: () => anyTabsClosed,
+            shortcut: ShortcutKey.U,
+        }, {
+            text: "Close all",
+            onClick: () => {
+                setTabs(tabs => {
+                    return {
+                        open: [],
+                        closed: [...tabs.closed, ...tabs.open]
+                    }
+                });
+            },
+            enabled: () => true,
+            shortcut: ShortcutKey.U,
+        }];
+    }
+
     return [{
         text: "Close tab",
         onClick: () => {
