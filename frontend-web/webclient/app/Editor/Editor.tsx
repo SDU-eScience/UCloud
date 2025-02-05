@@ -363,7 +363,7 @@ export const Editor: React.FunctionComponent<{
         closed: [],
     });
 
-    const prettyPath = usePrettyFilePath(state.currentPath ?? "");
+    const prettyPath = usePrettyFilePath(state.currentPath);
     if (state.currentPath === SETTINGS_PATH) {
         usePage("Settings", SidebarTabId.FILES);
     } else if (state.currentPath === "") {

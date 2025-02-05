@@ -114,7 +114,10 @@ const FileNode: React.FunctionComponent<{
         ))}
     </>;
 
+    const didRename = React.useRef(false);
+
     const renameFile = React.useCallback((newName: string, cancel: boolean) => {
+        didRename.current = true;
         const parentPath = getParentPath(props.node.file.absolutePath);
         const newFullPath = parentPath + newName;
         props.onRename?.({
@@ -133,6 +136,12 @@ const FileNode: React.FunctionComponent<{
     const prettyPath = usePrettyFilePath(props.node.file.absolutePath);
 
     const isRenaming = props.renamingFile === props.node.file.absolutePath;
+
+    React.useEffect(() => {
+        if (isRenaming) {
+            didRename.current = false;
+        }
+    }, [isRenaming]);
 
     return <TreeNode
         cursor="pointer"
@@ -159,7 +168,10 @@ const FileNode: React.FunctionComponent<{
                 {isRenaming ?
                     <Input autoFocus onBlur={e => {
                         e.preventDefault();
-                        renameFile(e.target["value"], false)
+                        if (didRename.current) {
+                            return;
+                        }
+                        renameFile(e.target["value"], false);
                     }} onKeyDown={e => {
                         e.stopPropagation();
                         if (e.key === "Enter") {

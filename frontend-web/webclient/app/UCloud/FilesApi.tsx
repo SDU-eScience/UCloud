@@ -1288,20 +1288,15 @@ export function FilePreview({initialFile}: {
                 type: "bulk",
                 items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
             }));
-            editorRef.current?.invalidateTree?.(getParentPath(initialFile.id));
             setRenamingFile(undefined);
 
-            // TODO:
-            // [x] Rename file - if not equal to previous name
-            // [ ] Move content from vfs.cachedContent (or what it's called) and move it to its new path
-            // [x] Update tab
-
-            vfs.moveFileContent(oldAbsolutePath, newAbsolutePath);
+            vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
 
             if (editorRef.current?.path === oldAbsolutePath) {
-                editorRef.current.openFile(newAbsolutePath)
+                editorRef.current.openFile(newAbsolutePath);
             }
 
+            editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
             success = true;
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to rename file");
@@ -1617,6 +1612,7 @@ class PreviewVfs implements Vfs {
         if (!text) {
             return contentBuffer;
         } else {
+            this.fetchedFiles[path] = text;
             return text;
         }
     }
