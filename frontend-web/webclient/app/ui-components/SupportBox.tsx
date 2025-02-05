@@ -20,11 +20,6 @@ import Error from "./Error";
 import Input from "./Input";
 import {SidebarDialog} from "./Sidebar";
 
-const enum SupportType {
-    SUGGESTION = "SUGGESTION",
-    BUG = "BUG"
-}
-
 type SystemStatus = "Decomissioned" | "Operational" | "Degraded" | "Down";
 
 function submitTicket(request: {subject: string, message: string}): APICallParameters {
@@ -34,7 +29,6 @@ function submitTicket(request: {subject: string, message: string}): APICallParam
 export default function Support({dialog, setOpenDialog}: SidebarDialog): React.ReactNode {
     const [textArea, setTextArea] = useState("");
     const [titleArea, setTitleArea] = useState("");
-    const [type, setType] = useState(SupportType.SUGGESTION);
     const [loading, invokeCommand] = useCloudCommand();
     const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
 
@@ -44,7 +38,7 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
         const title = titleArea;
         if (text.trim()) {
             try {
-                await invokeCommand(submitTicket({subject: title, message: `${type}: ${text}`}));
+                await invokeCommand(submitTicket({subject: title, message: text}));
                 setTextArea("");
                 setTitleArea("");
                 snackbarStore.addSuccess("Support ticket submitted!", false);
@@ -132,25 +126,6 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
                         <Error error={<>One or more systems are experiencing issues. See <ExternalLink href="https://status.cloud.sdu.dk">status.cloud.sdu.dk</ExternalLink> for more info.</>} />
                     </Box>)}
 
-                    <Flex mt="8px" gap={"8px"}>
-                        <Label cursor="pointer" width={"initial"}>
-                            <Radio
-                                checked={type === SupportType.SUGGESTION}
-                                onChange={setSuggestion}
-                            />
-                            <Icon name="heroChatBubbleLeftEllipsis" size="1.5em" mr=".5em" />
-                            Suggestion
-                        </Label>
-                        <Label cursor="pointer" width={"initial"}>
-                            <Radio
-                                checked={type === SupportType.BUG}
-                                onChange={setBug}
-                            />
-                            <Icon name="bug" size="1.5em" mr=".5em" />
-                            Bug
-                        </Label>
-                    </Flex>
-
                     <form onSubmit={onSubmit} style={{display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px"}}>
                         <Label>
                             Subject
@@ -158,11 +133,7 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
                         </Label>
 
                         <Label>
-                            {type === SupportType.BUG ?
-                                "Describe your problem below and we will investigate it." :
-                                "Describe your suggestion below and we will look into it."
-                            }
-
+                            Describe your problem or suggestion below.
                             <TextArea width="100%" value={textArea} onChange={e => setTextArea(e.target.value)} rows={6} />
                         </Label>
 
@@ -180,12 +151,4 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
             </div>
         </ClickableDropdown>
     );
-
-    function setBug(): void {
-        setType(SupportType.BUG);
-    }
-
-    function setSuggestion(): void {
-        setType(SupportType.SUGGESTION);
-    }
 }
