@@ -9,7 +9,7 @@ import {
 } from "@/UCloud/ResourceApi";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import FileCollectionsApi, {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
-import {Button, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, Icon, Markdown, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
@@ -32,7 +32,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ItemRenderer} from "@/ui-components/Browse";
-import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
+import {prettyFilePath} from "@/Files/FilePath";
 import {OpenWithBrowser} from "@/Applications/OpenWith";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
@@ -52,7 +52,6 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
 import FileBrowse from "@/Files/FileBrowse";
 import {classConcat, injectStyleSimple} from "@/Unstyled";
-import {usePage} from "@/Navigation/Redux";
 import fileType from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
@@ -71,12 +70,13 @@ import {
     UFileSpecification,
     UFileStatus
 } from "./UFile";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
-import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
+import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
+import {VirtualFile} from "@/Files/FileTree";
+import {edit} from "@/ui-components/icons";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -206,7 +206,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     };
 
     public Properties = () => {
-        const {id} = useParams<{ id?: string }>();
+        const {id} = useParams<{id?: string}>();
 
         const [fileData, fetchFile] = useCloudAPI<UFile | null>({noop: true}, null);
 
@@ -221,15 +221,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             }))
         }, [id]);
 
-        const prettyPath = usePrettyFilePath(id ?? "");
-        usePage(prettyPath, SidebarTabId.FILES);
-
         const file = fileData.data;
 
         if (!id) return <h1>Missing file id.</h1>;
         if (!file) return <></>;
 
-        return <FilePreview initialFile={file}/>
+        return <FilePreview initialFile={file} />
     }
 
     public retrieveOperations(): Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[] {
@@ -312,7 +309,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 enabled: (selected, cb) => selected.length === 1 && cb.collection != null,
                 onClick: (selected) => {
                     dialogStore.addDialog(
-                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]}/>,
+                        <OpenWithBrowser opts={{isModal: true}} file={selected[0]} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle,
@@ -356,22 +353,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "download",
                 enabled: selected => selected.length > 0 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
-                    // TODO(Dan): We should probably add a feature flag for file types
-
-                    if (selected.length > 1) {
-                        snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
-                    }
-
-                    const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
-                        this.createDownload(bulkRequestOf(
-                            ...selected.map(it => ({id: it.id})),
-                        ))
-                    );
-
-                    const responses = result?.responses ?? [];
-                    for (const {endpoint} of responses) {
-                        downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
-                    }
+                    this.download(selected.map(it => it.id));
                 },
                 shortcut: ShortcutKey.D
             },
@@ -384,44 +366,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Copy to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.copy({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files copied", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            additionalFilters: {
-                                filterProvider: selected[0].specification.product.provider
-                            },
-                            initialPath: pathRef.current,
-                        }}/>,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.copyModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.C
             },
@@ -471,7 +416,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }
                             },
                             initialPath: pathRef.current,
-                        }}/>,
+                        }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
@@ -495,43 +440,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: getParentPath(selected[0].id)};
-                    dialogStore.addDialog(
-                        <FileBrowse opts={{
-                            isModal: true, managesLocalProject: true, selection: {
-                                text: "Move to",
-                                show(res) {
-                                    return res.status.type === "DIRECTORY"
-                                },
-                                onClick: async (res) => {
-                                    const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-
-                                    try {
-                                        const result = await cb.invokeCommand(
-                                            this.move({
-                                                type: "bulk",
-                                                items: selected.map(file => ({
-                                                    oldId: file.id,
-                                                    conflictPolicy: "RENAME",
-                                                    newId: target + "/" + fileName(file.id)
-                                                }))
-                                            })
-                                        );
-                                        cb.reload();
-                                        dialogStore.success();
-                                        snackbarStore.addSuccess("Files moved", false);
-                                    } catch (e) {
-                                        displayErrorMessageOrDefault(e, "Failed to move to folder");
-                                    }
-                                }
-                            },
-                            initialPath: pathRef.current,
-                            additionalFilters: {filterProvider: selected[0].specification.product.provider}
-                        }}/>,
-                        doNothing,
-                        true,
-                        this.fileSelectorModalStyle
-                    );
+                    this.moveModal(selected.map(it => it.id), selected[0].specification.product.provider, cb.reload);
                 },
                 shortcut: ShortcutKey.M
             },
@@ -774,6 +683,108 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+
+    // -- Shared file operations -- 
+    // TODO(Dan): We should probably add a feature flag for file types
+    public async download(ids: string[]) {
+        if (ids.length > 1) {
+            snackbarStore.addInformation("For downloading multiple files, you may need to enable pop-ups.", false, 8000);
+        }
+
+        const result = await callAPI<BulkResponse<FilesCreateDownloadResponseItem>>(
+            this.createDownload(bulkRequestOf(
+                ...ids.map(id => ({id})),
+            ))
+        );
+
+        const responses = result?.responses ?? [];
+        for (const {endpoint} of responses) {
+            downloadFile(normalizeDownloadEndpoint(endpoint), responses.length > 1);
+        }
+    }
+
+    public copyModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Copy to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+                        try {
+                            const result = await callAPI(
+                                this.copy({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files copied", false);
+                            return true;
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                            return false;
+                        }
+                    }
+                },
+                additionalFilters: {
+                    filterProvider: provider
+                },
+                initialPath: pathRef.current,
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
+
+    public moveModal(ids: string[], provider: string, reload: (result: any) => void) {
+        const pathRef = {current: getParentPath(ids[0])};
+        dialogStore.addDialog(
+            <FileBrowse opts={{
+                isModal: true, managesLocalProject: true, selection: {
+                    text: "Move to",
+                    show(res) {
+                        return res.status.type === "DIRECTORY"
+                    },
+                    onClick: async (res) => {
+                        const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
+
+                        try {
+                            const result = await callAPI(
+                                this.move({
+                                    type: "bulk",
+                                    items: ids.map(id => ({
+                                        oldId: id,
+                                        conflictPolicy: "RENAME",
+                                        newId: target + "/" + fileName(id)
+                                    }))
+                                })
+                            );
+                            reload(result);
+                            dialogStore.success();
+                            snackbarStore.addSuccess("Files moved", false);
+                        } catch (e) {
+                            displayErrorMessageOrDefault(e, "Failed to move to folder");
+                        }
+                    }
+                },
+                initialPath: pathRef.current,
+                additionalFilters: {filterProvider: provider}
+            }} />,
+            doNothing,
+            true,
+            this.fileSelectorModalStyle
+        );
+    }
 }
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks): string {
@@ -994,10 +1005,10 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
         dialogStore.addDialog(
             <>
                 <Heading.h2>
-                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32"/>
+                    Sensitive files not supported <Icon name="warning" color="errorMain" size="32" />
                 </Heading.h2>
                 <p>
-                    This provider (<ProviderTitle providerId={file.specification.product.provider}/>) has declared
+                    This provider (<ProviderTitle providerId={file.specification.product.provider} />) has declared
                     that they do not support sensitive data. This means that you <b>cannot/should not</b>:
 
                     <ul>
@@ -1025,17 +1036,16 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-                                             onUpdated={onUpdated}/>, () => undefined, true);
+        onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = PREVIEW_MAX_SIZE;
 
-function isDownloadAllowed(file: UFile) {
-    if (file.status.type !== "FILE") return false;
+function isFileFileSizeExceeded(file: UFile) {
     const size = file.status.sizeInBytes;
-    return size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
+    return size != null && size > MAX_PREVIEW_SIZE_IN_BYTES && size > 0;
 }
 
 export function FilePreview({initialFile}: {
@@ -1044,6 +1054,7 @@ export function FilePreview({initialFile}: {
     const [openFile, setOpenFile] = useState<[string, string | Uint8Array]>(["", ""]);
     const [previewRequested, setPreviewRequested] = useState(false);
     const [drive, setDrive] = useState<FileCollection | null>(null);
+    const [renamingFile, setRenamingFile] = useState<string>();
     const didUnmount = useDidUnmount();
 
     useEffect(() => {
@@ -1082,7 +1093,7 @@ export function FilePreview({initialFile}: {
         setPreviewRequested(false);
     }, [openFile[0]]);
 
-    const mediaFileMetadata: null | { type: ExtensionType, data: string, error: string | null } = useMemo(() => {
+    const mediaFileMetadata: null | {type: ExtensionType, data: string, error: string | null} = useMemo(() => {
         let [file, contentBuffer] = openFile;
         if (typeof contentBuffer === "string") {
             if (previewRequested) {
@@ -1094,7 +1105,7 @@ export function FilePreview({initialFile}: {
         const foundFileType = getFileTypesFromContentBuffer(contentBuffer);
         let typeFromFileType =
             foundFileType.length > 0 ?
-            typeFromMime(foundFileType[0].mime ?? "") : null;
+                typeFromMime(foundFileType[0].mime ?? "") : null;
 
         if (!typeFromFileType) {
             typeFromFileType = extensionType(extensionFromPath(file));
@@ -1194,16 +1205,17 @@ export function FilePreview({initialFile}: {
             node = null;
             break;
         case "image":
-            node = <img className={Image} alt={fileName(initialFile.id)} src={mediaFileMetadata.data}/>
+            // Note(Jonas): extensions like .HEIC will fallback to just showing the alt.
+            node = <img className={Image} alt={fileName(openFile[0])} src={mediaFileMetadata.data} />
             break;
         case "audio":
-            node = <audio className={Audio} controls src={mediaFileMetadata.data}/>;
+            node = <audio className={Audio} controls src={mediaFileMetadata.data} />;
             break;
         case "video":
-            node = <video className={Video} src={mediaFileMetadata.data} controls/>;
+            node = <video className={Video} src={mediaFileMetadata.data} controls />;
             break;
         case "pdf":
-            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data}/>;
+            node = <object type="application/pdf" className={classConcat("fullscreen", PreviewObject)} data={mediaFileMetadata.data} />;
             break;
         case "markdown":
             node = <div className={MarkdownStyling}><Markdown>{mediaFileMetadata.data}</Markdown></div>;
@@ -1249,12 +1261,14 @@ export function FilePreview({initialFile}: {
         })).result;
 
         const newPath = getParentPath(path) + name;
-        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+        window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
             detail: {
                 path: newPath,
                 content: "",
             }
         }));
+
+        // TODO(Jonas): Add check that file exists or even can be created (has active allocation)
 
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
@@ -1262,14 +1276,49 @@ export function FilePreview({initialFile}: {
         }, 200);
     }, [openFile[0]]);
 
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+        let success = false;
+        if (cancel) {
+            setRenamingFile(undefined);
+            return false;
+        }
+
+        try {
+            await callAPI(api.move({
+                type: "bulk",
+                items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
+            }));
+            editorRef.current?.invalidateTree?.(getParentPath(initialFile.id));
+            setRenamingFile(undefined);
+
+            // TODO:
+            // [x] Rename file - if not equal to previous name
+            // [ ] Move content from vfs.cachedContent (or what it's called) and move it to its new path
+            // [x] Update tab
+
+            vfs.moveFileContent(oldAbsolutePath, newAbsolutePath);
+
+            if (editorRef.current?.path === oldAbsolutePath) {
+                editorRef.current.openFile(newAbsolutePath)
+            }
+
+            success = true;
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to rename file");
+        }
+
+        return success;
+    }, []);
+
     const operations = useCallback((file: VirtualFile): Operation<any>[] => {
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
+        const reload = () => {
+            editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
+        }
         return [
             {
-                primary: false,
                 icon: "heroFolderPlus",
                 text: "New folder",
-                confirm: false,
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
@@ -1278,17 +1327,69 @@ export function FilePreview({initialFile}: {
                 shortcut: ShortcutKey.F,
             },
             {
-                primary: false,
                 icon: "heroDocumentPlus",
                 text: "New file",
-                confirm: false,
                 enabled: () => true,
                 onClick: () => {
                     const suffix = file.isDirectory ? "/placeholder" : "";
                     newFile(file.absolutePath + suffix).then(doNothing);
                 },
                 shortcut: ShortcutKey.G,
-            }
+            },
+            {
+                icon: "edit",
+                text: "Rename",
+                enabled: () => true,
+                onClick: () => {
+                    setRenamingFile(file.absolutePath);
+                },
+                shortcut: ShortcutKey.E
+            },
+            {
+                icon: "trash",
+                text: "Move to trash",
+                enabled: () => true,
+                onClick: async () => {
+                    await callAPI(
+                        api.trash({
+                            type: "bulk",
+                            items: [{id: file.absolutePath}],
+                        })
+                    );
+                    reload();
+                    snackbarStore.addSuccess("File(s) moved to trash", false);
+                },
+                shortcut: ShortcutKey.R
+            },
+            {
+                icon: "copy",
+                text: "Copy file",
+                enabled: () => true,
+                onClick: () => {
+                    api.copyModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.C
+            },
+            {
+                icon: "move",
+                text: "Move file",
+                enabled: () => true,
+                onClick: () => {
+                    api.moveModal([file.absolutePath], initialFile.specification.product.provider, reload);
+                },
+                shortcut: ShortcutKey.M
+                // MOVE
+            },
+            {
+                icon: "download",
+                text: "Download file",
+                enabled: () => true,
+                onClick: async () => {
+                    api.download([file.absolutePath]);
+                },
+                shortcut: ShortcutKey.D
+                // DOWNLOAD
+            },
         ];
     }, []);
 
@@ -1339,7 +1440,26 @@ export function FilePreview({initialFile}: {
         showCustomContent={node != null}
         customContent={node}
         onOpenFile={onOpenFile}
+        onRename={onRename}
+        renamingFile={renamingFile}
         operations={operations}
+        fileHeaderOperations={
+            <>
+                <Icon name="heroDocumentPlus" cursor="pointer" size="18px" onClick={() => newFile(initialFile.id)} />
+                <Icon name="heroFolderPlus" cursor="pointer" size="18px" onClick={() => newFolder(initialFile.id)} />
+            </>
+        }
+        help={
+            <Flex mx="auto" mt="150px">
+                <Box>
+                    <Text mb="12px">Create new file and start working</Text>
+                    <Flex mx="auto">
+                        <Button mx="auto" onClick={() => newFile(initialFile.id)}>New file</Button>
+                        <Button mx="auto" onClick={() => newFolder(initialFile.id)}>New folder</Button>
+                    </Flex>
+                </Box>
+            </Flex>
+        }
         readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
     />;
 }
@@ -1436,6 +1556,20 @@ class PreviewVfs implements Vfs {
         this.dirtyFileContent[path] = content;
     }
 
+    public moveFileContent(oldPath: string, newPath: string) {
+        if (this.dirtyFileContent[oldPath]) {
+            const content = this.dirtyFileContent[oldPath];
+            delete this.dirtyFileContent[oldPath];
+            this.dirtyFileContent[newPath] = content;
+        }
+
+        if (this.fetchedFiles[oldPath]) {
+            const content = this.fetchedFiles[oldPath];
+            delete this.fetchedFiles[oldPath];
+            this.fetchedFiles[newPath] = content;
+        }
+    }
+
     async readFile(path: string): Promise<string | Uint8Array> {
         const dirty = this.dirtyFileContent[path];
         if (dirty !== undefined) return dirty;
@@ -1444,9 +1578,13 @@ class PreviewVfs implements Vfs {
         const file = this.ufiles[path] ?? await callAPI(api.retrieve({id: path}));
         this.ufiles[path] = file;
 
-        if (!isDownloadAllowed(file) && file.status.sizeInBytes !== 0) {
-            throw window.Error("File cannot be viewed in editor");
+        if (isFileFileSizeExceeded(file)) {
+            throw window.Error("File is to large to preview.");
         }
+
+        if (file.status.type !== "FILE") {
+            throw window.Error("Only files can be previewed");
+        };
 
         if (file.status.sizeInBytes === 0) {
             return "";
@@ -1467,7 +1605,7 @@ class PreviewVfs implements Vfs {
         if (content === undefined) return;
 
         try {
-            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(WriteToFileEventKey, {
+            window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
                 detail: {
                     path,
                     content
@@ -1487,7 +1625,7 @@ function toVirtualFiles(page: PageV2<UFile>): VirtualFile[] {
     }));
 }
 
-export const WriteToFileEventKey = "write-to-file-event";
+export const EventKeys = {WriteToFile: "write-to-file-event"};
 
 export interface WriteToFileEventProps {
     path: string;

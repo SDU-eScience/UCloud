@@ -13,6 +13,7 @@ import {
     createHTMLElements,
     doNothing,
     inDevEnvironment,
+    isLikelyMac,
     stopPropagation,
     stopPropagationAndPreventDefault,
     timestampUnixMs
@@ -3672,10 +3673,6 @@ function printDuplicateShortcuts<T>(operations: OperationOrGroup<T, unknown>[]) 
         entries[short.shortcut ?? ""] = short.text;
     }
 }
-
-const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" ||
-    navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
-    navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
 const ARROW_UP = "↑";
 const ARROW_DOWN = "↓";

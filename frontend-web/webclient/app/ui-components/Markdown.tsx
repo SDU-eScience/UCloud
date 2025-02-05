@@ -3,7 +3,6 @@ import ReactMarkdown, {Options} from "react-markdown";
 import ExternalLink from "./ExternalLink";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {injectStyle} from "@/Unstyled";
-import {useLayoutEffect, useRef} from "react";
 
 function CodeBlock(props: {lang?: string; inline?: boolean; children: React.ReactNode & React.ReactNode[]}) {
     if (props.inline === true || !props.lang) return <code>{props.children}</code>;

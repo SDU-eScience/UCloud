@@ -1,6 +1,6 @@
 import * as React from "react";
 import {Feature, hasFeature} from "@/Features";
-import {Editor, EditorApi, Vfs, VirtualFile} from "@/Editor/Editor";
+import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorCode, stopPropagation} from "@/UtilityFunctions";
 import {WorkflowSpecification} from "@/Applications/Workflows/index";
@@ -15,6 +15,7 @@ import {ApplicationParameter} from "@/Applications/AppStoreApi";
 import EnumOption = AppStore.ApplicationParameterNS.EnumOption;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {VirtualFile} from "@/Files/FileTree";
 
 const WorkflowEditor: React.FunctionComponent<{
     initialExistingPath?: string | null;
