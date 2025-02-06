@@ -853,7 +853,7 @@ const Uploader: React.FunctionComponent = () => {
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>
                     {uploads.length > 0 && uploads.find(upload => uploadIsTerminal(upload)) !== null ?
-                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear finished uploads</Button>
+                        <Button mt="7px" ml="auto" onClick={() => setUploads(uploads.filter(u => !uploadIsTerminal(u)))}>Clear upload history</Button>
                         : null}
                 </Flex>
                 <Text fontSize={10} className={UploaderSpeedTextClass}>{uploadingText}</Text>
@@ -882,7 +882,7 @@ const Uploader: React.FunctionComponent = () => {
                                 {hasUploads ? null :
                                     <UploaderArt />
                                 }
-                                <div className="upload-more-text" style={{marginTop: "22px"}}>
+                                <div style={{marginTop: "22px"}}>
                                     <TextSpan mr="0.5em"><Icon hoverColor="primaryContrast"
                                         name="upload" /></TextSpan>
                                     <TextSpan mr="0.3em">Drop files or folders here or</TextSpan>
@@ -1061,10 +1061,10 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
     const icon = <FtIcon fileIcon={{type: upload.folderName ? "DIRECTORY" : "FILE", ext: extensionFromPath(upload.name)}} size="24px" />;
 
     const title = upload.folderName ?? upload.name;
-    const removeOperation = <TooltipV2 tooltip={"Click to remove row"}>
+    const removeOperation = <TooltipV2 contentWidth={170} tooltip={"Clear from history"}>
         <Icon
             cursor="pointer"
-            name={"close"}
+            name={stopped ? "close" : "check"}
             onClick={() => {
                 callbacks.clearUploads([upload]);
                 const fullFilePath = upload.targetPath + "/" + upload.name;
