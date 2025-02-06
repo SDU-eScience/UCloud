@@ -7,7 +7,7 @@ import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
@@ -223,9 +223,13 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
 
 const monacoCache = new AsyncCache<any>();
 
-export async function getMonaco(): Promise<any> {
+export async function getMonaco() {
     return monacoCache.retrieve("", async () => {
         const monaco = await (import("monaco-editor"));
+
+        populateLanguages(monaco.languages.getLanguages().map(l =>
+            ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
+        );
         self.MonacoEnvironment = {
             getWorker: function (workerId, label) {
                 switch (label) {
@@ -333,6 +337,7 @@ export interface EditorApi {
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
 
+const overridenLanguages: Record<string, string> = {}
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -469,7 +474,8 @@ export const Editor: React.FunctionComponent<{
                 Promise.resolve(cachedContent) :
                 props.vfs.readFile(path);
 
-        const syntax = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+        const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
+        const syntax = languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
 
@@ -622,14 +628,13 @@ export const Editor: React.FunctionComponent<{
 
         // Register a new Jinja2 language
         m.languages.register({id: 'jinja2'});
-        m.option
 
         // Define the syntax highlighting rules for Jinja2
         m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             value: "",
-            language: "jinja2",
+            language: languageFromExtension(extensionFromPath(state.currentPath)),
             readOnly: props.readOnly,
             minimap: {enabled: false},
             renderLineHighlight: "none",
@@ -947,37 +952,36 @@ export const Editor: React.FunctionComponent<{
                             </Box>
                         </Flex>
 
-                    </Flex> :
-                    <>
-                        {/* 
+                    </Flex> : null}
+                <>
+                    {/* 
                             Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
                             I would assume that the `isSettingsOpen`-flag would cause the same issue, but it doesn't for some reason.
                         */}
-                        {showEditorHelp && props.help ? props.help : null}
-                        <div style={{
-                            display: props.showCustomContent || (showEditorHelp && props.help) ? "none" : "block",
-                            width: "100%",
-                            height: "100%",
-                        }}>
-                            {engine !== "monaco" ? null :
-                                <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                            }
+                    {showEditorHelp && props.help ? props.help : null}
+                    <div style={{
+                        display: props.showCustomContent || (showEditorHelp && props.help) || isSettingsOpen ? "none" : "block",
+                        width: "100%",
+                        height: "100%",
+                    }}>
+                        {engine !== "monaco" ? null :
+                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
+                        }
 
-                            {engine !== "vim" ? null :
-                                <VimEditor vim={vimRef} onInit={doNothing} />
-                            }
-                        </div>
+                        {engine !== "vim" ? null :
+                            <VimEditor vim={vimRef} onInit={doNothing} />
+                        }
+                    </div>
 
-                        <div style={{
-                            display: props.showCustomContent ? "block" : "none",
-                            width: "100%",
-                            height: "100%",
-                            maxHeight: "calc(100vh - 64px)",
-                            padding: "16px",
-                            overflow: "auto",
-                        }}>{props.customContent}</div>
-                    </>
-                }
+                    <div style={{
+                        display: props.showCustomContent ? "block" : "none",
+                        width: "100%",
+                        height: "100%",
+                        maxHeight: "calc(100vh - 64px)",
+                        padding: "16px",
+                        overflow: "auto",
+                    }}>{props.customContent}</div>
+                </>
             </div>
         </div>
     </div >;
@@ -1238,15 +1242,15 @@ const jinja2monarchTokens = {
     }
 };
 
-type EditorOptionPair<T extends EditorOption> = [T, editor.FindComputedEditorOptionValueById<T>[]];
+type EditorOptionPair<T extends EditorOption> = [string, T, editor.FindComputedEditorOptionValueById<T>[]];
 const AvailableSettings: [
     EditorOptionPair<EditorOption.fontSize>,
     EditorOptionPair<EditorOption.fontWeight>,
     EditorOptionPair<EditorOption.wordWrap>,
 ] = [
-        [EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
-        [EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
-        [EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
+        ["Font size", EditorOption.fontSize, [8, 10, 12, 14, 16, 18, 20, 22]],
+        ["Font weight", EditorOption.fontWeight, ["200", "400", "600", "800", "bold"]],
+        ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
     ];
 
 function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) {
@@ -1264,8 +1268,8 @@ function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) 
     if (!editor) return null;
 
     return <>
-        {AvailableSettings.map(([setting, options]) => <div key={setting}>
-            {EditorOption[setting]}
+        {AvailableSettings.map(([name, setting, options]) => <div key={setting}>
+            {name}
             <Select defaultValue={editor.getOption(setting)} onChange={e => setOption(setting, e.target.value)}>
                 {options.map((opt: string | number) =>
                     <option key={opt} value={opt}>{opt}</option>

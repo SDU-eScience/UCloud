@@ -113,6 +113,14 @@ const languages = {
     "rs": "rust",
 };
 
+export function populateLanguages(langs: {language: string; extensions: string[]}[]): void {
+    for (const lang of langs) {
+        for (const ext of lang.extensions) {
+            languages[ext] = lang.language;
+        }
+    }
+}
+
 export function languageFromExtension(ext: string): string {
     return languages[ext.toLowerCase()] ?? ext.toLowerCase();
 }
