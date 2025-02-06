@@ -16,7 +16,7 @@ import (
 
 var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
-var sched = newScheduler(0)
+var sched = NewScheduler()
 
 type jobTracker struct {
 	batch *ctrl.JobUpdateBatch
@@ -45,9 +45,9 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	return ok
 }
 
-func jobDimensions(job *orc.Job) schedulerDimensions {
+func jobDimensions(job *orc.Job) SchedulerDimensions {
 	prod := &job.Status.ResolvedProduct
-	return schedulerDimensions{
+	return SchedulerDimensions{
 		CpuMillis:     prod.Cpu * 1000,
 		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
 		Gpu:           0,
@@ -69,9 +69,9 @@ func loopMonitoring() {
 		sched.PruneReplicas()
 		tracker.batch.End()
 
-		length := len(sched.queue)
+		length := len(sched.Queue)
 		for i := 0; i < length; i++ {
-			queueEntry := &sched.queue[i]
+			queueEntry := &sched.Queue[i]
 			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
 		}
 

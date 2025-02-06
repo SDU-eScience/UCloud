@@ -7,13 +7,13 @@ import (
 )
 
 func TestBasicScheduling(t *testing.T) {
-	scheduler := newScheduler(1)
+	scheduler := NewScheduler()
 
 	for i := 0; i < 10; i++ {
 		scheduler.RegisterNode(fmt.Sprintf("node-%v", i), "example", 1000, 1000, 0, false)
 	}
 
-	fullNode := schedulerDimensions{
+	fullNode := SchedulerDimensions{
 		CpuMillis:     1000,
 		MemoryInBytes: 1000,
 	}
