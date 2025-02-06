@@ -1046,9 +1046,9 @@ func (u *uploaderFileSystem) OnSessionClose(session upload.ServerSession, succes
 	}
 }
 
-func (u *uploaderFile) Write(_ context.Context, data []byte) {
+func (u *uploaderFile) Write(_ context.Context, data []byte) error {
 	if u.err != nil {
-		return
+		return u.err
 	}
 
 	_, err := u.File.Write(data)
@@ -1056,6 +1056,7 @@ func (u *uploaderFile) Write(_ context.Context, data []byte) {
 	if err != nil {
 		u.err = err
 	}
+	return u.err
 }
 
 func (u *uploaderFile) Close() {
@@ -1113,13 +1114,13 @@ func (u *uploaderClientFile) OpenChild(ctx context.Context, name string) (upload
 	return metadata, child
 }
 
-func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool) {
+func (u *uploaderClientFile) Read(ctx context.Context, target []byte) (int, bool, error) {
 	n, err := u.File.Read(target)
 	if err != nil {
-		return 0, true
+		return 0, true, err
 	}
 
-	return n, n == 0
+	return n, n == 0, nil
 }
 
 func (u *uploaderClientFile) Close() {

@@ -3,8 +3,11 @@ package upload
 import (
 	"bytes"
 	"context"
+	"fmt"
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sync/semaphore"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
@@ -34,13 +37,62 @@ type ServerSession struct {
 	UserData       string
 }
 
+type ServerMetrics struct {
+	lock             sync.Mutex
+	BytesTransferred int64
+	FilesCompleted   int64
+	FilesSkipped     int64
+	SkipReasons      map[string]SkipReason
+}
+
+func (m *ServerMetrics) CompleteFile(size int64) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.BytesTransferred += size
+	m.FilesCompleted++
+}
+
+func (m *ServerMetrics) SkipFile(reason string, path string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesSkipped++
+	truncatedReason := reason[:min(len(reason), 16)]
+	skips, _ := m.SkipReasons[truncatedReason]
+	skips.AddSkip(reason, path)
+	m.SkipReasons[reason] = skips
+}
+
+func (m *ServerMetrics) Absorb(other *ServerMetrics) {
+	other.lock.Lock()
+	defer other.lock.Unlock()
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesCompleted += other.FilesCompleted
+	m.BytesTransferred += other.BytesTransferred
+	m.FilesSkipped += other.FilesSkipped
+
+	for key, reasons := range other.SkipReasons {
+		myReasons := m.SkipReasons[key]
+		initialCount := myReasons.Count
+		for i := 0; i < len(reasons.Paths); i++ {
+			myReasons.AddSkip(reasons.Reasons[i], reasons.Paths[i])
+		}
+		myReasons.Count = initialCount + reasons.Count
+		m.SkipReasons[key] = myReasons
+	}
+}
+
 type ServerFileSystem interface {
 	OpenFileIfNeeded(session ServerSession, fileMeta FileMetadata) ServerFile
 	OnSessionClose(session ServerSession, success bool)
 }
 
 type ServerFile interface {
-	Write(ctx context.Context, data []byte)
+	Write(ctx context.Context, data []byte) error
 	Close()
 }
 
@@ -60,6 +112,8 @@ type serverFileUpload struct {
 	// - 2: This file should not be processed, but this has not yet been sent to the client
 	// - 3: The client has been notified about the decision
 	Status atomic.Int32
+
+	Metrics *ServerMetrics
 }
 
 func (f *serverFileUpload) Process() {
@@ -80,6 +134,7 @@ func (f *serverFileUpload) Process() {
 
 		written := int64(0)
 
+		didWriteErrorMetrics := false
 		if f.Entry.Size > 0 {
 		outer:
 			for {
@@ -92,7 +147,13 @@ func (f *serverFileUpload) Process() {
 						break outer
 					}
 
-					file.Write(f.Ctx, chunk)
+					err = file.Write(f.Ctx, chunk)
+					if err != nil && !didWriteErrorMetrics {
+						// NOTE(Dan): Writes in this case must continue to work even if the write has failed. We only
+						// use the error for metrics.
+						f.Metrics.SkipFile(err.Error(), f.Entry.Path)
+						didWriteErrorMetrics = true
+					}
 					f.ChunkSemaphore.Release(chunkWeight(chunk))
 
 					written += int64(len(chunk))
@@ -102,8 +163,11 @@ func (f *serverFileUpload) Process() {
 				}
 			}
 		}
+
+		f.Metrics.CompleteFile(f.Entry.Size)
 	} else {
 		f.Status.Swap(2)
+		f.Metrics.SkipFile("not needed", f.Entry.Path)
 	}
 
 	if file != nil {
@@ -120,6 +184,10 @@ func chunkWeight(chunk []byte) int64 {
 
 func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) bool {
 	uploads := map[int32]*serverFileUpload{}
+
+	metrics := ServerMetrics{
+		SkipReasons: make(map[string]SkipReason),
+	}
 
 	// Acquired and released by the serverFileUpload goroutines. This is acquired by the goroutine since we want to keep
 	// processing network messages even if there are too many for us to handle right now. The client won't send us any
@@ -261,6 +329,7 @@ outer:
 						ChunkSemaphore:     chunkSemaphore,
 						ChunksOrSkip:       make(chan []byte),
 						Done:               atomic.Bool{},
+						Metrics:            &metrics,
 					}
 
 					uploads[msg.FileId] = fileUpload
@@ -321,6 +390,28 @@ outer:
 	}
 
 	fs.OnSessionClose(session, wasClosed)
+
+	if metrics.FilesCompleted != 0 || metrics.FilesSkipped != 0 || metrics.BytesTransferred != 0 {
+		b := strings.Builder{}
+		b.WriteString(fmt.Sprintf(
+			"Upload session complete (server): %v file(s) transferred | %v bytes transferred | %v file(s) skipped\n",
+			metrics.FilesCompleted,
+			metrics.BytesTransferred,
+			metrics.FilesSkipped,
+		))
+		for trunc, f := range metrics.SkipReasons {
+			b.WriteString("\t")
+			b.WriteString(trunc)
+			b.WriteString(":\n")
+			b.WriteString(fmt.Sprintf("\t\tCount: %v\n", f.Count))
+			for i := 0; i < len(f.Paths); i++ {
+				b.WriteString(fmt.Sprintf("\t\t%v: %v\n", f.Reasons[i], f.Paths[i]))
+			}
+		}
+
+		output := b.String()
+		log.Info(output)
+	}
 	return wasClosed
 }
 

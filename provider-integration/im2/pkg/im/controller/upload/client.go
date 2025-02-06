@@ -10,6 +10,8 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"ucloud.dk/pkg/log"
@@ -23,12 +25,76 @@ type ClientSession struct {
 	Endpoint       string
 	ConflictPolicy orc.WriteConflictPolicy
 	Path           string
+	Metrics        ClientMetrics
+}
+
+type ClientMetrics struct {
+	lock             sync.Mutex
+	BytesTransferred int64
+	FilesCompleted   int64
+	FilesSkipped     int64
+	SkipReasons      map[string]SkipReason
+}
+
+func (m *ClientMetrics) Absorb(other *ClientMetrics) {
+	other.lock.Lock()
+	defer other.lock.Unlock()
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesCompleted += other.FilesCompleted
+	m.BytesTransferred += other.BytesTransferred
+	m.FilesSkipped += other.FilesSkipped
+
+	for key, reasons := range other.SkipReasons {
+		myReasons := m.SkipReasons[key]
+		initialCount := myReasons.Count
+		for i := 0; i < len(reasons.Paths); i++ {
+			myReasons.AddSkip(reasons.Reasons[i], reasons.Paths[i])
+		}
+		myReasons.Count = initialCount + reasons.Count
+		m.SkipReasons[key] = myReasons
+	}
+}
+
+func (m *ClientMetrics) CompleteFile(size int64) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.BytesTransferred += size
+	m.FilesCompleted++
+}
+
+func (m *ClientMetrics) SkipFile(reason string, path string) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.FilesSkipped++
+	truncatedReason := reason[:min(len(reason), 16)]
+	skips, _ := m.SkipReasons[truncatedReason]
+	skips.AddSkip(reason, path)
+	m.SkipReasons[reason] = skips
+}
+
+type SkipReason struct {
+	Count   int
+	Reasons []string
+	Paths   []string // Will not store more than 16 example paths
+}
+
+func (s *SkipReason) AddSkip(reason, path string) {
+	s.Count++
+	if len(s.Paths) < 16 {
+		s.Paths = append(s.Paths, path)
+		s.Reasons = append(s.Reasons, reason)
+	}
 }
 
 type ClientFile interface {
 	ListChildren(ctx context.Context) []string
 	OpenChild(ctx context.Context, name string) (FileMetadata, ClientFile)
-	Read(ctx context.Context, target []byte) (int, bool)
+	Read(ctx context.Context, target []byte) (int, bool, error)
 	Close()
 }
 
@@ -49,6 +115,7 @@ type clientWorker struct {
 	Connection       *ws.Conn
 	FilesCompleted   atomic.Int32
 	BytesTransferred atomic.Int64
+	Metrics          ClientMetrics
 }
 
 func (w *clientWorker) Process() {
@@ -164,7 +231,7 @@ outer:
 
 						chunkBytes[0] = uint8(messageTypeChunk)
 						binary.BigEndian.PutUint32(chunkBytes[1:], uint32(work.Id))
-						count, isDone := work.File.Read(w.Ctx, chunkBytes[5:])
+						count, isDone, err := work.File.Read(w.Ctx, chunkBytes[5:])
 						if count > 0 {
 							written += int64(count)
 							w.BytesTransferred.Add(int64(count))
@@ -174,6 +241,12 @@ outer:
 						}
 
 						if isDone {
+							if err != nil {
+								stringErr := err.Error()
+								if stringErr != "EOF" {
+									w.Metrics.SkipFile(err.Error(), work.Metadata.InternalPath)
+								}
+							}
 							writeBuffers <- nil
 							break
 						}
@@ -222,12 +295,14 @@ outer:
 				work.Done.Swap(true)
 				w.FilesCompleted.Add(1)
 				work.File.Close()
+				w.Metrics.CompleteFile(work.Metadata.Size)
 
 			case 2:
 				// Skip the file
 				work.Done.Swap(true)
 				w.FilesCompleted.Add(1)
 				work.File.Close()
+				w.Metrics.SkipFile("server skip", work.Metadata.InternalPath)
 			}
 		}
 	}
@@ -432,6 +507,9 @@ func ProcessClient(
 				OpenWork:     discoveredWorkForWorkers,
 				AssignedWork: make(chan *clientWork),
 				Connection:   socket,
+				Metrics: ClientMetrics{
+					SkipReasons: make(map[string]SkipReason),
+				},
 			}
 			workers = append(workers, worker)
 			filesCompletedFromServer = append(filesCompletedFromServer, 0)
@@ -620,6 +698,37 @@ outer:
 	totalFilesCompleted := int64(0)
 	for _, f := range filesCompletedFromServer {
 		totalFilesCompleted += int64(f)
+	}
+
+	combined := ClientMetrics{
+		SkipReasons: make(map[string]SkipReason),
+	}
+	for _, w := range workers {
+		if w != nil {
+			combined.Absorb(&w.Metrics)
+		}
+	}
+
+	if combined.FilesCompleted != 0 || combined.FilesSkipped != 0 || combined.BytesTransferred != 0 {
+		b := strings.Builder{}
+		b.WriteString(fmt.Sprintf(
+			"Upload session complete (client): %v file(s) transferred | %v bytes transferred | %v file(s) skipped\n",
+			combined.FilesCompleted,
+			combined.BytesTransferred,
+			combined.FilesSkipped,
+		))
+		for trunc, f := range combined.SkipReasons {
+			b.WriteString("\t")
+			b.WriteString(trunc)
+			b.WriteString(":\n")
+			b.WriteString(fmt.Sprintf("\t\tCount: %v\n", f.Count))
+			for i := 0; i < len(f.Paths); i++ {
+				b.WriteString(fmt.Sprintf("\t\t%v: %v\n", f.Reasons[i], f.Paths[i]))
+			}
+		}
+
+		output := b.String()
+		log.Info(output)
 	}
 
 	return StatusReport{
