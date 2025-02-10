@@ -122,6 +122,10 @@ export function unbox(props: BoxProps | SpaceProps): React.CSSProperties {
 
     if ("borderRadius" in props && props.borderRadius) result.borderRadius = extractSize(props.borderRadius);
     if ("border" in props && props.border) result.border = props.border.toString();
+    if ("borderRight" in props && props.borderRight) result.borderRight = props.borderRight.toString();
+    if ("borderTop" in props && props.borderTop) result.borderTop = props.borderTop.toString();
+    if ("borderLeft" in props && props.borderLeft) result.borderLeft = props.borderLeft.toString();
+    if ("borderBottom" in props && props.borderBottom) result.borderBottom = props.borderBottom.toString();
     if ("zIndex" in props && props.zIndex) result.zIndex = props.zIndex.toString();
     if ("width" in props && props.width) result.width = extractSize(props.width);
     if ("height" in props && props.height) result.height = extractSize(props.height);

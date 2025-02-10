@@ -5,9 +5,9 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Label, Select, Truncate} from "@/ui-components";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
@@ -24,6 +24,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
+import {RichSelect} from "@/ui-components/RichSelect";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -230,6 +231,7 @@ export async function getMonaco() {
         populateLanguages(monaco.languages.getLanguages().map(l =>
             ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
         );
+
         self.MonacoEnvironment = {
             getWorker: function (workerId, label) {
                 switch (label) {
@@ -337,7 +339,6 @@ export interface EditorApi {
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
 
-const overridenLanguages: Record<string, string> = {}
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -356,6 +357,8 @@ export const Editor: React.FunctionComponent<{
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     readOnly: boolean;
 }> = props => {
+    const [overridenSyntaxes, setOverridenSyntaxes] = React.useState<Record<string, string>>({});
+    const [languageList, setLanguageList] = React.useState(getLanguageList());
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
@@ -417,6 +420,7 @@ export const Editor: React.FunctionComponent<{
 
     useEffect(() => {
         monacoRef.current = monacoInstance;
+        setLanguageList(getLanguageList());
     }, [monacoInstance]);
 
     useEffect(() => {
@@ -475,7 +479,7 @@ export const Editor: React.FunctionComponent<{
                 props.vfs.readFile(path);
 
         const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
-        const syntax = languageFromExtension(syntaxExtension ?? extensionFromPath(path));
+        const syntax = overridenSyntaxes[path] ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
 
@@ -534,7 +538,7 @@ export const Editor: React.FunctionComponent<{
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, overridenSyntaxes]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -824,6 +828,19 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
+    const doOverrideLanguage = React.useCallback((path: string, language: string) => {
+        setOverridenSyntaxes(syntaxes => {
+            if (state.currentPath === path) {
+                const monaco = monacoRef.current;
+                const editor = editorRef.current;
+                if (monaco && editor) {
+                    monaco.editor.setModelLanguage(editor.getModel(), language);
+                }
+            }
+            return {...syntaxes, [path]: language};
+        });
+    }, [state.currentPath]);
+
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
@@ -867,6 +884,24 @@ export const Editor: React.FunctionComponent<{
                             children={t}
                         />
                     )}
+
+                    <Box mx="auto" />
+                    <Box width={"150px"}>
+                        <RichSelect
+                            fullWidth
+                            items={languageList}
+                            keys={["language"]}
+                            FullRenderSelected={p =>
+                                <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
+                                    <LanguageItem {...p} /><Icon mr="4px" ml="auto" mt="8px" name="chevronDownLight" />
+                                </Flex>}
+                            RenderRow={LanguageItem}
+                            selected={{language: overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath))}}
+                            onSelect={element => {
+                                doOverrideLanguage(state.currentPath, element.language)
+                            }}
+                        />
+                    </Box>
                     <Operations
                         entityNameSingular={""}
                         operations={operations}
@@ -955,9 +990,10 @@ export const Editor: React.FunctionComponent<{
                     </Flex> : null}
                 <>
                     {/* 
-                            Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
-                            I would assume that the `isSettingsOpen`-flag would cause the same issue, but it doesn't for some reason.
-                        */}
+                        Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
+                        I would assume that the `isSettingsOpen`-flag would cause the same issue, but it doesn't for some reason. 
+                        06/02/2025 - Maybe it does?
+                    */}
                     {showEditorHelp && props.help ? props.help : null}
                     <div style={{
                         display: props.showCustomContent || (showEditorHelp && props.help) || isSettingsOpen ? "none" : "block",
@@ -1142,7 +1178,7 @@ function EditorTab({
     isDirty: boolean;
     onContextMenu?: (e: React.MouseEvent<any>) => void;
     onActivate(): void;
-    close(): void
+    close(): void;
 }>): React.ReactNode {
     const [hovered, setHovered] = useState(false);
 
@@ -1165,7 +1201,7 @@ function EditorTab({
                 cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
                 size={12}
                 onClick={onClose} />
-        </Flex>
+        </Flex >
     );
 }
 
@@ -1187,6 +1223,37 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
         background-color: var(--infoContrast);
     }
 `);
+
+const fallbackIcon = toIconPath("default");
+function LanguageItem({element, ...props}: {element?: {language: string}, onSelect: () => void}): React.ReactNode {
+    const language = element?.language;
+    const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
+
+    React.useEffect(() => {
+        if (language) {
+            setIconPath(toIconPath(language));
+        }
+    }, [language]);
+
+    if (!language) return null;
+    return <Flex my="4px" onClick={props.onSelect} {...props}>
+        <Image mx="8px" mt="2px" background={"var(--successContrast)"} borderRadius={"4px"} height={"18px"} width="18px" onError={() => setIconPath(fallbackIcon)} alt={"Icon for " + language} src={iconPath} />{language}
+    </Flex>;
+}
+
+function toIconPath(language: string): string {
+    let lang = language;
+    switch (language) {
+        case "csharp":
+            lang = "c-sharp";
+            break;
+        case "c++":
+            lang = "cpp";
+            break;
+    }
+
+    return "/file-icons/" + lang + ".svg";
+}
 
 const jinja2monarchTokens = {
     tokenizer: {
