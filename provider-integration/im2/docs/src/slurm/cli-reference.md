@@ -7,7 +7,7 @@ The CLI is invoked from a terminal on the node where the UCloud Integration Modu
 where the `ucloud` binary is in your `PATH`. Commands are invoked in the following format:
 
 ```terminal
-$ ucloud <command> <subcommand> [options]
+$ ucloud <command> <subcommand> [parameters]
 ```
 
 where `<command>` and `<subcommand>` can be any of the options described in the following sections. 
@@ -164,6 +164,8 @@ Description
 <td>
 List all drives.
 
+#### Optional parameters
+
 `--ucloud-id <string>`
 
 Query by the UCloud ID of the drive. Supports regex.
@@ -205,6 +207,8 @@ Query by the local path on your system. Does not support regex.
 </td>
 <td>
 Get detailed information about drives.
+
+#### Optional parameters
 
 `--ucloud-id <string>`
 
@@ -265,20 +269,13 @@ Description
 <tr>
 <td>
 
-`add`
-
-</td>
-<td>
-
-</td>
-</tr>
-<tr>
-<td>
-
 `get`, `retrieve`, `stat`, `view`
 
 </td>
 <td>
+
+Get detailed information about jobs
+
 </td>
 </tr>
 <tr>
@@ -288,6 +285,9 @@ Description
 
 </td>
 <td>
+
+List jobs.
+
 </td>
 </tr>
 </tbody>
@@ -515,6 +515,23 @@ Description
 </td>
 <td>
 
+Add a new mapping between a Slurm account, machine type and local user, i.e. an allocation for 
+a user.
+
+#### Parameters
+
+`--local-name <string>`
+
+The name of the user/group on the local system.
+
+`--category <string>`
+
+The name of the machine type (product category).
+
+`--account-name <string>`
+
+The name of the Slurm account.
+
 </td>
 </tr>
 <tr>
@@ -524,6 +541,10 @@ Description
 
 </td>
 <td>
+List allocations on the system.
+
+#### Optional parameters
+
 `--ucloud-name <string>`
 
 Query by UCloud name. Supports regex.
@@ -552,6 +573,29 @@ Query by machine type/category name. Supports regex.
 
 </td>
 <td>
+
+Delete allocations on the system. At least one parameter is required, and note that parameters 
+function as search queries.
+
+#### Optional parameters
+
+`--ucloud-name <string>`
+
+Query by UCloud name. Supports regex.
+
+
+`--account-name <string>`
+
+Query by Slurm account name. Supports regex.
+
+
+`--local-name <string>`
+
+Query by local user/group name. Supports regex.
+
+`--category`
+
+Query by machine type/category name. Supports regex.
 
 </td>
 </tr>
@@ -613,26 +657,29 @@ Description
 <tr>
 <td>
 
-```
-add <ucloud-name> <local-name>
-```
+`add`
 
 </td>
 <td>
 
-Creates a new mapping between UCloud user with user name `user-name` and the local user 
+Creates a new mapping between UCloud user with user name `ucloud-name` and the local user 
 `local-name`.
 
 #### Parameters
 
 `--ucloud-name <string>`
 
+The users name/ID on UCloud
+
 `--local-name <string>`
+
+The users name on the system.
+
 
 #### Example
 
 ```terminal
-$ ucloud users add AliceAndersen#1234 aandersen01
+$ ucloud users add --ucloud-name AliceAndersen#1234 --local-name aandersen01
 ```
 
 </td>
@@ -646,6 +693,23 @@ $ ucloud users add AliceAndersen#1234 aandersen01
 </td>
 <td>
 
+Deletes a mapping between a UCloud user and a user on the local system. Note that the parameters 
+functions as search queries, and at least one is required.
+
+#### Optional parameters
+
+`--ucloud-name <string>`
+
+The users name/ID on UCloud.
+
+`--local-name <string>`
+
+The users name on the local system.
+
+`--local-uid <number>`
+
+The users ID on the local system.
+
 </td>
 </tr>
 
@@ -656,6 +720,22 @@ $ ucloud users add AliceAndersen#1234 aandersen01
 
 </td>
 <td>
+List user mappings between UCloud users and users on the local system.
+
+#### Optional parameters
+
+`--ucloud-name <string>`
+
+Query by UCloud user names.
+
+`--local-name <string>`
+
+Query by the user name on the local system.
+
+`--local-uid <number>`
+
+Query by the UID on the local system.
+
 
 </td>
 </tr>
