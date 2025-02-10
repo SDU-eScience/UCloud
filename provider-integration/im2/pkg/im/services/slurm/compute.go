@@ -951,7 +951,7 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 		}
 	}
 
-	folder := filepath.Join(basePath, JobFolderName)
+	folder := filepath.Join(basePath, ServiceConfig.Compute.JobFolderName)
 	if _, err := os.Stat(folder); err != nil {
 		err = os.MkdirAll(folder, 0770)
 		if err != nil {
@@ -962,5 +962,3 @@ func FindJobFolder(owner apm.WalletOwner) (string, bool) {
 
 	return folder, true
 }
-
-const JobFolderName = "UCloud Jobs"

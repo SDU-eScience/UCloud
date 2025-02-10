@@ -264,9 +264,11 @@ func HandleUsersCommandServer() {
 
 		if cfg.Services.Unmanaged {
 			_, err = ctrl.CreatePersonalProviderProject(r.Payload.UCloudName)
-			return ipc.Response[util.Empty]{
-				StatusCode:   http.StatusBadRequest,
-				ErrorMessage: fmt.Sprintf("%s", err),
+			if err != nil {
+				return ipc.Response[util.Empty]{
+					StatusCode:   http.StatusBadRequest,
+					ErrorMessage: fmt.Sprintf("%s", err),
+				}
 			}
 		}
 
