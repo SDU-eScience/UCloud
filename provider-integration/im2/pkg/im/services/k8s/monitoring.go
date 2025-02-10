@@ -16,6 +16,8 @@ import (
 
 var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
+
+// TODO Select a scheduler based on category. We need multiple schedulers.
 var sched = NewScheduler()
 
 type jobTracker struct {
@@ -37,7 +39,9 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
-		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil)
+		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
+			timeAllocationOrDefault(job.Specification.TimeAllocation))
+
 		t.batch.TrackAssignedNodes(state.Id, []string{state.Node.Value})
 	}
 
@@ -52,6 +56,14 @@ func jobDimensions(job *orc.Job) SchedulerDimensions {
 		MemoryInBytes: prod.MemoryInGigs * (1024 * 1024 * 1024),
 		Gpu:           0,
 	}
+}
+
+func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDuration {
+	return alloc.GetOrDefault(orc.SimpleDuration{
+		Hours:   24 * 365,
+		Minutes: 0,
+		Seconds: 0,
+	})
 }
 
 func loopMonitoring() {
@@ -91,12 +103,22 @@ func loopMonitoring() {
 				continue
 			}
 
-			allocatable := node.Status.Allocatable
-			cpuMillis := int(allocatable.Cpu().MilliValue())
-			memoryBytes := int(allocatable.Memory().Value())
-			gpus := int(allocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value())
+			k8sCapacity := node.Status.Capacity
+			k8sAllocatable := node.Status.Allocatable
 
-			sched.RegisterNode(node.Name, category.Value, cpuMillis, memoryBytes, gpus, node.Spec.Unschedulable)
+			capacity := SchedulerDimensions{
+				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+				MemoryInBytes: int(k8sCapacity.Memory().Value()),
+				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+			}
+
+			limits := SchedulerDimensions{
+				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+			}
+
+			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
 			sched.PruneNodes()
 		}
 
@@ -105,8 +127,8 @@ func loopMonitoring() {
 
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
-		sched.RegisterJobInQueue(entry.Id, entry.Specification.Product.Category, jobDimensions(entry), 1,
-			entry.Specification.Replicas, nil)
+		sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+			entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 	}
 
 	jobsToSchedule := sched.Schedule()
