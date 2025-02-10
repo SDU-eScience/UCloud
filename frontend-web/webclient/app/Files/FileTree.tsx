@@ -189,15 +189,15 @@ const FileNode: React.FunctionComponent<{
 }
 
 const FileTreeClass = injectStyle("file-tree", k => `
-                ${k} {
-                    width: var(--tree-width);
-                max-width: var(--tree-width);
-                resize: var(--resize-setting);
-                flex-shrink: 0;
-                border-right: var(--borderThickness) solid var(--borderColor);
+    ${k} {
+        width: var(--tree-width);
+        max-width: var(--tree-width);
+        resize: var(--resize-setting);
+        flex-shrink: 0;
+        border-right: var(--borderThickness) solid var(--borderColor);
     }
 
-                ${k} > .tree-header {
-                    border - bottom: var(--borderThickness) solid var(--borderColor);
+    ${k} > .tree-header {
+        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
-                `);
+`);
