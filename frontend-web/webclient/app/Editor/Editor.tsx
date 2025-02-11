@@ -1212,6 +1212,7 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
         padding-left: 12px;
         padding-right: 12px;
         cursor: pointer;
+        user-select: none;
     }
 
     ${k} > * {
