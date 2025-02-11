@@ -886,7 +886,7 @@ export const Editor: React.FunctionComponent<{
                     )}
 
                     <Box mx="auto" />
-                    <Box width={"150px"}>
+                    {isSettingsOpen ? null : <Box width={"150px"}>
                         <RichSelect
                             fullWidth
                             items={languageList}
@@ -901,7 +901,7 @@ export const Editor: React.FunctionComponent<{
                                 doOverrideLanguage(state.currentPath, element.language)
                             }}
                         />
-                    </Box>
+                    </Box>}
                     <Operations
                         entityNameSingular={""}
                         operations={operations}
