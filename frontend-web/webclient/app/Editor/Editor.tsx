@@ -1220,7 +1220,7 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
     }
 
     ${k}[data-active="true"], ${k}:hover  {
-        background-color: var(--infoContrast);
+        background-color: var(--borderColor);
     }
 `);
 
