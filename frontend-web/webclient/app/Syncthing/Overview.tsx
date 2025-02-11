@@ -692,7 +692,7 @@ const EmptyFolders: React.FunctionComponent<{
 
         <p>
             For more details see the{" "}
-            <ExternalLink href="https://docs.cloud.sdu.dk/guide/syncthing.html">
+            <ExternalLink href="https://docs.cloud.sdu.dk/guide/synch.html">
                 UCloud documentation
             </ExternalLink>.
         </p>
