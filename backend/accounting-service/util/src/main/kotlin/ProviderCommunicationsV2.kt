@@ -300,7 +300,9 @@ class ProviderCommunicationsV2(
             val jobs = providers.map { providerId ->
                 launch {
                     try {
-                        fn(providerId)
+                        withTimeout(deadlineMs) {
+                            fn(providerId)
+                        }
                     } catch (ex: Throwable) {
                         log.warn(
                             "Caught exception while broadcasting message to providers: " +
@@ -315,7 +317,7 @@ class ProviderCommunicationsV2(
             select {
                 joinJob.onJoin { Unit }
 
-                onTimeout(deadlineMs) {
+                onTimeout(deadlineMs + 5000) {
                     log.warn("Deadline reached while broadcasting message to providers! ${providers}")
                     jobs.forEach { runCatching { it.cancel() } }
                     runCatching { joinJob.cancel() }
