@@ -1165,7 +1165,8 @@ function tabOperations(
     }];
 }
 
-
+const LEFT_MOUSE_BUTTON = 0;
+const MIDDLE_MOUSE_BUTTON = 1;
 function EditorTab({
     isDirty,
     isActive,
@@ -1192,7 +1193,14 @@ function EditorTab({
     }, [close]);
 
     return (
-        <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={onActivate}>
+        <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
+            console.log(e.button, e);
+            if (e.button === LEFT_MOUSE_BUTTON) {
+                onActivate();
+            } else if (e.button == MIDDLE_MOUSE_BUTTON) {
+                onClose(e);
+            }
+        }}>
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
             <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : fileName(title as string)}</Truncate>
             <Icon
