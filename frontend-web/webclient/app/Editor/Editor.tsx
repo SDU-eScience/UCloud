@@ -893,7 +893,7 @@ export const Editor: React.FunctionComponent<{
                             keys={["language"]}
                             FullRenderSelected={p =>
                                 <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
-                                    <LanguageItem {...p} /><Icon mr="4px" ml="auto" mt="8px" name="chevronDownLight" />
+                                    <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
                                 </Flex>}
                             RenderRow={LanguageItem}
                             selected={{language: overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath))}}
@@ -1059,7 +1059,7 @@ function tabOperations(
                     }
                 });
             },
-            enabled: () => true,
+            enabled: () => true, /* anyTabsOpen > 0 */
             shortcut: ShortcutKey.U,
         }];
     }
