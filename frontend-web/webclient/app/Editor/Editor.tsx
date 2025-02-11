@@ -3,7 +3,7 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, us
 import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {injectStyle} from "@/Unstyled";
+import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
@@ -1196,14 +1196,26 @@ function EditorTab({
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
             <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : fileName(title as string)}</Truncate>
             <Icon
+                className={IconHoverBlockClass}
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 cursor="pointer" name={isDirty && !hovered ? "circle" : "close"}
-                size={12}
+                size={16}
                 onClick={onClose} />
         </Flex >
     );
 }
+
+const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
+    ${k} {
+        padding: 4px;
+    }
+
+    ${k}:hover {
+        background-color: var(--secondaryDark);
+        border-radius: 4px;
+    }
+`);
 
 const EditorTabClass = injectStyle("editor-tab-class", k => `
     ${k} {
