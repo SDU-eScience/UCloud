@@ -7,7 +7,7 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {VimEditor} from "@/Vim/VimEditor";
 import {VimWasm} from "@/Vim/vimwasm";
@@ -222,6 +222,39 @@ function singleEditorReducer(state: EditorState, action: EditorAction): EditorSt
     }
 }
 
+function toDisplayName(name: string): string {
+    switch (name) {
+        case "typescript":
+            return "TypeScript"
+        case "javascript":
+            return "JavaScript";
+        case "coffeescript":
+            return "CoffeeScript";
+        case "freemarker2":
+            return "FreeMarker2";
+        case "c-sharp":
+            return "C#";
+        case "objective-c":
+            return "Objective-C";
+        case "restructuredtext":
+            return "reStructuredText";
+        case "html":
+        case "xml":
+        case "yaml":
+        case "css":
+        case "abap":
+        case "ecl":
+        case "vb":
+        case "sql":
+        case "json":
+        case "wgsl":
+            return name.toLocaleUpperCase();
+        case "bat":
+            return name;
+    }
+    return capitalized(name);
+}
+
 const monacoCache = new AsyncCache<any>();
 
 export async function getMonaco() {
@@ -358,7 +391,7 @@ export const Editor: React.FunctionComponent<{
     readOnly: boolean;
 }> = props => {
     const [overridenSyntaxes, setOverridenSyntaxes] = React.useState<Record<string, string>>({});
-    const [languageList, setLanguageList] = React.useState(getLanguageList());
+    const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
     const editorView = useRef<HTMLDivElement>(null);
@@ -420,7 +453,7 @@ export const Editor: React.FunctionComponent<{
 
     useEffect(() => {
         monacoRef.current = monacoInstance;
-        setLanguageList(getLanguageList());
+        setLanguageList(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     }, [monacoInstance]);
 
     useEffect(() => {
@@ -844,6 +877,8 @@ export const Editor: React.FunctionComponent<{
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
+    const selectedOverride = overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath));
+
     return <div className={editorClass} onKeyDown={onKeyDown}>
         <FileTree
             tree={tree}
@@ -896,7 +931,7 @@ export const Editor: React.FunctionComponent<{
                                     <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
                                 </Flex>}
                             RenderRow={LanguageItem}
-                            selected={{language: overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath))}}
+                            selected={{language: selectedOverride, displayName: toDisplayName(selectedOverride)}}
                             onSelect={element => {
                                 doOverrideLanguage(state.currentPath, element.language)
                             }}
@@ -1246,7 +1281,7 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
 `);
 
 const fallbackIcon = toIconPath("default");
-function LanguageItem({element, ...props}: {element?: {language: string}, onSelect: () => void}): React.ReactNode {
+function LanguageItem({element, ...props}: {element?: {language: string, displayName: string}, onSelect: () => void}): React.ReactNode {
     const language = element?.language;
     const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
 
@@ -1258,7 +1293,7 @@ function LanguageItem({element, ...props}: {element?: {language: string}, onSele
 
     if (!language) return null;
     return <Flex my="4px" onClick={props.onSelect} {...props}>
-        <Image mx="8px" mt="2px" background={"var(--successContrast)"} borderRadius={"4px"} height={"18px"} width="18px" onError={() => setIconPath(fallbackIcon)} alt={"Icon for " + language} src={iconPath} />{language}
+        <Image mx="8px" mt="2px" background={"var(--successContrast)"} borderRadius={"4px"} height={"18px"} width="18px" onError={() => setIconPath(fallbackIcon)} alt={"Icon for " + language} src={iconPath} />{element.displayName}
     </Flex>;
 }
 
