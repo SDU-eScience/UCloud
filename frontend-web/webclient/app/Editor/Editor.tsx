@@ -261,6 +261,12 @@ export async function getMonaco() {
     return monacoCache.retrieve("", async () => {
         const monaco = await (import("monaco-editor"));
 
+        const editorWorker = (await import('monaco-editor/esm/vs/editor/editor.worker?worker')).default;
+        const jsonWorker = (await import('monaco-editor/esm/vs/language/json/json.worker?worker')).default;
+        const cssWorker = (await import('monaco-editor/esm/vs/language/css/css.worker?worker')).default;
+        const htmlWorker = (await import('monaco-editor/esm/vs/language/html/html.worker?worker')).default;
+        const tsWorker = (await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker')).default;
+
         populateLanguages(monaco.languages.getLanguages().map(l =>
             ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
         );
@@ -269,27 +275,20 @@ export async function getMonaco() {
             getWorker: function (workerId, label) {
                 switch (label) {
                     case 'json':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/json/json.worker?worker', label);
+                        return new jsonWorker();
                     case 'css':
                     case 'scss':
                     case 'less':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/css/css.worker?worker', label);
+                        return new cssWorker();
                     case 'html':
                     case 'handlebars':
                     case 'razor':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/html/html.worker?worker', label);
+                        return new htmlWorker();
                     case 'typescript':
                     case 'javascript':
-                        return getWorkerModule('/monaco-editor/esm/vs/language/typescript/ts.worker?worker', label);
+                        return new tsWorker();
                     default:
-                        return getWorkerModule('/monaco-editor/esm/vs/editor/editor.worker?worker', label);
-                }
-
-                function getWorkerModule(moduleUrl, label) {
-                    return new Worker(self.MonacoEnvironment!.getWorkerUrl!(moduleUrl, label), {
-                        name: label,
-                        type: 'module'
-                    });
+                        return new editorWorker();
                 }
             }
         };
