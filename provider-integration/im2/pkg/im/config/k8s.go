@@ -17,7 +17,7 @@ type KubernetesFileSystem struct {
 
 type KubernetesCompute struct {
 	Machines  map[string]K8sMachineCategory
-	Namespace string // TODO
+	Namespace string
 }
 
 type K8sMachineCategory struct {
@@ -54,6 +54,10 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
+	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
+	if cfg.Compute.Namespace == "" {
+		cfg.Compute.Namespace = "ucloud-apps"
+	}
 
 	cfg.Compute.Machines = make(map[string]K8sMachineCategory)
 	machinesNode := requireChild(filePath, computeNode, "machines", &success)

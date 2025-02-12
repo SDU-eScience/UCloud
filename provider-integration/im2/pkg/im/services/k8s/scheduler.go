@@ -57,7 +57,6 @@ func NewScheduler() *Scheduler {
 
 type SchedulerNode struct {
 	Name            string
-	Category        string
 	Remaining       SchedulerDimensions // Remaining dimensions before hitting the Capacity (not the Limits!)
 	Capacity        SchedulerDimensions // Capacity describes the dimensions of the node when it is not experiencing any faults
 	Limits          SchedulerDimensions // Limits describe the largest usage the node is currently able to tolerate
@@ -110,8 +109,7 @@ type SchedulerProject struct {
 }
 
 type SchedulerQueueEntry struct {
-	JobId    string
-	Category string
+	JobId string
 	SchedulerDimensions
 	Replicas    int
 	LastSeen    int
@@ -462,10 +460,6 @@ outer:
 		}
 
 		for _, node := range allNodes {
-			if node.Category != entry.Category {
-				continue
-			}
-
 			if node.Unschedulable {
 				continue
 			}

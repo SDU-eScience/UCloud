@@ -295,24 +295,28 @@ func BuildParameter(
 ) []string {
 	switch param.Type {
 	case InvocationParameterTypeJinja:
-		flags := JinjaFlags(0)
-		if environmentVariable {
-			flags |= JinjaFlagsNoEscape
-		}
-
-		output, err := ExecuteJinjaTemplate(
-			param.InvocationParameterJinja.Template,
-			0,
-			func(session any, fn string, args []string) string {
-				return ""
-			},
-			jinjaCtx,
-			flags,
-		)
-		if err != nil {
+		if jinjaCtx == nil {
 			return nil
 		} else {
-			return []string{output}
+			flags := JinjaFlags(0)
+			if environmentVariable {
+				flags |= JinjaFlagsNoEscape
+			}
+
+			output, err := ExecuteJinjaTemplate(
+				param.InvocationParameterJinja.Template,
+				0,
+				func(session any, fn string, args []string) string {
+					return ""
+				},
+				jinjaCtx,
+				flags,
+			)
+			if err != nil {
+				return nil
+			} else {
+				return []string{output}
+			}
 		}
 
 	case InvocationParameterTypeWord:

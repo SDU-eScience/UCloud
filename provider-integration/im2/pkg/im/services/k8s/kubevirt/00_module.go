@@ -45,9 +45,6 @@ func Init() ctrl.JobsService {
 	KubevirtClient = shared.KubevirtClient
 
 	Namespace = ServiceConfig.Compute.Namespace
-	if Namespace == "" {
-		Namespace = "ucloud-apps" // TODO!
-	}
 
 	return ctrl.JobsService{
 		Terminate:                terminate,

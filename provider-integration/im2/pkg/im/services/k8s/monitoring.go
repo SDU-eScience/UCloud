@@ -152,6 +152,12 @@ func loopMonitoring() {
 func nodeCategory(node *corev1.Node) util.Option[string] {
 	machineLabel, ok := node.Labels["ucloud.dk/machine"]
 	if !ok {
+		// Dev only fix
+		if node.ObjectMeta.Name == "im2k3" {
+			for k, _ := range shared.ServiceConfig.Compute.Machines {
+				return util.OptValue(k)
+			}
+		}
 		return util.OptNone[string]()
 	}
 

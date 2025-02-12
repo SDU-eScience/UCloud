@@ -1,6 +1,7 @@
 package containers
 
 import (
+	"context"
 	"fmt"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -8,51 +9,60 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"strconv"
 	"strings"
+	"time"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
 
-type UnboundJobResource struct {
-	Pod      *core.Pod
-	Firewall *networking.NetworkPolicy
-	Service  *core.Service
-}
+func StartScheduledJob(job *orc.Job, rank int, node string) error {
+	jobFolder, err := FindJobFolder(job)
+	if err != nil {
+		return fmt.Errorf("failed to initialize job folder")
+	}
 
-func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	// TODO Get these from configuration
 	tolerationKv := util.Option[util.Tuple2[string, string]]{}
 	priorityClass := util.Option[string]{}
 	customRuntimesByCategory := map[string]string{}
+
+	namespace := ServiceConfig.Compute.Namespace
 
 	application := &job.Status.ResolvedApplication.Invocation
 	tool := &job.Status.ResolvedApplication.Invocation.Tool.Tool
 
 	// Setting up network policy and service
 	// -----------------------------------------------------------------------------------------------------------------
-	firewall := &networking.NetworkPolicy{
-		ObjectMeta: meta.ObjectMeta{
-			Name: firewallName(job.Id),
-		},
-		Spec: networking.NetworkPolicySpec{
-			PodSelector: k8PodSelectorForJob(job.Id),
-		},
-	}
+	// Only rank 0 is responsible for creating these additional resources. Their pointers will be nil if they should
+	// not be created by this invocation.
 
-	allowNetworkFrom(firewall, job.Id)
-	allowNetworkTo(firewall, job.Id)
+	var firewall *networking.NetworkPolicy
+	var service *core.Service
 
-	serviceLabel := jobIdLabel(job.Id)
-	service := &core.Service{
-		ObjectMeta: meta.ObjectMeta{
-			Name: serviceName(job.Id),
-		},
-		Spec: core.ServiceSpec{
-			Type:      core.ServiceTypeClusterIP,
-			ClusterIP: core.ClusterIPNone,
-			Selector: map[string]string{
-				serviceLabel.First: serviceLabel.Second,
+	if rank == 0 {
+		firewall = &networking.NetworkPolicy{
+			ObjectMeta: meta.ObjectMeta{
+				Name: firewallName(job.Id),
 			},
-		},
+			Spec: networking.NetworkPolicySpec{
+				PodSelector: k8PodSelectorForJob(job.Id),
+			},
+		}
+		allowNetworkFrom(firewall, job.Id)
+		allowNetworkTo(firewall, job.Id)
+
+		serviceLabel := jobIdLabel(job.Id)
+		service = &core.Service{
+			ObjectMeta: meta.ObjectMeta{
+				Name: serviceName(job.Id),
+			},
+			Spec: core.ServiceSpec{
+				Type:      core.ServiceTypeClusterIP,
+				ClusterIP: core.ClusterIPNone,
+				Selector: map[string]string{
+					serviceLabel.First: serviceLabel.Second,
+				},
+			},
+		}
 	}
 
 	// Setting up the basics
@@ -60,6 +70,7 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	pod := &core.Pod{
 		TypeMeta: meta.TypeMeta{},
 		ObjectMeta: meta.ObjectMeta{
+			Name:        idAndRankToPodName(job.Id, rank),
 			Annotations: make(map[string]string),
 			Labels:      make(map[string]string),
 		},
@@ -68,7 +79,7 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 
 	spec := &pod.Spec
 	spec.RestartPolicy = core.RestartPolicyNever
-	spec.AutomountServiceAccountToken = util.FalsePointer
+	spec.AutomountServiceAccountToken = util.BoolPointer(false)
 
 	spec.Containers = append(spec.Containers, core.Container{
 		Name: "user-job",
@@ -79,6 +90,7 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	userContainer.ImagePullPolicy = core.PullIfNotPresent
 	userContainer.Resources.Limits = map[core.ResourceName]resource.Quantity{}
 	userContainer.Resources.Requests = map[core.ResourceName]resource.Quantity{}
+	userContainer.SecurityContext = &core.SecurityContext{}
 
 	// Scheduling and runtime constraints for Kubernetes
 	// -----------------------------------------------------------------------------------------------------------------
@@ -98,10 +110,8 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		addResource("nvidia.com/gpu", gpus, resource.Milli)
 	}
 
-	spec.NodeSelector = map[string]string{
-		// TODO(Dan): Map this according to configuration
-		"ucloud.dk/machine": job.Specification.Product.Category,
-	}
+	// TODO We used to set a nodeselector but this appears redundant since we are already setting the node.
+	pod.Spec.NodeName = node
 
 	userContainer.SecurityContext.RunAsNonRoot = util.BoolPointer(!application.Container.RunAsRoot)
 	userContainer.SecurityContext.AllowPrivilegeEscalation = util.BoolPointer(application.Container.RunAsRoot)
@@ -132,12 +142,13 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		userContainer.WorkingDir = "/work"
 	}
 
-	// Invocation
-	// -----------------------------------------------------------------------------------------------------------------
-
 	// Mounts
 	// -----------------------------------------------------------------------------------------------------------------
-	prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+	internalToPod := prepareMountsOnJobCreate(job, pod, userContainer, jobFolder)
+
+	// Invocation
+	// -----------------------------------------------------------------------------------------------------------------
+	prepareInvocationOnJobCreate(job, rank, userContainer, internalToPod, jobFolder)
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------
@@ -172,7 +183,7 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 	multiNodeScript := strings.Builder{}
 	{
 		appendLine := func(format string, args ...any) {
-			multiNodeScript.WriteString(fmt.Sprintf(format, args...))
+			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
@@ -188,7 +199,7 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 			appendLine("echo '%v' > /etc/ucloud/node-%v.txt", hostname, rank)
 			appendLine("echo '%v' >> /etc/ucloud/nodes.txt", hostname)
 		}
-		appendLine("echo $UCLOUD_RANK > /etc/ucloud/rank.txt")
+		appendLine("echo %v > /etc/ucloud/rank.txt", rank)
 	}
 
 	multinodeSidecar.Command = []string{
@@ -234,11 +245,37 @@ func CreateJobResource(job *orc.Job, jobFolder string) UnboundJobResource {
 		pod.Labels["ucloud.dk/workspaceId"] = job.Owner.Project
 	}
 
-	return UnboundJobResource{
-		Pod:      pod,
-		Firewall: firewall,
-		Service:  service,
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(15*time.Second))
+	defer cancel()
+
+	pod, err = K8sClient.CoreV1().Pods(namespace).Create(ctx, pod, meta.CreateOptions{})
+	if firewall != nil && err == nil {
+		firewall.OwnerReferences = append(firewall.OwnerReferences, meta.OwnerReference{
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       pod.Name,
+			UID:        pod.UID,
+		})
+
+		_, myError := K8sClient.NetworkingV1().NetworkPolicies(namespace).Create(ctx, firewall, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
 	}
+	if service != nil && err == nil {
+		service.OwnerReferences = append(service.OwnerReferences, meta.OwnerReference{
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       pod.Name,
+			UID:        pod.UID,
+		})
+
+		_, myError := K8sClient.CoreV1().Services(namespace).Create(ctx, service, meta.CreateOptions{})
+		err = util.MergeError(err, myError)
+	}
+
+	// NOTE(Dan): Cleanup in case of errors are centralized in the delete code. This is mostly to do with the fact that
+	//   we have multiple replicas.
+
+	return err
 }
 
 func allowNetworkFrom(policy *networking.NetworkPolicy, jobId string) {

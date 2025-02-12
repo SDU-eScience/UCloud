@@ -12,6 +12,11 @@ func prepareFirewallOnJobCreate(
 	firewall *networking.NetworkPolicy,
 	service *core.Service,
 ) {
+	if pod == nil || firewall == nil || service == nil {
+		// Nothing to do if we are not supposed to touch the resources
+		return
+	}
+
 	// TODO get this from configuration
 	isSensitiveProject := false
 

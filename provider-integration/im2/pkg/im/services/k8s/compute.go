@@ -101,7 +101,12 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return backendByApp(app).RequestDynamicParameters(owner, app)
+	fn := backendByApp(app).RequestDynamicParameters
+	if fn == nil {
+		return nil
+	} else {
+		return fn(owner, app)
+	}
 }
 
 func unsuspend(request ctrl.JobUnsuspendRequest) error {
