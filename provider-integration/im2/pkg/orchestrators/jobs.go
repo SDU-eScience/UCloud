@@ -44,7 +44,6 @@ type JobState string
 const (
 	JobStateInQueue   JobState = "IN_QUEUE"
 	JobStateRunning   JobState = "RUNNING"
-	JobStateCanceling JobState = "CANCELING"
 	JobStateSuccess   JobState = "SUCCESS"
 	JobStateFailure   JobState = "FAILURE"
 	JobStateExpired   JobState = "EXPIRED"

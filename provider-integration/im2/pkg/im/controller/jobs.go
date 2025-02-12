@@ -93,7 +93,8 @@ const (
 )
 
 type JobTerminateRequest struct {
-	Job *orc.Job
+	Job       *orc.Job
+	IsCleanup bool
 }
 
 type JobSuspendRequest struct {

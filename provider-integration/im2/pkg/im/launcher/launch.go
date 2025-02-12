@@ -182,7 +182,6 @@ func Launch() {
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
 		gateway.InitIpc()
-		log.Info("GW is ready now")
 	}
 
 	log.Info("UCloud is ready!")

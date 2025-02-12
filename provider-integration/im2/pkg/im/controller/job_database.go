@@ -148,7 +148,23 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 		activeJobsMutex.Lock()
 		job, ok := activeJobs[jobId]
 		activeJobsMutex.Unlock()
-		return job, ok
+
+		if ok {
+			return job, ok
+		} else {
+			job, err := orc.RetrieveJob(jobId, orc.BrowseJobsFlags{
+				IncludeParameters:  true,
+				IncludeApplication: true,
+				IncludeProduct:     true,
+			})
+
+			if err == nil {
+				TrackNewJob(job)
+				return &job, true
+			} else {
+				return nil, false
+			}
+		}
 	} else {
 		job, err := retrieveRequest.Invoke(jobId)
 		return job, err == nil
@@ -366,11 +382,13 @@ func (b *JobUpdateBatch) flush() {
 	b.entries = b.entries[:0]
 }
 
-func (b *JobUpdateBatch) End() {
+// End flushes out any remaining job updates and return a list of jobs which were terminated due to missing
+// tracking data.
+func (b *JobUpdateBatch) End() []orc.Job {
 	defer activeJobsMutex.Unlock()
 
 	if b.failed {
-		return
+		return nil
 	}
 
 	var jobsWithUnknownState []string
@@ -399,6 +417,7 @@ func (b *JobUpdateBatch) End() {
 		}
 	}
 
+	var terminatedJobs []orc.Job
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
@@ -415,9 +434,48 @@ func (b *JobUpdateBatch) End() {
 				Status: util.OptValue(b.jobUpdateMessage(terminationState)),
 			},
 		})
+
+		terminatedJobs = append(terminatedJobs, *job)
 	}
 
 	b.flush()
+	return terminatedJobs
+}
+
+type JobMessage struct {
+	JobId   string
+	Message string
+}
+
+func TrackJobMessages(messages []JobMessage) error {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+	for _, message := range messages {
+		update := orc.JobUpdate{
+			Status: util.OptValue(message.Message),
+		}
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id:     message.JobId,
+			Update: update,
+		})
+
+		job, ok := RetrieveJob(message.JobId)
+		if ok {
+			copied := *job
+			copied.Updates = append(job.Updates, update)
+			TrackNewJob(copied)
+		}
+	}
+
+	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+		Items: updates,
+	})
+
+	return err
 }
 
 func fetchAllJobs(state orc.JobState) {

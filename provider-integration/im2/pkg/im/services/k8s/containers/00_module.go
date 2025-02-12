@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/filesystem"
@@ -153,15 +154,49 @@ func follow(session *ctrl.FollowJobSession) {
 }
 
 func terminate(request ctrl.JobTerminateRequest) error {
-	/*
-		name := vmName(request.Job.Id, 0)
-		err := KubevirtClient.VirtualMachine(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-		if err != nil {
-			log.Info("Failed to delete VM: %v", err)
-			return util.ServerHttpError("Failed to delete VM")
+	for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
+		ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+		podName := idAndRankToPodName(request.Job.Id, rank)
+
+		// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
+		// the namespace and as such we don't have to worry about failures here.
+		_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{})
+
+		cancel()
+	}
+
+	if !request.IsCleanup {
+		// NOTE(Dan): There is no need to run this branch if we are cleaning up for an already terminated job
+		// (terminated according to the Core).
+
+		// NOTE(Dan): Track the new job with a status of success immediately. This is required to ensure that the
+		// JobUpdateBatch understands that the job is definitely not supposed to be running. This is mostly relevant for
+		// jobs that are still in the queue and would trigger the "too early to remove" check.
+		job, ok := ctrl.RetrieveJob(request.Job.Id)
+		if !ok {
+			job = request.Job
 		}
-		return nil
-	*/
+
+		copied := *job
+		copied.Status.State = orc.JobStateSuccess
+		copied.Updates = append(copied.Updates, orc.JobUpdate{
+			State: util.OptValue(orc.JobStateSuccess),
+		})
+		ctrl.TrackNewJob(copied)
+
+		// NOTE(Dan): Failure in this function will be automatically retried by the JobUpdateBatch/monitoring logic.
+		_ = orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
+				{
+					Id: job.Id,
+					Update: orc.JobUpdate{
+						State: util.OptValue(orc.JobStateSuccess),
+					},
+				},
+			},
+		})
+	}
+
 	return nil
 }
 
@@ -193,7 +228,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 
 	if !shared.K8sInCluster {
 		address.Address = "127.0.0.1"
-		address.Port = EstablishTunnel(podName, int(port))
+		address.Port = establishTunnel(podName, int(port))
 	}
 
 	return ctrl.ConfiguredWebSession{

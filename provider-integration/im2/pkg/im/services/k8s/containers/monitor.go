@@ -27,6 +27,12 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			continue
 		}
 
+		_, ok = jobs[idAndRank.First]
+		if !ok {
+			// This pod does not belong to an active job - delete it.
+			tracker.RequestCleanup(idAndRank.First)
+		}
+
 		state := orc.JobStateFailure
 		status := "Unexpected state"
 
@@ -52,12 +58,16 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			status = "Job has failed due to an internal error (#1)"
 		}
 
-		tracker.TrackState(shared.JobReplicaState{
-			Id:     idAndRank.First,
-			Rank:   idAndRank.Second,
-			State:  state,
-			Node:   util.OptValue(pod.Spec.NodeName),
-			Status: util.OptValue(status),
-		})
+		if pod.ObjectMeta.DeletionTimestamp == nil {
+			// Do not track pods which have been deleted.
+
+			tracker.TrackState(shared.JobReplicaState{
+				Id:     idAndRank.First,
+				Rank:   idAndRank.Second,
+				State:  state,
+				Node:   util.OptValue(pod.Spec.NodeName),
+				Status: util.OptValue(status),
+			})
+		}
 	}
 }
