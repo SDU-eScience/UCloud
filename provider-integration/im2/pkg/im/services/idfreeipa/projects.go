@@ -17,7 +17,7 @@ func handleProjectNotification(updated *ctrl.NotificationProjectUpdated) bool {
 		success := false
 		strategy := config.ProjectStrategy
 		for ext := 0; ext <= 10000; ext++ {
-			suggestedName, digits := fnd.GenerateProjectName(updated.Project.Id, updated.Project.Specification.Title, strategy)
+			suggestedName, digits := fnd.GenerateProjectName(updated.Project.Id, updated.Project.Specification.Title, strategy, config.ProjectPrefix)
 			suggestedName += fmt.Sprintf("%0*d", digits, ext)
 
 			_, groupExists := client.GroupQuery(suggestedName)

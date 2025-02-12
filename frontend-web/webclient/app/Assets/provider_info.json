@@ -208,6 +208,25 @@
                     "image": "/Images/ucloud-1.png"
                 }
             ]
+        },
+        {
+            "id": "sdu-hsc-slurm",
+            "title": "SDU HSC",
+            "logo": "sdu.png",
+            "shortTitle": "SDU HSC",
+            "shortDescription": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (up to 4 TB RAM per node).",
+            "description": "The DeiC Large Memory HPC system is a system consisting of large memory nodes (between 1 and 4 TB RAM per node) configured as a traditional Slurm cluster.",
+            "url": "https://docs.hpc-type3.sdu.dk/",
+            "texts": [
+                {
+                    "description": "# Large Memory HPC\nThe large memory HPC system is a specialised system where each node is equipped with a large amount of memory (up to 4 TB).\nThe system is used for workloads that cannot easily be parallelised and distributed across multiple nodes.",
+                    "image": "/Images/ucloud-1.png"
+                },
+                {
+                    "description": "### Compute nodes\n\n__Updated at: 08/05/2024. For an up-to-date version see [https://docs.hpc-type3.sdu.dk/intro/hardware.html](https://docs.hpc-type3.sdu.dk/intro/hardware.html).__\n\n**4x Lenovo ThinkSystem SR645 (called `hm1` in Slurm)**\n\n- 4096 GB DDR4-2400 LRDIMM\n- 2x AMD EPYC 7742 64-Core @ 2.25Ghz\n- 480 GB SSD\n- 7.68 TB NVMe (only two nodes)\n\n**10x Dell PowerEdge R6525 (called `hm2` in Slurm)**\n\n- 1024 GB DDR4-2933\n- 2x AMD EPYC 7713 64-Core @ 2.0Ghz\n- 480 GB SSD\n\n**20x Lenovo ThinkSystem SR645 V3 (called `hm3` in Slurm)**\n\n- 1536 GB DDR5-4800\n- 2x AMD EPYC 9534 64-Core @ 2.45Ghz\n- 480 GB SSD",
+                    "image": "/Images/ucloud-9.svg"
+                }
+            ]
         }
     ]
 }

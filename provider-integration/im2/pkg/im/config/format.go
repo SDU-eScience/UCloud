@@ -8,13 +8,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"gopkg.in/yaml.v3"
 	fnd "ucloud.dk/pkg/foundation"
 	"ucloud.dk/pkg/log"
 	"ucloud.dk/pkg/util"
@@ -1022,6 +1022,7 @@ type IdentityManagementFreeIPA struct {
 	Password        string
 	GroupName       string
 	ProjectStrategy fnd.ProjectTitleStrategy
+	ProjectPrefix   string // only if ProjectStrategy is ProjectTitleDate
 }
 
 func (m *IdentityManagement) Scripted() *IdentityManagementScripted {
@@ -1121,6 +1122,10 @@ func parseIdentityManagementFreeIpa(filePath string, node *yaml.Node) (bool, Ide
 
 		case "Date":
 			result.ProjectStrategy = fnd.ProjectTitleDate
+			result.ProjectPrefix = optionalChildText(filePath, node, "projectPrefix", &success)
+			if result.ProjectPrefix == "" {
+				result.ProjectPrefix = "p"
+			}
 
 		case "UUID":
 			result.ProjectStrategy = fnd.ProjectTitleUuid

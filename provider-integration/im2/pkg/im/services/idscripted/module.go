@@ -42,7 +42,7 @@ func Init(config *cfg.IdentityManagementScripted) {
 		req := syncProjectRequest{}
 		req.UCloudProjectId = project.Id
 		req.ProjectTitle = project.Specification.Title
-		req.SuggestedGroupName, _ = fnd.GenerateProjectName(project.Id, project.Specification.Title, fnd.ProjectTitleDefault)
+		req.SuggestedGroupName, _ = fnd.GenerateProjectName(project.Id, project.Specification.Title, fnd.ProjectTitleDefault, "")
 
 		gid, hasGid := ctrl.MapUCloudProjectToLocal(updated.Project.Id)
 		if hasGid {

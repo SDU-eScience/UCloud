@@ -767,7 +767,7 @@ func readMetadata(internalPath string, stat os.FileInfo, file *orc.ProviderFile,
 		file.Status.Icon = orc.FileIconHintDirectoryTrash
 	case "Jobs":
 		fallthrough
-	case "UCloud Jobs":
+	case ServiceConfig.Compute.JobFolderName:
 		file.Status.Icon = orc.FileIconHintDirectoryJobs
 	}
 

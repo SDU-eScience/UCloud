@@ -2585,7 +2585,8 @@ function parseIntoSections(text: string): ApplicationSection[] {
         "Add a ",
         "Describe the ",
         "Provide a ",
-        "Please describe the reason for applying"
+        "Please describe the reason for applying",
+        "Required:"
     ];
 
     for (let i = 0; i < titles.length; i++) {

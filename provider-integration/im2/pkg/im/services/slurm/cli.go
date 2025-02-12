@@ -131,7 +131,7 @@ func cliHandleError(context string, err error) {
 	}
 
 	if context == "" {
-		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "%s", context, err.Error())
+		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "%s", err.Error())
 	} else {
 		termio.WriteStyledLine(termio.Bold, termio.Red, 0, "%s: %s", context, err.Error())
 	}

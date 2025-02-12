@@ -29,6 +29,7 @@ type SlurmCompute struct {
 	SystemUnloadCommand    util.Option[string]
 	Srun                   util.Option[SrunConfiguration]
 	ModulesFile            util.Option[string]
+	JobFolderName          string
 }
 
 type SrunConfiguration struct {
@@ -536,6 +537,12 @@ func parseSlurmServices(unmanaged bool, serverMode ServerMode, filePath string, 
 		if moduleFile != "" {
 			cfg.Compute.ModulesFile.Set(moduleFile)
 		}
+
+		jobFolder := optionalChildText(filePath, slurmNode, "jobFolder", &success)
+		if jobFolder == "" {
+			jobFolder = "ucloud-jobs"
+		}
+		cfg.Compute.JobFolderName = jobFolder
 
 		apps, ok := parseSlurmApplications(filePath)
 		if !ok {

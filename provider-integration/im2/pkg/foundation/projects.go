@@ -20,7 +20,7 @@ const (
 
 var duplicateUnderscores = regexp.MustCompile("_+")
 
-func GenerateProjectName(ucloudId string, ucloudTitle string, strategy ProjectTitleStrategy) (title string, serialDigitsRequested int) {
+func GenerateProjectName(ucloudId string, ucloudTitle string, strategy ProjectTitleStrategy, prefix string) (title string, serialDigitsRequested int) {
 	switch strategy {
 	case ProjectTitleDefault:
 		cleanedTitle := anyascii.Transliterate(ucloudTitle)
@@ -42,7 +42,7 @@ func GenerateProjectName(ucloudId string, ucloudTitle string, strategy ProjectTi
 
 	case ProjectTitleDate:
 		now := time.Now()
-		return fmt.Sprintf("p%d-%d-", now.Year(), now.Month()), 4
+		return fmt.Sprintf("%s%d-%d-", prefix, now.Year(), now.Month()), 4
 
 	case ProjectTitleUuid:
 		return "p" + strings.Split(ucloudId, "-")[0] + "-", 4
