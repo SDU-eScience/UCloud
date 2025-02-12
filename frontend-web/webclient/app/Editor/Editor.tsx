@@ -5,7 +5,7 @@ import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Select, Truncate} from "@/ui-components";
+import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Markdown, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
@@ -366,11 +366,14 @@ export interface EditorApi {
     path: string;
     notifyDirtyBuffer: () => Promise<void>;
     openFile: (path: string) => void;
-    invalidateTree: (path: string) => void;
+    invalidateTree: (path: string) => Promise<void>;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
+const RELEASE_NOTES_PATH = "xXx__/RELEASE_NOTES\\__xXx";
 
+const CURRENT_EDITOR_VERSION = "0.1";
+const EDITOR_VERSION_STORAGE_KEY = "editor-version";
 export const Editor: React.FunctionComponent<{
     vfs: Vfs;
     title: string;
@@ -406,14 +409,21 @@ export const Editor: React.FunctionComponent<{
     const prettyPath = usePrettyFilePath(state.currentPath);
     if (state.currentPath === SETTINGS_PATH) {
         usePage("Settings", SidebarTabId.FILES);
+    } else if (state.currentPath === RELEASE_NOTES_PATH) {
+        usePage("Release notes", SidebarTabId.FILES);
     } else if (state.currentPath === "") {
         usePage("Preview", SidebarTabId.FILES);
     } else {
         usePage(fileName(prettyPath), SidebarTabId.FILES);
     }
 
+    const {showReleaseNoteIcon, onShowReleaseNotesShown} = useShowReleaseNoteIcon();
+
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
-    const isSettingsOpen = state.currentPath === SETTINGS_PATH && tabs.open.length != 0;
+    const anyTabOpen = tabs.open.length > 0;
+    const isSettingsOpen = state.currentPath === SETTINGS_PATH && anyTabOpen;
+    const isReleaseNotesOpen = state.currentPath === RELEASE_NOTES_PATH && anyTabOpen;
+    const settingsOrReleaseNotesOpen = isSettingsOpen || isReleaseNotesOpen;
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -504,7 +514,7 @@ export const Editor: React.FunctionComponent<{
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
         const cachedContent = state.cachedFiles[path];
-        const dataPromise = path === SETTINGS_PATH ?
+        const dataPromise = (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) ?
             "" :
             cachedContent !== undefined ?
                 Promise.resolve(cachedContent) :
@@ -788,6 +798,19 @@ export const Editor: React.FunctionComponent<{
         });
     }, []);
 
+    const toggleReleaseNotes = useCallback(() => {
+        saveBufferIfNeeded().then(() => {
+            setTabs(tabs => {
+                if (tabs.open.includes(RELEASE_NOTES_PATH)) {
+                    return tabs;
+                } else return {open: [...tabs.open, RELEASE_NOTES_PATH], closed: tabs.closed};
+            })
+            dispatch({type: "EditorActionOpenFile", path: RELEASE_NOTES_PATH})
+        });
+
+        onShowReleaseNotesShown();
+    }, []);
+
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
@@ -920,7 +943,7 @@ export const Editor: React.FunctionComponent<{
                     )}
 
                     <Box mx="auto" />
-                    {tabs.open.length === 0 || isSettingsOpen ? null : <Box width={"150px"}>
+                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen ? null : <Box width={"150px"}>
                         <RichSelect
                             fullWidth
                             items={languageList}
@@ -949,12 +972,17 @@ export const Editor: React.FunctionComponent<{
                     />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {props.toolbarBeforeSettings}
-                    {!hasFeature(Feature.EDITOR_VIM) ? null :
+                    {tabs.open.length === 0 || state.currentPath === SETTINGS_PATH || state.currentPath === RELEASE_NOTES_PATH ? null :
+                        props.toolbarBeforeSettings
+                    }
+                    {!hasFeature(Feature.EDITOR_VIM) ? null : <>
+                        {showReleaseNoteIcon ? <TooltipV2 tooltip={"See release notes"} contentWidth={100}>
+                            <Icon name={"heroGift"} size={"20px"} cursor={"pointer"} onClick={toggleReleaseNotes} />
+                        </TooltipV2> : null}
                         <TooltipV2 tooltip={"Settings"} contentWidth={100}>
                             <Icon name={"heroCog6Tooth"} size={"20px"} cursor={"pointer"} onClick={toggleSettings} />
                         </TooltipV2>
-                    }
+                    </>}
                     {props.toolbar}
                 </Flex>
             </div>
@@ -1022,6 +1050,7 @@ export const Editor: React.FunctionComponent<{
                         </Flex>
 
                     </Flex> : null}
+                {isReleaseNotesOpen ? <Box p="18px"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
                     {/* 
                         Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
@@ -1030,7 +1059,7 @@ export const Editor: React.FunctionComponent<{
                     */}
                     {showEditorHelp && props.help ? props.help : null}
                     <div style={{
-                        display: props.showCustomContent || (showEditorHelp && props.help) || isSettingsOpen ? "none" : "block",
+                        display: props.showCustomContent || (showEditorHelp && props.help) || settingsOrReleaseNotesOpen ? "none" : "block",
                         width: "100%",
                         height: "100%",
                     }}>
@@ -1218,6 +1247,7 @@ function EditorTab({
     const [hovered, setHovered] = useState(false);
 
     const isSettings = title === SETTINGS_PATH;
+    const isReleaseNotes = title === RELEASE_NOTES_PATH;
 
     const onClose = React.useCallback((e: React.SyntheticEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -1226,17 +1256,24 @@ function EditorTab({
         close();
     }, [close]);
 
+    const tabTitle = (
+        isSettings ? "Settings" :
+            isReleaseNotes ? "Release notes" :
+                fileName(title as string)
+    )
+
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
-            console.log(e.button, e);
             if (e.button === LEFT_MOUSE_BUTTON) {
                 onActivate();
             } else if (e.button == MIDDLE_MOUSE_BUTTON) {
                 onClose(e);
             }
         }}>
-            {isSettings ? <Icon name="heroCog6Tooth" size="18px" /> : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
-            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : fileName(title as string)}</Truncate>
+            {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
+                : isReleaseNotes ? <Icon name="heroGift" size="18px" />
+                    : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
+            <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
             <Icon
                 className={IconHoverBlockClass}
                 onMouseEnter={() => setHovered(true)}
@@ -1421,3 +1458,42 @@ function updateEditorSettings(settings: StoredSettings): void {
 function storeEditorSettings(settings: StoredSettings): void {
     localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(settings));
 }
+
+function useShowReleaseNoteIcon() {
+    const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
+
+    React.useEffect(() => {
+        const lastUsedEditorVersion = localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)
+        if (!localStorage.getItem(EDITOR_VERSION_STORAGE_KEY)) {
+            localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
+        }
+
+        if (CURRENT_EDITOR_VERSION !== lastUsedEditorVersion) {
+            setShowReleaseNotePrompt(true);
+        }
+    }, []);
+
+    const onShowReleaseNotesShown = React.useCallback(() => {
+        localStorage.setItem(EDITOR_VERSION_STORAGE_KEY, CURRENT_EDITOR_VERSION);
+        setShowReleaseNotePrompt(false);
+    }, []);
+
+    return {showReleaseNoteIcon, onShowReleaseNotesShown};
+}
+
+const EditorReleaseNotes = `
+# Preview editor
+
+
+## 1.1 - New fancy feature
+
+
+- Auto-save, maybe
+
+
+## 1.0 initial release 
+
+
+- Nothing of note :(
+
+`
