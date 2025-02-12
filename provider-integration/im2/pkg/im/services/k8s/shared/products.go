@@ -114,8 +114,8 @@ func initProducts() {
 
 		if allowContainer {
 			support.Docker.Enabled = true
-			support.Docker.Web = true
-			support.Docker.Vnc = true
+			support.Docker.Web = ServiceConfig.Compute.Web.Enabled
+			support.Docker.Vnc = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Logs = true
 			support.Docker.Terminal = true
 			support.Docker.Peers = false
@@ -124,7 +124,7 @@ func initProducts() {
 
 		if allowVirtualMachine {
 			support.VirtualMachine.Enabled = true
-			support.VirtualMachine.Web = true
+			support.VirtualMachine.Web = ServiceConfig.Compute.Web.Enabled
 			support.VirtualMachine.Vnc = true
 			support.VirtualMachine.Logs = false
 			support.VirtualMachine.Terminal = true

@@ -64,7 +64,7 @@ func prepareInvocationOnJobCreate(
 			builder.WriteString("entrypoint() {\n\t")
 			builder.WriteString(strings.Join(actualCommand, " "))
 			builder.WriteString("\n}\n")
-			builder.WriteString("entrypoint > /work/stdout-$UCLOUD_RANK.log 2> /work/stderr-$UCLOUD_RANK.log\n")
+			builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
 
 			_, _ = jobFile.WriteString(builder.String())
 		}

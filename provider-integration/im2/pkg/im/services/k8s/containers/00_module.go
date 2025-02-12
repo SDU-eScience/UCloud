@@ -2,11 +2,14 @@ package containers
 
 import (
 	"context"
+	"fmt"
+	"golang.org/x/sys/unix"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"os"
 	"path/filepath"
 	"time"
 	cfg "ucloud.dk/pkg/im/config"
@@ -40,7 +43,7 @@ func Init() ctrl.JobsService {
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
-		ServerFindIngress:        nil,
+		ServerFindIngress:        serverFindIngress,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
 	}
@@ -72,10 +75,80 @@ func FindJobFolder(job *orc.Job) (string, error) {
 	return jobFolderPath, nil
 }
 
+type trackedLogFile struct {
+	Rank   int
+	Stdout bool
+	File   *os.File
+}
+
 func follow(session *ctrl.FollowJobSession) {
-	// Keep alive to make the Core happy.
-	for *session.Alive {
-		time.Sleep(100 * time.Millisecond)
+	var logFiles []trackedLogFile
+
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.RetrieveJob(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		jobFolder, err := FindJobFolder(job)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		for rank := 0; rank < job.Specification.Replicas; rank++ {
+			stdout, ok1 := filesystem.OpenFile(filepath.Join(jobFolder, fmt.Sprintf("stdout-%d.log", rank)), unix.O_RDONLY, 0)
+			if ok1 {
+				logFiles = append(logFiles, trackedLogFile{
+					Rank:   rank,
+					Stdout: true,
+					File:   stdout,
+				})
+			}
+		}
+
+		break
+	}
+
+	readBuffer := make([]byte, 1024*4)
+
+	// Watch log files
+	for util.IsAlive && *session.Alive {
+		job, ok := ctrl.RetrieveJob(session.Job.Id)
+		if !ok {
+			break
+		}
+
+		if job.Status.State != orc.JobStateRunning {
+			break
+		}
+
+		for _, logFile := range logFiles {
+			now := time.Now()
+			deadline := now.Add(5 * time.Millisecond)
+			_ = logFile.File.SetReadDeadline(deadline)
+
+			bytesRead, _ := logFile.File.Read(readBuffer)
+			if bytesRead > 0 {
+				message := string(readBuffer[:bytesRead])
+				var stdout util.Option[string]
+				var stderr util.Option[string]
+				if logFile.Stdout {
+					stdout.Set(message)
+				} else {
+					stderr.Set(message)
+				}
+
+				session.EmitLogs(logFile.Rank, stdout, stderr)
+			}
+		}
+
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -97,7 +170,40 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+	defer cancel()
+
+	podName := idAndRankToPodName(job.Id, rank)
+	pod, err := K8sClient.CoreV1().Pods(Namespace).Get(ctx, podName, meta.GetOptions{})
+	if err != nil {
+		return ctrl.ConfiguredWebSession{}, util.ServerHttpError("Could not find target job, is it still running?")
+	}
+
+	app := &job.Status.ResolvedApplication.Invocation
+
+	port := app.Web.Port
+	if app.ApplicationType == orc.ApplicationTypeVnc {
+		port = app.Vnc.Port
+	}
+
+	address := cfg.HostInfo{
+		Address: pod.Status.PodIP,
+		Port:    int(port),
+	}
+
+	if !shared.K8sInCluster {
+		address.Address = "127.0.0.1"
+		address.Port = EstablishTunnel(podName, int(port))
+	}
+
 	return ctrl.ConfiguredWebSession{
-		Flags: ctrl.RegisteredIngressFlagsVnc | ctrl.RegisteredIngressFlagsNoGatewayConfig,
+		Host: address,
 	}, nil
+}
+
+func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	return ctrl.ConfiguredWebIngress{
+		IsPublic:     false,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+	}
 }

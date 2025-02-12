@@ -12,6 +12,7 @@ import (
 var K8sClient *kubernetes.Clientset
 var K8sConfig *rest.Config
 var KubevirtClient kvclient.KubevirtClient
+var K8sInCluster bool
 
 func initClients() {
 	composeFile := "/mnt/k3s/kubeconfig.yaml"
@@ -36,6 +37,7 @@ func initClients() {
 			c, err := kubernetes.NewForConfig(k8sConfig)
 			if err == nil {
 				k8sClient = c
+				K8sInCluster = true
 			}
 		}
 	}
