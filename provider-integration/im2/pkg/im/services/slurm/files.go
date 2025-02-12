@@ -219,6 +219,25 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			File: rootFile,
 		}
 
+		finfo, err := rootFile.Stat()
+		if err != nil {
+			return TaskProcessingResult{
+				Error:           fmt.Errorf("unable to open source file"),
+				AllowReschedule: false,
+			}
+		}
+		ftype := upload.FileTypeFile
+		if finfo.IsDir() {
+			ftype = upload.FileTypeDirectory
+		}
+
+		rootMetadata := upload.FileMetadata{
+			Size:         finfo.Size(),
+			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
+			InternalPath: "",
+			Type:         ftype,
+		}
+
 		cancelChannel := make(chan util.Empty)
 		go func() {
 			for !task.Done.Load() {
@@ -232,7 +251,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status, cancelChannel)
+		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -342,7 +361,7 @@ func probablyHasPermissionToRead(stat os.FileInfo) bool {
 		return true
 	}
 
-	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+	if os.Getuid() == int(sys.Uid) {
 		return mode&0400 != 0
 	}
 
@@ -365,7 +384,7 @@ func probablyHasPermissionToWrite(stat os.FileInfo) bool {
 		return true
 	}
 
-	if cachedUser != nil && cachedUser.Uid == strconv.Itoa(int(sys.Uid)) {
+	if os.Getuid() == int(sys.Uid) {
 		return mode&0200 != 0
 	}
 
@@ -625,25 +644,63 @@ func processEmptyTrash(task *TaskInfo) TaskProcessingResult {
 }
 
 func moveToTrash(request ctrl.MoveToTrashRequest) error {
-	driveId, _ := DriveIdFromUCloudPath(request.Path)
-	expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
-	if !ok {
-		return fmt.Errorf("Could not resolve drive location")
-	}
+	if cfg.Services.Unmanaged {
+		parents := util.Parents(request.Path)
+		root := ""
+		for i := 0; i < len(parents); i++ {
+			internalPath, ok := UCloudToInternal(parents[i])
+			if !ok {
+				continue
+			}
 
-	if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
-		err := os.Mkdir(expectedTrashLocation, 0770)
-		if err != nil {
-			return fmt.Errorf("Could not create trash folder")
+			fstat, err := os.Stat(internalPath)
+			if err != nil || !probablyHasPermissionToWrite(fstat) {
+				continue
+			}
+
+			root = internalPath
+			break
 		}
-	}
 
-	newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
-	if !ok {
-		return fmt.Errorf("Could not resolve source file")
-	}
+		if root == "" {
+			return fmt.Errorf("Could not resolve trash location")
+		}
 
-	return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+		expectedTrashLocation := filepath.Join(root, "Trash")
+		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
+			err := os.Mkdir(expectedTrashLocation, 0770)
+			if err != nil {
+				return fmt.Errorf("Could not create trash folder")
+			}
+		}
+
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		if !ok {
+			return fmt.Errorf("Could not resolve source file")
+		}
+
+		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+	} else {
+		driveId, _ := DriveIdFromUCloudPath(request.Path)
+		expectedTrashLocation, ok := UCloudToInternal(fmt.Sprintf("/%s/Trash", driveId))
+		if !ok {
+			return fmt.Errorf("Could not resolve drive location")
+		}
+
+		if stat, _ := os.Stat(expectedTrashLocation); stat == nil {
+			err := os.Mkdir(expectedTrashLocation, 0770)
+			if err != nil {
+				return fmt.Errorf("Could not create trash folder")
+			}
+		}
+
+		newPath, ok := InternalToUCloud(fmt.Sprintf("%s/%s", expectedTrashLocation, util.FileName(request.Path)))
+		if !ok {
+			return fmt.Errorf("Could not resolve source file")
+		}
+
+		return doMoveFiles(request.Path, newPath, orc.WriteConflictPolicyRename)
+	}
 }
 
 type discoveredFile struct {

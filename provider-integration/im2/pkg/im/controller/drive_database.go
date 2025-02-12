@@ -290,9 +290,16 @@ outer:
 			prefix := prefixes[i]
 			suffix := suffixes[i]
 
-			if strings.HasPrefix(id, prefix) && strings.HasSuffix(id, suffix) {
-				result = drive
-				break outer
+			if suffix != "" {
+				if strings.HasPrefix(id, prefix) && strings.HasSuffix(id, suffix) {
+					result = drive
+					break outer
+				}
+			} else {
+				if id == prefix {
+					result = drive
+					break outer
+				}
 			}
 		}
 	}
@@ -317,6 +324,10 @@ outer:
 							join lookup l on
 								d.provider_generated_id like l.prefix || '%'
 								and d.provider_generated_id like '%' || l.suffix
+								and (
+									l.suffix != ''
+									or d.provider_generated_id = l.prefix
+								)
 					`,
 					db.Params{
 						"prefixes": prefixes,
