@@ -413,7 +413,7 @@ export const Editor: React.FunctionComponent<{
     }
 
     const [operations, setOperations] = useState<Operation<any, undefined>[]>([]);
-    const isSettingsOpen = state.currentPath === SETTINGS_PATH;
+    const isSettingsOpen = state.currentPath === SETTINGS_PATH && tabs.open.length != 0;
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
@@ -920,7 +920,7 @@ export const Editor: React.FunctionComponent<{
                     )}
 
                     <Box mx="auto" />
-                    {isSettingsOpen ? null : <Box width={"150px"}>
+                    {tabs.open.length === 0 || isSettingsOpen ? null : <Box width={"150px"}>
                         <RichSelect
                             fullWidth
                             items={languageList}
