@@ -9,8 +9,8 @@ import {useParams} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
-import RFB from "@novnc/novnc/core/rfb";
-import * as VncLog from '@novnc/novnc/core/util/logging.js';
+import RFB from "@novnc/novnc/lib/rfb";
+import {initLogging} from '@novnc/novnc/lib/util/logging';
 import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
@@ -22,7 +22,7 @@ interface ConnectionDetails {
 }
 
 export const Vnc: React.FunctionComponent = () => {
-    const params = useParams<{ jobId: string, rank: string }>();
+    const params = useParams<{jobId: string, rank: string}>();
     const jobId = params.jobId!;
     const rank = params.rank!
     const [isConnected, setConnected] = React.useState(false);
@@ -55,7 +55,7 @@ export const Vnc: React.FunctionComponent = () => {
 
     const connect = useCallback(() => {
         if (connectionDetails === null) return;
-        VncLog.initLogging("debug");
+        initLogging("debug");
 
         try {
             const rfb = new RFB(
@@ -77,22 +77,6 @@ export const Vnc: React.FunctionComponent = () => {
                 false
             );
         }
-
-        const resize = () => {
-            const canvas = document.querySelector<HTMLCanvasElement>(".contents canvas");
-            if (canvas) {
-                canvas.style.height = "100%";
-                canvas.style.width = "100%";
-            }
-        };
-
-        setTimeout(() => {
-            resize();
-        }, 500);
-        window.addEventListener("resize", resize);
-        return () => {
-            window.removeEventListener("resize", resize);
-        };
     }, [connectionDetails]);
 
     useLayoutEffect(() => {
@@ -107,7 +91,7 @@ export const Vnc: React.FunctionComponent = () => {
             </div>
         )}
 
-        <div className={"contents"}/>
+        <div className={"contents"} />
     </TermAndShellWrapper>;
 };
 

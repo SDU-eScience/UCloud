@@ -17,7 +17,7 @@
         "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {
-        "@novnc/novnc": "1.4.0",
+        "@novnc/novnc": "1.5.0",
         "@observablehq/plot": "0.6.16",
         "@reduxjs/toolkit": "2.3.0",
         "@rjsf/core": "4.2.3",
@@ -47,12 +47,12 @@
         "react-virtualized-auto-sizer": "1.0.25",
         "react-window": "1.8.11",
         "redux": "4.2.1",
+        "remark-gfm": "4.0.0",
         "rusha": "0.8.14",
         "ua-parser-js": "1.0.40",
         "xterm": "5.3.0",
         "xterm-addon-fit": "0.8.0",
-        "yaml": "2.7.0",
-        "remark-gfm": "^4.0.0"
+        "yaml": "2.7.0"
     },
     "devDependencies": {
         "@types/d3": "7.4.3",
@@ -72,6 +72,6 @@
         "@vitejs/plugin-react": "4.3.4",
         "@vitejs/plugin-react-refresh": "1.3.6",
         "typescript": "5.7.3",
-        "vite": "6.0.11"
+        "vite": "6.1.0"
     }
 }
