@@ -5,6 +5,7 @@ import {getProviderTitle} from "@/Providers/ProviderTitle";
 import {ThemeColor} from "@/ui-components/theme";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {projectCache} from "@/Project/ProjectSwitcher";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 export const UCLOUD_PROVIDER = "ucloud";
 export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
@@ -767,7 +768,7 @@ export function buildAllocationDisplayTree(allWallets: WalletV2[]): AllocationDi
 
     const yourAllocations = tree.yourAllocations;
     {
-        const walletsByType = Object.groupBy(relevantWallets, it => it.paysFor.productType);
+        const walletsByType = groupBy(relevantWallets, it => it.paysFor.productType);
         for (const [type, wallets] of Object.entries(walletsByType)) {
             yourAllocations[type as ProductType] = {
                 usageAndQuota: [],
