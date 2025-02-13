@@ -2,8 +2,17 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v3"
 	core "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"path/filepath"
+	"slices"
+	"strings"
+	ctrl "ucloud.dk/pkg/im/controller"
+	"ucloud.dk/pkg/im/services/k8s/filesystem"
 	"ucloud.dk/pkg/im/services/k8s/shared"
 	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
@@ -70,4 +79,97 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			})
 		}
 	}
+}
+
+func OnStart(jobs []orc.Job) {
+	var messages []ctrl.JobMessage
+
+	length := len(jobs)
+	for i := 0; i < length; i++ {
+		// Common data collection for each job
+		// -------------------------------------------------------------------------------------------------------------
+		job := &jobs[i]
+		jobFolder, err := FindJobFolder(job)
+		if err != nil {
+			continue
+		}
+
+		// Dynamic targets
+		// -------------------------------------------------------------------------------------------------------------
+		dynamicTargets := readDynamicTargets(job, jobFolder)
+		for _, target := range dynamicTargets {
+			targetAsJson, _ := json.Marshal(target)
+
+			messages = append(messages, ctrl.JobMessage{
+				JobId:   job.Id,
+				Message: fmt.Sprintf("Target: %s", string(targetAsJson)),
+			})
+		}
+	}
+
+	// Not much we can do in this case
+	_ = ctrl.TrackJobMessages(messages)
+}
+
+func readDynamicTargets(job *orc.Job, jobFolder string) []orc.DynamicTarget {
+	dynamicTargets := map[string]orc.DynamicTarget{}
+
+	var dynTargetLists [][]orc.DynamicTarget
+	for rank := 0; rank < job.Specification.Replicas; rank++ {
+		file, ok := filesystem.OpenFile(filepath.Join(jobFolder, fmt.Sprintf(".script-targets-%d.yaml", rank)), unix.O_RDONLY, 0)
+		if !ok {
+			continue
+		}
+
+		var data []byte
+
+		info, err := file.Stat()
+		if err == nil {
+			size := info.Size()
+			if size < 1024*1024 {
+				data = make([]byte, size)
+				n, _ := file.Read(data)
+				data = data[:n]
+			}
+		}
+		_ = file.Close()
+
+		var list []orc.DynamicTarget
+		_ = yaml.Unmarshal(data, &list)
+		dynTargetLists = append(dynTargetLists, list)
+	}
+
+	// Merge all the lists but give priority to the self-reported targets. Lower ranks have priority otherwise.
+	for rank := len(dynTargetLists) - 1; rank >= 0; rank-- {
+		list := dynTargetLists[rank]
+		for _, target := range list {
+			dynamicTargets[fmt.Sprintf("%v/%v", target.Rank, target.Target)] = target
+		}
+	}
+
+	for rank := 0; rank < len(dynTargetLists); rank++ {
+		list := dynTargetLists[rank]
+		for _, target := range list {
+			if target.Rank == rank {
+				dynamicTargets[fmt.Sprintf("%v/%v", target.Rank, target.Target)] = target
+			}
+		}
+	}
+
+	var targetList []orc.DynamicTarget
+	for _, target := range dynamicTargets {
+		targetList = append(targetList, target)
+	}
+
+	slices.SortFunc(targetList, func(a, b orc.DynamicTarget) int {
+		if a.Rank < b.Rank {
+			return -1
+		} else if a.Rank > b.Rank {
+			return 1
+		} else {
+			return strings.Compare(a.Target, b.Target)
+		}
+	})
+
+	return targetList
 }

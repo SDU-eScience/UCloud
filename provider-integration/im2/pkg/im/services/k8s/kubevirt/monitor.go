@@ -60,3 +60,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 	}
 }
+
+func OnStart(jobs []orc.Job) {
+
+}

@@ -48,38 +48,36 @@ func prepareInvocationOnJobCreate(
 
 	argBuilder := orc.DefaultArgBuilder(ucloudToPod)
 
-	if rank == 0 {
-		var actualCommand []string
-		for _, param := range invocationParameters {
-			commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
-			for _, cmd := range commandList {
-				actualCommand = append(actualCommand, orc.EscapeBash(cmd))
-			}
+	var actualCommand []string
+	for _, param := range invocationParameters {
+		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
+		for _, cmd := range commandList {
+			actualCommand = append(actualCommand, orc.EscapeBash(cmd))
 		}
-
-		if len(invocationParameters) == 1 && invocationParameters[0].Type == orc.InvocationParameterTypeJinja {
-			actualCommand = handleJinjaInvocation(job, rank, pod, container, argBuilder, parametersAndValues,
-				jobFolder, pathMapperInternalToPod)
-		}
-
-		path := filepath.Join(jobFolder, "job.sh")
-		jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT, 0700)
-		if ok {
-			builder := strings.Builder{}
-			builder.WriteString("#!/usr/bin/env bash\n")
-			builder.WriteString("export TINI_SUBREAPER=\n")
-			builder.WriteString("entrypoint() {\n\t")
-			builder.WriteString(strings.Join(actualCommand, " "))
-			builder.WriteString("\n}\n")
-			builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
-
-			_, _ = jobFile.WriteString(builder.String())
-			_ = jobFile.Chmod(0755)
-		}
-		_ = jobFile.Close()
 	}
 
-	container.Command = []string{"/work/job.sh"}
+	if len(invocationParameters) == 1 && invocationParameters[0].Type == orc.InvocationParameterTypeJinja {
+		actualCommand = handleJinjaInvocation(job, rank, pod, container, argBuilder, parametersAndValues,
+			jobFolder, pathMapperInternalToPod)
+	}
+
+	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
+	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT, 0700)
+	if ok {
+		builder := strings.Builder{}
+		builder.WriteString("#!/usr/bin/env bash\n")
+		builder.WriteString("export TINI_SUBREAPER=\n")
+		builder.WriteString("entrypoint() {\n\t")
+		builder.WriteString(strings.Join(actualCommand, " "))
+		builder.WriteString("\n}\n")
+		builder.WriteString("entrypoint &> /work/stdout-$UCLOUD_RANK.log\n")
+
+		_, _ = jobFile.WriteString(builder.String())
+		_ = jobFile.Chmod(0755)
+	}
+	_ = jobFile.Close()
+
+	container.Command = []string{fmt.Sprintf("/work/job-%d.sh", rank)}
 
 	for k, param := range environment {
 		commandList := orc.BuildParameter(param, parametersAndValues, false, argBuilder, nil)
@@ -161,29 +159,7 @@ func handleJinjaInvocation(
 		})
 	}
 
-	// A temporary volume is used to ensure that each replica of the job can generate their own script (the
-	// rank variable differs)
-	pod.Spec.Volumes = append(pod.Spec.Volumes, core.Volume{
-		Name: "ucloud-generated-script",
-		VolumeSource: core.VolumeSource{
-			EmptyDir: &core.EmptyDirVolumeSource{},
-		},
-	})
-
-	container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{
-		Name:      "ucloud-generated-script",
-		MountPath: "/opt/ucloud-script",
-	})
-
-	jinjaContainer.VolumeMounts = append(jinjaContainer.VolumeMounts, core.VolumeMount{
-		Name:      "ucloud-generated-script",
-		MountPath: "/opt/ucloud-script",
-	})
-
-	outputScriptPath := "/opt/ucloud-script/.script-generated.sh"
-	if rank == 0 {
-		outputScriptPath = "/work/.script-generated.sh"
-	}
+	outputScriptPath := fmt.Sprintf("/work/.script-generated-%d.sh", rank)
 
 	jinjaContainer.Command = []string{
 		"ucloud",

@@ -49,6 +49,14 @@ func retrieveProducts() []orc.JobSupport {
 	return shared.MachineSupport
 }
 
+func backendByAppIsKubevirt(app *orc.Application) bool {
+	return backendByApp(app) == &virtCpu
+}
+
+func backendByAppIsContainers(app *orc.Application) bool {
+	return backendByApp(app) == &containerCpu
+}
+
 func backendByApp(app *orc.Application) *ctrl.JobsService {
 	tool := &app.Invocation.Tool.Tool.Description
 	switch tool.Backend {
@@ -63,6 +71,14 @@ func backendByApp(app *orc.Application) *ctrl.JobsService {
 	default:
 		return &containerCpu
 	}
+}
+
+func backendIsKubevirt(job *orc.Job) bool {
+	return backend(job) == &virtCpu
+}
+
+func backendIsContainers(job *orc.Job) bool {
+	return backend(job) == &containerCpu
 }
 
 func backend(job *orc.Job) *ctrl.JobsService {

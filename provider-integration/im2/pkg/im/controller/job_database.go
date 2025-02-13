@@ -36,6 +36,7 @@ type JobUpdateBatch struct {
 	trackedNodeAllocation map[string][]string
 	failed                bool
 	relevancyFilter       func(job *orc.Job) bool
+	results               JobUpdateBatchResults
 }
 
 func InitJobDatabase() {
@@ -189,6 +190,22 @@ func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
 	b.entries = append(b.entries, update)
+	if update.Update.State.Present {
+		switch update.Update.State.Value {
+		case orc.JobStateRunning:
+			b.results.NormalStart = append(b.results.NormalStart, update.Id)
+
+		case orc.JobStateExpired:
+			fallthrough
+		case orc.JobStateSuccess:
+			fallthrough
+		case orc.JobStateFailure:
+			b.results.NormalTermination = append(b.results.NormalTermination, update.Id)
+
+		case orc.JobStateSuspended:
+			b.results.NormalSuspension = append(b.results.NormalSuspension, update.Id)
+		}
+	}
 	if len(b.entries) >= 100 {
 		b.flush()
 	}
@@ -382,13 +399,20 @@ func (b *JobUpdateBatch) flush() {
 	b.entries = b.entries[:0]
 }
 
+type JobUpdateBatchResults struct {
+	TerminatedDueToUnknownState []string
+	NormalStart                 []string
+	NormalTermination           []string
+	NormalSuspension            []string
+}
+
 // End flushes out any remaining job updates and return a list of jobs which were terminated due to missing
 // tracking data.
-func (b *JobUpdateBatch) End() []orc.Job {
+func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	defer activeJobsMutex.Unlock()
 
 	if b.failed {
-		return nil
+		return JobUpdateBatchResults{}
 	}
 
 	var jobsWithUnknownState []string
@@ -417,7 +441,7 @@ func (b *JobUpdateBatch) End() []orc.Job {
 		}
 	}
 
-	var terminatedJobs []orc.Job
+	var terminatedJobs []string
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
@@ -437,11 +461,11 @@ func (b *JobUpdateBatch) End() []orc.Job {
 			})
 		}
 
-		terminatedJobs = append(terminatedJobs, *job)
+		terminatedJobs = append(terminatedJobs, job.Id)
 	}
 
 	b.flush()
-	return terminatedJobs
+	return b.results
 }
 
 type JobMessage struct {

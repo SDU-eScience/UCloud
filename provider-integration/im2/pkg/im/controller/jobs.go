@@ -654,6 +654,8 @@ func controllerJobs(mux *http.ServeMux) {
 								StreamId: requestMessage.StreamId,
 								Payload:  dummyData,
 							})
+						} else {
+							followSessionsMutex.Unlock()
 						}
 					}
 				}

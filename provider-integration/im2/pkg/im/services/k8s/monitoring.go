@@ -147,7 +147,14 @@ func loopMonitoring() {
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
 		sched.PruneReplicas()
-		terminatedJobs := tracker.batch.End()
+
+		length := len(sched.Queue)
+		for i := 0; i < length; i++ {
+			queueEntry := &sched.Queue[i]
+			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
+		}
+
+		batchResults := tracker.batch.End()
 
 		go func() {
 			for _, jobId := range tracker.terminationRequested {
@@ -157,16 +164,34 @@ func loopMonitoring() {
 				}
 			}
 
-			for _, job := range terminatedJobs {
-				_ = terminate(ctrl.JobTerminateRequest{Job: &job, IsCleanup: true})
+			for _, jobId := range batchResults.TerminatedDueToUnknownState {
+				job, ok := ctrl.RetrieveJob(jobId)
+				if ok {
+					_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+				}
+			}
+
+			var kubevirtStarted []orc.Job
+			var containersStarted []orc.Job
+			for _, jobId := range batchResults.NormalStart {
+				job, ok := ctrl.RetrieveJob(jobId)
+				if ok {
+					if backendIsKubevirt(job) {
+						kubevirtStarted = append(kubevirtStarted, *job)
+					} else if backendIsContainers(job) {
+						containersStarted = append(containersStarted, *job)
+					}
+				}
+			}
+
+			if len(containersStarted) > 0 {
+				containers.OnStart(containersStarted)
+			}
+
+			if len(kubevirtStarted) > 0 {
+				kubevirt.OnStart(kubevirtStarted)
 			}
 		}()
-
-		length := len(sched.Queue)
-		for i := 0; i < length; i++ {
-			queueEntry := &sched.Queue[i]
-			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
-		}
 
 		nextJobMonitor = now.Add(5 * time.Second)
 	}

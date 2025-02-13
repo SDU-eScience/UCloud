@@ -2,6 +2,7 @@ package containers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/sys/unix"
 	core "k8s.io/api/core/v1"
@@ -11,6 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 	fnd "ucloud.dk/pkg/foundation"
 	cfg "ucloud.dk/pkg/im/config"
@@ -219,6 +221,26 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 	port := app.Web.Port
 	if app.ApplicationType == orc.ApplicationTypeVnc {
 		port = app.Vnc.Port
+	}
+
+	if target.Present {
+		updates := job.Updates
+		length := len(updates)
+		for i := 0; i < length; i++ {
+			update := &job.Updates[i]
+			if strings.HasPrefix(update.Status.Value, "Target: ") {
+				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
+				var dynTarget orc.DynamicTarget
+				err := json.Unmarshal([]byte(asJson), &dynTarget)
+				if err != nil {
+					continue
+				}
+
+				if dynTarget.Target == target.Value && dynTarget.Rank == rank {
+					port = uint16(dynTarget.Port)
+				}
+			}
+		}
 	}
 
 	address := cfg.HostInfo{
