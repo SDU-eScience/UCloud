@@ -6,7 +6,7 @@ import Flex from "@/ui-components/Flex";
 import * as Heading from "@/ui-components/Heading";
 import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
 import ProgressBar from "@/ui-components/Progress";
-import {takeLast} from "@/Utilities/CollectionUtilities";
+import {groupBy, takeLast} from "@/Utilities/CollectionUtilities";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 const DetailedTask: React.FunctionComponent<{task?: TaskUpdate}> = ({task}) => {
@@ -54,7 +54,7 @@ const DetailedTask: React.FunctionComponent<{task?: TaskUpdate}> = ({task}) => {
 
                 {task.speeds.length === 0 ? null : <Heading.h3>Speed Measurements</Heading.h3>}
 
-                {Object.values(Object.groupBy(task.speeds, it => it.title)).map(allSpeeds => {
+                {Object.values(groupBy(task.speeds, it => it.title)).map(allSpeeds => {
                     const speeds = takeLast(allSpeeds!, 50);
                     const lastElement = speeds[speeds.length - 1];
                     return (
