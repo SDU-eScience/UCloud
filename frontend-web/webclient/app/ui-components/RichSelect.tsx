@@ -21,7 +21,8 @@ export function RichSelect<T, K extends keyof T>(props: {
     RenderRow: RichSelectChildComponent<T>;
     RenderSelected?: RichSelectChildComponent<T>;
     FullRenderSelected?: RichSelectChildComponent<T>;
-    fullWidth?: boolean;    
+    fullWidth?: boolean;
+    dropdownWidth?: string;
 
     selected?: T;
     onSelect: (element: T) => void;
@@ -40,7 +41,7 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     const triggerRef = useRef<HTMLDivElement>(null);
 
-    const [dropdownSize, setDropdownSize] = useState("300px");
+    const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
 
     const onTriggerClick = useCallback(() => {
         const trigger = triggerRef.current;

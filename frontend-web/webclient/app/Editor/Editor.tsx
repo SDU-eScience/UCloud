@@ -943,13 +943,14 @@ export const Editor: React.FunctionComponent<{
                     )}
 
                     <Box mx="auto" />
-                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"150px"}>
+                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
                         <RichSelect
                             fullWidth
                             items={languageList}
                             keys={["language"]}
+                            dropdownWidth="180px"
                             FullRenderSelected={p =>
-                                <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="180px">
+                                <Flex borderRight={"1px solid var(--borderColor)"} borderLeft={"1px solid var(--borderColor)"} height="32px" width="200px">
                                     <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
                                 </Flex>}
                             RenderRow={LanguageItem}
