@@ -884,7 +884,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 			update := &job.Updates[i]
 			if strings.HasPrefix(update.Status.Value, "Target: ") {
 				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
-				var dynTarget DynamicTarget
+				var dynTarget orc.DynamicTarget
 				err := json.Unmarshal([]byte(asJson), &dynTarget)
 				if err != nil {
 					continue

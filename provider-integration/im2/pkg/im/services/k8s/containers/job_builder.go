@@ -148,7 +148,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Invocation
 	// -----------------------------------------------------------------------------------------------------------------
-	prepareInvocationOnJobCreate(job, rank, userContainer, internalToPod, jobFolder)
+	prepareInvocationOnJobCreate(job, rank, pod, userContainer, internalToPod, jobFolder)
 
 	// Multi-node sidecar
 	// -----------------------------------------------------------------------------------------------------------------

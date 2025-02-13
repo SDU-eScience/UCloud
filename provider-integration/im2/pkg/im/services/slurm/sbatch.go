@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"os"
 	"path/filepath"
-	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -348,33 +346,6 @@ func sbatchTemplate(session any, fn string, args []string) string {
 	}
 }
 
-// sanitizeMapForSerialization recursively removes non-serializable values from a map[string]any
-func sanitizeMapForSerialization(input map[string]any) map[string]any {
-	safeMap := make(map[string]any)
-	for key, value := range input {
-		if isSerializable(value) {
-			switch v := value.(type) {
-			case map[string]any:
-				safeMap[key] = sanitizeMapForSerialization(v)
-			default:
-				safeMap[key] = v
-			}
-		}
-	}
-	return safeMap
-}
-
-// isSerializable checks if a value is serializable by JSON or YAML
-func isSerializable(value any) bool {
-	v := reflect.ValueOf(value)
-	switch v.Kind() {
-	case reflect.Func, reflect.Chan, reflect.Complex64, reflect.Complex128, reflect.Invalid:
-		return false
-	default:
-		return true
-	}
-}
-
 func prepareDefaultEnvironment(
 	job *orc.Job,
 	jobFolder string,
@@ -382,11 +353,11 @@ func prepareDefaultEnvironment(
 	parametersAndValues map[string]orc.ParamAndValue,
 	argBuilder orc.ArgBuilder,
 	allocatedPort util.Option[int],
-) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]DynamicTarget) {
+) (directives map[string]string, jinjaContextParameters map[string]any, targets *[]orc.DynamicTarget) {
 	directives = make(map[string]string)
 	jinjaContextParameters = make(map[string]any)
 
-	targets = &[]DynamicTarget{} // needed to avoid a nil dereference
+	targets = &[]orc.DynamicTarget{} // needed to avoid a nil dereference
 
 	// SBatch directives
 	// =================================================================================================================
@@ -615,7 +586,7 @@ func prepareDefaultEnvironment(
 			return exec.AsSafeValue("\n# Port must be > 0\n")
 		}
 
-		*targets = append(*targets, DynamicTarget{
+		*targets = append(*targets, orc.DynamicTarget{
 			Rank:   rank,
 			Type:   orc.InteractiveSessionType(interactiveType),
 			Target: target,
@@ -650,14 +621,7 @@ type SBatchResult struct {
 	JinjaTemplateFile   string
 	JinjaParametersFile string
 	Error               error
-	DynamicTargets      []DynamicTarget
-}
-
-type DynamicTarget struct {
-	Rank   int                        `json:"rank"`
-	Type   orc.InteractiveSessionType `json:"type"`
-	Target string                     `json:"target"`
-	Port   int                        `json:"port"`
+	DynamicTargets      []orc.DynamicTarget
 }
 
 func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatchResult {
@@ -751,21 +715,10 @@ func CreateSBatchFile(job *orc.Job, jobFolder string, accountName string) SBatch
 			return exec.AsSafeValue(srunCommand)
 		}
 
-		jinjaContextParameters["debug"] = func() *exec.Value {
-			safeMap := sanitizeMapForSerialization(jinjaContextParameters)
-			buf := &bytes.Buffer{}
-			yamlEncoder := yaml.NewEncoder(buf)
-			_ = yamlEncoder.Encode(safeMap)
-			_ = os.WriteFile(filepath.Join(jobFolder, "jinja-context.yml"), buf.Bytes(), 0660)
-			_ = os.WriteFile(filepath.Join(jobFolder, "job.jinja"), []byte(tpl), 0660)
-
-			return exec.AsSafeValue("")
-		}
-
 		jinjaContext = exec.NewContext(jinjaContextParameters)
 
 		{
-			safeMap := sanitizeMapForSerialization(jinjaContextParameters)
+			safeMap := util.SanitizeMapForSerialization(jinjaContextParameters)
 			buf := &bytes.Buffer{}
 			yamlEncoder := yaml.NewEncoder(buf)
 			_ = yamlEncoder.Encode(safeMap)

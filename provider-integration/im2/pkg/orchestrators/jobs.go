@@ -39,6 +39,13 @@ type ExportedParametersResources struct {
 	Ingress map[string]Ingress `json:"Ingress"`
 }
 
+type DynamicTarget struct {
+	Rank   int                    `json:"rank"`
+	Type   InteractiveSessionType `json:"type"`
+	Target string                 `json:"target"`
+	Port   int                    `json:"port"`
+}
+
 type JobState string
 
 const (
