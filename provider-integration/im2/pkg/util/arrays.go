@@ -6,3 +6,11 @@ func ChunkBy[T any](items []T, chunkSize int) (chunks [][]T) {
 	}
 	return append(chunks, items)
 }
+
+func GetOptionalElement[T any](items []T, index int) Option[T] {
+	if index >= 0 && index < len(items) {
+		return OptValue(items[index])
+	} else {
+		return OptNone[T]()
+	}
+}

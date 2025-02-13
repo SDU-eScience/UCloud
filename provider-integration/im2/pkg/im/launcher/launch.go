@@ -52,6 +52,12 @@ func Launch() {
 		pluginName = flag.Arg(0)
 	}
 
+	if pluginName != "" {
+		if k8s.HandleCliWithoutConfig(pluginName) {
+			return
+		}
+	}
+
 	if !cfg.Parse(mode, *configDir) {
 		fmt.Printf("Failed to parse configuration!\n")
 		return
@@ -65,9 +71,6 @@ func Launch() {
 		}
 
 		switch cfg.Services.Type {
-		case cfg.ServicesKubernetes:
-			k8s.HandleCli(pluginName)
-
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
 		}
