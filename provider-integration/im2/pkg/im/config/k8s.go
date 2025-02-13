@@ -15,9 +15,16 @@ type KubernetesFileSystem struct {
 	TrashStagingArea string
 }
 
+type KubernetesWebConfiguration struct {
+	Enabled bool
+	Prefix  string
+	Suffix  string
+}
+
 type KubernetesCompute struct {
 	Machines  map[string]K8sMachineCategory
-	Namespace string // TODO
+	Namespace string
+	Web       KubernetesWebConfiguration
 }
 
 type K8sMachineCategory struct {
@@ -54,6 +61,10 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
+	cfg.Compute.Namespace = optionalChildText(filePath, services, "namespace", &success)
+	if cfg.Compute.Namespace == "" {
+		cfg.Compute.Namespace = "ucloud-apps"
+	}
 
 	cfg.Compute.Machines = make(map[string]K8sMachineCategory)
 	machinesNode := requireChild(filePath, computeNode, "machines", &success)
@@ -122,6 +133,17 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 
 		cfg.Compute.Machines[machineCategoryName] = category
+	}
+
+	webNode, _ := getChildOrNil(filePath, computeNode, "web")
+	if webNode != nil {
+		enabled, ok := optionalChildBool(filePath, webNode, "enabled")
+		cfg.Compute.Web.Enabled = enabled && ok
+
+		if cfg.Compute.Web.Enabled {
+			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
+			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
+		}
 	}
 
 	return success, cfg

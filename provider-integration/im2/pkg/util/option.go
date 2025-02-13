@@ -86,3 +86,11 @@ func (s *Option[T]) UnmarshalJSON(data []byte) error {
 	s.Present = true
 	return nil
 }
+
+func OptStringIfNotEmpty(value string) Option[string] {
+	if value == "" {
+		return OptNone[string]()
+	} else {
+		return OptValue[string](value)
+	}
+}

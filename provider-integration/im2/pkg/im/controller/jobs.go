@@ -33,7 +33,7 @@ type JobsService struct {
 	RetrieveProducts         func() []orc.JobSupport
 	Follow                   func(session *FollowJobSession)
 	HandleShell              func(session *ShellSession, cols, rows int)
-	ServerFindIngress        func(job *orc.Job, suffix util.Option[string]) ConfiguredWebIngress
+	ServerFindIngress        func(job *orc.Job, rank int, suffix util.Option[string]) ConfiguredWebIngress
 	OpenWebSession           func(job *orc.Job, rank int, target util.Option[string]) (ConfiguredWebSession, error)
 	RequestDynamicParameters func(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter
 	HandleBuiltInVnc         func(job *orc.Job, rank int, conn *ws.Conn)
@@ -93,7 +93,8 @@ const (
 )
 
 type JobTerminateRequest struct {
-	Job *orc.Job
+	Job       *orc.Job
+	IsCleanup bool
 }
 
 type JobSuspendRequest struct {
@@ -638,22 +639,24 @@ func controllerJobs(mux *http.ServeMux) {
 						session, ok := followSessions[followRequest.StreamId]
 						if ok {
 							*session.Alive = false
-						}
-						followSessionsMutex.Unlock()
+							followSessionsMutex.Unlock()
 
-						dummy := jobsProviderFollowResponse{
-							StreamId: session.Id,
-							Rank:     0,
-							Stdout:   util.Option[string]{},
-							Stderr:   util.Option[string]{},
+							dummy := jobsProviderFollowResponse{
+								StreamId: session.Id,
+								Rank:     0,
+								Stdout:   util.Option[string]{},
+								Stderr:   util.Option[string]{},
+							}
+							dummyData, _ := json.Marshal(dummy)
+							_ = conn.WriteJSON(WebSocketResponseFin{
+								Type:     "response",
+								Status:   http.StatusOK,
+								StreamId: requestMessage.StreamId,
+								Payload:  dummyData,
+							})
+						} else {
+							followSessionsMutex.Unlock()
 						}
-						dummyData, _ := json.Marshal(dummy)
-						_ = conn.WriteJSON(WebSocketResponseFin{
-							Type:     "response",
-							Status:   http.StatusOK,
-							StreamId: requestMessage.StreamId,
-							Payload:  dummyData,
-						})
 					}
 				}
 
@@ -1031,7 +1034,7 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 
 		var ingress ConfiguredWebIngress
 		if isWeb {
-			ingress = Jobs.ServerFindIngress(job, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
+			ingress = Jobs.ServerFindIngress(job, rank, util.Option[string]{Present: requestedSuffix.Present, Value: suffix})
 		} else if isVnc {
 			ingress = ConfiguredWebIngress{
 				IsPublic:     false,
@@ -1066,7 +1069,7 @@ func RegisterIngress(job *orc.Job, rank int, target cfg.HostInfo, requestedSuffi
 				routeType = gw.RouteTypeVnc
 			}
 
-			clusterName := "job_" + job.Id + requestedSuffix.Value
+			clusterName := "job_" + job.Id + "_" + fmt.Sprint(rank) + requestedSuffix.Value
 			gw.SendMessage(gw.ConfigurationMessage{
 				ClusterUp: &gw.EnvoyCluster{
 					Name:    clusterName,

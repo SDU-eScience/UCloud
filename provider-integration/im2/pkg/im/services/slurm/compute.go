@@ -859,10 +859,10 @@ func follow(session *ctrl.FollowJobSession) {
 	}
 }
 
-func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }
 
@@ -884,7 +884,7 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 			update := &job.Updates[i]
 			if strings.HasPrefix(update.Status.Value, "Target: ") {
 				asJson := strings.TrimPrefix(update.Status.Value, "Target: ")
-				var dynTarget DynamicTarget
+				var dynTarget orc.DynamicTarget
 				err := json.Unmarshal([]byte(asJson), &dynTarget)
 				if err != nil {
 					continue

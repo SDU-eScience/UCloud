@@ -28,6 +28,25 @@ type DriveDescriptor struct {
 	SecondaryReference string
 }
 
+func (d DriveDescriptor) ProductName() string {
+	switch d.Type {
+	case DriveDescriptorTypeShare:
+		return "share"
+
+	case DriveDescriptorTypeMemberFiles:
+		return "project-home"
+
+	case DriveDescriptorTypeHome:
+		fallthrough
+	case DriveDescriptorTypeProjectRepo:
+		fallthrough
+	case DriveDescriptorTypeCollection:
+		fallthrough
+	default:
+		return shared.ServiceConfig.FileSystem.Name
+	}
+}
+
 func (d DriveDescriptor) ToProviderId() util.Option[string] {
 	switch d.Type {
 	case DriveDescriptorTypeHome:

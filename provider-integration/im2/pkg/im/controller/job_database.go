@@ -36,6 +36,7 @@ type JobUpdateBatch struct {
 	trackedNodeAllocation map[string][]string
 	failed                bool
 	relevancyFilter       func(job *orc.Job) bool
+	results               JobUpdateBatchResults
 }
 
 func InitJobDatabase() {
@@ -148,7 +149,23 @@ func RetrieveJob(jobId string) (*orc.Job, bool) {
 		activeJobsMutex.Lock()
 		job, ok := activeJobs[jobId]
 		activeJobsMutex.Unlock()
-		return job, ok
+
+		if ok {
+			return job, ok
+		} else {
+			job, err := orc.RetrieveJob(jobId, orc.BrowseJobsFlags{
+				IncludeParameters:  true,
+				IncludeApplication: true,
+				IncludeProduct:     true,
+			})
+
+			if err == nil {
+				TrackNewJob(job)
+				return &job, true
+			} else {
+				return nil, false
+			}
+		}
 	} else {
 		job, err := retrieveRequest.Invoke(jobId)
 		return job, err == nil
@@ -173,6 +190,22 @@ func (b *JobUpdateBatch) SetRelevancyFilter(filter func(job *orc.Job) bool) {
 
 func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]) {
 	b.entries = append(b.entries, update)
+	if update.Update.State.Present {
+		switch update.Update.State.Value {
+		case orc.JobStateRunning:
+			b.results.NormalStart = append(b.results.NormalStart, update.Id)
+
+		case orc.JobStateExpired:
+			fallthrough
+		case orc.JobStateSuccess:
+			fallthrough
+		case orc.JobStateFailure:
+			b.results.NormalTermination = append(b.results.NormalTermination, update.Id)
+
+		case orc.JobStateSuspended:
+			b.results.NormalSuspension = append(b.results.NormalSuspension, update.Id)
+		}
+	}
 	if len(b.entries) >= 100 {
 		b.flush()
 	}
@@ -366,11 +399,20 @@ func (b *JobUpdateBatch) flush() {
 	b.entries = b.entries[:0]
 }
 
-func (b *JobUpdateBatch) End() {
+type JobUpdateBatchResults struct {
+	TerminatedDueToUnknownState []string
+	NormalStart                 []string
+	NormalTermination           []string
+	NormalSuspension            []string
+}
+
+// End flushes out any remaining job updates and return a list of jobs which were terminated due to missing
+// tracking data.
+func (b *JobUpdateBatch) End() JobUpdateBatchResults {
 	defer activeJobsMutex.Unlock()
 
 	if b.failed {
-		return
+		return JobUpdateBatchResults{}
 	}
 
 	var jobsWithUnknownState []string
@@ -399,6 +441,7 @@ func (b *JobUpdateBatch) End() {
 		}
 	}
 
+	var terminatedJobs []string
 	for _, jobIdToTerminate := range jobsWithUnknownState {
 		terminationState := orc.JobStateSuccess
 
@@ -408,16 +451,57 @@ func (b *JobUpdateBatch) End() {
 			terminationState = orc.JobStateExpired
 		}
 
-		b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
-			Id: jobIdToTerminate,
-			Update: orc.JobUpdate{
-				State:  util.OptValue(terminationState),
-				Status: util.OptValue(b.jobUpdateMessage(terminationState)),
-			},
-		})
+		if job.Status.State != terminationState {
+			b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
+				Id: jobIdToTerminate,
+				Update: orc.JobUpdate{
+					State:  util.OptValue(terminationState),
+					Status: util.OptValue(b.jobUpdateMessage(terminationState)),
+				},
+			})
+		}
+
+		terminatedJobs = append(terminatedJobs, job.Id)
 	}
 
 	b.flush()
+	return b.results
+}
+
+type JobMessage struct {
+	JobId   string
+	Message string
+}
+
+func TrackJobMessages(messages []JobMessage) error {
+	if len(messages) == 0 {
+		return nil
+	}
+
+	var updates []orc.ResourceUpdateAndId[orc.JobUpdate]
+	for _, message := range messages {
+		update := orc.JobUpdate{
+			Status: util.OptValue(message.Message),
+		}
+
+		updates = append(updates, orc.ResourceUpdateAndId[orc.JobUpdate]{
+			Id:     message.JobId,
+			Update: update,
+		})
+
+		job, ok := RetrieveJob(message.JobId)
+		if ok {
+			copied := *job
+			copied.Updates = append(job.Updates, update)
+			TrackNewJob(copied)
+		}
+	}
+
+	err := orc.UpdateJobs(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
+		Items: updates,
+	})
+
+	return err
 }
 
 func fetchAllJobs(state orc.JobState) {

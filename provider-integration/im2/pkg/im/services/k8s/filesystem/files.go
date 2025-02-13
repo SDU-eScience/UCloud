@@ -63,7 +63,7 @@ func InitFiles() ctrl.FileService {
 	}
 }
 
-func openFile(path string, mode int, perm uint32) (*os.File, bool) {
+func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 	components := util.Components(path)
 	componentsLength := len(components)
 
@@ -116,7 +116,7 @@ func validateAndOpenFileForDownload(path string) (*os.File, int64, error) {
 		return nil, 0, util.UserHttpError("Could not find file!")
 	}
 
-	fd, ok := openFile(internalPath, unix.O_RDONLY, 0)
+	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
 	if !ok {
 		return nil, 0, util.UserHttpError("Could not find file!")
 	}
@@ -155,8 +155,8 @@ func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 		}
 	}
 
-	sourceParent, ok1 := openFile(filepath.Dir(sourcePath), 0, 0)
-	destParent, ok2 := openFile(filepath.Dir(destPath), 0, 0)
+	sourceParent, ok1 := OpenFile(filepath.Dir(sourcePath), 0, 0)
+	destParent, ok2 := OpenFile(filepath.Dir(destPath), 0, 0)
 	defer util.SilentClose(sourceParent)
 	defer util.SilentClose(destParent)
 
@@ -172,7 +172,7 @@ func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 	)
 
 	if updateTimestamps {
-		targetFd, ok := openFile(destPath, unix.O_RDONLY, 0)
+		targetFd, ok := OpenFile(destPath, unix.O_RDONLY, 0)
 		if ok {
 			t := time.Now()
 			utimes := []unix.Timeval{
@@ -191,7 +191,7 @@ func doMove(request ctrl.MoveFileRequest, updateTimestamps bool) error {
 	return nil
 }
 
-func doCreateFolder(internalPath string) error {
+func DoCreateFolder(internalPath string) error {
 	components := util.Components(internalPath)
 	componentsLength := len(components)
 
@@ -227,7 +227,7 @@ func createFolder(request ctrl.CreateFolderRequest) error {
 		return util.UserHttpError("Could not find file")
 	}
 
-	return doCreateFolder(internalPath)
+	return DoCreateFolder(internalPath)
 }
 
 func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile], error) {
@@ -245,7 +245,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 		// 1 million files). When dealing with large folders, the readdir syscall ends up taking a very significant
 		// amount of time, often significantly more than the combined time of calling stat on the files in a single
 		// page.
-		file, ok := openFile(internalPath, unix.O_RDONLY, 0)
+		file, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
 		defer util.SilentClose(file)
 
 		if !ok {
@@ -277,7 +277,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 			for i := 0; i < len(entries); i++ {
 				entry := &entries[i]
 
-				fd, ok := openFile(entry.absPath, unix.O_RDONLY, 0)
+				fd, ok := OpenFile(entry.absPath, unix.O_RDONLY, 0)
 				stat, err := fd.Stat()
 				util.SilentClose(fd)
 
@@ -335,7 +335,7 @@ func browseFiles(request ctrl.BrowseFilesRequest) (fnd.PageV2[orc.ProviderFile],
 		}
 
 		if !entry.hasInfo && !entry.skip {
-			fd, ok := openFile(entry.absPath, unix.O_RDONLY, 0)
+			fd, ok := OpenFile(entry.absPath, unix.O_RDONLY, 0)
 			stat, err := fd.Stat()
 			util.SilentClose(fd)
 
@@ -371,7 +371,7 @@ func retrieveFile(request ctrl.RetrieveFileRequest) (orc.ProviderFile, error) {
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Path))
 	}
 
-	file, ok := openFile(internalPath, unix.O_RDONLY, 0)
+	file, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
 	defer util.SilentClose(file)
 	if !ok {
 		return orc.ProviderFile{}, util.UserHttpError("Could not find file: %s", util.FileName(request.Path))
@@ -474,7 +474,7 @@ func compareFileByModifiedAt(a, b cachedDirEntry) int {
 }
 
 func findAvailableNameOnRename(path string) (string, error) {
-	fd, ok := openFile(path, 0, 0)
+	fd, ok := OpenFile(path, 0, 0)
 	util.SilentClose(fd)
 	if !ok {
 		return path, nil
@@ -495,7 +495,7 @@ func findAvailableNameOnRename(path string) (string, error) {
 		newFilename := fmt.Sprintf("%s(%d)", fileName, i)
 		newPath := fmt.Sprintf("%s/%s%s", parent, newFilename, newExtension)
 
-		fd, ok = openFile(newPath, 0, 0)
+		fd, ok = OpenFile(newPath, 0, 0)
 		util.SilentClose(fd)
 
 		if !ok {
@@ -627,11 +627,11 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 	rootPath := session.UserData
 	internalPath := filepath.Join(rootPath, fileMeta.InternalPath)
 
-	fd, ok := openFile(internalPath, unix.O_RDONLY, 0)
+	fd, ok := OpenFile(internalPath, unix.O_RDONLY, 0)
 	info, err := fd.Stat()
 	util.SilentClose(fd)
 	if !ok || err != nil {
-		err = doCreateFolder(filepath.Dir(internalPath))
+		err = DoCreateFolder(filepath.Dir(internalPath))
 		if err != nil {
 			return nil
 		}
@@ -641,7 +641,7 @@ func (u *uploaderFileSystem) OpenFileIfNeeded(session upload.ServerSession, file
 		}
 	}
 
-	file, ok := openFile(internalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
+	file, ok := OpenFile(internalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
 	if !ok {
 		return nil
 	}
@@ -758,7 +758,7 @@ func moveToTrash(request ctrl.MoveToTrashRequest) error {
 		return fmt.Errorf("Could not resolve drive location")
 	}
 
-	err := doCreateFolder(expectedTrashLocation)
+	err := DoCreateFolder(expectedTrashLocation)
 	if err != nil {
 		return fmt.Errorf("Could not create trash folder")
 	}
@@ -793,13 +793,13 @@ func emptyTrash(request ctrl.EmptyTrashRequest) error {
 		return err
 	}
 
-	_ = doCreateFolder(trashLocation)
+	_ = DoCreateFolder(trashLocation)
 	return nil
 }
 
 func doDeleteFile(internalPath string) error {
-	parentDir, ok1 := openFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
-	stagingArea, ok2 := openFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
+	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
+	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
 	defer util.SilentClose(stagingArea)
 	if !ok1 || !ok2 {
@@ -913,7 +913,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 	var uploadErr error = nil
 	for i := 0; i < numberOfAttempts; i++ {
 		// NOTE(Dan): The rootFile is automatically closed by the uploader
-		rootFile, ok := openFile(internalSource, unix.O_RDONLY, 0)
+		rootFile, ok := OpenFile(internalSource, unix.O_RDONLY, 0)
 		if !ok {
 			return TaskProcessingResult{
 				Error:           fmt.Errorf("unable to open source file"),
@@ -924,6 +924,24 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 		uploaderRoot := &uploaderClientFile{
 			Path: "",
 			File: rootFile,
+		}
+
+		finfo, err := rootFile.Stat()
+		if err != nil {
+			return TaskProcessingResult{
+				Error:           fmt.Errorf("unable to open source file"),
+				AllowReschedule: false,
+			}
+		}
+		ftype := upload.FileTypeFile
+		if finfo.IsDir() {
+			ftype = upload.FileTypeDirectory
+		}
+		rootMetadata := upload.FileMetadata{
+			Size:         finfo.Size(),
+			ModifiedAt:   fnd.Timestamp(finfo.ModTime()),
+			InternalPath: "",
+			Type:         ftype,
 		}
 
 		cancelChannel := make(chan util.Empty)
@@ -939,7 +957,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 			}
 		}()
 
-		report := upload.ProcessClient(uploadSession, uploaderRoot, &task.Status, cancelChannel)
+		report := upload.ProcessClient(uploadSession, uploaderRoot, rootMetadata, &task.Status, cancelChannel)
 
 		if report.WasCancelledByUser {
 			uploadErr = nil
@@ -993,7 +1011,7 @@ func search(ctx context.Context, query, folder string, flags ctrl.FileFlags, out
 	normalizedQuery := strings.ToLower(query)
 
 	files := make(chan discoveredFile)
-	file, ok := openFile(initialFolder, unix.O_RDONLY, 0)
+	file, ok := OpenFile(initialFolder, unix.O_RDONLY, 0)
 	stat, err := file.Stat()
 	defer util.SilentClose(file)
 	if !ok || err != nil {
@@ -1034,7 +1052,7 @@ func createDrive(drive orc.Drive) error {
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
-	return doCreateFolder(localPath)
+	return DoCreateFolder(localPath)
 }
 
 func deleteDrive(drive orc.Drive) error {
@@ -1059,7 +1077,7 @@ func createShare(share orc.Share) (driveId string, err error) {
 		return "", util.UserHttpError("File does not exist")
 	}
 
-	file, ok := openFile(sourceInternalPath, unix.O_RDONLY, 0)
+	file, ok := OpenFile(sourceInternalPath, unix.O_RDONLY, 0)
 	if !ok {
 		return "", util.UserHttpError("File does not exist")
 	}

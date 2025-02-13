@@ -308,9 +308,26 @@ outer:
 	}
 }
 
-func goDiscoverClientWork(ctx context.Context, root ClientFile, output chan *clientWork) {
+func goDiscoverClientWork(ctx context.Context, root ClientFile, rootMetadata FileMetadata, output chan *clientWork) {
 	idAcc := int32(0)
-	stack := []ClientFile{root}
+	stack := []ClientFile{}
+
+	if rootMetadata.Type == FileTypeFile {
+		work := &clientWork{
+			Id:       idAcc,
+			File:     root,
+			Metadata: rootMetadata,
+		}
+		select {
+		case <-ctx.Done():
+			// All good
+		case output <- work:
+			// All good
+		}
+		idAcc++
+	} else {
+		stack = append(stack, root)
+	}
 
 outer:
 	for len(stack) > 0 {
@@ -379,6 +396,7 @@ type StatusReport struct {
 func ProcessClient(
 	session ClientSession,
 	rootFile ClientFile,
+	rootMetadata FileMetadata,
 	status *atomic.Pointer[orc.TaskStatus],
 	requestCancel chan util.Empty,
 ) StatusReport {
@@ -521,7 +539,7 @@ func ProcessClient(
 		}
 	}
 
-	go goDiscoverClientWork(sessionContext, rootFile, discoveredWorkForUs)
+	go goDiscoverClientWork(sessionContext, rootFile, rootMetadata, discoveredWorkForUs)
 
 	flushStats := func() {
 		now := time.Now()

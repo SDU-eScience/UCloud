@@ -14,6 +14,7 @@ import (
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/util"
@@ -49,6 +50,12 @@ func Launch() {
 	default:
 		mode = cfg.ServerModePlugin
 		pluginName = flag.Arg(0)
+	}
+
+	if pluginName != "" {
+		if k8s.HandleCliWithoutConfig(pluginName) {
+			return
+		}
 	}
 
 	if !cfg.Parse(mode, *configDir) {
@@ -182,7 +189,6 @@ func Launch() {
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
 		gateway.InitIpc()
-		log.Info("GW is ready now")
 	}
 
 	log.Info("UCloud is ready!")

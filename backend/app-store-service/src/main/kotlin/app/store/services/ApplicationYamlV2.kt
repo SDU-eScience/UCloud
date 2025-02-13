@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
-import io.lettuce.core.dynamic.annotation.Param
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.reflect.KProperty0
@@ -30,6 +29,7 @@ data class ApplicationYamlV2(
     )
     @JsonSubTypes(
         JsonSubTypes.Type(value = NativeSoftware::class, name = "Native"),
+        JsonSubTypes.Type(value = ContainerSoftware::class, name = "Container"),
     )
     sealed class Software
 
@@ -38,6 +38,10 @@ data class ApplicationYamlV2(
     ) : Software() {
         data class ApplicationToLoad(val name: String, val version: String)
     }
+
+    data class ContainerSoftware(
+        val image: String,
+    ) : Software()
 
     @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
@@ -343,6 +347,29 @@ data class ApplicationYamlV2(
                     )
                 )
             }
+
+            is ContainerSoftware -> {
+                Tool(
+                    "_ucloud",
+                    Time.now(),
+                    Time.now(),
+                    NormalizedToolDescription(
+                        info = NameAndVersion(name, version),
+                        container = software.image,
+                        defaultNumberOfNodes = 1,
+                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
+                        requiredModules = emptyList(),
+                        authors = listOf("UCloud"),
+                        title = name,
+                        description = "",
+                        backend = ToolBackend.DOCKER,
+                        license = "",
+                        image = software.image,
+                        supportedProviders = null,
+                        loadInstructions = null,
+                    )
+                )
+            }
         }
 
         val appType = when {
@@ -386,7 +413,15 @@ data class ApplicationYamlV2(
                 licenseServers = emptyList(),
 
                 // TODO(Dan): Add docker based apps
-                container = null,
+                container = if (software is ContainerSoftware) {
+                    ContainerDescription(
+                        changeWorkingDirectory = true,
+                        runAsRoot = true,
+                        runAsRealUser = false
+                    )
+                } else {
+                    null
+                },
                 modules = null,
 
                 environment = (environment ?: emptyMap()).map { (key, value) ->

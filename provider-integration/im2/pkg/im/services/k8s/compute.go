@@ -49,6 +49,14 @@ func retrieveProducts() []orc.JobSupport {
 	return shared.MachineSupport
 }
 
+func backendByAppIsKubevirt(app *orc.Application) bool {
+	return backendByApp(app) == &virtCpu
+}
+
+func backendByAppIsContainers(app *orc.Application) bool {
+	return backendByApp(app) == &containerCpu
+}
+
 func backendByApp(app *orc.Application) *ctrl.JobsService {
 	tool := &app.Invocation.Tool.Tool.Description
 	switch tool.Backend {
@@ -63,6 +71,14 @@ func backendByApp(app *orc.Application) *ctrl.JobsService {
 	default:
 		return &containerCpu
 	}
+}
+
+func backendIsKubevirt(job *orc.Job) bool {
+	return backend(job) == &virtCpu
+}
+
+func backendIsContainers(job *orc.Job) bool {
+	return backend(job) == &containerCpu
 }
 
 func backend(job *orc.Job) *ctrl.JobsService {
@@ -92,8 +108,8 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	backend(session.Job).HandleShell(session, cols, rows)
 }
 
-func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
-	return backend(job).ServerFindIngress(job, suffix)
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
@@ -101,7 +117,12 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return backendByApp(app).RequestDynamicParameters(owner, app)
+	fn := backendByApp(app).RequestDynamicParameters
+	if fn == nil {
+		return nil
+	} else {
+		return fn(owner, app)
+	}
 }
 
 func unsuspend(request ctrl.JobUnsuspendRequest) error {

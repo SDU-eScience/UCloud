@@ -18,6 +18,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import * as icons from "@/ui-components/icons";
 import {Feature, hasFeature} from "@/Features";
 import {SidebarDialog} from "@/ui-components/Sidebar";
+import {groupBy} from "@/Utilities/CollectionUtilities";
 
 const iconNames = Object.keys(icons) as IconName[];
 
@@ -312,7 +313,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
     const [websocket, setWebsocket] = React.useState<WebSocketConnection>();
 
     const fileUploads = React.useMemo(() => {
-        const uploadGrouping = Object.groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
+        const uploadGrouping = groupBy(uploads, t => uploadIsTerminal(t) ? "finished" : "uploading")
         if (uploadGrouping.finished == null) uploadGrouping.finished = [];
         if (uploadGrouping.uploading == null) uploadGrouping.uploading = [];
         return uploadGrouping as Record<"finished" | "uploading", Upload[]>;

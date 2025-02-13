@@ -69,7 +69,7 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
-	sourceFile, ok := openFile(sourcePath, unix.O_RDONLY, 0)
+	sourceFile, ok := OpenFile(sourcePath, unix.O_RDONLY, 0)
 	if !ok {
 		return TaskProcessingResult{
 			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
@@ -91,16 +91,16 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		destFlags = unix.O_RDWR | unix.O_TRUNC | unix.O_CREAT
 	}
 
-	destFile, ok := openFile(destPath, destFlags, destMode)
+	destFile, ok := OpenFile(destPath, destFlags, destMode)
 	if !ok && sourceStat.IsDir() {
-		err = doCreateFolder(destPath)
+		err = DoCreateFolder(destPath)
 		if err != nil {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),
 			}
 		}
 
-		destFile, ok = openFile(destPath, destFlags, destMode)
+		destFile, ok = OpenFile(destPath, destFlags, destMode)
 		if !ok {
 			return TaskProcessingResult{
 				Error: fmt.Errorf("Unable to open destination file"),

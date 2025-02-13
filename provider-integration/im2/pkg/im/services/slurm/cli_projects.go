@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/user"
 	"regexp"
+	"ucloud.dk/pkg/cli"
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im/ipc"
 	"ucloud.dk/pkg/termio"
@@ -27,7 +28,7 @@ func HandleProjectsCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		var (
 			ucloudName string
 			ucloudId   string
@@ -51,7 +52,7 @@ func HandleProjectsCommand() {
 			},
 		)
 
-		cliHandleError("listing projects", err)
+		cli.HandleError("listing projects", err)
 
 		t := termio.Table{}
 		t.AppendHeader("UCloud name")
@@ -67,7 +68,7 @@ func HandleProjectsCommand() {
 		t.Print()
 		termio.WriteLine("")
 
-	case isReplaceCommand(command):
+	case cli.IsReplaceCommand(command):
 		var (
 			oldGid uint64
 			newGid uint64
@@ -88,10 +89,10 @@ func HandleProjectsCommand() {
 			NewGid: uint32(newGid),
 		})
 
-		cliHandleError("replacing project id", err)
+		cli.HandleError("replacing project id", err)
 		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
-	case isAddCommand(command):
+	case cli.IsAddCommand(command):
 		termio.WriteStyledLine(
 			termio.Bold,
 			termio.Red,
@@ -102,7 +103,7 @@ func HandleProjectsCommand() {
 		)
 		os.Exit(1)
 
-	case isDeleteCommand(command):
+	case cli.IsDeleteCommand(command):
 		termio.WriteStyledLine(
 			termio.Bold,
 			termio.Red,
@@ -123,7 +124,7 @@ func HandleProjectsCommandServer() {
 		}
 
 		var localNameRegex *regexp.Regexp
-		err := cliValidateRegexes(
+		err := cli.ValidateRegexes(
 			nil, "ucloud-name", r.Payload.UCloudName,
 			nil, "ucloud-id", r.Payload.UCloudId,
 			&localNameRegex, "local-name", r.Payload.LocalName,

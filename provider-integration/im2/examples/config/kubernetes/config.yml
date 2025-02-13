@@ -36,6 +36,11 @@ provider:
 services:
   type: Kubernetes
   compute:
+    web:
+      enabled: true
+      prefix: "gok8s-"
+      suffix: ".localhost.direct"
+
     machines:
       u1-standard:
         nameSuffix: Cpu

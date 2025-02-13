@@ -835,13 +835,11 @@ type ServicesType string
 const (
 	ServicesSlurm      ServicesType = "Slurm"
 	ServicesKubernetes ServicesType = "Kubernetes"
-	ServicesPuhuri     ServicesType = "Puhuri"
 )
 
 var ServicesTypeOptions = []ServicesType{
 	ServicesSlurm,
 	ServicesKubernetes,
-	ServicesPuhuri,
 }
 
 type ServicesConfiguration struct {
@@ -864,15 +862,6 @@ func (cfg *ServicesConfiguration) Kubernetes() *ServicesConfigurationKubernetes 
 	}
 	return nil
 }
-
-func (cfg *ServicesConfiguration) Puhuri() *ServicesConfigurationPuhuri {
-	if cfg.Type == ServicesPuhuri {
-		return cfg.Configuration.(*ServicesConfigurationPuhuri)
-	}
-	return nil
-}
-
-type ServicesConfigurationPuhuri struct{}
 
 type MachineResourceType = string
 

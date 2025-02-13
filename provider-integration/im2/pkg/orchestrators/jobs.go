@@ -39,12 +39,18 @@ type ExportedParametersResources struct {
 	Ingress map[string]Ingress `json:"Ingress"`
 }
 
+type DynamicTarget struct {
+	Rank   int                    `json:"rank"`
+	Type   InteractiveSessionType `json:"type"`
+	Target string                 `json:"target"`
+	Port   int                    `json:"port"`
+}
+
 type JobState string
 
 const (
 	JobStateInQueue   JobState = "IN_QUEUE"
 	JobStateRunning   JobState = "RUNNING"
-	JobStateCanceling JobState = "CANCELING"
 	JobStateSuccess   JobState = "SUCCESS"
 	JobStateFailure   JobState = "FAILURE"
 	JobStateExpired   JobState = "EXPIRED"
@@ -295,24 +301,28 @@ func BuildParameter(
 ) []string {
 	switch param.Type {
 	case InvocationParameterTypeJinja:
-		flags := JinjaFlags(0)
-		if environmentVariable {
-			flags |= JinjaFlagsNoEscape
-		}
-
-		output, err := ExecuteJinjaTemplate(
-			param.InvocationParameterJinja.Template,
-			0,
-			func(session any, fn string, args []string) string {
-				return ""
-			},
-			jinjaCtx,
-			flags,
-		)
-		if err != nil {
+		if jinjaCtx == nil {
 			return nil
 		} else {
-			return []string{output}
+			flags := JinjaFlags(0)
+			if environmentVariable {
+				flags |= JinjaFlagsNoEscape
+			}
+
+			output, err := ExecuteJinjaTemplate(
+				param.InvocationParameterJinja.Template,
+				0,
+				func(session any, fn string, args []string) string {
+					return ""
+				},
+				jinjaCtx,
+				flags,
+			)
+			if err != nil {
+				return nil
+			} else {
+				return []string{output}
+			}
 		}
 
 	case InvocationParameterTypeWord:

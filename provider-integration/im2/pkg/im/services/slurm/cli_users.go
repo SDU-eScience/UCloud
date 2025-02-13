@@ -8,6 +8,7 @@ import (
 	"os/user"
 	"regexp"
 	"strconv"
+	"ucloud.dk/pkg/cli"
 	db "ucloud.dk/pkg/database"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
@@ -42,7 +43,7 @@ func HandleUsersCommand() {
 			LocalUid:   localUid,
 		})
 
-		cliHandleError("fetching user mapping", err)
+		cli.HandleError("fetching user mapping", err)
 
 		t := termio.Table{}
 		t.AppendHeader("UCloud username")
@@ -65,10 +66,10 @@ func HandleUsersCommand() {
 	}
 
 	switch {
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		_ = printUsers()
 
-	case isAddCommand(command):
+	case cli.IsAddCommand(command):
 		if ucloudName == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "ucloud-name must be supplied")
 			os.Exit(1)
@@ -91,10 +92,10 @@ func HandleUsersCommand() {
 			},
 		)
 
-		cliHandleError("adding user", err)
+		cli.HandleError("adding user", err)
 		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "OK")
 
-	case isDeleteCommand(command):
+	case cli.IsDeleteCommand(command):
 		if ucloudName == "" && localName == "" && localUid == "" {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "either ucloud-name, local-name or local-uid must be supplied")
 			os.Exit(1)
@@ -126,7 +127,7 @@ func HandleUsersCommand() {
 		}
 
 		resp, err := cliUsersDelete.Invoke(cliUsersDeleteRequest{Uids: uids})
-		cliHandleError("deleting users", err)
+		cli.HandleError("deleting users", err)
 
 		for i, failure := range resp.Failures {
 			if failure != "" {

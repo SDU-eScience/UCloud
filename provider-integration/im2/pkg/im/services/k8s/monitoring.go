@@ -2,9 +2,11 @@ package k8s
 
 import (
 	"context"
+	"fmt"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
 	"time"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/containers"
@@ -20,9 +22,24 @@ var nextNodeMonitor time.Time
 // TODO Select a scheduler based on category. We need multiple schedulers.
 var sched = NewScheduler()
 
+type jobGang struct {
+	replicaState map[int]shared.JobReplicaState
+}
+
 type jobTracker struct {
-	batch *ctrl.JobUpdateBatch
-	jobs  map[string]*orc.Job
+	batch                *ctrl.JobUpdateBatch
+	jobs                 map[string]*orc.Job
+	gangs                map[string]jobGang
+	terminationRequested []string
+}
+
+var jobStateRankings = map[orc.JobState]int{
+	orc.JobStateRunning:   0,
+	orc.JobStateInQueue:   1,
+	orc.JobStateSuspended: 2,
+	orc.JobStateSuccess:   3,
+	orc.JobStateExpired:   4,
+	orc.JobStateFailure:   5,
 }
 
 func (t *jobTracker) AddUpdate(id string, update orc.JobUpdate) {
@@ -38,15 +55,65 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 		return false
 	}
 
+	gang, ok := t.gangs[state.Id]
+	if !ok {
+		gang.replicaState = map[int]shared.JobReplicaState{}
+		t.gangs[state.Id] = gang
+	}
+
 	if state.State == orc.JobStateRunning && state.Node.Present {
 		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
 
-		t.batch.TrackAssignedNodes(state.Id, []string{state.Node.Value})
+		gang.replicaState[state.Rank] = state
 	}
 
-	ok = t.batch.TrackState(state.Id, state.State, state.Status)
-	return ok
+	if len(gang.replicaState) == job.Specification.Replicas {
+		var allNodes []string
+		reportNodes := true
+
+		// The overall job uses a state equivalent to the state of the most important state in the gang
+		var stateToReport shared.JobReplicaState
+		bestRank := -1
+		for i := 0; i < job.Specification.Replicas; i++ {
+			thisState := gang.replicaState[i]
+			thisRank := jobStateRankings[thisState.State]
+			if thisRank > bestRank {
+				stateToReport = thisState
+				bestRank = thisRank
+			}
+
+			reportNodes = reportNodes && thisState.Node.Present
+			allNodes = append(allNodes, thisState.Node.Value)
+		}
+
+		if reportNodes {
+			t.batch.TrackAssignedNodes(state.Id, allNodes)
+		}
+
+		if bestRank >= 0 {
+			return t.batch.TrackState(stateToReport.Id, stateToReport.State, stateToReport.Status)
+		} else {
+			return false
+		}
+	} else {
+		// NOTE(Dan): If a job doesn't TrackState for all ranks, then we are in one of two cases:
+		//
+		// 1. Not all jobs are ready yet. The JobUpdateBatch will allow this state for up to 5 minutes, after this
+		//    the job automatically fails. This shouldn't be a problem in practice since it usually doesn't take long
+		//    to create the resources in Kubernetes. The pods don't have to start before they report TrackState, they
+		//    just have to exist in Kubernetes.
+		// 2. One of the ranks have finished. In this case we want JobUpdateBatch to kill the job since we only want
+		//    jobs to run if the entire gang is running.
+	}
+
+	return true
+}
+
+func (t *jobTracker) RequestCleanup(jobId string) {
+	if !slices.Contains(t.terminationRequested, jobId) {
+		t.terminationRequested = append(t.terminationRequested, jobId)
+	}
 }
 
 func jobDimensions(job *orc.Job) SchedulerDimensions {
@@ -72,6 +139,7 @@ func loopMonitoring() {
 	if now.After(nextJobMonitor) {
 		tracker := &jobTracker{
 			batch: ctrl.BeginJobUpdates(),
+			gangs: map[string]jobGang{},
 		}
 
 		activeJobs := ctrl.GetJobs()
@@ -79,13 +147,51 @@ func loopMonitoring() {
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
 		sched.PruneReplicas()
-		tracker.batch.End()
 
 		length := len(sched.Queue)
 		for i := 0; i < length; i++ {
 			queueEntry := &sched.Queue[i]
 			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
 		}
+
+		batchResults := tracker.batch.End()
+
+		go func() {
+			for _, jobId := range tracker.terminationRequested {
+				job, ok := ctrl.RetrieveJob(jobId)
+				if ok {
+					_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+				}
+			}
+
+			for _, jobId := range batchResults.TerminatedDueToUnknownState {
+				job, ok := ctrl.RetrieveJob(jobId)
+				if ok {
+					_ = terminate(ctrl.JobTerminateRequest{Job: job, IsCleanup: true})
+				}
+			}
+
+			var kubevirtStarted []orc.Job
+			var containersStarted []orc.Job
+			for _, jobId := range batchResults.NormalStart {
+				job, ok := ctrl.RetrieveJob(jobId)
+				if ok {
+					if backendIsKubevirt(job) {
+						kubevirtStarted = append(kubevirtStarted, *job)
+					} else if backendIsContainers(job) {
+						containersStarted = append(containersStarted, *job)
+					}
+				}
+			}
+
+			if len(containersStarted) > 0 {
+				containers.OnStart(containersStarted)
+			}
+
+			if len(kubevirtStarted) > 0 {
+				kubevirt.OnStart(kubevirtStarted)
+			}
+		}()
 
 		nextJobMonitor = now.Add(5 * time.Second)
 	}
@@ -131,6 +237,8 @@ func loopMonitoring() {
 			entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
 	}
 
+	var scheduleMessages []ctrl.JobMessage
+
 	jobsToSchedule := sched.Schedule()
 	length := len(jobsToSchedule)
 	for i := 0; i < length; i++ {
@@ -140,6 +248,20 @@ func loopMonitoring() {
 			continue
 		}
 
+		if job.Specification.Replicas == 1 {
+			scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
+				JobId:   job.Id,
+				Message: fmt.Sprintf("Job has been scheduled and is starting soon (Assigned to %s)", toSchedule.Node),
+			})
+		} else {
+			if toSchedule.Rank == 0 {
+				scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
+					JobId:   job.Id,
+					Message: fmt.Sprintf("Job has been scheduled and is starting soon (Rank 0 assigned to %v)", toSchedule.Node),
+				})
+			}
+		}
+
 		toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
 		if toolBackend == orc.ToolBackendVirtualMachine {
 			kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
@@ -147,11 +269,19 @@ func loopMonitoring() {
 			containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
 		}
 	}
+
+	_ = ctrl.TrackJobMessages(scheduleMessages)
 }
 
 func nodeCategory(node *corev1.Node) util.Option[string] {
 	machineLabel, ok := node.Labels["ucloud.dk/machine"]
 	if !ok {
+		// Dev only fix
+		if node.ObjectMeta.Name == "im2k3" {
+			for k, _ := range shared.ServiceConfig.Compute.Machines {
+				return util.OptValue(k)
+			}
+		}
 		return util.OptNone[string]()
 	}
 
