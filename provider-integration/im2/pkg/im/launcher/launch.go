@@ -14,6 +14,7 @@ import (
 	db "ucloud.dk/pkg/database"
 	"ucloud.dk/pkg/im"
 	cfg "ucloud.dk/pkg/im/config"
+	"ucloud.dk/pkg/im/services/k8s"
 	"ucloud.dk/pkg/im/services/slurm"
 	"ucloud.dk/pkg/termio"
 	"ucloud.dk/pkg/util"
@@ -64,6 +65,9 @@ func Launch() {
 		}
 
 		switch cfg.Services.Type {
+		case cfg.ServicesKubernetes:
+			k8s.HandleCli(pluginName)
+
 		case cfg.ServicesSlurm:
 			slurm.HandleCli(pluginName)
 		}

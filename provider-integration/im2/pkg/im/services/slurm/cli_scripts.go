@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"ucloud.dk/pkg/cli"
 
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/termio"
@@ -53,9 +54,9 @@ func HandleScriptsCommand() {
 	}
 
 	switch {
-	case isHelpCommand(command):
+	case cli.IsHelpCommand(command):
 		writeHelp()
-	case isListCommand(command):
+	case cli.IsListCommand(command):
 		query := ""
 		before := ""
 		after := ""
@@ -144,7 +145,7 @@ func HandleScriptsCommand() {
 		}
 
 		t.Print()
-	case isGetCommand(command):
+	case cli.IsGetCommand(command):
 		if len(os.Args) < 4 {
 			termio.WriteStyled(termio.Bold, termio.Red, 0, "Missing ID")
 			return
@@ -189,7 +190,7 @@ func HandleScriptsCommand() {
 		f.Print()
 	case command == "clear":
 		ctrl.CliScriptsClear.Invoke(ctrl.CliScriptsClearRequest{})
-	case isDeleteCommand(command):
+	case cli.IsDeleteCommand(command):
 		if len(os.Args) < 4 {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing ID")
 			return
