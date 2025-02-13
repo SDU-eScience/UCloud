@@ -6,6 +6,7 @@ import {doNothing, extensionFromPath} from "@/UtilityFunctions";
 import {usePrettyFilePath} from "./FilePath";
 import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -156,13 +157,7 @@ const FileNode: React.FunctionComponent<{
         left={
             <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
                 {props.node.file.isDirectory ? null :
-                    <FtIcon
-                        fileIcon={{
-                            type: "FILE",
-                            ext: extensionFromPath(props.node.file.absolutePath)
-                        }}
-                        size={"16px"}
-                    />
+                    <FullpathFileLanguageIcon filePath={props.node.file.absolutePath} size="16px" />
                 }
 
                 {isRenaming ?

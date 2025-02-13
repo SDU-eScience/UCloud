@@ -943,7 +943,7 @@ export const Editor: React.FunctionComponent<{
                     )}
 
                     <Box mx="auto" />
-                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen ? null : <Box width={"150px"}>
+                    {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"150px"}>
                         <RichSelect
                             fullWidth
                             items={languageList}
@@ -1260,7 +1260,7 @@ function EditorTab({
         isSettings ? "Settings" :
             isReleaseNotes ? "Release notes" :
                 fileName(title as string)
-    )
+    );
 
     return (
         <Flex onContextMenu={onContextMenu} className={EditorTabClass} mt="auto" data-active={isActive} minWidth="250px" width="250px" onClick={e => {
@@ -1319,6 +1319,18 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
 const fallbackIcon = toIconPath("default");
 function LanguageItem({element, ...props}: {element?: {language: string, displayName: string}, onSelect: () => void}): React.ReactNode {
     const language = element?.language;
+    if (!language) return null;
+    return <Flex my="4px" onClick={props.onSelect} {...props}>
+        <FileLanguageIcon language={language} /> {element.displayName}
+    </Flex>;
+}
+
+export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; size?: string;}) {
+    const language = languageFromExtension(extensionFromPath(filePath));
+    return <FileLanguageIcon language={language} size={size} m="" />
+}
+
+function FileLanguageIcon({language, size = "18px", m = "2px 8px 0px 8px"}: {language: string; size?: string; m?: string;}): React.ReactNode {
     const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
 
     React.useEffect(() => {
@@ -1327,10 +1339,16 @@ function LanguageItem({element, ...props}: {element?: {language: string, display
         }
     }, [language]);
 
-    if (!language) return null;
-    return <Flex my="4px" onClick={props.onSelect} {...props}>
-        <Image mx="8px" mt="2px" background={"var(--successContrast)"} borderRadius={"4px"} height={"18px"} width="18px" onError={() => setIconPath(fallbackIcon)} alt={"Icon for " + language} src={iconPath} />{element.displayName}
-    </Flex>;
+    return <Image
+        m={m}
+        background={"var(--successContrast)"}
+        borderRadius={"4px"}
+        height={size}
+        width={size}
+        onError={() => setIconPath(fallbackIcon)}
+        alt={"Icon for " + language}
+        src={iconPath}
+    />
 }
 
 function toIconPath(language: string): string {
