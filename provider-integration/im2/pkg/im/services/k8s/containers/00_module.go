@@ -236,9 +236,9 @@ func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.Co
 	}, nil
 }
 
-func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
 	return ctrl.ConfiguredWebIngress{
 		IsPublic:     false,
-		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + suffix.Value + ServiceConfig.Compute.Web.Suffix,
+		TargetDomain: ServiceConfig.Compute.Web.Prefix + job.Id + "-" + fmt.Sprint(rank) + suffix.Value + ServiceConfig.Compute.Web.Suffix,
 	}
 }

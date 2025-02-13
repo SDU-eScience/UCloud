@@ -92,8 +92,8 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 	backend(session.Job).HandleShell(session, cols, rows)
 }
 
-func serverFindIngress(job *orc.Job, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
-	return backend(job).ServerFindIngress(job, suffix)
+func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) ctrl.ConfiguredWebIngress {
+	return backend(job).ServerFindIngress(job, rank, suffix)
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {
