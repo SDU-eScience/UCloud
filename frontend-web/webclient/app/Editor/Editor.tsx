@@ -24,7 +24,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
-import {RichSelect} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -232,7 +232,7 @@ function toDisplayName(name: string): string {
             return "CoffeeScript";
         case "freemarker2":
             return "FreeMarker2";
-        case "c-sharp":
+        case "csharp":
             return "C#";
         case "objective-c":
             return "Objective-C";
@@ -972,7 +972,7 @@ export const Editor: React.FunctionComponent<{
                     />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {tabs.open.length === 0 || state.currentPath === SETTINGS_PATH || state.currentPath === RELEASE_NOTES_PATH ? null :
+                    {tabs.open.length === 0 || state.currentPath === SETTINGS_PATH || state.currentPath === RELEASE_NOTES_PATH || props.customContent ? null :
                         props.toolbarBeforeSettings
                     }
                     {!hasFeature(Feature.EDITOR_VIM) ? null : <>
@@ -1317,11 +1317,11 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
 `);
 
 const fallbackIcon = toIconPath("default");
-function LanguageItem({element, ...props}: {element?: {language: string, displayName: string}, onSelect: () => void}): React.ReactNode {
-    const language = element?.language;
+const LanguageItem: RichSelectChildComponent<{language: string; displayName: string}> = props => {
+    const language = props.element?.language;
     if (!language) return null;
-    return <Flex my="4px" onClick={props.onSelect} {...props}>
-        <FileLanguageIcon language={language} /> {element.displayName}
+    return <Flex my="4px" onClick={props.onSelect} {...props.dataProps}>
+        <FileLanguageIcon language={language} /> {props.element?.displayName}
     </Flex>;
 }
 
