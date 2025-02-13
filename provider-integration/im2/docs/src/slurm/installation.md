@@ -67,18 +67,19 @@ UCloud/IM 2024.1.0
 
 <div data-title="Ubuntu" data-icon="fa-brands fa-ubuntu">
 
-Ubuntu instructions **go here**.
+**TODO** Not available yet.
 
 </div>
 
 <div data-title="Pre-compiled binaries" data-icon="fa-brands fa-golang">
 
+**TODO** Not available yet.
+
 An executable binary of the UCloud Integration Module is available for download 
 [here](https://github.com/sdu-escience/ucloud/releases/latest).
 
-Download the binary called `ucloud` and place it somewhere in your `PATH` (e.g. `/usr/bin` or 
-similar).
-
+ 1. Download the archive containing the binary for your platform.
+ 2. Extract the binary and place it somwhere in your `PATH` (e.g. `/usr/bin`).
 </div>
 
 
