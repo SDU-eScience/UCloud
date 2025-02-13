@@ -235,9 +235,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
-	pod.Labels["volcano.sh/job-name"] = fmt.Sprintf("j-%v", job.Id)
-	pod.Annotations["volcano.sh/job-name"] = fmt.Sprintf("j-%v", job.Id)
-
 	idLabel := jobIdLabel(job.Id)
 	pod.Annotations[idLabel.First] = idLabel.Second
 	pod.Labels[idLabel.First] = idLabel.Second
