@@ -427,13 +427,15 @@ func (b *JobUpdateBatch) End() []orc.Job {
 			terminationState = orc.JobStateExpired
 		}
 
-		b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
-			Id: jobIdToTerminate,
-			Update: orc.JobUpdate{
-				State:  util.OptValue(terminationState),
-				Status: util.OptValue(b.jobUpdateMessage(terminationState)),
-			},
-		})
+		if job.Status.State != terminationState {
+			b.AddUpdate(orc.ResourceUpdateAndId[orc.JobUpdate]{
+				Id: jobIdToTerminate,
+				Update: orc.JobUpdate{
+					State:  util.OptValue(terminationState),
+					Status: util.OptValue(b.jobUpdateMessage(terminationState)),
+				},
+			})
+		}
 
 		terminatedJobs = append(terminatedJobs, *job)
 	}
