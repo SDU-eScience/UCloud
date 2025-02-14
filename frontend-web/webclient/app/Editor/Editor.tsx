@@ -622,16 +622,10 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, [props.onOpenFile]);
 
-    const invalidateTree = useCallback((folder: string) => {
-        let didCancel = false;
+    const invalidateTree = useCallback(async (folder: string) => {
         props.vfs.listFiles(folder).then(files => {
-            if (didCancel) return;
             dispatch({type: "EditorActionFilesLoaded", path: folder, files});
         });
-
-        return () => {
-            didCancel = true;
-        };
     }, [props.vfs]);
 
     const api: EditorApi = useMemo(() => {
@@ -913,26 +907,24 @@ export const Editor: React.FunctionComponent<{
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
-                    {tabs.open.map((t, index) =>
-                        <EditorTab
-                            key={t}
-                            isDirty={false /* TODO */}
-                            isActive={t === state.currentPath}
-                            onActivate={() => openTab(t)}
-                            onContextMenu={e => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openTabOperations(t, {x: e.clientX, y: e.clientY});
-                            }}
-                            close={() => {
-                                /* if (fileIsDirty) promptSaveFileWarning() else */
-                                closeTab(t, index);
-                            }}
-                            children={t}
-                        />
-                    )}
-
+                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>                    {tabs.open.map((t, index) =>
+                    <EditorTab
+                        key={t}
+                        isDirty={false /* TODO */}
+                        isActive={t === state.currentPath}
+                        onActivate={() => openTab(t)}
+                        onContextMenu={e => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openTabOperations(t, {x: e.clientX, y: e.clientY});
+                        }}
+                        close={() => {
+                            /* if (fileIsDirty) promptSaveFileWarning() else */
+                            closeTab(t, index);
+                        }}
+                        children={t}
+                    />
+                )}
                     <Box mx="auto" />
                     {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
                         <RichSelect
