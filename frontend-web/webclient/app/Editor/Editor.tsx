@@ -980,7 +980,7 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
-                    <Flex gap={"32px"} flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                    <Flex gap={"32px"} maxHeight="calc(100vh - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
                         <MonacoEditorSettings editor={editor} />
                         <Label>
                             Editor engine
@@ -1042,13 +1042,8 @@ export const Editor: React.FunctionComponent<{
                         </Flex>
 
                     </Flex> : null}
-                {isReleaseNotesOpen ? <Box p="18px"><Markdown children={EditorReleaseNotes} /></Box> : null}
+                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100vh - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
-                    {/* 
-                        Note(Jonas): For some reason, if we have the showEditorHelp in a different terniary expression, this breaks the monaco-instance
-                        I would assume that the `isSettingsOpen`-flag would cause the same issue, but it doesn't for some reason. 
-                        06/02/2025 - Maybe it does?
-                    */}
                     {showEditorHelp && props.help ? props.help : null}
                     <div style={{
                         display: props.showCustomContent || (showEditorHelp && props.help) || settingsOrReleaseNotesOpen ? "none" : "block",
