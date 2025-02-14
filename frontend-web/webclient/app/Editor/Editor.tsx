@@ -1320,11 +1320,12 @@ const LanguageItem: RichSelectChildComponent<{language: string; displayName: str
 
 export function FullpathFileLanguageIcon({filePath, size}: {filePath: string; size?: string;}) {
     const language = languageFromExtension(extensionFromPath(filePath));
-    return <FileLanguageIcon language={language} size={size} m="" />
+    return <FileLanguageIcon language={language} size={size} m="" ext={extensionFromPath(filePath)} />
 }
 
-function FileLanguageIcon({language, size = "18px", m = "2px 8px 0px 8px"}: {language: string; size?: string; m?: string;}): React.ReactNode {
+function FileLanguageIcon({language, ext, size = "18px", m = "2px 8px 0px 8px"}: {ext?: string; language: string; size?: string; m?: string;}): React.ReactNode {
     const [iconPath, setIconPath] = useState(toIconPath(language ?? ""));
+    const [didError, setError] = useState(false);
 
     React.useEffect(() => {
         if (language) {
@@ -1332,13 +1333,20 @@ function FileLanguageIcon({language, size = "18px", m = "2px 8px 0px 8px"}: {lan
         }
     }, [language]);
 
+    if (didError && ext) {
+        return <FtIcon fileIcon={{type: "FILE", ext}} size={"18px"} />
+    }
+
     return <Image
         m={m}
         background={"var(--successContrast)"}
         borderRadius={"4px"}
         height={size}
         width={size}
-        onError={() => setIconPath(fallbackIcon)}
+        onError={() => {
+            setError(true);
+            setIconPath(fallbackIcon)
+        }}
         alt={"Icon for " + language}
         src={iconPath}
     />
