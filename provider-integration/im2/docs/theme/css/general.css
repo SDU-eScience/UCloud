@@ -198,6 +198,10 @@ tr p:last-child {
     margin: 0.5em 0;
 }
 
+.content ul > li {
+    margin: 0.5em 0;
+}
+
 .content ol > li::before {
     content: counters(section, ".") ". ";
     position: absolute;
