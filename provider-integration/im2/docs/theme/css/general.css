@@ -108,7 +108,6 @@ h6:target::before {
 .content .header:visited:hover {
     text-decoration: none;
 }
-
 /* TABLE */
 .table-wrapper {
     border: var(--border);
@@ -196,6 +195,7 @@ tr p:last-child {
     counter-increment: section;
     list-style: none;
     position: relative;
+    margin: 0.5em 0;
 }
 
 .content ol > li::before {
