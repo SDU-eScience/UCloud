@@ -1273,7 +1273,7 @@ export function FilePreview({initialFile}: {
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
             editorRef.current?.openFile?.(newPath);
-        }, 200);
+        }, 1000);
     }, [openFile[0]]);
 
     const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {

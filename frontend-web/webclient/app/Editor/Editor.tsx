@@ -639,7 +639,7 @@ export const Editor: React.FunctionComponent<{
             path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
             openFile: path => {
-                openFile(path, true);
+                openTab(path);
             },
             invalidateTree,
         }
@@ -692,20 +692,11 @@ export const Editor: React.FunctionComponent<{
         });
 
         setEditor(editor);
-    }, [monacoInstance, isSettingsOpen]);
+    }, [monacoInstance]);
 
     useLayoutEffect(() => {
-        let timer = -1;
-        const fn = async () => {
-            const res = await openFile(state.currentPath, false);
-            if (!res) timer = window.setTimeout(fn, 50);
-        };
-        timer = window.setTimeout(fn, 50);
-
-        return () => {
-            window.clearTimeout(timer);
-        };
-    }, [isSettingsOpen]);
+        openFile(state.currentPath, false);
+    }, []);
 
     useEffect(() => {
         const theme = currentTheme === "light" ? "light" : "ucloud-dark";
@@ -1305,6 +1296,7 @@ const EditorTabClass = injectStyle("editor-tab-class", k => `
         padding-right: 12px;
         cursor: pointer;
         user-select: none;
+        border-right: 2px solid var(--borderColor);
     }
 
     ${k} > * {
