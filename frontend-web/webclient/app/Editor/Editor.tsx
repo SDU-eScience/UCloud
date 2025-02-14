@@ -1264,7 +1264,7 @@ function EditorTab({
         }}>
             {isSettings ? <Icon name="heroCog6Tooth" size="18px" />
                 : isReleaseNotes ? <Icon name="heroGift" size="18px" />
-                    : <FtIcon fileIcon={{type: "FILE", ext: extensionFromPath(title as string)}} size={"18px"} />}
+                    : <FullpathFileLanguageIcon filePath={tabTitle} />}
             <Truncate ml="8px" width="50%">{isSettings ? "Editor settings" : tabTitle}</Truncate>
             <Icon
                 className={IconHoverBlockClass}
