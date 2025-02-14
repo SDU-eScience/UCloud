@@ -38,6 +38,14 @@ export function RichSelect<T, K extends keyof T>(props: {
         return fuzzySearch(withKeys, props.keys, query, { sort: true });
     }, [query, props.items, props.keys]);
 
+    const limitedElements = useMemo(() => {
+        if (filteredElements.length > 500) {
+            return filteredElements.slice(0, 500);
+        } else {
+            return filteredElements;
+        }
+    }, [filteredElements]);
+
     const triggerRef = useRef<HTMLDivElement>(null);
 
     const [dropdownSize, setDropdownSize] = useState("300px");
@@ -70,7 +78,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
-        height={Math.min(370, 40 * (filteredElements.length + 1))}
+        height={Math.min(370, 40 * (limitedElements.length + 1))}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -112,7 +120,7 @@ export function RichSelect<T, K extends keyof T>(props: {
             </Flex>
 
             <div className={ResultWrapperClass}>
-                {filteredElements.map(it => <props.RenderRow
+                {limitedElements.map(it => <props.RenderRow
                     element={it}
                     key={it.idx}
                     onSelect={() => {
@@ -124,7 +132,7 @@ export function RichSelect<T, K extends keyof T>(props: {
                     }}
                 />)}
 
-                {filteredElements.length !== 0 ? null : <>
+                {limitedElements.length !== 0 ? null : <>
                     {props.noResultsItem ?
                         <props.RenderRow
                             element={props.noResultsItem}

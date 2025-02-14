@@ -561,26 +561,32 @@ func ReadParameterValuesFromJob(job *Job, application *ApplicationInvocationDesc
 	}
 
 	for paramName, value := range job.Specification.Parameters {
-		var parameter util.Option[ApplicationParameter]
-		for _, jobParam := range allParameters {
-			if jobParam.Name == paramName {
-				parameter.Set(jobParam)
-				break
+		if strings.HasPrefix(paramName, "_injected_") {
+			parameters[paramName] = ParamAndValue{
+				Value: value,
 			}
-		}
+		} else {
+			var parameter util.Option[ApplicationParameter]
+			for _, jobParam := range allParameters {
+				if jobParam.Name == paramName {
+					parameter.Set(jobParam)
+					break
+				}
+			}
 
-		if !parameter.IsSet() {
-			continue
-		}
+			if !parameter.IsSet() {
+				continue
+			}
 
-		param := parameter.Get()
-		if !VerifyParameterType(&param, &value) {
-			continue
-		}
+			param := parameter.Get()
+			if !VerifyParameterType(&param, &value) {
+				continue
+			}
 
-		parameters[paramName] = ParamAndValue{
-			Parameter: param,
-			Value:     value,
+			parameters[paramName] = ParamAndValue{
+				Parameter: param,
+				Value:     value,
+			}
 		}
 	}
 	return parameters
