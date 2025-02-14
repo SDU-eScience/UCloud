@@ -839,7 +839,7 @@ export const Editor: React.FunctionComponent<{
 
         <div className={"main-content"}>
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
-                <div style={{display: "flex", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
+                <div style={{display: "flex", maxWidth: `calc(100% - 110px)`, overflowX: "auto", width: "100%"}}>
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
