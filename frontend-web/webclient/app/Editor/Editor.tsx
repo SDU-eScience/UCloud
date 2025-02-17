@@ -9,8 +9,6 @@ import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Markdown, Select, T
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {VimEditor} from "@/Vim/VimEditor";
-import {VimWasm} from "@/Vim/vimwasm";
 import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
@@ -359,8 +357,7 @@ const editorClass = injectStyle("editor", k => `
 `);
 
 type EditorEngine =
-    | "monaco"
-    | "vim";
+    | "monaco";
 
 export interface EditorApi {
     path: string;
@@ -427,9 +424,8 @@ export const Editor: React.FunctionComponent<{
 
     // NOTE(Dan): This code is quite ref heavy given that the components we are controlling are very much the
     // opposite of reactive. There isn't much we can do about this.
-    const engineRef = useRef<EditorEngine>("vim");
+    const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>();
-    const vimRef = useRef<VimWasm | null>(null);
     const tree = useRef<TreeApi | null>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
@@ -484,13 +480,6 @@ export const Editor: React.FunctionComponent<{
                 model.setValue(content);
                 break;
             }
-
-            case "vim": {
-                const vim = vimRef.current;
-                if (!vim) return;
-                vim.reloadBuffer(name, content);
-                break;
-            }
         }
     }, []);
 
@@ -503,21 +492,15 @@ export const Editor: React.FunctionComponent<{
                 if (value == null) return Promise.reject();
                 return Promise.resolve(value);
             }
-
-            case "vim": {
-                const vim = vimRef.current;
-                if (!vim) return Promise.reject();
-                return vim.readBuffer();
-            }
         }
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
-
         if (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) {
             dispatch({type: "EditorActionOpenFile", path});
             return false;
         }
+
         const cachedContent = state.cachedFiles[path];
         const dataPromise =
             cachedContent !== undefined ?
@@ -559,8 +542,6 @@ export const Editor: React.FunctionComponent<{
                 dispatch({type: "EditorActionOpenFile", path});
             }
 
-            if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return false;
-
             if (typeof content === "string") {
                 reloadBuffer(fileName(path), content);
                 const restoredState = state.viewState[path];
@@ -569,9 +550,7 @@ export const Editor: React.FunctionComponent<{
                 }
 
                 if (engine === "monaco" && editor == null) return false;
-                if (engine === "vim" && vimRef.current == null) return false;
 
-                vimRef.current?.focus?.();
                 tree.current?.deactivate?.();
                 editor?.focus?.();
                 const monaco = monacoRef.current;
@@ -594,11 +573,6 @@ export const Editor: React.FunctionComponent<{
                 ev.preventDefault();
                 return;
             }
-
-            if (engineRef.current === "vim") {
-                vimRef.current?.focus?.();
-                tree.current?.deactivate?.();
-            }
         };
 
         window.addEventListener("keydown", listener);
@@ -611,13 +585,10 @@ export const Editor: React.FunctionComponent<{
         const editor = editorRef.current;
         const engine = engineRef.current;
         const state = stateRef.current!;
-        const vim = vimRef.current;
 
         if (state.currentPath === "" || state.currentPath === "/") return;
 
-        if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return;
         if (engine === "monaco" && editor == null) return;
-        if (engine === "vim" && vimRef.current == null) return;
 
         const res = await readBuffer();
         if (didUnmount.current) return;
@@ -697,19 +668,6 @@ export const Editor: React.FunctionComponent<{
     useEffect(() => {
         const theme = currentTheme === "light" ? "light" : "ucloud-dark";
         monacoInstance?.editor?.setTheme(theme);
-        const vim = vimRef.current;
-        if (vim) {
-            (async () => {
-                if (currentTheme === "light") {
-                    await vim.cmdline("set background=light");
-                    await vim.cmdline("colorscheme PaperColor");
-                } else {
-                    await vim.cmdline("set background=dark");
-                    await vim.cmdline("colorscheme PaperColor");
-                }
-                await vim.cmdline("redraw");
-            })();
-        }
     }, [currentTheme]);
 
     useEffect(() => {
@@ -976,65 +934,6 @@ export const Editor: React.FunctionComponent<{
                 {isSettingsOpen ?
                     <Flex gap={"32px"} maxHeight="calc(100vh - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
                         <MonacoEditorSettings editor={editor} />
-                        <Label>
-                            Editor engine
-                            <Select value={engine} width={"100%"} onChange={ev => {
-                                setEngine(ev.target.value as EditorEngine);
-                            }}>
-                                <option value={"monaco"}>Monaco</option>
-                                <option value={"vim"}>Vim (experimental)</option>
-                            </Select>
-                        </Label>
-
-                        <Flex ml={32} gap={"32px"} flexDirection={"column"}>
-                            <Box>
-                                <Heading.h4>Monaco Engine</Heading.h4>
-                                <p>
-                                    The <ExternalLink
-                                        href={"https://github.com/microsoft/monaco-editor"}>Monaco</ExternalLink>{" "}
-                                    engine provides an easy-to-use and familiar editor. It is best known from
-                                    <ExternalLink href={"https://github.com/microsoft/vscode"}>VS Code</ExternalLink>.
-                                    This engine is recommended for most users and is expected to work without any
-                                    quirks.
-                                </p>
-                            </Box>
-
-                            <Box>
-                                <Heading.h4>Vim Engine</Heading.h4>
-                                <p>
-                                    The <ExternalLink href={"https://github.com/rhysd/vim.wasm"}>Vim (WASM)</ExternalLink> engine is powered by a real instance of
-                                    <ExternalLink href={"https://www.vim.org/"}>Vim</ExternalLink> running in your web-browser. We encourage anyone
-                                    who prefers using Vim to try out this engine, but it comes with a number of quirks
-                                    that you need to know to use it efficiently.
-                                </p>
-
-                                <p><b>Quirks:</b></p>
-                                <ul>
-                                    <li>The Vim engine might not work in all browsers.</li>
-                                    <li>
-                                        Do not use <code>:e</code> or <code>:w</code> they do not function correctly
-                                        for files not in <code>~/.vim</code>.
-                                    </li>
-                                    <li>
-                                        Resizing your window can cause glitchy output. Resizing your window again or
-                                        reloading the window should fix this.
-                                    </li>
-                                    <li>
-                                        It is possible to modify your <code>.vimrc</code> by doing the following:
-                                        <ul>
-                                            <li>Open and modify <code>/home/web_user/.vim/.vimrc</code></li>
-                                            <li>Save the file with <code>:w</code> and exit with <code>:q</code></li>
-                                            <li>Do not use <code>:x</code>, this command does not work!</li>
-                                            <li>Reload the browser. Your vimrc is now persisted locally (in IndexedDB)
-                                            </li>
-                                        </ul>
-                                    </li>
-                                    <li>It is not possible to install custom plugins for Vim.</li>
-                                    <li>Quitting the editor via <code>:q</code> will cause the editor to become unresponsive, requiring a full reload to become functional.</li>
-                                </ul>
-                            </Box>
-                        </Flex>
-
                     </Flex> : null}
                 {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100vh - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
@@ -1044,13 +943,7 @@ export const Editor: React.FunctionComponent<{
                         width: "100%",
                         height: "100%",
                     }}>
-                        {engine !== "monaco" ? null :
-                            <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
-                        }
-
-                        {engine !== "vim" ? null :
-                            <VimEditor vim={vimRef} onInit={doNothing} />
-                        }
+                        <div className={"code"} ref={editorView} onFocus={() => tree?.current?.deactivate?.()} />
                     </div>
 
                     <div style={{
