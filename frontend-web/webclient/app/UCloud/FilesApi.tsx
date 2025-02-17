@@ -1273,7 +1273,7 @@ export function FilePreview({initialFile}: {
         setTimeout(() => {
             editorRef.current?.invalidateTree?.(getParentPath(path));
             editorRef.current?.openFile?.(newPath);
-        }, 200);
+        }, 1000);
     }, [openFile[0]]);
 
     const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
@@ -1288,20 +1288,15 @@ export function FilePreview({initialFile}: {
                 type: "bulk",
                 items: [{oldId: oldAbsolutePath, newId: newAbsolutePath, conflictPolicy: "REJECT"}]
             }));
-            editorRef.current?.invalidateTree?.(getParentPath(initialFile.id));
             setRenamingFile(undefined);
 
-            // TODO:
-            // [x] Rename file - if not equal to previous name
-            // [ ] Move content from vfs.cachedContent (or what it's called) and move it to its new path
-            // [x] Update tab
-
-            vfs.moveFileContent(oldAbsolutePath, newAbsolutePath);
+            vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
 
             if (editorRef.current?.path === oldAbsolutePath) {
-                editorRef.current.openFile(newAbsolutePath)
+                editorRef.current.openFile(newAbsolutePath);
             }
 
+            editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
             success = true;
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to rename file");
@@ -1310,11 +1305,32 @@ export function FilePreview({initialFile}: {
         return success;
     }, []);
 
-    const operations = useCallback((file: VirtualFile): Operation<any>[] => {
+    const operations = useCallback((file?: VirtualFile): Operation<any>[] => {
         if (!hasFeature(Feature.INTEGRATED_EDITOR)) return [];
         const reload = () => {
             editorRef.current?.invalidateTree(removeTrailingSlash(getParentPath(initialFile.id)));
         }
+
+        if (!file) {
+            return [{
+                icon: "heroFolderPlus",
+                text: "New folder",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.F,
+            }, {
+                icon: "heroDocumentPlus",
+                text: "New file",
+                enabled: () => true,
+                onClick: () => {
+                    // TODO(Jonas)
+                },
+                shortcut: ShortcutKey.G,
+            }];
+        }
+
         return [
             {
                 icon: "heroFolderPlus",
@@ -1596,6 +1612,7 @@ class PreviewVfs implements Vfs {
         if (!text) {
             return contentBuffer;
         } else {
+            this.fetchedFiles[path] = text;
             return text;
         }
     }

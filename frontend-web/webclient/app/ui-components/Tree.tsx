@@ -296,7 +296,12 @@ export const TreeNode: React.FunctionComponent<{
         style={style}
         ref={ref}
         onClick={activate}
-        onContextMenu={props.onContextMenu}
+        onContextMenu={e => {
+            if (props.onContextMenu) {
+                activate(e);
+                props.onContextMenu(e);
+            }
+        }}
         onDoubleClick={toggleOpen}
         {...extractDataTags(props)}
     >

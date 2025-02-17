@@ -113,6 +113,18 @@ const languages = {
     "rs": "rust",
 };
 
+export function getLanguageList(): {language: string}[] {
+    return [...new Set(Object.values(languages))].map(it => ({language: it}));
+}
+
+export function populateLanguages(langs: {language: string; extensions: string[]}[]): void {
+    for (const lang of langs) {
+        for (const ext of lang.extensions) {
+            languages[ext] = lang.language;
+        }
+    }
+}
+
 export function languageFromExtension(ext: string): string {
     return languages[ext.toLowerCase()] ?? ext.toLowerCase();
 }

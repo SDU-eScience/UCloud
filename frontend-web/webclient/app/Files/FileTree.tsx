@@ -3,9 +3,10 @@ import {Tree, TreeAction, TreeApi, TreeNode} from "@/ui-components/Tree";
 import {injectStyle} from "@/Unstyled";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {doNothing, extensionFromPath} from "@/UtilityFunctions";
-import {PrettyFileName, usePrettyFilePath} from "./FilePath";
+import {usePrettyFilePath} from "./FilePath";
 import {Box, Flex, FtIcon, Icon, Input, Truncate} from "@/ui-components";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
+import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 
 export interface EditorSidebarNode {
     file: VirtualFile;
@@ -25,7 +26,7 @@ interface FileTreeProps {
     root: EditorSidebarNode;
     initialFolder: string;
     initialFilePath?: string;
-    operations?: (file: VirtualFile) => Operation<any>[];
+    operations?: (file?: VirtualFile) => Operation<any>[];
     width?: string;
     canResize?: boolean;
     fileHeaderOperations?: React.ReactNode;
@@ -44,14 +45,14 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
         "--resize-setting": resizeSetting,
     } as React.CSSProperties;
 
-    const getOperations = React.useCallback((file: VirtualFile) => {
+    const getOperations = React.useCallback((file?: VirtualFile) => {
         const {operations} = props;
         if (!operations) return;
         setOperations(operations(file));
     }, [props.operations]);
 
     const openOperations = React.useRef<(left: number, top: number) => void>(doNothing);
-    const onContextMenu = React.useCallback((ev: React.MouseEvent, file: VirtualFile) => {
+    const onContextMenu = React.useCallback((ev: React.MouseEvent, file?: VirtualFile) => {
         ev.preventDefault();
         getOperations(file);
         openOperations.current(ev.clientX, ev.clientY);
@@ -71,7 +72,7 @@ export function FileTree({tree, onTreeAction, onNodeActivated, root, ...props}: 
                 </>
             ) : null}
         </Flex>
-        <Box overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
+        <Box onContextMenu={e => onContextMenu(e, undefined)} overflowY="auto" maxHeight={"calc(100vh - 34px)"}>
             <Tree apiRef={tree} onAction={onTreeAction}>
                 <FileNode
                     initialFolder={props.initialFolder}
@@ -114,7 +115,10 @@ const FileNode: React.FunctionComponent<{
         ))}
     </>;
 
+    const didRename = React.useRef(false);
+
     const renameFile = React.useCallback((newName: string, cancel: boolean) => {
+        didRename.current = true;
         const parentPath = getParentPath(props.node.file.absolutePath);
         const newFullPath = parentPath + newName;
         props.onRename?.({
@@ -134,31 +138,35 @@ const FileNode: React.FunctionComponent<{
 
     const isRenaming = props.renamingFile === props.node.file.absolutePath;
 
+    React.useEffect(() => {
+        if (isRenaming) {
+            didRename.current = false;
+        }
+    }, [isRenaming]);
+
     return <TreeNode
         cursor="pointer"
         data-path={props.node.file.absolutePath}
         onActivate={props.onAction}
         data-open={isInitiallyOpen}
         onContextMenu={e => {
+            e.stopPropagation();
             props.onContextMenu?.(e, props.node.file)
         }}
         slim
         left={
             <Flex gap={"8px"} alignItems={"center"} fontSize={"12px"}>
                 {props.node.file.isDirectory ? null :
-                    <FtIcon
-                        fileIcon={{
-                            type: "FILE",
-                            ext: extensionFromPath(props.node.file.absolutePath)
-                        }}
-                        size={"16px"}
-                    />
+                    <FullpathFileLanguageIcon filePath={props.node.file.absolutePath} size="16px" />
                 }
 
                 {isRenaming ?
                     <Input autoFocus onBlur={e => {
                         e.preventDefault();
-                        renameFile(e.target["value"], false)
+                        if (didRename.current) {
+                            return;
+                        }
+                        renameFile(e.target["value"], false);
                     }} onKeyDown={e => {
                         e.stopPropagation();
                         if (e.key === "Enter") {
@@ -176,15 +184,15 @@ const FileNode: React.FunctionComponent<{
 }
 
 const FileTreeClass = injectStyle("file-tree", k => `
-                ${k} {
-                    width: var(--tree-width);
-                max-width: var(--tree-width);
-                resize: var(--resize-setting);
-                flex-shrink: 0;
-                border-right: var(--borderThickness) solid var(--borderColor);
+    ${k} {
+        width: var(--tree-width);
+        max-width: var(--tree-width);
+        resize: var(--resize-setting);
+        flex-shrink: 0;
+        border-right: var(--borderThickness) solid var(--borderColor);
     }
 
-                ${k} > .tree-header {
-                    border - bottom: var(--borderThickness) solid var(--borderColor);
+    ${k} > .tree-header {
+        border-bottom: var(--borderThickness) solid var(--borderColor);
     }
-                `);
+`);

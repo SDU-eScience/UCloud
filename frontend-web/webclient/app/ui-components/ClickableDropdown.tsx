@@ -102,7 +102,7 @@ function ClickableDropdown<T>({
 
     const forceOpen = useCallback((left: number, top: number) => {
         setLocation([left, top]);
-        doOpen()
+        doOpen();
     }, [doOpen, setLocation]);
     if (props.openFnRef) props.openFnRef.current = forceOpen;
 
@@ -178,7 +178,8 @@ function ClickableDropdown<T>({
             </Box>
         ));
     } else if (props.children) {
-        children = [props.children];
+        if (Array.isArray(props.children)) children = props.children;
+        else children = [props.children];
     }
     const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
     let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
