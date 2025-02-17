@@ -664,7 +664,7 @@ export const Editor: React.FunctionComponent<{
 
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
-            initVimMode(editor, document.createElement("div"));
+            setVimModeObject(initVimMode(editor, document.getElementById("statusbar")));
         }
     }, [monacoInstance]);
 
@@ -1265,7 +1265,7 @@ function toIconPath(language: string): string {
             break;
     }
 
-    return "/file-icons/" + lang + ".svg";
+    return "/Images/file-icons/" + lang + ".svg";
 }
 
 const jinja2monarchTokens = {
