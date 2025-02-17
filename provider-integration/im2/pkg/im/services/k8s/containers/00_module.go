@@ -44,7 +44,7 @@ func Init() ctrl.JobsService {
 
 	return ctrl.JobsService{
 		Terminate:                terminate,
-		Extend:                   nil,
+		Extend:                   extend,
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,

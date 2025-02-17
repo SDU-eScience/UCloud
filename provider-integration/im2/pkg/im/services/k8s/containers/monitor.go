@@ -36,9 +36,15 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			continue
 		}
 
-		_, ok = jobs[idAndRank.First]
+		job, ok := jobs[idAndRank.First]
 		if !ok {
 			// This pod does not belong to an active job - delete it.
+			tracker.RequestCleanup(idAndRank.First)
+			continue
+		}
+
+		times := computeRunningTime(job)
+		if times.TimeRemaining < 0 {
 			tracker.RequestCleanup(idAndRank.First)
 		}
 

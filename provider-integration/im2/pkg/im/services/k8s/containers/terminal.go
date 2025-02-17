@@ -130,6 +130,13 @@ func handleShell(session *ctrl.ShellSession, cols int, rows int) {
 		cancel()
 	}()
 
+	go func() {
+		resizeChannel <- remotecommand.TerminalSize{
+			Width:  uint16(cols),
+			Height: uint16(rows),
+		}
+	}()
+
 	// This will only return if the stream ends
 	_ = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             stdinReader,

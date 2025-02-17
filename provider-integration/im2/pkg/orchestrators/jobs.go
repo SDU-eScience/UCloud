@@ -101,6 +101,7 @@ type JobUpdate struct {
 	NewTimeAllocation      util.Option[int64]    `json:"newTimeAllocation"`
 	AllowRestart           util.Option[bool]     `json:"allowRestart"`
 	NewMounts              util.Option[[]string] `json:"newMounts"`
+	Timestamp              fnd.Timestamp         `json:"timestamp"`
 }
 
 type JobSpecification struct {
@@ -628,6 +629,7 @@ type BrowseJobsFlags struct {
 	IncludeParameters  bool                  `json:"includeParameters"`
 	IncludeApplication bool                  `json:"includeApplication"`
 	IncludeProduct     bool                  `json:"includeProduct"`
+	IncludeUpdates     bool                  `json:"includeUpdates"`
 }
 
 func RetrieveJob(jobId string, flags BrowseJobsFlags) (Job, error) {

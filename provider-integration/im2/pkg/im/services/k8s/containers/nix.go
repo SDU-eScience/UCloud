@@ -22,7 +22,6 @@ func LoadNixModules() {
 	if err == nil {
 		for _, entry := range entries {
 			name := entry.Name()
-			log.Info("file -> %v", name)
 			if strings.HasPrefix(name, "nix-") && strings.HasSuffix(name, ".json") {
 				name, _ = strings.CutPrefix(name, "nix-")
 				name, _ = strings.CutSuffix(name, ".json")
