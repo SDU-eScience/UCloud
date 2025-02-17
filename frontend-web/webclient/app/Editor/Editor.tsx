@@ -1358,9 +1358,9 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
         </div>)}
         <div>
             Vim mode
-            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enable")}>
-                <option value="Enable">Enable</option>
-                <option value="Disable">Disable</option>
+            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
+                <option value="Enabled">Enabled</option>
+                <option value="Disabled">Disabled</option>
             </Select>
         </div>
         {!getEditorOption("vim") ? null : (
