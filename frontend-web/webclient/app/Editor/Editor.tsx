@@ -23,6 +23,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
+import {initVimMode} from "monaco-vim";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -427,6 +428,7 @@ export const Editor: React.FunctionComponent<{
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>();
     const tree = useRef<TreeApi | null>(null);
+    const [vimModeObject, setVimModeObject] = useState<any /* vimAdapter */>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
@@ -659,10 +661,28 @@ export const Editor: React.FunctionComponent<{
         });
 
         setEditor(editor);
+
+        const vimEnabled = getEditorOption("vim") === true;
+        if (vimEnabled) {
+            initVimMode(editor, document.createElement("div"));
+        }
     }, [monacoInstance]);
 
     useLayoutEffect(() => {
         openFile(state.currentPath, false);
+    }, []);
+
+    const setVimMode = React.useCallback((active: boolean) => {
+        setVimModeObject(vimModeObject => {
+            const forthcomingStatusBar = document.createElement("div");
+            updateEditorSetting("vim", active);
+            if (active) {
+                return initVimMode(editorRef.current, forthcomingStatusBar);
+            } else {
+                vimModeObject?.dispose();
+                return null;
+            }
+        })
     }, []);
 
     useEffect(() => {
@@ -933,7 +953,7 @@ export const Editor: React.FunctionComponent<{
             <div className={"panels"}>
                 {isSettingsOpen ?
                     <Flex gap={"32px"} maxHeight="calc(100vh - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
-                        <MonacoEditorSettings editor={editor} />
+                        <MonacoEditorSettings editor={editor} setVimMode={setVimMode} />
                     </Flex> : null}
                 {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100vh - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
@@ -1313,7 +1333,7 @@ const AvailableSettings: [
         ["Word wrap", EditorOption.wordWrap, ["wordWrapColumn", "on", "off", "bounded"]],
     ];
 
-function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) {
+function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEditor | null, setVimMode(enable: boolean): void;}) {
     const setOption = React.useCallback((setting: EditorOption, value: editor.FindComputedEditorOptionValueById<EditorOption>) => {
         if (!editor) return;
 
@@ -1336,6 +1356,16 @@ function MonacoEditorSettings({editor}: {editor: IStandaloneCodeEditor | null}) 
                 )}
             </Select>
         </div>)}
+        <div>
+            Vim mode
+            <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enable")}>
+                <option value="Enable">Enable</option>
+                <option value="Disable">Disable</option>
+            </Select>
+        </div>
+        {!getEditorOption("vim") ? null : (
+            "So much work to do here"
+        )}
     </>;
 }
 
@@ -1343,6 +1373,7 @@ interface StoredSettings {
     fontSize?: number;
     fontWeight?: string;
     wordWrap?: string;
+    vim?: boolean;
 }
 
 const PreviewEditorSettingsLocalStorageKey = "PreviewEditorSettings";
@@ -1350,10 +1381,20 @@ function getEditorOptions(): StoredSettings {
     return JSON.parse(localStorage.getItem(PreviewEditorSettingsLocalStorageKey) ?? "{}");
 }
 
+function getEditorOption<K extends keyof StoredSettings>(key: K): StoredSettings[K] {
+    return getEditorOptions()[key];
+}
+
 function updateEditorSettings(settings: StoredSettings): void {
     const opts = getEditorOptions();
     storeEditorSettings({...opts, ...settings});
+}
 
+function updateEditorSetting<K extends keyof StoredSettings>(key: K, value: StoredSettings[K]): void {
+    const opts = getEditorOptions();
+    console.log(opts[key]);
+    opts[key] = value;
+    storeEditorSettings(opts);
 }
 
 function storeEditorSettings(settings: StoredSettings): void {
