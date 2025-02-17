@@ -636,7 +636,7 @@ export const Editor: React.FunctionComponent<{
         return {
             path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
-            openFile: openTab,
+            openFile: path => openTab(path),
             invalidateTree,
         }
     }, []);
