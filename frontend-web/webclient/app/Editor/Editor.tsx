@@ -513,9 +513,13 @@ export const Editor: React.FunctionComponent<{
     }, []);
 
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
+
+        if (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) {
+            dispatch({type: "EditorActionOpenFile", path});
+            return false;
+        }
         const cachedContent = state.cachedFiles[path];
-        const dataPromise = (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) ?
-            "" :
+        const dataPromise =
             cachedContent !== undefined ?
                 Promise.resolve(cachedContent) :
                 props.vfs.readFile(path);
@@ -556,6 +560,7 @@ export const Editor: React.FunctionComponent<{
             }
 
             if (engine === "vim" && vimRef.current != null && !vimRef.current.initialized) return false;
+
             if (typeof content === "string") {
                 reloadBuffer(fileName(path), content);
                 const restoredState = state.viewState[path];
@@ -622,19 +627,16 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
     }, [props.onOpenFile]);
 
-    const invalidateTree = useCallback(async (folder: string) => {
-        props.vfs.listFiles(folder).then(files => {
-            dispatch({type: "EditorActionFilesLoaded", path: folder, files});
-        });
+    const invalidateTree = useCallback(async (folder: string): Promise<void> => {
+        const files = await props.vfs.listFiles(folder);
+        dispatch({type: "EditorActionFilesLoaded", path: folder, files});
     }, [props.vfs]);
 
     const api: EditorApi = useMemo(() => {
         return {
             path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
-            openFile: path => {
-                openTab(path);
-            },
+            openFile: openTab,
             invalidateTree,
         }
     }, []);

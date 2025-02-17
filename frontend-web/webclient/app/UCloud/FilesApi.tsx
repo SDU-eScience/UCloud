@@ -1264,7 +1264,7 @@ export function FilePreview({initialFile}: {
         window.dispatchEvent(new CustomEvent<WriteToFileEventProps>(EventKeys.WriteToFile, {
             detail: {
                 path: newPath,
-                content: "",
+                content: " ",
             }
         }));
 
@@ -1296,7 +1296,7 @@ export function FilePreview({initialFile}: {
                 editorRef.current.openFile(newAbsolutePath);
             }
 
-            editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
+            await editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
             success = true;
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to rename file");
