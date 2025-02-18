@@ -747,7 +747,6 @@ export const Editor: React.FunctionComponent<{
             // NOTE(Dan): This ensures that onOpen is always allowed to be called. This might be something we want to
             // do directly in TreeNode if we know it has no children.
             element.removeAttribute("data-open");
-
             openTab(path);
         }
     }, [editor, state, props.vfs, dispatch, reloadBuffer, readBuffer]);
@@ -814,6 +813,8 @@ export const Editor: React.FunctionComponent<{
             }
             const closed = tabs.closed;
             if (!closed.includes(path)) closed.push(path);
+
+            dispatch({type: "EditorActionOpenFile", path: ""});
             return {open: result, closed};
         });
     }, [state.currentPath]);
@@ -925,24 +926,25 @@ export const Editor: React.FunctionComponent<{
                     e.preventDefault();
                     e.stopPropagation();
                     openTabOperations(undefined, {x: e.clientX, y: e.clientY});
-                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>                    {tabs.open.map((t, index) =>
-                    <EditorTab
-                        key={t}
-                        isDirty={false /* TODO */}
-                        isActive={t === state.currentPath}
-                        onActivate={() => openTab(t)}
-                        onContextMenu={e => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            openTabOperations(t, {x: e.clientX, y: e.clientY});
-                        }}
-                        close={() => {
-                            /* if (fileIsDirty) promptSaveFileWarning() else */
-                            closeTab(t, index);
-                        }}
-                        children={t}
-                    />
-                )}
+                }} style={{display: "flex", height: "32px", maxWidth: `calc(100% - 48px)`, overflowX: "auto", width: "100%"}}>
+                    {tabs.open.map((t, index) =>
+                        <EditorTab
+                            key={t}
+                            isDirty={false /* TODO */}
+                            isActive={t === state.currentPath}
+                            onActivate={() => openTab(t)}
+                            onContextMenu={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openTabOperations(t, {x: e.clientX, y: e.clientY});
+                            }}
+                            close={() => {
+                                /* if (fileIsDirty) promptSaveFileWarning() else */
+                                closeTab(t, index);
+                            }}
+                            children={t}
+                        />
+                    )}
                     <Box mx="auto" />
                     {tabs.open.length === 0 || settingsOrReleaseNotesOpen || props.customContent ? null : <Box width={"180px"}>
                         <RichSelect
@@ -974,7 +976,7 @@ export const Editor: React.FunctionComponent<{
                     />
                 </div>
                 <Flex alignItems={"center"} ml="16px" gap="16px">
-                    {tabs.open.length === 0 || state.currentPath === SETTINGS_PATH || state.currentPath === RELEASE_NOTES_PATH || props.customContent ? null :
+                    {tabs.open.length === 0 || isReleaseNotesOpen || isSettingsOpen || props.customContent ? null :
                         props.toolbarBeforeSettings
                     }
                     {!hasFeature(Feature.EDITOR_VIM) ? null : <>
@@ -1430,7 +1432,6 @@ function updateEditorSettings(settings: StoredSettings): void {
 
 function updateEditorSetting<K extends keyof StoredSettings>(key: K, value: StoredSettings[K]): void {
     const opts = getEditorOptions();
-    console.log(opts[key]);
     opts[key] = value;
     storeEditorSettings(opts);
 }
