@@ -847,7 +847,7 @@ export const Editor: React.FunctionComponent<{
 
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         // TODO(Jonas): Only handles closing window, not UCloud navigation 
-        const anyDirty = false;
+        const anyDirty = dirtyFiles.size > 0;
         if (anyDirty) {
             // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
             e.preventDefault();
