@@ -119,7 +119,7 @@ func initProducts() {
 			support.Docker.Logs = true
 			support.Docker.Terminal = true
 			support.Docker.Peers = false
-			support.Docker.TimeExtension = false
+			support.Docker.TimeExtension = true
 		}
 
 		if allowVirtualMachine {

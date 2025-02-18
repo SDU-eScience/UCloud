@@ -75,7 +75,7 @@ func ReloadModulesFromLmod() {
 					Name:             v.Full,
 					Description:      strings.TrimSpace(v.Help),
 					DependsOn:        v.Parent,
-					DocumentationUrl: g.Url,
+					DocumentationUrl: g.Url.Value,
 					ShortDescription: ensureModuleDescriptionShort(g.Description),
 				})
 			}

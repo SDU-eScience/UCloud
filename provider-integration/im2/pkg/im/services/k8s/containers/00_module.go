@@ -40,9 +40,11 @@ func Init() ctrl.JobsService {
 	_ = core.AddToScheme(scheme)
 	ExecCodec = runtime.NewParameterCodec(scheme)
 
+	LoadNixModules()
+
 	return ctrl.JobsService{
 		Terminate:                terminate,
-		Extend:                   nil,
+		Extend:                   extend,
 		RetrieveProducts:         nil, // handled by main instance
 		Follow:                   follow,
 		HandleShell:              handleShell,
@@ -203,7 +205,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
-	return nil
+	return RequestNixParameter(app)
 }
 
 func openWebSession(job *orc.Job, rank int, target util.Option[string]) (ctrl.ConfiguredWebSession, error) {

@@ -9,8 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	kvcore "kubevirt.io/api/core/v1"
 	kvclient "kubevirt.io/client-go/kubecli"
 	kvapi "kubevirt.io/client-go/kubevirt/typed/core/v1"
@@ -18,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"ucloud.dk/pkg/apm"
 	cfg "ucloud.dk/pkg/im/config"
 	ctrl "ucloud.dk/pkg/im/controller"
 	"ucloud.dk/pkg/im/services/k8s/shared"
@@ -27,21 +24,14 @@ import (
 	"ucloud.dk/pkg/util"
 )
 
-var K8sClient *kubernetes.Clientset
-var K8sConfig *rest.Config
 var ServiceConfig *cfg.ServicesConfigurationKubernetes
-var MachineSupport []orc.JobSupport
-var Machines []apm.ProductV2
 var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 
 func Init() ctrl.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
-	K8sClient = shared.K8sClient
-	K8sConfig = shared.K8sConfig
+	_ = shared.K8sClient
 	ServiceConfig = shared.ServiceConfig
-	MachineSupport = shared.MachineSupport
-	Machines = shared.Machines
 	KubevirtClient = shared.KubevirtClient
 
 	Namespace = ServiceConfig.Compute.Namespace
@@ -192,17 +182,7 @@ func terminate(request ctrl.JobTerminateRequest) error {
 }
 
 func unsuspend(request ctrl.JobUnsuspendRequest) error {
-	// TODO
-	// TODO Need to reschedule the job via shared.RequestSchedule(). Might even work by just doing this since it
-	//   should trigger the normal schedule function once ready.
-	// TODO
-
-	name := vmName(request.Job.Id, 0)
-	err := KubevirtClient.VirtualMachine(Namespace).Start(context.TODO(), name, &kvcore.StartOptions{})
-	if err != nil {
-		log.Info("Failed to start VM: %v", err)
-		return util.ServerHttpError("Failed to start VM")
-	}
+	shared.RequestSchedule(request.Job)
 	return nil
 }
 

@@ -277,11 +277,11 @@ type ApplicationParameter struct {
 }
 
 type Module struct {
-	Name             string              `json:"name"`
-	Description      string              `json:"description"`
-	ShortDescription string              `json:"shortDescription"`
-	DependsOn        [][]string          `json:"dependsOn"`
-	DocumentationUrl util.Option[string] `json:"documentationUrl"`
+	Name             string     `json:"name"`
+	Description      string     `json:"description,omitempty"`
+	ShortDescription string     `json:"shortDescription,omitempty"`
+	DependsOn        [][]string `json:"dependsOn,omitempty"`
+	DocumentationUrl string     `json:"documentationUrl,omitempty"`
 }
 
 type ApplicationParameterType string

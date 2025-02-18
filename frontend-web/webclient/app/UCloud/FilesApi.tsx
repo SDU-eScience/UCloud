@@ -1546,6 +1546,10 @@ class PreviewVfs implements Vfs {
         this.ufiles[previewedFile.id] = previewedFile;
     }
 
+    isReal() {
+        return true;
+    }
+
     async listFiles(path: string): Promise<VirtualFile[]> {
         try {
             return this.folders[path] = await this.fetchFiles(path);

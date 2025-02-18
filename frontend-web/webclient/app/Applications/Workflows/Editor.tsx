@@ -2,7 +2,13 @@ import * as React from "react";
 import {Feature, hasFeature} from "@/Features";
 import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorCode, stopPropagation} from "@/UtilityFunctions";
+import {
+    bulkRequestOf,
+    delay,
+    displayErrorMessageOrDefault,
+    extractErrorCode,
+    stopPropagation
+} from "@/UtilityFunctions";
 import {WorkflowSpecification} from "@/Applications/Workflows/index";
 import {Box, Button, Flex, Icon, Input, Label} from "@/ui-components";
 import {TooltipV2} from "@/ui-components/Tooltip";
@@ -513,6 +519,10 @@ class WorkflowVfs implements Vfs {
                 this.dirtyFiles[thisFile] = content;
             });
         }
+    }
+
+    isReal() {
+        return false;
     }
 
     async listFiles(path: string): Promise<VirtualFile[]> {

@@ -254,7 +254,7 @@ func controllerJobs(mux *http.ServeMux) {
 		)
 
 		type extendRequest struct {
-			Job           *orc.Job           `json:"jobId"`
+			Job           *orc.Job           `json:"job"`
 			RequestedTime orc.SimpleDuration `json:"requestedTime"`
 		}
 

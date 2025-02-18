@@ -74,13 +74,22 @@ func Initialize(config Config, channel chan []byte) {
 			adminSection = fmt.Sprintf(adminSectionProd, filepath.Join(stateDir, "admin.sock"))
 		}
 
+		xdsSection := ""
+		switch cfg.Provider.Envoy.ListenMode {
+		case cfg.EnvoyListenModeTcp:
+			xdsSection = fmt.Sprintf(xdsTcp, cfg.Provider.Hosts.Self.Address)
+			adminSection = ""
+		case cfg.EnvoyListenModeUnix:
+			xdsSection = fmt.Sprintf(xdsUnix, filepath.Join(stateDir, "xds.sock"))
+		}
+
 		err := os.WriteFile(
 			fmt.Sprintf("%v/%v", stateDir, fileConfig),
 			[]byte(
 				fmt.Sprintf(
 					envoyConfigTemplate,
 					adminSection,
-					filepath.Join(stateDir, "xds.sock"),
+					xdsSection,
 				)),
 			0o600,
 		)
@@ -307,6 +316,37 @@ admin:
       mode: 448
 `
 
+const xdsUnix = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              pipe:
+                path: %v
+                mode: 448
+    http2_protocol_options: {}
+    name: xds_cluster
+`
+
+const xdsTcp = `
+  - connect_timeout: 1s
+    load_assignment:
+      cluster_name: xds_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: %v
+                port_value: 52033
+    http2_protocol_options: {}
+    name: xds_cluster
+	type: STRICT_DNS
+`
+
 const envoyConfigTemplate = `
 %v
 
@@ -337,18 +377,7 @@ node:
   cluster: ucloudim_cluster
 static_resources:
   clusters:
-  - connect_timeout: 1s
-    load_assignment:
-      cluster_name: xds_cluster
-      endpoints:
-      - lb_endpoints:
-        - endpoint:
-            address:
-              pipe:
-                path: %v
-                mode: 448
-    http2_protocol_options: {}
-    name: xds_cluster
+%v
 layered_runtime:
   layers:
     - name: runtime-0

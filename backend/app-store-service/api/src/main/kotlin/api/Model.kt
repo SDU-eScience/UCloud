@@ -415,8 +415,8 @@ sealed class ApplicationParameter {
     @Serializable
     data class Module(
         val name: String,
-        val description: String,
-        val shortDescription: String,
+        val description: String = "",
+        val shortDescription: String = "",
         val dependsOn: List<List<String>> = emptyList(),
         val documentationUrl: String? = null,
     )

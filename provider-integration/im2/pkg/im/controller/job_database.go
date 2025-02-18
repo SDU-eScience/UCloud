@@ -103,6 +103,14 @@ func InitJobDatabase() {
 func TrackNewJob(job orc.Job) {
 	// NOTE(Dan): The job is supposed to be copied into this function. Do not change it to accept a pointer.
 
+	// Automatically assign timestamps to all updates that do not have one.
+	for i := 0; i < len(job.Updates); i++ {
+		update := &job.Updates[i]
+		if update.Timestamp.UnixMilli() <= 0 {
+			update.Timestamp = fnd.Timestamp(time.Now())
+		}
+	}
+
 	if RunsServerCode() {
 		activeJobsMutex.Lock()
 		activeJobs[job.Id] = &job
@@ -290,6 +298,7 @@ func (b *JobUpdateBatch) flush() {
 
 	for _, entry := range b.entries {
 		u := &entry.Update
+		u.Timestamp = fnd.Timestamp(time.Now())
 		job, ok := activeJobs[entry.Id]
 
 		if !ok {
@@ -488,11 +497,26 @@ func TrackJobMessages(messages []JobMessage) error {
 			Id:     message.JobId,
 			Update: update,
 		})
+	}
 
-		job, ok := RetrieveJob(message.JobId)
+	return TrackRawUpdates(updates)
+}
+
+func TrackRawUpdates(updates []orc.ResourceUpdateAndId[orc.JobUpdate]) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	for _, message := range updates {
+		job, ok := RetrieveJob(message.Id)
 		if ok {
 			copied := *job
-			copied.Updates = append(job.Updates, update)
+			copied.Updates = append(job.Updates, message.Update)
+			if message.Update.NewTimeAllocation.Present {
+				copied.Specification.TimeAllocation = util.OptValue(
+					orc.SimpleDurationFromMillis(message.Update.NewTimeAllocation.Value),
+				)
+			}
 			TrackNewJob(copied)
 		}
 	}
@@ -512,6 +536,7 @@ func fetchAllJobs(state orc.JobState) {
 			IncludeParameters:  true,
 			IncludeApplication: true,
 			IncludeProduct:     true,
+			IncludeUpdates:     true,
 		})
 
 		if err != nil {

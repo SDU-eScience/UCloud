@@ -1,0 +1,28 @@
+application: v2
+
+name: ubuntu-nix
+version: 24.04
+
+software:
+  type: Container
+  image: dreg.cloud.sdu.dk/ucloud-experimental/ubuntu-nix:202404-1
+
+features:
+  multiNode: true
+
+parameters:
+  wf:
+    type: Workflow
+    optional: false
+    title: "Workflow"
+    description: |
+      Change this workflow to customize what the batch script should do.
+
+    init: ""
+
+    job: |
+      # nix: 2.19.2
+      sleep inf
+    readme: This is a minimal example.
+
+invocation: ""

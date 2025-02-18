@@ -37,13 +37,16 @@ import {isAdminOrPI} from "@/Project";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {AllocationDisplayWallet} from "@/Accounting";
 import {ProgressBar} from "@/Accounting/Allocations";
+import remarkGfm from "remark-gfm";
+import ExternalLink from "../ui-components/ExternalLink";
 
 interface NewsRequestProps extends PaginationRequest {
     filter?: string;
     withHidden: boolean;
 }
 
-function initialCall(): void {}
+function initialCall(): void {
+}
 
 function Dashboard(): React.ReactNode {
     const [news, fetchNews, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
@@ -84,18 +87,18 @@ function Dashboard(): React.ReactNode {
     useSetRefreshFunction(reload);
 
     const main = (<div>
-        <Flex pt="1px" pb="24px"><Box ml="auto" /><UtilityBar zIndex={2} /></Flex>
+        <Flex pt="1px" pb="24px"><Box ml="auto"/><UtilityBar zIndex={2}/></Flex>
         <Box>
-            <DashboardNews news={news} />
-            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload} />
+            <DashboardNews news={news}/>
+            <Invites inviteReloadRef={invitesReload} projectReloadRef={projectInvitesReload}/>
 
             <div className={GridClass}>
-                <DashboardResources wallets={wallets} />
-                <DashboardRuns reloadRef={runsReload} />
+                <DashboardResources wallets={wallets}/>
+                <DashboardRuns reloadRef={runsReload}/>
             </div>
             <div className={GridClass}>
-                <Connect embedded />
-                <DashboardGrantApplications reloadRef={grantsReload} />
+                <Connect embedded/>
+                <DashboardGrantApplications reloadRef={grantsReload}/>
             </div>
         </Box>
     </div>);
@@ -103,7 +106,7 @@ function Dashboard(): React.ReactNode {
     return (
         <div className={Gradient}>
             <div className={GradientWithPolygons}>
-                <MainContainer main={main} />
+                <MainContainer main={main}/>
             </div>
         </div>
     );
@@ -151,17 +154,21 @@ function Invites({projectReloadRef, inviteReloadRef}: {
             title="Invites"
         >
             <div style={display(showProjectInvites)}><ProjectInviteBrowse
-                opts={{reloadRef: projectReloadRef, embedded: {disableKeyhandlers: true, hideFilters: false}, setShowBrowser: setShowProjectInvites}} /></div>
+                opts={{
+                    reloadRef: projectReloadRef,
+                    embedded: {disableKeyhandlers: true, hideFilters: false},
+                    setShowBrowser: setShowProjectInvites
+                }}/></div>
             <div style={display(showShareInvites)}><IngoingSharesBrowse opts={{
                 reloadRef: inviteReloadRef,
                 embedded: {disableKeyhandlers: true, hideFilters: false},
                 setShowBrowser: setShowShareInvites,
                 filterState: "PENDING"
-            }} /></div>
+            }}/></div>
         </DashboardCard>
     </Flex>
 
-    function display(val: boolean): {display: "none" | undefined} {
+    function display(val: boolean): { display: "none" | undefined } {
         return {display: val ? undefined : "none"}
     }
 }
@@ -179,29 +186,35 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardRuns({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function DashboardRuns({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
     return <DashboardCard
         linkTo={AppRoutes.jobs.list()}
         title={"Recent runs"}
         icon="heroServer"
     >
         <JobsBrowse opts={{
-            embedded: {hideFilters: true, disableKeyhandlers: true}, omitBreadcrumbs: true, additionalFilters: {itemsPerPage: "10"}, reloadRef
-        }} />
+            embedded: {hideFilters: true, disableKeyhandlers: true},
+            omitBreadcrumbs: true,
+            additionalFilters: {itemsPerPage: "10"},
+            reloadRef
+        }}/>
     </DashboardCard>;
 }
 
 function ApplyLinkButton(): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
-    if (!canApply) return <div />
+    if (!canApply) return <div/>
 
-    return <Link to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()} mt={8}>
+    return <Link
+        to={Client.hasActiveProject ? AppRoutes.grants.newApplication({projectId: Client.projectId}) : AppRoutes.grants.editor()}
+        mt={8}>
         <Button mt={8}>Apply for resources</Button>
     </Link>;
 }
 
 const ROW_HEIGHT_IN_PX = 55;
+
 function DashboardResources({wallets}: {
     wallets: APICallState<PageV2<Accounting.WalletV2>>;
 }): React.ReactNode {
@@ -243,44 +256,44 @@ function DashboardResources({wallets}: {
             title="Resource allocations"
             icon={"heroBanknotes"}>
             {displayWallets.length === 0 ? (
-                <NoResultsCardBody title={"No available resources"}>
-                    {!canApply ? null : <Text>
-                        Apply for resources to use storage and compute on UCloud.
-                    </Text>}
-                    <ApplyLinkButton />
-                </NoResultsCardBody>
-            ) :
+                    <NoResultsCardBody title={"No available resources"}>
+                        {!canApply ? null : <Text>
+                            Apply for resources to use storage and compute on UCloud.
+                        </Text>}
+                        <ApplyLinkButton/>
+                    </NoResultsCardBody>
+                ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
                     <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
                         <Table>
                             <tbody>
-                                {displayWallets.map(({usageAndQuota, category}, i) => (
-                                    <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
-                                        <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
-                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo providerId={category.provider} size={30} />
-                                                <code>{category.name}</code>
-                                            </Flex>
-                                        </TableCell>
-                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                            <Flex justifyContent="end">
-                                                <ProgressBar uq={usageAndQuota} />
-                                            </Flex>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                            {displayWallets.map(({usageAndQuota, category}, i) => (
+                                <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
+                                    <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
+                                        <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                            <ProviderLogo providerId={category.provider} size={30}/>
+                                            <code>{category.name}</code>
+                                        </Flex>
+                                    </TableCell>
+                                    <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
+                                        <Flex justifyContent="end">
+                                            <ProgressBar uq={usageAndQuota}/>
+                                        </Flex>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
                             </tbody>
                         </Table>
                     </Box>
-                    <Box flexGrow={1} />
-                    <Flex mx="auto"><ApplyLinkButton /></Flex>
+                    <Box flexGrow={1}/>
+                    <Flex mx="auto"><ApplyLinkButton/></Flex>
                 </Flex>
             }
         </DashboardCard>
     );
 }
 
-function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObject<() => void>}): React.ReactNode {
+function DashboardGrantApplications({reloadRef}: { reloadRef: React.MutableRefObject<() => void> }): React.ReactNode {
     const project = useProject();
     const canApply = !Client.hasActiveProject || isAdminOrPI(project.fetch().status.myRole);
 
@@ -299,11 +312,11 @@ function DashboardGrantApplications({reloadRef}: {reloadRef: React.MutableRefObj
             },
             both: true,
             additionalFilters: {itemsPerPage: "10"}
-        }} />
+        }}/>
     </DashboardCard>;
 };
 
-function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.ReactNode {
+function DashboardNews({news}: { news: APICallState<Page<NewsPost>> }): React.ReactNode {
     const newsItem = news.data.items.length > 0 ? news.data.items[0] : null;
     return (
         <DashboardCard
@@ -328,18 +341,28 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
                                 right={<Heading.h5>{dateToString(newsItem.showFrom)}</Heading.h5>}
                             />
 
-                            <Box maxHeight={240} overflow={"auto"}>
-                                <Markdown unwrapDisallowed>
+                            <Box maxHeight={240} overflow={"auto"} pr={16}>
+                                <Markdown
+                                    components={{
+                                        a: LinkBlock,
+                                    }}
+                                    unwrapDisallowed
+                                    remarkPlugins={[remarkGfm]}
+                                >
                                     {newsItem.body}
                                 </Markdown>
                             </Box>
                         </Box>
                     }
                 </div>
-                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage} />
+                <img style={{zIndex: 1}} alt={"UCloud logo"} src={ucloudImage}/>
             </div>
         </DashboardCard>
     );
+}
+
+function LinkBlock(props: {href?: string; children: React.ReactNode & React.ReactNode[]}) {
+    return <ExternalLink color={"primaryMain"} href={props.href}>{props.children}</ExternalLink>;
 }
 
 const NewsClass = injectStyle("with-graphic", k => `
@@ -391,7 +414,8 @@ const DashboardCard: React.FunctionComponent<{
     overflow?: string;
 }> = props => {
     return <TitledCard
-        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px" name="heroArrowTopRightOnSquare" /></Heading.h3></Link> :
+        title={props.linkTo ? <Link to={props.linkTo}><Heading.h3>{props.title} <Icon mt="-4px"
+                                                                                      name="heroArrowTopRightOnSquare"/></Heading.h3></Link> :
             <Heading.h3>{props.title}</Heading.h3>}
         icon={props.icon}
         overflow={props.overflow}

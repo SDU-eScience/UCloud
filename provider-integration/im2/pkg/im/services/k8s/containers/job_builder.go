@@ -229,10 +229,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) error {
 		MountPath: "/dev/shm",
 	})
 
-	// Expiration
-	// -----------------------------------------------------------------------------------------------------------------
-	prepareExpirationOnJobCreate(job, pod)
-
 	// Job metadata
 	// -----------------------------------------------------------------------------------------------------------------
 	idLabel := jobIdLabel(job.Id)
