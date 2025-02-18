@@ -3,13 +3,12 @@ import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, us
 import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {injectStyle, injectStyleSimple} from "@/Unstyled";
+import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
-import {Box, ExternalLink, Flex, FtIcon, Icon, Image, Label, Markdown, Select, Truncate} from "@/ui-components";
+import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
 import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import * as Heading from "@/ui-components/Heading";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -23,7 +22,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
-import {initVimMode} from "monaco-vim";
+import {initVimMode, VimMode} from "monaco-vim";
 
 export interface Vfs {
     listFiles(path: string): Promise<VirtualFile[]>;
@@ -609,7 +608,9 @@ export const Editor: React.FunctionComponent<{
         return {
             path: state.currentPath,
             notifyDirtyBuffer: saveBufferIfNeeded,
-            openFile: path => openTab(path),
+            openFile: path => {
+                openTab(path)
+            },
             invalidateTree,
         }
     }, []);
@@ -664,7 +665,7 @@ export const Editor: React.FunctionComponent<{
 
         const vimEnabled = getEditorOption("vim") === true;
         if (vimEnabled) {
-            setVimModeObject(initVimMode(editor, document.getElementById("statusbar")));
+            setVimModeObject(initVimMode(editor, document.getElementsByClassName("status-bar").item(0)));
         }
     }, [monacoInstance]);
 
@@ -861,6 +862,29 @@ export const Editor: React.FunctionComponent<{
         });
     }, [state.currentPath]);
 
+
+    // VimMode.Vim.defineEx(name, shorthand, callback);
+    VimMode.Vim.defineEx("write", "w", () => {
+        saveBufferIfNeeded();
+    });
+
+    VimMode.Vim.defineEx("quit", "q", (args, b, c) => {
+        const idx = tabs.open.findIndex(it => it === state.currentPath);
+        closeTab(state.currentPath, idx);
+    });
+
+    VimMode.Vim.defineEx("x-write-and-quit", "x", () => {
+        saveBufferIfNeeded();
+        const idx = tabs.open.findIndex(it => it === state.currentPath);
+        closeTab(state.currentPath, idx);
+    });
+
+    VimMode.Vim.defineEx("e-open-file", "e", (a, b, c) => {
+        if (b.args) {
+            openTab(props.initialFolderPath + "/" + b.args.at(-1));
+        }
+    });
+
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
@@ -882,6 +906,7 @@ export const Editor: React.FunctionComponent<{
         />
 
         <div className={"main-content"}>
+            {/* <div className="status-bar" /> */}
             <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
                 <div onContextMenu={e => {
                     e.preventDefault();
@@ -977,7 +1002,7 @@ export const Editor: React.FunctionComponent<{
                 </>
             </div>
         </div>
-    </div >;
+    </div>;
 };
 
 /* TODO(Jonas): Improve parameters this is... not good */
