@@ -27,6 +27,8 @@ import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 
 export interface Vfs {
+    isReal(): boolean;
+
     listFiles(path: string): Promise<VirtualFile[]>;
 
     readFile(path: string): Promise<string | Uint8Array>;
@@ -406,7 +408,7 @@ export const Editor: React.FunctionComponent<{
         closed: [],
     });
 
-    const prettyPath = usePrettyFilePath(state.currentPath);
+    const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
     if (state.currentPath === SETTINGS_PATH) {
         usePage("Settings", SidebarTabId.FILES);
     } else if (state.currentPath === RELEASE_NOTES_PATH) {
@@ -524,7 +526,6 @@ export const Editor: React.FunctionComponent<{
         const syntax = overridenSyntaxes[path] ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
-
             const content = await dataPromise;
 
             if (!cachedContent) { // Note(Jonas): Cache content, if fetched from backend
@@ -563,6 +564,7 @@ export const Editor: React.FunctionComponent<{
                     editor.restoreViewState(restoredState);
                 }
 
+                // NOTE(Dan): openFile on the initial path must be called via a setTimeout to handle this case.
                 if (engine === "monaco" && editor == null) return false;
                 if (engine === "vim" && vimRef.current == null) return false;
 
@@ -689,8 +691,19 @@ export const Editor: React.FunctionComponent<{
     }, [monacoInstance]);
 
     useLayoutEffect(() => {
-        openFile(state.currentPath, false);
-    }, []);
+        // NOTE(Dan): This timer is needed to make sure that if the file opens faster than the engine can initialize
+        // then we do reload the file. See the branch when returns early in openFile.
+        let timer = -1;
+        const fn = async () => {
+            const res = await openFile(state.currentPath, false);
+            if (!res) timer = window.setTimeout(fn, 50);
+        };
+        timer = window.setTimeout(fn, 50);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [isSettingsOpen]);
 
     useEffect(() => {
         const theme = currentTheme === "light" ? "light" : "ucloud-dark";
