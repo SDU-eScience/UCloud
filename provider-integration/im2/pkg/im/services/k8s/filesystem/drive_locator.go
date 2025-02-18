@@ -70,7 +70,7 @@ func (d DriveDescriptor) ToProviderId() util.Option[string] {
 }
 
 // ToTitle returns the natural title of a drive descriptor. For drives of the "Collection" type this will return
-// an empty string. For shares, this will return "Share (ID)" should be changed by the share-system.
+// an empty string. For shares, this will return the share ID and should be changed by the share-system.
 func (d DriveDescriptor) ToTitle() string {
 	switch d.Type {
 	case DriveDescriptorTypeHome:
@@ -80,7 +80,7 @@ func (d DriveDescriptor) ToTitle() string {
 		return d.SecondaryReference
 
 	case DriveDescriptorTypeMemberFiles:
-		return d.SecondaryReference
+		return "Member Files: " + d.SecondaryReference
 
 	case DriveDescriptorTypeCollection:
 		return ""
@@ -124,7 +124,7 @@ func ParseDriveDescriptor(providerId util.Option[string]) (DriveDescriptor, bool
 			return DriveDescriptor{}, false
 		}
 		return DriveDescriptor{
-			Type:               DriveDescriptorTypeProjectRepo,
+			Type:               DriveDescriptorTypeMemberFiles,
 			PrimaryReference:   split[0],
 			SecondaryReference: split[1],
 		}, true
