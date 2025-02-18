@@ -1,13 +1,13 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {useSelector} from "react-redux";
-import {editor} from "monaco-editor";
+import {editor, Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
 import {Box, Flex, FtIcon, Icon, Image, Markdown, Select, Truncate} from "@/ui-components";
 import {fileName, pathComponents} from "@/Utilities/FileUtilities";
-import {capitalized, copyToClipboard, doNothing, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
+import {capitalized, copyToClipboard, errorMessageOrDefault, extensionFromPath, getLanguageList, languageFromExtension, populateLanguages} from "@/UtilityFunctions";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {usePrettyFilePath} from "@/Files/FilePath";
@@ -391,7 +391,7 @@ export const Editor: React.FunctionComponent<{
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     readOnly: boolean;
 }> = props => {
-    const [overridenSyntaxes, setOverridenSyntaxes] = React.useState<Record<string, string>>({});
+    const [activeSyntax, setActiveSyntax] = React.useState("");
     const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -404,6 +404,10 @@ export const Editor: React.FunctionComponent<{
         open: [state.currentPath],
         closed: [],
     });
+
+
+    const models = React.useRef<Record<string, editor.ITextModel>>({});
+    const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
     if (state.currentPath === SETTINGS_PATH) {
@@ -429,7 +433,7 @@ export const Editor: React.FunctionComponent<{
     const engineRef = useRef<EditorEngine>("monaco");
     const stateRef = useRef<EditorState>();
     const tree = useRef<TreeApi | null>(null);
-    const [vimModeObject, setVimModeObject] = useState<any /* vimAdapter */>(null);
+    const [, setVimModeObject] = useState<any /* vimAdapter */>(null);
     const editorRef = useRef<IStandaloneCodeEditor | null>(null);
     const showingCustomContent = useRef<boolean>(props.showCustomContent === true);
 
@@ -468,19 +472,36 @@ export const Editor: React.FunctionComponent<{
 
     const didUnmount = useDidUnmount();
 
-    const reloadBuffer = useCallback((name: string, content: string) => {
+    const reloadBuffer = useCallback((name: string, content: string, syntax: string) => {
         const editor = editorRef.current;
         const engine = engineRef.current;
         switch (engine) {
             case "monaco": {
                 if (!editor) return;
-                const model = editor.getModel();
-                if (!model) return;
-                model.setValue(content);
+                if (!models.current[name]) {
+                    const model = monacoRef.current?.editor.createModel(content, syntax, Uri.file(name));
+
+                    model.onDidChangeContent(e => {
+                        const altId = model.getAlternativeVersionId()
+                        if (altId === 1) {
+                            setDirtyFiles(f => {
+                                f.delete(name);
+                                return new Set([...f]);
+                            })
+                        } else {
+                            setDirtyFiles(f => {
+                                return new Set([...f, name]);
+                            });
+                        }
+                    });
+                    models.current[name] = model;
+
+                }
+                editor.setModel(models.current[name]);
                 break;
             }
         }
-    }, []);
+    }, [dirtyFiles]); /* Maybe overkill to depend on dirty files */
 
     const readBuffer = useCallback((): Promise<string> => {
         const editor = editorRef.current;
@@ -507,7 +528,7 @@ export const Editor: React.FunctionComponent<{
                 props.vfs.readFile(path);
 
         const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
-        const syntax = overridenSyntaxes[path] ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
+        const syntax = models.current[path]?.getLanguageId() ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
             const content = await dataPromise;
@@ -541,7 +562,7 @@ export const Editor: React.FunctionComponent<{
             }
 
             if (typeof content === "string") {
-                reloadBuffer(fileName(path), content);
+                reloadBuffer(path, content, syntax);
                 const restoredState = state.viewState[path];
                 if (editor && restoredState) {
                     editor.restoreViewState(restoredState);
@@ -552,9 +573,11 @@ export const Editor: React.FunctionComponent<{
 
                 tree.current?.deactivate?.();
                 editor?.focus?.();
+
                 const monaco = monacoRef.current;
                 if (syntax && monaco && editor) {
                     monaco.editor.setModelLanguage(editor.getModel(), syntax);
+                    setActiveSyntax(syntax);
                 }
             }
 
@@ -563,7 +586,7 @@ export const Editor: React.FunctionComponent<{
             snackbarStore.addFailure(errorMessageOrDefault(error, "Failed to fetch file"), false);
             return true; // What does true or false mean in this context?
         }
-    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, overridenSyntaxes]);
+    }, [state, props.vfs, dispatch, reloadBuffer, readBuffer, props.onOpenFile, dirtyFiles]);
 
     useEffect(() => {
         const listener = (ev: KeyboardEvent) => {
@@ -595,7 +618,7 @@ export const Editor: React.FunctionComponent<{
         props.vfs.setDirtyFileContent(state.currentPath, res);
         props.onOpenFile?.(state.currentPath, res);
         dispatch({type: "EditorActionSaveState", editorState: null, oldContent: res, newPath: state.currentPath});
-    }, [props.onOpenFile]);
+    }, [props.onOpenFile, state.currentPath]);
 
     const invalidateTree = useCallback(async (folder: string): Promise<void> => {
         const files = await props.vfs.listFiles(folder);
@@ -647,7 +670,6 @@ export const Editor: React.FunctionComponent<{
         m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
 
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
-            value: "",
             language: languageFromExtension(extensionFromPath(state.currentPath)),
             readOnly: props.readOnly,
             minimap: {enabled: false},
@@ -839,6 +861,8 @@ export const Editor: React.FunctionComponent<{
     const onRename = React.useCallback(async (args: {newAbsolutePath: string; oldAbsolutePath: string; cancel: boolean;}) => {
         if (!props.onRename) return;
 
+        /* TODO(Jonas): Ensure that the new path of the file opened matches the changed file contents of the original file path */
+
         const fileUpdated = await props.onRename(args);
         if (fileUpdated) {
             setTabs(tabs => {
@@ -859,19 +883,17 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const doOverrideLanguage = React.useCallback((path: string, language: string) => {
-        setOverridenSyntaxes(syntaxes => {
-            if (state.currentPath === path) {
-                const monaco = monacoRef.current;
-                const editor = editorRef.current;
-                if (monaco && editor) {
-                    monaco.editor.setModelLanguage(editor.getModel(), language);
-                }
-            }
-            return {...syntaxes, [path]: language};
-        });
+    const setModelLanguage = React.useCallback((element: {
+        language: string;
+        displayName: string;
+    }) => {
+        const monaco = monacoRef.current;
+        const editor = editorRef.current;
+        if (monaco && editor) {
+            monaco.editor.setModelLanguage(editor.getModel(), element.language);
+            setActiveSyntax(element.language);
+        }
     }, [state.currentPath]);
-
 
     // VimMode.Vim.defineEx(name, shorthand, callback);
     VimMode.Vim.defineEx("write", "w", () => {
@@ -897,8 +919,6 @@ export const Editor: React.FunctionComponent<{
 
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
-
-    const selectedOverride = overridenSyntaxes[state.currentPath] ?? languageFromExtension(extensionFromPath(state.currentPath));
 
     return <div className={editorClass} onKeyDown={onKeyDown}>
         <FileTree
@@ -926,7 +946,7 @@ export const Editor: React.FunctionComponent<{
                     {tabs.open.map((t, index) =>
                         <EditorTab
                             key={t}
-                            isDirty={false /* TODO */}
+                            isDirty={dirtyFiles.has(t)}
                             isActive={t === state.currentPath}
                             onActivate={() => openTab(t)}
                             onContextMenu={e => {
@@ -935,8 +955,8 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
-                                /* if (fileIsDirty) promptSaveFileWarning() else */
-                                closeTab(t, index);
+                                if (dirtyFiles.has(t)) console.log("TODO") /* promptSaveFileWarning() */
+                                else closeTab(t, index);
                             }}
                             children={t}
                         />
@@ -953,10 +973,8 @@ export const Editor: React.FunctionComponent<{
                                     <LanguageItem {...p} /><Icon mr="6px" ml="auto" mt="8px" size="14px" name="chevronDownLight" />
                                 </Flex>}
                             RenderRow={LanguageItem}
-                            selected={{language: selectedOverride, displayName: toDisplayName(selectedOverride)}}
-                            onSelect={element => {
-                                doOverrideLanguage(state.currentPath, element.language)
-                            }}
+                            selected={{language: activeSyntax, displayName: toDisplayName(activeSyntax)}}
+                            onSelect={setModelLanguage}
                         />
                     </Box>}
                     <Operations
