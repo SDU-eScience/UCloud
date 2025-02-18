@@ -442,10 +442,6 @@ export const Editor: React.FunctionComponent<{
     }, [props.title]);
 
     useEffect(() => {
-        dispatch({type: "EditorActionUpdateTitle", title: props.title});
-    }, [props.title]);
-
-    useEffect(() => {
         engineRef.current = engine;
         localStorage.setItem("editor-engine", engine);
         if (engine !== "monaco" && engine !== "vim") setEngine("monaco");
