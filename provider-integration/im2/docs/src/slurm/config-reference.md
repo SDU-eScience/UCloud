@@ -1,5 +1,15 @@
 # Configuration
 
+<div class="info-box warning">
+<i class="fa fa-triangle-exclamation"></i>
+<div>
+
+This page is still a work-in-progress.
+
+</div>
+</div>
+
+
 This page will serve as a reference to the configuration of the UCloud Integration Module.
 
 The configuration is split up to several files.
@@ -506,7 +516,7 @@ The address (URL or IP) to provider. Defaults to `127.0.0.1`.
 </dt>
 <dd>
 
-Type of system/services provided by the HPC system. Available types are `Slurm`, `Kubernetes` or 
+Type of system/services provided by the HPC system. Possible values are `Slurm`, `Kubernetes` and 
 `Puhuri`.
 
 </dd>
@@ -523,7 +533,12 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `type`
 
 </dt>
-<dd>Description</dd>
+<dd>
+
+Type of system used for identity management, i.e. user and project management. Possible values are 
+`Scripted`, `FreeIPA`, and `None`.
+
+</dd>
 </dl>
 
 </dd>
@@ -532,7 +547,11 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `fileSystems`
 
 </dt>
-<dd>Defines one or more file systems. Read more under `fileSystems` (TODO)</dd>
+<dd>
+
+Defines one or more file systems. Read more under [File systems](#file-systems).
+
+</dd>
 <dt>
 
 `ssh`
@@ -546,13 +565,17 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `enabled`
 
 </dt>
-<dd>Description</dd>
+<dd>
+
+Informs the Integration Module whether SSH is enabled (`true`) or not (`false`).
+
+</dd>
 <dt>
 
 `installKeys`
 
 </dt>
-<dd>Description</dd>
+<dd>TODO</dd>
 <dt>
 
 `host`
@@ -560,20 +583,8 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 </dt>
 <dd>
 
-<dl>
-<dt>
+The host used for SSH. See [Host information](#host-information) for more information.
 
-`address`
-
-</dt>
-<dd>Description</dd>
-<dt>
-
-`port`
-
-</dt>
-<dd>Description</dd>
-</dl>
 </dd>
 </dl>
 
@@ -590,7 +601,11 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `enabled`
 
 </dt>
-<dd>Description</dd>
+<dd>
+
+Whether the license product type is available for this provider or not.
+
+</dd>
 </dl>
 </dd>
 <dt>
@@ -605,13 +620,94 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `fakeResourceAllocation`
 
 </dt>
-<dd>Description</dd>
+<dd>TODO</dd>
 <dt>
 
-`accountManagement`
+`accountManagement` *optional*
 
 </dt>
-<dd>Description</dd>
+<dd>
+
+<dl>
+<dt>
+
+`accounting`
+
+</dt>
+<dd>
+
+<dl>
+<dt>
+
+`type`
+
+</dt>
+<dd>
+
+Type of accounting to use. Possible values are `Automatic`, `Scripted` and `None`.
+
+</dd>
+</dl>
+
+</dd>
+<dt>
+
+`accountMapper`
+
+</dt>
+
+<dd>
+<dl>
+<dt>
+
+`type`
+
+</dt>
+<dd>
+
+Technique used for account mapping. Possible values are `Pattern`, `Scripted` or `None`.
+
+</dd>
+<dt>
+
+`users` *(required if `type` is `Pattern`)*
+
+</dt>
+<dd>
+
+Pattern for mapping UCloud accounts to local accounts.
+
+</dd>
+<dt>
+
+`projects` *(required if `type` is `Pattern`)*
+
+</dt>
+<dd>
+
+Pattern for mapping UCloud projects to local projects.
+
+</dd>
+<dt>
+
+`script` *(required if `type` is `Scripted`)*
+
+</dt>
+
+<dd>
+
+Script for mapping UCloud users and projects to the local system.
+
+<dd>
+
+Script for mapping 
+
+</dd>
+</dl>
+</dd>
+</dl>
+
+</dd>
 <dt>
 
 `web`
@@ -624,20 +720,27 @@ Type of system/services provided by the HPC system. Available types are `Slurm`,
 `enabled`
 
 </dt>
-<dd>Description</dd>
+<dd>Whether interfaces for applications should be enabled (`true`) or not (`false`).</dd>
 <dt>
 
 `prefix`
 
 </dt>
-<dd>Description</dd>
+<dd>
+
+The address prefix for web interfaces (if `enabled` is `true`).
+
+</dd>
 <dt>
 
 `suffix`
 
 </dt>
-<dd>Description</dd>
+<dd>
 
+The address suffix for web interfaces (if `enabled` is `true`).
+
+</dd>
 </dl>
 </dd>
 <dt>
