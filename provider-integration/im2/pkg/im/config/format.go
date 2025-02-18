@@ -215,6 +215,21 @@ func optionalChildBool(path string, node *yaml.Node, child string) (value bool, 
 	return
 }
 
+func optionalChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) (T, bool) {
+	enableErrorReporting = false
+	ok := true
+	value := requireChildEnum(filePath, node, child, options, &ok)
+	if !ok {
+		if optionalChildText(filePath, node, child, &ok) != "" {
+			*success = false
+		}
+
+		return value, false
+	}
+	enableErrorReporting = true
+	return value, true
+}
+
 func requireChildEnum[T any](filePath string, node *yaml.Node, child string, options []T, success *bool) T {
 	var result T
 	text := requireChildText(filePath, node, child, success)
@@ -673,6 +688,18 @@ func parseServer(filePath string, provider *yaml.Node) (bool, ServerConfiguratio
 	return success, cfg
 }
 
+type EnvoyListenMode string
+
+const (
+	EnvoyListenModeUnix EnvoyListenMode = "Unix"
+	EnvoyListenModeTcp  EnvoyListenMode = "Tcp"
+)
+
+var envoyListenModes = []EnvoyListenMode{
+	EnvoyListenModeUnix,
+	EnvoyListenModeTcp,
+}
+
 type ProviderConfiguration struct {
 	Id string
 
@@ -693,6 +720,7 @@ type ProviderConfiguration struct {
 		Executable                string
 		InternalAddressToProvider string
 		ManagedExternally         bool
+		ListenMode                EnvoyListenMode
 	}
 
 	Logs struct {
@@ -807,6 +835,12 @@ func parseProvider(filePath string, provider *yaml.Node) (bool, ProviderConfigur
 
 		managedExternally, _ := optionalChildBool(filePath, envoy, "managedExternally")
 		cfg.Envoy.ManagedExternally = managedExternally
+
+		listenMode, hasListenMode := optionalChildEnum(filePath, envoy, "listenMode", envoyListenModes, &success)
+		if !hasListenMode {
+			listenMode = EnvoyListenModeUnix
+		}
+		cfg.Envoy.ListenMode = listenMode
 
 		if !cfg.Envoy.ManagedExternally {
 			exe := requireChildFile(filePath, envoy, "executable", FileCheckRead, &success)
