@@ -310,18 +310,27 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 	strategy := kvcore.RunStrategyAlways
 	vm.Spec.RunStrategy = &strategy
 
+	image := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Image
+	baseImageSource := &kvcdi.DataVolumeSource{}
+	if strings.HasPrefix(image, "http://") || strings.HasPrefix(image, "https://") {
+		baseImageSource.HTTP = &kvcdi.DataVolumeSourceHTTP{
+			URL: image,
+		}
+	} else {
+		// TODO
+		baseImageSource.PVC = &kvcdi.DataVolumeSourcePVC{
+			Namespace: Namespace,
+			Name:      image,
+		}
+	}
+
 	vm.Spec.DataVolumeTemplates = []kvcore.DataVolumeTemplateSpec{
 		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: vm.Name,
 			},
 			Spec: kvcdi.DataVolumeSpec{
-				Source: &kvcdi.DataVolumeSource{
-					PVC: &kvcdi.DataVolumeSourcePVC{
-						Namespace: Namespace,
-						Name:      "ubuntu24cloud",
-					},
-				},
+				Source: baseImageSource,
 				Storage: &kvcdi.StorageSpec{
 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 					Resources: corev1.ResourceRequirements{
@@ -329,6 +338,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 							corev1.ResourceStorage: *resource.NewScaledQuantity(5, resource.Giga),
 						},
 					},
+					StorageClassName: shared.ServiceConfig.Compute.VirtualMachineStorageClass.GetPtrOrNil(),
 				},
 			},
 		},

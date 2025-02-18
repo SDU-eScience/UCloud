@@ -1,0 +1,13 @@
+application: v2
+
+name: cirros
+version: 0.4.0
+
+software:
+  type: VirtualMachine
+  image: https://download.cirros-cloud.net/0.4.0/cirros-0.4.0-x86_64-disk.img
+
+features:
+  multiNode: false
+
+invocation: ""
