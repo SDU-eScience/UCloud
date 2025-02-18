@@ -102,13 +102,12 @@ func prepareMountsOnJobCreate(
 		addUCloudMount(filepath.Join(containerMountDir, title), mount, readOnly)
 	}
 
-	// TODO Make this configurable
 	fsVolume := "ucloud-filesystem"
 	spec.Volumes = append(spec.Volumes, core.Volume{
 		Name: fsVolume,
 		VolumeSource: core.VolumeSource{
 			PersistentVolumeClaim: &core.PersistentVolumeClaimVolumeSource{
-				ClaimName: "cephfs",
+				ClaimName: ServiceConfig.FileSystem.ClaimName,
 				ReadOnly:  false,
 			},
 		},

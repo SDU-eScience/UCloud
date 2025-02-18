@@ -63,6 +63,7 @@ func prepareInvocationOnJobCreate(
 
 	path := filepath.Join(jobFolder, fmt.Sprintf("job-%d.sh", rank))
 	jobFile, ok := filesystem.OpenFile(path, unix.O_WRONLY|unix.O_CREAT, 0700)
+	_ = jobFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 	if ok {
 		builder := strings.Builder{}
 		builder.WriteString("#!/usr/bin/env bash\n")
@@ -285,12 +286,14 @@ func handleJinjaInvocation(
 	// -----------------------------------------------------------------------------------------------------------------
 	templateFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-template.j2"), unix.O_WRONLY|unix.O_CREAT, 0600)
 	if ok {
+		_ = templateFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = templateFile.Write([]byte(tpl))
 		_ = templateFile.Close()
 	}
 
 	paramsFile, ok := filesystem.OpenFile(filepath.Join(jobFolder, ".script-params.yaml"), unix.O_WRONLY|unix.O_CREAT, 0600)
 	if ok {
+		_ = paramsFile.Chown(filesystem.DefaultUid, filesystem.DefaultUid)
 		_, _ = paramsFile.Write(paramsYaml)
 		_ = paramsFile.Close()
 	}

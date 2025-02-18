@@ -19,8 +19,28 @@ import (
 var nextJobMonitor time.Time
 var nextNodeMonitor time.Time
 
-// TODO Select a scheduler based on category. We need multiple schedulers.
-var sched = NewScheduler()
+// NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
+// thread-safe.
+
+var schedulers = map[string]*Scheduler{}
+
+func getScheduler(category string) (*Scheduler, bool) {
+	_, ok := shared.ServiceConfig.Compute.Machines[category]
+	if !ok {
+		return nil, false
+	}
+
+	existing, ok := schedulers[category]
+	if !ok {
+		schedulers[category] = NewScheduler()
+		existing, ok = schedulers[category]
+	}
+	return existing, ok
+}
+
+func getSchedulerByJob(job *orc.Job) (*Scheduler, bool) {
+	return getScheduler(job.Specification.Product.Category)
+}
 
 type jobGang struct {
 	replicaState map[int]shared.JobReplicaState
@@ -51,6 +71,11 @@ func (t *jobTracker) AddUpdate(id string, update orc.JobUpdate) {
 
 func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	job, ok := t.jobs[state.Id]
+	if !ok {
+		return false
+	}
+
+	sched, ok := getSchedulerByJob(job)
 	if !ok {
 		return false
 	}
@@ -146,12 +171,14 @@ func loopMonitoring() {
 		tracker.jobs = activeJobs
 		containers.Monitor(tracker, activeJobs)
 		kubevirt.Monitor(tracker, activeJobs)
-		sched.PruneReplicas()
+		for _, sched := range schedulers {
+			sched.PruneReplicas()
 
-		length := len(sched.Queue)
-		for i := 0; i < length; i++ {
-			queueEntry := &sched.Queue[i]
-			tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
+			length := len(sched.Queue)
+			for i := 0; i < length; i++ {
+				queueEntry := &sched.Queue[i]
+				tracker.batch.TrackState(queueEntry.JobId, orc.JobStateInQueue, util.OptNone[string]())
+			}
 		}
 
 		batchResults := tracker.batch.End()
@@ -209,6 +236,11 @@ func loopMonitoring() {
 				continue
 			}
 
+			sched, ok := getScheduler(category.Value)
+			if !ok {
+				continue
+			}
+
 			k8sCapacity := node.Status.Capacity
 			k8sAllocatable := node.Status.Allocatable
 
@@ -233,40 +265,45 @@ func loopMonitoring() {
 
 	entriesToSubmit := shared.SwapScheduleQueue()
 	for _, entry := range entriesToSubmit {
-		sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
-			entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+		sched, ok := getSchedulerByJob(entry)
+		if ok {
+			sched.RegisterJobInQueue(entry.Id, jobDimensions(entry),
+				entry.Specification.Replicas, nil, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+		}
 	}
 
 	var scheduleMessages []ctrl.JobMessage
 
-	jobsToSchedule := sched.Schedule()
-	length := len(jobsToSchedule)
-	for i := 0; i < length; i++ {
-		toSchedule := &jobsToSchedule[i]
-		job, ok := ctrl.RetrieveJob(toSchedule.JobId)
-		if !ok {
-			continue
-		}
+	for _, sched := range schedulers {
+		jobsToSchedule := sched.Schedule()
+		length := len(jobsToSchedule)
+		for i := 0; i < length; i++ {
+			toSchedule := &jobsToSchedule[i]
+			job, ok := ctrl.RetrieveJob(toSchedule.JobId)
+			if !ok {
+				continue
+			}
 
-		if job.Specification.Replicas == 1 {
-			scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
-				JobId:   job.Id,
-				Message: fmt.Sprintf("Job has been scheduled and is starting soon (Assigned to %s)", toSchedule.Node),
-			})
-		} else {
-			if toSchedule.Rank == 0 {
+			if job.Specification.Replicas == 1 {
 				scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
 					JobId:   job.Id,
-					Message: fmt.Sprintf("Job has been scheduled and is starting soon (Rank 0 assigned to %v)", toSchedule.Node),
+					Message: fmt.Sprintf("Job has been scheduled and is starting soon (Assigned to %s)", toSchedule.Node),
 				})
+			} else {
+				if toSchedule.Rank == 0 {
+					scheduleMessages = append(scheduleMessages, ctrl.JobMessage{
+						JobId:   job.Id,
+						Message: fmt.Sprintf("Job has been scheduled and is starting soon (Rank 0 assigned to %v)", toSchedule.Node),
+					})
+				}
 			}
-		}
 
-		toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
-		if toolBackend == orc.ToolBackendVirtualMachine {
-			kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
-		} else {
-			containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+			toolBackend := job.Status.ResolvedApplication.Invocation.Tool.Tool.Description.Backend
+			if toolBackend == orc.ToolBackendVirtualMachine {
+				kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+			} else {
+				containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+			}
 		}
 	}
 

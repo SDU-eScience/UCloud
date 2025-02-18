@@ -13,6 +13,7 @@ type KubernetesFileSystem struct {
 	Name             string
 	MountPoint       string
 	TrashStagingArea string
+	ClaimName        string
 }
 
 type KubernetesWebConfiguration struct {
@@ -58,6 +59,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.Name = requireChildText(filePath, fsNode, "name", &success)
 		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
 		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
+		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
