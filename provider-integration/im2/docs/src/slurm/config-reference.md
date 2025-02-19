@@ -4,7 +4,7 @@
 <i class="fa fa-triangle-exclamation"></i>
 <div>
 
-This page is still a work-in-progress.
+This page is still a work-in-progress. Some options might be missing, or information incorrect.
 
 </div>
 </div>
@@ -183,7 +183,43 @@ The `port` will default to 5432 if not defined.
 
 ## Secrets configuration
 
-TODO
+<figure>
+
+```yaml
+freeipa:
+  url: https://ipa.ucloud
+  username: admin
+  password: adminadmin
+  verifyTls: true
+
+gpfs:
+  storage: # This is the product category name
+    username: gpfs
+    password: gpfspassword
+    verifyTls: false
+    host:
+      address: localhost
+      port: 62394
+      scheme: http
+    mapping:
+      home: # This is a locator name
+        fileSystem: "gpfs"
+        parentFileSet: "home"
+        fileSetPattern: "home-#{localUsername}" # This has the same variables as the drive locator has
+      projects:
+        fileSystem: "gpfs"
+        parentFileSet: "work"
+        fileSetPattern: "work-#{localGroupName}-#{gid}"
+```
+
+<figcaption>
+
+Example file showing the format of `secrets.yml`.
+
+</figcaption>
+</figure>
+
+<!-- TODO Describe secrets.yml file here -->
 
 ## Provider and Services configuration
 
@@ -575,7 +611,11 @@ Informs the Integration Module whether SSH is enabled (`true`) or not (`false`).
 `installKeys`
 
 </dt>
-<dd>TODO</dd>
+<dd>
+
+<!-- TODO Missing description -->
+
+</dd>
 <dt>
 
 `host`
@@ -620,7 +660,11 @@ Whether the license product type is available for this provider or not.
 `fakeResourceAllocation`
 
 </dt>
-<dd>TODO</dd>
+<dd>
+
+<!-- TODO Missing description -->
+
+</dd>
 <dt>
 
 `accountManagement` *optional*
@@ -677,6 +721,9 @@ Technique used for account mapping. Possible values are `Pattern`, `Scripted` or
 
 Pattern for mapping UCloud accounts to local accounts.
 
+<!-- TODO Describe variables -->
+
+
 </dd>
 <dt>
 
@@ -697,10 +744,6 @@ Pattern for mapping UCloud projects to local projects.
 <dd>
 
 Script for mapping UCloud users and projects to the local system.
-
-<dd>
-
-Script for mapping 
 
 </dd>
 </dl>
@@ -798,29 +841,349 @@ The scheme to use. For example `http`, `https`, etc.
 
 ### File systems
 
-TODO
+The `fileSystems` section define the storage products for your HPC system, along with additional 
+parameters that tell the Integration Module how to find your drives, and how users are billed. The 
+`fileSystem` can have multiple products if you require different payment models or offer different 
+kind of storage solutions. Each product is named using the key of the block.
+
+<figure>
+
+```yaml
+my-storage:
+  management:
+    type: GPFS
+
+  payment:
+    type: Resource
+    unit: GB
+
+  driveLocators:
+    home:
+      entity: User
+      pattern: "/gpfs/home/#{localUsername}"
+      title: "Home"
+      freeQuota: 10
+
+    projects:
+      entity: Project
+      pattern: "/gpfs/work/#{localGroupName}-#{gid}"
+      title: "Work"
+```
+
+<figcaption>
+
+Example of storage product named `my-storage` using pattern drive locators, billing users per GB.
+
+</figcaption>
+</figure>
+
+Each storage product can be configured with the following options.
+
+<dl>
+<dt>
+
+`management`
+
+</dt>
+<dd>
+<dl>
+<dt>
+
+`type`
+
+</dt>
+<dd>
+
+Possible values are `GPFS`, `Scripted` and `None`. If set to `GPFS` further information will be read 
+from `secrets.yml`.
+
+</dd>
+
+<dt>
+
+`onQuotaUpdated` *optional*
+
+</dt>
+<dd>
+
+Path to script that will be executed every time a users' or projects' quota is updated, i.e. every 
+time a resource allocation is approved or changed.
+
+Only used if `type` is `Scripted`. 
+
+</dd>
+<dt>
+
+`onUsageReporting` *optional*
+
+</dt>
+<dd>
+
+Path to script that will be executed every time the Integration Module evaluates the usage of all 
+users and projects on the HPC system.
+
+Only used if `type` is `Scripted`. 
+
+</dd>
+</dl>
+</dd>
+
+<dt>
+
+`payment`
+
+</dt>
+<dd>
+
+Defines how payment should work for this product. See [Payment](#payment) for more details.
+
+</dd>
+<dt>
+
+`driveLocators`
+
+</dt>
+<dd>
+
+Drive locators define the method the Integration Module can use to find (virtual) drives on your 
+system. That is, they are used to define the mapping between UCloud's definition of a *Drive* and 
+a path on your file system. Each drive locator is defined by a name and following options, i.e.
+
+```yaml
+my-locator:
+  # Options here
+```
+
+The drive locator will map UCloud drives to local file system paths by using either a `pattern` or 
+a `script`, thus exactly one of them has to be defined for each drive locator.
+
+Each drive locator can have the following options.
+
+<dl>
+<dt>
+
+`entity` 
+
+</dt>
+<dd>
+
+Defines which entity this is a drive locator for. Possible values are `User`, `Project` and 
+`MemberFiles`.
+
+</dd>
+<dt>
+
+`pattern` *(required if `script` is not defined)*
+
+</dt>
+<dd>
+
+Use a text pattern to locate drives on the local file system. 
+
+</dd>
+<dt>
+
+`script` *(required if `pattern` is not defined)*
+
+</dt>
+<dd>
+
+Use a script to locate drives on the local file system.
+
+</dd>
+<dt>
+
+`title`
+
+</dt>
+<dd>
+
+Title for this drive locator.
+
+</dd>
+<dt>
+
+`freeQuota` *(required and only specifiable for locators with `entity` set to `User`)*
+
+</dt>
+<dd>
+
+Defines how much free quota each user get.
+
+</dd>
+</dl>
+</dd>
+</dl>
+
 
 
 ### Machines {#machines}
 
-TODO
+<figure>
 
+```yaml
+u1-standard:
+  partition: normal
+  qos: standard
+
+  nameSuffix: Cpu
+
+  cpu: [ 1, 2, 4 ]
+  memory: [ 1, 2, 4 ]
+
+  cpuModel: Model
+  memoryModel: Model
+
+  payment:
+    type: Resource
+    unit: Cpu
+    interval: Minutely
 ```
-      u1-standard:
-        partition: normal
-        qos: standard
 
-        nameSuffix: Cpu
+<figcaption>
 
-        cpu: [ 1, 2, 4 ]
-        memory: [ 1, 2, 4 ]
+Example of a compute product with name `u1-standard`.
 
-        cpuModel: Model
-        memoryModel: Model
+</figcaption>
+</figure>
 
-        payment:
-          type: Resource
-          unit: Cpu
-          interval: Minutely
+Every compute product (machine) can have the following options.
 
+<dl>
+<dt>
+
+`partition`
+
+</dt>
+<dd>
+
+Defines the Slurm partition to use for jobs submitted to this machine category.
+
+</dd>
+<dt>
+
+`constraint`
+
+</dt>
+<dd>
+
+<!-- TODO Missing description -->
+
+</dd>
+<dt>
+
+`groups` *optional*
+
+</dt>
+
+<!-- TODO Missing description -->
+
+<dt>
+
+`qos` *optional*
+
+</dt>
+<dd>
+
+Given to Slurm for jobs submitted to this machine category. Read the [Slurm 
+Documentation](https://slurm.schedmd.com/qos.html) for more details.
+
+</dd>
+<dt>
+
+`nameSuffix`
+
+</dt>
+<dd>
+
+<!-- TODO Missing description -->
+
+</dd>
+<dt>
+
+`cpu`, `memory`, `gpu`
+
+</dt>
+<dd>
+
+A list of supported CPU, memory and GPU sizes respectively. I.e.
+
+```yaml
+cpu: [1,2,4]
 ```
+
+will create 4 compute products, with 1 CPU core, 2 CPU cores and 4 CPU cores respectively.
+
+</dd>
+<dt>
+
+`cpuModel` *optional*, `memoryModel` *optional*, `gpuModel` *optional*
+
+</dt>
+<dd>
+
+Textual description of the CPU, memory and GPU models/hardware respectively.
+
+</dd>
+<dt>
+
+`payment`
+
+</dt>
+<dd>
+
+Defines how this product is charged. See [Payment](#payment) for more details.
+
+</dd>
+<dd>
+</dd>
+</dl>
+
+
+### Payment {#payment}
+
+<dl>
+<dt>
+
+`type`
+
+</dt>
+<dd>
+
+Possible values are `Resource` or `Money`.
+
+</dd>
+<dt>
+
+`price` *(required if `type` is `Money`)*
+
+</dt>
+<dt>
+
+`currency` *(required if `type` is `Money`)*
+
+</dt>
+
+<dt>
+
+`interval` *optional*
+
+</dt>
+<dd>
+
+Possible values are `Minutely`, `Hourly` and `Daily`.
+
+</dd>
+<dt>
+
+`unit`
+
+</dt>
+<dd>
+
+Possible values are `GB`, `TB`, `PB`, `EB`, `GiB`, `TiB`, `PiB` and `EiB` for storage products, and 
+`Cpu`, `Memory` and `Gpu` for compute products.
+
+</dd>
+</dl>
+
