@@ -413,7 +413,12 @@ func controllerConnection(mux *http.ServeMux) {
 		mux.HandleFunc(
 			baseContext+"retrieveCondition",
 			HttpRetrieveHandler[retrieveConditionRequest](0, func(w http.ResponseWriter, r *http.Request, _ retrieveConditionRequest) {
-				sendResponseOrError(w, Connections.RetrieveCondition(), nil)
+				fn := Connections.RetrieveCondition
+				if fn != nil {
+					sendResponseOrError(w, Connections.RetrieveCondition(), nil)
+				} else {
+					sendResponseOrError(w, nil, util.HttpErr(404, "Not found"))
+				}
 			}),
 		)
 

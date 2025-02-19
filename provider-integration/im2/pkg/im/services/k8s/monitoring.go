@@ -161,6 +161,48 @@ func timeAllocationOrDefault(alloc util.Option[orc.SimpleDuration]) orc.SimpleDu
 func loopMonitoring() {
 	now := time.Now()
 
+	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
+	// it knows about running replicas.
+	if now.After(nextNodeMonitor) {
+		nodeList := util.RetryOrPanic[*corev1.NodeList]("list k8s nodes", func() (*corev1.NodeList, error) {
+			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+		})
+
+		length := len(nodeList.Items)
+		for i := 0; i < length; i++ {
+			node := &nodeList.Items[i]
+			category := nodeCategory(node)
+			if !category.Present {
+				continue
+			}
+
+			sched, ok := getScheduler(category.Value)
+			if !ok {
+				continue
+			}
+
+			k8sCapacity := node.Status.Capacity
+			k8sAllocatable := node.Status.Allocatable
+
+			capacity := SchedulerDimensions{
+				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
+				MemoryInBytes: int(k8sCapacity.Memory().Value()),
+				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+			}
+
+			limits := SchedulerDimensions{
+				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
+				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
+				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
+			}
+
+			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
+			sched.PruneNodes()
+		}
+
+		nextNodeMonitor = now.Add(15 * time.Second)
+	}
+
 	if now.After(nextJobMonitor) {
 		tracker := &jobTracker{
 			batch: ctrl.BeginJobUpdates(),
@@ -221,46 +263,6 @@ func loopMonitoring() {
 		}()
 
 		nextJobMonitor = now.Add(5 * time.Second)
-	}
-
-	if now.After(nextNodeMonitor) {
-		nodeList := util.RetryOrPanic[*corev1.NodeList]("list k8s nodes", func() (*corev1.NodeList, error) {
-			return shared.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-		})
-
-		length := len(nodeList.Items)
-		for i := 0; i < length; i++ {
-			node := &nodeList.Items[i]
-			category := nodeCategory(node)
-			if !category.Present {
-				continue
-			}
-
-			sched, ok := getScheduler(category.Value)
-			if !ok {
-				continue
-			}
-
-			k8sCapacity := node.Status.Capacity
-			k8sAllocatable := node.Status.Allocatable
-
-			capacity := SchedulerDimensions{
-				CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sCapacity.Memory().Value()),
-				Gpu:           int(k8sCapacity.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			limits := SchedulerDimensions{
-				CpuMillis:     int(k8sAllocatable.Cpu().MilliValue()),
-				MemoryInBytes: int(k8sAllocatable.Memory().Value()),
-				Gpu:           int(k8sAllocatable.Name("nvidia.com/gpu", resource.DecimalSI).Value()),
-			}
-
-			sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
-			sched.PruneNodes()
-		}
-
-		nextNodeMonitor = now.Add(15 * time.Second)
 	}
 
 	entriesToSubmit := shared.SwapScheduleQueue()

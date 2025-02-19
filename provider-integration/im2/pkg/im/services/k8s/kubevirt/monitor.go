@@ -49,6 +49,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 				},
 			)
 		} else {
+			log.Info("Waiting for %v (hasInstance = %v, machine.Status.Ready = %v)", jobId, hasInstance, hasInstance && machine.Status.Ready)
 			tracker.TrackState(
 				shared.JobReplicaState{
 					Id:    jobId,

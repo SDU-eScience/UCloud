@@ -128,6 +128,9 @@ func controllerJobs(mux *http.ServeMux) {
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
 		WriteBufferSize: 1024 * 4,
+
+		// The binary sub-protocol is needed to support VNC handled directly by the IM
+		Subprotocols: []string{"binary"},
 	}
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	jobContext := fmt.Sprintf("/ucloud/%v/jobs/", cfg.Provider.Id)
@@ -781,7 +784,7 @@ func controllerJobs(mux *http.ServeMux) {
 				conn, err := wsUpgrader.Upgrade(writer, request, nil)
 				defer util.SilentCloseIfOk(conn, err)
 				if err != nil {
-					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
+					log.Info("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
 				}
 

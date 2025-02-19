@@ -251,7 +251,6 @@ func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
 
 			err = conn.WriteMessage(ws.BinaryMessage, buf[:n])
 			if err != nil {
-				log.Info("Failed to read: %v", err)
 				break
 			}
 		}
@@ -384,6 +383,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 							BootOrder: util.UintPointer(3),
 						},
 					},
+					Filesystems: []kvcore.Filesystem{
+						{
+							Name:     "ucloud-filesystem",
+							Virtiofs: &kvcore.FilesystemVirtiofs{},
+						},
+					},
 					Interfaces: []kvcore.Interface{
 						{
 							Name: "default",
@@ -416,6 +421,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 					VolumeSource: kvcore.VolumeSource{
 						CloudInitNoCloud: &kvcore.CloudInitNoCloudSource{
 							UserData: cinitData,
+						},
+					},
+				},
+				{
+					Name: "ucloud-filesystem",
+					VolumeSource: kvcore.VolumeSource{
+						PersistentVolumeClaim: &kvcore.PersistentVolumeClaimVolumeSource{
+							PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+								ClaimName: shared.ServiceConfig.FileSystem.ClaimName,
+							},
 						},
 					},
 				},

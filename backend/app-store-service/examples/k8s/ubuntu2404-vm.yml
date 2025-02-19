@@ -1,0 +1,13 @@
+application: v2
+
+name: ubuntu-vm
+version: 24.04
+
+software:
+  type: VirtualMachine
+  image: https://cloud-images.ubuntu.com/noble/20250214/noble-server-cloudimg-amd64.img
+
+features:
+  multiNode: false
+
+invocation: ""
