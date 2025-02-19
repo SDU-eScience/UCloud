@@ -1,7 +1,8 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState} from "react";
 import {useSelector} from "react-redux";
-import {editor, Uri} from "monaco-editor";
+import {editor} from "monaco-editor";
+import {Uri} from "monaco-editor";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {injectStyle} from "@/Unstyled";
 import {TreeAction, TreeApi} from "@/ui-components/Tree";
@@ -259,7 +260,8 @@ const monacoCache = new AsyncCache<any>();
 
 export async function getMonaco() {
     return monacoCache.retrieve("", async () => {
-        const monaco = await (import("monaco-editor"));
+        const monaco = await import("monaco-editor");
+
 
         const editorWorker = (await import('monaco-editor/esm/vs/editor/editor.worker?worker')).default;
         const jsonWorker = (await import('monaco-editor/esm/vs/language/json/json.worker?worker')).default;
@@ -405,9 +407,21 @@ export const Editor: React.FunctionComponent<{
         closed: [],
     });
 
-
-    const models = React.useRef<Record<string, editor.ITextModel>>({});
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
+
+    React.useEffect(() => {
+        /* Note(Jonas): Find dirty files/models in the editors stored models  */
+        if (monacoInstance) {
+            const existingDirtyFiles = new Set<string>();
+            for (const m of monacoInstance.editor.getModels().filter(it => it.uri.scheme === "file")) {
+                if (m.getAlternativeVersionId() > 1) {
+                    existingDirtyFiles.add(m.uri.path);
+                }
+            }
+            if (existingDirtyFiles.size) setDirtyFiles(existingDirtyFiles);
+        }
+    }, [monacoInstance]);
+
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
     if (state.currentPath === SETTINGS_PATH) {
@@ -478,26 +492,27 @@ export const Editor: React.FunctionComponent<{
         switch (engine) {
             case "monaco": {
                 if (!editor) return;
-                if (!models.current[name]) {
-                    const model = monacoRef.current?.editor.createModel(content, syntax, Uri.file(name));
+                const existingModel = getModelFromEditor(name);
+                if (!existingModel) {
+                    const model = monacoRef.current?.editor?.createModel(content, syntax, Uri.file(name));
 
                     model.onDidChangeContent(e => {
-                        const altId = model.getAlternativeVersionId()
+                        const altId = model.getAlternativeVersionId();
                         if (altId === 1) {
                             setDirtyFiles(f => {
                                 f.delete(name);
                                 return new Set([...f]);
-                            })
+                            });
                         } else {
                             setDirtyFiles(f => {
                                 return new Set([...f, name]);
                             });
                         }
                     });
-                    models.current[name] = model;
-
+                    editor.setModel(model);
+                } else {
+                    editor.setModel(existingModel);
                 }
-                editor.setModel(models.current[name]);
                 break;
             }
         }
@@ -515,20 +530,24 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
+    const getModelFromEditor = React.useCallback((path: string) => {
+        return monacoRef.current?.editor.getModel(Uri.file(path));
+    }, []);
+
     const openFile = useCallback(async (path: string, saveState: boolean): Promise<boolean> => {
         if (path === SETTINGS_PATH || path === RELEASE_NOTES_PATH) {
             dispatch({type: "EditorActionOpenFile", path});
             return false;
         }
 
-        const cachedContent = state.cachedFiles[path];
+        const cachedContent = state.cachedFiles[path] ?? getModelFromEditor(path)?.getValue();
         const dataPromise =
             cachedContent !== undefined ?
                 Promise.resolve(cachedContent) :
                 props.vfs.readFile(path);
 
         const syntaxExtension = findNode(state.sidebar.root, path)?.file?.requestedSyntax;
-        const syntax = models.current[path]?.getLanguageId() ?? languageFromExtension(syntaxExtension ?? extensionFromPath(path));
+        const syntax = languageFromExtension(syntaxExtension ?? extensionFromPath(path));
 
         try {
             const content = await dataPromise;
@@ -810,7 +829,7 @@ export const Editor: React.FunctionComponent<{
     const openTab = React.useCallback(async (path: string) => {
         if (state.currentPath === path) return;
         await openFile(path, true);
-        const fileWasFetched = state.cachedFiles[path] != null;
+        const fileWasFetched = getModelFromEditor(path)?.getValue ?? state.cachedFiles[path] != null;
         if (fileWasFetched) {
             setTabs(tabs => {
                 if (tabs.open.includes(path)) {
