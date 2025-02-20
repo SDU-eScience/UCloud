@@ -1057,10 +1057,11 @@ function tabOperations(
     tabPath: string | undefined,
     setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
-    anyTabsClosed: boolean,
-    anyTabsOpen: boolean,
+    tabs: {open: string[], closed: string[]},
     currentPath: string,
 ): Operation<any>[] {
+    const anyTabsOpen = tabs.open.length > 0;
+    const anyTabsClosed = tabs.closed.length > 0;
     if (!tabPath) {
         return [{
             text: "Re-open closed tab",
