@@ -1058,6 +1058,7 @@ function tabOperations(
     setTabs: React.Dispatch<React.SetStateAction<{open: string[], closed: string[]}>>,
     openTab: (path: string) => void,
     anyTabsClosed: boolean,
+    anyTabsOpen: boolean,
     currentPath: string,
 ): Operation<any>[] {
     if (!tabPath) {
@@ -1088,7 +1089,7 @@ function tabOperations(
                     }
                 });
             },
-            enabled: () => true, /* anyTabsOpen > 0 */
+            enabled: () => anyTabsOpen,
             shortcut: ShortcutKey.U,
         }];
     }
