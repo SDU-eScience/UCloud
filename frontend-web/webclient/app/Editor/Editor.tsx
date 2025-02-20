@@ -24,6 +24,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useBeforeUnload} from "react-router-dom";
 import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {initVimMode, VimMode} from "monaco-vim";
+import {addStandardDialog} from "@/UtilityComponents";
 
 export interface Vfs {
     isReal(): boolean;
@@ -691,6 +692,9 @@ export const Editor: React.FunctionComponent<{
         const editor: IStandaloneCodeEditor = m.editor.create(node, {
             language: languageFromExtension(extensionFromPath(state.currentPath)),
             readOnly: props.readOnly,
+            readOnlyMessage: {
+                value: null
+            },
             minimap: {enabled: false},
             renderLineHighlight: "none",
             fontFamily: "Jetbrains Mono",
@@ -699,6 +703,8 @@ export const Editor: React.FunctionComponent<{
             wordWrap: "off",
             ...getEditorOptions(),
         });
+
+        setReadonlyWarning(editor);
 
         setEditor(editor);
 
@@ -851,6 +857,8 @@ export const Editor: React.FunctionComponent<{
             const closed = tabs.closed;
             if (!closed.includes(path)) closed.push(path);
 
+            getModelFromEditor(path).dispose();
+
             dispatch({type: "EditorActionOpenFile", path: ""});
             return {open: result, closed};
         });
@@ -859,7 +867,7 @@ export const Editor: React.FunctionComponent<{
     const openTabOperationWindow = useRef<(x: number, y: number) => void>(noopCall)
 
     const openTabOperations = React.useCallback((title: string | undefined, position: {x: number; y: number;}) => {
-        const ops = tabOperations(title, setTabs, openTab, tabs.closed.length > 0, state.currentPath);
+        const ops = tabOperations(title, setTabs, openTab, tabs, state.currentPath);
         setOperations(ops);
         openTabOperationWindow.current(position.x, position.y);
     }, [tabs, state.currentPath]);
@@ -874,7 +882,6 @@ export const Editor: React.FunctionComponent<{
             return e;
         }
         return e;
-        /* TODO(Jonas): This should check if any file is dirty and warn user. Also on redirect? */
     });
 
     const onRename = React.useCallback(async (args: {newAbsolutePath: string; oldAbsolutePath: string; cancel: boolean;}) => {
@@ -974,8 +981,23 @@ export const Editor: React.FunctionComponent<{
                                 openTabOperations(t, {x: e.clientX, y: e.clientY});
                             }}
                             close={() => {
-                                if (dirtyFiles.has(t)) console.log("TODO") /* promptSaveFileWarning() */
-                                else closeTab(t, index);
+                                if (dirtyFiles.has(t)) {
+                                    addStandardDialog({
+                                        title: "Save before closing?",
+                                        message: "The changes made to this file has not been saved. Save before closing?",
+                                        confirmText: "Save",
+                                        onConfirm() {
+                                            snackbarStore.addFailure("AAARGH! IT HASN'T BEEN SAVED!", false);
+                                            closeTab(t, index);
+                                        },
+                                        cancelText: "Don't save",
+                                        onCancel() {
+                                            closeTab(t, index);
+                                        }
+                                    });
+                                } else {
+                                    closeTab(t, index);
+                                }
                             }}
                             children={t}
                         />
@@ -1431,6 +1453,20 @@ function MonacoEditorSettings({editor, setVimMode}: {editor: IStandaloneCodeEdit
             </Select>
         </div>)}
         <div>
+            Allow file editing
+            <Select defaultValue={allowEditing() ? "Allow" : "Disallow"} onChange={e => {
+                const canEdit = e.target.value === "Allow";
+                setOption(EditorOption.readOnly, !canEdit);
+
+                if (!canEdit) setReadonlyWarning(editor);
+
+                setAllowEditing(canEdit.toString());
+            }}>
+                <option value={"Allow"}>Allow</option>
+                <option value={"Disallow"}>Disallow</option>
+            </Select>
+        </div>
+        <div>
             Vim mode
             <Select defaultValue={getEditorOption("vim") ? "Enabled" : "Disabled"} onChange={e => setVimMode(e.target.value === "Enabled")}>
                 <option value="Enabled">Enabled</option>
@@ -1474,6 +1510,15 @@ function storeEditorSettings(settings: StoredSettings): void {
     localStorage.setItem(PreviewEditorSettingsLocalStorageKey, JSON.stringify(settings));
 }
 
+const ALLOW_EDITING_KEY = "EDITOR:ALWAYS_ALLOW_EDITING_KEY"
+export function allowEditing() {
+    return localStorage.getItem(ALLOW_EDITING_KEY) === "true";
+}
+
+function setAllowEditing(doAllow: string) {
+    localStorage.setItem(ALLOW_EDITING_KEY, doAllow);
+}
+
 function useShowReleaseNoteIcon() {
     const [showReleaseNoteIcon, setShowReleaseNotePrompt] = useState(false);
 
@@ -1494,6 +1539,21 @@ function useShowReleaseNoteIcon() {
     }, []);
 
     return {showReleaseNoteIcon, onShowReleaseNotesShown};
+}
+
+function setReadonlyWarning(editor: IStandaloneCodeEditor) {
+    editor.onDidAttemptReadOnlyEdit(e => {
+        addStandardDialog({
+            title: "Enable editing?",
+            message: "Editing the file is disabled. Enable?",
+            confirmText: "Enable",
+            onConfirm() {
+                editor.updateOptions({readOnly: false});
+                setAllowEditing(true.toString());
+            },
+            cancelText: "Ignore"
+        });
+    });
 }
 
 const EditorReleaseNotes = `

@@ -71,7 +71,7 @@ import {
     UFileStatus
 } from "./UFile";
 import AppRoutes from "@/Routes";
-import {Editor, EditorApi, Vfs} from "@/Editor/Editor";
+import {allowEditing, Editor, EditorApi, Vfs} from "@/Editor/Editor";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
@@ -1476,7 +1476,7 @@ export function FilePreview({initialFile}: {
                 </Box>
             </Flex>
         }
-        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR)}
+        readOnly={!hasFeature(Feature.INTEGRATED_EDITOR) || !allowEditing()}
     />;
 }
 
@@ -1493,7 +1493,7 @@ async function downloadFileContent(path: string): Promise<Blob> {
 }
 
 const MAX_HEIGHT = `calc(100vw - 15px - 15px - 240px - var(${CSSVarCurrentSidebarStickyWidth}));`
-const HEIGHT = "calc(100vh - 100px);"
+const HEIGHT = "calc(100vh - 100px);";
 
 const MarkdownStyling = injectStyleSimple("markdown-styling", `
     max-width: 900px;
