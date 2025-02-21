@@ -693,7 +693,8 @@ export const Editor: React.FunctionComponent<{
             language: languageFromExtension(extensionFromPath(state.currentPath)),
             readOnly: props.readOnly,
             readOnlyMessage: {
-                value: null
+                // Note(Jonas): Setting this to null will not behave well, so this seems the best.
+                value: ""
             },
             minimap: {enabled: false},
             renderLineHighlight: "none",
@@ -704,7 +705,11 @@ export const Editor: React.FunctionComponent<{
             ...getEditorOptions(),
         });
 
-        setReadonlyWarning(editor);
+        editor.updateOptions({readOnly: props.readOnly});
+
+        if (props.readOnly) {
+            setReadonlyWarning(editor);
+        }
 
         setEditor(editor);
 
@@ -852,14 +857,16 @@ export const Editor: React.FunctionComponent<{
                 const preceedingPath = result.at(index - 1);
                 if (preceedingPath) {
                     openFile(preceedingPath, true);
+                } else {
+                    dispatch({type: "EditorActionOpenFile", path: ""});
                 }
             }
+
             const closed = tabs.closed;
             if (!closed.includes(path)) closed.push(path);
 
-            getModelFromEditor(path).dispose();
+            getModelFromEditor(path)?.dispose();
 
-            dispatch({type: "EditorActionOpenFile", path: ""});
             return {open: result, closed};
         });
     }, [state.currentPath]);
@@ -876,7 +883,8 @@ export const Editor: React.FunctionComponent<{
         // TODO(Jonas): Only handles closing window, not UCloud navigation 
         const anyDirty = dirtyFiles.size > 0;
         if (anyDirty) {
-            // Note(Jonas): Both should be done for best compatibility: https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
+            // Note(Jonas): Both should be done for best compatibility:
+            // https://developer.mozilla.org/en-US/docs/Web/API/BeforeUnloadEvent/returnValue
             e.preventDefault();
             e.returnValue = "truthy value";
             return e;
@@ -890,6 +898,7 @@ export const Editor: React.FunctionComponent<{
         /* TODO(Jonas): Ensure that the new path of the file opened matches the changed file contents of the original file path */
 
         const fileUpdated = await props.onRename(args);
+
         if (fileUpdated) {
             setTabs(tabs => {
                 const openTabs = tabs.open;
@@ -907,6 +916,20 @@ export const Editor: React.FunctionComponent<{
                 }
             });
         }
+
+
+        const oldModel = getModelFromEditor(args.oldAbsolutePath);
+        const editor = editorRef.current;
+        if (oldModel && editor) {
+            const newModel = monacoRef.current?.editor?.createModel(oldModel.getValue(), oldModel.getLanguageId(), Uri.file(args.newAbsolutePath));
+            if (editor.getModel()?.uri.path === Uri.file(args.oldAbsolutePath).path) {
+                editor.setModel(newModel);
+                openTab(args.newAbsolutePath);
+            }
+            oldModel.dispose();
+        }
+
+        invalidateTree(props.initialFolderPath);
     }, []);
 
     const setModelLanguage = React.useCallback((element: {
@@ -1545,13 +1568,13 @@ function setReadonlyWarning(editor: IStandaloneCodeEditor) {
     editor.onDidAttemptReadOnlyEdit(e => {
         addStandardDialog({
             title: "Enable editing?",
-            message: "Editing the file is disabled. Enable?",
+            message: "Editing files is disabled. This can be changed later in settings. Enable?",
             confirmText: "Enable",
             onConfirm() {
                 editor.updateOptions({readOnly: false});
                 setAllowEditing(true.toString());
             },
-            cancelText: "Ignore"
+            cancelText: "Dismiss"
         });
     });
 }

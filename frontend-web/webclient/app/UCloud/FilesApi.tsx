@@ -76,7 +76,6 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {useDispatch} from "react-redux";
 import {VirtualFile} from "@/Files/FileTree";
-import {edit} from "@/ui-components/icons";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -1292,11 +1291,6 @@ export function FilePreview({initialFile}: {
 
             vfs.moveFileContent(removeTrailingSlash(oldAbsolutePath), removeTrailingSlash(newAbsolutePath));
 
-            if (editorRef.current?.path === oldAbsolutePath) {
-                editorRef.current.openFile(newAbsolutePath);
-            }
-
-            await editorRef.current?.invalidateTree?.(getParentPath(newAbsolutePath));
             success = true;
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to rename file");
