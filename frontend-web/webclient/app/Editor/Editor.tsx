@@ -322,10 +322,11 @@ export function useMonaco(active: boolean): any {
     return monacoInstance;
 }
 
-const editorClass = injectStyle("editor", k => `
+const EditorClass = injectStyle("editor", k => `
     ${k} {
         display: flex;
         width: 100%;
+        max-width: 100%;
         height: 100%;
         --borderThickness: 2px;
     }
@@ -969,7 +970,7 @@ export const Editor: React.FunctionComponent<{
     // Current path === "", can we use this as empty/scratch space, or is this in use for Scripts/Workflows
     const showEditorHelp = tabs.open.length === 0;
 
-    return <div className={editorClass} onKeyDown={onKeyDown}>
+    return <div className={EditorClass} onKeyDown={onKeyDown}>
         <FileTree
             tree={tree}
             onTreeAction={onTreeAction}
@@ -986,7 +987,7 @@ export const Editor: React.FunctionComponent<{
 
         <div className={"main-content"}>
             {/* <div className="status-bar" /> */}
-            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: `calc(100vw - 250px - var(--sidebarWidth) - 20px)`}}>
+            <div className={"title-bar-code"} style={{minWidth: "400px", paddingRight: "12px", width: "100%"}}>
                 <div onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1069,10 +1070,10 @@ export const Editor: React.FunctionComponent<{
             </div>
             <div className={"panels"}>
                 {isSettingsOpen ?
-                    <Flex gap={"32px"} maxHeight="calc(100vh - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
+                    <Flex gap={"32px"} maxHeight="calc(100% - 64px)" flexDirection={"column"} margin={64} width={"100%"} height={"100%"}>
                         <MonacoEditorSettings editor={editor} setVimMode={setVimMode} />
                     </Flex> : null}
-                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100vh - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
+                {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
                     {showEditorHelp && props.help ? props.help : null}
                     <div style={{
@@ -1087,7 +1088,7 @@ export const Editor: React.FunctionComponent<{
                         display: props.showCustomContent ? "block" : "none",
                         width: "100%",
                         height: "100%",
-                        maxHeight: "calc(100vh - 64px)",
+                        maxHeight: "calc(100% - 64px)",
                         padding: "16px",
                         overflow: "auto",
                     }}>{props.customContent}</div>
