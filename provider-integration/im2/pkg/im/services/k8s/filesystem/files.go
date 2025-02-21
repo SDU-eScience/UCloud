@@ -211,6 +211,9 @@ func DoCreateFolder(internalPath string) error {
 		thisPerms := uint32(0)
 
 		newFd, err := unix.Openat(fd, components[i], opts, thisPerms)
+		if err == nil {
+			_ = unix.Fchown(newFd, DefaultUid, DefaultUid)
+		}
 		_ = unix.Close(fd)
 		fd = newFd
 		if err != nil {
@@ -401,8 +404,8 @@ func nativeStat(drive *orc.Drive, internalPath string, info os.FileInfo) orc.Pro
 			ModifiedAt:                   fnd.Timestamp{},
 			AccessedAt:                   fnd.Timestamp{},
 			UnixMode:                     0,
-			UnixOwner:                    11042,
-			UnixGroup:                    11042,
+			UnixOwner:                    DefaultUid,
+			UnixGroup:                    DefaultUid,
 		},
 		CreatedAt:         fnd.Timestamp{},
 		LegacySensitivity: "",
@@ -1110,3 +1113,5 @@ func createShare(share orc.Share) (driveId string, err error) {
 
 	return
 }
+
+const DefaultUid = 11042

@@ -756,8 +756,8 @@ function FileBrowse({opts}: {opts?: ResourceBrowserOpts<UFile> & AdditionalResou
                     const hasExt = !!extension;
                     const type = extension ? extensionType(extension.toLocaleLowerCase()) : "binary";
 
-                    const width = 64;
-                    const height = 64;
+                    const width = 60;
+                    const height = 60;
 
                     if (hint || isDirectory) {
                         let name: IconName;

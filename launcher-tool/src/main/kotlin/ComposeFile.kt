@@ -1488,6 +1488,10 @@ sealed class ComposeService {
                         reverse_proxy slurmpgweb:8081
                     }
                     
+                    https://go-k8s-metrics.localhost.direct {
+                        reverse_proxy gok8s:7867
+                    }
+                    
                     https://ipa.localhost.direct {
                         handle / {
                             redir https://ipa.localhost.direct/ipa/ui/

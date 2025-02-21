@@ -2,6 +2,7 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/pkg/util"
 )
 
 type ServicesConfigurationKubernetes struct {
@@ -13,6 +14,7 @@ type KubernetesFileSystem struct {
 	Name             string
 	MountPoint       string
 	TrashStagingArea string
+	ClaimName        string
 }
 
 type KubernetesWebConfiguration struct {
@@ -22,9 +24,10 @@ type KubernetesWebConfiguration struct {
 }
 
 type KubernetesCompute struct {
-	Machines  map[string]K8sMachineCategory
-	Namespace string
-	Web       KubernetesWebConfiguration
+	Machines                   map[string]K8sMachineCategory
+	Namespace                  string
+	Web                        KubernetesWebConfiguration
+	VirtualMachineStorageClass util.Option[string]
 }
 
 type K8sMachineCategory struct {
@@ -58,6 +61,7 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		cfg.FileSystem.Name = requireChildText(filePath, fsNode, "name", &success)
 		cfg.FileSystem.MountPoint = requireChildFolder(filePath, fsNode, "mountPoint", FileCheckReadWrite, &success)
 		cfg.FileSystem.TrashStagingArea = requireChildFolder(filePath, fsNode, "trashStagingArea", FileCheckReadWrite, &success)
+		cfg.FileSystem.ClaimName = requireChildText(filePath, fsNode, "claimName", &success)
 	}
 
 	computeNode := requireChild(filePath, services, "compute", &success)
@@ -144,6 +148,11 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			cfg.Compute.Web.Prefix = requireChildText(filePath, webNode, "prefix", &success)
 			cfg.Compute.Web.Suffix = requireChildText(filePath, webNode, "suffix", &success)
 		}
+	}
+
+	vmStorageClass := optionalChildText(filePath, computeNode, "virtualMachineStorageClass", &success)
+	if vmStorageClass != "" {
+		cfg.Compute.VirtualMachineStorageClass.Set(vmStorageClass)
 	}
 
 	return success, cfg

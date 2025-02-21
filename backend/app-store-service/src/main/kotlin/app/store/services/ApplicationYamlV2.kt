@@ -30,6 +30,7 @@ data class ApplicationYamlV2(
     @JsonSubTypes(
         JsonSubTypes.Type(value = NativeSoftware::class, name = "Native"),
         JsonSubTypes.Type(value = ContainerSoftware::class, name = "Container"),
+        JsonSubTypes.Type(value = VirtualMachineSoftware::class, name = "VirtualMachine"),
     )
     sealed class Software
 
@@ -40,6 +41,10 @@ data class ApplicationYamlV2(
     }
 
     data class ContainerSoftware(
+        val image: String,
+    ) : Software()
+
+    data class VirtualMachineSoftware(
         val image: String,
     ) : Software()
 
@@ -363,6 +368,29 @@ data class ApplicationYamlV2(
                         title = name,
                         description = "",
                         backend = ToolBackend.DOCKER,
+                        license = "",
+                        image = software.image,
+                        supportedProviders = null,
+                        loadInstructions = null,
+                    )
+                )
+            }
+
+            is VirtualMachineSoftware -> {
+                Tool(
+                    "_ucloud",
+                    Time.now(),
+                    Time.now(),
+                    NormalizedToolDescription(
+                        info = NameAndVersion(name, version),
+                        container = software.image,
+                        defaultNumberOfNodes = 1,
+                        defaultTimeAllocation = SimpleDuration(1, 0, 0),
+                        requiredModules = emptyList(),
+                        authors = listOf("UCloud"),
+                        title = name,
+                        description = "",
+                        backend = ToolBackend.VIRTUAL_MACHINE,
                         license = "",
                         image = software.image,
                         supportedProviders = null,

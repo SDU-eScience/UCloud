@@ -60,4 +60,5 @@ services:
     name: storage
     mountPoint: /mnt/storage
     trashStagingArea: /mnt/storage/trash
+    claimName: cephfs
 
