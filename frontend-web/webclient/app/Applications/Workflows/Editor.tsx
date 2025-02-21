@@ -158,6 +158,7 @@ const WorkflowEditor: React.FunctionComponent<{
                 }
             }
         })();
+        editorApi.current?.onFileSaved(name);
         savingRef.current = false;
     }, []);
 

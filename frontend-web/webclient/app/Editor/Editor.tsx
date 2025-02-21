@@ -349,7 +349,6 @@ const EditorClass = injectStyle("editor", k => `
         border-bottom: var(--borderThickness) solid var(--borderColor);
     }
     
-
     ${k} .panels {
         display: flex;
         width: 100%;
@@ -370,6 +369,7 @@ export interface EditorApi {
     notifyDirtyBuffer: () => Promise<void>;
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
+    onFileSaved: (path: string) => void;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -396,6 +396,7 @@ export const Editor: React.FunctionComponent<{
     readOnly: boolean;
 }> = props => {
     const [activeSyntax, setActiveSyntax] = React.useState("");
+    const savedAtAltVersionId = React.useRef<Record<string, number>>({});
     const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
     const [engine, setEngine] = useState<EditorEngine>(localStorage.getItem("editor-engine") as EditorEngine ?? "monaco");
     const [state, dispatch] = useReducer(singleEditorReducer, 0, () => defaultEditor(props.vfs, props.title, props.initialFolderPath, props.initialFilePath));
@@ -410,20 +411,6 @@ export const Editor: React.FunctionComponent<{
     });
 
     const [dirtyFiles, setDirtyFiles] = React.useState<Set<string>>(new Set());
-
-    React.useEffect(() => {
-        /* Note(Jonas): Find dirty files/models in the editors stored models  */
-        if (monacoInstance) {
-            const existingDirtyFiles = new Set<string>();
-            for (const m of monacoInstance.editor.getModels().filter(it => it.uri.scheme === "file")) {
-                if (m.getAlternativeVersionId() > 1) {
-                    existingDirtyFiles.add(m.uri.path);
-                }
-            }
-            if (existingDirtyFiles.size) setDirtyFiles(existingDirtyFiles);
-        }
-    }, [monacoInstance]);
-
 
     const prettyPath = usePrettyFilePath(state.currentPath, !props.vfs.isReal());
     if (state.currentPath === SETTINGS_PATH) {
@@ -500,7 +487,7 @@ export const Editor: React.FunctionComponent<{
 
                     model.onDidChangeContent(e => {
                         const altId = model.getAlternativeVersionId();
-                        if (altId === 1) {
+                        if (altId === (savedAtAltVersionId.current[name] ?? 1)) {
                             setDirtyFiles(f => {
                                 f.delete(name);
                                 return new Set([...f]);
@@ -532,7 +519,7 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const getModelFromEditor = React.useCallback((path: string) => {
+    const getModelFromEditor = React.useCallback((path: string): editor.ITextModel | null => {
         return monacoRef.current?.editor.getModel(Uri.file(path));
     }, []);
 
@@ -646,6 +633,21 @@ export const Editor: React.FunctionComponent<{
         dispatch({type: "EditorActionFilesLoaded", path: folder, files});
     }, [props.vfs]);
 
+    const onFileSaved = React.useCallback((path: string) => {
+        const model = getModelFromEditor(path);
+        if (model) {
+            savedAtAltVersionId.current[path] = model.getAlternativeVersionId();
+            setDirtyFiles(dirtyFiles => {
+                if (dirtyFiles.has(path)) dirtyFiles.delete(path);
+                return new Set([...dirtyFiles]);
+            });
+        }
+    }, []);
+
+    const anyFileDirty = React.useCallback(() => {
+        return dirtyFiles.size;
+    }, [dirtyFiles]);
+
     const api: EditorApi = useMemo(() => {
         return {
             path: state.currentPath,
@@ -654,8 +656,11 @@ export const Editor: React.FunctionComponent<{
                 openTab(path)
             },
             invalidateTree,
+            onFileSaved,
+            anyFileDirty,
         }
     }, []);
+
 
     useEffect(() => {
         if (props.apiRef) props.apiRef.current = api;

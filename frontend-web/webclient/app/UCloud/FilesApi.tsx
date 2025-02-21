@@ -1165,6 +1165,8 @@ export function FilePreview({initialFile}: {
         await editor.notifyDirtyBuffer();
         await vfs.writeFile(editor.path);
 
+        editor.onFileSaved(editor.path);
+
         snackbarStore.addSuccess("File has been saved", false, 800);
     }, [vfs]);
 
