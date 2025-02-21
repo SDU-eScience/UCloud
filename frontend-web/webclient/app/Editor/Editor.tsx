@@ -370,6 +370,7 @@ export interface EditorApi {
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
     onFileSaved: (path: string) => void;
+    anyFileDirty: () => boolean;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -644,8 +645,8 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const anyFileDirty = React.useCallback(() => {
-        return dirtyFiles.size;
+    const anyFileDirty = React.useCallback((): boolean => {
+        return dirtyFiles.size > 0;
     }, [dirtyFiles]);
 
     const api: EditorApi = useMemo(() => {
