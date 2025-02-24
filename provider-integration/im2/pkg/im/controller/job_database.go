@@ -220,10 +220,13 @@ func (b *JobUpdateBatch) AddUpdate(update orc.ResourceUpdateAndId[orc.JobUpdate]
 }
 
 func (b *JobUpdateBatch) TrackState(jobId string, state orc.JobState, status util.Option[string]) bool {
+	log.Info("TrackState %v %v", jobId, state)
+
 	b.trackedDirtyStates[jobId] = state
 
 	currentJob, ok := activeJobs[jobId]
 	if ok && currentJob.Status.State != state {
+		log.Info("Yes %v %v.", jobId, state)
 		message := ""
 		if status.IsSet() {
 			message = status.Get()

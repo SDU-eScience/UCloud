@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/pkg/im/services/k8s/containers"
 	"ucloud.dk/pkg/im/services/k8s/kubevirt"
 	"ucloud.dk/pkg/im/services/k8s/shared"
+	"ucloud.dk/pkg/log"
 	orc "ucloud.dk/pkg/orchestrators"
 	"ucloud.dk/pkg/util"
 )
@@ -72,28 +73,33 @@ func (t *jobTracker) AddUpdate(id string, update orc.JobUpdate) {
 func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 	job, ok := t.jobs[state.Id]
 	if !ok {
+		log.Info("Unknown job with TrackState: %v", state.Id)
 		return false
 	}
 
 	sched, ok := getSchedulerByJob(job)
 	if !ok {
+		log.Info("Unknown scheduler for job: %v", state.Id)
 		return false
 	}
+
+	log.Info("Preconditions passed")
 
 	gang, ok := t.gangs[state.Id]
 	if !ok {
 		gang.replicaState = map[int]shared.JobReplicaState{}
 		t.gangs[state.Id] = gang
+		log.Info("New gang")
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {
 		sched.RegisterRunningReplica(state.Id, state.Rank, jobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
-
-		gang.replicaState[state.Rank] = state
 	}
 
-	if len(gang.replicaState) == job.Specification.Replicas {
+	gang.replicaState[state.Rank] = state
+
+	if len(gang.replicaState) >= job.Specification.Replicas {
 		var allNodes []string
 		reportNodes := true
 

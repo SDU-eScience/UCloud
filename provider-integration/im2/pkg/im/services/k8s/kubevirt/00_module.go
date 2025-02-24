@@ -699,7 +699,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		},
 	)
 
-	_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, metav1.CreateOptions{})
+	if existingVm != nil {
+		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, metav1.UpdateOptions{})
+	} else {
+		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, metav1.CreateOptions{})
+	}
 	if err != nil {
 		// TODO
 		// TODO
