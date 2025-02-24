@@ -7,13 +7,13 @@ import {bulkRequestOf, isLightThemeStored} from "@/UtilityFunctions";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useNavigate} from "react-router";
-import {ProductV2, ProductV2Compute} from "@/Accounting";
+import {browseWalletsV2, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as UCloud from "@/UCloud";
 import {displayErrorMessageOrDefault, joinToString} from "@/UtilityFunctions";
 import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/Widgets/Machines";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
-import {callAPI as baseCallAPI} from "@/Authentication/DataHook";
+import {callAPI as baseCallAPI, callAPI} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {
     ResourceBrowser,
@@ -37,8 +37,9 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     const navigate = useNavigate();
     const supportRef = React.useRef<ResolvedSupport[]>([]);
     const productsRef = React.useRef<ProductV2Compute[]>([]);
-    const walletsRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2)
+    const productComputeRef = React.useRef<UCloud.PageV2<ProductV2Compute>>(emptyPageV2);
     const machineSupportRef = React.useRef<compute.JobsRetrieveProductsResponse>();
+    const walletsRef = React.useRef<WalletV2[]>([]);
 
     const activeProject = React.useRef(Client.projectId);
 
@@ -103,7 +104,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                                 );
 
                                 productsRef.current = !resolvedApplication ? [] :
-                                    findRelevantMachinesForApplication(resolvedApplication, machineSupportRef.current!, walletsRef.current);
+                                    findRelevantMachinesForApplication(resolvedApplication, machineSupportRef.current!, productComputeRef.current.items, walletsRef.current);
 
                                 setSelectedApp(entry)
                             } catch (error) {
@@ -232,8 +233,9 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     </div>;
 
     function fetchInfo() {
-        walletsRef.current = emptyPageV2;
+        productComputeRef.current = emptyPageV2;
         machineSupportRef.current = {productsByProvider: {}};
+        walletsRef.current = [];
         supportRef.current = [];
 
         callAPI(UCloud.accounting.products.browse({
@@ -243,7 +245,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
             includeBalance: true,
             includeMaxBalance: true
         })).then((products) => {
-            walletsRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
+            productComputeRef.current = products as unknown as UCloud.PageV2<ProductV2Compute>;
 
             const providers = new Set(products.items.map(it => it.category.provider));
 
@@ -263,7 +265,22 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch support."));
             }
         }).catch(err => displayErrorMessageOrDefault(err, "Failed to fetch products."));
+
+        fetchWallets().then(wallets => walletsRef.current = wallets);
     }
+}
+
+async function fetchWallets(next?: string): Promise<WalletV2[]> {
+    const result = await callAPI(browseWalletsV2({
+        itemsPerPage: 250,
+        next 
+    }));
+
+    if (result.next) {
+        return result.items.concat(await fetchWallets(result.next));
+    }
+
+    return result.items;
 }
 
 function isActiveProject(projectId: string | undefined) {
