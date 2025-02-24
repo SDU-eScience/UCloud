@@ -197,7 +197,7 @@ class AccountingSystem(
                             processPeriodicTasks()
 
                             toCheck.clear()
-                            val timeoutTime = 300000L
+                            val timeoutTime = 2000L
                             waitingOn = ""
                             var response = try {
                                 withHardTimeout(timeoutTime, { request.message.toString() + "\nWaiting on:" + waitingOn }) {
