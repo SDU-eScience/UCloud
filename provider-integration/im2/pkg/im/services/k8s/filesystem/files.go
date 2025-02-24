@@ -92,6 +92,10 @@ func OpenFile(path string, mode int, perm uint32) (*os.File, bool) {
 		}
 	}
 
+	if mode&unix.O_CREAT != 0 && (mode&unix.O_WRONLY != 0 || mode&unix.O_RDWR != 0) {
+		_ = unix.Fchown(fd, DefaultUid, DefaultUid)
+	}
+
 	return os.NewFile(uintptr(fd), components[componentsLength-1]), true
 }
 
@@ -205,13 +209,14 @@ func DoCreateFolder(internalPath string) error {
 	}
 
 	for i := 1; i < componentsLength; i++ {
-		_ = unix.Mkdirat(fd, components[i], 0770)
+		err = unix.Mkdirat(fd, components[i], 0770)
+		didCreate := err == nil
 
 		opts := unix.O_NOFOLLOW
 		thisPerms := uint32(0)
 
 		newFd, err := unix.Openat(fd, components[i], opts, thisPerms)
-		if err == nil {
+		if err == nil && didCreate {
 			_ = unix.Fchown(newFd, DefaultUid, DefaultUid)
 		}
 		_ = unix.Close(fd)
