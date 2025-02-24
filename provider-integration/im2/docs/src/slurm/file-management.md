@@ -42,10 +42,13 @@ will run as the real local identity. This also means that all filesystem permiss
 normal permission model. Thus, if `Donna#1234` has a local identity of `donna01` then all files created by her will be
 owned by `donna01`. She will also only be able to access files she has the appropriate permissions for.
 
-To ensure proper file permissions when collaborating, the UCloud/IM instance will always create files using a `umask`
-value of `0007`. This ensures that the group (i.e. the rest of the project) will be able any newly created files.
-UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be enforced. For
-managed providers, UCloud/IM will recommend an owner, group and permissions for all drives, these are as follows:
+To ensure proper file permissions when collaborating, the UCloud/IM instance will always create 
+files using a `umask` value of `0007`. This ensures that the group (i.e. the rest of the project) 
+will be able to access any newly created files.
+
+UCloud/IM does not make any attempts to modify file ACLs, but any ACLs set manually will be 
+enforced. For managed providers, UCloud/IM will recommend an owner, group and permissions for all 
+drives, these are as follows:
 
 <figure>
 
@@ -189,7 +192,7 @@ separate resource allocations.
 
 | Entity             | Variable          | Description                                                                |
 |--------------------|-------------------|----------------------------------------------------------------------------|
-| _Always available_ | `locatorName`     | The name of the drive locator (e.g. `home` or `project`)                   |
+| _Always available_ | `locatorName`     | The name of the drive locator (e.g. `home` or `projects`)                  |
 | _Always available_ | `categoryName`    | The name of the product category (e.g. `hpc-storage` or `archive`)         |
 | `User`             | `ucloudUsername`  | The username of the UCloud identity (e.g. `Donna#1234`)                    |
 | `User`             | `localUsername`   | The username of the local identity (e.g. `donna03`)                        |

@@ -44,7 +44,8 @@ In order to follow along with this document you also need:
 <div data-title="RHEL" data-icon="fa-brands fa-redhat">
 
 RPM packages for RHEL are automatically built. You can download the latest RPM package
-[here](https://github.com/sdu-escience/ucloud/releases). Once you have downloaded the package, you can install it with
+[here](https://github.com/sdu-escience/ucloud/releases/latest). Once you have downloaded the 
+package, you can install it with
 the following command:
 
 TODO Consider if this installation script should enforce a cgroup on user instances since this might limit abuse of
@@ -66,13 +67,51 @@ UCloud/IM 2024.1.0
 
 <div data-title="Ubuntu" data-icon="fa-brands fa-ubuntu">
 
-Ubuntu instructions **go here**.
+**TODO** Not available yet.
 
 </div>
 
-<div data-title="Manual" data-icon="fa-brands fa-golang">
+<div data-title="Pre-compiled binaries" data-icon="fa-brands fa-golang">
 
-Manual instructions **go here**.
+**TODO** Not available yet.
+
+An executable binary of the UCloud Integration Module is available for download 
+[here](https://github.com/sdu-escience/ucloud/releases/latest).
+
+ 1. Download the archive containing the binary for your platform.
+ 2. Extract the binary and place it somwhere in your `PATH` (e.g. `/usr/bin`).
+</div>
+
+
+<div data-title="Building from source" data-icon="fa-brands fa-golang">
+
+The UCloud Integration Module is written in the [Go](https://go.dev) programming language, and can 
+be build from source with a compatible version of the Go compiler.
+
+Installation instructions can be found [here](https://go.dev/doc/install).
+
+The latest source for the UCloud Integration Module can be downloaded from
+[here](https://github.com/sdu-escience/ucloud/releases/latest).
+
+To build:
+
+ 1. Extract the source directory and change to the `provider-integration/im2` directory, i.e:
+
+    ```terminal
+    $ cd $UCLOUD_DIRECTORY/provider-integration/im2
+    ```
+
+    where `$UCLOUD_DIRECTORY` is the name of the extracted directory.
+
+ 2. To build the executable, run
+
+    ```terminal
+    $ ./build.sh
+    ```
+
+ 3. The UCloud Integration Module binary will be located in `bin/im` when compilation has finished. 
+    Rename this to `ucloud` and place somewhere in you `PATH` (e.g. `/usr/bin`).
+
 
 </div>
 
@@ -91,8 +130,9 @@ should aim to re-use this file.
 </div>
 </div>
 
-Before you can start UCloud/IM, you must register as a service provider. This is only needs to be done once. You may
-receive a test provider in UCloud's sandbox environment by contacting the [support team](https://servicedesk.cloud.sdu.dk).
+Before you can start UCloud/IM, you must register as a service provider. This only needs to be done 
+once. You may receive a test provider in UCloud's sandbox environment by contacting the [support 
+team](https://servicedesk.cloud.sdu.dk).
 
 <!--
 
@@ -238,7 +278,7 @@ configuration bootstrap procedure.
 <figcaption>
 
 The `/work` folder has appeared inside UCloud. This is the same folder which was configured during the bootstrapping
-process. Depending on the folder(s) you chose, you might see something different.
+process (TODO where??). Depending on the folder(s) you chose, you might see something different.
 
 </figcaption>
 </figure>

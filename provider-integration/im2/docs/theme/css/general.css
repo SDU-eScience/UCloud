@@ -24,6 +24,7 @@ code {
     font-family: var(--mono-font) !important;
     font-size: var(--code-font-size);
     direction: ltr !important;
+    overflow-x: auto;
 }
 
 /* make long words/inline code not x overflow */
@@ -83,6 +84,9 @@ h6:target::before {
 .page {
     outline: 0;
     padding: var(--page-padding);
+    max-width: var(--content-max-width);
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .content {
@@ -104,7 +108,6 @@ h6:target::before {
 .content .header:visited:hover {
     text-decoration: none;
 }
-
 /* TABLE */
 .table-wrapper {
     border: var(--border);
@@ -192,6 +195,11 @@ tr p:last-child {
     counter-increment: section;
     list-style: none;
     position: relative;
+    margin: 0.5em 0;
+}
+
+.content ul > li {
+    margin: 0.5em 0;
 }
 
 .content ol > li::before {
@@ -343,15 +351,17 @@ html.dark .content figure img.light {
 }
 
 .content figure figcaption {
-    max-width: 800px;
+    max-width: 600px;
 }
 
 .info-box {
     padding: 16px;
     border-left: 5px solid var(--info-box-border, black);
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     margin: 16px 0;
+    gap: 20px;
+    align-items: center;
 }
 
 .info-box i {
