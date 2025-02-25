@@ -1330,6 +1330,20 @@ const IconHoverBlockClass = injectStyle("icon-hover-block", k => `
     }
 `);
 
+const StatusBar = injectStyle("status-bar", k => `
+    ${k} {
+        height: 24px;
+        left: calc(var(--currentSidebarWidth) + 250px);
+        width: 100%;
+        background-color: var(--primaryMain);
+    }
+
+    ${k} input {
+        background: transparent;
+        border: none;
+    }
+`);
+
 const EditorTabClass = injectStyle("editor-tab-class", k => `
     ${k} {
         height: 32px;
