@@ -83,13 +83,10 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 		return false
 	}
 
-	log.Info("Preconditions passed")
-
 	gang, ok := t.gangs[state.Id]
 	if !ok {
 		gang.replicaState = map[int]shared.JobReplicaState{}
 		t.gangs[state.Id] = gang
-		log.Info("New gang")
 	}
 
 	if state.State == orc.JobStateRunning && state.Node.Present {

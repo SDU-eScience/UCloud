@@ -480,6 +480,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 
 	nameOfVm := vmName(job.Id, rank)
 	existingVm, err := KubevirtClient.VirtualMachine(Namespace).Get(context.TODO(), nameOfVm, metav1.GetOptions{})
+	hasExistingVm := err == nil
 
 	vm := &kvcore.VirtualMachine{}
 	vm.Annotations = make(map[string]string)
@@ -699,7 +700,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) {
 		},
 	)
 
-	if existingVm != nil {
+	if hasExistingVm {
 		_, err = KubevirtClient.VirtualMachine(Namespace).Update(context.TODO(), vm, metav1.UpdateOptions{})
 	} else {
 		_, err = KubevirtClient.VirtualMachine(Namespace).Create(context.TODO(), vm, metav1.CreateOptions{})
