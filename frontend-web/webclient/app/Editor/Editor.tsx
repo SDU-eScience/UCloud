@@ -370,7 +370,6 @@ export interface EditorApi {
     openFile: (path: string) => void;
     invalidateTree: (path: string) => Promise<void>;
     onFileSaved: (path: string) => void;
-    anyFileDirty: () => boolean;
 }
 
 const SETTINGS_PATH = "xXx__/SETTINGS\\__xXx";
@@ -396,6 +395,8 @@ export const Editor: React.FunctionComponent<{
     onRename?: (args: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}) => Promise<boolean>;
     readOnly: boolean;
 }> = props => {
+
+    const help = props.help ?? <></>;
     const [activeSyntax, setActiveSyntax] = React.useState("");
     const savedAtAltVersionId = React.useRef<Record<string, number>>({});
     const [languageList, setLanguageList] = React.useState(getLanguageList().map(l => ({language: l.language, displayName: toDisplayName(l.language)})));
@@ -645,10 +646,6 @@ export const Editor: React.FunctionComponent<{
         }
     }, []);
 
-    const anyFileDirty = React.useCallback((): boolean => {
-        return dirtyFiles.size > 0;
-    }, [dirtyFiles]);
-
     const api: EditorApi = useMemo(() => {
         return {
             path: state.currentPath,
@@ -658,7 +655,6 @@ export const Editor: React.FunctionComponent<{
             },
             invalidateTree,
             onFileSaved,
-            anyFileDirty,
         }
     }, []);
 
@@ -907,6 +903,20 @@ export const Editor: React.FunctionComponent<{
         const fileUpdated = await props.onRename(args);
 
         if (fileUpdated) {
+
+            setDirtyFiles(files => {
+                if (files.has(args.oldAbsolutePath)) {
+                    files.delete(args.oldAbsolutePath);
+                    files.add(args.newAbsolutePath);
+                    return new Set([...files]);
+                }
+                return files;
+            });
+
+            savedAtAltVersionId.current[args.newAbsolutePath] = savedAtAltVersionId.current[args.oldAbsolutePath];
+            delete savedAtAltVersionId.current[args.oldAbsolutePath];
+
+
             setTabs(tabs => {
                 const openTabs = tabs.open;
                 const closedTabs = tabs.closed;
@@ -928,6 +938,10 @@ export const Editor: React.FunctionComponent<{
         const oldModel = getModelFromEditor(args.oldAbsolutePath);
         const editor = editorRef.current;
         if (oldModel && editor) {
+            /* Note(Jonas): There's no way to rename and existing model with a new uri, which is exactly what we would want here.
+                So we copy the contents and langauge id, but we lose undo/redo-stack, sadly.
+                https://github.com/microsoft/monaco-editor/discussions/3751
+            */
             const newModel = monacoRef.current?.editor?.createModel(oldModel.getValue(), oldModel.getLanguageId(), Uri.file(args.newAbsolutePath));
             if (editor.getModel()?.uri.path === Uri.file(args.oldAbsolutePath).path) {
                 editor.setModel(newModel);
@@ -1081,9 +1095,9 @@ export const Editor: React.FunctionComponent<{
                     </Flex> : null}
                 {isReleaseNotesOpen ? <Box p="18px" maxHeight="calc(100% - 64px)"><Markdown children={EditorReleaseNotes} /></Box> : null}
                 <>
-                    {showEditorHelp && props.help ? props.help : null}
+                    {showEditorHelp ? help : null}
                     <div style={{
-                        display: props.showCustomContent || (showEditorHelp && props.help) || settingsOrReleaseNotesOpen ? "none" : "block",
+                        display: props.showCustomContent || showEditorHelp || settingsOrReleaseNotesOpen ? "none" : "block",
                         width: "100%",
                         height: "100%",
                     }}>
@@ -1581,7 +1595,8 @@ function setReadonlyWarning(editor: IStandaloneCodeEditor) {
                 editor.updateOptions({readOnly: false});
                 setAllowEditing(true.toString());
             },
-            cancelText: "Dismiss"
+            cancelText: "Dismiss",
+            addToFront: true,
         });
     });
 }

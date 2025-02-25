@@ -65,6 +65,11 @@ export const defaultModalStyle: ReactModal.Styles = {
         left: `calc(50vw - 450px)`,
         outline: "none",
         overflow: "auto",
+        zIndex: 101, /* Note(Jonas):
+            To handle React Modals with dialogs on top.
+            Ideally, only one modal/dialog should exist at any given time, but it isn't feasible for some cases currently (e.g.)
+                - Scripts editor with pop-ups for unsaved changes and allow editing after specifically disabling editing.
+        */
     },
     overlay: {
         backgroundColor: "var(--modalShadow)"
