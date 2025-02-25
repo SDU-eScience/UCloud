@@ -687,7 +687,7 @@ export const Editor: React.FunctionComponent<{
         });
 
         // Register a new Jinja2 language
-        m.languages.register({id: 'jinja2'});
+        m.languages.register({id: "jinja2"});
 
         // Define the syntax highlighting rules for Jinja2
         m.languages.setMonarchTokensProvider('jinja2', jinja2monarchTokens);
@@ -735,7 +735,7 @@ export const Editor: React.FunctionComponent<{
         return () => {
             window.clearTimeout(timer);
         };
-    }, [isSettingsOpen]);
+    }, [state.sidebar.root]);
 
     const setVimMode = React.useCallback((active: boolean) => {
         setVimModeObject(vimModeObject => {
